@@ -138,8 +138,8 @@ func (f *combineFn) CreateAccumulator() accum {
 }
 
 func (f *combineFn) AddInput(a accum, val beam.T) accum {
-	t := f.Less.Fn.Type().In(0)                                              // == underlying type, A
-	ret := append(a.list, exec.Convert(reflect.ValueOf(val), t).Interface()) // unwrap T
+	t := f.Less.Fn.Type().In(0)                 // == underlying type, A
+	ret := append(a.list, exec.Convert(val, t)) // unwrap T
 	return f.trim(ret)
 }
 

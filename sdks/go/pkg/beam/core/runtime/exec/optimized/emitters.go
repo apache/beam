@@ -1042,7 +1042,7 @@ func init() {
 
 type emitNative struct {
 	n  exec.ElementProcessor
-	fn reflect.Value
+	fn interface{}
 
 	ctx context.Context
 	et  typex.EventTime
@@ -1054,18 +1054,18 @@ func (e *emitNative) Init(ctx context.Context, et typex.EventTime) error {
 	return nil
 }
 
-func (e *emitNative) Value() reflect.Value {
+func (e *emitNative) Value() interface{} {
 	return e.fn
 }
 
 func emitMakerByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSlice)
+	ret.fn = ret.invokeByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeByteSlice(elm []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1073,12 +1073,12 @@ func (e *emitNative) invokeByteSlice(elm []byte) {
 
 func emitMakerETByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSlice)
+	ret.fn = ret.invokeETByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETByteSlice(t typex.EventTime, elm []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1086,12 +1086,12 @@ func (e *emitNative) invokeETByteSlice(t typex.EventTime, elm []byte) {
 
 func emitMakerByteSliceByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceByteSlice)
+	ret.fn = ret.invokeByteSliceByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceByteSlice(key []byte, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1099,12 +1099,12 @@ func (e *emitNative) invokeByteSliceByteSlice(key []byte, val []byte) {
 
 func emitMakerETByteSliceByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceByteSlice)
+	ret.fn = ret.invokeETByteSliceByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceByteSlice(t typex.EventTime, key []byte, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1112,12 +1112,12 @@ func (e *emitNative) invokeETByteSliceByteSlice(t typex.EventTime, key []byte, v
 
 func emitMakerByteSliceBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceBool)
+	ret.fn = ret.invokeByteSliceBool
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceBool(key []byte, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1125,12 +1125,12 @@ func (e *emitNative) invokeByteSliceBool(key []byte, val bool) {
 
 func emitMakerETByteSliceBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceBool)
+	ret.fn = ret.invokeETByteSliceBool
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceBool(t typex.EventTime, key []byte, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1138,12 +1138,12 @@ func (e *emitNative) invokeETByteSliceBool(t typex.EventTime, key []byte, val bo
 
 func emitMakerByteSliceString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceString)
+	ret.fn = ret.invokeByteSliceString
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceString(key []byte, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1151,12 +1151,12 @@ func (e *emitNative) invokeByteSliceString(key []byte, val string) {
 
 func emitMakerETByteSliceString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceString)
+	ret.fn = ret.invokeETByteSliceString
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceString(t typex.EventTime, key []byte, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1164,12 +1164,12 @@ func (e *emitNative) invokeETByteSliceString(t typex.EventTime, key []byte, val 
 
 func emitMakerByteSliceInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceInt)
+	ret.fn = ret.invokeByteSliceInt
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceInt(key []byte, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1177,12 +1177,12 @@ func (e *emitNative) invokeByteSliceInt(key []byte, val int) {
 
 func emitMakerETByteSliceInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceInt)
+	ret.fn = ret.invokeETByteSliceInt
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceInt(t typex.EventTime, key []byte, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1190,12 +1190,12 @@ func (e *emitNative) invokeETByteSliceInt(t typex.EventTime, key []byte, val int
 
 func emitMakerByteSliceInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceInt8)
+	ret.fn = ret.invokeByteSliceInt8
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceInt8(key []byte, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1203,12 +1203,12 @@ func (e *emitNative) invokeByteSliceInt8(key []byte, val int8) {
 
 func emitMakerETByteSliceInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceInt8)
+	ret.fn = ret.invokeETByteSliceInt8
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceInt8(t typex.EventTime, key []byte, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1216,12 +1216,12 @@ func (e *emitNative) invokeETByteSliceInt8(t typex.EventTime, key []byte, val in
 
 func emitMakerByteSliceInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceInt16)
+	ret.fn = ret.invokeByteSliceInt16
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceInt16(key []byte, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1229,12 +1229,12 @@ func (e *emitNative) invokeByteSliceInt16(key []byte, val int16) {
 
 func emitMakerETByteSliceInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceInt16)
+	ret.fn = ret.invokeETByteSliceInt16
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceInt16(t typex.EventTime, key []byte, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1242,12 +1242,12 @@ func (e *emitNative) invokeETByteSliceInt16(t typex.EventTime, key []byte, val i
 
 func emitMakerByteSliceInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceInt32)
+	ret.fn = ret.invokeByteSliceInt32
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceInt32(key []byte, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1255,12 +1255,12 @@ func (e *emitNative) invokeByteSliceInt32(key []byte, val int32) {
 
 func emitMakerETByteSliceInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceInt32)
+	ret.fn = ret.invokeETByteSliceInt32
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceInt32(t typex.EventTime, key []byte, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1268,12 +1268,12 @@ func (e *emitNative) invokeETByteSliceInt32(t typex.EventTime, key []byte, val i
 
 func emitMakerByteSliceInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceInt64)
+	ret.fn = ret.invokeByteSliceInt64
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceInt64(key []byte, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1281,12 +1281,12 @@ func (e *emitNative) invokeByteSliceInt64(key []byte, val int64) {
 
 func emitMakerETByteSliceInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceInt64)
+	ret.fn = ret.invokeETByteSliceInt64
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceInt64(t typex.EventTime, key []byte, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1294,12 +1294,12 @@ func (e *emitNative) invokeETByteSliceInt64(t typex.EventTime, key []byte, val i
 
 func emitMakerByteSliceUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceUint)
+	ret.fn = ret.invokeByteSliceUint
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceUint(key []byte, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1307,12 +1307,12 @@ func (e *emitNative) invokeByteSliceUint(key []byte, val uint) {
 
 func emitMakerETByteSliceUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceUint)
+	ret.fn = ret.invokeETByteSliceUint
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceUint(t typex.EventTime, key []byte, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1320,12 +1320,12 @@ func (e *emitNative) invokeETByteSliceUint(t typex.EventTime, key []byte, val ui
 
 func emitMakerByteSliceUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceUint8)
+	ret.fn = ret.invokeByteSliceUint8
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceUint8(key []byte, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1333,12 +1333,12 @@ func (e *emitNative) invokeByteSliceUint8(key []byte, val uint8) {
 
 func emitMakerETByteSliceUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceUint8)
+	ret.fn = ret.invokeETByteSliceUint8
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceUint8(t typex.EventTime, key []byte, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1346,12 +1346,12 @@ func (e *emitNative) invokeETByteSliceUint8(t typex.EventTime, key []byte, val u
 
 func emitMakerByteSliceUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceUint16)
+	ret.fn = ret.invokeByteSliceUint16
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceUint16(key []byte, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1359,12 +1359,12 @@ func (e *emitNative) invokeByteSliceUint16(key []byte, val uint16) {
 
 func emitMakerETByteSliceUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceUint16)
+	ret.fn = ret.invokeETByteSliceUint16
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceUint16(t typex.EventTime, key []byte, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1372,12 +1372,12 @@ func (e *emitNative) invokeETByteSliceUint16(t typex.EventTime, key []byte, val 
 
 func emitMakerByteSliceUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceUint32)
+	ret.fn = ret.invokeByteSliceUint32
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceUint32(key []byte, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1385,12 +1385,12 @@ func (e *emitNative) invokeByteSliceUint32(key []byte, val uint32) {
 
 func emitMakerETByteSliceUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceUint32)
+	ret.fn = ret.invokeETByteSliceUint32
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceUint32(t typex.EventTime, key []byte, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1398,12 +1398,12 @@ func (e *emitNative) invokeETByteSliceUint32(t typex.EventTime, key []byte, val 
 
 func emitMakerByteSliceUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceUint64)
+	ret.fn = ret.invokeByteSliceUint64
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceUint64(key []byte, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1411,12 +1411,12 @@ func (e *emitNative) invokeByteSliceUint64(key []byte, val uint64) {
 
 func emitMakerETByteSliceUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceUint64)
+	ret.fn = ret.invokeETByteSliceUint64
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceUint64(t typex.EventTime, key []byte, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1424,12 +1424,12 @@ func (e *emitNative) invokeETByteSliceUint64(t typex.EventTime, key []byte, val 
 
 func emitMakerByteSliceFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceFloat32)
+	ret.fn = ret.invokeByteSliceFloat32
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceFloat32(key []byte, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1437,12 +1437,12 @@ func (e *emitNative) invokeByteSliceFloat32(key []byte, val float32) {
 
 func emitMakerETByteSliceFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceFloat32)
+	ret.fn = ret.invokeETByteSliceFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceFloat32(t typex.EventTime, key []byte, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1450,12 +1450,12 @@ func (e *emitNative) invokeETByteSliceFloat32(t typex.EventTime, key []byte, val
 
 func emitMakerByteSliceFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceFloat64)
+	ret.fn = ret.invokeByteSliceFloat64
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceFloat64(key []byte, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1463,12 +1463,12 @@ func (e *emitNative) invokeByteSliceFloat64(key []byte, val float64) {
 
 func emitMakerETByteSliceFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceFloat64)
+	ret.fn = ret.invokeETByteSliceFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceFloat64(t typex.EventTime, key []byte, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1476,12 +1476,12 @@ func (e *emitNative) invokeETByteSliceFloat64(t typex.EventTime, key []byte, val
 
 func emitMakerByteSliceTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceTypex_T)
+	ret.fn = ret.invokeByteSliceTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceTypex_T(key []byte, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1489,12 +1489,12 @@ func (e *emitNative) invokeByteSliceTypex_T(key []byte, val typex.T) {
 
 func emitMakerETByteSliceTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceTypex_T)
+	ret.fn = ret.invokeETByteSliceTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceTypex_T(t typex.EventTime, key []byte, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1502,12 +1502,12 @@ func (e *emitNative) invokeETByteSliceTypex_T(t typex.EventTime, key []byte, val
 
 func emitMakerByteSliceTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceTypex_U)
+	ret.fn = ret.invokeByteSliceTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceTypex_U(key []byte, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1515,12 +1515,12 @@ func (e *emitNative) invokeByteSliceTypex_U(key []byte, val typex.U) {
 
 func emitMakerETByteSliceTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceTypex_U)
+	ret.fn = ret.invokeETByteSliceTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceTypex_U(t typex.EventTime, key []byte, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1528,12 +1528,12 @@ func (e *emitNative) invokeETByteSliceTypex_U(t typex.EventTime, key []byte, val
 
 func emitMakerByteSliceTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceTypex_V)
+	ret.fn = ret.invokeByteSliceTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceTypex_V(key []byte, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1541,12 +1541,12 @@ func (e *emitNative) invokeByteSliceTypex_V(key []byte, val typex.V) {
 
 func emitMakerETByteSliceTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceTypex_V)
+	ret.fn = ret.invokeETByteSliceTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceTypex_V(t typex.EventTime, key []byte, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1554,12 +1554,12 @@ func (e *emitNative) invokeETByteSliceTypex_V(t typex.EventTime, key []byte, val
 
 func emitMakerByteSliceTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceTypex_W)
+	ret.fn = ret.invokeByteSliceTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceTypex_W(key []byte, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1567,12 +1567,12 @@ func (e *emitNative) invokeByteSliceTypex_W(key []byte, val typex.W) {
 
 func emitMakerETByteSliceTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceTypex_W)
+	ret.fn = ret.invokeETByteSliceTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceTypex_W(t typex.EventTime, key []byte, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1580,12 +1580,12 @@ func (e *emitNative) invokeETByteSliceTypex_W(t typex.EventTime, key []byte, val
 
 func emitMakerByteSliceTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceTypex_X)
+	ret.fn = ret.invokeByteSliceTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceTypex_X(key []byte, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1593,12 +1593,12 @@ func (e *emitNative) invokeByteSliceTypex_X(key []byte, val typex.X) {
 
 func emitMakerETByteSliceTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceTypex_X)
+	ret.fn = ret.invokeETByteSliceTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceTypex_X(t typex.EventTime, key []byte, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1606,12 +1606,12 @@ func (e *emitNative) invokeETByteSliceTypex_X(t typex.EventTime, key []byte, val
 
 func emitMakerByteSliceTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceTypex_Y)
+	ret.fn = ret.invokeByteSliceTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceTypex_Y(key []byte, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1619,12 +1619,12 @@ func (e *emitNative) invokeByteSliceTypex_Y(key []byte, val typex.Y) {
 
 func emitMakerETByteSliceTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceTypex_Y)
+	ret.fn = ret.invokeETByteSliceTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceTypex_Y(t typex.EventTime, key []byte, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1632,12 +1632,12 @@ func (e *emitNative) invokeETByteSliceTypex_Y(t typex.EventTime, key []byte, val
 
 func emitMakerByteSliceTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeByteSliceTypex_Z)
+	ret.fn = ret.invokeByteSliceTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeByteSliceTypex_Z(key []byte, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1645,12 +1645,12 @@ func (e *emitNative) invokeByteSliceTypex_Z(key []byte, val typex.Z) {
 
 func emitMakerETByteSliceTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETByteSliceTypex_Z)
+	ret.fn = ret.invokeETByteSliceTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETByteSliceTypex_Z(t typex.EventTime, key []byte, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1658,12 +1658,12 @@ func (e *emitNative) invokeETByteSliceTypex_Z(t typex.EventTime, key []byte, val
 
 func emitMakerBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBool)
+	ret.fn = ret.invokeBool
 	return ret
 }
 
 func (e *emitNative) invokeBool(elm bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1671,12 +1671,12 @@ func (e *emitNative) invokeBool(elm bool) {
 
 func emitMakerETBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBool)
+	ret.fn = ret.invokeETBool
 	return ret
 }
 
 func (e *emitNative) invokeETBool(t typex.EventTime, elm bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1684,12 +1684,12 @@ func (e *emitNative) invokeETBool(t typex.EventTime, elm bool) {
 
 func emitMakerBoolByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolByteSlice)
+	ret.fn = ret.invokeBoolByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeBoolByteSlice(key bool, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1697,12 +1697,12 @@ func (e *emitNative) invokeBoolByteSlice(key bool, val []byte) {
 
 func emitMakerETBoolByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolByteSlice)
+	ret.fn = ret.invokeETBoolByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETBoolByteSlice(t typex.EventTime, key bool, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1710,12 +1710,12 @@ func (e *emitNative) invokeETBoolByteSlice(t typex.EventTime, key bool, val []by
 
 func emitMakerBoolBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolBool)
+	ret.fn = ret.invokeBoolBool
 	return ret
 }
 
 func (e *emitNative) invokeBoolBool(key bool, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1723,12 +1723,12 @@ func (e *emitNative) invokeBoolBool(key bool, val bool) {
 
 func emitMakerETBoolBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolBool)
+	ret.fn = ret.invokeETBoolBool
 	return ret
 }
 
 func (e *emitNative) invokeETBoolBool(t typex.EventTime, key bool, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1736,12 +1736,12 @@ func (e *emitNative) invokeETBoolBool(t typex.EventTime, key bool, val bool) {
 
 func emitMakerBoolString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolString)
+	ret.fn = ret.invokeBoolString
 	return ret
 }
 
 func (e *emitNative) invokeBoolString(key bool, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1749,12 +1749,12 @@ func (e *emitNative) invokeBoolString(key bool, val string) {
 
 func emitMakerETBoolString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolString)
+	ret.fn = ret.invokeETBoolString
 	return ret
 }
 
 func (e *emitNative) invokeETBoolString(t typex.EventTime, key bool, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1762,12 +1762,12 @@ func (e *emitNative) invokeETBoolString(t typex.EventTime, key bool, val string)
 
 func emitMakerBoolInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolInt)
+	ret.fn = ret.invokeBoolInt
 	return ret
 }
 
 func (e *emitNative) invokeBoolInt(key bool, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1775,12 +1775,12 @@ func (e *emitNative) invokeBoolInt(key bool, val int) {
 
 func emitMakerETBoolInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolInt)
+	ret.fn = ret.invokeETBoolInt
 	return ret
 }
 
 func (e *emitNative) invokeETBoolInt(t typex.EventTime, key bool, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1788,12 +1788,12 @@ func (e *emitNative) invokeETBoolInt(t typex.EventTime, key bool, val int) {
 
 func emitMakerBoolInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolInt8)
+	ret.fn = ret.invokeBoolInt8
 	return ret
 }
 
 func (e *emitNative) invokeBoolInt8(key bool, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1801,12 +1801,12 @@ func (e *emitNative) invokeBoolInt8(key bool, val int8) {
 
 func emitMakerETBoolInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolInt8)
+	ret.fn = ret.invokeETBoolInt8
 	return ret
 }
 
 func (e *emitNative) invokeETBoolInt8(t typex.EventTime, key bool, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1814,12 +1814,12 @@ func (e *emitNative) invokeETBoolInt8(t typex.EventTime, key bool, val int8) {
 
 func emitMakerBoolInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolInt16)
+	ret.fn = ret.invokeBoolInt16
 	return ret
 }
 
 func (e *emitNative) invokeBoolInt16(key bool, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1827,12 +1827,12 @@ func (e *emitNative) invokeBoolInt16(key bool, val int16) {
 
 func emitMakerETBoolInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolInt16)
+	ret.fn = ret.invokeETBoolInt16
 	return ret
 }
 
 func (e *emitNative) invokeETBoolInt16(t typex.EventTime, key bool, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1840,12 +1840,12 @@ func (e *emitNative) invokeETBoolInt16(t typex.EventTime, key bool, val int16) {
 
 func emitMakerBoolInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolInt32)
+	ret.fn = ret.invokeBoolInt32
 	return ret
 }
 
 func (e *emitNative) invokeBoolInt32(key bool, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1853,12 +1853,12 @@ func (e *emitNative) invokeBoolInt32(key bool, val int32) {
 
 func emitMakerETBoolInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolInt32)
+	ret.fn = ret.invokeETBoolInt32
 	return ret
 }
 
 func (e *emitNative) invokeETBoolInt32(t typex.EventTime, key bool, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1866,12 +1866,12 @@ func (e *emitNative) invokeETBoolInt32(t typex.EventTime, key bool, val int32) {
 
 func emitMakerBoolInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolInt64)
+	ret.fn = ret.invokeBoolInt64
 	return ret
 }
 
 func (e *emitNative) invokeBoolInt64(key bool, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1879,12 +1879,12 @@ func (e *emitNative) invokeBoolInt64(key bool, val int64) {
 
 func emitMakerETBoolInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolInt64)
+	ret.fn = ret.invokeETBoolInt64
 	return ret
 }
 
 func (e *emitNative) invokeETBoolInt64(t typex.EventTime, key bool, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1892,12 +1892,12 @@ func (e *emitNative) invokeETBoolInt64(t typex.EventTime, key bool, val int64) {
 
 func emitMakerBoolUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolUint)
+	ret.fn = ret.invokeBoolUint
 	return ret
 }
 
 func (e *emitNative) invokeBoolUint(key bool, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1905,12 +1905,12 @@ func (e *emitNative) invokeBoolUint(key bool, val uint) {
 
 func emitMakerETBoolUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolUint)
+	ret.fn = ret.invokeETBoolUint
 	return ret
 }
 
 func (e *emitNative) invokeETBoolUint(t typex.EventTime, key bool, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1918,12 +1918,12 @@ func (e *emitNative) invokeETBoolUint(t typex.EventTime, key bool, val uint) {
 
 func emitMakerBoolUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolUint8)
+	ret.fn = ret.invokeBoolUint8
 	return ret
 }
 
 func (e *emitNative) invokeBoolUint8(key bool, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1931,12 +1931,12 @@ func (e *emitNative) invokeBoolUint8(key bool, val uint8) {
 
 func emitMakerETBoolUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolUint8)
+	ret.fn = ret.invokeETBoolUint8
 	return ret
 }
 
 func (e *emitNative) invokeETBoolUint8(t typex.EventTime, key bool, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1944,12 +1944,12 @@ func (e *emitNative) invokeETBoolUint8(t typex.EventTime, key bool, val uint8) {
 
 func emitMakerBoolUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolUint16)
+	ret.fn = ret.invokeBoolUint16
 	return ret
 }
 
 func (e *emitNative) invokeBoolUint16(key bool, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1957,12 +1957,12 @@ func (e *emitNative) invokeBoolUint16(key bool, val uint16) {
 
 func emitMakerETBoolUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolUint16)
+	ret.fn = ret.invokeETBoolUint16
 	return ret
 }
 
 func (e *emitNative) invokeETBoolUint16(t typex.EventTime, key bool, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1970,12 +1970,12 @@ func (e *emitNative) invokeETBoolUint16(t typex.EventTime, key bool, val uint16)
 
 func emitMakerBoolUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolUint32)
+	ret.fn = ret.invokeBoolUint32
 	return ret
 }
 
 func (e *emitNative) invokeBoolUint32(key bool, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1983,12 +1983,12 @@ func (e *emitNative) invokeBoolUint32(key bool, val uint32) {
 
 func emitMakerETBoolUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolUint32)
+	ret.fn = ret.invokeETBoolUint32
 	return ret
 }
 
 func (e *emitNative) invokeETBoolUint32(t typex.EventTime, key bool, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -1996,12 +1996,12 @@ func (e *emitNative) invokeETBoolUint32(t typex.EventTime, key bool, val uint32)
 
 func emitMakerBoolUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolUint64)
+	ret.fn = ret.invokeBoolUint64
 	return ret
 }
 
 func (e *emitNative) invokeBoolUint64(key bool, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2009,12 +2009,12 @@ func (e *emitNative) invokeBoolUint64(key bool, val uint64) {
 
 func emitMakerETBoolUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolUint64)
+	ret.fn = ret.invokeETBoolUint64
 	return ret
 }
 
 func (e *emitNative) invokeETBoolUint64(t typex.EventTime, key bool, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2022,12 +2022,12 @@ func (e *emitNative) invokeETBoolUint64(t typex.EventTime, key bool, val uint64)
 
 func emitMakerBoolFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolFloat32)
+	ret.fn = ret.invokeBoolFloat32
 	return ret
 }
 
 func (e *emitNative) invokeBoolFloat32(key bool, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2035,12 +2035,12 @@ func (e *emitNative) invokeBoolFloat32(key bool, val float32) {
 
 func emitMakerETBoolFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolFloat32)
+	ret.fn = ret.invokeETBoolFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETBoolFloat32(t typex.EventTime, key bool, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2048,12 +2048,12 @@ func (e *emitNative) invokeETBoolFloat32(t typex.EventTime, key bool, val float3
 
 func emitMakerBoolFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolFloat64)
+	ret.fn = ret.invokeBoolFloat64
 	return ret
 }
 
 func (e *emitNative) invokeBoolFloat64(key bool, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2061,12 +2061,12 @@ func (e *emitNative) invokeBoolFloat64(key bool, val float64) {
 
 func emitMakerETBoolFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolFloat64)
+	ret.fn = ret.invokeETBoolFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETBoolFloat64(t typex.EventTime, key bool, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2074,12 +2074,12 @@ func (e *emitNative) invokeETBoolFloat64(t typex.EventTime, key bool, val float6
 
 func emitMakerBoolTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolTypex_T)
+	ret.fn = ret.invokeBoolTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeBoolTypex_T(key bool, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2087,12 +2087,12 @@ func (e *emitNative) invokeBoolTypex_T(key bool, val typex.T) {
 
 func emitMakerETBoolTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolTypex_T)
+	ret.fn = ret.invokeETBoolTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETBoolTypex_T(t typex.EventTime, key bool, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2100,12 +2100,12 @@ func (e *emitNative) invokeETBoolTypex_T(t typex.EventTime, key bool, val typex.
 
 func emitMakerBoolTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolTypex_U)
+	ret.fn = ret.invokeBoolTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeBoolTypex_U(key bool, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2113,12 +2113,12 @@ func (e *emitNative) invokeBoolTypex_U(key bool, val typex.U) {
 
 func emitMakerETBoolTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolTypex_U)
+	ret.fn = ret.invokeETBoolTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETBoolTypex_U(t typex.EventTime, key bool, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2126,12 +2126,12 @@ func (e *emitNative) invokeETBoolTypex_U(t typex.EventTime, key bool, val typex.
 
 func emitMakerBoolTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolTypex_V)
+	ret.fn = ret.invokeBoolTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeBoolTypex_V(key bool, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2139,12 +2139,12 @@ func (e *emitNative) invokeBoolTypex_V(key bool, val typex.V) {
 
 func emitMakerETBoolTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolTypex_V)
+	ret.fn = ret.invokeETBoolTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETBoolTypex_V(t typex.EventTime, key bool, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2152,12 +2152,12 @@ func (e *emitNative) invokeETBoolTypex_V(t typex.EventTime, key bool, val typex.
 
 func emitMakerBoolTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolTypex_W)
+	ret.fn = ret.invokeBoolTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeBoolTypex_W(key bool, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2165,12 +2165,12 @@ func (e *emitNative) invokeBoolTypex_W(key bool, val typex.W) {
 
 func emitMakerETBoolTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolTypex_W)
+	ret.fn = ret.invokeETBoolTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETBoolTypex_W(t typex.EventTime, key bool, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2178,12 +2178,12 @@ func (e *emitNative) invokeETBoolTypex_W(t typex.EventTime, key bool, val typex.
 
 func emitMakerBoolTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolTypex_X)
+	ret.fn = ret.invokeBoolTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeBoolTypex_X(key bool, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2191,12 +2191,12 @@ func (e *emitNative) invokeBoolTypex_X(key bool, val typex.X) {
 
 func emitMakerETBoolTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolTypex_X)
+	ret.fn = ret.invokeETBoolTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETBoolTypex_X(t typex.EventTime, key bool, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2204,12 +2204,12 @@ func (e *emitNative) invokeETBoolTypex_X(t typex.EventTime, key bool, val typex.
 
 func emitMakerBoolTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolTypex_Y)
+	ret.fn = ret.invokeBoolTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeBoolTypex_Y(key bool, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2217,12 +2217,12 @@ func (e *emitNative) invokeBoolTypex_Y(key bool, val typex.Y) {
 
 func emitMakerETBoolTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolTypex_Y)
+	ret.fn = ret.invokeETBoolTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETBoolTypex_Y(t typex.EventTime, key bool, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2230,12 +2230,12 @@ func (e *emitNative) invokeETBoolTypex_Y(t typex.EventTime, key bool, val typex.
 
 func emitMakerBoolTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeBoolTypex_Z)
+	ret.fn = ret.invokeBoolTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeBoolTypex_Z(key bool, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2243,12 +2243,12 @@ func (e *emitNative) invokeBoolTypex_Z(key bool, val typex.Z) {
 
 func emitMakerETBoolTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETBoolTypex_Z)
+	ret.fn = ret.invokeETBoolTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETBoolTypex_Z(t typex.EventTime, key bool, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2256,12 +2256,12 @@ func (e *emitNative) invokeETBoolTypex_Z(t typex.EventTime, key bool, val typex.
 
 func emitMakerString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeString)
+	ret.fn = ret.invokeString
 	return ret
 }
 
 func (e *emitNative) invokeString(elm string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2269,12 +2269,12 @@ func (e *emitNative) invokeString(elm string) {
 
 func emitMakerETString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETString)
+	ret.fn = ret.invokeETString
 	return ret
 }
 
 func (e *emitNative) invokeETString(t typex.EventTime, elm string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2282,12 +2282,12 @@ func (e *emitNative) invokeETString(t typex.EventTime, elm string) {
 
 func emitMakerStringByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringByteSlice)
+	ret.fn = ret.invokeStringByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeStringByteSlice(key string, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2295,12 +2295,12 @@ func (e *emitNative) invokeStringByteSlice(key string, val []byte) {
 
 func emitMakerETStringByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringByteSlice)
+	ret.fn = ret.invokeETStringByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETStringByteSlice(t typex.EventTime, key string, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2308,12 +2308,12 @@ func (e *emitNative) invokeETStringByteSlice(t typex.EventTime, key string, val 
 
 func emitMakerStringBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringBool)
+	ret.fn = ret.invokeStringBool
 	return ret
 }
 
 func (e *emitNative) invokeStringBool(key string, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2321,12 +2321,12 @@ func (e *emitNative) invokeStringBool(key string, val bool) {
 
 func emitMakerETStringBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringBool)
+	ret.fn = ret.invokeETStringBool
 	return ret
 }
 
 func (e *emitNative) invokeETStringBool(t typex.EventTime, key string, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2334,12 +2334,12 @@ func (e *emitNative) invokeETStringBool(t typex.EventTime, key string, val bool)
 
 func emitMakerStringString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringString)
+	ret.fn = ret.invokeStringString
 	return ret
 }
 
 func (e *emitNative) invokeStringString(key string, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2347,12 +2347,12 @@ func (e *emitNative) invokeStringString(key string, val string) {
 
 func emitMakerETStringString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringString)
+	ret.fn = ret.invokeETStringString
 	return ret
 }
 
 func (e *emitNative) invokeETStringString(t typex.EventTime, key string, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2360,12 +2360,12 @@ func (e *emitNative) invokeETStringString(t typex.EventTime, key string, val str
 
 func emitMakerStringInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringInt)
+	ret.fn = ret.invokeStringInt
 	return ret
 }
 
 func (e *emitNative) invokeStringInt(key string, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2373,12 +2373,12 @@ func (e *emitNative) invokeStringInt(key string, val int) {
 
 func emitMakerETStringInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringInt)
+	ret.fn = ret.invokeETStringInt
 	return ret
 }
 
 func (e *emitNative) invokeETStringInt(t typex.EventTime, key string, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2386,12 +2386,12 @@ func (e *emitNative) invokeETStringInt(t typex.EventTime, key string, val int) {
 
 func emitMakerStringInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringInt8)
+	ret.fn = ret.invokeStringInt8
 	return ret
 }
 
 func (e *emitNative) invokeStringInt8(key string, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2399,12 +2399,12 @@ func (e *emitNative) invokeStringInt8(key string, val int8) {
 
 func emitMakerETStringInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringInt8)
+	ret.fn = ret.invokeETStringInt8
 	return ret
 }
 
 func (e *emitNative) invokeETStringInt8(t typex.EventTime, key string, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2412,12 +2412,12 @@ func (e *emitNative) invokeETStringInt8(t typex.EventTime, key string, val int8)
 
 func emitMakerStringInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringInt16)
+	ret.fn = ret.invokeStringInt16
 	return ret
 }
 
 func (e *emitNative) invokeStringInt16(key string, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2425,12 +2425,12 @@ func (e *emitNative) invokeStringInt16(key string, val int16) {
 
 func emitMakerETStringInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringInt16)
+	ret.fn = ret.invokeETStringInt16
 	return ret
 }
 
 func (e *emitNative) invokeETStringInt16(t typex.EventTime, key string, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2438,12 +2438,12 @@ func (e *emitNative) invokeETStringInt16(t typex.EventTime, key string, val int1
 
 func emitMakerStringInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringInt32)
+	ret.fn = ret.invokeStringInt32
 	return ret
 }
 
 func (e *emitNative) invokeStringInt32(key string, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2451,12 +2451,12 @@ func (e *emitNative) invokeStringInt32(key string, val int32) {
 
 func emitMakerETStringInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringInt32)
+	ret.fn = ret.invokeETStringInt32
 	return ret
 }
 
 func (e *emitNative) invokeETStringInt32(t typex.EventTime, key string, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2464,12 +2464,12 @@ func (e *emitNative) invokeETStringInt32(t typex.EventTime, key string, val int3
 
 func emitMakerStringInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringInt64)
+	ret.fn = ret.invokeStringInt64
 	return ret
 }
 
 func (e *emitNative) invokeStringInt64(key string, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2477,12 +2477,12 @@ func (e *emitNative) invokeStringInt64(key string, val int64) {
 
 func emitMakerETStringInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringInt64)
+	ret.fn = ret.invokeETStringInt64
 	return ret
 }
 
 func (e *emitNative) invokeETStringInt64(t typex.EventTime, key string, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2490,12 +2490,12 @@ func (e *emitNative) invokeETStringInt64(t typex.EventTime, key string, val int6
 
 func emitMakerStringUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringUint)
+	ret.fn = ret.invokeStringUint
 	return ret
 }
 
 func (e *emitNative) invokeStringUint(key string, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2503,12 +2503,12 @@ func (e *emitNative) invokeStringUint(key string, val uint) {
 
 func emitMakerETStringUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringUint)
+	ret.fn = ret.invokeETStringUint
 	return ret
 }
 
 func (e *emitNative) invokeETStringUint(t typex.EventTime, key string, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2516,12 +2516,12 @@ func (e *emitNative) invokeETStringUint(t typex.EventTime, key string, val uint)
 
 func emitMakerStringUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringUint8)
+	ret.fn = ret.invokeStringUint8
 	return ret
 }
 
 func (e *emitNative) invokeStringUint8(key string, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2529,12 +2529,12 @@ func (e *emitNative) invokeStringUint8(key string, val uint8) {
 
 func emitMakerETStringUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringUint8)
+	ret.fn = ret.invokeETStringUint8
 	return ret
 }
 
 func (e *emitNative) invokeETStringUint8(t typex.EventTime, key string, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2542,12 +2542,12 @@ func (e *emitNative) invokeETStringUint8(t typex.EventTime, key string, val uint
 
 func emitMakerStringUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringUint16)
+	ret.fn = ret.invokeStringUint16
 	return ret
 }
 
 func (e *emitNative) invokeStringUint16(key string, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2555,12 +2555,12 @@ func (e *emitNative) invokeStringUint16(key string, val uint16) {
 
 func emitMakerETStringUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringUint16)
+	ret.fn = ret.invokeETStringUint16
 	return ret
 }
 
 func (e *emitNative) invokeETStringUint16(t typex.EventTime, key string, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2568,12 +2568,12 @@ func (e *emitNative) invokeETStringUint16(t typex.EventTime, key string, val uin
 
 func emitMakerStringUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringUint32)
+	ret.fn = ret.invokeStringUint32
 	return ret
 }
 
 func (e *emitNative) invokeStringUint32(key string, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2581,12 +2581,12 @@ func (e *emitNative) invokeStringUint32(key string, val uint32) {
 
 func emitMakerETStringUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringUint32)
+	ret.fn = ret.invokeETStringUint32
 	return ret
 }
 
 func (e *emitNative) invokeETStringUint32(t typex.EventTime, key string, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2594,12 +2594,12 @@ func (e *emitNative) invokeETStringUint32(t typex.EventTime, key string, val uin
 
 func emitMakerStringUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringUint64)
+	ret.fn = ret.invokeStringUint64
 	return ret
 }
 
 func (e *emitNative) invokeStringUint64(key string, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2607,12 +2607,12 @@ func (e *emitNative) invokeStringUint64(key string, val uint64) {
 
 func emitMakerETStringUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringUint64)
+	ret.fn = ret.invokeETStringUint64
 	return ret
 }
 
 func (e *emitNative) invokeETStringUint64(t typex.EventTime, key string, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2620,12 +2620,12 @@ func (e *emitNative) invokeETStringUint64(t typex.EventTime, key string, val uin
 
 func emitMakerStringFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringFloat32)
+	ret.fn = ret.invokeStringFloat32
 	return ret
 }
 
 func (e *emitNative) invokeStringFloat32(key string, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2633,12 +2633,12 @@ func (e *emitNative) invokeStringFloat32(key string, val float32) {
 
 func emitMakerETStringFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringFloat32)
+	ret.fn = ret.invokeETStringFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETStringFloat32(t typex.EventTime, key string, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2646,12 +2646,12 @@ func (e *emitNative) invokeETStringFloat32(t typex.EventTime, key string, val fl
 
 func emitMakerStringFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringFloat64)
+	ret.fn = ret.invokeStringFloat64
 	return ret
 }
 
 func (e *emitNative) invokeStringFloat64(key string, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2659,12 +2659,12 @@ func (e *emitNative) invokeStringFloat64(key string, val float64) {
 
 func emitMakerETStringFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringFloat64)
+	ret.fn = ret.invokeETStringFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETStringFloat64(t typex.EventTime, key string, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2672,12 +2672,12 @@ func (e *emitNative) invokeETStringFloat64(t typex.EventTime, key string, val fl
 
 func emitMakerStringTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringTypex_T)
+	ret.fn = ret.invokeStringTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeStringTypex_T(key string, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2685,12 +2685,12 @@ func (e *emitNative) invokeStringTypex_T(key string, val typex.T) {
 
 func emitMakerETStringTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringTypex_T)
+	ret.fn = ret.invokeETStringTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETStringTypex_T(t typex.EventTime, key string, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2698,12 +2698,12 @@ func (e *emitNative) invokeETStringTypex_T(t typex.EventTime, key string, val ty
 
 func emitMakerStringTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringTypex_U)
+	ret.fn = ret.invokeStringTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeStringTypex_U(key string, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2711,12 +2711,12 @@ func (e *emitNative) invokeStringTypex_U(key string, val typex.U) {
 
 func emitMakerETStringTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringTypex_U)
+	ret.fn = ret.invokeETStringTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETStringTypex_U(t typex.EventTime, key string, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2724,12 +2724,12 @@ func (e *emitNative) invokeETStringTypex_U(t typex.EventTime, key string, val ty
 
 func emitMakerStringTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringTypex_V)
+	ret.fn = ret.invokeStringTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeStringTypex_V(key string, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2737,12 +2737,12 @@ func (e *emitNative) invokeStringTypex_V(key string, val typex.V) {
 
 func emitMakerETStringTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringTypex_V)
+	ret.fn = ret.invokeETStringTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETStringTypex_V(t typex.EventTime, key string, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2750,12 +2750,12 @@ func (e *emitNative) invokeETStringTypex_V(t typex.EventTime, key string, val ty
 
 func emitMakerStringTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringTypex_W)
+	ret.fn = ret.invokeStringTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeStringTypex_W(key string, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2763,12 +2763,12 @@ func (e *emitNative) invokeStringTypex_W(key string, val typex.W) {
 
 func emitMakerETStringTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringTypex_W)
+	ret.fn = ret.invokeETStringTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETStringTypex_W(t typex.EventTime, key string, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2776,12 +2776,12 @@ func (e *emitNative) invokeETStringTypex_W(t typex.EventTime, key string, val ty
 
 func emitMakerStringTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringTypex_X)
+	ret.fn = ret.invokeStringTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeStringTypex_X(key string, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2789,12 +2789,12 @@ func (e *emitNative) invokeStringTypex_X(key string, val typex.X) {
 
 func emitMakerETStringTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringTypex_X)
+	ret.fn = ret.invokeETStringTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETStringTypex_X(t typex.EventTime, key string, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2802,12 +2802,12 @@ func (e *emitNative) invokeETStringTypex_X(t typex.EventTime, key string, val ty
 
 func emitMakerStringTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringTypex_Y)
+	ret.fn = ret.invokeStringTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeStringTypex_Y(key string, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2815,12 +2815,12 @@ func (e *emitNative) invokeStringTypex_Y(key string, val typex.Y) {
 
 func emitMakerETStringTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringTypex_Y)
+	ret.fn = ret.invokeETStringTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETStringTypex_Y(t typex.EventTime, key string, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2828,12 +2828,12 @@ func (e *emitNative) invokeETStringTypex_Y(t typex.EventTime, key string, val ty
 
 func emitMakerStringTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeStringTypex_Z)
+	ret.fn = ret.invokeStringTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeStringTypex_Z(key string, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2841,12 +2841,12 @@ func (e *emitNative) invokeStringTypex_Z(key string, val typex.Z) {
 
 func emitMakerETStringTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETStringTypex_Z)
+	ret.fn = ret.invokeETStringTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETStringTypex_Z(t typex.EventTime, key string, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2854,12 +2854,12 @@ func (e *emitNative) invokeETStringTypex_Z(t typex.EventTime, key string, val ty
 
 func emitMakerInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt)
+	ret.fn = ret.invokeInt
 	return ret
 }
 
 func (e *emitNative) invokeInt(elm int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2867,12 +2867,12 @@ func (e *emitNative) invokeInt(elm int) {
 
 func emitMakerETInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt)
+	ret.fn = ret.invokeETInt
 	return ret
 }
 
 func (e *emitNative) invokeETInt(t typex.EventTime, elm int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2880,12 +2880,12 @@ func (e *emitNative) invokeETInt(t typex.EventTime, elm int) {
 
 func emitMakerIntByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntByteSlice)
+	ret.fn = ret.invokeIntByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeIntByteSlice(key int, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2893,12 +2893,12 @@ func (e *emitNative) invokeIntByteSlice(key int, val []byte) {
 
 func emitMakerETIntByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntByteSlice)
+	ret.fn = ret.invokeETIntByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETIntByteSlice(t typex.EventTime, key int, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2906,12 +2906,12 @@ func (e *emitNative) invokeETIntByteSlice(t typex.EventTime, key int, val []byte
 
 func emitMakerIntBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntBool)
+	ret.fn = ret.invokeIntBool
 	return ret
 }
 
 func (e *emitNative) invokeIntBool(key int, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2919,12 +2919,12 @@ func (e *emitNative) invokeIntBool(key int, val bool) {
 
 func emitMakerETIntBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntBool)
+	ret.fn = ret.invokeETIntBool
 	return ret
 }
 
 func (e *emitNative) invokeETIntBool(t typex.EventTime, key int, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2932,12 +2932,12 @@ func (e *emitNative) invokeETIntBool(t typex.EventTime, key int, val bool) {
 
 func emitMakerIntString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntString)
+	ret.fn = ret.invokeIntString
 	return ret
 }
 
 func (e *emitNative) invokeIntString(key int, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2945,12 +2945,12 @@ func (e *emitNative) invokeIntString(key int, val string) {
 
 func emitMakerETIntString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntString)
+	ret.fn = ret.invokeETIntString
 	return ret
 }
 
 func (e *emitNative) invokeETIntString(t typex.EventTime, key int, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2958,12 +2958,12 @@ func (e *emitNative) invokeETIntString(t typex.EventTime, key int, val string) {
 
 func emitMakerIntInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntInt)
+	ret.fn = ret.invokeIntInt
 	return ret
 }
 
 func (e *emitNative) invokeIntInt(key int, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2971,12 +2971,12 @@ func (e *emitNative) invokeIntInt(key int, val int) {
 
 func emitMakerETIntInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntInt)
+	ret.fn = ret.invokeETIntInt
 	return ret
 }
 
 func (e *emitNative) invokeETIntInt(t typex.EventTime, key int, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2984,12 +2984,12 @@ func (e *emitNative) invokeETIntInt(t typex.EventTime, key int, val int) {
 
 func emitMakerIntInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntInt8)
+	ret.fn = ret.invokeIntInt8
 	return ret
 }
 
 func (e *emitNative) invokeIntInt8(key int, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -2997,12 +2997,12 @@ func (e *emitNative) invokeIntInt8(key int, val int8) {
 
 func emitMakerETIntInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntInt8)
+	ret.fn = ret.invokeETIntInt8
 	return ret
 }
 
 func (e *emitNative) invokeETIntInt8(t typex.EventTime, key int, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3010,12 +3010,12 @@ func (e *emitNative) invokeETIntInt8(t typex.EventTime, key int, val int8) {
 
 func emitMakerIntInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntInt16)
+	ret.fn = ret.invokeIntInt16
 	return ret
 }
 
 func (e *emitNative) invokeIntInt16(key int, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3023,12 +3023,12 @@ func (e *emitNative) invokeIntInt16(key int, val int16) {
 
 func emitMakerETIntInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntInt16)
+	ret.fn = ret.invokeETIntInt16
 	return ret
 }
 
 func (e *emitNative) invokeETIntInt16(t typex.EventTime, key int, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3036,12 +3036,12 @@ func (e *emitNative) invokeETIntInt16(t typex.EventTime, key int, val int16) {
 
 func emitMakerIntInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntInt32)
+	ret.fn = ret.invokeIntInt32
 	return ret
 }
 
 func (e *emitNative) invokeIntInt32(key int, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3049,12 +3049,12 @@ func (e *emitNative) invokeIntInt32(key int, val int32) {
 
 func emitMakerETIntInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntInt32)
+	ret.fn = ret.invokeETIntInt32
 	return ret
 }
 
 func (e *emitNative) invokeETIntInt32(t typex.EventTime, key int, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3062,12 +3062,12 @@ func (e *emitNative) invokeETIntInt32(t typex.EventTime, key int, val int32) {
 
 func emitMakerIntInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntInt64)
+	ret.fn = ret.invokeIntInt64
 	return ret
 }
 
 func (e *emitNative) invokeIntInt64(key int, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3075,12 +3075,12 @@ func (e *emitNative) invokeIntInt64(key int, val int64) {
 
 func emitMakerETIntInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntInt64)
+	ret.fn = ret.invokeETIntInt64
 	return ret
 }
 
 func (e *emitNative) invokeETIntInt64(t typex.EventTime, key int, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3088,12 +3088,12 @@ func (e *emitNative) invokeETIntInt64(t typex.EventTime, key int, val int64) {
 
 func emitMakerIntUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntUint)
+	ret.fn = ret.invokeIntUint
 	return ret
 }
 
 func (e *emitNative) invokeIntUint(key int, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3101,12 +3101,12 @@ func (e *emitNative) invokeIntUint(key int, val uint) {
 
 func emitMakerETIntUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntUint)
+	ret.fn = ret.invokeETIntUint
 	return ret
 }
 
 func (e *emitNative) invokeETIntUint(t typex.EventTime, key int, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3114,12 +3114,12 @@ func (e *emitNative) invokeETIntUint(t typex.EventTime, key int, val uint) {
 
 func emitMakerIntUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntUint8)
+	ret.fn = ret.invokeIntUint8
 	return ret
 }
 
 func (e *emitNative) invokeIntUint8(key int, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3127,12 +3127,12 @@ func (e *emitNative) invokeIntUint8(key int, val uint8) {
 
 func emitMakerETIntUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntUint8)
+	ret.fn = ret.invokeETIntUint8
 	return ret
 }
 
 func (e *emitNative) invokeETIntUint8(t typex.EventTime, key int, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3140,12 +3140,12 @@ func (e *emitNative) invokeETIntUint8(t typex.EventTime, key int, val uint8) {
 
 func emitMakerIntUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntUint16)
+	ret.fn = ret.invokeIntUint16
 	return ret
 }
 
 func (e *emitNative) invokeIntUint16(key int, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3153,12 +3153,12 @@ func (e *emitNative) invokeIntUint16(key int, val uint16) {
 
 func emitMakerETIntUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntUint16)
+	ret.fn = ret.invokeETIntUint16
 	return ret
 }
 
 func (e *emitNative) invokeETIntUint16(t typex.EventTime, key int, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3166,12 +3166,12 @@ func (e *emitNative) invokeETIntUint16(t typex.EventTime, key int, val uint16) {
 
 func emitMakerIntUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntUint32)
+	ret.fn = ret.invokeIntUint32
 	return ret
 }
 
 func (e *emitNative) invokeIntUint32(key int, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3179,12 +3179,12 @@ func (e *emitNative) invokeIntUint32(key int, val uint32) {
 
 func emitMakerETIntUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntUint32)
+	ret.fn = ret.invokeETIntUint32
 	return ret
 }
 
 func (e *emitNative) invokeETIntUint32(t typex.EventTime, key int, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3192,12 +3192,12 @@ func (e *emitNative) invokeETIntUint32(t typex.EventTime, key int, val uint32) {
 
 func emitMakerIntUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntUint64)
+	ret.fn = ret.invokeIntUint64
 	return ret
 }
 
 func (e *emitNative) invokeIntUint64(key int, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3205,12 +3205,12 @@ func (e *emitNative) invokeIntUint64(key int, val uint64) {
 
 func emitMakerETIntUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntUint64)
+	ret.fn = ret.invokeETIntUint64
 	return ret
 }
 
 func (e *emitNative) invokeETIntUint64(t typex.EventTime, key int, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3218,12 +3218,12 @@ func (e *emitNative) invokeETIntUint64(t typex.EventTime, key int, val uint64) {
 
 func emitMakerIntFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntFloat32)
+	ret.fn = ret.invokeIntFloat32
 	return ret
 }
 
 func (e *emitNative) invokeIntFloat32(key int, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3231,12 +3231,12 @@ func (e *emitNative) invokeIntFloat32(key int, val float32) {
 
 func emitMakerETIntFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntFloat32)
+	ret.fn = ret.invokeETIntFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETIntFloat32(t typex.EventTime, key int, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3244,12 +3244,12 @@ func (e *emitNative) invokeETIntFloat32(t typex.EventTime, key int, val float32)
 
 func emitMakerIntFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntFloat64)
+	ret.fn = ret.invokeIntFloat64
 	return ret
 }
 
 func (e *emitNative) invokeIntFloat64(key int, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3257,12 +3257,12 @@ func (e *emitNative) invokeIntFloat64(key int, val float64) {
 
 func emitMakerETIntFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntFloat64)
+	ret.fn = ret.invokeETIntFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETIntFloat64(t typex.EventTime, key int, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3270,12 +3270,12 @@ func (e *emitNative) invokeETIntFloat64(t typex.EventTime, key int, val float64)
 
 func emitMakerIntTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntTypex_T)
+	ret.fn = ret.invokeIntTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeIntTypex_T(key int, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3283,12 +3283,12 @@ func (e *emitNative) invokeIntTypex_T(key int, val typex.T) {
 
 func emitMakerETIntTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntTypex_T)
+	ret.fn = ret.invokeETIntTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETIntTypex_T(t typex.EventTime, key int, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3296,12 +3296,12 @@ func (e *emitNative) invokeETIntTypex_T(t typex.EventTime, key int, val typex.T)
 
 func emitMakerIntTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntTypex_U)
+	ret.fn = ret.invokeIntTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeIntTypex_U(key int, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3309,12 +3309,12 @@ func (e *emitNative) invokeIntTypex_U(key int, val typex.U) {
 
 func emitMakerETIntTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntTypex_U)
+	ret.fn = ret.invokeETIntTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETIntTypex_U(t typex.EventTime, key int, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3322,12 +3322,12 @@ func (e *emitNative) invokeETIntTypex_U(t typex.EventTime, key int, val typex.U)
 
 func emitMakerIntTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntTypex_V)
+	ret.fn = ret.invokeIntTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeIntTypex_V(key int, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3335,12 +3335,12 @@ func (e *emitNative) invokeIntTypex_V(key int, val typex.V) {
 
 func emitMakerETIntTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntTypex_V)
+	ret.fn = ret.invokeETIntTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETIntTypex_V(t typex.EventTime, key int, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3348,12 +3348,12 @@ func (e *emitNative) invokeETIntTypex_V(t typex.EventTime, key int, val typex.V)
 
 func emitMakerIntTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntTypex_W)
+	ret.fn = ret.invokeIntTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeIntTypex_W(key int, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3361,12 +3361,12 @@ func (e *emitNative) invokeIntTypex_W(key int, val typex.W) {
 
 func emitMakerETIntTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntTypex_W)
+	ret.fn = ret.invokeETIntTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETIntTypex_W(t typex.EventTime, key int, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3374,12 +3374,12 @@ func (e *emitNative) invokeETIntTypex_W(t typex.EventTime, key int, val typex.W)
 
 func emitMakerIntTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntTypex_X)
+	ret.fn = ret.invokeIntTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeIntTypex_X(key int, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3387,12 +3387,12 @@ func (e *emitNative) invokeIntTypex_X(key int, val typex.X) {
 
 func emitMakerETIntTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntTypex_X)
+	ret.fn = ret.invokeETIntTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETIntTypex_X(t typex.EventTime, key int, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3400,12 +3400,12 @@ func (e *emitNative) invokeETIntTypex_X(t typex.EventTime, key int, val typex.X)
 
 func emitMakerIntTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntTypex_Y)
+	ret.fn = ret.invokeIntTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeIntTypex_Y(key int, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3413,12 +3413,12 @@ func (e *emitNative) invokeIntTypex_Y(key int, val typex.Y) {
 
 func emitMakerETIntTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntTypex_Y)
+	ret.fn = ret.invokeETIntTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETIntTypex_Y(t typex.EventTime, key int, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3426,12 +3426,12 @@ func (e *emitNative) invokeETIntTypex_Y(t typex.EventTime, key int, val typex.Y)
 
 func emitMakerIntTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeIntTypex_Z)
+	ret.fn = ret.invokeIntTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeIntTypex_Z(key int, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3439,12 +3439,12 @@ func (e *emitNative) invokeIntTypex_Z(key int, val typex.Z) {
 
 func emitMakerETIntTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETIntTypex_Z)
+	ret.fn = ret.invokeETIntTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETIntTypex_Z(t typex.EventTime, key int, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3452,12 +3452,12 @@ func (e *emitNative) invokeETIntTypex_Z(t typex.EventTime, key int, val typex.Z)
 
 func emitMakerInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8)
+	ret.fn = ret.invokeInt8
 	return ret
 }
 
 func (e *emitNative) invokeInt8(elm int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3465,12 +3465,12 @@ func (e *emitNative) invokeInt8(elm int8) {
 
 func emitMakerETInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8)
+	ret.fn = ret.invokeETInt8
 	return ret
 }
 
 func (e *emitNative) invokeETInt8(t typex.EventTime, elm int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3478,12 +3478,12 @@ func (e *emitNative) invokeETInt8(t typex.EventTime, elm int8) {
 
 func emitMakerInt8ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8ByteSlice)
+	ret.fn = ret.invokeInt8ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeInt8ByteSlice(key int8, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3491,12 +3491,12 @@ func (e *emitNative) invokeInt8ByteSlice(key int8, val []byte) {
 
 func emitMakerETInt8ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8ByteSlice)
+	ret.fn = ret.invokeETInt8ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETInt8ByteSlice(t typex.EventTime, key int8, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3504,12 +3504,12 @@ func (e *emitNative) invokeETInt8ByteSlice(t typex.EventTime, key int8, val []by
 
 func emitMakerInt8Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Bool)
+	ret.fn = ret.invokeInt8Bool
 	return ret
 }
 
 func (e *emitNative) invokeInt8Bool(key int8, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3517,12 +3517,12 @@ func (e *emitNative) invokeInt8Bool(key int8, val bool) {
 
 func emitMakerETInt8Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Bool)
+	ret.fn = ret.invokeETInt8Bool
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Bool(t typex.EventTime, key int8, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3530,12 +3530,12 @@ func (e *emitNative) invokeETInt8Bool(t typex.EventTime, key int8, val bool) {
 
 func emitMakerInt8String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8String)
+	ret.fn = ret.invokeInt8String
 	return ret
 }
 
 func (e *emitNative) invokeInt8String(key int8, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3543,12 +3543,12 @@ func (e *emitNative) invokeInt8String(key int8, val string) {
 
 func emitMakerETInt8String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8String)
+	ret.fn = ret.invokeETInt8String
 	return ret
 }
 
 func (e *emitNative) invokeETInt8String(t typex.EventTime, key int8, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3556,12 +3556,12 @@ func (e *emitNative) invokeETInt8String(t typex.EventTime, key int8, val string)
 
 func emitMakerInt8Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Int)
+	ret.fn = ret.invokeInt8Int
 	return ret
 }
 
 func (e *emitNative) invokeInt8Int(key int8, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3569,12 +3569,12 @@ func (e *emitNative) invokeInt8Int(key int8, val int) {
 
 func emitMakerETInt8Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Int)
+	ret.fn = ret.invokeETInt8Int
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Int(t typex.EventTime, key int8, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3582,12 +3582,12 @@ func (e *emitNative) invokeETInt8Int(t typex.EventTime, key int8, val int) {
 
 func emitMakerInt8Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Int8)
+	ret.fn = ret.invokeInt8Int8
 	return ret
 }
 
 func (e *emitNative) invokeInt8Int8(key int8, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3595,12 +3595,12 @@ func (e *emitNative) invokeInt8Int8(key int8, val int8) {
 
 func emitMakerETInt8Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Int8)
+	ret.fn = ret.invokeETInt8Int8
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Int8(t typex.EventTime, key int8, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3608,12 +3608,12 @@ func (e *emitNative) invokeETInt8Int8(t typex.EventTime, key int8, val int8) {
 
 func emitMakerInt8Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Int16)
+	ret.fn = ret.invokeInt8Int16
 	return ret
 }
 
 func (e *emitNative) invokeInt8Int16(key int8, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3621,12 +3621,12 @@ func (e *emitNative) invokeInt8Int16(key int8, val int16) {
 
 func emitMakerETInt8Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Int16)
+	ret.fn = ret.invokeETInt8Int16
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Int16(t typex.EventTime, key int8, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3634,12 +3634,12 @@ func (e *emitNative) invokeETInt8Int16(t typex.EventTime, key int8, val int16) {
 
 func emitMakerInt8Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Int32)
+	ret.fn = ret.invokeInt8Int32
 	return ret
 }
 
 func (e *emitNative) invokeInt8Int32(key int8, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3647,12 +3647,12 @@ func (e *emitNative) invokeInt8Int32(key int8, val int32) {
 
 func emitMakerETInt8Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Int32)
+	ret.fn = ret.invokeETInt8Int32
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Int32(t typex.EventTime, key int8, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3660,12 +3660,12 @@ func (e *emitNative) invokeETInt8Int32(t typex.EventTime, key int8, val int32) {
 
 func emitMakerInt8Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Int64)
+	ret.fn = ret.invokeInt8Int64
 	return ret
 }
 
 func (e *emitNative) invokeInt8Int64(key int8, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3673,12 +3673,12 @@ func (e *emitNative) invokeInt8Int64(key int8, val int64) {
 
 func emitMakerETInt8Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Int64)
+	ret.fn = ret.invokeETInt8Int64
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Int64(t typex.EventTime, key int8, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3686,12 +3686,12 @@ func (e *emitNative) invokeETInt8Int64(t typex.EventTime, key int8, val int64) {
 
 func emitMakerInt8Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Uint)
+	ret.fn = ret.invokeInt8Uint
 	return ret
 }
 
 func (e *emitNative) invokeInt8Uint(key int8, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3699,12 +3699,12 @@ func (e *emitNative) invokeInt8Uint(key int8, val uint) {
 
 func emitMakerETInt8Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Uint)
+	ret.fn = ret.invokeETInt8Uint
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Uint(t typex.EventTime, key int8, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3712,12 +3712,12 @@ func (e *emitNative) invokeETInt8Uint(t typex.EventTime, key int8, val uint) {
 
 func emitMakerInt8Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Uint8)
+	ret.fn = ret.invokeInt8Uint8
 	return ret
 }
 
 func (e *emitNative) invokeInt8Uint8(key int8, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3725,12 +3725,12 @@ func (e *emitNative) invokeInt8Uint8(key int8, val uint8) {
 
 func emitMakerETInt8Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Uint8)
+	ret.fn = ret.invokeETInt8Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Uint8(t typex.EventTime, key int8, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3738,12 +3738,12 @@ func (e *emitNative) invokeETInt8Uint8(t typex.EventTime, key int8, val uint8) {
 
 func emitMakerInt8Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Uint16)
+	ret.fn = ret.invokeInt8Uint16
 	return ret
 }
 
 func (e *emitNative) invokeInt8Uint16(key int8, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3751,12 +3751,12 @@ func (e *emitNative) invokeInt8Uint16(key int8, val uint16) {
 
 func emitMakerETInt8Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Uint16)
+	ret.fn = ret.invokeETInt8Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Uint16(t typex.EventTime, key int8, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3764,12 +3764,12 @@ func (e *emitNative) invokeETInt8Uint16(t typex.EventTime, key int8, val uint16)
 
 func emitMakerInt8Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Uint32)
+	ret.fn = ret.invokeInt8Uint32
 	return ret
 }
 
 func (e *emitNative) invokeInt8Uint32(key int8, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3777,12 +3777,12 @@ func (e *emitNative) invokeInt8Uint32(key int8, val uint32) {
 
 func emitMakerETInt8Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Uint32)
+	ret.fn = ret.invokeETInt8Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Uint32(t typex.EventTime, key int8, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3790,12 +3790,12 @@ func (e *emitNative) invokeETInt8Uint32(t typex.EventTime, key int8, val uint32)
 
 func emitMakerInt8Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Uint64)
+	ret.fn = ret.invokeInt8Uint64
 	return ret
 }
 
 func (e *emitNative) invokeInt8Uint64(key int8, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3803,12 +3803,12 @@ func (e *emitNative) invokeInt8Uint64(key int8, val uint64) {
 
 func emitMakerETInt8Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Uint64)
+	ret.fn = ret.invokeETInt8Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Uint64(t typex.EventTime, key int8, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3816,12 +3816,12 @@ func (e *emitNative) invokeETInt8Uint64(t typex.EventTime, key int8, val uint64)
 
 func emitMakerInt8Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Float32)
+	ret.fn = ret.invokeInt8Float32
 	return ret
 }
 
 func (e *emitNative) invokeInt8Float32(key int8, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3829,12 +3829,12 @@ func (e *emitNative) invokeInt8Float32(key int8, val float32) {
 
 func emitMakerETInt8Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Float32)
+	ret.fn = ret.invokeETInt8Float32
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Float32(t typex.EventTime, key int8, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3842,12 +3842,12 @@ func (e *emitNative) invokeETInt8Float32(t typex.EventTime, key int8, val float3
 
 func emitMakerInt8Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Float64)
+	ret.fn = ret.invokeInt8Float64
 	return ret
 }
 
 func (e *emitNative) invokeInt8Float64(key int8, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3855,12 +3855,12 @@ func (e *emitNative) invokeInt8Float64(key int8, val float64) {
 
 func emitMakerETInt8Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Float64)
+	ret.fn = ret.invokeETInt8Float64
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Float64(t typex.EventTime, key int8, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3868,12 +3868,12 @@ func (e *emitNative) invokeETInt8Float64(t typex.EventTime, key int8, val float6
 
 func emitMakerInt8Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Typex_T)
+	ret.fn = ret.invokeInt8Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeInt8Typex_T(key int8, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3881,12 +3881,12 @@ func (e *emitNative) invokeInt8Typex_T(key int8, val typex.T) {
 
 func emitMakerETInt8Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Typex_T)
+	ret.fn = ret.invokeETInt8Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Typex_T(t typex.EventTime, key int8, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3894,12 +3894,12 @@ func (e *emitNative) invokeETInt8Typex_T(t typex.EventTime, key int8, val typex.
 
 func emitMakerInt8Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Typex_U)
+	ret.fn = ret.invokeInt8Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeInt8Typex_U(key int8, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3907,12 +3907,12 @@ func (e *emitNative) invokeInt8Typex_U(key int8, val typex.U) {
 
 func emitMakerETInt8Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Typex_U)
+	ret.fn = ret.invokeETInt8Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Typex_U(t typex.EventTime, key int8, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3920,12 +3920,12 @@ func (e *emitNative) invokeETInt8Typex_U(t typex.EventTime, key int8, val typex.
 
 func emitMakerInt8Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Typex_V)
+	ret.fn = ret.invokeInt8Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeInt8Typex_V(key int8, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3933,12 +3933,12 @@ func (e *emitNative) invokeInt8Typex_V(key int8, val typex.V) {
 
 func emitMakerETInt8Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Typex_V)
+	ret.fn = ret.invokeETInt8Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Typex_V(t typex.EventTime, key int8, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3946,12 +3946,12 @@ func (e *emitNative) invokeETInt8Typex_V(t typex.EventTime, key int8, val typex.
 
 func emitMakerInt8Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Typex_W)
+	ret.fn = ret.invokeInt8Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeInt8Typex_W(key int8, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3959,12 +3959,12 @@ func (e *emitNative) invokeInt8Typex_W(key int8, val typex.W) {
 
 func emitMakerETInt8Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Typex_W)
+	ret.fn = ret.invokeETInt8Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Typex_W(t typex.EventTime, key int8, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3972,12 +3972,12 @@ func (e *emitNative) invokeETInt8Typex_W(t typex.EventTime, key int8, val typex.
 
 func emitMakerInt8Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Typex_X)
+	ret.fn = ret.invokeInt8Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeInt8Typex_X(key int8, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3985,12 +3985,12 @@ func (e *emitNative) invokeInt8Typex_X(key int8, val typex.X) {
 
 func emitMakerETInt8Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Typex_X)
+	ret.fn = ret.invokeETInt8Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Typex_X(t typex.EventTime, key int8, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -3998,12 +3998,12 @@ func (e *emitNative) invokeETInt8Typex_X(t typex.EventTime, key int8, val typex.
 
 func emitMakerInt8Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Typex_Y)
+	ret.fn = ret.invokeInt8Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeInt8Typex_Y(key int8, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4011,12 +4011,12 @@ func (e *emitNative) invokeInt8Typex_Y(key int8, val typex.Y) {
 
 func emitMakerETInt8Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Typex_Y)
+	ret.fn = ret.invokeETInt8Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Typex_Y(t typex.EventTime, key int8, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4024,12 +4024,12 @@ func (e *emitNative) invokeETInt8Typex_Y(t typex.EventTime, key int8, val typex.
 
 func emitMakerInt8Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt8Typex_Z)
+	ret.fn = ret.invokeInt8Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeInt8Typex_Z(key int8, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4037,12 +4037,12 @@ func (e *emitNative) invokeInt8Typex_Z(key int8, val typex.Z) {
 
 func emitMakerETInt8Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt8Typex_Z)
+	ret.fn = ret.invokeETInt8Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETInt8Typex_Z(t typex.EventTime, key int8, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4050,12 +4050,12 @@ func (e *emitNative) invokeETInt8Typex_Z(t typex.EventTime, key int8, val typex.
 
 func emitMakerInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16)
+	ret.fn = ret.invokeInt16
 	return ret
 }
 
 func (e *emitNative) invokeInt16(elm int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4063,12 +4063,12 @@ func (e *emitNative) invokeInt16(elm int16) {
 
 func emitMakerETInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16)
+	ret.fn = ret.invokeETInt16
 	return ret
 }
 
 func (e *emitNative) invokeETInt16(t typex.EventTime, elm int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4076,12 +4076,12 @@ func (e *emitNative) invokeETInt16(t typex.EventTime, elm int16) {
 
 func emitMakerInt16ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16ByteSlice)
+	ret.fn = ret.invokeInt16ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeInt16ByteSlice(key int16, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4089,12 +4089,12 @@ func (e *emitNative) invokeInt16ByteSlice(key int16, val []byte) {
 
 func emitMakerETInt16ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16ByteSlice)
+	ret.fn = ret.invokeETInt16ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETInt16ByteSlice(t typex.EventTime, key int16, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4102,12 +4102,12 @@ func (e *emitNative) invokeETInt16ByteSlice(t typex.EventTime, key int16, val []
 
 func emitMakerInt16Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Bool)
+	ret.fn = ret.invokeInt16Bool
 	return ret
 }
 
 func (e *emitNative) invokeInt16Bool(key int16, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4115,12 +4115,12 @@ func (e *emitNative) invokeInt16Bool(key int16, val bool) {
 
 func emitMakerETInt16Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Bool)
+	ret.fn = ret.invokeETInt16Bool
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Bool(t typex.EventTime, key int16, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4128,12 +4128,12 @@ func (e *emitNative) invokeETInt16Bool(t typex.EventTime, key int16, val bool) {
 
 func emitMakerInt16String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16String)
+	ret.fn = ret.invokeInt16String
 	return ret
 }
 
 func (e *emitNative) invokeInt16String(key int16, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4141,12 +4141,12 @@ func (e *emitNative) invokeInt16String(key int16, val string) {
 
 func emitMakerETInt16String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16String)
+	ret.fn = ret.invokeETInt16String
 	return ret
 }
 
 func (e *emitNative) invokeETInt16String(t typex.EventTime, key int16, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4154,12 +4154,12 @@ func (e *emitNative) invokeETInt16String(t typex.EventTime, key int16, val strin
 
 func emitMakerInt16Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Int)
+	ret.fn = ret.invokeInt16Int
 	return ret
 }
 
 func (e *emitNative) invokeInt16Int(key int16, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4167,12 +4167,12 @@ func (e *emitNative) invokeInt16Int(key int16, val int) {
 
 func emitMakerETInt16Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Int)
+	ret.fn = ret.invokeETInt16Int
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Int(t typex.EventTime, key int16, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4180,12 +4180,12 @@ func (e *emitNative) invokeETInt16Int(t typex.EventTime, key int16, val int) {
 
 func emitMakerInt16Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Int8)
+	ret.fn = ret.invokeInt16Int8
 	return ret
 }
 
 func (e *emitNative) invokeInt16Int8(key int16, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4193,12 +4193,12 @@ func (e *emitNative) invokeInt16Int8(key int16, val int8) {
 
 func emitMakerETInt16Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Int8)
+	ret.fn = ret.invokeETInt16Int8
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Int8(t typex.EventTime, key int16, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4206,12 +4206,12 @@ func (e *emitNative) invokeETInt16Int8(t typex.EventTime, key int16, val int8) {
 
 func emitMakerInt16Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Int16)
+	ret.fn = ret.invokeInt16Int16
 	return ret
 }
 
 func (e *emitNative) invokeInt16Int16(key int16, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4219,12 +4219,12 @@ func (e *emitNative) invokeInt16Int16(key int16, val int16) {
 
 func emitMakerETInt16Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Int16)
+	ret.fn = ret.invokeETInt16Int16
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Int16(t typex.EventTime, key int16, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4232,12 +4232,12 @@ func (e *emitNative) invokeETInt16Int16(t typex.EventTime, key int16, val int16)
 
 func emitMakerInt16Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Int32)
+	ret.fn = ret.invokeInt16Int32
 	return ret
 }
 
 func (e *emitNative) invokeInt16Int32(key int16, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4245,12 +4245,12 @@ func (e *emitNative) invokeInt16Int32(key int16, val int32) {
 
 func emitMakerETInt16Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Int32)
+	ret.fn = ret.invokeETInt16Int32
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Int32(t typex.EventTime, key int16, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4258,12 +4258,12 @@ func (e *emitNative) invokeETInt16Int32(t typex.EventTime, key int16, val int32)
 
 func emitMakerInt16Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Int64)
+	ret.fn = ret.invokeInt16Int64
 	return ret
 }
 
 func (e *emitNative) invokeInt16Int64(key int16, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4271,12 +4271,12 @@ func (e *emitNative) invokeInt16Int64(key int16, val int64) {
 
 func emitMakerETInt16Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Int64)
+	ret.fn = ret.invokeETInt16Int64
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Int64(t typex.EventTime, key int16, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4284,12 +4284,12 @@ func (e *emitNative) invokeETInt16Int64(t typex.EventTime, key int16, val int64)
 
 func emitMakerInt16Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Uint)
+	ret.fn = ret.invokeInt16Uint
 	return ret
 }
 
 func (e *emitNative) invokeInt16Uint(key int16, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4297,12 +4297,12 @@ func (e *emitNative) invokeInt16Uint(key int16, val uint) {
 
 func emitMakerETInt16Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Uint)
+	ret.fn = ret.invokeETInt16Uint
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Uint(t typex.EventTime, key int16, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4310,12 +4310,12 @@ func (e *emitNative) invokeETInt16Uint(t typex.EventTime, key int16, val uint) {
 
 func emitMakerInt16Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Uint8)
+	ret.fn = ret.invokeInt16Uint8
 	return ret
 }
 
 func (e *emitNative) invokeInt16Uint8(key int16, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4323,12 +4323,12 @@ func (e *emitNative) invokeInt16Uint8(key int16, val uint8) {
 
 func emitMakerETInt16Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Uint8)
+	ret.fn = ret.invokeETInt16Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Uint8(t typex.EventTime, key int16, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4336,12 +4336,12 @@ func (e *emitNative) invokeETInt16Uint8(t typex.EventTime, key int16, val uint8)
 
 func emitMakerInt16Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Uint16)
+	ret.fn = ret.invokeInt16Uint16
 	return ret
 }
 
 func (e *emitNative) invokeInt16Uint16(key int16, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4349,12 +4349,12 @@ func (e *emitNative) invokeInt16Uint16(key int16, val uint16) {
 
 func emitMakerETInt16Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Uint16)
+	ret.fn = ret.invokeETInt16Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Uint16(t typex.EventTime, key int16, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4362,12 +4362,12 @@ func (e *emitNative) invokeETInt16Uint16(t typex.EventTime, key int16, val uint1
 
 func emitMakerInt16Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Uint32)
+	ret.fn = ret.invokeInt16Uint32
 	return ret
 }
 
 func (e *emitNative) invokeInt16Uint32(key int16, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4375,12 +4375,12 @@ func (e *emitNative) invokeInt16Uint32(key int16, val uint32) {
 
 func emitMakerETInt16Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Uint32)
+	ret.fn = ret.invokeETInt16Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Uint32(t typex.EventTime, key int16, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4388,12 +4388,12 @@ func (e *emitNative) invokeETInt16Uint32(t typex.EventTime, key int16, val uint3
 
 func emitMakerInt16Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Uint64)
+	ret.fn = ret.invokeInt16Uint64
 	return ret
 }
 
 func (e *emitNative) invokeInt16Uint64(key int16, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4401,12 +4401,12 @@ func (e *emitNative) invokeInt16Uint64(key int16, val uint64) {
 
 func emitMakerETInt16Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Uint64)
+	ret.fn = ret.invokeETInt16Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Uint64(t typex.EventTime, key int16, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4414,12 +4414,12 @@ func (e *emitNative) invokeETInt16Uint64(t typex.EventTime, key int16, val uint6
 
 func emitMakerInt16Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Float32)
+	ret.fn = ret.invokeInt16Float32
 	return ret
 }
 
 func (e *emitNative) invokeInt16Float32(key int16, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4427,12 +4427,12 @@ func (e *emitNative) invokeInt16Float32(key int16, val float32) {
 
 func emitMakerETInt16Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Float32)
+	ret.fn = ret.invokeETInt16Float32
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Float32(t typex.EventTime, key int16, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4440,12 +4440,12 @@ func (e *emitNative) invokeETInt16Float32(t typex.EventTime, key int16, val floa
 
 func emitMakerInt16Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Float64)
+	ret.fn = ret.invokeInt16Float64
 	return ret
 }
 
 func (e *emitNative) invokeInt16Float64(key int16, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4453,12 +4453,12 @@ func (e *emitNative) invokeInt16Float64(key int16, val float64) {
 
 func emitMakerETInt16Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Float64)
+	ret.fn = ret.invokeETInt16Float64
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Float64(t typex.EventTime, key int16, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4466,12 +4466,12 @@ func (e *emitNative) invokeETInt16Float64(t typex.EventTime, key int16, val floa
 
 func emitMakerInt16Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Typex_T)
+	ret.fn = ret.invokeInt16Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeInt16Typex_T(key int16, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4479,12 +4479,12 @@ func (e *emitNative) invokeInt16Typex_T(key int16, val typex.T) {
 
 func emitMakerETInt16Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Typex_T)
+	ret.fn = ret.invokeETInt16Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Typex_T(t typex.EventTime, key int16, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4492,12 +4492,12 @@ func (e *emitNative) invokeETInt16Typex_T(t typex.EventTime, key int16, val type
 
 func emitMakerInt16Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Typex_U)
+	ret.fn = ret.invokeInt16Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeInt16Typex_U(key int16, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4505,12 +4505,12 @@ func (e *emitNative) invokeInt16Typex_U(key int16, val typex.U) {
 
 func emitMakerETInt16Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Typex_U)
+	ret.fn = ret.invokeETInt16Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Typex_U(t typex.EventTime, key int16, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4518,12 +4518,12 @@ func (e *emitNative) invokeETInt16Typex_U(t typex.EventTime, key int16, val type
 
 func emitMakerInt16Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Typex_V)
+	ret.fn = ret.invokeInt16Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeInt16Typex_V(key int16, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4531,12 +4531,12 @@ func (e *emitNative) invokeInt16Typex_V(key int16, val typex.V) {
 
 func emitMakerETInt16Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Typex_V)
+	ret.fn = ret.invokeETInt16Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Typex_V(t typex.EventTime, key int16, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4544,12 +4544,12 @@ func (e *emitNative) invokeETInt16Typex_V(t typex.EventTime, key int16, val type
 
 func emitMakerInt16Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Typex_W)
+	ret.fn = ret.invokeInt16Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeInt16Typex_W(key int16, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4557,12 +4557,12 @@ func (e *emitNative) invokeInt16Typex_W(key int16, val typex.W) {
 
 func emitMakerETInt16Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Typex_W)
+	ret.fn = ret.invokeETInt16Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Typex_W(t typex.EventTime, key int16, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4570,12 +4570,12 @@ func (e *emitNative) invokeETInt16Typex_W(t typex.EventTime, key int16, val type
 
 func emitMakerInt16Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Typex_X)
+	ret.fn = ret.invokeInt16Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeInt16Typex_X(key int16, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4583,12 +4583,12 @@ func (e *emitNative) invokeInt16Typex_X(key int16, val typex.X) {
 
 func emitMakerETInt16Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Typex_X)
+	ret.fn = ret.invokeETInt16Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Typex_X(t typex.EventTime, key int16, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4596,12 +4596,12 @@ func (e *emitNative) invokeETInt16Typex_X(t typex.EventTime, key int16, val type
 
 func emitMakerInt16Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Typex_Y)
+	ret.fn = ret.invokeInt16Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeInt16Typex_Y(key int16, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4609,12 +4609,12 @@ func (e *emitNative) invokeInt16Typex_Y(key int16, val typex.Y) {
 
 func emitMakerETInt16Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Typex_Y)
+	ret.fn = ret.invokeETInt16Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Typex_Y(t typex.EventTime, key int16, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4622,12 +4622,12 @@ func (e *emitNative) invokeETInt16Typex_Y(t typex.EventTime, key int16, val type
 
 func emitMakerInt16Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt16Typex_Z)
+	ret.fn = ret.invokeInt16Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeInt16Typex_Z(key int16, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4635,12 +4635,12 @@ func (e *emitNative) invokeInt16Typex_Z(key int16, val typex.Z) {
 
 func emitMakerETInt16Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt16Typex_Z)
+	ret.fn = ret.invokeETInt16Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETInt16Typex_Z(t typex.EventTime, key int16, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4648,12 +4648,12 @@ func (e *emitNative) invokeETInt16Typex_Z(t typex.EventTime, key int16, val type
 
 func emitMakerInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32)
+	ret.fn = ret.invokeInt32
 	return ret
 }
 
 func (e *emitNative) invokeInt32(elm int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4661,12 +4661,12 @@ func (e *emitNative) invokeInt32(elm int32) {
 
 func emitMakerETInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32)
+	ret.fn = ret.invokeETInt32
 	return ret
 }
 
 func (e *emitNative) invokeETInt32(t typex.EventTime, elm int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4674,12 +4674,12 @@ func (e *emitNative) invokeETInt32(t typex.EventTime, elm int32) {
 
 func emitMakerInt32ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32ByteSlice)
+	ret.fn = ret.invokeInt32ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeInt32ByteSlice(key int32, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4687,12 +4687,12 @@ func (e *emitNative) invokeInt32ByteSlice(key int32, val []byte) {
 
 func emitMakerETInt32ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32ByteSlice)
+	ret.fn = ret.invokeETInt32ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETInt32ByteSlice(t typex.EventTime, key int32, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4700,12 +4700,12 @@ func (e *emitNative) invokeETInt32ByteSlice(t typex.EventTime, key int32, val []
 
 func emitMakerInt32Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Bool)
+	ret.fn = ret.invokeInt32Bool
 	return ret
 }
 
 func (e *emitNative) invokeInt32Bool(key int32, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4713,12 +4713,12 @@ func (e *emitNative) invokeInt32Bool(key int32, val bool) {
 
 func emitMakerETInt32Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Bool)
+	ret.fn = ret.invokeETInt32Bool
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Bool(t typex.EventTime, key int32, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4726,12 +4726,12 @@ func (e *emitNative) invokeETInt32Bool(t typex.EventTime, key int32, val bool) {
 
 func emitMakerInt32String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32String)
+	ret.fn = ret.invokeInt32String
 	return ret
 }
 
 func (e *emitNative) invokeInt32String(key int32, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4739,12 +4739,12 @@ func (e *emitNative) invokeInt32String(key int32, val string) {
 
 func emitMakerETInt32String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32String)
+	ret.fn = ret.invokeETInt32String
 	return ret
 }
 
 func (e *emitNative) invokeETInt32String(t typex.EventTime, key int32, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4752,12 +4752,12 @@ func (e *emitNative) invokeETInt32String(t typex.EventTime, key int32, val strin
 
 func emitMakerInt32Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Int)
+	ret.fn = ret.invokeInt32Int
 	return ret
 }
 
 func (e *emitNative) invokeInt32Int(key int32, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4765,12 +4765,12 @@ func (e *emitNative) invokeInt32Int(key int32, val int) {
 
 func emitMakerETInt32Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Int)
+	ret.fn = ret.invokeETInt32Int
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Int(t typex.EventTime, key int32, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4778,12 +4778,12 @@ func (e *emitNative) invokeETInt32Int(t typex.EventTime, key int32, val int) {
 
 func emitMakerInt32Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Int8)
+	ret.fn = ret.invokeInt32Int8
 	return ret
 }
 
 func (e *emitNative) invokeInt32Int8(key int32, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4791,12 +4791,12 @@ func (e *emitNative) invokeInt32Int8(key int32, val int8) {
 
 func emitMakerETInt32Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Int8)
+	ret.fn = ret.invokeETInt32Int8
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Int8(t typex.EventTime, key int32, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4804,12 +4804,12 @@ func (e *emitNative) invokeETInt32Int8(t typex.EventTime, key int32, val int8) {
 
 func emitMakerInt32Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Int16)
+	ret.fn = ret.invokeInt32Int16
 	return ret
 }
 
 func (e *emitNative) invokeInt32Int16(key int32, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4817,12 +4817,12 @@ func (e *emitNative) invokeInt32Int16(key int32, val int16) {
 
 func emitMakerETInt32Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Int16)
+	ret.fn = ret.invokeETInt32Int16
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Int16(t typex.EventTime, key int32, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4830,12 +4830,12 @@ func (e *emitNative) invokeETInt32Int16(t typex.EventTime, key int32, val int16)
 
 func emitMakerInt32Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Int32)
+	ret.fn = ret.invokeInt32Int32
 	return ret
 }
 
 func (e *emitNative) invokeInt32Int32(key int32, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4843,12 +4843,12 @@ func (e *emitNative) invokeInt32Int32(key int32, val int32) {
 
 func emitMakerETInt32Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Int32)
+	ret.fn = ret.invokeETInt32Int32
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Int32(t typex.EventTime, key int32, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4856,12 +4856,12 @@ func (e *emitNative) invokeETInt32Int32(t typex.EventTime, key int32, val int32)
 
 func emitMakerInt32Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Int64)
+	ret.fn = ret.invokeInt32Int64
 	return ret
 }
 
 func (e *emitNative) invokeInt32Int64(key int32, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4869,12 +4869,12 @@ func (e *emitNative) invokeInt32Int64(key int32, val int64) {
 
 func emitMakerETInt32Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Int64)
+	ret.fn = ret.invokeETInt32Int64
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Int64(t typex.EventTime, key int32, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4882,12 +4882,12 @@ func (e *emitNative) invokeETInt32Int64(t typex.EventTime, key int32, val int64)
 
 func emitMakerInt32Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Uint)
+	ret.fn = ret.invokeInt32Uint
 	return ret
 }
 
 func (e *emitNative) invokeInt32Uint(key int32, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4895,12 +4895,12 @@ func (e *emitNative) invokeInt32Uint(key int32, val uint) {
 
 func emitMakerETInt32Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Uint)
+	ret.fn = ret.invokeETInt32Uint
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Uint(t typex.EventTime, key int32, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4908,12 +4908,12 @@ func (e *emitNative) invokeETInt32Uint(t typex.EventTime, key int32, val uint) {
 
 func emitMakerInt32Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Uint8)
+	ret.fn = ret.invokeInt32Uint8
 	return ret
 }
 
 func (e *emitNative) invokeInt32Uint8(key int32, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4921,12 +4921,12 @@ func (e *emitNative) invokeInt32Uint8(key int32, val uint8) {
 
 func emitMakerETInt32Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Uint8)
+	ret.fn = ret.invokeETInt32Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Uint8(t typex.EventTime, key int32, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4934,12 +4934,12 @@ func (e *emitNative) invokeETInt32Uint8(t typex.EventTime, key int32, val uint8)
 
 func emitMakerInt32Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Uint16)
+	ret.fn = ret.invokeInt32Uint16
 	return ret
 }
 
 func (e *emitNative) invokeInt32Uint16(key int32, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4947,12 +4947,12 @@ func (e *emitNative) invokeInt32Uint16(key int32, val uint16) {
 
 func emitMakerETInt32Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Uint16)
+	ret.fn = ret.invokeETInt32Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Uint16(t typex.EventTime, key int32, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4960,12 +4960,12 @@ func (e *emitNative) invokeETInt32Uint16(t typex.EventTime, key int32, val uint1
 
 func emitMakerInt32Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Uint32)
+	ret.fn = ret.invokeInt32Uint32
 	return ret
 }
 
 func (e *emitNative) invokeInt32Uint32(key int32, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4973,12 +4973,12 @@ func (e *emitNative) invokeInt32Uint32(key int32, val uint32) {
 
 func emitMakerETInt32Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Uint32)
+	ret.fn = ret.invokeETInt32Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Uint32(t typex.EventTime, key int32, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4986,12 +4986,12 @@ func (e *emitNative) invokeETInt32Uint32(t typex.EventTime, key int32, val uint3
 
 func emitMakerInt32Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Uint64)
+	ret.fn = ret.invokeInt32Uint64
 	return ret
 }
 
 func (e *emitNative) invokeInt32Uint64(key int32, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -4999,12 +4999,12 @@ func (e *emitNative) invokeInt32Uint64(key int32, val uint64) {
 
 func emitMakerETInt32Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Uint64)
+	ret.fn = ret.invokeETInt32Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Uint64(t typex.EventTime, key int32, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5012,12 +5012,12 @@ func (e *emitNative) invokeETInt32Uint64(t typex.EventTime, key int32, val uint6
 
 func emitMakerInt32Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Float32)
+	ret.fn = ret.invokeInt32Float32
 	return ret
 }
 
 func (e *emitNative) invokeInt32Float32(key int32, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5025,12 +5025,12 @@ func (e *emitNative) invokeInt32Float32(key int32, val float32) {
 
 func emitMakerETInt32Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Float32)
+	ret.fn = ret.invokeETInt32Float32
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Float32(t typex.EventTime, key int32, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5038,12 +5038,12 @@ func (e *emitNative) invokeETInt32Float32(t typex.EventTime, key int32, val floa
 
 func emitMakerInt32Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Float64)
+	ret.fn = ret.invokeInt32Float64
 	return ret
 }
 
 func (e *emitNative) invokeInt32Float64(key int32, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5051,12 +5051,12 @@ func (e *emitNative) invokeInt32Float64(key int32, val float64) {
 
 func emitMakerETInt32Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Float64)
+	ret.fn = ret.invokeETInt32Float64
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Float64(t typex.EventTime, key int32, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5064,12 +5064,12 @@ func (e *emitNative) invokeETInt32Float64(t typex.EventTime, key int32, val floa
 
 func emitMakerInt32Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Typex_T)
+	ret.fn = ret.invokeInt32Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeInt32Typex_T(key int32, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5077,12 +5077,12 @@ func (e *emitNative) invokeInt32Typex_T(key int32, val typex.T) {
 
 func emitMakerETInt32Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Typex_T)
+	ret.fn = ret.invokeETInt32Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Typex_T(t typex.EventTime, key int32, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5090,12 +5090,12 @@ func (e *emitNative) invokeETInt32Typex_T(t typex.EventTime, key int32, val type
 
 func emitMakerInt32Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Typex_U)
+	ret.fn = ret.invokeInt32Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeInt32Typex_U(key int32, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5103,12 +5103,12 @@ func (e *emitNative) invokeInt32Typex_U(key int32, val typex.U) {
 
 func emitMakerETInt32Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Typex_U)
+	ret.fn = ret.invokeETInt32Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Typex_U(t typex.EventTime, key int32, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5116,12 +5116,12 @@ func (e *emitNative) invokeETInt32Typex_U(t typex.EventTime, key int32, val type
 
 func emitMakerInt32Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Typex_V)
+	ret.fn = ret.invokeInt32Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeInt32Typex_V(key int32, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5129,12 +5129,12 @@ func (e *emitNative) invokeInt32Typex_V(key int32, val typex.V) {
 
 func emitMakerETInt32Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Typex_V)
+	ret.fn = ret.invokeETInt32Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Typex_V(t typex.EventTime, key int32, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5142,12 +5142,12 @@ func (e *emitNative) invokeETInt32Typex_V(t typex.EventTime, key int32, val type
 
 func emitMakerInt32Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Typex_W)
+	ret.fn = ret.invokeInt32Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeInt32Typex_W(key int32, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5155,12 +5155,12 @@ func (e *emitNative) invokeInt32Typex_W(key int32, val typex.W) {
 
 func emitMakerETInt32Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Typex_W)
+	ret.fn = ret.invokeETInt32Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Typex_W(t typex.EventTime, key int32, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5168,12 +5168,12 @@ func (e *emitNative) invokeETInt32Typex_W(t typex.EventTime, key int32, val type
 
 func emitMakerInt32Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Typex_X)
+	ret.fn = ret.invokeInt32Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeInt32Typex_X(key int32, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5181,12 +5181,12 @@ func (e *emitNative) invokeInt32Typex_X(key int32, val typex.X) {
 
 func emitMakerETInt32Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Typex_X)
+	ret.fn = ret.invokeETInt32Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Typex_X(t typex.EventTime, key int32, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5194,12 +5194,12 @@ func (e *emitNative) invokeETInt32Typex_X(t typex.EventTime, key int32, val type
 
 func emitMakerInt32Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Typex_Y)
+	ret.fn = ret.invokeInt32Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeInt32Typex_Y(key int32, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5207,12 +5207,12 @@ func (e *emitNative) invokeInt32Typex_Y(key int32, val typex.Y) {
 
 func emitMakerETInt32Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Typex_Y)
+	ret.fn = ret.invokeETInt32Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Typex_Y(t typex.EventTime, key int32, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5220,12 +5220,12 @@ func (e *emitNative) invokeETInt32Typex_Y(t typex.EventTime, key int32, val type
 
 func emitMakerInt32Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt32Typex_Z)
+	ret.fn = ret.invokeInt32Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeInt32Typex_Z(key int32, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5233,12 +5233,12 @@ func (e *emitNative) invokeInt32Typex_Z(key int32, val typex.Z) {
 
 func emitMakerETInt32Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt32Typex_Z)
+	ret.fn = ret.invokeETInt32Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETInt32Typex_Z(t typex.EventTime, key int32, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5246,12 +5246,12 @@ func (e *emitNative) invokeETInt32Typex_Z(t typex.EventTime, key int32, val type
 
 func emitMakerInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64)
+	ret.fn = ret.invokeInt64
 	return ret
 }
 
 func (e *emitNative) invokeInt64(elm int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5259,12 +5259,12 @@ func (e *emitNative) invokeInt64(elm int64) {
 
 func emitMakerETInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64)
+	ret.fn = ret.invokeETInt64
 	return ret
 }
 
 func (e *emitNative) invokeETInt64(t typex.EventTime, elm int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5272,12 +5272,12 @@ func (e *emitNative) invokeETInt64(t typex.EventTime, elm int64) {
 
 func emitMakerInt64ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64ByteSlice)
+	ret.fn = ret.invokeInt64ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeInt64ByteSlice(key int64, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5285,12 +5285,12 @@ func (e *emitNative) invokeInt64ByteSlice(key int64, val []byte) {
 
 func emitMakerETInt64ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64ByteSlice)
+	ret.fn = ret.invokeETInt64ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETInt64ByteSlice(t typex.EventTime, key int64, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5298,12 +5298,12 @@ func (e *emitNative) invokeETInt64ByteSlice(t typex.EventTime, key int64, val []
 
 func emitMakerInt64Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Bool)
+	ret.fn = ret.invokeInt64Bool
 	return ret
 }
 
 func (e *emitNative) invokeInt64Bool(key int64, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5311,12 +5311,12 @@ func (e *emitNative) invokeInt64Bool(key int64, val bool) {
 
 func emitMakerETInt64Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Bool)
+	ret.fn = ret.invokeETInt64Bool
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Bool(t typex.EventTime, key int64, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5324,12 +5324,12 @@ func (e *emitNative) invokeETInt64Bool(t typex.EventTime, key int64, val bool) {
 
 func emitMakerInt64String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64String)
+	ret.fn = ret.invokeInt64String
 	return ret
 }
 
 func (e *emitNative) invokeInt64String(key int64, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5337,12 +5337,12 @@ func (e *emitNative) invokeInt64String(key int64, val string) {
 
 func emitMakerETInt64String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64String)
+	ret.fn = ret.invokeETInt64String
 	return ret
 }
 
 func (e *emitNative) invokeETInt64String(t typex.EventTime, key int64, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5350,12 +5350,12 @@ func (e *emitNative) invokeETInt64String(t typex.EventTime, key int64, val strin
 
 func emitMakerInt64Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Int)
+	ret.fn = ret.invokeInt64Int
 	return ret
 }
 
 func (e *emitNative) invokeInt64Int(key int64, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5363,12 +5363,12 @@ func (e *emitNative) invokeInt64Int(key int64, val int) {
 
 func emitMakerETInt64Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Int)
+	ret.fn = ret.invokeETInt64Int
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Int(t typex.EventTime, key int64, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5376,12 +5376,12 @@ func (e *emitNative) invokeETInt64Int(t typex.EventTime, key int64, val int) {
 
 func emitMakerInt64Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Int8)
+	ret.fn = ret.invokeInt64Int8
 	return ret
 }
 
 func (e *emitNative) invokeInt64Int8(key int64, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5389,12 +5389,12 @@ func (e *emitNative) invokeInt64Int8(key int64, val int8) {
 
 func emitMakerETInt64Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Int8)
+	ret.fn = ret.invokeETInt64Int8
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Int8(t typex.EventTime, key int64, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5402,12 +5402,12 @@ func (e *emitNative) invokeETInt64Int8(t typex.EventTime, key int64, val int8) {
 
 func emitMakerInt64Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Int16)
+	ret.fn = ret.invokeInt64Int16
 	return ret
 }
 
 func (e *emitNative) invokeInt64Int16(key int64, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5415,12 +5415,12 @@ func (e *emitNative) invokeInt64Int16(key int64, val int16) {
 
 func emitMakerETInt64Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Int16)
+	ret.fn = ret.invokeETInt64Int16
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Int16(t typex.EventTime, key int64, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5428,12 +5428,12 @@ func (e *emitNative) invokeETInt64Int16(t typex.EventTime, key int64, val int16)
 
 func emitMakerInt64Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Int32)
+	ret.fn = ret.invokeInt64Int32
 	return ret
 }
 
 func (e *emitNative) invokeInt64Int32(key int64, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5441,12 +5441,12 @@ func (e *emitNative) invokeInt64Int32(key int64, val int32) {
 
 func emitMakerETInt64Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Int32)
+	ret.fn = ret.invokeETInt64Int32
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Int32(t typex.EventTime, key int64, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5454,12 +5454,12 @@ func (e *emitNative) invokeETInt64Int32(t typex.EventTime, key int64, val int32)
 
 func emitMakerInt64Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Int64)
+	ret.fn = ret.invokeInt64Int64
 	return ret
 }
 
 func (e *emitNative) invokeInt64Int64(key int64, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5467,12 +5467,12 @@ func (e *emitNative) invokeInt64Int64(key int64, val int64) {
 
 func emitMakerETInt64Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Int64)
+	ret.fn = ret.invokeETInt64Int64
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Int64(t typex.EventTime, key int64, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5480,12 +5480,12 @@ func (e *emitNative) invokeETInt64Int64(t typex.EventTime, key int64, val int64)
 
 func emitMakerInt64Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Uint)
+	ret.fn = ret.invokeInt64Uint
 	return ret
 }
 
 func (e *emitNative) invokeInt64Uint(key int64, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5493,12 +5493,12 @@ func (e *emitNative) invokeInt64Uint(key int64, val uint) {
 
 func emitMakerETInt64Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Uint)
+	ret.fn = ret.invokeETInt64Uint
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Uint(t typex.EventTime, key int64, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5506,12 +5506,12 @@ func (e *emitNative) invokeETInt64Uint(t typex.EventTime, key int64, val uint) {
 
 func emitMakerInt64Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Uint8)
+	ret.fn = ret.invokeInt64Uint8
 	return ret
 }
 
 func (e *emitNative) invokeInt64Uint8(key int64, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5519,12 +5519,12 @@ func (e *emitNative) invokeInt64Uint8(key int64, val uint8) {
 
 func emitMakerETInt64Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Uint8)
+	ret.fn = ret.invokeETInt64Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Uint8(t typex.EventTime, key int64, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5532,12 +5532,12 @@ func (e *emitNative) invokeETInt64Uint8(t typex.EventTime, key int64, val uint8)
 
 func emitMakerInt64Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Uint16)
+	ret.fn = ret.invokeInt64Uint16
 	return ret
 }
 
 func (e *emitNative) invokeInt64Uint16(key int64, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5545,12 +5545,12 @@ func (e *emitNative) invokeInt64Uint16(key int64, val uint16) {
 
 func emitMakerETInt64Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Uint16)
+	ret.fn = ret.invokeETInt64Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Uint16(t typex.EventTime, key int64, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5558,12 +5558,12 @@ func (e *emitNative) invokeETInt64Uint16(t typex.EventTime, key int64, val uint1
 
 func emitMakerInt64Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Uint32)
+	ret.fn = ret.invokeInt64Uint32
 	return ret
 }
 
 func (e *emitNative) invokeInt64Uint32(key int64, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5571,12 +5571,12 @@ func (e *emitNative) invokeInt64Uint32(key int64, val uint32) {
 
 func emitMakerETInt64Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Uint32)
+	ret.fn = ret.invokeETInt64Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Uint32(t typex.EventTime, key int64, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5584,12 +5584,12 @@ func (e *emitNative) invokeETInt64Uint32(t typex.EventTime, key int64, val uint3
 
 func emitMakerInt64Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Uint64)
+	ret.fn = ret.invokeInt64Uint64
 	return ret
 }
 
 func (e *emitNative) invokeInt64Uint64(key int64, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5597,12 +5597,12 @@ func (e *emitNative) invokeInt64Uint64(key int64, val uint64) {
 
 func emitMakerETInt64Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Uint64)
+	ret.fn = ret.invokeETInt64Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Uint64(t typex.EventTime, key int64, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5610,12 +5610,12 @@ func (e *emitNative) invokeETInt64Uint64(t typex.EventTime, key int64, val uint6
 
 func emitMakerInt64Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Float32)
+	ret.fn = ret.invokeInt64Float32
 	return ret
 }
 
 func (e *emitNative) invokeInt64Float32(key int64, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5623,12 +5623,12 @@ func (e *emitNative) invokeInt64Float32(key int64, val float32) {
 
 func emitMakerETInt64Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Float32)
+	ret.fn = ret.invokeETInt64Float32
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Float32(t typex.EventTime, key int64, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5636,12 +5636,12 @@ func (e *emitNative) invokeETInt64Float32(t typex.EventTime, key int64, val floa
 
 func emitMakerInt64Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Float64)
+	ret.fn = ret.invokeInt64Float64
 	return ret
 }
 
 func (e *emitNative) invokeInt64Float64(key int64, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5649,12 +5649,12 @@ func (e *emitNative) invokeInt64Float64(key int64, val float64) {
 
 func emitMakerETInt64Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Float64)
+	ret.fn = ret.invokeETInt64Float64
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Float64(t typex.EventTime, key int64, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5662,12 +5662,12 @@ func (e *emitNative) invokeETInt64Float64(t typex.EventTime, key int64, val floa
 
 func emitMakerInt64Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Typex_T)
+	ret.fn = ret.invokeInt64Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeInt64Typex_T(key int64, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5675,12 +5675,12 @@ func (e *emitNative) invokeInt64Typex_T(key int64, val typex.T) {
 
 func emitMakerETInt64Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Typex_T)
+	ret.fn = ret.invokeETInt64Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Typex_T(t typex.EventTime, key int64, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5688,12 +5688,12 @@ func (e *emitNative) invokeETInt64Typex_T(t typex.EventTime, key int64, val type
 
 func emitMakerInt64Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Typex_U)
+	ret.fn = ret.invokeInt64Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeInt64Typex_U(key int64, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5701,12 +5701,12 @@ func (e *emitNative) invokeInt64Typex_U(key int64, val typex.U) {
 
 func emitMakerETInt64Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Typex_U)
+	ret.fn = ret.invokeETInt64Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Typex_U(t typex.EventTime, key int64, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5714,12 +5714,12 @@ func (e *emitNative) invokeETInt64Typex_U(t typex.EventTime, key int64, val type
 
 func emitMakerInt64Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Typex_V)
+	ret.fn = ret.invokeInt64Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeInt64Typex_V(key int64, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5727,12 +5727,12 @@ func (e *emitNative) invokeInt64Typex_V(key int64, val typex.V) {
 
 func emitMakerETInt64Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Typex_V)
+	ret.fn = ret.invokeETInt64Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Typex_V(t typex.EventTime, key int64, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5740,12 +5740,12 @@ func (e *emitNative) invokeETInt64Typex_V(t typex.EventTime, key int64, val type
 
 func emitMakerInt64Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Typex_W)
+	ret.fn = ret.invokeInt64Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeInt64Typex_W(key int64, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5753,12 +5753,12 @@ func (e *emitNative) invokeInt64Typex_W(key int64, val typex.W) {
 
 func emitMakerETInt64Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Typex_W)
+	ret.fn = ret.invokeETInt64Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Typex_W(t typex.EventTime, key int64, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5766,12 +5766,12 @@ func (e *emitNative) invokeETInt64Typex_W(t typex.EventTime, key int64, val type
 
 func emitMakerInt64Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Typex_X)
+	ret.fn = ret.invokeInt64Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeInt64Typex_X(key int64, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5779,12 +5779,12 @@ func (e *emitNative) invokeInt64Typex_X(key int64, val typex.X) {
 
 func emitMakerETInt64Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Typex_X)
+	ret.fn = ret.invokeETInt64Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Typex_X(t typex.EventTime, key int64, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5792,12 +5792,12 @@ func (e *emitNative) invokeETInt64Typex_X(t typex.EventTime, key int64, val type
 
 func emitMakerInt64Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Typex_Y)
+	ret.fn = ret.invokeInt64Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeInt64Typex_Y(key int64, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5805,12 +5805,12 @@ func (e *emitNative) invokeInt64Typex_Y(key int64, val typex.Y) {
 
 func emitMakerETInt64Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Typex_Y)
+	ret.fn = ret.invokeETInt64Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Typex_Y(t typex.EventTime, key int64, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5818,12 +5818,12 @@ func (e *emitNative) invokeETInt64Typex_Y(t typex.EventTime, key int64, val type
 
 func emitMakerInt64Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeInt64Typex_Z)
+	ret.fn = ret.invokeInt64Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeInt64Typex_Z(key int64, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5831,12 +5831,12 @@ func (e *emitNative) invokeInt64Typex_Z(key int64, val typex.Z) {
 
 func emitMakerETInt64Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETInt64Typex_Z)
+	ret.fn = ret.invokeETInt64Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETInt64Typex_Z(t typex.EventTime, key int64, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5844,12 +5844,12 @@ func (e *emitNative) invokeETInt64Typex_Z(t typex.EventTime, key int64, val type
 
 func emitMakerUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint)
+	ret.fn = ret.invokeUint
 	return ret
 }
 
 func (e *emitNative) invokeUint(elm uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5857,12 +5857,12 @@ func (e *emitNative) invokeUint(elm uint) {
 
 func emitMakerETUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint)
+	ret.fn = ret.invokeETUint
 	return ret
 }
 
 func (e *emitNative) invokeETUint(t typex.EventTime, elm uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5870,12 +5870,12 @@ func (e *emitNative) invokeETUint(t typex.EventTime, elm uint) {
 
 func emitMakerUintByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintByteSlice)
+	ret.fn = ret.invokeUintByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeUintByteSlice(key uint, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5883,12 +5883,12 @@ func (e *emitNative) invokeUintByteSlice(key uint, val []byte) {
 
 func emitMakerETUintByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintByteSlice)
+	ret.fn = ret.invokeETUintByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETUintByteSlice(t typex.EventTime, key uint, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5896,12 +5896,12 @@ func (e *emitNative) invokeETUintByteSlice(t typex.EventTime, key uint, val []by
 
 func emitMakerUintBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintBool)
+	ret.fn = ret.invokeUintBool
 	return ret
 }
 
 func (e *emitNative) invokeUintBool(key uint, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5909,12 +5909,12 @@ func (e *emitNative) invokeUintBool(key uint, val bool) {
 
 func emitMakerETUintBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintBool)
+	ret.fn = ret.invokeETUintBool
 	return ret
 }
 
 func (e *emitNative) invokeETUintBool(t typex.EventTime, key uint, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5922,12 +5922,12 @@ func (e *emitNative) invokeETUintBool(t typex.EventTime, key uint, val bool) {
 
 func emitMakerUintString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintString)
+	ret.fn = ret.invokeUintString
 	return ret
 }
 
 func (e *emitNative) invokeUintString(key uint, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5935,12 +5935,12 @@ func (e *emitNative) invokeUintString(key uint, val string) {
 
 func emitMakerETUintString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintString)
+	ret.fn = ret.invokeETUintString
 	return ret
 }
 
 func (e *emitNative) invokeETUintString(t typex.EventTime, key uint, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5948,12 +5948,12 @@ func (e *emitNative) invokeETUintString(t typex.EventTime, key uint, val string)
 
 func emitMakerUintInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintInt)
+	ret.fn = ret.invokeUintInt
 	return ret
 }
 
 func (e *emitNative) invokeUintInt(key uint, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5961,12 +5961,12 @@ func (e *emitNative) invokeUintInt(key uint, val int) {
 
 func emitMakerETUintInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintInt)
+	ret.fn = ret.invokeETUintInt
 	return ret
 }
 
 func (e *emitNative) invokeETUintInt(t typex.EventTime, key uint, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5974,12 +5974,12 @@ func (e *emitNative) invokeETUintInt(t typex.EventTime, key uint, val int) {
 
 func emitMakerUintInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintInt8)
+	ret.fn = ret.invokeUintInt8
 	return ret
 }
 
 func (e *emitNative) invokeUintInt8(key uint, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -5987,12 +5987,12 @@ func (e *emitNative) invokeUintInt8(key uint, val int8) {
 
 func emitMakerETUintInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintInt8)
+	ret.fn = ret.invokeETUintInt8
 	return ret
 }
 
 func (e *emitNative) invokeETUintInt8(t typex.EventTime, key uint, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6000,12 +6000,12 @@ func (e *emitNative) invokeETUintInt8(t typex.EventTime, key uint, val int8) {
 
 func emitMakerUintInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintInt16)
+	ret.fn = ret.invokeUintInt16
 	return ret
 }
 
 func (e *emitNative) invokeUintInt16(key uint, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6013,12 +6013,12 @@ func (e *emitNative) invokeUintInt16(key uint, val int16) {
 
 func emitMakerETUintInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintInt16)
+	ret.fn = ret.invokeETUintInt16
 	return ret
 }
 
 func (e *emitNative) invokeETUintInt16(t typex.EventTime, key uint, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6026,12 +6026,12 @@ func (e *emitNative) invokeETUintInt16(t typex.EventTime, key uint, val int16) {
 
 func emitMakerUintInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintInt32)
+	ret.fn = ret.invokeUintInt32
 	return ret
 }
 
 func (e *emitNative) invokeUintInt32(key uint, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6039,12 +6039,12 @@ func (e *emitNative) invokeUintInt32(key uint, val int32) {
 
 func emitMakerETUintInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintInt32)
+	ret.fn = ret.invokeETUintInt32
 	return ret
 }
 
 func (e *emitNative) invokeETUintInt32(t typex.EventTime, key uint, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6052,12 +6052,12 @@ func (e *emitNative) invokeETUintInt32(t typex.EventTime, key uint, val int32) {
 
 func emitMakerUintInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintInt64)
+	ret.fn = ret.invokeUintInt64
 	return ret
 }
 
 func (e *emitNative) invokeUintInt64(key uint, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6065,12 +6065,12 @@ func (e *emitNative) invokeUintInt64(key uint, val int64) {
 
 func emitMakerETUintInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintInt64)
+	ret.fn = ret.invokeETUintInt64
 	return ret
 }
 
 func (e *emitNative) invokeETUintInt64(t typex.EventTime, key uint, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6078,12 +6078,12 @@ func (e *emitNative) invokeETUintInt64(t typex.EventTime, key uint, val int64) {
 
 func emitMakerUintUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintUint)
+	ret.fn = ret.invokeUintUint
 	return ret
 }
 
 func (e *emitNative) invokeUintUint(key uint, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6091,12 +6091,12 @@ func (e *emitNative) invokeUintUint(key uint, val uint) {
 
 func emitMakerETUintUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintUint)
+	ret.fn = ret.invokeETUintUint
 	return ret
 }
 
 func (e *emitNative) invokeETUintUint(t typex.EventTime, key uint, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6104,12 +6104,12 @@ func (e *emitNative) invokeETUintUint(t typex.EventTime, key uint, val uint) {
 
 func emitMakerUintUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintUint8)
+	ret.fn = ret.invokeUintUint8
 	return ret
 }
 
 func (e *emitNative) invokeUintUint8(key uint, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6117,12 +6117,12 @@ func (e *emitNative) invokeUintUint8(key uint, val uint8) {
 
 func emitMakerETUintUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintUint8)
+	ret.fn = ret.invokeETUintUint8
 	return ret
 }
 
 func (e *emitNative) invokeETUintUint8(t typex.EventTime, key uint, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6130,12 +6130,12 @@ func (e *emitNative) invokeETUintUint8(t typex.EventTime, key uint, val uint8) {
 
 func emitMakerUintUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintUint16)
+	ret.fn = ret.invokeUintUint16
 	return ret
 }
 
 func (e *emitNative) invokeUintUint16(key uint, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6143,12 +6143,12 @@ func (e *emitNative) invokeUintUint16(key uint, val uint16) {
 
 func emitMakerETUintUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintUint16)
+	ret.fn = ret.invokeETUintUint16
 	return ret
 }
 
 func (e *emitNative) invokeETUintUint16(t typex.EventTime, key uint, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6156,12 +6156,12 @@ func (e *emitNative) invokeETUintUint16(t typex.EventTime, key uint, val uint16)
 
 func emitMakerUintUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintUint32)
+	ret.fn = ret.invokeUintUint32
 	return ret
 }
 
 func (e *emitNative) invokeUintUint32(key uint, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6169,12 +6169,12 @@ func (e *emitNative) invokeUintUint32(key uint, val uint32) {
 
 func emitMakerETUintUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintUint32)
+	ret.fn = ret.invokeETUintUint32
 	return ret
 }
 
 func (e *emitNative) invokeETUintUint32(t typex.EventTime, key uint, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6182,12 +6182,12 @@ func (e *emitNative) invokeETUintUint32(t typex.EventTime, key uint, val uint32)
 
 func emitMakerUintUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintUint64)
+	ret.fn = ret.invokeUintUint64
 	return ret
 }
 
 func (e *emitNative) invokeUintUint64(key uint, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6195,12 +6195,12 @@ func (e *emitNative) invokeUintUint64(key uint, val uint64) {
 
 func emitMakerETUintUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintUint64)
+	ret.fn = ret.invokeETUintUint64
 	return ret
 }
 
 func (e *emitNative) invokeETUintUint64(t typex.EventTime, key uint, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6208,12 +6208,12 @@ func (e *emitNative) invokeETUintUint64(t typex.EventTime, key uint, val uint64)
 
 func emitMakerUintFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintFloat32)
+	ret.fn = ret.invokeUintFloat32
 	return ret
 }
 
 func (e *emitNative) invokeUintFloat32(key uint, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6221,12 +6221,12 @@ func (e *emitNative) invokeUintFloat32(key uint, val float32) {
 
 func emitMakerETUintFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintFloat32)
+	ret.fn = ret.invokeETUintFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETUintFloat32(t typex.EventTime, key uint, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6234,12 +6234,12 @@ func (e *emitNative) invokeETUintFloat32(t typex.EventTime, key uint, val float3
 
 func emitMakerUintFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintFloat64)
+	ret.fn = ret.invokeUintFloat64
 	return ret
 }
 
 func (e *emitNative) invokeUintFloat64(key uint, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6247,12 +6247,12 @@ func (e *emitNative) invokeUintFloat64(key uint, val float64) {
 
 func emitMakerETUintFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintFloat64)
+	ret.fn = ret.invokeETUintFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETUintFloat64(t typex.EventTime, key uint, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6260,12 +6260,12 @@ func (e *emitNative) invokeETUintFloat64(t typex.EventTime, key uint, val float6
 
 func emitMakerUintTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintTypex_T)
+	ret.fn = ret.invokeUintTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeUintTypex_T(key uint, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6273,12 +6273,12 @@ func (e *emitNative) invokeUintTypex_T(key uint, val typex.T) {
 
 func emitMakerETUintTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintTypex_T)
+	ret.fn = ret.invokeETUintTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETUintTypex_T(t typex.EventTime, key uint, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6286,12 +6286,12 @@ func (e *emitNative) invokeETUintTypex_T(t typex.EventTime, key uint, val typex.
 
 func emitMakerUintTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintTypex_U)
+	ret.fn = ret.invokeUintTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeUintTypex_U(key uint, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6299,12 +6299,12 @@ func (e *emitNative) invokeUintTypex_U(key uint, val typex.U) {
 
 func emitMakerETUintTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintTypex_U)
+	ret.fn = ret.invokeETUintTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETUintTypex_U(t typex.EventTime, key uint, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6312,12 +6312,12 @@ func (e *emitNative) invokeETUintTypex_U(t typex.EventTime, key uint, val typex.
 
 func emitMakerUintTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintTypex_V)
+	ret.fn = ret.invokeUintTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeUintTypex_V(key uint, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6325,12 +6325,12 @@ func (e *emitNative) invokeUintTypex_V(key uint, val typex.V) {
 
 func emitMakerETUintTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintTypex_V)
+	ret.fn = ret.invokeETUintTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETUintTypex_V(t typex.EventTime, key uint, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6338,12 +6338,12 @@ func (e *emitNative) invokeETUintTypex_V(t typex.EventTime, key uint, val typex.
 
 func emitMakerUintTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintTypex_W)
+	ret.fn = ret.invokeUintTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeUintTypex_W(key uint, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6351,12 +6351,12 @@ func (e *emitNative) invokeUintTypex_W(key uint, val typex.W) {
 
 func emitMakerETUintTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintTypex_W)
+	ret.fn = ret.invokeETUintTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETUintTypex_W(t typex.EventTime, key uint, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6364,12 +6364,12 @@ func (e *emitNative) invokeETUintTypex_W(t typex.EventTime, key uint, val typex.
 
 func emitMakerUintTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintTypex_X)
+	ret.fn = ret.invokeUintTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeUintTypex_X(key uint, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6377,12 +6377,12 @@ func (e *emitNative) invokeUintTypex_X(key uint, val typex.X) {
 
 func emitMakerETUintTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintTypex_X)
+	ret.fn = ret.invokeETUintTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETUintTypex_X(t typex.EventTime, key uint, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6390,12 +6390,12 @@ func (e *emitNative) invokeETUintTypex_X(t typex.EventTime, key uint, val typex.
 
 func emitMakerUintTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintTypex_Y)
+	ret.fn = ret.invokeUintTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeUintTypex_Y(key uint, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6403,12 +6403,12 @@ func (e *emitNative) invokeUintTypex_Y(key uint, val typex.Y) {
 
 func emitMakerETUintTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintTypex_Y)
+	ret.fn = ret.invokeETUintTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETUintTypex_Y(t typex.EventTime, key uint, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6416,12 +6416,12 @@ func (e *emitNative) invokeETUintTypex_Y(t typex.EventTime, key uint, val typex.
 
 func emitMakerUintTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUintTypex_Z)
+	ret.fn = ret.invokeUintTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeUintTypex_Z(key uint, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6429,12 +6429,12 @@ func (e *emitNative) invokeUintTypex_Z(key uint, val typex.Z) {
 
 func emitMakerETUintTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUintTypex_Z)
+	ret.fn = ret.invokeETUintTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETUintTypex_Z(t typex.EventTime, key uint, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6442,12 +6442,12 @@ func (e *emitNative) invokeETUintTypex_Z(t typex.EventTime, key uint, val typex.
 
 func emitMakerUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8)
+	ret.fn = ret.invokeUint8
 	return ret
 }
 
 func (e *emitNative) invokeUint8(elm uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6455,12 +6455,12 @@ func (e *emitNative) invokeUint8(elm uint8) {
 
 func emitMakerETUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8)
+	ret.fn = ret.invokeETUint8
 	return ret
 }
 
 func (e *emitNative) invokeETUint8(t typex.EventTime, elm uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6468,12 +6468,12 @@ func (e *emitNative) invokeETUint8(t typex.EventTime, elm uint8) {
 
 func emitMakerUint8ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8ByteSlice)
+	ret.fn = ret.invokeUint8ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeUint8ByteSlice(key uint8, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6481,12 +6481,12 @@ func (e *emitNative) invokeUint8ByteSlice(key uint8, val []byte) {
 
 func emitMakerETUint8ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8ByteSlice)
+	ret.fn = ret.invokeETUint8ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETUint8ByteSlice(t typex.EventTime, key uint8, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6494,12 +6494,12 @@ func (e *emitNative) invokeETUint8ByteSlice(t typex.EventTime, key uint8, val []
 
 func emitMakerUint8Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Bool)
+	ret.fn = ret.invokeUint8Bool
 	return ret
 }
 
 func (e *emitNative) invokeUint8Bool(key uint8, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6507,12 +6507,12 @@ func (e *emitNative) invokeUint8Bool(key uint8, val bool) {
 
 func emitMakerETUint8Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Bool)
+	ret.fn = ret.invokeETUint8Bool
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Bool(t typex.EventTime, key uint8, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6520,12 +6520,12 @@ func (e *emitNative) invokeETUint8Bool(t typex.EventTime, key uint8, val bool) {
 
 func emitMakerUint8String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8String)
+	ret.fn = ret.invokeUint8String
 	return ret
 }
 
 func (e *emitNative) invokeUint8String(key uint8, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6533,12 +6533,12 @@ func (e *emitNative) invokeUint8String(key uint8, val string) {
 
 func emitMakerETUint8String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8String)
+	ret.fn = ret.invokeETUint8String
 	return ret
 }
 
 func (e *emitNative) invokeETUint8String(t typex.EventTime, key uint8, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6546,12 +6546,12 @@ func (e *emitNative) invokeETUint8String(t typex.EventTime, key uint8, val strin
 
 func emitMakerUint8Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Int)
+	ret.fn = ret.invokeUint8Int
 	return ret
 }
 
 func (e *emitNative) invokeUint8Int(key uint8, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6559,12 +6559,12 @@ func (e *emitNative) invokeUint8Int(key uint8, val int) {
 
 func emitMakerETUint8Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Int)
+	ret.fn = ret.invokeETUint8Int
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Int(t typex.EventTime, key uint8, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6572,12 +6572,12 @@ func (e *emitNative) invokeETUint8Int(t typex.EventTime, key uint8, val int) {
 
 func emitMakerUint8Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Int8)
+	ret.fn = ret.invokeUint8Int8
 	return ret
 }
 
 func (e *emitNative) invokeUint8Int8(key uint8, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6585,12 +6585,12 @@ func (e *emitNative) invokeUint8Int8(key uint8, val int8) {
 
 func emitMakerETUint8Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Int8)
+	ret.fn = ret.invokeETUint8Int8
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Int8(t typex.EventTime, key uint8, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6598,12 +6598,12 @@ func (e *emitNative) invokeETUint8Int8(t typex.EventTime, key uint8, val int8) {
 
 func emitMakerUint8Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Int16)
+	ret.fn = ret.invokeUint8Int16
 	return ret
 }
 
 func (e *emitNative) invokeUint8Int16(key uint8, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6611,12 +6611,12 @@ func (e *emitNative) invokeUint8Int16(key uint8, val int16) {
 
 func emitMakerETUint8Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Int16)
+	ret.fn = ret.invokeETUint8Int16
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Int16(t typex.EventTime, key uint8, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6624,12 +6624,12 @@ func (e *emitNative) invokeETUint8Int16(t typex.EventTime, key uint8, val int16)
 
 func emitMakerUint8Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Int32)
+	ret.fn = ret.invokeUint8Int32
 	return ret
 }
 
 func (e *emitNative) invokeUint8Int32(key uint8, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6637,12 +6637,12 @@ func (e *emitNative) invokeUint8Int32(key uint8, val int32) {
 
 func emitMakerETUint8Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Int32)
+	ret.fn = ret.invokeETUint8Int32
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Int32(t typex.EventTime, key uint8, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6650,12 +6650,12 @@ func (e *emitNative) invokeETUint8Int32(t typex.EventTime, key uint8, val int32)
 
 func emitMakerUint8Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Int64)
+	ret.fn = ret.invokeUint8Int64
 	return ret
 }
 
 func (e *emitNative) invokeUint8Int64(key uint8, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6663,12 +6663,12 @@ func (e *emitNative) invokeUint8Int64(key uint8, val int64) {
 
 func emitMakerETUint8Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Int64)
+	ret.fn = ret.invokeETUint8Int64
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Int64(t typex.EventTime, key uint8, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6676,12 +6676,12 @@ func (e *emitNative) invokeETUint8Int64(t typex.EventTime, key uint8, val int64)
 
 func emitMakerUint8Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Uint)
+	ret.fn = ret.invokeUint8Uint
 	return ret
 }
 
 func (e *emitNative) invokeUint8Uint(key uint8, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6689,12 +6689,12 @@ func (e *emitNative) invokeUint8Uint(key uint8, val uint) {
 
 func emitMakerETUint8Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Uint)
+	ret.fn = ret.invokeETUint8Uint
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Uint(t typex.EventTime, key uint8, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6702,12 +6702,12 @@ func (e *emitNative) invokeETUint8Uint(t typex.EventTime, key uint8, val uint) {
 
 func emitMakerUint8Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Uint8)
+	ret.fn = ret.invokeUint8Uint8
 	return ret
 }
 
 func (e *emitNative) invokeUint8Uint8(key uint8, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6715,12 +6715,12 @@ func (e *emitNative) invokeUint8Uint8(key uint8, val uint8) {
 
 func emitMakerETUint8Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Uint8)
+	ret.fn = ret.invokeETUint8Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Uint8(t typex.EventTime, key uint8, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6728,12 +6728,12 @@ func (e *emitNative) invokeETUint8Uint8(t typex.EventTime, key uint8, val uint8)
 
 func emitMakerUint8Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Uint16)
+	ret.fn = ret.invokeUint8Uint16
 	return ret
 }
 
 func (e *emitNative) invokeUint8Uint16(key uint8, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6741,12 +6741,12 @@ func (e *emitNative) invokeUint8Uint16(key uint8, val uint16) {
 
 func emitMakerETUint8Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Uint16)
+	ret.fn = ret.invokeETUint8Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Uint16(t typex.EventTime, key uint8, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6754,12 +6754,12 @@ func (e *emitNative) invokeETUint8Uint16(t typex.EventTime, key uint8, val uint1
 
 func emitMakerUint8Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Uint32)
+	ret.fn = ret.invokeUint8Uint32
 	return ret
 }
 
 func (e *emitNative) invokeUint8Uint32(key uint8, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6767,12 +6767,12 @@ func (e *emitNative) invokeUint8Uint32(key uint8, val uint32) {
 
 func emitMakerETUint8Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Uint32)
+	ret.fn = ret.invokeETUint8Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Uint32(t typex.EventTime, key uint8, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6780,12 +6780,12 @@ func (e *emitNative) invokeETUint8Uint32(t typex.EventTime, key uint8, val uint3
 
 func emitMakerUint8Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Uint64)
+	ret.fn = ret.invokeUint8Uint64
 	return ret
 }
 
 func (e *emitNative) invokeUint8Uint64(key uint8, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6793,12 +6793,12 @@ func (e *emitNative) invokeUint8Uint64(key uint8, val uint64) {
 
 func emitMakerETUint8Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Uint64)
+	ret.fn = ret.invokeETUint8Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Uint64(t typex.EventTime, key uint8, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6806,12 +6806,12 @@ func (e *emitNative) invokeETUint8Uint64(t typex.EventTime, key uint8, val uint6
 
 func emitMakerUint8Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Float32)
+	ret.fn = ret.invokeUint8Float32
 	return ret
 }
 
 func (e *emitNative) invokeUint8Float32(key uint8, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6819,12 +6819,12 @@ func (e *emitNative) invokeUint8Float32(key uint8, val float32) {
 
 func emitMakerETUint8Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Float32)
+	ret.fn = ret.invokeETUint8Float32
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Float32(t typex.EventTime, key uint8, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6832,12 +6832,12 @@ func (e *emitNative) invokeETUint8Float32(t typex.EventTime, key uint8, val floa
 
 func emitMakerUint8Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Float64)
+	ret.fn = ret.invokeUint8Float64
 	return ret
 }
 
 func (e *emitNative) invokeUint8Float64(key uint8, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6845,12 +6845,12 @@ func (e *emitNative) invokeUint8Float64(key uint8, val float64) {
 
 func emitMakerETUint8Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Float64)
+	ret.fn = ret.invokeETUint8Float64
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Float64(t typex.EventTime, key uint8, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6858,12 +6858,12 @@ func (e *emitNative) invokeETUint8Float64(t typex.EventTime, key uint8, val floa
 
 func emitMakerUint8Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Typex_T)
+	ret.fn = ret.invokeUint8Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeUint8Typex_T(key uint8, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6871,12 +6871,12 @@ func (e *emitNative) invokeUint8Typex_T(key uint8, val typex.T) {
 
 func emitMakerETUint8Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Typex_T)
+	ret.fn = ret.invokeETUint8Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Typex_T(t typex.EventTime, key uint8, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6884,12 +6884,12 @@ func (e *emitNative) invokeETUint8Typex_T(t typex.EventTime, key uint8, val type
 
 func emitMakerUint8Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Typex_U)
+	ret.fn = ret.invokeUint8Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeUint8Typex_U(key uint8, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6897,12 +6897,12 @@ func (e *emitNative) invokeUint8Typex_U(key uint8, val typex.U) {
 
 func emitMakerETUint8Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Typex_U)
+	ret.fn = ret.invokeETUint8Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Typex_U(t typex.EventTime, key uint8, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6910,12 +6910,12 @@ func (e *emitNative) invokeETUint8Typex_U(t typex.EventTime, key uint8, val type
 
 func emitMakerUint8Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Typex_V)
+	ret.fn = ret.invokeUint8Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeUint8Typex_V(key uint8, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6923,12 +6923,12 @@ func (e *emitNative) invokeUint8Typex_V(key uint8, val typex.V) {
 
 func emitMakerETUint8Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Typex_V)
+	ret.fn = ret.invokeETUint8Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Typex_V(t typex.EventTime, key uint8, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6936,12 +6936,12 @@ func (e *emitNative) invokeETUint8Typex_V(t typex.EventTime, key uint8, val type
 
 func emitMakerUint8Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Typex_W)
+	ret.fn = ret.invokeUint8Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeUint8Typex_W(key uint8, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6949,12 +6949,12 @@ func (e *emitNative) invokeUint8Typex_W(key uint8, val typex.W) {
 
 func emitMakerETUint8Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Typex_W)
+	ret.fn = ret.invokeETUint8Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Typex_W(t typex.EventTime, key uint8, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6962,12 +6962,12 @@ func (e *emitNative) invokeETUint8Typex_W(t typex.EventTime, key uint8, val type
 
 func emitMakerUint8Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Typex_X)
+	ret.fn = ret.invokeUint8Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeUint8Typex_X(key uint8, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6975,12 +6975,12 @@ func (e *emitNative) invokeUint8Typex_X(key uint8, val typex.X) {
 
 func emitMakerETUint8Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Typex_X)
+	ret.fn = ret.invokeETUint8Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Typex_X(t typex.EventTime, key uint8, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -6988,12 +6988,12 @@ func (e *emitNative) invokeETUint8Typex_X(t typex.EventTime, key uint8, val type
 
 func emitMakerUint8Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Typex_Y)
+	ret.fn = ret.invokeUint8Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeUint8Typex_Y(key uint8, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7001,12 +7001,12 @@ func (e *emitNative) invokeUint8Typex_Y(key uint8, val typex.Y) {
 
 func emitMakerETUint8Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Typex_Y)
+	ret.fn = ret.invokeETUint8Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Typex_Y(t typex.EventTime, key uint8, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7014,12 +7014,12 @@ func (e *emitNative) invokeETUint8Typex_Y(t typex.EventTime, key uint8, val type
 
 func emitMakerUint8Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint8Typex_Z)
+	ret.fn = ret.invokeUint8Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeUint8Typex_Z(key uint8, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7027,12 +7027,12 @@ func (e *emitNative) invokeUint8Typex_Z(key uint8, val typex.Z) {
 
 func emitMakerETUint8Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint8Typex_Z)
+	ret.fn = ret.invokeETUint8Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETUint8Typex_Z(t typex.EventTime, key uint8, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7040,12 +7040,12 @@ func (e *emitNative) invokeETUint8Typex_Z(t typex.EventTime, key uint8, val type
 
 func emitMakerUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16)
+	ret.fn = ret.invokeUint16
 	return ret
 }
 
 func (e *emitNative) invokeUint16(elm uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7053,12 +7053,12 @@ func (e *emitNative) invokeUint16(elm uint16) {
 
 func emitMakerETUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16)
+	ret.fn = ret.invokeETUint16
 	return ret
 }
 
 func (e *emitNative) invokeETUint16(t typex.EventTime, elm uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7066,12 +7066,12 @@ func (e *emitNative) invokeETUint16(t typex.EventTime, elm uint16) {
 
 func emitMakerUint16ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16ByteSlice)
+	ret.fn = ret.invokeUint16ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeUint16ByteSlice(key uint16, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7079,12 +7079,12 @@ func (e *emitNative) invokeUint16ByteSlice(key uint16, val []byte) {
 
 func emitMakerETUint16ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16ByteSlice)
+	ret.fn = ret.invokeETUint16ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETUint16ByteSlice(t typex.EventTime, key uint16, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7092,12 +7092,12 @@ func (e *emitNative) invokeETUint16ByteSlice(t typex.EventTime, key uint16, val 
 
 func emitMakerUint16Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Bool)
+	ret.fn = ret.invokeUint16Bool
 	return ret
 }
 
 func (e *emitNative) invokeUint16Bool(key uint16, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7105,12 +7105,12 @@ func (e *emitNative) invokeUint16Bool(key uint16, val bool) {
 
 func emitMakerETUint16Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Bool)
+	ret.fn = ret.invokeETUint16Bool
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Bool(t typex.EventTime, key uint16, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7118,12 +7118,12 @@ func (e *emitNative) invokeETUint16Bool(t typex.EventTime, key uint16, val bool)
 
 func emitMakerUint16String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16String)
+	ret.fn = ret.invokeUint16String
 	return ret
 }
 
 func (e *emitNative) invokeUint16String(key uint16, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7131,12 +7131,12 @@ func (e *emitNative) invokeUint16String(key uint16, val string) {
 
 func emitMakerETUint16String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16String)
+	ret.fn = ret.invokeETUint16String
 	return ret
 }
 
 func (e *emitNative) invokeETUint16String(t typex.EventTime, key uint16, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7144,12 +7144,12 @@ func (e *emitNative) invokeETUint16String(t typex.EventTime, key uint16, val str
 
 func emitMakerUint16Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Int)
+	ret.fn = ret.invokeUint16Int
 	return ret
 }
 
 func (e *emitNative) invokeUint16Int(key uint16, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7157,12 +7157,12 @@ func (e *emitNative) invokeUint16Int(key uint16, val int) {
 
 func emitMakerETUint16Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Int)
+	ret.fn = ret.invokeETUint16Int
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Int(t typex.EventTime, key uint16, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7170,12 +7170,12 @@ func (e *emitNative) invokeETUint16Int(t typex.EventTime, key uint16, val int) {
 
 func emitMakerUint16Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Int8)
+	ret.fn = ret.invokeUint16Int8
 	return ret
 }
 
 func (e *emitNative) invokeUint16Int8(key uint16, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7183,12 +7183,12 @@ func (e *emitNative) invokeUint16Int8(key uint16, val int8) {
 
 func emitMakerETUint16Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Int8)
+	ret.fn = ret.invokeETUint16Int8
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Int8(t typex.EventTime, key uint16, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7196,12 +7196,12 @@ func (e *emitNative) invokeETUint16Int8(t typex.EventTime, key uint16, val int8)
 
 func emitMakerUint16Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Int16)
+	ret.fn = ret.invokeUint16Int16
 	return ret
 }
 
 func (e *emitNative) invokeUint16Int16(key uint16, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7209,12 +7209,12 @@ func (e *emitNative) invokeUint16Int16(key uint16, val int16) {
 
 func emitMakerETUint16Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Int16)
+	ret.fn = ret.invokeETUint16Int16
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Int16(t typex.EventTime, key uint16, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7222,12 +7222,12 @@ func (e *emitNative) invokeETUint16Int16(t typex.EventTime, key uint16, val int1
 
 func emitMakerUint16Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Int32)
+	ret.fn = ret.invokeUint16Int32
 	return ret
 }
 
 func (e *emitNative) invokeUint16Int32(key uint16, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7235,12 +7235,12 @@ func (e *emitNative) invokeUint16Int32(key uint16, val int32) {
 
 func emitMakerETUint16Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Int32)
+	ret.fn = ret.invokeETUint16Int32
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Int32(t typex.EventTime, key uint16, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7248,12 +7248,12 @@ func (e *emitNative) invokeETUint16Int32(t typex.EventTime, key uint16, val int3
 
 func emitMakerUint16Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Int64)
+	ret.fn = ret.invokeUint16Int64
 	return ret
 }
 
 func (e *emitNative) invokeUint16Int64(key uint16, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7261,12 +7261,12 @@ func (e *emitNative) invokeUint16Int64(key uint16, val int64) {
 
 func emitMakerETUint16Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Int64)
+	ret.fn = ret.invokeETUint16Int64
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Int64(t typex.EventTime, key uint16, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7274,12 +7274,12 @@ func (e *emitNative) invokeETUint16Int64(t typex.EventTime, key uint16, val int6
 
 func emitMakerUint16Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Uint)
+	ret.fn = ret.invokeUint16Uint
 	return ret
 }
 
 func (e *emitNative) invokeUint16Uint(key uint16, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7287,12 +7287,12 @@ func (e *emitNative) invokeUint16Uint(key uint16, val uint) {
 
 func emitMakerETUint16Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Uint)
+	ret.fn = ret.invokeETUint16Uint
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Uint(t typex.EventTime, key uint16, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7300,12 +7300,12 @@ func (e *emitNative) invokeETUint16Uint(t typex.EventTime, key uint16, val uint)
 
 func emitMakerUint16Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Uint8)
+	ret.fn = ret.invokeUint16Uint8
 	return ret
 }
 
 func (e *emitNative) invokeUint16Uint8(key uint16, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7313,12 +7313,12 @@ func (e *emitNative) invokeUint16Uint8(key uint16, val uint8) {
 
 func emitMakerETUint16Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Uint8)
+	ret.fn = ret.invokeETUint16Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Uint8(t typex.EventTime, key uint16, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7326,12 +7326,12 @@ func (e *emitNative) invokeETUint16Uint8(t typex.EventTime, key uint16, val uint
 
 func emitMakerUint16Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Uint16)
+	ret.fn = ret.invokeUint16Uint16
 	return ret
 }
 
 func (e *emitNative) invokeUint16Uint16(key uint16, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7339,12 +7339,12 @@ func (e *emitNative) invokeUint16Uint16(key uint16, val uint16) {
 
 func emitMakerETUint16Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Uint16)
+	ret.fn = ret.invokeETUint16Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Uint16(t typex.EventTime, key uint16, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7352,12 +7352,12 @@ func (e *emitNative) invokeETUint16Uint16(t typex.EventTime, key uint16, val uin
 
 func emitMakerUint16Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Uint32)
+	ret.fn = ret.invokeUint16Uint32
 	return ret
 }
 
 func (e *emitNative) invokeUint16Uint32(key uint16, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7365,12 +7365,12 @@ func (e *emitNative) invokeUint16Uint32(key uint16, val uint32) {
 
 func emitMakerETUint16Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Uint32)
+	ret.fn = ret.invokeETUint16Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Uint32(t typex.EventTime, key uint16, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7378,12 +7378,12 @@ func (e *emitNative) invokeETUint16Uint32(t typex.EventTime, key uint16, val uin
 
 func emitMakerUint16Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Uint64)
+	ret.fn = ret.invokeUint16Uint64
 	return ret
 }
 
 func (e *emitNative) invokeUint16Uint64(key uint16, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7391,12 +7391,12 @@ func (e *emitNative) invokeUint16Uint64(key uint16, val uint64) {
 
 func emitMakerETUint16Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Uint64)
+	ret.fn = ret.invokeETUint16Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Uint64(t typex.EventTime, key uint16, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7404,12 +7404,12 @@ func (e *emitNative) invokeETUint16Uint64(t typex.EventTime, key uint16, val uin
 
 func emitMakerUint16Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Float32)
+	ret.fn = ret.invokeUint16Float32
 	return ret
 }
 
 func (e *emitNative) invokeUint16Float32(key uint16, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7417,12 +7417,12 @@ func (e *emitNative) invokeUint16Float32(key uint16, val float32) {
 
 func emitMakerETUint16Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Float32)
+	ret.fn = ret.invokeETUint16Float32
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Float32(t typex.EventTime, key uint16, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7430,12 +7430,12 @@ func (e *emitNative) invokeETUint16Float32(t typex.EventTime, key uint16, val fl
 
 func emitMakerUint16Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Float64)
+	ret.fn = ret.invokeUint16Float64
 	return ret
 }
 
 func (e *emitNative) invokeUint16Float64(key uint16, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7443,12 +7443,12 @@ func (e *emitNative) invokeUint16Float64(key uint16, val float64) {
 
 func emitMakerETUint16Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Float64)
+	ret.fn = ret.invokeETUint16Float64
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Float64(t typex.EventTime, key uint16, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7456,12 +7456,12 @@ func (e *emitNative) invokeETUint16Float64(t typex.EventTime, key uint16, val fl
 
 func emitMakerUint16Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Typex_T)
+	ret.fn = ret.invokeUint16Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeUint16Typex_T(key uint16, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7469,12 +7469,12 @@ func (e *emitNative) invokeUint16Typex_T(key uint16, val typex.T) {
 
 func emitMakerETUint16Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Typex_T)
+	ret.fn = ret.invokeETUint16Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Typex_T(t typex.EventTime, key uint16, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7482,12 +7482,12 @@ func (e *emitNative) invokeETUint16Typex_T(t typex.EventTime, key uint16, val ty
 
 func emitMakerUint16Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Typex_U)
+	ret.fn = ret.invokeUint16Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeUint16Typex_U(key uint16, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7495,12 +7495,12 @@ func (e *emitNative) invokeUint16Typex_U(key uint16, val typex.U) {
 
 func emitMakerETUint16Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Typex_U)
+	ret.fn = ret.invokeETUint16Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Typex_U(t typex.EventTime, key uint16, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7508,12 +7508,12 @@ func (e *emitNative) invokeETUint16Typex_U(t typex.EventTime, key uint16, val ty
 
 func emitMakerUint16Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Typex_V)
+	ret.fn = ret.invokeUint16Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeUint16Typex_V(key uint16, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7521,12 +7521,12 @@ func (e *emitNative) invokeUint16Typex_V(key uint16, val typex.V) {
 
 func emitMakerETUint16Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Typex_V)
+	ret.fn = ret.invokeETUint16Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Typex_V(t typex.EventTime, key uint16, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7534,12 +7534,12 @@ func (e *emitNative) invokeETUint16Typex_V(t typex.EventTime, key uint16, val ty
 
 func emitMakerUint16Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Typex_W)
+	ret.fn = ret.invokeUint16Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeUint16Typex_W(key uint16, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7547,12 +7547,12 @@ func (e *emitNative) invokeUint16Typex_W(key uint16, val typex.W) {
 
 func emitMakerETUint16Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Typex_W)
+	ret.fn = ret.invokeETUint16Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Typex_W(t typex.EventTime, key uint16, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7560,12 +7560,12 @@ func (e *emitNative) invokeETUint16Typex_W(t typex.EventTime, key uint16, val ty
 
 func emitMakerUint16Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Typex_X)
+	ret.fn = ret.invokeUint16Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeUint16Typex_X(key uint16, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7573,12 +7573,12 @@ func (e *emitNative) invokeUint16Typex_X(key uint16, val typex.X) {
 
 func emitMakerETUint16Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Typex_X)
+	ret.fn = ret.invokeETUint16Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Typex_X(t typex.EventTime, key uint16, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7586,12 +7586,12 @@ func (e *emitNative) invokeETUint16Typex_X(t typex.EventTime, key uint16, val ty
 
 func emitMakerUint16Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Typex_Y)
+	ret.fn = ret.invokeUint16Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeUint16Typex_Y(key uint16, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7599,12 +7599,12 @@ func (e *emitNative) invokeUint16Typex_Y(key uint16, val typex.Y) {
 
 func emitMakerETUint16Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Typex_Y)
+	ret.fn = ret.invokeETUint16Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Typex_Y(t typex.EventTime, key uint16, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7612,12 +7612,12 @@ func (e *emitNative) invokeETUint16Typex_Y(t typex.EventTime, key uint16, val ty
 
 func emitMakerUint16Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint16Typex_Z)
+	ret.fn = ret.invokeUint16Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeUint16Typex_Z(key uint16, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7625,12 +7625,12 @@ func (e *emitNative) invokeUint16Typex_Z(key uint16, val typex.Z) {
 
 func emitMakerETUint16Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint16Typex_Z)
+	ret.fn = ret.invokeETUint16Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETUint16Typex_Z(t typex.EventTime, key uint16, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7638,12 +7638,12 @@ func (e *emitNative) invokeETUint16Typex_Z(t typex.EventTime, key uint16, val ty
 
 func emitMakerUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32)
+	ret.fn = ret.invokeUint32
 	return ret
 }
 
 func (e *emitNative) invokeUint32(elm uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7651,12 +7651,12 @@ func (e *emitNative) invokeUint32(elm uint32) {
 
 func emitMakerETUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32)
+	ret.fn = ret.invokeETUint32
 	return ret
 }
 
 func (e *emitNative) invokeETUint32(t typex.EventTime, elm uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7664,12 +7664,12 @@ func (e *emitNative) invokeETUint32(t typex.EventTime, elm uint32) {
 
 func emitMakerUint32ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32ByteSlice)
+	ret.fn = ret.invokeUint32ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeUint32ByteSlice(key uint32, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7677,12 +7677,12 @@ func (e *emitNative) invokeUint32ByteSlice(key uint32, val []byte) {
 
 func emitMakerETUint32ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32ByteSlice)
+	ret.fn = ret.invokeETUint32ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETUint32ByteSlice(t typex.EventTime, key uint32, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7690,12 +7690,12 @@ func (e *emitNative) invokeETUint32ByteSlice(t typex.EventTime, key uint32, val 
 
 func emitMakerUint32Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Bool)
+	ret.fn = ret.invokeUint32Bool
 	return ret
 }
 
 func (e *emitNative) invokeUint32Bool(key uint32, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7703,12 +7703,12 @@ func (e *emitNative) invokeUint32Bool(key uint32, val bool) {
 
 func emitMakerETUint32Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Bool)
+	ret.fn = ret.invokeETUint32Bool
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Bool(t typex.EventTime, key uint32, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7716,12 +7716,12 @@ func (e *emitNative) invokeETUint32Bool(t typex.EventTime, key uint32, val bool)
 
 func emitMakerUint32String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32String)
+	ret.fn = ret.invokeUint32String
 	return ret
 }
 
 func (e *emitNative) invokeUint32String(key uint32, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7729,12 +7729,12 @@ func (e *emitNative) invokeUint32String(key uint32, val string) {
 
 func emitMakerETUint32String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32String)
+	ret.fn = ret.invokeETUint32String
 	return ret
 }
 
 func (e *emitNative) invokeETUint32String(t typex.EventTime, key uint32, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7742,12 +7742,12 @@ func (e *emitNative) invokeETUint32String(t typex.EventTime, key uint32, val str
 
 func emitMakerUint32Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Int)
+	ret.fn = ret.invokeUint32Int
 	return ret
 }
 
 func (e *emitNative) invokeUint32Int(key uint32, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7755,12 +7755,12 @@ func (e *emitNative) invokeUint32Int(key uint32, val int) {
 
 func emitMakerETUint32Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Int)
+	ret.fn = ret.invokeETUint32Int
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Int(t typex.EventTime, key uint32, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7768,12 +7768,12 @@ func (e *emitNative) invokeETUint32Int(t typex.EventTime, key uint32, val int) {
 
 func emitMakerUint32Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Int8)
+	ret.fn = ret.invokeUint32Int8
 	return ret
 }
 
 func (e *emitNative) invokeUint32Int8(key uint32, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7781,12 +7781,12 @@ func (e *emitNative) invokeUint32Int8(key uint32, val int8) {
 
 func emitMakerETUint32Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Int8)
+	ret.fn = ret.invokeETUint32Int8
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Int8(t typex.EventTime, key uint32, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7794,12 +7794,12 @@ func (e *emitNative) invokeETUint32Int8(t typex.EventTime, key uint32, val int8)
 
 func emitMakerUint32Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Int16)
+	ret.fn = ret.invokeUint32Int16
 	return ret
 }
 
 func (e *emitNative) invokeUint32Int16(key uint32, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7807,12 +7807,12 @@ func (e *emitNative) invokeUint32Int16(key uint32, val int16) {
 
 func emitMakerETUint32Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Int16)
+	ret.fn = ret.invokeETUint32Int16
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Int16(t typex.EventTime, key uint32, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7820,12 +7820,12 @@ func (e *emitNative) invokeETUint32Int16(t typex.EventTime, key uint32, val int1
 
 func emitMakerUint32Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Int32)
+	ret.fn = ret.invokeUint32Int32
 	return ret
 }
 
 func (e *emitNative) invokeUint32Int32(key uint32, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7833,12 +7833,12 @@ func (e *emitNative) invokeUint32Int32(key uint32, val int32) {
 
 func emitMakerETUint32Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Int32)
+	ret.fn = ret.invokeETUint32Int32
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Int32(t typex.EventTime, key uint32, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7846,12 +7846,12 @@ func (e *emitNative) invokeETUint32Int32(t typex.EventTime, key uint32, val int3
 
 func emitMakerUint32Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Int64)
+	ret.fn = ret.invokeUint32Int64
 	return ret
 }
 
 func (e *emitNative) invokeUint32Int64(key uint32, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7859,12 +7859,12 @@ func (e *emitNative) invokeUint32Int64(key uint32, val int64) {
 
 func emitMakerETUint32Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Int64)
+	ret.fn = ret.invokeETUint32Int64
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Int64(t typex.EventTime, key uint32, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7872,12 +7872,12 @@ func (e *emitNative) invokeETUint32Int64(t typex.EventTime, key uint32, val int6
 
 func emitMakerUint32Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Uint)
+	ret.fn = ret.invokeUint32Uint
 	return ret
 }
 
 func (e *emitNative) invokeUint32Uint(key uint32, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7885,12 +7885,12 @@ func (e *emitNative) invokeUint32Uint(key uint32, val uint) {
 
 func emitMakerETUint32Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Uint)
+	ret.fn = ret.invokeETUint32Uint
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Uint(t typex.EventTime, key uint32, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7898,12 +7898,12 @@ func (e *emitNative) invokeETUint32Uint(t typex.EventTime, key uint32, val uint)
 
 func emitMakerUint32Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Uint8)
+	ret.fn = ret.invokeUint32Uint8
 	return ret
 }
 
 func (e *emitNative) invokeUint32Uint8(key uint32, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7911,12 +7911,12 @@ func (e *emitNative) invokeUint32Uint8(key uint32, val uint8) {
 
 func emitMakerETUint32Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Uint8)
+	ret.fn = ret.invokeETUint32Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Uint8(t typex.EventTime, key uint32, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7924,12 +7924,12 @@ func (e *emitNative) invokeETUint32Uint8(t typex.EventTime, key uint32, val uint
 
 func emitMakerUint32Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Uint16)
+	ret.fn = ret.invokeUint32Uint16
 	return ret
 }
 
 func (e *emitNative) invokeUint32Uint16(key uint32, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7937,12 +7937,12 @@ func (e *emitNative) invokeUint32Uint16(key uint32, val uint16) {
 
 func emitMakerETUint32Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Uint16)
+	ret.fn = ret.invokeETUint32Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Uint16(t typex.EventTime, key uint32, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7950,12 +7950,12 @@ func (e *emitNative) invokeETUint32Uint16(t typex.EventTime, key uint32, val uin
 
 func emitMakerUint32Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Uint32)
+	ret.fn = ret.invokeUint32Uint32
 	return ret
 }
 
 func (e *emitNative) invokeUint32Uint32(key uint32, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7963,12 +7963,12 @@ func (e *emitNative) invokeUint32Uint32(key uint32, val uint32) {
 
 func emitMakerETUint32Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Uint32)
+	ret.fn = ret.invokeETUint32Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Uint32(t typex.EventTime, key uint32, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7976,12 +7976,12 @@ func (e *emitNative) invokeETUint32Uint32(t typex.EventTime, key uint32, val uin
 
 func emitMakerUint32Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Uint64)
+	ret.fn = ret.invokeUint32Uint64
 	return ret
 }
 
 func (e *emitNative) invokeUint32Uint64(key uint32, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -7989,12 +7989,12 @@ func (e *emitNative) invokeUint32Uint64(key uint32, val uint64) {
 
 func emitMakerETUint32Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Uint64)
+	ret.fn = ret.invokeETUint32Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Uint64(t typex.EventTime, key uint32, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8002,12 +8002,12 @@ func (e *emitNative) invokeETUint32Uint64(t typex.EventTime, key uint32, val uin
 
 func emitMakerUint32Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Float32)
+	ret.fn = ret.invokeUint32Float32
 	return ret
 }
 
 func (e *emitNative) invokeUint32Float32(key uint32, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8015,12 +8015,12 @@ func (e *emitNative) invokeUint32Float32(key uint32, val float32) {
 
 func emitMakerETUint32Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Float32)
+	ret.fn = ret.invokeETUint32Float32
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Float32(t typex.EventTime, key uint32, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8028,12 +8028,12 @@ func (e *emitNative) invokeETUint32Float32(t typex.EventTime, key uint32, val fl
 
 func emitMakerUint32Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Float64)
+	ret.fn = ret.invokeUint32Float64
 	return ret
 }
 
 func (e *emitNative) invokeUint32Float64(key uint32, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8041,12 +8041,12 @@ func (e *emitNative) invokeUint32Float64(key uint32, val float64) {
 
 func emitMakerETUint32Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Float64)
+	ret.fn = ret.invokeETUint32Float64
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Float64(t typex.EventTime, key uint32, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8054,12 +8054,12 @@ func (e *emitNative) invokeETUint32Float64(t typex.EventTime, key uint32, val fl
 
 func emitMakerUint32Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Typex_T)
+	ret.fn = ret.invokeUint32Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeUint32Typex_T(key uint32, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8067,12 +8067,12 @@ func (e *emitNative) invokeUint32Typex_T(key uint32, val typex.T) {
 
 func emitMakerETUint32Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Typex_T)
+	ret.fn = ret.invokeETUint32Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Typex_T(t typex.EventTime, key uint32, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8080,12 +8080,12 @@ func (e *emitNative) invokeETUint32Typex_T(t typex.EventTime, key uint32, val ty
 
 func emitMakerUint32Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Typex_U)
+	ret.fn = ret.invokeUint32Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeUint32Typex_U(key uint32, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8093,12 +8093,12 @@ func (e *emitNative) invokeUint32Typex_U(key uint32, val typex.U) {
 
 func emitMakerETUint32Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Typex_U)
+	ret.fn = ret.invokeETUint32Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Typex_U(t typex.EventTime, key uint32, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8106,12 +8106,12 @@ func (e *emitNative) invokeETUint32Typex_U(t typex.EventTime, key uint32, val ty
 
 func emitMakerUint32Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Typex_V)
+	ret.fn = ret.invokeUint32Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeUint32Typex_V(key uint32, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8119,12 +8119,12 @@ func (e *emitNative) invokeUint32Typex_V(key uint32, val typex.V) {
 
 func emitMakerETUint32Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Typex_V)
+	ret.fn = ret.invokeETUint32Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Typex_V(t typex.EventTime, key uint32, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8132,12 +8132,12 @@ func (e *emitNative) invokeETUint32Typex_V(t typex.EventTime, key uint32, val ty
 
 func emitMakerUint32Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Typex_W)
+	ret.fn = ret.invokeUint32Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeUint32Typex_W(key uint32, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8145,12 +8145,12 @@ func (e *emitNative) invokeUint32Typex_W(key uint32, val typex.W) {
 
 func emitMakerETUint32Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Typex_W)
+	ret.fn = ret.invokeETUint32Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Typex_W(t typex.EventTime, key uint32, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8158,12 +8158,12 @@ func (e *emitNative) invokeETUint32Typex_W(t typex.EventTime, key uint32, val ty
 
 func emitMakerUint32Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Typex_X)
+	ret.fn = ret.invokeUint32Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeUint32Typex_X(key uint32, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8171,12 +8171,12 @@ func (e *emitNative) invokeUint32Typex_X(key uint32, val typex.X) {
 
 func emitMakerETUint32Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Typex_X)
+	ret.fn = ret.invokeETUint32Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Typex_X(t typex.EventTime, key uint32, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8184,12 +8184,12 @@ func (e *emitNative) invokeETUint32Typex_X(t typex.EventTime, key uint32, val ty
 
 func emitMakerUint32Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Typex_Y)
+	ret.fn = ret.invokeUint32Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeUint32Typex_Y(key uint32, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8197,12 +8197,12 @@ func (e *emitNative) invokeUint32Typex_Y(key uint32, val typex.Y) {
 
 func emitMakerETUint32Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Typex_Y)
+	ret.fn = ret.invokeETUint32Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Typex_Y(t typex.EventTime, key uint32, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8210,12 +8210,12 @@ func (e *emitNative) invokeETUint32Typex_Y(t typex.EventTime, key uint32, val ty
 
 func emitMakerUint32Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint32Typex_Z)
+	ret.fn = ret.invokeUint32Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeUint32Typex_Z(key uint32, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8223,12 +8223,12 @@ func (e *emitNative) invokeUint32Typex_Z(key uint32, val typex.Z) {
 
 func emitMakerETUint32Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint32Typex_Z)
+	ret.fn = ret.invokeETUint32Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETUint32Typex_Z(t typex.EventTime, key uint32, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8236,12 +8236,12 @@ func (e *emitNative) invokeETUint32Typex_Z(t typex.EventTime, key uint32, val ty
 
 func emitMakerUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64)
+	ret.fn = ret.invokeUint64
 	return ret
 }
 
 func (e *emitNative) invokeUint64(elm uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8249,12 +8249,12 @@ func (e *emitNative) invokeUint64(elm uint64) {
 
 func emitMakerETUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64)
+	ret.fn = ret.invokeETUint64
 	return ret
 }
 
 func (e *emitNative) invokeETUint64(t typex.EventTime, elm uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8262,12 +8262,12 @@ func (e *emitNative) invokeETUint64(t typex.EventTime, elm uint64) {
 
 func emitMakerUint64ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64ByteSlice)
+	ret.fn = ret.invokeUint64ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeUint64ByteSlice(key uint64, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8275,12 +8275,12 @@ func (e *emitNative) invokeUint64ByteSlice(key uint64, val []byte) {
 
 func emitMakerETUint64ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64ByteSlice)
+	ret.fn = ret.invokeETUint64ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETUint64ByteSlice(t typex.EventTime, key uint64, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8288,12 +8288,12 @@ func (e *emitNative) invokeETUint64ByteSlice(t typex.EventTime, key uint64, val 
 
 func emitMakerUint64Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Bool)
+	ret.fn = ret.invokeUint64Bool
 	return ret
 }
 
 func (e *emitNative) invokeUint64Bool(key uint64, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8301,12 +8301,12 @@ func (e *emitNative) invokeUint64Bool(key uint64, val bool) {
 
 func emitMakerETUint64Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Bool)
+	ret.fn = ret.invokeETUint64Bool
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Bool(t typex.EventTime, key uint64, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8314,12 +8314,12 @@ func (e *emitNative) invokeETUint64Bool(t typex.EventTime, key uint64, val bool)
 
 func emitMakerUint64String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64String)
+	ret.fn = ret.invokeUint64String
 	return ret
 }
 
 func (e *emitNative) invokeUint64String(key uint64, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8327,12 +8327,12 @@ func (e *emitNative) invokeUint64String(key uint64, val string) {
 
 func emitMakerETUint64String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64String)
+	ret.fn = ret.invokeETUint64String
 	return ret
 }
 
 func (e *emitNative) invokeETUint64String(t typex.EventTime, key uint64, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8340,12 +8340,12 @@ func (e *emitNative) invokeETUint64String(t typex.EventTime, key uint64, val str
 
 func emitMakerUint64Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Int)
+	ret.fn = ret.invokeUint64Int
 	return ret
 }
 
 func (e *emitNative) invokeUint64Int(key uint64, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8353,12 +8353,12 @@ func (e *emitNative) invokeUint64Int(key uint64, val int) {
 
 func emitMakerETUint64Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Int)
+	ret.fn = ret.invokeETUint64Int
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Int(t typex.EventTime, key uint64, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8366,12 +8366,12 @@ func (e *emitNative) invokeETUint64Int(t typex.EventTime, key uint64, val int) {
 
 func emitMakerUint64Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Int8)
+	ret.fn = ret.invokeUint64Int8
 	return ret
 }
 
 func (e *emitNative) invokeUint64Int8(key uint64, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8379,12 +8379,12 @@ func (e *emitNative) invokeUint64Int8(key uint64, val int8) {
 
 func emitMakerETUint64Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Int8)
+	ret.fn = ret.invokeETUint64Int8
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Int8(t typex.EventTime, key uint64, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8392,12 +8392,12 @@ func (e *emitNative) invokeETUint64Int8(t typex.EventTime, key uint64, val int8)
 
 func emitMakerUint64Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Int16)
+	ret.fn = ret.invokeUint64Int16
 	return ret
 }
 
 func (e *emitNative) invokeUint64Int16(key uint64, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8405,12 +8405,12 @@ func (e *emitNative) invokeUint64Int16(key uint64, val int16) {
 
 func emitMakerETUint64Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Int16)
+	ret.fn = ret.invokeETUint64Int16
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Int16(t typex.EventTime, key uint64, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8418,12 +8418,12 @@ func (e *emitNative) invokeETUint64Int16(t typex.EventTime, key uint64, val int1
 
 func emitMakerUint64Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Int32)
+	ret.fn = ret.invokeUint64Int32
 	return ret
 }
 
 func (e *emitNative) invokeUint64Int32(key uint64, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8431,12 +8431,12 @@ func (e *emitNative) invokeUint64Int32(key uint64, val int32) {
 
 func emitMakerETUint64Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Int32)
+	ret.fn = ret.invokeETUint64Int32
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Int32(t typex.EventTime, key uint64, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8444,12 +8444,12 @@ func (e *emitNative) invokeETUint64Int32(t typex.EventTime, key uint64, val int3
 
 func emitMakerUint64Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Int64)
+	ret.fn = ret.invokeUint64Int64
 	return ret
 }
 
 func (e *emitNative) invokeUint64Int64(key uint64, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8457,12 +8457,12 @@ func (e *emitNative) invokeUint64Int64(key uint64, val int64) {
 
 func emitMakerETUint64Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Int64)
+	ret.fn = ret.invokeETUint64Int64
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Int64(t typex.EventTime, key uint64, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8470,12 +8470,12 @@ func (e *emitNative) invokeETUint64Int64(t typex.EventTime, key uint64, val int6
 
 func emitMakerUint64Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Uint)
+	ret.fn = ret.invokeUint64Uint
 	return ret
 }
 
 func (e *emitNative) invokeUint64Uint(key uint64, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8483,12 +8483,12 @@ func (e *emitNative) invokeUint64Uint(key uint64, val uint) {
 
 func emitMakerETUint64Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Uint)
+	ret.fn = ret.invokeETUint64Uint
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Uint(t typex.EventTime, key uint64, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8496,12 +8496,12 @@ func (e *emitNative) invokeETUint64Uint(t typex.EventTime, key uint64, val uint)
 
 func emitMakerUint64Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Uint8)
+	ret.fn = ret.invokeUint64Uint8
 	return ret
 }
 
 func (e *emitNative) invokeUint64Uint8(key uint64, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8509,12 +8509,12 @@ func (e *emitNative) invokeUint64Uint8(key uint64, val uint8) {
 
 func emitMakerETUint64Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Uint8)
+	ret.fn = ret.invokeETUint64Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Uint8(t typex.EventTime, key uint64, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8522,12 +8522,12 @@ func (e *emitNative) invokeETUint64Uint8(t typex.EventTime, key uint64, val uint
 
 func emitMakerUint64Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Uint16)
+	ret.fn = ret.invokeUint64Uint16
 	return ret
 }
 
 func (e *emitNative) invokeUint64Uint16(key uint64, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8535,12 +8535,12 @@ func (e *emitNative) invokeUint64Uint16(key uint64, val uint16) {
 
 func emitMakerETUint64Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Uint16)
+	ret.fn = ret.invokeETUint64Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Uint16(t typex.EventTime, key uint64, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8548,12 +8548,12 @@ func (e *emitNative) invokeETUint64Uint16(t typex.EventTime, key uint64, val uin
 
 func emitMakerUint64Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Uint32)
+	ret.fn = ret.invokeUint64Uint32
 	return ret
 }
 
 func (e *emitNative) invokeUint64Uint32(key uint64, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8561,12 +8561,12 @@ func (e *emitNative) invokeUint64Uint32(key uint64, val uint32) {
 
 func emitMakerETUint64Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Uint32)
+	ret.fn = ret.invokeETUint64Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Uint32(t typex.EventTime, key uint64, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8574,12 +8574,12 @@ func (e *emitNative) invokeETUint64Uint32(t typex.EventTime, key uint64, val uin
 
 func emitMakerUint64Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Uint64)
+	ret.fn = ret.invokeUint64Uint64
 	return ret
 }
 
 func (e *emitNative) invokeUint64Uint64(key uint64, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8587,12 +8587,12 @@ func (e *emitNative) invokeUint64Uint64(key uint64, val uint64) {
 
 func emitMakerETUint64Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Uint64)
+	ret.fn = ret.invokeETUint64Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Uint64(t typex.EventTime, key uint64, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8600,12 +8600,12 @@ func (e *emitNative) invokeETUint64Uint64(t typex.EventTime, key uint64, val uin
 
 func emitMakerUint64Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Float32)
+	ret.fn = ret.invokeUint64Float32
 	return ret
 }
 
 func (e *emitNative) invokeUint64Float32(key uint64, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8613,12 +8613,12 @@ func (e *emitNative) invokeUint64Float32(key uint64, val float32) {
 
 func emitMakerETUint64Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Float32)
+	ret.fn = ret.invokeETUint64Float32
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Float32(t typex.EventTime, key uint64, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8626,12 +8626,12 @@ func (e *emitNative) invokeETUint64Float32(t typex.EventTime, key uint64, val fl
 
 func emitMakerUint64Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Float64)
+	ret.fn = ret.invokeUint64Float64
 	return ret
 }
 
 func (e *emitNative) invokeUint64Float64(key uint64, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8639,12 +8639,12 @@ func (e *emitNative) invokeUint64Float64(key uint64, val float64) {
 
 func emitMakerETUint64Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Float64)
+	ret.fn = ret.invokeETUint64Float64
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Float64(t typex.EventTime, key uint64, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8652,12 +8652,12 @@ func (e *emitNative) invokeETUint64Float64(t typex.EventTime, key uint64, val fl
 
 func emitMakerUint64Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Typex_T)
+	ret.fn = ret.invokeUint64Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeUint64Typex_T(key uint64, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8665,12 +8665,12 @@ func (e *emitNative) invokeUint64Typex_T(key uint64, val typex.T) {
 
 func emitMakerETUint64Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Typex_T)
+	ret.fn = ret.invokeETUint64Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Typex_T(t typex.EventTime, key uint64, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8678,12 +8678,12 @@ func (e *emitNative) invokeETUint64Typex_T(t typex.EventTime, key uint64, val ty
 
 func emitMakerUint64Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Typex_U)
+	ret.fn = ret.invokeUint64Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeUint64Typex_U(key uint64, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8691,12 +8691,12 @@ func (e *emitNative) invokeUint64Typex_U(key uint64, val typex.U) {
 
 func emitMakerETUint64Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Typex_U)
+	ret.fn = ret.invokeETUint64Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Typex_U(t typex.EventTime, key uint64, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8704,12 +8704,12 @@ func (e *emitNative) invokeETUint64Typex_U(t typex.EventTime, key uint64, val ty
 
 func emitMakerUint64Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Typex_V)
+	ret.fn = ret.invokeUint64Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeUint64Typex_V(key uint64, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8717,12 +8717,12 @@ func (e *emitNative) invokeUint64Typex_V(key uint64, val typex.V) {
 
 func emitMakerETUint64Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Typex_V)
+	ret.fn = ret.invokeETUint64Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Typex_V(t typex.EventTime, key uint64, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8730,12 +8730,12 @@ func (e *emitNative) invokeETUint64Typex_V(t typex.EventTime, key uint64, val ty
 
 func emitMakerUint64Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Typex_W)
+	ret.fn = ret.invokeUint64Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeUint64Typex_W(key uint64, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8743,12 +8743,12 @@ func (e *emitNative) invokeUint64Typex_W(key uint64, val typex.W) {
 
 func emitMakerETUint64Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Typex_W)
+	ret.fn = ret.invokeETUint64Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Typex_W(t typex.EventTime, key uint64, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8756,12 +8756,12 @@ func (e *emitNative) invokeETUint64Typex_W(t typex.EventTime, key uint64, val ty
 
 func emitMakerUint64Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Typex_X)
+	ret.fn = ret.invokeUint64Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeUint64Typex_X(key uint64, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8769,12 +8769,12 @@ func (e *emitNative) invokeUint64Typex_X(key uint64, val typex.X) {
 
 func emitMakerETUint64Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Typex_X)
+	ret.fn = ret.invokeETUint64Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Typex_X(t typex.EventTime, key uint64, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8782,12 +8782,12 @@ func (e *emitNative) invokeETUint64Typex_X(t typex.EventTime, key uint64, val ty
 
 func emitMakerUint64Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Typex_Y)
+	ret.fn = ret.invokeUint64Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeUint64Typex_Y(key uint64, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8795,12 +8795,12 @@ func (e *emitNative) invokeUint64Typex_Y(key uint64, val typex.Y) {
 
 func emitMakerETUint64Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Typex_Y)
+	ret.fn = ret.invokeETUint64Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Typex_Y(t typex.EventTime, key uint64, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8808,12 +8808,12 @@ func (e *emitNative) invokeETUint64Typex_Y(t typex.EventTime, key uint64, val ty
 
 func emitMakerUint64Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeUint64Typex_Z)
+	ret.fn = ret.invokeUint64Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeUint64Typex_Z(key uint64, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8821,12 +8821,12 @@ func (e *emitNative) invokeUint64Typex_Z(key uint64, val typex.Z) {
 
 func emitMakerETUint64Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETUint64Typex_Z)
+	ret.fn = ret.invokeETUint64Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETUint64Typex_Z(t typex.EventTime, key uint64, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8834,12 +8834,12 @@ func (e *emitNative) invokeETUint64Typex_Z(t typex.EventTime, key uint64, val ty
 
 func emitMakerFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32)
+	ret.fn = ret.invokeFloat32
 	return ret
 }
 
 func (e *emitNative) invokeFloat32(elm float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8847,12 +8847,12 @@ func (e *emitNative) invokeFloat32(elm float32) {
 
 func emitMakerETFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32)
+	ret.fn = ret.invokeETFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32(t typex.EventTime, elm float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8860,12 +8860,12 @@ func (e *emitNative) invokeETFloat32(t typex.EventTime, elm float32) {
 
 func emitMakerFloat32ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32ByteSlice)
+	ret.fn = ret.invokeFloat32ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeFloat32ByteSlice(key float32, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8873,12 +8873,12 @@ func (e *emitNative) invokeFloat32ByteSlice(key float32, val []byte) {
 
 func emitMakerETFloat32ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32ByteSlice)
+	ret.fn = ret.invokeETFloat32ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32ByteSlice(t typex.EventTime, key float32, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8886,12 +8886,12 @@ func (e *emitNative) invokeETFloat32ByteSlice(t typex.EventTime, key float32, va
 
 func emitMakerFloat32Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Bool)
+	ret.fn = ret.invokeFloat32Bool
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Bool(key float32, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8899,12 +8899,12 @@ func (e *emitNative) invokeFloat32Bool(key float32, val bool) {
 
 func emitMakerETFloat32Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Bool)
+	ret.fn = ret.invokeETFloat32Bool
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Bool(t typex.EventTime, key float32, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8912,12 +8912,12 @@ func (e *emitNative) invokeETFloat32Bool(t typex.EventTime, key float32, val boo
 
 func emitMakerFloat32String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32String)
+	ret.fn = ret.invokeFloat32String
 	return ret
 }
 
 func (e *emitNative) invokeFloat32String(key float32, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8925,12 +8925,12 @@ func (e *emitNative) invokeFloat32String(key float32, val string) {
 
 func emitMakerETFloat32String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32String)
+	ret.fn = ret.invokeETFloat32String
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32String(t typex.EventTime, key float32, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8938,12 +8938,12 @@ func (e *emitNative) invokeETFloat32String(t typex.EventTime, key float32, val s
 
 func emitMakerFloat32Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Int)
+	ret.fn = ret.invokeFloat32Int
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Int(key float32, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8951,12 +8951,12 @@ func (e *emitNative) invokeFloat32Int(key float32, val int) {
 
 func emitMakerETFloat32Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Int)
+	ret.fn = ret.invokeETFloat32Int
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Int(t typex.EventTime, key float32, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8964,12 +8964,12 @@ func (e *emitNative) invokeETFloat32Int(t typex.EventTime, key float32, val int)
 
 func emitMakerFloat32Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Int8)
+	ret.fn = ret.invokeFloat32Int8
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Int8(key float32, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8977,12 +8977,12 @@ func (e *emitNative) invokeFloat32Int8(key float32, val int8) {
 
 func emitMakerETFloat32Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Int8)
+	ret.fn = ret.invokeETFloat32Int8
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Int8(t typex.EventTime, key float32, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -8990,12 +8990,12 @@ func (e *emitNative) invokeETFloat32Int8(t typex.EventTime, key float32, val int
 
 func emitMakerFloat32Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Int16)
+	ret.fn = ret.invokeFloat32Int16
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Int16(key float32, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9003,12 +9003,12 @@ func (e *emitNative) invokeFloat32Int16(key float32, val int16) {
 
 func emitMakerETFloat32Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Int16)
+	ret.fn = ret.invokeETFloat32Int16
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Int16(t typex.EventTime, key float32, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9016,12 +9016,12 @@ func (e *emitNative) invokeETFloat32Int16(t typex.EventTime, key float32, val in
 
 func emitMakerFloat32Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Int32)
+	ret.fn = ret.invokeFloat32Int32
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Int32(key float32, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9029,12 +9029,12 @@ func (e *emitNative) invokeFloat32Int32(key float32, val int32) {
 
 func emitMakerETFloat32Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Int32)
+	ret.fn = ret.invokeETFloat32Int32
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Int32(t typex.EventTime, key float32, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9042,12 +9042,12 @@ func (e *emitNative) invokeETFloat32Int32(t typex.EventTime, key float32, val in
 
 func emitMakerFloat32Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Int64)
+	ret.fn = ret.invokeFloat32Int64
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Int64(key float32, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9055,12 +9055,12 @@ func (e *emitNative) invokeFloat32Int64(key float32, val int64) {
 
 func emitMakerETFloat32Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Int64)
+	ret.fn = ret.invokeETFloat32Int64
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Int64(t typex.EventTime, key float32, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9068,12 +9068,12 @@ func (e *emitNative) invokeETFloat32Int64(t typex.EventTime, key float32, val in
 
 func emitMakerFloat32Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Uint)
+	ret.fn = ret.invokeFloat32Uint
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Uint(key float32, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9081,12 +9081,12 @@ func (e *emitNative) invokeFloat32Uint(key float32, val uint) {
 
 func emitMakerETFloat32Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Uint)
+	ret.fn = ret.invokeETFloat32Uint
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Uint(t typex.EventTime, key float32, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9094,12 +9094,12 @@ func (e *emitNative) invokeETFloat32Uint(t typex.EventTime, key float32, val uin
 
 func emitMakerFloat32Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Uint8)
+	ret.fn = ret.invokeFloat32Uint8
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Uint8(key float32, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9107,12 +9107,12 @@ func (e *emitNative) invokeFloat32Uint8(key float32, val uint8) {
 
 func emitMakerETFloat32Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Uint8)
+	ret.fn = ret.invokeETFloat32Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Uint8(t typex.EventTime, key float32, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9120,12 +9120,12 @@ func (e *emitNative) invokeETFloat32Uint8(t typex.EventTime, key float32, val ui
 
 func emitMakerFloat32Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Uint16)
+	ret.fn = ret.invokeFloat32Uint16
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Uint16(key float32, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9133,12 +9133,12 @@ func (e *emitNative) invokeFloat32Uint16(key float32, val uint16) {
 
 func emitMakerETFloat32Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Uint16)
+	ret.fn = ret.invokeETFloat32Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Uint16(t typex.EventTime, key float32, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9146,12 +9146,12 @@ func (e *emitNative) invokeETFloat32Uint16(t typex.EventTime, key float32, val u
 
 func emitMakerFloat32Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Uint32)
+	ret.fn = ret.invokeFloat32Uint32
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Uint32(key float32, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9159,12 +9159,12 @@ func (e *emitNative) invokeFloat32Uint32(key float32, val uint32) {
 
 func emitMakerETFloat32Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Uint32)
+	ret.fn = ret.invokeETFloat32Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Uint32(t typex.EventTime, key float32, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9172,12 +9172,12 @@ func (e *emitNative) invokeETFloat32Uint32(t typex.EventTime, key float32, val u
 
 func emitMakerFloat32Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Uint64)
+	ret.fn = ret.invokeFloat32Uint64
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Uint64(key float32, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9185,12 +9185,12 @@ func (e *emitNative) invokeFloat32Uint64(key float32, val uint64) {
 
 func emitMakerETFloat32Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Uint64)
+	ret.fn = ret.invokeETFloat32Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Uint64(t typex.EventTime, key float32, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9198,12 +9198,12 @@ func (e *emitNative) invokeETFloat32Uint64(t typex.EventTime, key float32, val u
 
 func emitMakerFloat32Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Float32)
+	ret.fn = ret.invokeFloat32Float32
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Float32(key float32, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9211,12 +9211,12 @@ func (e *emitNative) invokeFloat32Float32(key float32, val float32) {
 
 func emitMakerETFloat32Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Float32)
+	ret.fn = ret.invokeETFloat32Float32
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Float32(t typex.EventTime, key float32, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9224,12 +9224,12 @@ func (e *emitNative) invokeETFloat32Float32(t typex.EventTime, key float32, val 
 
 func emitMakerFloat32Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Float64)
+	ret.fn = ret.invokeFloat32Float64
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Float64(key float32, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9237,12 +9237,12 @@ func (e *emitNative) invokeFloat32Float64(key float32, val float64) {
 
 func emitMakerETFloat32Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Float64)
+	ret.fn = ret.invokeETFloat32Float64
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Float64(t typex.EventTime, key float32, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9250,12 +9250,12 @@ func (e *emitNative) invokeETFloat32Float64(t typex.EventTime, key float32, val 
 
 func emitMakerFloat32Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Typex_T)
+	ret.fn = ret.invokeFloat32Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Typex_T(key float32, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9263,12 +9263,12 @@ func (e *emitNative) invokeFloat32Typex_T(key float32, val typex.T) {
 
 func emitMakerETFloat32Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Typex_T)
+	ret.fn = ret.invokeETFloat32Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Typex_T(t typex.EventTime, key float32, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9276,12 +9276,12 @@ func (e *emitNative) invokeETFloat32Typex_T(t typex.EventTime, key float32, val 
 
 func emitMakerFloat32Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Typex_U)
+	ret.fn = ret.invokeFloat32Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Typex_U(key float32, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9289,12 +9289,12 @@ func (e *emitNative) invokeFloat32Typex_U(key float32, val typex.U) {
 
 func emitMakerETFloat32Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Typex_U)
+	ret.fn = ret.invokeETFloat32Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Typex_U(t typex.EventTime, key float32, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9302,12 +9302,12 @@ func (e *emitNative) invokeETFloat32Typex_U(t typex.EventTime, key float32, val 
 
 func emitMakerFloat32Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Typex_V)
+	ret.fn = ret.invokeFloat32Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Typex_V(key float32, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9315,12 +9315,12 @@ func (e *emitNative) invokeFloat32Typex_V(key float32, val typex.V) {
 
 func emitMakerETFloat32Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Typex_V)
+	ret.fn = ret.invokeETFloat32Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Typex_V(t typex.EventTime, key float32, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9328,12 +9328,12 @@ func (e *emitNative) invokeETFloat32Typex_V(t typex.EventTime, key float32, val 
 
 func emitMakerFloat32Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Typex_W)
+	ret.fn = ret.invokeFloat32Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Typex_W(key float32, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9341,12 +9341,12 @@ func (e *emitNative) invokeFloat32Typex_W(key float32, val typex.W) {
 
 func emitMakerETFloat32Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Typex_W)
+	ret.fn = ret.invokeETFloat32Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Typex_W(t typex.EventTime, key float32, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9354,12 +9354,12 @@ func (e *emitNative) invokeETFloat32Typex_W(t typex.EventTime, key float32, val 
 
 func emitMakerFloat32Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Typex_X)
+	ret.fn = ret.invokeFloat32Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Typex_X(key float32, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9367,12 +9367,12 @@ func (e *emitNative) invokeFloat32Typex_X(key float32, val typex.X) {
 
 func emitMakerETFloat32Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Typex_X)
+	ret.fn = ret.invokeETFloat32Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Typex_X(t typex.EventTime, key float32, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9380,12 +9380,12 @@ func (e *emitNative) invokeETFloat32Typex_X(t typex.EventTime, key float32, val 
 
 func emitMakerFloat32Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Typex_Y)
+	ret.fn = ret.invokeFloat32Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Typex_Y(key float32, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9393,12 +9393,12 @@ func (e *emitNative) invokeFloat32Typex_Y(key float32, val typex.Y) {
 
 func emitMakerETFloat32Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Typex_Y)
+	ret.fn = ret.invokeETFloat32Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Typex_Y(t typex.EventTime, key float32, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9406,12 +9406,12 @@ func (e *emitNative) invokeETFloat32Typex_Y(t typex.EventTime, key float32, val 
 
 func emitMakerFloat32Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat32Typex_Z)
+	ret.fn = ret.invokeFloat32Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeFloat32Typex_Z(key float32, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9419,12 +9419,12 @@ func (e *emitNative) invokeFloat32Typex_Z(key float32, val typex.Z) {
 
 func emitMakerETFloat32Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat32Typex_Z)
+	ret.fn = ret.invokeETFloat32Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETFloat32Typex_Z(t typex.EventTime, key float32, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9432,12 +9432,12 @@ func (e *emitNative) invokeETFloat32Typex_Z(t typex.EventTime, key float32, val 
 
 func emitMakerFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64)
+	ret.fn = ret.invokeFloat64
 	return ret
 }
 
 func (e *emitNative) invokeFloat64(elm float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9445,12 +9445,12 @@ func (e *emitNative) invokeFloat64(elm float64) {
 
 func emitMakerETFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64)
+	ret.fn = ret.invokeETFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64(t typex.EventTime, elm float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9458,12 +9458,12 @@ func (e *emitNative) invokeETFloat64(t typex.EventTime, elm float64) {
 
 func emitMakerFloat64ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64ByteSlice)
+	ret.fn = ret.invokeFloat64ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeFloat64ByteSlice(key float64, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9471,12 +9471,12 @@ func (e *emitNative) invokeFloat64ByteSlice(key float64, val []byte) {
 
 func emitMakerETFloat64ByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64ByteSlice)
+	ret.fn = ret.invokeETFloat64ByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64ByteSlice(t typex.EventTime, key float64, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9484,12 +9484,12 @@ func (e *emitNative) invokeETFloat64ByteSlice(t typex.EventTime, key float64, va
 
 func emitMakerFloat64Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Bool)
+	ret.fn = ret.invokeFloat64Bool
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Bool(key float64, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9497,12 +9497,12 @@ func (e *emitNative) invokeFloat64Bool(key float64, val bool) {
 
 func emitMakerETFloat64Bool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Bool)
+	ret.fn = ret.invokeETFloat64Bool
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Bool(t typex.EventTime, key float64, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9510,12 +9510,12 @@ func (e *emitNative) invokeETFloat64Bool(t typex.EventTime, key float64, val boo
 
 func emitMakerFloat64String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64String)
+	ret.fn = ret.invokeFloat64String
 	return ret
 }
 
 func (e *emitNative) invokeFloat64String(key float64, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9523,12 +9523,12 @@ func (e *emitNative) invokeFloat64String(key float64, val string) {
 
 func emitMakerETFloat64String(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64String)
+	ret.fn = ret.invokeETFloat64String
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64String(t typex.EventTime, key float64, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9536,12 +9536,12 @@ func (e *emitNative) invokeETFloat64String(t typex.EventTime, key float64, val s
 
 func emitMakerFloat64Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Int)
+	ret.fn = ret.invokeFloat64Int
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Int(key float64, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9549,12 +9549,12 @@ func (e *emitNative) invokeFloat64Int(key float64, val int) {
 
 func emitMakerETFloat64Int(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Int)
+	ret.fn = ret.invokeETFloat64Int
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Int(t typex.EventTime, key float64, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9562,12 +9562,12 @@ func (e *emitNative) invokeETFloat64Int(t typex.EventTime, key float64, val int)
 
 func emitMakerFloat64Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Int8)
+	ret.fn = ret.invokeFloat64Int8
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Int8(key float64, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9575,12 +9575,12 @@ func (e *emitNative) invokeFloat64Int8(key float64, val int8) {
 
 func emitMakerETFloat64Int8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Int8)
+	ret.fn = ret.invokeETFloat64Int8
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Int8(t typex.EventTime, key float64, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9588,12 +9588,12 @@ func (e *emitNative) invokeETFloat64Int8(t typex.EventTime, key float64, val int
 
 func emitMakerFloat64Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Int16)
+	ret.fn = ret.invokeFloat64Int16
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Int16(key float64, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9601,12 +9601,12 @@ func (e *emitNative) invokeFloat64Int16(key float64, val int16) {
 
 func emitMakerETFloat64Int16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Int16)
+	ret.fn = ret.invokeETFloat64Int16
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Int16(t typex.EventTime, key float64, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9614,12 +9614,12 @@ func (e *emitNative) invokeETFloat64Int16(t typex.EventTime, key float64, val in
 
 func emitMakerFloat64Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Int32)
+	ret.fn = ret.invokeFloat64Int32
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Int32(key float64, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9627,12 +9627,12 @@ func (e *emitNative) invokeFloat64Int32(key float64, val int32) {
 
 func emitMakerETFloat64Int32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Int32)
+	ret.fn = ret.invokeETFloat64Int32
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Int32(t typex.EventTime, key float64, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9640,12 +9640,12 @@ func (e *emitNative) invokeETFloat64Int32(t typex.EventTime, key float64, val in
 
 func emitMakerFloat64Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Int64)
+	ret.fn = ret.invokeFloat64Int64
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Int64(key float64, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9653,12 +9653,12 @@ func (e *emitNative) invokeFloat64Int64(key float64, val int64) {
 
 func emitMakerETFloat64Int64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Int64)
+	ret.fn = ret.invokeETFloat64Int64
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Int64(t typex.EventTime, key float64, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9666,12 +9666,12 @@ func (e *emitNative) invokeETFloat64Int64(t typex.EventTime, key float64, val in
 
 func emitMakerFloat64Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Uint)
+	ret.fn = ret.invokeFloat64Uint
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Uint(key float64, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9679,12 +9679,12 @@ func (e *emitNative) invokeFloat64Uint(key float64, val uint) {
 
 func emitMakerETFloat64Uint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Uint)
+	ret.fn = ret.invokeETFloat64Uint
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Uint(t typex.EventTime, key float64, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9692,12 +9692,12 @@ func (e *emitNative) invokeETFloat64Uint(t typex.EventTime, key float64, val uin
 
 func emitMakerFloat64Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Uint8)
+	ret.fn = ret.invokeFloat64Uint8
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Uint8(key float64, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9705,12 +9705,12 @@ func (e *emitNative) invokeFloat64Uint8(key float64, val uint8) {
 
 func emitMakerETFloat64Uint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Uint8)
+	ret.fn = ret.invokeETFloat64Uint8
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Uint8(t typex.EventTime, key float64, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9718,12 +9718,12 @@ func (e *emitNative) invokeETFloat64Uint8(t typex.EventTime, key float64, val ui
 
 func emitMakerFloat64Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Uint16)
+	ret.fn = ret.invokeFloat64Uint16
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Uint16(key float64, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9731,12 +9731,12 @@ func (e *emitNative) invokeFloat64Uint16(key float64, val uint16) {
 
 func emitMakerETFloat64Uint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Uint16)
+	ret.fn = ret.invokeETFloat64Uint16
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Uint16(t typex.EventTime, key float64, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9744,12 +9744,12 @@ func (e *emitNative) invokeETFloat64Uint16(t typex.EventTime, key float64, val u
 
 func emitMakerFloat64Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Uint32)
+	ret.fn = ret.invokeFloat64Uint32
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Uint32(key float64, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9757,12 +9757,12 @@ func (e *emitNative) invokeFloat64Uint32(key float64, val uint32) {
 
 func emitMakerETFloat64Uint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Uint32)
+	ret.fn = ret.invokeETFloat64Uint32
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Uint32(t typex.EventTime, key float64, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9770,12 +9770,12 @@ func (e *emitNative) invokeETFloat64Uint32(t typex.EventTime, key float64, val u
 
 func emitMakerFloat64Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Uint64)
+	ret.fn = ret.invokeFloat64Uint64
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Uint64(key float64, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9783,12 +9783,12 @@ func (e *emitNative) invokeFloat64Uint64(key float64, val uint64) {
 
 func emitMakerETFloat64Uint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Uint64)
+	ret.fn = ret.invokeETFloat64Uint64
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Uint64(t typex.EventTime, key float64, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9796,12 +9796,12 @@ func (e *emitNative) invokeETFloat64Uint64(t typex.EventTime, key float64, val u
 
 func emitMakerFloat64Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Float32)
+	ret.fn = ret.invokeFloat64Float32
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Float32(key float64, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9809,12 +9809,12 @@ func (e *emitNative) invokeFloat64Float32(key float64, val float32) {
 
 func emitMakerETFloat64Float32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Float32)
+	ret.fn = ret.invokeETFloat64Float32
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Float32(t typex.EventTime, key float64, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9822,12 +9822,12 @@ func (e *emitNative) invokeETFloat64Float32(t typex.EventTime, key float64, val 
 
 func emitMakerFloat64Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Float64)
+	ret.fn = ret.invokeFloat64Float64
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Float64(key float64, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9835,12 +9835,12 @@ func (e *emitNative) invokeFloat64Float64(key float64, val float64) {
 
 func emitMakerETFloat64Float64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Float64)
+	ret.fn = ret.invokeETFloat64Float64
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Float64(t typex.EventTime, key float64, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9848,12 +9848,12 @@ func (e *emitNative) invokeETFloat64Float64(t typex.EventTime, key float64, val 
 
 func emitMakerFloat64Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Typex_T)
+	ret.fn = ret.invokeFloat64Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Typex_T(key float64, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9861,12 +9861,12 @@ func (e *emitNative) invokeFloat64Typex_T(key float64, val typex.T) {
 
 func emitMakerETFloat64Typex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Typex_T)
+	ret.fn = ret.invokeETFloat64Typex_T
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Typex_T(t typex.EventTime, key float64, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9874,12 +9874,12 @@ func (e *emitNative) invokeETFloat64Typex_T(t typex.EventTime, key float64, val 
 
 func emitMakerFloat64Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Typex_U)
+	ret.fn = ret.invokeFloat64Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Typex_U(key float64, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9887,12 +9887,12 @@ func (e *emitNative) invokeFloat64Typex_U(key float64, val typex.U) {
 
 func emitMakerETFloat64Typex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Typex_U)
+	ret.fn = ret.invokeETFloat64Typex_U
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Typex_U(t typex.EventTime, key float64, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9900,12 +9900,12 @@ func (e *emitNative) invokeETFloat64Typex_U(t typex.EventTime, key float64, val 
 
 func emitMakerFloat64Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Typex_V)
+	ret.fn = ret.invokeFloat64Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Typex_V(key float64, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9913,12 +9913,12 @@ func (e *emitNative) invokeFloat64Typex_V(key float64, val typex.V) {
 
 func emitMakerETFloat64Typex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Typex_V)
+	ret.fn = ret.invokeETFloat64Typex_V
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Typex_V(t typex.EventTime, key float64, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9926,12 +9926,12 @@ func (e *emitNative) invokeETFloat64Typex_V(t typex.EventTime, key float64, val 
 
 func emitMakerFloat64Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Typex_W)
+	ret.fn = ret.invokeFloat64Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Typex_W(key float64, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9939,12 +9939,12 @@ func (e *emitNative) invokeFloat64Typex_W(key float64, val typex.W) {
 
 func emitMakerETFloat64Typex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Typex_W)
+	ret.fn = ret.invokeETFloat64Typex_W
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Typex_W(t typex.EventTime, key float64, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9952,12 +9952,12 @@ func (e *emitNative) invokeETFloat64Typex_W(t typex.EventTime, key float64, val 
 
 func emitMakerFloat64Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Typex_X)
+	ret.fn = ret.invokeFloat64Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Typex_X(key float64, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9965,12 +9965,12 @@ func (e *emitNative) invokeFloat64Typex_X(key float64, val typex.X) {
 
 func emitMakerETFloat64Typex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Typex_X)
+	ret.fn = ret.invokeETFloat64Typex_X
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Typex_X(t typex.EventTime, key float64, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9978,12 +9978,12 @@ func (e *emitNative) invokeETFloat64Typex_X(t typex.EventTime, key float64, val 
 
 func emitMakerFloat64Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Typex_Y)
+	ret.fn = ret.invokeFloat64Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Typex_Y(key float64, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -9991,12 +9991,12 @@ func (e *emitNative) invokeFloat64Typex_Y(key float64, val typex.Y) {
 
 func emitMakerETFloat64Typex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Typex_Y)
+	ret.fn = ret.invokeETFloat64Typex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Typex_Y(t typex.EventTime, key float64, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10004,12 +10004,12 @@ func (e *emitNative) invokeETFloat64Typex_Y(t typex.EventTime, key float64, val 
 
 func emitMakerFloat64Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeFloat64Typex_Z)
+	ret.fn = ret.invokeFloat64Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeFloat64Typex_Z(key float64, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10017,12 +10017,12 @@ func (e *emitNative) invokeFloat64Typex_Z(key float64, val typex.Z) {
 
 func emitMakerETFloat64Typex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETFloat64Typex_Z)
+	ret.fn = ret.invokeETFloat64Typex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETFloat64Typex_Z(t typex.EventTime, key float64, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10030,12 +10030,12 @@ func (e *emitNative) invokeETFloat64Typex_Z(t typex.EventTime, key float64, val 
 
 func emitMakerTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_T)
+	ret.fn = ret.invokeTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeTypex_T(elm typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10043,12 +10043,12 @@ func (e *emitNative) invokeTypex_T(elm typex.T) {
 
 func emitMakerETTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_T)
+	ret.fn = ret.invokeETTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_T(t typex.EventTime, elm typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10056,12 +10056,12 @@ func (e *emitNative) invokeETTypex_T(t typex.EventTime, elm typex.T) {
 
 func emitMakerTypex_TByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TByteSlice)
+	ret.fn = ret.invokeTypex_TByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TByteSlice(key typex.T, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10069,12 +10069,12 @@ func (e *emitNative) invokeTypex_TByteSlice(key typex.T, val []byte) {
 
 func emitMakerETTypex_TByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TByteSlice)
+	ret.fn = ret.invokeETTypex_TByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TByteSlice(t typex.EventTime, key typex.T, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10082,12 +10082,12 @@ func (e *emitNative) invokeETTypex_TByteSlice(t typex.EventTime, key typex.T, va
 
 func emitMakerTypex_TBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TBool)
+	ret.fn = ret.invokeTypex_TBool
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TBool(key typex.T, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10095,12 +10095,12 @@ func (e *emitNative) invokeTypex_TBool(key typex.T, val bool) {
 
 func emitMakerETTypex_TBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TBool)
+	ret.fn = ret.invokeETTypex_TBool
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TBool(t typex.EventTime, key typex.T, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10108,12 +10108,12 @@ func (e *emitNative) invokeETTypex_TBool(t typex.EventTime, key typex.T, val boo
 
 func emitMakerTypex_TString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TString)
+	ret.fn = ret.invokeTypex_TString
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TString(key typex.T, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10121,12 +10121,12 @@ func (e *emitNative) invokeTypex_TString(key typex.T, val string) {
 
 func emitMakerETTypex_TString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TString)
+	ret.fn = ret.invokeETTypex_TString
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TString(t typex.EventTime, key typex.T, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10134,12 +10134,12 @@ func (e *emitNative) invokeETTypex_TString(t typex.EventTime, key typex.T, val s
 
 func emitMakerTypex_TInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TInt)
+	ret.fn = ret.invokeTypex_TInt
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TInt(key typex.T, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10147,12 +10147,12 @@ func (e *emitNative) invokeTypex_TInt(key typex.T, val int) {
 
 func emitMakerETTypex_TInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TInt)
+	ret.fn = ret.invokeETTypex_TInt
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TInt(t typex.EventTime, key typex.T, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10160,12 +10160,12 @@ func (e *emitNative) invokeETTypex_TInt(t typex.EventTime, key typex.T, val int)
 
 func emitMakerTypex_TInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TInt8)
+	ret.fn = ret.invokeTypex_TInt8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TInt8(key typex.T, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10173,12 +10173,12 @@ func (e *emitNative) invokeTypex_TInt8(key typex.T, val int8) {
 
 func emitMakerETTypex_TInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TInt8)
+	ret.fn = ret.invokeETTypex_TInt8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TInt8(t typex.EventTime, key typex.T, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10186,12 +10186,12 @@ func (e *emitNative) invokeETTypex_TInt8(t typex.EventTime, key typex.T, val int
 
 func emitMakerTypex_TInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TInt16)
+	ret.fn = ret.invokeTypex_TInt16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TInt16(key typex.T, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10199,12 +10199,12 @@ func (e *emitNative) invokeTypex_TInt16(key typex.T, val int16) {
 
 func emitMakerETTypex_TInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TInt16)
+	ret.fn = ret.invokeETTypex_TInt16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TInt16(t typex.EventTime, key typex.T, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10212,12 +10212,12 @@ func (e *emitNative) invokeETTypex_TInt16(t typex.EventTime, key typex.T, val in
 
 func emitMakerTypex_TInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TInt32)
+	ret.fn = ret.invokeTypex_TInt32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TInt32(key typex.T, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10225,12 +10225,12 @@ func (e *emitNative) invokeTypex_TInt32(key typex.T, val int32) {
 
 func emitMakerETTypex_TInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TInt32)
+	ret.fn = ret.invokeETTypex_TInt32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TInt32(t typex.EventTime, key typex.T, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10238,12 +10238,12 @@ func (e *emitNative) invokeETTypex_TInt32(t typex.EventTime, key typex.T, val in
 
 func emitMakerTypex_TInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TInt64)
+	ret.fn = ret.invokeTypex_TInt64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TInt64(key typex.T, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10251,12 +10251,12 @@ func (e *emitNative) invokeTypex_TInt64(key typex.T, val int64) {
 
 func emitMakerETTypex_TInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TInt64)
+	ret.fn = ret.invokeETTypex_TInt64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TInt64(t typex.EventTime, key typex.T, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10264,12 +10264,12 @@ func (e *emitNative) invokeETTypex_TInt64(t typex.EventTime, key typex.T, val in
 
 func emitMakerTypex_TUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TUint)
+	ret.fn = ret.invokeTypex_TUint
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TUint(key typex.T, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10277,12 +10277,12 @@ func (e *emitNative) invokeTypex_TUint(key typex.T, val uint) {
 
 func emitMakerETTypex_TUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TUint)
+	ret.fn = ret.invokeETTypex_TUint
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TUint(t typex.EventTime, key typex.T, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10290,12 +10290,12 @@ func (e *emitNative) invokeETTypex_TUint(t typex.EventTime, key typex.T, val uin
 
 func emitMakerTypex_TUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TUint8)
+	ret.fn = ret.invokeTypex_TUint8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TUint8(key typex.T, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10303,12 +10303,12 @@ func (e *emitNative) invokeTypex_TUint8(key typex.T, val uint8) {
 
 func emitMakerETTypex_TUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TUint8)
+	ret.fn = ret.invokeETTypex_TUint8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TUint8(t typex.EventTime, key typex.T, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10316,12 +10316,12 @@ func (e *emitNative) invokeETTypex_TUint8(t typex.EventTime, key typex.T, val ui
 
 func emitMakerTypex_TUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TUint16)
+	ret.fn = ret.invokeTypex_TUint16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TUint16(key typex.T, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10329,12 +10329,12 @@ func (e *emitNative) invokeTypex_TUint16(key typex.T, val uint16) {
 
 func emitMakerETTypex_TUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TUint16)
+	ret.fn = ret.invokeETTypex_TUint16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TUint16(t typex.EventTime, key typex.T, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10342,12 +10342,12 @@ func (e *emitNative) invokeETTypex_TUint16(t typex.EventTime, key typex.T, val u
 
 func emitMakerTypex_TUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TUint32)
+	ret.fn = ret.invokeTypex_TUint32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TUint32(key typex.T, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10355,12 +10355,12 @@ func (e *emitNative) invokeTypex_TUint32(key typex.T, val uint32) {
 
 func emitMakerETTypex_TUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TUint32)
+	ret.fn = ret.invokeETTypex_TUint32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TUint32(t typex.EventTime, key typex.T, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10368,12 +10368,12 @@ func (e *emitNative) invokeETTypex_TUint32(t typex.EventTime, key typex.T, val u
 
 func emitMakerTypex_TUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TUint64)
+	ret.fn = ret.invokeTypex_TUint64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TUint64(key typex.T, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10381,12 +10381,12 @@ func (e *emitNative) invokeTypex_TUint64(key typex.T, val uint64) {
 
 func emitMakerETTypex_TUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TUint64)
+	ret.fn = ret.invokeETTypex_TUint64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TUint64(t typex.EventTime, key typex.T, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10394,12 +10394,12 @@ func (e *emitNative) invokeETTypex_TUint64(t typex.EventTime, key typex.T, val u
 
 func emitMakerTypex_TFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TFloat32)
+	ret.fn = ret.invokeTypex_TFloat32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TFloat32(key typex.T, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10407,12 +10407,12 @@ func (e *emitNative) invokeTypex_TFloat32(key typex.T, val float32) {
 
 func emitMakerETTypex_TFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TFloat32)
+	ret.fn = ret.invokeETTypex_TFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TFloat32(t typex.EventTime, key typex.T, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10420,12 +10420,12 @@ func (e *emitNative) invokeETTypex_TFloat32(t typex.EventTime, key typex.T, val 
 
 func emitMakerTypex_TFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TFloat64)
+	ret.fn = ret.invokeTypex_TFloat64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TFloat64(key typex.T, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10433,12 +10433,12 @@ func (e *emitNative) invokeTypex_TFloat64(key typex.T, val float64) {
 
 func emitMakerETTypex_TFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TFloat64)
+	ret.fn = ret.invokeETTypex_TFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TFloat64(t typex.EventTime, key typex.T, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10446,12 +10446,12 @@ func (e *emitNative) invokeETTypex_TFloat64(t typex.EventTime, key typex.T, val 
 
 func emitMakerTypex_TTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TTypex_T)
+	ret.fn = ret.invokeTypex_TTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TTypex_T(key typex.T, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10459,12 +10459,12 @@ func (e *emitNative) invokeTypex_TTypex_T(key typex.T, val typex.T) {
 
 func emitMakerETTypex_TTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TTypex_T)
+	ret.fn = ret.invokeETTypex_TTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TTypex_T(t typex.EventTime, key typex.T, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10472,12 +10472,12 @@ func (e *emitNative) invokeETTypex_TTypex_T(t typex.EventTime, key typex.T, val 
 
 func emitMakerTypex_TTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TTypex_U)
+	ret.fn = ret.invokeTypex_TTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TTypex_U(key typex.T, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10485,12 +10485,12 @@ func (e *emitNative) invokeTypex_TTypex_U(key typex.T, val typex.U) {
 
 func emitMakerETTypex_TTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TTypex_U)
+	ret.fn = ret.invokeETTypex_TTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TTypex_U(t typex.EventTime, key typex.T, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10498,12 +10498,12 @@ func (e *emitNative) invokeETTypex_TTypex_U(t typex.EventTime, key typex.T, val 
 
 func emitMakerTypex_TTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TTypex_V)
+	ret.fn = ret.invokeTypex_TTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TTypex_V(key typex.T, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10511,12 +10511,12 @@ func (e *emitNative) invokeTypex_TTypex_V(key typex.T, val typex.V) {
 
 func emitMakerETTypex_TTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TTypex_V)
+	ret.fn = ret.invokeETTypex_TTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TTypex_V(t typex.EventTime, key typex.T, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10524,12 +10524,12 @@ func (e *emitNative) invokeETTypex_TTypex_V(t typex.EventTime, key typex.T, val 
 
 func emitMakerTypex_TTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TTypex_W)
+	ret.fn = ret.invokeTypex_TTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TTypex_W(key typex.T, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10537,12 +10537,12 @@ func (e *emitNative) invokeTypex_TTypex_W(key typex.T, val typex.W) {
 
 func emitMakerETTypex_TTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TTypex_W)
+	ret.fn = ret.invokeETTypex_TTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TTypex_W(t typex.EventTime, key typex.T, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10550,12 +10550,12 @@ func (e *emitNative) invokeETTypex_TTypex_W(t typex.EventTime, key typex.T, val 
 
 func emitMakerTypex_TTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TTypex_X)
+	ret.fn = ret.invokeTypex_TTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TTypex_X(key typex.T, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10563,12 +10563,12 @@ func (e *emitNative) invokeTypex_TTypex_X(key typex.T, val typex.X) {
 
 func emitMakerETTypex_TTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TTypex_X)
+	ret.fn = ret.invokeETTypex_TTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TTypex_X(t typex.EventTime, key typex.T, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10576,12 +10576,12 @@ func (e *emitNative) invokeETTypex_TTypex_X(t typex.EventTime, key typex.T, val 
 
 func emitMakerTypex_TTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TTypex_Y)
+	ret.fn = ret.invokeTypex_TTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TTypex_Y(key typex.T, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10589,12 +10589,12 @@ func (e *emitNative) invokeTypex_TTypex_Y(key typex.T, val typex.Y) {
 
 func emitMakerETTypex_TTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TTypex_Y)
+	ret.fn = ret.invokeETTypex_TTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TTypex_Y(t typex.EventTime, key typex.T, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10602,12 +10602,12 @@ func (e *emitNative) invokeETTypex_TTypex_Y(t typex.EventTime, key typex.T, val 
 
 func emitMakerTypex_TTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_TTypex_Z)
+	ret.fn = ret.invokeTypex_TTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeTypex_TTypex_Z(key typex.T, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10615,12 +10615,12 @@ func (e *emitNative) invokeTypex_TTypex_Z(key typex.T, val typex.Z) {
 
 func emitMakerETTypex_TTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_TTypex_Z)
+	ret.fn = ret.invokeETTypex_TTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_TTypex_Z(t typex.EventTime, key typex.T, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10628,12 +10628,12 @@ func (e *emitNative) invokeETTypex_TTypex_Z(t typex.EventTime, key typex.T, val 
 
 func emitMakerTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_U)
+	ret.fn = ret.invokeTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeTypex_U(elm typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10641,12 +10641,12 @@ func (e *emitNative) invokeTypex_U(elm typex.U) {
 
 func emitMakerETTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_U)
+	ret.fn = ret.invokeETTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_U(t typex.EventTime, elm typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10654,12 +10654,12 @@ func (e *emitNative) invokeETTypex_U(t typex.EventTime, elm typex.U) {
 
 func emitMakerTypex_UByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UByteSlice)
+	ret.fn = ret.invokeTypex_UByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UByteSlice(key typex.U, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10667,12 +10667,12 @@ func (e *emitNative) invokeTypex_UByteSlice(key typex.U, val []byte) {
 
 func emitMakerETTypex_UByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UByteSlice)
+	ret.fn = ret.invokeETTypex_UByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UByteSlice(t typex.EventTime, key typex.U, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10680,12 +10680,12 @@ func (e *emitNative) invokeETTypex_UByteSlice(t typex.EventTime, key typex.U, va
 
 func emitMakerTypex_UBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UBool)
+	ret.fn = ret.invokeTypex_UBool
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UBool(key typex.U, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10693,12 +10693,12 @@ func (e *emitNative) invokeTypex_UBool(key typex.U, val bool) {
 
 func emitMakerETTypex_UBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UBool)
+	ret.fn = ret.invokeETTypex_UBool
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UBool(t typex.EventTime, key typex.U, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10706,12 +10706,12 @@ func (e *emitNative) invokeETTypex_UBool(t typex.EventTime, key typex.U, val boo
 
 func emitMakerTypex_UString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UString)
+	ret.fn = ret.invokeTypex_UString
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UString(key typex.U, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10719,12 +10719,12 @@ func (e *emitNative) invokeTypex_UString(key typex.U, val string) {
 
 func emitMakerETTypex_UString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UString)
+	ret.fn = ret.invokeETTypex_UString
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UString(t typex.EventTime, key typex.U, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10732,12 +10732,12 @@ func (e *emitNative) invokeETTypex_UString(t typex.EventTime, key typex.U, val s
 
 func emitMakerTypex_UInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UInt)
+	ret.fn = ret.invokeTypex_UInt
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UInt(key typex.U, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10745,12 +10745,12 @@ func (e *emitNative) invokeTypex_UInt(key typex.U, val int) {
 
 func emitMakerETTypex_UInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UInt)
+	ret.fn = ret.invokeETTypex_UInt
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UInt(t typex.EventTime, key typex.U, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10758,12 +10758,12 @@ func (e *emitNative) invokeETTypex_UInt(t typex.EventTime, key typex.U, val int)
 
 func emitMakerTypex_UInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UInt8)
+	ret.fn = ret.invokeTypex_UInt8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UInt8(key typex.U, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10771,12 +10771,12 @@ func (e *emitNative) invokeTypex_UInt8(key typex.U, val int8) {
 
 func emitMakerETTypex_UInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UInt8)
+	ret.fn = ret.invokeETTypex_UInt8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UInt8(t typex.EventTime, key typex.U, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10784,12 +10784,12 @@ func (e *emitNative) invokeETTypex_UInt8(t typex.EventTime, key typex.U, val int
 
 func emitMakerTypex_UInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UInt16)
+	ret.fn = ret.invokeTypex_UInt16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UInt16(key typex.U, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10797,12 +10797,12 @@ func (e *emitNative) invokeTypex_UInt16(key typex.U, val int16) {
 
 func emitMakerETTypex_UInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UInt16)
+	ret.fn = ret.invokeETTypex_UInt16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UInt16(t typex.EventTime, key typex.U, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10810,12 +10810,12 @@ func (e *emitNative) invokeETTypex_UInt16(t typex.EventTime, key typex.U, val in
 
 func emitMakerTypex_UInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UInt32)
+	ret.fn = ret.invokeTypex_UInt32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UInt32(key typex.U, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10823,12 +10823,12 @@ func (e *emitNative) invokeTypex_UInt32(key typex.U, val int32) {
 
 func emitMakerETTypex_UInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UInt32)
+	ret.fn = ret.invokeETTypex_UInt32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UInt32(t typex.EventTime, key typex.U, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10836,12 +10836,12 @@ func (e *emitNative) invokeETTypex_UInt32(t typex.EventTime, key typex.U, val in
 
 func emitMakerTypex_UInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UInt64)
+	ret.fn = ret.invokeTypex_UInt64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UInt64(key typex.U, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10849,12 +10849,12 @@ func (e *emitNative) invokeTypex_UInt64(key typex.U, val int64) {
 
 func emitMakerETTypex_UInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UInt64)
+	ret.fn = ret.invokeETTypex_UInt64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UInt64(t typex.EventTime, key typex.U, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10862,12 +10862,12 @@ func (e *emitNative) invokeETTypex_UInt64(t typex.EventTime, key typex.U, val in
 
 func emitMakerTypex_UUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UUint)
+	ret.fn = ret.invokeTypex_UUint
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UUint(key typex.U, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10875,12 +10875,12 @@ func (e *emitNative) invokeTypex_UUint(key typex.U, val uint) {
 
 func emitMakerETTypex_UUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UUint)
+	ret.fn = ret.invokeETTypex_UUint
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UUint(t typex.EventTime, key typex.U, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10888,12 +10888,12 @@ func (e *emitNative) invokeETTypex_UUint(t typex.EventTime, key typex.U, val uin
 
 func emitMakerTypex_UUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UUint8)
+	ret.fn = ret.invokeTypex_UUint8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UUint8(key typex.U, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10901,12 +10901,12 @@ func (e *emitNative) invokeTypex_UUint8(key typex.U, val uint8) {
 
 func emitMakerETTypex_UUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UUint8)
+	ret.fn = ret.invokeETTypex_UUint8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UUint8(t typex.EventTime, key typex.U, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10914,12 +10914,12 @@ func (e *emitNative) invokeETTypex_UUint8(t typex.EventTime, key typex.U, val ui
 
 func emitMakerTypex_UUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UUint16)
+	ret.fn = ret.invokeTypex_UUint16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UUint16(key typex.U, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10927,12 +10927,12 @@ func (e *emitNative) invokeTypex_UUint16(key typex.U, val uint16) {
 
 func emitMakerETTypex_UUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UUint16)
+	ret.fn = ret.invokeETTypex_UUint16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UUint16(t typex.EventTime, key typex.U, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10940,12 +10940,12 @@ func (e *emitNative) invokeETTypex_UUint16(t typex.EventTime, key typex.U, val u
 
 func emitMakerTypex_UUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UUint32)
+	ret.fn = ret.invokeTypex_UUint32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UUint32(key typex.U, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10953,12 +10953,12 @@ func (e *emitNative) invokeTypex_UUint32(key typex.U, val uint32) {
 
 func emitMakerETTypex_UUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UUint32)
+	ret.fn = ret.invokeETTypex_UUint32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UUint32(t typex.EventTime, key typex.U, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10966,12 +10966,12 @@ func (e *emitNative) invokeETTypex_UUint32(t typex.EventTime, key typex.U, val u
 
 func emitMakerTypex_UUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UUint64)
+	ret.fn = ret.invokeTypex_UUint64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UUint64(key typex.U, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10979,12 +10979,12 @@ func (e *emitNative) invokeTypex_UUint64(key typex.U, val uint64) {
 
 func emitMakerETTypex_UUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UUint64)
+	ret.fn = ret.invokeETTypex_UUint64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UUint64(t typex.EventTime, key typex.U, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -10992,12 +10992,12 @@ func (e *emitNative) invokeETTypex_UUint64(t typex.EventTime, key typex.U, val u
 
 func emitMakerTypex_UFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UFloat32)
+	ret.fn = ret.invokeTypex_UFloat32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UFloat32(key typex.U, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11005,12 +11005,12 @@ func (e *emitNative) invokeTypex_UFloat32(key typex.U, val float32) {
 
 func emitMakerETTypex_UFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UFloat32)
+	ret.fn = ret.invokeETTypex_UFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UFloat32(t typex.EventTime, key typex.U, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11018,12 +11018,12 @@ func (e *emitNative) invokeETTypex_UFloat32(t typex.EventTime, key typex.U, val 
 
 func emitMakerTypex_UFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UFloat64)
+	ret.fn = ret.invokeTypex_UFloat64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UFloat64(key typex.U, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11031,12 +11031,12 @@ func (e *emitNative) invokeTypex_UFloat64(key typex.U, val float64) {
 
 func emitMakerETTypex_UFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UFloat64)
+	ret.fn = ret.invokeETTypex_UFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UFloat64(t typex.EventTime, key typex.U, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11044,12 +11044,12 @@ func (e *emitNative) invokeETTypex_UFloat64(t typex.EventTime, key typex.U, val 
 
 func emitMakerTypex_UTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UTypex_T)
+	ret.fn = ret.invokeTypex_UTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UTypex_T(key typex.U, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11057,12 +11057,12 @@ func (e *emitNative) invokeTypex_UTypex_T(key typex.U, val typex.T) {
 
 func emitMakerETTypex_UTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UTypex_T)
+	ret.fn = ret.invokeETTypex_UTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UTypex_T(t typex.EventTime, key typex.U, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11070,12 +11070,12 @@ func (e *emitNative) invokeETTypex_UTypex_T(t typex.EventTime, key typex.U, val 
 
 func emitMakerTypex_UTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UTypex_U)
+	ret.fn = ret.invokeTypex_UTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UTypex_U(key typex.U, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11083,12 +11083,12 @@ func (e *emitNative) invokeTypex_UTypex_U(key typex.U, val typex.U) {
 
 func emitMakerETTypex_UTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UTypex_U)
+	ret.fn = ret.invokeETTypex_UTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UTypex_U(t typex.EventTime, key typex.U, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11096,12 +11096,12 @@ func (e *emitNative) invokeETTypex_UTypex_U(t typex.EventTime, key typex.U, val 
 
 func emitMakerTypex_UTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UTypex_V)
+	ret.fn = ret.invokeTypex_UTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UTypex_V(key typex.U, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11109,12 +11109,12 @@ func (e *emitNative) invokeTypex_UTypex_V(key typex.U, val typex.V) {
 
 func emitMakerETTypex_UTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UTypex_V)
+	ret.fn = ret.invokeETTypex_UTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UTypex_V(t typex.EventTime, key typex.U, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11122,12 +11122,12 @@ func (e *emitNative) invokeETTypex_UTypex_V(t typex.EventTime, key typex.U, val 
 
 func emitMakerTypex_UTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UTypex_W)
+	ret.fn = ret.invokeTypex_UTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UTypex_W(key typex.U, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11135,12 +11135,12 @@ func (e *emitNative) invokeTypex_UTypex_W(key typex.U, val typex.W) {
 
 func emitMakerETTypex_UTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UTypex_W)
+	ret.fn = ret.invokeETTypex_UTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UTypex_W(t typex.EventTime, key typex.U, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11148,12 +11148,12 @@ func (e *emitNative) invokeETTypex_UTypex_W(t typex.EventTime, key typex.U, val 
 
 func emitMakerTypex_UTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UTypex_X)
+	ret.fn = ret.invokeTypex_UTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UTypex_X(key typex.U, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11161,12 +11161,12 @@ func (e *emitNative) invokeTypex_UTypex_X(key typex.U, val typex.X) {
 
 func emitMakerETTypex_UTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UTypex_X)
+	ret.fn = ret.invokeETTypex_UTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UTypex_X(t typex.EventTime, key typex.U, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11174,12 +11174,12 @@ func (e *emitNative) invokeETTypex_UTypex_X(t typex.EventTime, key typex.U, val 
 
 func emitMakerTypex_UTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UTypex_Y)
+	ret.fn = ret.invokeTypex_UTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UTypex_Y(key typex.U, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11187,12 +11187,12 @@ func (e *emitNative) invokeTypex_UTypex_Y(key typex.U, val typex.Y) {
 
 func emitMakerETTypex_UTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UTypex_Y)
+	ret.fn = ret.invokeETTypex_UTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UTypex_Y(t typex.EventTime, key typex.U, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11200,12 +11200,12 @@ func (e *emitNative) invokeETTypex_UTypex_Y(t typex.EventTime, key typex.U, val 
 
 func emitMakerTypex_UTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_UTypex_Z)
+	ret.fn = ret.invokeTypex_UTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeTypex_UTypex_Z(key typex.U, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11213,12 +11213,12 @@ func (e *emitNative) invokeTypex_UTypex_Z(key typex.U, val typex.Z) {
 
 func emitMakerETTypex_UTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_UTypex_Z)
+	ret.fn = ret.invokeETTypex_UTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_UTypex_Z(t typex.EventTime, key typex.U, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11226,12 +11226,12 @@ func (e *emitNative) invokeETTypex_UTypex_Z(t typex.EventTime, key typex.U, val 
 
 func emitMakerTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_V)
+	ret.fn = ret.invokeTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeTypex_V(elm typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11239,12 +11239,12 @@ func (e *emitNative) invokeTypex_V(elm typex.V) {
 
 func emitMakerETTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_V)
+	ret.fn = ret.invokeETTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_V(t typex.EventTime, elm typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11252,12 +11252,12 @@ func (e *emitNative) invokeETTypex_V(t typex.EventTime, elm typex.V) {
 
 func emitMakerTypex_VByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VByteSlice)
+	ret.fn = ret.invokeTypex_VByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VByteSlice(key typex.V, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11265,12 +11265,12 @@ func (e *emitNative) invokeTypex_VByteSlice(key typex.V, val []byte) {
 
 func emitMakerETTypex_VByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VByteSlice)
+	ret.fn = ret.invokeETTypex_VByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VByteSlice(t typex.EventTime, key typex.V, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11278,12 +11278,12 @@ func (e *emitNative) invokeETTypex_VByteSlice(t typex.EventTime, key typex.V, va
 
 func emitMakerTypex_VBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VBool)
+	ret.fn = ret.invokeTypex_VBool
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VBool(key typex.V, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11291,12 +11291,12 @@ func (e *emitNative) invokeTypex_VBool(key typex.V, val bool) {
 
 func emitMakerETTypex_VBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VBool)
+	ret.fn = ret.invokeETTypex_VBool
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VBool(t typex.EventTime, key typex.V, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11304,12 +11304,12 @@ func (e *emitNative) invokeETTypex_VBool(t typex.EventTime, key typex.V, val boo
 
 func emitMakerTypex_VString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VString)
+	ret.fn = ret.invokeTypex_VString
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VString(key typex.V, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11317,12 +11317,12 @@ func (e *emitNative) invokeTypex_VString(key typex.V, val string) {
 
 func emitMakerETTypex_VString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VString)
+	ret.fn = ret.invokeETTypex_VString
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VString(t typex.EventTime, key typex.V, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11330,12 +11330,12 @@ func (e *emitNative) invokeETTypex_VString(t typex.EventTime, key typex.V, val s
 
 func emitMakerTypex_VInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VInt)
+	ret.fn = ret.invokeTypex_VInt
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VInt(key typex.V, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11343,12 +11343,12 @@ func (e *emitNative) invokeTypex_VInt(key typex.V, val int) {
 
 func emitMakerETTypex_VInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VInt)
+	ret.fn = ret.invokeETTypex_VInt
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VInt(t typex.EventTime, key typex.V, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11356,12 +11356,12 @@ func (e *emitNative) invokeETTypex_VInt(t typex.EventTime, key typex.V, val int)
 
 func emitMakerTypex_VInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VInt8)
+	ret.fn = ret.invokeTypex_VInt8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VInt8(key typex.V, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11369,12 +11369,12 @@ func (e *emitNative) invokeTypex_VInt8(key typex.V, val int8) {
 
 func emitMakerETTypex_VInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VInt8)
+	ret.fn = ret.invokeETTypex_VInt8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VInt8(t typex.EventTime, key typex.V, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11382,12 +11382,12 @@ func (e *emitNative) invokeETTypex_VInt8(t typex.EventTime, key typex.V, val int
 
 func emitMakerTypex_VInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VInt16)
+	ret.fn = ret.invokeTypex_VInt16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VInt16(key typex.V, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11395,12 +11395,12 @@ func (e *emitNative) invokeTypex_VInt16(key typex.V, val int16) {
 
 func emitMakerETTypex_VInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VInt16)
+	ret.fn = ret.invokeETTypex_VInt16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VInt16(t typex.EventTime, key typex.V, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11408,12 +11408,12 @@ func (e *emitNative) invokeETTypex_VInt16(t typex.EventTime, key typex.V, val in
 
 func emitMakerTypex_VInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VInt32)
+	ret.fn = ret.invokeTypex_VInt32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VInt32(key typex.V, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11421,12 +11421,12 @@ func (e *emitNative) invokeTypex_VInt32(key typex.V, val int32) {
 
 func emitMakerETTypex_VInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VInt32)
+	ret.fn = ret.invokeETTypex_VInt32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VInt32(t typex.EventTime, key typex.V, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11434,12 +11434,12 @@ func (e *emitNative) invokeETTypex_VInt32(t typex.EventTime, key typex.V, val in
 
 func emitMakerTypex_VInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VInt64)
+	ret.fn = ret.invokeTypex_VInt64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VInt64(key typex.V, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11447,12 +11447,12 @@ func (e *emitNative) invokeTypex_VInt64(key typex.V, val int64) {
 
 func emitMakerETTypex_VInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VInt64)
+	ret.fn = ret.invokeETTypex_VInt64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VInt64(t typex.EventTime, key typex.V, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11460,12 +11460,12 @@ func (e *emitNative) invokeETTypex_VInt64(t typex.EventTime, key typex.V, val in
 
 func emitMakerTypex_VUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VUint)
+	ret.fn = ret.invokeTypex_VUint
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VUint(key typex.V, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11473,12 +11473,12 @@ func (e *emitNative) invokeTypex_VUint(key typex.V, val uint) {
 
 func emitMakerETTypex_VUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VUint)
+	ret.fn = ret.invokeETTypex_VUint
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VUint(t typex.EventTime, key typex.V, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11486,12 +11486,12 @@ func (e *emitNative) invokeETTypex_VUint(t typex.EventTime, key typex.V, val uin
 
 func emitMakerTypex_VUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VUint8)
+	ret.fn = ret.invokeTypex_VUint8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VUint8(key typex.V, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11499,12 +11499,12 @@ func (e *emitNative) invokeTypex_VUint8(key typex.V, val uint8) {
 
 func emitMakerETTypex_VUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VUint8)
+	ret.fn = ret.invokeETTypex_VUint8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VUint8(t typex.EventTime, key typex.V, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11512,12 +11512,12 @@ func (e *emitNative) invokeETTypex_VUint8(t typex.EventTime, key typex.V, val ui
 
 func emitMakerTypex_VUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VUint16)
+	ret.fn = ret.invokeTypex_VUint16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VUint16(key typex.V, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11525,12 +11525,12 @@ func (e *emitNative) invokeTypex_VUint16(key typex.V, val uint16) {
 
 func emitMakerETTypex_VUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VUint16)
+	ret.fn = ret.invokeETTypex_VUint16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VUint16(t typex.EventTime, key typex.V, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11538,12 +11538,12 @@ func (e *emitNative) invokeETTypex_VUint16(t typex.EventTime, key typex.V, val u
 
 func emitMakerTypex_VUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VUint32)
+	ret.fn = ret.invokeTypex_VUint32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VUint32(key typex.V, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11551,12 +11551,12 @@ func (e *emitNative) invokeTypex_VUint32(key typex.V, val uint32) {
 
 func emitMakerETTypex_VUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VUint32)
+	ret.fn = ret.invokeETTypex_VUint32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VUint32(t typex.EventTime, key typex.V, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11564,12 +11564,12 @@ func (e *emitNative) invokeETTypex_VUint32(t typex.EventTime, key typex.V, val u
 
 func emitMakerTypex_VUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VUint64)
+	ret.fn = ret.invokeTypex_VUint64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VUint64(key typex.V, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11577,12 +11577,12 @@ func (e *emitNative) invokeTypex_VUint64(key typex.V, val uint64) {
 
 func emitMakerETTypex_VUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VUint64)
+	ret.fn = ret.invokeETTypex_VUint64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VUint64(t typex.EventTime, key typex.V, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11590,12 +11590,12 @@ func (e *emitNative) invokeETTypex_VUint64(t typex.EventTime, key typex.V, val u
 
 func emitMakerTypex_VFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VFloat32)
+	ret.fn = ret.invokeTypex_VFloat32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VFloat32(key typex.V, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11603,12 +11603,12 @@ func (e *emitNative) invokeTypex_VFloat32(key typex.V, val float32) {
 
 func emitMakerETTypex_VFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VFloat32)
+	ret.fn = ret.invokeETTypex_VFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VFloat32(t typex.EventTime, key typex.V, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11616,12 +11616,12 @@ func (e *emitNative) invokeETTypex_VFloat32(t typex.EventTime, key typex.V, val 
 
 func emitMakerTypex_VFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VFloat64)
+	ret.fn = ret.invokeTypex_VFloat64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VFloat64(key typex.V, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11629,12 +11629,12 @@ func (e *emitNative) invokeTypex_VFloat64(key typex.V, val float64) {
 
 func emitMakerETTypex_VFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VFloat64)
+	ret.fn = ret.invokeETTypex_VFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VFloat64(t typex.EventTime, key typex.V, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11642,12 +11642,12 @@ func (e *emitNative) invokeETTypex_VFloat64(t typex.EventTime, key typex.V, val 
 
 func emitMakerTypex_VTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VTypex_T)
+	ret.fn = ret.invokeTypex_VTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VTypex_T(key typex.V, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11655,12 +11655,12 @@ func (e *emitNative) invokeTypex_VTypex_T(key typex.V, val typex.T) {
 
 func emitMakerETTypex_VTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VTypex_T)
+	ret.fn = ret.invokeETTypex_VTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VTypex_T(t typex.EventTime, key typex.V, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11668,12 +11668,12 @@ func (e *emitNative) invokeETTypex_VTypex_T(t typex.EventTime, key typex.V, val 
 
 func emitMakerTypex_VTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VTypex_U)
+	ret.fn = ret.invokeTypex_VTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VTypex_U(key typex.V, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11681,12 +11681,12 @@ func (e *emitNative) invokeTypex_VTypex_U(key typex.V, val typex.U) {
 
 func emitMakerETTypex_VTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VTypex_U)
+	ret.fn = ret.invokeETTypex_VTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VTypex_U(t typex.EventTime, key typex.V, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11694,12 +11694,12 @@ func (e *emitNative) invokeETTypex_VTypex_U(t typex.EventTime, key typex.V, val 
 
 func emitMakerTypex_VTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VTypex_V)
+	ret.fn = ret.invokeTypex_VTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VTypex_V(key typex.V, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11707,12 +11707,12 @@ func (e *emitNative) invokeTypex_VTypex_V(key typex.V, val typex.V) {
 
 func emitMakerETTypex_VTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VTypex_V)
+	ret.fn = ret.invokeETTypex_VTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VTypex_V(t typex.EventTime, key typex.V, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11720,12 +11720,12 @@ func (e *emitNative) invokeETTypex_VTypex_V(t typex.EventTime, key typex.V, val 
 
 func emitMakerTypex_VTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VTypex_W)
+	ret.fn = ret.invokeTypex_VTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VTypex_W(key typex.V, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11733,12 +11733,12 @@ func (e *emitNative) invokeTypex_VTypex_W(key typex.V, val typex.W) {
 
 func emitMakerETTypex_VTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VTypex_W)
+	ret.fn = ret.invokeETTypex_VTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VTypex_W(t typex.EventTime, key typex.V, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11746,12 +11746,12 @@ func (e *emitNative) invokeETTypex_VTypex_W(t typex.EventTime, key typex.V, val 
 
 func emitMakerTypex_VTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VTypex_X)
+	ret.fn = ret.invokeTypex_VTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VTypex_X(key typex.V, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11759,12 +11759,12 @@ func (e *emitNative) invokeTypex_VTypex_X(key typex.V, val typex.X) {
 
 func emitMakerETTypex_VTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VTypex_X)
+	ret.fn = ret.invokeETTypex_VTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VTypex_X(t typex.EventTime, key typex.V, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11772,12 +11772,12 @@ func (e *emitNative) invokeETTypex_VTypex_X(t typex.EventTime, key typex.V, val 
 
 func emitMakerTypex_VTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VTypex_Y)
+	ret.fn = ret.invokeTypex_VTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VTypex_Y(key typex.V, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11785,12 +11785,12 @@ func (e *emitNative) invokeTypex_VTypex_Y(key typex.V, val typex.Y) {
 
 func emitMakerETTypex_VTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VTypex_Y)
+	ret.fn = ret.invokeETTypex_VTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VTypex_Y(t typex.EventTime, key typex.V, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11798,12 +11798,12 @@ func (e *emitNative) invokeETTypex_VTypex_Y(t typex.EventTime, key typex.V, val 
 
 func emitMakerTypex_VTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_VTypex_Z)
+	ret.fn = ret.invokeTypex_VTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeTypex_VTypex_Z(key typex.V, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11811,12 +11811,12 @@ func (e *emitNative) invokeTypex_VTypex_Z(key typex.V, val typex.Z) {
 
 func emitMakerETTypex_VTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_VTypex_Z)
+	ret.fn = ret.invokeETTypex_VTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_VTypex_Z(t typex.EventTime, key typex.V, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11824,12 +11824,12 @@ func (e *emitNative) invokeETTypex_VTypex_Z(t typex.EventTime, key typex.V, val 
 
 func emitMakerTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_W)
+	ret.fn = ret.invokeTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeTypex_W(elm typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11837,12 +11837,12 @@ func (e *emitNative) invokeTypex_W(elm typex.W) {
 
 func emitMakerETTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_W)
+	ret.fn = ret.invokeETTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_W(t typex.EventTime, elm typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11850,12 +11850,12 @@ func (e *emitNative) invokeETTypex_W(t typex.EventTime, elm typex.W) {
 
 func emitMakerTypex_WByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WByteSlice)
+	ret.fn = ret.invokeTypex_WByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WByteSlice(key typex.W, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11863,12 +11863,12 @@ func (e *emitNative) invokeTypex_WByteSlice(key typex.W, val []byte) {
 
 func emitMakerETTypex_WByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WByteSlice)
+	ret.fn = ret.invokeETTypex_WByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WByteSlice(t typex.EventTime, key typex.W, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11876,12 +11876,12 @@ func (e *emitNative) invokeETTypex_WByteSlice(t typex.EventTime, key typex.W, va
 
 func emitMakerTypex_WBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WBool)
+	ret.fn = ret.invokeTypex_WBool
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WBool(key typex.W, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11889,12 +11889,12 @@ func (e *emitNative) invokeTypex_WBool(key typex.W, val bool) {
 
 func emitMakerETTypex_WBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WBool)
+	ret.fn = ret.invokeETTypex_WBool
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WBool(t typex.EventTime, key typex.W, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11902,12 +11902,12 @@ func (e *emitNative) invokeETTypex_WBool(t typex.EventTime, key typex.W, val boo
 
 func emitMakerTypex_WString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WString)
+	ret.fn = ret.invokeTypex_WString
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WString(key typex.W, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11915,12 +11915,12 @@ func (e *emitNative) invokeTypex_WString(key typex.W, val string) {
 
 func emitMakerETTypex_WString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WString)
+	ret.fn = ret.invokeETTypex_WString
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WString(t typex.EventTime, key typex.W, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11928,12 +11928,12 @@ func (e *emitNative) invokeETTypex_WString(t typex.EventTime, key typex.W, val s
 
 func emitMakerTypex_WInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WInt)
+	ret.fn = ret.invokeTypex_WInt
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WInt(key typex.W, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11941,12 +11941,12 @@ func (e *emitNative) invokeTypex_WInt(key typex.W, val int) {
 
 func emitMakerETTypex_WInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WInt)
+	ret.fn = ret.invokeETTypex_WInt
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WInt(t typex.EventTime, key typex.W, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11954,12 +11954,12 @@ func (e *emitNative) invokeETTypex_WInt(t typex.EventTime, key typex.W, val int)
 
 func emitMakerTypex_WInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WInt8)
+	ret.fn = ret.invokeTypex_WInt8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WInt8(key typex.W, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11967,12 +11967,12 @@ func (e *emitNative) invokeTypex_WInt8(key typex.W, val int8) {
 
 func emitMakerETTypex_WInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WInt8)
+	ret.fn = ret.invokeETTypex_WInt8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WInt8(t typex.EventTime, key typex.W, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11980,12 +11980,12 @@ func (e *emitNative) invokeETTypex_WInt8(t typex.EventTime, key typex.W, val int
 
 func emitMakerTypex_WInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WInt16)
+	ret.fn = ret.invokeTypex_WInt16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WInt16(key typex.W, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -11993,12 +11993,12 @@ func (e *emitNative) invokeTypex_WInt16(key typex.W, val int16) {
 
 func emitMakerETTypex_WInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WInt16)
+	ret.fn = ret.invokeETTypex_WInt16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WInt16(t typex.EventTime, key typex.W, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12006,12 +12006,12 @@ func (e *emitNative) invokeETTypex_WInt16(t typex.EventTime, key typex.W, val in
 
 func emitMakerTypex_WInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WInt32)
+	ret.fn = ret.invokeTypex_WInt32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WInt32(key typex.W, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12019,12 +12019,12 @@ func (e *emitNative) invokeTypex_WInt32(key typex.W, val int32) {
 
 func emitMakerETTypex_WInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WInt32)
+	ret.fn = ret.invokeETTypex_WInt32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WInt32(t typex.EventTime, key typex.W, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12032,12 +12032,12 @@ func (e *emitNative) invokeETTypex_WInt32(t typex.EventTime, key typex.W, val in
 
 func emitMakerTypex_WInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WInt64)
+	ret.fn = ret.invokeTypex_WInt64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WInt64(key typex.W, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12045,12 +12045,12 @@ func (e *emitNative) invokeTypex_WInt64(key typex.W, val int64) {
 
 func emitMakerETTypex_WInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WInt64)
+	ret.fn = ret.invokeETTypex_WInt64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WInt64(t typex.EventTime, key typex.W, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12058,12 +12058,12 @@ func (e *emitNative) invokeETTypex_WInt64(t typex.EventTime, key typex.W, val in
 
 func emitMakerTypex_WUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WUint)
+	ret.fn = ret.invokeTypex_WUint
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WUint(key typex.W, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12071,12 +12071,12 @@ func (e *emitNative) invokeTypex_WUint(key typex.W, val uint) {
 
 func emitMakerETTypex_WUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WUint)
+	ret.fn = ret.invokeETTypex_WUint
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WUint(t typex.EventTime, key typex.W, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12084,12 +12084,12 @@ func (e *emitNative) invokeETTypex_WUint(t typex.EventTime, key typex.W, val uin
 
 func emitMakerTypex_WUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WUint8)
+	ret.fn = ret.invokeTypex_WUint8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WUint8(key typex.W, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12097,12 +12097,12 @@ func (e *emitNative) invokeTypex_WUint8(key typex.W, val uint8) {
 
 func emitMakerETTypex_WUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WUint8)
+	ret.fn = ret.invokeETTypex_WUint8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WUint8(t typex.EventTime, key typex.W, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12110,12 +12110,12 @@ func (e *emitNative) invokeETTypex_WUint8(t typex.EventTime, key typex.W, val ui
 
 func emitMakerTypex_WUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WUint16)
+	ret.fn = ret.invokeTypex_WUint16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WUint16(key typex.W, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12123,12 +12123,12 @@ func (e *emitNative) invokeTypex_WUint16(key typex.W, val uint16) {
 
 func emitMakerETTypex_WUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WUint16)
+	ret.fn = ret.invokeETTypex_WUint16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WUint16(t typex.EventTime, key typex.W, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12136,12 +12136,12 @@ func (e *emitNative) invokeETTypex_WUint16(t typex.EventTime, key typex.W, val u
 
 func emitMakerTypex_WUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WUint32)
+	ret.fn = ret.invokeTypex_WUint32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WUint32(key typex.W, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12149,12 +12149,12 @@ func (e *emitNative) invokeTypex_WUint32(key typex.W, val uint32) {
 
 func emitMakerETTypex_WUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WUint32)
+	ret.fn = ret.invokeETTypex_WUint32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WUint32(t typex.EventTime, key typex.W, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12162,12 +12162,12 @@ func (e *emitNative) invokeETTypex_WUint32(t typex.EventTime, key typex.W, val u
 
 func emitMakerTypex_WUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WUint64)
+	ret.fn = ret.invokeTypex_WUint64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WUint64(key typex.W, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12175,12 +12175,12 @@ func (e *emitNative) invokeTypex_WUint64(key typex.W, val uint64) {
 
 func emitMakerETTypex_WUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WUint64)
+	ret.fn = ret.invokeETTypex_WUint64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WUint64(t typex.EventTime, key typex.W, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12188,12 +12188,12 @@ func (e *emitNative) invokeETTypex_WUint64(t typex.EventTime, key typex.W, val u
 
 func emitMakerTypex_WFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WFloat32)
+	ret.fn = ret.invokeTypex_WFloat32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WFloat32(key typex.W, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12201,12 +12201,12 @@ func (e *emitNative) invokeTypex_WFloat32(key typex.W, val float32) {
 
 func emitMakerETTypex_WFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WFloat32)
+	ret.fn = ret.invokeETTypex_WFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WFloat32(t typex.EventTime, key typex.W, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12214,12 +12214,12 @@ func (e *emitNative) invokeETTypex_WFloat32(t typex.EventTime, key typex.W, val 
 
 func emitMakerTypex_WFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WFloat64)
+	ret.fn = ret.invokeTypex_WFloat64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WFloat64(key typex.W, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12227,12 +12227,12 @@ func (e *emitNative) invokeTypex_WFloat64(key typex.W, val float64) {
 
 func emitMakerETTypex_WFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WFloat64)
+	ret.fn = ret.invokeETTypex_WFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WFloat64(t typex.EventTime, key typex.W, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12240,12 +12240,12 @@ func (e *emitNative) invokeETTypex_WFloat64(t typex.EventTime, key typex.W, val 
 
 func emitMakerTypex_WTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WTypex_T)
+	ret.fn = ret.invokeTypex_WTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WTypex_T(key typex.W, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12253,12 +12253,12 @@ func (e *emitNative) invokeTypex_WTypex_T(key typex.W, val typex.T) {
 
 func emitMakerETTypex_WTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WTypex_T)
+	ret.fn = ret.invokeETTypex_WTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WTypex_T(t typex.EventTime, key typex.W, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12266,12 +12266,12 @@ func (e *emitNative) invokeETTypex_WTypex_T(t typex.EventTime, key typex.W, val 
 
 func emitMakerTypex_WTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WTypex_U)
+	ret.fn = ret.invokeTypex_WTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WTypex_U(key typex.W, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12279,12 +12279,12 @@ func (e *emitNative) invokeTypex_WTypex_U(key typex.W, val typex.U) {
 
 func emitMakerETTypex_WTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WTypex_U)
+	ret.fn = ret.invokeETTypex_WTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WTypex_U(t typex.EventTime, key typex.W, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12292,12 +12292,12 @@ func (e *emitNative) invokeETTypex_WTypex_U(t typex.EventTime, key typex.W, val 
 
 func emitMakerTypex_WTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WTypex_V)
+	ret.fn = ret.invokeTypex_WTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WTypex_V(key typex.W, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12305,12 +12305,12 @@ func (e *emitNative) invokeTypex_WTypex_V(key typex.W, val typex.V) {
 
 func emitMakerETTypex_WTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WTypex_V)
+	ret.fn = ret.invokeETTypex_WTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WTypex_V(t typex.EventTime, key typex.W, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12318,12 +12318,12 @@ func (e *emitNative) invokeETTypex_WTypex_V(t typex.EventTime, key typex.W, val 
 
 func emitMakerTypex_WTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WTypex_W)
+	ret.fn = ret.invokeTypex_WTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WTypex_W(key typex.W, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12331,12 +12331,12 @@ func (e *emitNative) invokeTypex_WTypex_W(key typex.W, val typex.W) {
 
 func emitMakerETTypex_WTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WTypex_W)
+	ret.fn = ret.invokeETTypex_WTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WTypex_W(t typex.EventTime, key typex.W, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12344,12 +12344,12 @@ func (e *emitNative) invokeETTypex_WTypex_W(t typex.EventTime, key typex.W, val 
 
 func emitMakerTypex_WTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WTypex_X)
+	ret.fn = ret.invokeTypex_WTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WTypex_X(key typex.W, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12357,12 +12357,12 @@ func (e *emitNative) invokeTypex_WTypex_X(key typex.W, val typex.X) {
 
 func emitMakerETTypex_WTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WTypex_X)
+	ret.fn = ret.invokeETTypex_WTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WTypex_X(t typex.EventTime, key typex.W, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12370,12 +12370,12 @@ func (e *emitNative) invokeETTypex_WTypex_X(t typex.EventTime, key typex.W, val 
 
 func emitMakerTypex_WTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WTypex_Y)
+	ret.fn = ret.invokeTypex_WTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WTypex_Y(key typex.W, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12383,12 +12383,12 @@ func (e *emitNative) invokeTypex_WTypex_Y(key typex.W, val typex.Y) {
 
 func emitMakerETTypex_WTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WTypex_Y)
+	ret.fn = ret.invokeETTypex_WTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WTypex_Y(t typex.EventTime, key typex.W, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12396,12 +12396,12 @@ func (e *emitNative) invokeETTypex_WTypex_Y(t typex.EventTime, key typex.W, val 
 
 func emitMakerTypex_WTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_WTypex_Z)
+	ret.fn = ret.invokeTypex_WTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeTypex_WTypex_Z(key typex.W, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12409,12 +12409,12 @@ func (e *emitNative) invokeTypex_WTypex_Z(key typex.W, val typex.Z) {
 
 func emitMakerETTypex_WTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_WTypex_Z)
+	ret.fn = ret.invokeETTypex_WTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_WTypex_Z(t typex.EventTime, key typex.W, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12422,12 +12422,12 @@ func (e *emitNative) invokeETTypex_WTypex_Z(t typex.EventTime, key typex.W, val 
 
 func emitMakerTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_X)
+	ret.fn = ret.invokeTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeTypex_X(elm typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12435,12 +12435,12 @@ func (e *emitNative) invokeTypex_X(elm typex.X) {
 
 func emitMakerETTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_X)
+	ret.fn = ret.invokeETTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_X(t typex.EventTime, elm typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12448,12 +12448,12 @@ func (e *emitNative) invokeETTypex_X(t typex.EventTime, elm typex.X) {
 
 func emitMakerTypex_XByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XByteSlice)
+	ret.fn = ret.invokeTypex_XByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XByteSlice(key typex.X, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12461,12 +12461,12 @@ func (e *emitNative) invokeTypex_XByteSlice(key typex.X, val []byte) {
 
 func emitMakerETTypex_XByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XByteSlice)
+	ret.fn = ret.invokeETTypex_XByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XByteSlice(t typex.EventTime, key typex.X, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12474,12 +12474,12 @@ func (e *emitNative) invokeETTypex_XByteSlice(t typex.EventTime, key typex.X, va
 
 func emitMakerTypex_XBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XBool)
+	ret.fn = ret.invokeTypex_XBool
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XBool(key typex.X, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12487,12 +12487,12 @@ func (e *emitNative) invokeTypex_XBool(key typex.X, val bool) {
 
 func emitMakerETTypex_XBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XBool)
+	ret.fn = ret.invokeETTypex_XBool
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XBool(t typex.EventTime, key typex.X, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12500,12 +12500,12 @@ func (e *emitNative) invokeETTypex_XBool(t typex.EventTime, key typex.X, val boo
 
 func emitMakerTypex_XString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XString)
+	ret.fn = ret.invokeTypex_XString
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XString(key typex.X, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12513,12 +12513,12 @@ func (e *emitNative) invokeTypex_XString(key typex.X, val string) {
 
 func emitMakerETTypex_XString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XString)
+	ret.fn = ret.invokeETTypex_XString
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XString(t typex.EventTime, key typex.X, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12526,12 +12526,12 @@ func (e *emitNative) invokeETTypex_XString(t typex.EventTime, key typex.X, val s
 
 func emitMakerTypex_XInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XInt)
+	ret.fn = ret.invokeTypex_XInt
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XInt(key typex.X, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12539,12 +12539,12 @@ func (e *emitNative) invokeTypex_XInt(key typex.X, val int) {
 
 func emitMakerETTypex_XInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XInt)
+	ret.fn = ret.invokeETTypex_XInt
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XInt(t typex.EventTime, key typex.X, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12552,12 +12552,12 @@ func (e *emitNative) invokeETTypex_XInt(t typex.EventTime, key typex.X, val int)
 
 func emitMakerTypex_XInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XInt8)
+	ret.fn = ret.invokeTypex_XInt8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XInt8(key typex.X, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12565,12 +12565,12 @@ func (e *emitNative) invokeTypex_XInt8(key typex.X, val int8) {
 
 func emitMakerETTypex_XInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XInt8)
+	ret.fn = ret.invokeETTypex_XInt8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XInt8(t typex.EventTime, key typex.X, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12578,12 +12578,12 @@ func (e *emitNative) invokeETTypex_XInt8(t typex.EventTime, key typex.X, val int
 
 func emitMakerTypex_XInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XInt16)
+	ret.fn = ret.invokeTypex_XInt16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XInt16(key typex.X, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12591,12 +12591,12 @@ func (e *emitNative) invokeTypex_XInt16(key typex.X, val int16) {
 
 func emitMakerETTypex_XInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XInt16)
+	ret.fn = ret.invokeETTypex_XInt16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XInt16(t typex.EventTime, key typex.X, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12604,12 +12604,12 @@ func (e *emitNative) invokeETTypex_XInt16(t typex.EventTime, key typex.X, val in
 
 func emitMakerTypex_XInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XInt32)
+	ret.fn = ret.invokeTypex_XInt32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XInt32(key typex.X, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12617,12 +12617,12 @@ func (e *emitNative) invokeTypex_XInt32(key typex.X, val int32) {
 
 func emitMakerETTypex_XInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XInt32)
+	ret.fn = ret.invokeETTypex_XInt32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XInt32(t typex.EventTime, key typex.X, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12630,12 +12630,12 @@ func (e *emitNative) invokeETTypex_XInt32(t typex.EventTime, key typex.X, val in
 
 func emitMakerTypex_XInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XInt64)
+	ret.fn = ret.invokeTypex_XInt64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XInt64(key typex.X, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12643,12 +12643,12 @@ func (e *emitNative) invokeTypex_XInt64(key typex.X, val int64) {
 
 func emitMakerETTypex_XInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XInt64)
+	ret.fn = ret.invokeETTypex_XInt64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XInt64(t typex.EventTime, key typex.X, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12656,12 +12656,12 @@ func (e *emitNative) invokeETTypex_XInt64(t typex.EventTime, key typex.X, val in
 
 func emitMakerTypex_XUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XUint)
+	ret.fn = ret.invokeTypex_XUint
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XUint(key typex.X, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12669,12 +12669,12 @@ func (e *emitNative) invokeTypex_XUint(key typex.X, val uint) {
 
 func emitMakerETTypex_XUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XUint)
+	ret.fn = ret.invokeETTypex_XUint
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XUint(t typex.EventTime, key typex.X, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12682,12 +12682,12 @@ func (e *emitNative) invokeETTypex_XUint(t typex.EventTime, key typex.X, val uin
 
 func emitMakerTypex_XUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XUint8)
+	ret.fn = ret.invokeTypex_XUint8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XUint8(key typex.X, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12695,12 +12695,12 @@ func (e *emitNative) invokeTypex_XUint8(key typex.X, val uint8) {
 
 func emitMakerETTypex_XUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XUint8)
+	ret.fn = ret.invokeETTypex_XUint8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XUint8(t typex.EventTime, key typex.X, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12708,12 +12708,12 @@ func (e *emitNative) invokeETTypex_XUint8(t typex.EventTime, key typex.X, val ui
 
 func emitMakerTypex_XUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XUint16)
+	ret.fn = ret.invokeTypex_XUint16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XUint16(key typex.X, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12721,12 +12721,12 @@ func (e *emitNative) invokeTypex_XUint16(key typex.X, val uint16) {
 
 func emitMakerETTypex_XUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XUint16)
+	ret.fn = ret.invokeETTypex_XUint16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XUint16(t typex.EventTime, key typex.X, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12734,12 +12734,12 @@ func (e *emitNative) invokeETTypex_XUint16(t typex.EventTime, key typex.X, val u
 
 func emitMakerTypex_XUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XUint32)
+	ret.fn = ret.invokeTypex_XUint32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XUint32(key typex.X, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12747,12 +12747,12 @@ func (e *emitNative) invokeTypex_XUint32(key typex.X, val uint32) {
 
 func emitMakerETTypex_XUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XUint32)
+	ret.fn = ret.invokeETTypex_XUint32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XUint32(t typex.EventTime, key typex.X, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12760,12 +12760,12 @@ func (e *emitNative) invokeETTypex_XUint32(t typex.EventTime, key typex.X, val u
 
 func emitMakerTypex_XUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XUint64)
+	ret.fn = ret.invokeTypex_XUint64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XUint64(key typex.X, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12773,12 +12773,12 @@ func (e *emitNative) invokeTypex_XUint64(key typex.X, val uint64) {
 
 func emitMakerETTypex_XUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XUint64)
+	ret.fn = ret.invokeETTypex_XUint64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XUint64(t typex.EventTime, key typex.X, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12786,12 +12786,12 @@ func (e *emitNative) invokeETTypex_XUint64(t typex.EventTime, key typex.X, val u
 
 func emitMakerTypex_XFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XFloat32)
+	ret.fn = ret.invokeTypex_XFloat32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XFloat32(key typex.X, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12799,12 +12799,12 @@ func (e *emitNative) invokeTypex_XFloat32(key typex.X, val float32) {
 
 func emitMakerETTypex_XFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XFloat32)
+	ret.fn = ret.invokeETTypex_XFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XFloat32(t typex.EventTime, key typex.X, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12812,12 +12812,12 @@ func (e *emitNative) invokeETTypex_XFloat32(t typex.EventTime, key typex.X, val 
 
 func emitMakerTypex_XFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XFloat64)
+	ret.fn = ret.invokeTypex_XFloat64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XFloat64(key typex.X, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12825,12 +12825,12 @@ func (e *emitNative) invokeTypex_XFloat64(key typex.X, val float64) {
 
 func emitMakerETTypex_XFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XFloat64)
+	ret.fn = ret.invokeETTypex_XFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XFloat64(t typex.EventTime, key typex.X, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12838,12 +12838,12 @@ func (e *emitNative) invokeETTypex_XFloat64(t typex.EventTime, key typex.X, val 
 
 func emitMakerTypex_XTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XTypex_T)
+	ret.fn = ret.invokeTypex_XTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XTypex_T(key typex.X, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12851,12 +12851,12 @@ func (e *emitNative) invokeTypex_XTypex_T(key typex.X, val typex.T) {
 
 func emitMakerETTypex_XTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XTypex_T)
+	ret.fn = ret.invokeETTypex_XTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XTypex_T(t typex.EventTime, key typex.X, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12864,12 +12864,12 @@ func (e *emitNative) invokeETTypex_XTypex_T(t typex.EventTime, key typex.X, val 
 
 func emitMakerTypex_XTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XTypex_U)
+	ret.fn = ret.invokeTypex_XTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XTypex_U(key typex.X, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12877,12 +12877,12 @@ func (e *emitNative) invokeTypex_XTypex_U(key typex.X, val typex.U) {
 
 func emitMakerETTypex_XTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XTypex_U)
+	ret.fn = ret.invokeETTypex_XTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XTypex_U(t typex.EventTime, key typex.X, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12890,12 +12890,12 @@ func (e *emitNative) invokeETTypex_XTypex_U(t typex.EventTime, key typex.X, val 
 
 func emitMakerTypex_XTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XTypex_V)
+	ret.fn = ret.invokeTypex_XTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XTypex_V(key typex.X, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12903,12 +12903,12 @@ func (e *emitNative) invokeTypex_XTypex_V(key typex.X, val typex.V) {
 
 func emitMakerETTypex_XTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XTypex_V)
+	ret.fn = ret.invokeETTypex_XTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XTypex_V(t typex.EventTime, key typex.X, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12916,12 +12916,12 @@ func (e *emitNative) invokeETTypex_XTypex_V(t typex.EventTime, key typex.X, val 
 
 func emitMakerTypex_XTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XTypex_W)
+	ret.fn = ret.invokeTypex_XTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XTypex_W(key typex.X, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12929,12 +12929,12 @@ func (e *emitNative) invokeTypex_XTypex_W(key typex.X, val typex.W) {
 
 func emitMakerETTypex_XTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XTypex_W)
+	ret.fn = ret.invokeETTypex_XTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XTypex_W(t typex.EventTime, key typex.X, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12942,12 +12942,12 @@ func (e *emitNative) invokeETTypex_XTypex_W(t typex.EventTime, key typex.X, val 
 
 func emitMakerTypex_XTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XTypex_X)
+	ret.fn = ret.invokeTypex_XTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XTypex_X(key typex.X, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12955,12 +12955,12 @@ func (e *emitNative) invokeTypex_XTypex_X(key typex.X, val typex.X) {
 
 func emitMakerETTypex_XTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XTypex_X)
+	ret.fn = ret.invokeETTypex_XTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XTypex_X(t typex.EventTime, key typex.X, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12968,12 +12968,12 @@ func (e *emitNative) invokeETTypex_XTypex_X(t typex.EventTime, key typex.X, val 
 
 func emitMakerTypex_XTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XTypex_Y)
+	ret.fn = ret.invokeTypex_XTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XTypex_Y(key typex.X, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12981,12 +12981,12 @@ func (e *emitNative) invokeTypex_XTypex_Y(key typex.X, val typex.Y) {
 
 func emitMakerETTypex_XTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XTypex_Y)
+	ret.fn = ret.invokeETTypex_XTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XTypex_Y(t typex.EventTime, key typex.X, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -12994,12 +12994,12 @@ func (e *emitNative) invokeETTypex_XTypex_Y(t typex.EventTime, key typex.X, val 
 
 func emitMakerTypex_XTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_XTypex_Z)
+	ret.fn = ret.invokeTypex_XTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeTypex_XTypex_Z(key typex.X, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13007,12 +13007,12 @@ func (e *emitNative) invokeTypex_XTypex_Z(key typex.X, val typex.Z) {
 
 func emitMakerETTypex_XTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_XTypex_Z)
+	ret.fn = ret.invokeETTypex_XTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_XTypex_Z(t typex.EventTime, key typex.X, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13020,12 +13020,12 @@ func (e *emitNative) invokeETTypex_XTypex_Z(t typex.EventTime, key typex.X, val 
 
 func emitMakerTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_Y)
+	ret.fn = ret.invokeTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeTypex_Y(elm typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13033,12 +13033,12 @@ func (e *emitNative) invokeTypex_Y(elm typex.Y) {
 
 func emitMakerETTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_Y)
+	ret.fn = ret.invokeETTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_Y(t typex.EventTime, elm typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13046,12 +13046,12 @@ func (e *emitNative) invokeETTypex_Y(t typex.EventTime, elm typex.Y) {
 
 func emitMakerTypex_YByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YByteSlice)
+	ret.fn = ret.invokeTypex_YByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YByteSlice(key typex.Y, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13059,12 +13059,12 @@ func (e *emitNative) invokeTypex_YByteSlice(key typex.Y, val []byte) {
 
 func emitMakerETTypex_YByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YByteSlice)
+	ret.fn = ret.invokeETTypex_YByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YByteSlice(t typex.EventTime, key typex.Y, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13072,12 +13072,12 @@ func (e *emitNative) invokeETTypex_YByteSlice(t typex.EventTime, key typex.Y, va
 
 func emitMakerTypex_YBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YBool)
+	ret.fn = ret.invokeTypex_YBool
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YBool(key typex.Y, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13085,12 +13085,12 @@ func (e *emitNative) invokeTypex_YBool(key typex.Y, val bool) {
 
 func emitMakerETTypex_YBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YBool)
+	ret.fn = ret.invokeETTypex_YBool
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YBool(t typex.EventTime, key typex.Y, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13098,12 +13098,12 @@ func (e *emitNative) invokeETTypex_YBool(t typex.EventTime, key typex.Y, val boo
 
 func emitMakerTypex_YString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YString)
+	ret.fn = ret.invokeTypex_YString
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YString(key typex.Y, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13111,12 +13111,12 @@ func (e *emitNative) invokeTypex_YString(key typex.Y, val string) {
 
 func emitMakerETTypex_YString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YString)
+	ret.fn = ret.invokeETTypex_YString
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YString(t typex.EventTime, key typex.Y, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13124,12 +13124,12 @@ func (e *emitNative) invokeETTypex_YString(t typex.EventTime, key typex.Y, val s
 
 func emitMakerTypex_YInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YInt)
+	ret.fn = ret.invokeTypex_YInt
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YInt(key typex.Y, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13137,12 +13137,12 @@ func (e *emitNative) invokeTypex_YInt(key typex.Y, val int) {
 
 func emitMakerETTypex_YInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YInt)
+	ret.fn = ret.invokeETTypex_YInt
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YInt(t typex.EventTime, key typex.Y, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13150,12 +13150,12 @@ func (e *emitNative) invokeETTypex_YInt(t typex.EventTime, key typex.Y, val int)
 
 func emitMakerTypex_YInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YInt8)
+	ret.fn = ret.invokeTypex_YInt8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YInt8(key typex.Y, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13163,12 +13163,12 @@ func (e *emitNative) invokeTypex_YInt8(key typex.Y, val int8) {
 
 func emitMakerETTypex_YInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YInt8)
+	ret.fn = ret.invokeETTypex_YInt8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YInt8(t typex.EventTime, key typex.Y, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13176,12 +13176,12 @@ func (e *emitNative) invokeETTypex_YInt8(t typex.EventTime, key typex.Y, val int
 
 func emitMakerTypex_YInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YInt16)
+	ret.fn = ret.invokeTypex_YInt16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YInt16(key typex.Y, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13189,12 +13189,12 @@ func (e *emitNative) invokeTypex_YInt16(key typex.Y, val int16) {
 
 func emitMakerETTypex_YInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YInt16)
+	ret.fn = ret.invokeETTypex_YInt16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YInt16(t typex.EventTime, key typex.Y, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13202,12 +13202,12 @@ func (e *emitNative) invokeETTypex_YInt16(t typex.EventTime, key typex.Y, val in
 
 func emitMakerTypex_YInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YInt32)
+	ret.fn = ret.invokeTypex_YInt32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YInt32(key typex.Y, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13215,12 +13215,12 @@ func (e *emitNative) invokeTypex_YInt32(key typex.Y, val int32) {
 
 func emitMakerETTypex_YInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YInt32)
+	ret.fn = ret.invokeETTypex_YInt32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YInt32(t typex.EventTime, key typex.Y, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13228,12 +13228,12 @@ func (e *emitNative) invokeETTypex_YInt32(t typex.EventTime, key typex.Y, val in
 
 func emitMakerTypex_YInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YInt64)
+	ret.fn = ret.invokeTypex_YInt64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YInt64(key typex.Y, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13241,12 +13241,12 @@ func (e *emitNative) invokeTypex_YInt64(key typex.Y, val int64) {
 
 func emitMakerETTypex_YInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YInt64)
+	ret.fn = ret.invokeETTypex_YInt64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YInt64(t typex.EventTime, key typex.Y, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13254,12 +13254,12 @@ func (e *emitNative) invokeETTypex_YInt64(t typex.EventTime, key typex.Y, val in
 
 func emitMakerTypex_YUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YUint)
+	ret.fn = ret.invokeTypex_YUint
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YUint(key typex.Y, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13267,12 +13267,12 @@ func (e *emitNative) invokeTypex_YUint(key typex.Y, val uint) {
 
 func emitMakerETTypex_YUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YUint)
+	ret.fn = ret.invokeETTypex_YUint
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YUint(t typex.EventTime, key typex.Y, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13280,12 +13280,12 @@ func (e *emitNative) invokeETTypex_YUint(t typex.EventTime, key typex.Y, val uin
 
 func emitMakerTypex_YUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YUint8)
+	ret.fn = ret.invokeTypex_YUint8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YUint8(key typex.Y, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13293,12 +13293,12 @@ func (e *emitNative) invokeTypex_YUint8(key typex.Y, val uint8) {
 
 func emitMakerETTypex_YUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YUint8)
+	ret.fn = ret.invokeETTypex_YUint8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YUint8(t typex.EventTime, key typex.Y, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13306,12 +13306,12 @@ func (e *emitNative) invokeETTypex_YUint8(t typex.EventTime, key typex.Y, val ui
 
 func emitMakerTypex_YUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YUint16)
+	ret.fn = ret.invokeTypex_YUint16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YUint16(key typex.Y, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13319,12 +13319,12 @@ func (e *emitNative) invokeTypex_YUint16(key typex.Y, val uint16) {
 
 func emitMakerETTypex_YUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YUint16)
+	ret.fn = ret.invokeETTypex_YUint16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YUint16(t typex.EventTime, key typex.Y, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13332,12 +13332,12 @@ func (e *emitNative) invokeETTypex_YUint16(t typex.EventTime, key typex.Y, val u
 
 func emitMakerTypex_YUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YUint32)
+	ret.fn = ret.invokeTypex_YUint32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YUint32(key typex.Y, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13345,12 +13345,12 @@ func (e *emitNative) invokeTypex_YUint32(key typex.Y, val uint32) {
 
 func emitMakerETTypex_YUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YUint32)
+	ret.fn = ret.invokeETTypex_YUint32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YUint32(t typex.EventTime, key typex.Y, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13358,12 +13358,12 @@ func (e *emitNative) invokeETTypex_YUint32(t typex.EventTime, key typex.Y, val u
 
 func emitMakerTypex_YUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YUint64)
+	ret.fn = ret.invokeTypex_YUint64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YUint64(key typex.Y, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13371,12 +13371,12 @@ func (e *emitNative) invokeTypex_YUint64(key typex.Y, val uint64) {
 
 func emitMakerETTypex_YUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YUint64)
+	ret.fn = ret.invokeETTypex_YUint64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YUint64(t typex.EventTime, key typex.Y, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13384,12 +13384,12 @@ func (e *emitNative) invokeETTypex_YUint64(t typex.EventTime, key typex.Y, val u
 
 func emitMakerTypex_YFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YFloat32)
+	ret.fn = ret.invokeTypex_YFloat32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YFloat32(key typex.Y, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13397,12 +13397,12 @@ func (e *emitNative) invokeTypex_YFloat32(key typex.Y, val float32) {
 
 func emitMakerETTypex_YFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YFloat32)
+	ret.fn = ret.invokeETTypex_YFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YFloat32(t typex.EventTime, key typex.Y, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13410,12 +13410,12 @@ func (e *emitNative) invokeETTypex_YFloat32(t typex.EventTime, key typex.Y, val 
 
 func emitMakerTypex_YFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YFloat64)
+	ret.fn = ret.invokeTypex_YFloat64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YFloat64(key typex.Y, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13423,12 +13423,12 @@ func (e *emitNative) invokeTypex_YFloat64(key typex.Y, val float64) {
 
 func emitMakerETTypex_YFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YFloat64)
+	ret.fn = ret.invokeETTypex_YFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YFloat64(t typex.EventTime, key typex.Y, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13436,12 +13436,12 @@ func (e *emitNative) invokeETTypex_YFloat64(t typex.EventTime, key typex.Y, val 
 
 func emitMakerTypex_YTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YTypex_T)
+	ret.fn = ret.invokeTypex_YTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YTypex_T(key typex.Y, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13449,12 +13449,12 @@ func (e *emitNative) invokeTypex_YTypex_T(key typex.Y, val typex.T) {
 
 func emitMakerETTypex_YTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YTypex_T)
+	ret.fn = ret.invokeETTypex_YTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YTypex_T(t typex.EventTime, key typex.Y, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13462,12 +13462,12 @@ func (e *emitNative) invokeETTypex_YTypex_T(t typex.EventTime, key typex.Y, val 
 
 func emitMakerTypex_YTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YTypex_U)
+	ret.fn = ret.invokeTypex_YTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YTypex_U(key typex.Y, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13475,12 +13475,12 @@ func (e *emitNative) invokeTypex_YTypex_U(key typex.Y, val typex.U) {
 
 func emitMakerETTypex_YTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YTypex_U)
+	ret.fn = ret.invokeETTypex_YTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YTypex_U(t typex.EventTime, key typex.Y, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13488,12 +13488,12 @@ func (e *emitNative) invokeETTypex_YTypex_U(t typex.EventTime, key typex.Y, val 
 
 func emitMakerTypex_YTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YTypex_V)
+	ret.fn = ret.invokeTypex_YTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YTypex_V(key typex.Y, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13501,12 +13501,12 @@ func (e *emitNative) invokeTypex_YTypex_V(key typex.Y, val typex.V) {
 
 func emitMakerETTypex_YTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YTypex_V)
+	ret.fn = ret.invokeETTypex_YTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YTypex_V(t typex.EventTime, key typex.Y, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13514,12 +13514,12 @@ func (e *emitNative) invokeETTypex_YTypex_V(t typex.EventTime, key typex.Y, val 
 
 func emitMakerTypex_YTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YTypex_W)
+	ret.fn = ret.invokeTypex_YTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YTypex_W(key typex.Y, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13527,12 +13527,12 @@ func (e *emitNative) invokeTypex_YTypex_W(key typex.Y, val typex.W) {
 
 func emitMakerETTypex_YTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YTypex_W)
+	ret.fn = ret.invokeETTypex_YTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YTypex_W(t typex.EventTime, key typex.Y, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13540,12 +13540,12 @@ func (e *emitNative) invokeETTypex_YTypex_W(t typex.EventTime, key typex.Y, val 
 
 func emitMakerTypex_YTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YTypex_X)
+	ret.fn = ret.invokeTypex_YTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YTypex_X(key typex.Y, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13553,12 +13553,12 @@ func (e *emitNative) invokeTypex_YTypex_X(key typex.Y, val typex.X) {
 
 func emitMakerETTypex_YTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YTypex_X)
+	ret.fn = ret.invokeETTypex_YTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YTypex_X(t typex.EventTime, key typex.Y, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13566,12 +13566,12 @@ func (e *emitNative) invokeETTypex_YTypex_X(t typex.EventTime, key typex.Y, val 
 
 func emitMakerTypex_YTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YTypex_Y)
+	ret.fn = ret.invokeTypex_YTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YTypex_Y(key typex.Y, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13579,12 +13579,12 @@ func (e *emitNative) invokeTypex_YTypex_Y(key typex.Y, val typex.Y) {
 
 func emitMakerETTypex_YTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YTypex_Y)
+	ret.fn = ret.invokeETTypex_YTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YTypex_Y(t typex.EventTime, key typex.Y, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13592,12 +13592,12 @@ func (e *emitNative) invokeETTypex_YTypex_Y(t typex.EventTime, key typex.Y, val 
 
 func emitMakerTypex_YTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_YTypex_Z)
+	ret.fn = ret.invokeTypex_YTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeTypex_YTypex_Z(key typex.Y, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13605,12 +13605,12 @@ func (e *emitNative) invokeTypex_YTypex_Z(key typex.Y, val typex.Z) {
 
 func emitMakerETTypex_YTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_YTypex_Z)
+	ret.fn = ret.invokeETTypex_YTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_YTypex_Z(t typex.EventTime, key typex.Y, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13618,12 +13618,12 @@ func (e *emitNative) invokeETTypex_YTypex_Z(t typex.EventTime, key typex.Y, val 
 
 func emitMakerTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_Z)
+	ret.fn = ret.invokeTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeTypex_Z(elm typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: e.et, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13631,12 +13631,12 @@ func (e *emitNative) invokeTypex_Z(elm typex.Z) {
 
 func emitMakerETTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_Z)
+	ret.fn = ret.invokeETTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_Z(t typex.EventTime, elm typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(elm)}
+	value := exec.FullValue{Timestamp: t, Elm: elm}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13644,12 +13644,12 @@ func (e *emitNative) invokeETTypex_Z(t typex.EventTime, elm typex.Z) {
 
 func emitMakerTypex_ZByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZByteSlice)
+	ret.fn = ret.invokeTypex_ZByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZByteSlice(key typex.Z, val []byte) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13657,12 +13657,12 @@ func (e *emitNative) invokeTypex_ZByteSlice(key typex.Z, val []byte) {
 
 func emitMakerETTypex_ZByteSlice(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZByteSlice)
+	ret.fn = ret.invokeETTypex_ZByteSlice
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZByteSlice(t typex.EventTime, key typex.Z, val []byte) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13670,12 +13670,12 @@ func (e *emitNative) invokeETTypex_ZByteSlice(t typex.EventTime, key typex.Z, va
 
 func emitMakerTypex_ZBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZBool)
+	ret.fn = ret.invokeTypex_ZBool
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZBool(key typex.Z, val bool) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13683,12 +13683,12 @@ func (e *emitNative) invokeTypex_ZBool(key typex.Z, val bool) {
 
 func emitMakerETTypex_ZBool(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZBool)
+	ret.fn = ret.invokeETTypex_ZBool
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZBool(t typex.EventTime, key typex.Z, val bool) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13696,12 +13696,12 @@ func (e *emitNative) invokeETTypex_ZBool(t typex.EventTime, key typex.Z, val boo
 
 func emitMakerTypex_ZString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZString)
+	ret.fn = ret.invokeTypex_ZString
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZString(key typex.Z, val string) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13709,12 +13709,12 @@ func (e *emitNative) invokeTypex_ZString(key typex.Z, val string) {
 
 func emitMakerETTypex_ZString(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZString)
+	ret.fn = ret.invokeETTypex_ZString
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZString(t typex.EventTime, key typex.Z, val string) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13722,12 +13722,12 @@ func (e *emitNative) invokeETTypex_ZString(t typex.EventTime, key typex.Z, val s
 
 func emitMakerTypex_ZInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZInt)
+	ret.fn = ret.invokeTypex_ZInt
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZInt(key typex.Z, val int) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13735,12 +13735,12 @@ func (e *emitNative) invokeTypex_ZInt(key typex.Z, val int) {
 
 func emitMakerETTypex_ZInt(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZInt)
+	ret.fn = ret.invokeETTypex_ZInt
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZInt(t typex.EventTime, key typex.Z, val int) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13748,12 +13748,12 @@ func (e *emitNative) invokeETTypex_ZInt(t typex.EventTime, key typex.Z, val int)
 
 func emitMakerTypex_ZInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZInt8)
+	ret.fn = ret.invokeTypex_ZInt8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZInt8(key typex.Z, val int8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13761,12 +13761,12 @@ func (e *emitNative) invokeTypex_ZInt8(key typex.Z, val int8) {
 
 func emitMakerETTypex_ZInt8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZInt8)
+	ret.fn = ret.invokeETTypex_ZInt8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZInt8(t typex.EventTime, key typex.Z, val int8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13774,12 +13774,12 @@ func (e *emitNative) invokeETTypex_ZInt8(t typex.EventTime, key typex.Z, val int
 
 func emitMakerTypex_ZInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZInt16)
+	ret.fn = ret.invokeTypex_ZInt16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZInt16(key typex.Z, val int16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13787,12 +13787,12 @@ func (e *emitNative) invokeTypex_ZInt16(key typex.Z, val int16) {
 
 func emitMakerETTypex_ZInt16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZInt16)
+	ret.fn = ret.invokeETTypex_ZInt16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZInt16(t typex.EventTime, key typex.Z, val int16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13800,12 +13800,12 @@ func (e *emitNative) invokeETTypex_ZInt16(t typex.EventTime, key typex.Z, val in
 
 func emitMakerTypex_ZInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZInt32)
+	ret.fn = ret.invokeTypex_ZInt32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZInt32(key typex.Z, val int32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13813,12 +13813,12 @@ func (e *emitNative) invokeTypex_ZInt32(key typex.Z, val int32) {
 
 func emitMakerETTypex_ZInt32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZInt32)
+	ret.fn = ret.invokeETTypex_ZInt32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZInt32(t typex.EventTime, key typex.Z, val int32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13826,12 +13826,12 @@ func (e *emitNative) invokeETTypex_ZInt32(t typex.EventTime, key typex.Z, val in
 
 func emitMakerTypex_ZInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZInt64)
+	ret.fn = ret.invokeTypex_ZInt64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZInt64(key typex.Z, val int64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13839,12 +13839,12 @@ func (e *emitNative) invokeTypex_ZInt64(key typex.Z, val int64) {
 
 func emitMakerETTypex_ZInt64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZInt64)
+	ret.fn = ret.invokeETTypex_ZInt64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZInt64(t typex.EventTime, key typex.Z, val int64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13852,12 +13852,12 @@ func (e *emitNative) invokeETTypex_ZInt64(t typex.EventTime, key typex.Z, val in
 
 func emitMakerTypex_ZUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZUint)
+	ret.fn = ret.invokeTypex_ZUint
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZUint(key typex.Z, val uint) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13865,12 +13865,12 @@ func (e *emitNative) invokeTypex_ZUint(key typex.Z, val uint) {
 
 func emitMakerETTypex_ZUint(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZUint)
+	ret.fn = ret.invokeETTypex_ZUint
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZUint(t typex.EventTime, key typex.Z, val uint) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13878,12 +13878,12 @@ func (e *emitNative) invokeETTypex_ZUint(t typex.EventTime, key typex.Z, val uin
 
 func emitMakerTypex_ZUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZUint8)
+	ret.fn = ret.invokeTypex_ZUint8
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZUint8(key typex.Z, val uint8) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13891,12 +13891,12 @@ func (e *emitNative) invokeTypex_ZUint8(key typex.Z, val uint8) {
 
 func emitMakerETTypex_ZUint8(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZUint8)
+	ret.fn = ret.invokeETTypex_ZUint8
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZUint8(t typex.EventTime, key typex.Z, val uint8) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13904,12 +13904,12 @@ func (e *emitNative) invokeETTypex_ZUint8(t typex.EventTime, key typex.Z, val ui
 
 func emitMakerTypex_ZUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZUint16)
+	ret.fn = ret.invokeTypex_ZUint16
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZUint16(key typex.Z, val uint16) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13917,12 +13917,12 @@ func (e *emitNative) invokeTypex_ZUint16(key typex.Z, val uint16) {
 
 func emitMakerETTypex_ZUint16(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZUint16)
+	ret.fn = ret.invokeETTypex_ZUint16
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZUint16(t typex.EventTime, key typex.Z, val uint16) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13930,12 +13930,12 @@ func (e *emitNative) invokeETTypex_ZUint16(t typex.EventTime, key typex.Z, val u
 
 func emitMakerTypex_ZUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZUint32)
+	ret.fn = ret.invokeTypex_ZUint32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZUint32(key typex.Z, val uint32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13943,12 +13943,12 @@ func (e *emitNative) invokeTypex_ZUint32(key typex.Z, val uint32) {
 
 func emitMakerETTypex_ZUint32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZUint32)
+	ret.fn = ret.invokeETTypex_ZUint32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZUint32(t typex.EventTime, key typex.Z, val uint32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13956,12 +13956,12 @@ func (e *emitNative) invokeETTypex_ZUint32(t typex.EventTime, key typex.Z, val u
 
 func emitMakerTypex_ZUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZUint64)
+	ret.fn = ret.invokeTypex_ZUint64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZUint64(key typex.Z, val uint64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13969,12 +13969,12 @@ func (e *emitNative) invokeTypex_ZUint64(key typex.Z, val uint64) {
 
 func emitMakerETTypex_ZUint64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZUint64)
+	ret.fn = ret.invokeETTypex_ZUint64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZUint64(t typex.EventTime, key typex.Z, val uint64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13982,12 +13982,12 @@ func (e *emitNative) invokeETTypex_ZUint64(t typex.EventTime, key typex.Z, val u
 
 func emitMakerTypex_ZFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZFloat32)
+	ret.fn = ret.invokeTypex_ZFloat32
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZFloat32(key typex.Z, val float32) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -13995,12 +13995,12 @@ func (e *emitNative) invokeTypex_ZFloat32(key typex.Z, val float32) {
 
 func emitMakerETTypex_ZFloat32(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZFloat32)
+	ret.fn = ret.invokeETTypex_ZFloat32
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZFloat32(t typex.EventTime, key typex.Z, val float32) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14008,12 +14008,12 @@ func (e *emitNative) invokeETTypex_ZFloat32(t typex.EventTime, key typex.Z, val 
 
 func emitMakerTypex_ZFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZFloat64)
+	ret.fn = ret.invokeTypex_ZFloat64
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZFloat64(key typex.Z, val float64) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14021,12 +14021,12 @@ func (e *emitNative) invokeTypex_ZFloat64(key typex.Z, val float64) {
 
 func emitMakerETTypex_ZFloat64(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZFloat64)
+	ret.fn = ret.invokeETTypex_ZFloat64
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZFloat64(t typex.EventTime, key typex.Z, val float64) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14034,12 +14034,12 @@ func (e *emitNative) invokeETTypex_ZFloat64(t typex.EventTime, key typex.Z, val 
 
 func emitMakerTypex_ZTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZTypex_T)
+	ret.fn = ret.invokeTypex_ZTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZTypex_T(key typex.Z, val typex.T) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14047,12 +14047,12 @@ func (e *emitNative) invokeTypex_ZTypex_T(key typex.Z, val typex.T) {
 
 func emitMakerETTypex_ZTypex_T(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZTypex_T)
+	ret.fn = ret.invokeETTypex_ZTypex_T
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZTypex_T(t typex.EventTime, key typex.Z, val typex.T) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14060,12 +14060,12 @@ func (e *emitNative) invokeETTypex_ZTypex_T(t typex.EventTime, key typex.Z, val 
 
 func emitMakerTypex_ZTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZTypex_U)
+	ret.fn = ret.invokeTypex_ZTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZTypex_U(key typex.Z, val typex.U) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14073,12 +14073,12 @@ func (e *emitNative) invokeTypex_ZTypex_U(key typex.Z, val typex.U) {
 
 func emitMakerETTypex_ZTypex_U(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZTypex_U)
+	ret.fn = ret.invokeETTypex_ZTypex_U
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZTypex_U(t typex.EventTime, key typex.Z, val typex.U) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14086,12 +14086,12 @@ func (e *emitNative) invokeETTypex_ZTypex_U(t typex.EventTime, key typex.Z, val 
 
 func emitMakerTypex_ZTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZTypex_V)
+	ret.fn = ret.invokeTypex_ZTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZTypex_V(key typex.Z, val typex.V) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14099,12 +14099,12 @@ func (e *emitNative) invokeTypex_ZTypex_V(key typex.Z, val typex.V) {
 
 func emitMakerETTypex_ZTypex_V(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZTypex_V)
+	ret.fn = ret.invokeETTypex_ZTypex_V
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZTypex_V(t typex.EventTime, key typex.Z, val typex.V) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14112,12 +14112,12 @@ func (e *emitNative) invokeETTypex_ZTypex_V(t typex.EventTime, key typex.Z, val 
 
 func emitMakerTypex_ZTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZTypex_W)
+	ret.fn = ret.invokeTypex_ZTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZTypex_W(key typex.Z, val typex.W) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14125,12 +14125,12 @@ func (e *emitNative) invokeTypex_ZTypex_W(key typex.Z, val typex.W) {
 
 func emitMakerETTypex_ZTypex_W(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZTypex_W)
+	ret.fn = ret.invokeETTypex_ZTypex_W
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZTypex_W(t typex.EventTime, key typex.Z, val typex.W) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14138,12 +14138,12 @@ func (e *emitNative) invokeETTypex_ZTypex_W(t typex.EventTime, key typex.Z, val 
 
 func emitMakerTypex_ZTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZTypex_X)
+	ret.fn = ret.invokeTypex_ZTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZTypex_X(key typex.Z, val typex.X) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14151,12 +14151,12 @@ func (e *emitNative) invokeTypex_ZTypex_X(key typex.Z, val typex.X) {
 
 func emitMakerETTypex_ZTypex_X(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZTypex_X)
+	ret.fn = ret.invokeETTypex_ZTypex_X
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZTypex_X(t typex.EventTime, key typex.Z, val typex.X) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14164,12 +14164,12 @@ func (e *emitNative) invokeETTypex_ZTypex_X(t typex.EventTime, key typex.Z, val 
 
 func emitMakerTypex_ZTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZTypex_Y)
+	ret.fn = ret.invokeTypex_ZTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZTypex_Y(key typex.Z, val typex.Y) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14177,12 +14177,12 @@ func (e *emitNative) invokeTypex_ZTypex_Y(key typex.Z, val typex.Y) {
 
 func emitMakerETTypex_ZTypex_Y(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZTypex_Y)
+	ret.fn = ret.invokeETTypex_ZTypex_Y
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZTypex_Y(t typex.EventTime, key typex.Z, val typex.Y) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14190,12 +14190,12 @@ func (e *emitNative) invokeETTypex_ZTypex_Y(t typex.EventTime, key typex.Z, val 
 
 func emitMakerTypex_ZTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeTypex_ZTypex_Z)
+	ret.fn = ret.invokeTypex_ZTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeTypex_ZTypex_Z(key typex.Z, val typex.Z) {
-	value := exec.FullValue{Timestamp: e.et, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: e.et, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}
@@ -14203,12 +14203,12 @@ func (e *emitNative) invokeTypex_ZTypex_Z(key typex.Z, val typex.Z) {
 
 func emitMakerETTypex_ZTypex_Z(n exec.ElementProcessor) exec.ReusableEmitter {
 	ret := &emitNative{n: n}
-	ret.fn = reflect.ValueOf(ret.invokeETTypex_ZTypex_Z)
+	ret.fn = ret.invokeETTypex_ZTypex_Z
 	return ret
 }
 
 func (e *emitNative) invokeETTypex_ZTypex_Z(t typex.EventTime, key typex.Z, val typex.Z) {
-	value := exec.FullValue{Timestamp: t, Elm: reflect.ValueOf(key), Elm2: reflect.ValueOf(val)}
+	value := exec.FullValue{Timestamp: t, Elm: key, Elm2: val}
 	if err := e.n.ProcessElement(e.ctx, value); err != nil {
 		panic(err)
 	}

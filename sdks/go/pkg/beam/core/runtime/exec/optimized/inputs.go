@@ -1043,7 +1043,7 @@ func init() {
 
 type iterNative struct {
 	s  exec.ReStream
-	fn reflect.Value
+	fn interface{}
 
 	// cur is the "current" stream, if any.
 	cur exec.Stream
@@ -1054,7 +1054,7 @@ func (v *iterNative) Init() error {
 	return nil
 }
 
-func (v *iterNative) Value() reflect.Value {
+func (v *iterNative) Value() interface{} {
 	return v.fn
 }
 
@@ -1075,13 +1075,13 @@ func (v *iterNative) readByteSlice(val *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().([]byte)
+	*val = elm.Elm.([]byte)
 	return true
 }
 
 func iterMakerByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSlice)
+	ret.fn = ret.readByteSlice
 	return ret
 }
 
@@ -1095,13 +1095,13 @@ func (v *iterNative) readETByteSlice(et *typex.EventTime, val *[]byte) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().([]byte)
+	*val = elm.Elm.([]byte)
 	return true
 }
 
 func iterMakerETByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSlice)
+	ret.fn = ret.readETByteSlice
 	return ret
 }
 
@@ -1114,14 +1114,14 @@ func (v *iterNative) readByteSliceByteSlice(key *[]byte, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerByteSliceByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceByteSlice)
+	ret.fn = ret.readByteSliceByteSlice
 	return ret
 }
 
@@ -1135,14 +1135,14 @@ func (v *iterNative) readETByteSliceByteSlice(et *typex.EventTime, key *[]byte, 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETByteSliceByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceByteSlice)
+	ret.fn = ret.readETByteSliceByteSlice
 	return ret
 }
 
@@ -1155,14 +1155,14 @@ func (v *iterNative) readByteSliceBool(key *[]byte, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerByteSliceBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceBool)
+	ret.fn = ret.readByteSliceBool
 	return ret
 }
 
@@ -1176,14 +1176,14 @@ func (v *iterNative) readETByteSliceBool(et *typex.EventTime, key *[]byte, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETByteSliceBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceBool)
+	ret.fn = ret.readETByteSliceBool
 	return ret
 }
 
@@ -1196,14 +1196,14 @@ func (v *iterNative) readByteSliceString(key *[]byte, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerByteSliceString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceString)
+	ret.fn = ret.readByteSliceString
 	return ret
 }
 
@@ -1217,14 +1217,14 @@ func (v *iterNative) readETByteSliceString(et *typex.EventTime, key *[]byte, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETByteSliceString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceString)
+	ret.fn = ret.readETByteSliceString
 	return ret
 }
 
@@ -1237,14 +1237,14 @@ func (v *iterNative) readByteSliceInt(key *[]byte, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerByteSliceInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceInt)
+	ret.fn = ret.readByteSliceInt
 	return ret
 }
 
@@ -1258,14 +1258,14 @@ func (v *iterNative) readETByteSliceInt(et *typex.EventTime, key *[]byte, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETByteSliceInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceInt)
+	ret.fn = ret.readETByteSliceInt
 	return ret
 }
 
@@ -1278,14 +1278,14 @@ func (v *iterNative) readByteSliceInt8(key *[]byte, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerByteSliceInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceInt8)
+	ret.fn = ret.readByteSliceInt8
 	return ret
 }
 
@@ -1299,14 +1299,14 @@ func (v *iterNative) readETByteSliceInt8(et *typex.EventTime, key *[]byte, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETByteSliceInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceInt8)
+	ret.fn = ret.readETByteSliceInt8
 	return ret
 }
 
@@ -1319,14 +1319,14 @@ func (v *iterNative) readByteSliceInt16(key *[]byte, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerByteSliceInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceInt16)
+	ret.fn = ret.readByteSliceInt16
 	return ret
 }
 
@@ -1340,14 +1340,14 @@ func (v *iterNative) readETByteSliceInt16(et *typex.EventTime, key *[]byte, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETByteSliceInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceInt16)
+	ret.fn = ret.readETByteSliceInt16
 	return ret
 }
 
@@ -1360,14 +1360,14 @@ func (v *iterNative) readByteSliceInt32(key *[]byte, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerByteSliceInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceInt32)
+	ret.fn = ret.readByteSliceInt32
 	return ret
 }
 
@@ -1381,14 +1381,14 @@ func (v *iterNative) readETByteSliceInt32(et *typex.EventTime, key *[]byte, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETByteSliceInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceInt32)
+	ret.fn = ret.readETByteSliceInt32
 	return ret
 }
 
@@ -1401,14 +1401,14 @@ func (v *iterNative) readByteSliceInt64(key *[]byte, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerByteSliceInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceInt64)
+	ret.fn = ret.readByteSliceInt64
 	return ret
 }
 
@@ -1422,14 +1422,14 @@ func (v *iterNative) readETByteSliceInt64(et *typex.EventTime, key *[]byte, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETByteSliceInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceInt64)
+	ret.fn = ret.readETByteSliceInt64
 	return ret
 }
 
@@ -1442,14 +1442,14 @@ func (v *iterNative) readByteSliceUint(key *[]byte, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerByteSliceUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceUint)
+	ret.fn = ret.readByteSliceUint
 	return ret
 }
 
@@ -1463,14 +1463,14 @@ func (v *iterNative) readETByteSliceUint(et *typex.EventTime, key *[]byte, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETByteSliceUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceUint)
+	ret.fn = ret.readETByteSliceUint
 	return ret
 }
 
@@ -1483,14 +1483,14 @@ func (v *iterNative) readByteSliceUint8(key *[]byte, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerByteSliceUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceUint8)
+	ret.fn = ret.readByteSliceUint8
 	return ret
 }
 
@@ -1504,14 +1504,14 @@ func (v *iterNative) readETByteSliceUint8(et *typex.EventTime, key *[]byte, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETByteSliceUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceUint8)
+	ret.fn = ret.readETByteSliceUint8
 	return ret
 }
 
@@ -1524,14 +1524,14 @@ func (v *iterNative) readByteSliceUint16(key *[]byte, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerByteSliceUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceUint16)
+	ret.fn = ret.readByteSliceUint16
 	return ret
 }
 
@@ -1545,14 +1545,14 @@ func (v *iterNative) readETByteSliceUint16(et *typex.EventTime, key *[]byte, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETByteSliceUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceUint16)
+	ret.fn = ret.readETByteSliceUint16
 	return ret
 }
 
@@ -1565,14 +1565,14 @@ func (v *iterNative) readByteSliceUint32(key *[]byte, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerByteSliceUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceUint32)
+	ret.fn = ret.readByteSliceUint32
 	return ret
 }
 
@@ -1586,14 +1586,14 @@ func (v *iterNative) readETByteSliceUint32(et *typex.EventTime, key *[]byte, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETByteSliceUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceUint32)
+	ret.fn = ret.readETByteSliceUint32
 	return ret
 }
 
@@ -1606,14 +1606,14 @@ func (v *iterNative) readByteSliceUint64(key *[]byte, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerByteSliceUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceUint64)
+	ret.fn = ret.readByteSliceUint64
 	return ret
 }
 
@@ -1627,14 +1627,14 @@ func (v *iterNative) readETByteSliceUint64(et *typex.EventTime, key *[]byte, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETByteSliceUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceUint64)
+	ret.fn = ret.readETByteSliceUint64
 	return ret
 }
 
@@ -1647,14 +1647,14 @@ func (v *iterNative) readByteSliceFloat32(key *[]byte, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerByteSliceFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceFloat32)
+	ret.fn = ret.readByteSliceFloat32
 	return ret
 }
 
@@ -1668,14 +1668,14 @@ func (v *iterNative) readETByteSliceFloat32(et *typex.EventTime, key *[]byte, va
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETByteSliceFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceFloat32)
+	ret.fn = ret.readETByteSliceFloat32
 	return ret
 }
 
@@ -1688,14 +1688,14 @@ func (v *iterNative) readByteSliceFloat64(key *[]byte, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerByteSliceFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceFloat64)
+	ret.fn = ret.readByteSliceFloat64
 	return ret
 }
 
@@ -1709,14 +1709,14 @@ func (v *iterNative) readETByteSliceFloat64(et *typex.EventTime, key *[]byte, va
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETByteSliceFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceFloat64)
+	ret.fn = ret.readETByteSliceFloat64
 	return ret
 }
 
@@ -1729,14 +1729,14 @@ func (v *iterNative) readByteSliceTypex_T(key *[]byte, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerByteSliceTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_T)
+	ret.fn = ret.readByteSliceTypex_T
 	return ret
 }
 
@@ -1750,14 +1750,14 @@ func (v *iterNative) readETByteSliceTypex_T(et *typex.EventTime, key *[]byte, va
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETByteSliceTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_T)
+	ret.fn = ret.readETByteSliceTypex_T
 	return ret
 }
 
@@ -1770,14 +1770,14 @@ func (v *iterNative) readByteSliceTypex_U(key *[]byte, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerByteSliceTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_U)
+	ret.fn = ret.readByteSliceTypex_U
 	return ret
 }
 
@@ -1791,14 +1791,14 @@ func (v *iterNative) readETByteSliceTypex_U(et *typex.EventTime, key *[]byte, va
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETByteSliceTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_U)
+	ret.fn = ret.readETByteSliceTypex_U
 	return ret
 }
 
@@ -1811,14 +1811,14 @@ func (v *iterNative) readByteSliceTypex_V(key *[]byte, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerByteSliceTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_V)
+	ret.fn = ret.readByteSliceTypex_V
 	return ret
 }
 
@@ -1832,14 +1832,14 @@ func (v *iterNative) readETByteSliceTypex_V(et *typex.EventTime, key *[]byte, va
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETByteSliceTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_V)
+	ret.fn = ret.readETByteSliceTypex_V
 	return ret
 }
 
@@ -1852,14 +1852,14 @@ func (v *iterNative) readByteSliceTypex_W(key *[]byte, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerByteSliceTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_W)
+	ret.fn = ret.readByteSliceTypex_W
 	return ret
 }
 
@@ -1873,14 +1873,14 @@ func (v *iterNative) readETByteSliceTypex_W(et *typex.EventTime, key *[]byte, va
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETByteSliceTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_W)
+	ret.fn = ret.readETByteSliceTypex_W
 	return ret
 }
 
@@ -1893,14 +1893,14 @@ func (v *iterNative) readByteSliceTypex_X(key *[]byte, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerByteSliceTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_X)
+	ret.fn = ret.readByteSliceTypex_X
 	return ret
 }
 
@@ -1914,14 +1914,14 @@ func (v *iterNative) readETByteSliceTypex_X(et *typex.EventTime, key *[]byte, va
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETByteSliceTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_X)
+	ret.fn = ret.readETByteSliceTypex_X
 	return ret
 }
 
@@ -1934,14 +1934,14 @@ func (v *iterNative) readByteSliceTypex_Y(key *[]byte, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerByteSliceTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_Y)
+	ret.fn = ret.readByteSliceTypex_Y
 	return ret
 }
 
@@ -1955,14 +1955,14 @@ func (v *iterNative) readETByteSliceTypex_Y(et *typex.EventTime, key *[]byte, va
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETByteSliceTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_Y)
+	ret.fn = ret.readETByteSliceTypex_Y
 	return ret
 }
 
@@ -1975,14 +1975,14 @@ func (v *iterNative) readByteSliceTypex_Z(key *[]byte, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerByteSliceTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_Z)
+	ret.fn = ret.readByteSliceTypex_Z
 	return ret
 }
 
@@ -1996,14 +1996,14 @@ func (v *iterNative) readETByteSliceTypex_Z(et *typex.EventTime, key *[]byte, va
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().([]byte)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.([]byte)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETByteSliceTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_Z)
+	ret.fn = ret.readETByteSliceTypex_Z
 	return ret
 }
 
@@ -2016,13 +2016,13 @@ func (v *iterNative) readBool(val *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(bool)
+	*val = elm.Elm.(bool)
 	return true
 }
 
 func iterMakerBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBool)
+	ret.fn = ret.readBool
 	return ret
 }
 
@@ -2036,13 +2036,13 @@ func (v *iterNative) readETBool(et *typex.EventTime, val *bool) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(bool)
+	*val = elm.Elm.(bool)
 	return true
 }
 
 func iterMakerETBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBool)
+	ret.fn = ret.readETBool
 	return ret
 }
 
@@ -2055,14 +2055,14 @@ func (v *iterNative) readBoolByteSlice(key *bool, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerBoolByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolByteSlice)
+	ret.fn = ret.readBoolByteSlice
 	return ret
 }
 
@@ -2076,14 +2076,14 @@ func (v *iterNative) readETBoolByteSlice(et *typex.EventTime, key *bool, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETBoolByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolByteSlice)
+	ret.fn = ret.readETBoolByteSlice
 	return ret
 }
 
@@ -2096,14 +2096,14 @@ func (v *iterNative) readBoolBool(key *bool, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerBoolBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolBool)
+	ret.fn = ret.readBoolBool
 	return ret
 }
 
@@ -2117,14 +2117,14 @@ func (v *iterNative) readETBoolBool(et *typex.EventTime, key *bool, value *bool)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETBoolBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolBool)
+	ret.fn = ret.readETBoolBool
 	return ret
 }
 
@@ -2137,14 +2137,14 @@ func (v *iterNative) readBoolString(key *bool, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerBoolString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolString)
+	ret.fn = ret.readBoolString
 	return ret
 }
 
@@ -2158,14 +2158,14 @@ func (v *iterNative) readETBoolString(et *typex.EventTime, key *bool, value *str
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETBoolString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolString)
+	ret.fn = ret.readETBoolString
 	return ret
 }
 
@@ -2178,14 +2178,14 @@ func (v *iterNative) readBoolInt(key *bool, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerBoolInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolInt)
+	ret.fn = ret.readBoolInt
 	return ret
 }
 
@@ -2199,14 +2199,14 @@ func (v *iterNative) readETBoolInt(et *typex.EventTime, key *bool, value *int) b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETBoolInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolInt)
+	ret.fn = ret.readETBoolInt
 	return ret
 }
 
@@ -2219,14 +2219,14 @@ func (v *iterNative) readBoolInt8(key *bool, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerBoolInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolInt8)
+	ret.fn = ret.readBoolInt8
 	return ret
 }
 
@@ -2240,14 +2240,14 @@ func (v *iterNative) readETBoolInt8(et *typex.EventTime, key *bool, value *int8)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETBoolInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolInt8)
+	ret.fn = ret.readETBoolInt8
 	return ret
 }
 
@@ -2260,14 +2260,14 @@ func (v *iterNative) readBoolInt16(key *bool, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerBoolInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolInt16)
+	ret.fn = ret.readBoolInt16
 	return ret
 }
 
@@ -2281,14 +2281,14 @@ func (v *iterNative) readETBoolInt16(et *typex.EventTime, key *bool, value *int1
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETBoolInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolInt16)
+	ret.fn = ret.readETBoolInt16
 	return ret
 }
 
@@ -2301,14 +2301,14 @@ func (v *iterNative) readBoolInt32(key *bool, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerBoolInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolInt32)
+	ret.fn = ret.readBoolInt32
 	return ret
 }
 
@@ -2322,14 +2322,14 @@ func (v *iterNative) readETBoolInt32(et *typex.EventTime, key *bool, value *int3
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETBoolInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolInt32)
+	ret.fn = ret.readETBoolInt32
 	return ret
 }
 
@@ -2342,14 +2342,14 @@ func (v *iterNative) readBoolInt64(key *bool, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerBoolInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolInt64)
+	ret.fn = ret.readBoolInt64
 	return ret
 }
 
@@ -2363,14 +2363,14 @@ func (v *iterNative) readETBoolInt64(et *typex.EventTime, key *bool, value *int6
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETBoolInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolInt64)
+	ret.fn = ret.readETBoolInt64
 	return ret
 }
 
@@ -2383,14 +2383,14 @@ func (v *iterNative) readBoolUint(key *bool, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerBoolUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolUint)
+	ret.fn = ret.readBoolUint
 	return ret
 }
 
@@ -2404,14 +2404,14 @@ func (v *iterNative) readETBoolUint(et *typex.EventTime, key *bool, value *uint)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETBoolUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolUint)
+	ret.fn = ret.readETBoolUint
 	return ret
 }
 
@@ -2424,14 +2424,14 @@ func (v *iterNative) readBoolUint8(key *bool, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerBoolUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolUint8)
+	ret.fn = ret.readBoolUint8
 	return ret
 }
 
@@ -2445,14 +2445,14 @@ func (v *iterNative) readETBoolUint8(et *typex.EventTime, key *bool, value *uint
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETBoolUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolUint8)
+	ret.fn = ret.readETBoolUint8
 	return ret
 }
 
@@ -2465,14 +2465,14 @@ func (v *iterNative) readBoolUint16(key *bool, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerBoolUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolUint16)
+	ret.fn = ret.readBoolUint16
 	return ret
 }
 
@@ -2486,14 +2486,14 @@ func (v *iterNative) readETBoolUint16(et *typex.EventTime, key *bool, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETBoolUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolUint16)
+	ret.fn = ret.readETBoolUint16
 	return ret
 }
 
@@ -2506,14 +2506,14 @@ func (v *iterNative) readBoolUint32(key *bool, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerBoolUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolUint32)
+	ret.fn = ret.readBoolUint32
 	return ret
 }
 
@@ -2527,14 +2527,14 @@ func (v *iterNative) readETBoolUint32(et *typex.EventTime, key *bool, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETBoolUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolUint32)
+	ret.fn = ret.readETBoolUint32
 	return ret
 }
 
@@ -2547,14 +2547,14 @@ func (v *iterNative) readBoolUint64(key *bool, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerBoolUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolUint64)
+	ret.fn = ret.readBoolUint64
 	return ret
 }
 
@@ -2568,14 +2568,14 @@ func (v *iterNative) readETBoolUint64(et *typex.EventTime, key *bool, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETBoolUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolUint64)
+	ret.fn = ret.readETBoolUint64
 	return ret
 }
 
@@ -2588,14 +2588,14 @@ func (v *iterNative) readBoolFloat32(key *bool, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerBoolFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolFloat32)
+	ret.fn = ret.readBoolFloat32
 	return ret
 }
 
@@ -2609,14 +2609,14 @@ func (v *iterNative) readETBoolFloat32(et *typex.EventTime, key *bool, value *fl
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETBoolFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolFloat32)
+	ret.fn = ret.readETBoolFloat32
 	return ret
 }
 
@@ -2629,14 +2629,14 @@ func (v *iterNative) readBoolFloat64(key *bool, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerBoolFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolFloat64)
+	ret.fn = ret.readBoolFloat64
 	return ret
 }
 
@@ -2650,14 +2650,14 @@ func (v *iterNative) readETBoolFloat64(et *typex.EventTime, key *bool, value *fl
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETBoolFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolFloat64)
+	ret.fn = ret.readETBoolFloat64
 	return ret
 }
 
@@ -2670,14 +2670,14 @@ func (v *iterNative) readBoolTypex_T(key *bool, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerBoolTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolTypex_T)
+	ret.fn = ret.readBoolTypex_T
 	return ret
 }
 
@@ -2691,14 +2691,14 @@ func (v *iterNative) readETBoolTypex_T(et *typex.EventTime, key *bool, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETBoolTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolTypex_T)
+	ret.fn = ret.readETBoolTypex_T
 	return ret
 }
 
@@ -2711,14 +2711,14 @@ func (v *iterNative) readBoolTypex_U(key *bool, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerBoolTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolTypex_U)
+	ret.fn = ret.readBoolTypex_U
 	return ret
 }
 
@@ -2732,14 +2732,14 @@ func (v *iterNative) readETBoolTypex_U(et *typex.EventTime, key *bool, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETBoolTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolTypex_U)
+	ret.fn = ret.readETBoolTypex_U
 	return ret
 }
 
@@ -2752,14 +2752,14 @@ func (v *iterNative) readBoolTypex_V(key *bool, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerBoolTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolTypex_V)
+	ret.fn = ret.readBoolTypex_V
 	return ret
 }
 
@@ -2773,14 +2773,14 @@ func (v *iterNative) readETBoolTypex_V(et *typex.EventTime, key *bool, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETBoolTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolTypex_V)
+	ret.fn = ret.readETBoolTypex_V
 	return ret
 }
 
@@ -2793,14 +2793,14 @@ func (v *iterNative) readBoolTypex_W(key *bool, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerBoolTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolTypex_W)
+	ret.fn = ret.readBoolTypex_W
 	return ret
 }
 
@@ -2814,14 +2814,14 @@ func (v *iterNative) readETBoolTypex_W(et *typex.EventTime, key *bool, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETBoolTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolTypex_W)
+	ret.fn = ret.readETBoolTypex_W
 	return ret
 }
 
@@ -2834,14 +2834,14 @@ func (v *iterNative) readBoolTypex_X(key *bool, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerBoolTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolTypex_X)
+	ret.fn = ret.readBoolTypex_X
 	return ret
 }
 
@@ -2855,14 +2855,14 @@ func (v *iterNative) readETBoolTypex_X(et *typex.EventTime, key *bool, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETBoolTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolTypex_X)
+	ret.fn = ret.readETBoolTypex_X
 	return ret
 }
 
@@ -2875,14 +2875,14 @@ func (v *iterNative) readBoolTypex_Y(key *bool, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerBoolTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolTypex_Y)
+	ret.fn = ret.readBoolTypex_Y
 	return ret
 }
 
@@ -2896,14 +2896,14 @@ func (v *iterNative) readETBoolTypex_Y(et *typex.EventTime, key *bool, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETBoolTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolTypex_Y)
+	ret.fn = ret.readETBoolTypex_Y
 	return ret
 }
 
@@ -2916,14 +2916,14 @@ func (v *iterNative) readBoolTypex_Z(key *bool, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerBoolTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readBoolTypex_Z)
+	ret.fn = ret.readBoolTypex_Z
 	return ret
 }
 
@@ -2937,14 +2937,14 @@ func (v *iterNative) readETBoolTypex_Z(et *typex.EventTime, key *bool, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(bool)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(bool)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETBoolTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETBoolTypex_Z)
+	ret.fn = ret.readETBoolTypex_Z
 	return ret
 }
 
@@ -2957,13 +2957,13 @@ func (v *iterNative) readString(val *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(string)
+	*val = elm.Elm.(string)
 	return true
 }
 
 func iterMakerString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readString)
+	ret.fn = ret.readString
 	return ret
 }
 
@@ -2977,13 +2977,13 @@ func (v *iterNative) readETString(et *typex.EventTime, val *string) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(string)
+	*val = elm.Elm.(string)
 	return true
 }
 
 func iterMakerETString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETString)
+	ret.fn = ret.readETString
 	return ret
 }
 
@@ -2996,14 +2996,14 @@ func (v *iterNative) readStringByteSlice(key *string, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerStringByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringByteSlice)
+	ret.fn = ret.readStringByteSlice
 	return ret
 }
 
@@ -3017,14 +3017,14 @@ func (v *iterNative) readETStringByteSlice(et *typex.EventTime, key *string, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETStringByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringByteSlice)
+	ret.fn = ret.readETStringByteSlice
 	return ret
 }
 
@@ -3037,14 +3037,14 @@ func (v *iterNative) readStringBool(key *string, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerStringBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringBool)
+	ret.fn = ret.readStringBool
 	return ret
 }
 
@@ -3058,14 +3058,14 @@ func (v *iterNative) readETStringBool(et *typex.EventTime, key *string, value *b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETStringBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringBool)
+	ret.fn = ret.readETStringBool
 	return ret
 }
 
@@ -3078,14 +3078,14 @@ func (v *iterNative) readStringString(key *string, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerStringString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringString)
+	ret.fn = ret.readStringString
 	return ret
 }
 
@@ -3099,14 +3099,14 @@ func (v *iterNative) readETStringString(et *typex.EventTime, key *string, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETStringString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringString)
+	ret.fn = ret.readETStringString
 	return ret
 }
 
@@ -3119,14 +3119,14 @@ func (v *iterNative) readStringInt(key *string, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerStringInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringInt)
+	ret.fn = ret.readStringInt
 	return ret
 }
 
@@ -3140,14 +3140,14 @@ func (v *iterNative) readETStringInt(et *typex.EventTime, key *string, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETStringInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringInt)
+	ret.fn = ret.readETStringInt
 	return ret
 }
 
@@ -3160,14 +3160,14 @@ func (v *iterNative) readStringInt8(key *string, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerStringInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringInt8)
+	ret.fn = ret.readStringInt8
 	return ret
 }
 
@@ -3181,14 +3181,14 @@ func (v *iterNative) readETStringInt8(et *typex.EventTime, key *string, value *i
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETStringInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringInt8)
+	ret.fn = ret.readETStringInt8
 	return ret
 }
 
@@ -3201,14 +3201,14 @@ func (v *iterNative) readStringInt16(key *string, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerStringInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringInt16)
+	ret.fn = ret.readStringInt16
 	return ret
 }
 
@@ -3222,14 +3222,14 @@ func (v *iterNative) readETStringInt16(et *typex.EventTime, key *string, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETStringInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringInt16)
+	ret.fn = ret.readETStringInt16
 	return ret
 }
 
@@ -3242,14 +3242,14 @@ func (v *iterNative) readStringInt32(key *string, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerStringInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringInt32)
+	ret.fn = ret.readStringInt32
 	return ret
 }
 
@@ -3263,14 +3263,14 @@ func (v *iterNative) readETStringInt32(et *typex.EventTime, key *string, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETStringInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringInt32)
+	ret.fn = ret.readETStringInt32
 	return ret
 }
 
@@ -3283,14 +3283,14 @@ func (v *iterNative) readStringInt64(key *string, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerStringInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringInt64)
+	ret.fn = ret.readStringInt64
 	return ret
 }
 
@@ -3304,14 +3304,14 @@ func (v *iterNative) readETStringInt64(et *typex.EventTime, key *string, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETStringInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringInt64)
+	ret.fn = ret.readETStringInt64
 	return ret
 }
 
@@ -3324,14 +3324,14 @@ func (v *iterNative) readStringUint(key *string, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerStringUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringUint)
+	ret.fn = ret.readStringUint
 	return ret
 }
 
@@ -3345,14 +3345,14 @@ func (v *iterNative) readETStringUint(et *typex.EventTime, key *string, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETStringUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringUint)
+	ret.fn = ret.readETStringUint
 	return ret
 }
 
@@ -3365,14 +3365,14 @@ func (v *iterNative) readStringUint8(key *string, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerStringUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringUint8)
+	ret.fn = ret.readStringUint8
 	return ret
 }
 
@@ -3386,14 +3386,14 @@ func (v *iterNative) readETStringUint8(et *typex.EventTime, key *string, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETStringUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringUint8)
+	ret.fn = ret.readETStringUint8
 	return ret
 }
 
@@ -3406,14 +3406,14 @@ func (v *iterNative) readStringUint16(key *string, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerStringUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringUint16)
+	ret.fn = ret.readStringUint16
 	return ret
 }
 
@@ -3427,14 +3427,14 @@ func (v *iterNative) readETStringUint16(et *typex.EventTime, key *string, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETStringUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringUint16)
+	ret.fn = ret.readETStringUint16
 	return ret
 }
 
@@ -3447,14 +3447,14 @@ func (v *iterNative) readStringUint32(key *string, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerStringUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringUint32)
+	ret.fn = ret.readStringUint32
 	return ret
 }
 
@@ -3468,14 +3468,14 @@ func (v *iterNative) readETStringUint32(et *typex.EventTime, key *string, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETStringUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringUint32)
+	ret.fn = ret.readETStringUint32
 	return ret
 }
 
@@ -3488,14 +3488,14 @@ func (v *iterNative) readStringUint64(key *string, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerStringUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringUint64)
+	ret.fn = ret.readStringUint64
 	return ret
 }
 
@@ -3509,14 +3509,14 @@ func (v *iterNative) readETStringUint64(et *typex.EventTime, key *string, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETStringUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringUint64)
+	ret.fn = ret.readETStringUint64
 	return ret
 }
 
@@ -3529,14 +3529,14 @@ func (v *iterNative) readStringFloat32(key *string, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerStringFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringFloat32)
+	ret.fn = ret.readStringFloat32
 	return ret
 }
 
@@ -3550,14 +3550,14 @@ func (v *iterNative) readETStringFloat32(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETStringFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringFloat32)
+	ret.fn = ret.readETStringFloat32
 	return ret
 }
 
@@ -3570,14 +3570,14 @@ func (v *iterNative) readStringFloat64(key *string, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerStringFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringFloat64)
+	ret.fn = ret.readStringFloat64
 	return ret
 }
 
@@ -3591,14 +3591,14 @@ func (v *iterNative) readETStringFloat64(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETStringFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringFloat64)
+	ret.fn = ret.readETStringFloat64
 	return ret
 }
 
@@ -3611,14 +3611,14 @@ func (v *iterNative) readStringTypex_T(key *string, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerStringTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringTypex_T)
+	ret.fn = ret.readStringTypex_T
 	return ret
 }
 
@@ -3632,14 +3632,14 @@ func (v *iterNative) readETStringTypex_T(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETStringTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringTypex_T)
+	ret.fn = ret.readETStringTypex_T
 	return ret
 }
 
@@ -3652,14 +3652,14 @@ func (v *iterNative) readStringTypex_U(key *string, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerStringTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringTypex_U)
+	ret.fn = ret.readStringTypex_U
 	return ret
 }
 
@@ -3673,14 +3673,14 @@ func (v *iterNative) readETStringTypex_U(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETStringTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringTypex_U)
+	ret.fn = ret.readETStringTypex_U
 	return ret
 }
 
@@ -3693,14 +3693,14 @@ func (v *iterNative) readStringTypex_V(key *string, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerStringTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringTypex_V)
+	ret.fn = ret.readStringTypex_V
 	return ret
 }
 
@@ -3714,14 +3714,14 @@ func (v *iterNative) readETStringTypex_V(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETStringTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringTypex_V)
+	ret.fn = ret.readETStringTypex_V
 	return ret
 }
 
@@ -3734,14 +3734,14 @@ func (v *iterNative) readStringTypex_W(key *string, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerStringTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringTypex_W)
+	ret.fn = ret.readStringTypex_W
 	return ret
 }
 
@@ -3755,14 +3755,14 @@ func (v *iterNative) readETStringTypex_W(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETStringTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringTypex_W)
+	ret.fn = ret.readETStringTypex_W
 	return ret
 }
 
@@ -3775,14 +3775,14 @@ func (v *iterNative) readStringTypex_X(key *string, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerStringTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringTypex_X)
+	ret.fn = ret.readStringTypex_X
 	return ret
 }
 
@@ -3796,14 +3796,14 @@ func (v *iterNative) readETStringTypex_X(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETStringTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringTypex_X)
+	ret.fn = ret.readETStringTypex_X
 	return ret
 }
 
@@ -3816,14 +3816,14 @@ func (v *iterNative) readStringTypex_Y(key *string, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerStringTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringTypex_Y)
+	ret.fn = ret.readStringTypex_Y
 	return ret
 }
 
@@ -3837,14 +3837,14 @@ func (v *iterNative) readETStringTypex_Y(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETStringTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringTypex_Y)
+	ret.fn = ret.readETStringTypex_Y
 	return ret
 }
 
@@ -3857,14 +3857,14 @@ func (v *iterNative) readStringTypex_Z(key *string, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerStringTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readStringTypex_Z)
+	ret.fn = ret.readStringTypex_Z
 	return ret
 }
 
@@ -3878,14 +3878,14 @@ func (v *iterNative) readETStringTypex_Z(et *typex.EventTime, key *string, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(string)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(string)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETStringTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETStringTypex_Z)
+	ret.fn = ret.readETStringTypex_Z
 	return ret
 }
 
@@ -3898,13 +3898,13 @@ func (v *iterNative) readInt(val *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(int)
+	*val = elm.Elm.(int)
 	return true
 }
 
 func iterMakerInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt)
+	ret.fn = ret.readInt
 	return ret
 }
 
@@ -3918,13 +3918,13 @@ func (v *iterNative) readETInt(et *typex.EventTime, val *int) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(int)
+	*val = elm.Elm.(int)
 	return true
 }
 
 func iterMakerETInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt)
+	ret.fn = ret.readETInt
 	return ret
 }
 
@@ -3937,14 +3937,14 @@ func (v *iterNative) readIntByteSlice(key *int, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerIntByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntByteSlice)
+	ret.fn = ret.readIntByteSlice
 	return ret
 }
 
@@ -3958,14 +3958,14 @@ func (v *iterNative) readETIntByteSlice(et *typex.EventTime, key *int, value *[]
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETIntByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntByteSlice)
+	ret.fn = ret.readETIntByteSlice
 	return ret
 }
 
@@ -3978,14 +3978,14 @@ func (v *iterNative) readIntBool(key *int, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerIntBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntBool)
+	ret.fn = ret.readIntBool
 	return ret
 }
 
@@ -3999,14 +3999,14 @@ func (v *iterNative) readETIntBool(et *typex.EventTime, key *int, value *bool) b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETIntBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntBool)
+	ret.fn = ret.readETIntBool
 	return ret
 }
 
@@ -4019,14 +4019,14 @@ func (v *iterNative) readIntString(key *int, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerIntString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntString)
+	ret.fn = ret.readIntString
 	return ret
 }
 
@@ -4040,14 +4040,14 @@ func (v *iterNative) readETIntString(et *typex.EventTime, key *int, value *strin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETIntString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntString)
+	ret.fn = ret.readETIntString
 	return ret
 }
 
@@ -4060,14 +4060,14 @@ func (v *iterNative) readIntInt(key *int, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerIntInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntInt)
+	ret.fn = ret.readIntInt
 	return ret
 }
 
@@ -4081,14 +4081,14 @@ func (v *iterNative) readETIntInt(et *typex.EventTime, key *int, value *int) boo
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETIntInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntInt)
+	ret.fn = ret.readETIntInt
 	return ret
 }
 
@@ -4101,14 +4101,14 @@ func (v *iterNative) readIntInt8(key *int, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerIntInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntInt8)
+	ret.fn = ret.readIntInt8
 	return ret
 }
 
@@ -4122,14 +4122,14 @@ func (v *iterNative) readETIntInt8(et *typex.EventTime, key *int, value *int8) b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETIntInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntInt8)
+	ret.fn = ret.readETIntInt8
 	return ret
 }
 
@@ -4142,14 +4142,14 @@ func (v *iterNative) readIntInt16(key *int, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerIntInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntInt16)
+	ret.fn = ret.readIntInt16
 	return ret
 }
 
@@ -4163,14 +4163,14 @@ func (v *iterNative) readETIntInt16(et *typex.EventTime, key *int, value *int16)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETIntInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntInt16)
+	ret.fn = ret.readETIntInt16
 	return ret
 }
 
@@ -4183,14 +4183,14 @@ func (v *iterNative) readIntInt32(key *int, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerIntInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntInt32)
+	ret.fn = ret.readIntInt32
 	return ret
 }
 
@@ -4204,14 +4204,14 @@ func (v *iterNative) readETIntInt32(et *typex.EventTime, key *int, value *int32)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETIntInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntInt32)
+	ret.fn = ret.readETIntInt32
 	return ret
 }
 
@@ -4224,14 +4224,14 @@ func (v *iterNative) readIntInt64(key *int, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerIntInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntInt64)
+	ret.fn = ret.readIntInt64
 	return ret
 }
 
@@ -4245,14 +4245,14 @@ func (v *iterNative) readETIntInt64(et *typex.EventTime, key *int, value *int64)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETIntInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntInt64)
+	ret.fn = ret.readETIntInt64
 	return ret
 }
 
@@ -4265,14 +4265,14 @@ func (v *iterNative) readIntUint(key *int, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerIntUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntUint)
+	ret.fn = ret.readIntUint
 	return ret
 }
 
@@ -4286,14 +4286,14 @@ func (v *iterNative) readETIntUint(et *typex.EventTime, key *int, value *uint) b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETIntUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntUint)
+	ret.fn = ret.readETIntUint
 	return ret
 }
 
@@ -4306,14 +4306,14 @@ func (v *iterNative) readIntUint8(key *int, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerIntUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntUint8)
+	ret.fn = ret.readIntUint8
 	return ret
 }
 
@@ -4327,14 +4327,14 @@ func (v *iterNative) readETIntUint8(et *typex.EventTime, key *int, value *uint8)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETIntUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntUint8)
+	ret.fn = ret.readETIntUint8
 	return ret
 }
 
@@ -4347,14 +4347,14 @@ func (v *iterNative) readIntUint16(key *int, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerIntUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntUint16)
+	ret.fn = ret.readIntUint16
 	return ret
 }
 
@@ -4368,14 +4368,14 @@ func (v *iterNative) readETIntUint16(et *typex.EventTime, key *int, value *uint1
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETIntUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntUint16)
+	ret.fn = ret.readETIntUint16
 	return ret
 }
 
@@ -4388,14 +4388,14 @@ func (v *iterNative) readIntUint32(key *int, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerIntUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntUint32)
+	ret.fn = ret.readIntUint32
 	return ret
 }
 
@@ -4409,14 +4409,14 @@ func (v *iterNative) readETIntUint32(et *typex.EventTime, key *int, value *uint3
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETIntUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntUint32)
+	ret.fn = ret.readETIntUint32
 	return ret
 }
 
@@ -4429,14 +4429,14 @@ func (v *iterNative) readIntUint64(key *int, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerIntUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntUint64)
+	ret.fn = ret.readIntUint64
 	return ret
 }
 
@@ -4450,14 +4450,14 @@ func (v *iterNative) readETIntUint64(et *typex.EventTime, key *int, value *uint6
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETIntUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntUint64)
+	ret.fn = ret.readETIntUint64
 	return ret
 }
 
@@ -4470,14 +4470,14 @@ func (v *iterNative) readIntFloat32(key *int, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerIntFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntFloat32)
+	ret.fn = ret.readIntFloat32
 	return ret
 }
 
@@ -4491,14 +4491,14 @@ func (v *iterNative) readETIntFloat32(et *typex.EventTime, key *int, value *floa
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETIntFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntFloat32)
+	ret.fn = ret.readETIntFloat32
 	return ret
 }
 
@@ -4511,14 +4511,14 @@ func (v *iterNative) readIntFloat64(key *int, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerIntFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntFloat64)
+	ret.fn = ret.readIntFloat64
 	return ret
 }
 
@@ -4532,14 +4532,14 @@ func (v *iterNative) readETIntFloat64(et *typex.EventTime, key *int, value *floa
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETIntFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntFloat64)
+	ret.fn = ret.readETIntFloat64
 	return ret
 }
 
@@ -4552,14 +4552,14 @@ func (v *iterNative) readIntTypex_T(key *int, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerIntTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntTypex_T)
+	ret.fn = ret.readIntTypex_T
 	return ret
 }
 
@@ -4573,14 +4573,14 @@ func (v *iterNative) readETIntTypex_T(et *typex.EventTime, key *int, value *type
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETIntTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntTypex_T)
+	ret.fn = ret.readETIntTypex_T
 	return ret
 }
 
@@ -4593,14 +4593,14 @@ func (v *iterNative) readIntTypex_U(key *int, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerIntTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntTypex_U)
+	ret.fn = ret.readIntTypex_U
 	return ret
 }
 
@@ -4614,14 +4614,14 @@ func (v *iterNative) readETIntTypex_U(et *typex.EventTime, key *int, value *type
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETIntTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntTypex_U)
+	ret.fn = ret.readETIntTypex_U
 	return ret
 }
 
@@ -4634,14 +4634,14 @@ func (v *iterNative) readIntTypex_V(key *int, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerIntTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntTypex_V)
+	ret.fn = ret.readIntTypex_V
 	return ret
 }
 
@@ -4655,14 +4655,14 @@ func (v *iterNative) readETIntTypex_V(et *typex.EventTime, key *int, value *type
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETIntTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntTypex_V)
+	ret.fn = ret.readETIntTypex_V
 	return ret
 }
 
@@ -4675,14 +4675,14 @@ func (v *iterNative) readIntTypex_W(key *int, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerIntTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntTypex_W)
+	ret.fn = ret.readIntTypex_W
 	return ret
 }
 
@@ -4696,14 +4696,14 @@ func (v *iterNative) readETIntTypex_W(et *typex.EventTime, key *int, value *type
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETIntTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntTypex_W)
+	ret.fn = ret.readETIntTypex_W
 	return ret
 }
 
@@ -4716,14 +4716,14 @@ func (v *iterNative) readIntTypex_X(key *int, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerIntTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntTypex_X)
+	ret.fn = ret.readIntTypex_X
 	return ret
 }
 
@@ -4737,14 +4737,14 @@ func (v *iterNative) readETIntTypex_X(et *typex.EventTime, key *int, value *type
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETIntTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntTypex_X)
+	ret.fn = ret.readETIntTypex_X
 	return ret
 }
 
@@ -4757,14 +4757,14 @@ func (v *iterNative) readIntTypex_Y(key *int, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerIntTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntTypex_Y)
+	ret.fn = ret.readIntTypex_Y
 	return ret
 }
 
@@ -4778,14 +4778,14 @@ func (v *iterNative) readETIntTypex_Y(et *typex.EventTime, key *int, value *type
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETIntTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntTypex_Y)
+	ret.fn = ret.readETIntTypex_Y
 	return ret
 }
 
@@ -4798,14 +4798,14 @@ func (v *iterNative) readIntTypex_Z(key *int, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerIntTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readIntTypex_Z)
+	ret.fn = ret.readIntTypex_Z
 	return ret
 }
 
@@ -4819,14 +4819,14 @@ func (v *iterNative) readETIntTypex_Z(et *typex.EventTime, key *int, value *type
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETIntTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETIntTypex_Z)
+	ret.fn = ret.readETIntTypex_Z
 	return ret
 }
 
@@ -4839,13 +4839,13 @@ func (v *iterNative) readInt8(val *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(int8)
+	*val = elm.Elm.(int8)
 	return true
 }
 
 func iterMakerInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8)
+	ret.fn = ret.readInt8
 	return ret
 }
 
@@ -4859,13 +4859,13 @@ func (v *iterNative) readETInt8(et *typex.EventTime, val *int8) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(int8)
+	*val = elm.Elm.(int8)
 	return true
 }
 
 func iterMakerETInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8)
+	ret.fn = ret.readETInt8
 	return ret
 }
 
@@ -4878,14 +4878,14 @@ func (v *iterNative) readInt8ByteSlice(key *int8, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerInt8ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8ByteSlice)
+	ret.fn = ret.readInt8ByteSlice
 	return ret
 }
 
@@ -4899,14 +4899,14 @@ func (v *iterNative) readETInt8ByteSlice(et *typex.EventTime, key *int8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETInt8ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8ByteSlice)
+	ret.fn = ret.readETInt8ByteSlice
 	return ret
 }
 
@@ -4919,14 +4919,14 @@ func (v *iterNative) readInt8Bool(key *int8, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerInt8Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Bool)
+	ret.fn = ret.readInt8Bool
 	return ret
 }
 
@@ -4940,14 +4940,14 @@ func (v *iterNative) readETInt8Bool(et *typex.EventTime, key *int8, value *bool)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETInt8Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Bool)
+	ret.fn = ret.readETInt8Bool
 	return ret
 }
 
@@ -4960,14 +4960,14 @@ func (v *iterNative) readInt8String(key *int8, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerInt8String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8String)
+	ret.fn = ret.readInt8String
 	return ret
 }
 
@@ -4981,14 +4981,14 @@ func (v *iterNative) readETInt8String(et *typex.EventTime, key *int8, value *str
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETInt8String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8String)
+	ret.fn = ret.readETInt8String
 	return ret
 }
 
@@ -5001,14 +5001,14 @@ func (v *iterNative) readInt8Int(key *int8, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerInt8Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Int)
+	ret.fn = ret.readInt8Int
 	return ret
 }
 
@@ -5022,14 +5022,14 @@ func (v *iterNative) readETInt8Int(et *typex.EventTime, key *int8, value *int) b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETInt8Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Int)
+	ret.fn = ret.readETInt8Int
 	return ret
 }
 
@@ -5042,14 +5042,14 @@ func (v *iterNative) readInt8Int8(key *int8, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerInt8Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Int8)
+	ret.fn = ret.readInt8Int8
 	return ret
 }
 
@@ -5063,14 +5063,14 @@ func (v *iterNative) readETInt8Int8(et *typex.EventTime, key *int8, value *int8)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETInt8Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Int8)
+	ret.fn = ret.readETInt8Int8
 	return ret
 }
 
@@ -5083,14 +5083,14 @@ func (v *iterNative) readInt8Int16(key *int8, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerInt8Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Int16)
+	ret.fn = ret.readInt8Int16
 	return ret
 }
 
@@ -5104,14 +5104,14 @@ func (v *iterNative) readETInt8Int16(et *typex.EventTime, key *int8, value *int1
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETInt8Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Int16)
+	ret.fn = ret.readETInt8Int16
 	return ret
 }
 
@@ -5124,14 +5124,14 @@ func (v *iterNative) readInt8Int32(key *int8, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerInt8Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Int32)
+	ret.fn = ret.readInt8Int32
 	return ret
 }
 
@@ -5145,14 +5145,14 @@ func (v *iterNative) readETInt8Int32(et *typex.EventTime, key *int8, value *int3
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETInt8Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Int32)
+	ret.fn = ret.readETInt8Int32
 	return ret
 }
 
@@ -5165,14 +5165,14 @@ func (v *iterNative) readInt8Int64(key *int8, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerInt8Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Int64)
+	ret.fn = ret.readInt8Int64
 	return ret
 }
 
@@ -5186,14 +5186,14 @@ func (v *iterNative) readETInt8Int64(et *typex.EventTime, key *int8, value *int6
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETInt8Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Int64)
+	ret.fn = ret.readETInt8Int64
 	return ret
 }
 
@@ -5206,14 +5206,14 @@ func (v *iterNative) readInt8Uint(key *int8, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerInt8Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Uint)
+	ret.fn = ret.readInt8Uint
 	return ret
 }
 
@@ -5227,14 +5227,14 @@ func (v *iterNative) readETInt8Uint(et *typex.EventTime, key *int8, value *uint)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETInt8Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Uint)
+	ret.fn = ret.readETInt8Uint
 	return ret
 }
 
@@ -5247,14 +5247,14 @@ func (v *iterNative) readInt8Uint8(key *int8, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerInt8Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Uint8)
+	ret.fn = ret.readInt8Uint8
 	return ret
 }
 
@@ -5268,14 +5268,14 @@ func (v *iterNative) readETInt8Uint8(et *typex.EventTime, key *int8, value *uint
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETInt8Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Uint8)
+	ret.fn = ret.readETInt8Uint8
 	return ret
 }
 
@@ -5288,14 +5288,14 @@ func (v *iterNative) readInt8Uint16(key *int8, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerInt8Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Uint16)
+	ret.fn = ret.readInt8Uint16
 	return ret
 }
 
@@ -5309,14 +5309,14 @@ func (v *iterNative) readETInt8Uint16(et *typex.EventTime, key *int8, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETInt8Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Uint16)
+	ret.fn = ret.readETInt8Uint16
 	return ret
 }
 
@@ -5329,14 +5329,14 @@ func (v *iterNative) readInt8Uint32(key *int8, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerInt8Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Uint32)
+	ret.fn = ret.readInt8Uint32
 	return ret
 }
 
@@ -5350,14 +5350,14 @@ func (v *iterNative) readETInt8Uint32(et *typex.EventTime, key *int8, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETInt8Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Uint32)
+	ret.fn = ret.readETInt8Uint32
 	return ret
 }
 
@@ -5370,14 +5370,14 @@ func (v *iterNative) readInt8Uint64(key *int8, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerInt8Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Uint64)
+	ret.fn = ret.readInt8Uint64
 	return ret
 }
 
@@ -5391,14 +5391,14 @@ func (v *iterNative) readETInt8Uint64(et *typex.EventTime, key *int8, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETInt8Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Uint64)
+	ret.fn = ret.readETInt8Uint64
 	return ret
 }
 
@@ -5411,14 +5411,14 @@ func (v *iterNative) readInt8Float32(key *int8, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerInt8Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Float32)
+	ret.fn = ret.readInt8Float32
 	return ret
 }
 
@@ -5432,14 +5432,14 @@ func (v *iterNative) readETInt8Float32(et *typex.EventTime, key *int8, value *fl
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETInt8Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Float32)
+	ret.fn = ret.readETInt8Float32
 	return ret
 }
 
@@ -5452,14 +5452,14 @@ func (v *iterNative) readInt8Float64(key *int8, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerInt8Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Float64)
+	ret.fn = ret.readInt8Float64
 	return ret
 }
 
@@ -5473,14 +5473,14 @@ func (v *iterNative) readETInt8Float64(et *typex.EventTime, key *int8, value *fl
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETInt8Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Float64)
+	ret.fn = ret.readETInt8Float64
 	return ret
 }
 
@@ -5493,14 +5493,14 @@ func (v *iterNative) readInt8Typex_T(key *int8, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerInt8Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Typex_T)
+	ret.fn = ret.readInt8Typex_T
 	return ret
 }
 
@@ -5514,14 +5514,14 @@ func (v *iterNative) readETInt8Typex_T(et *typex.EventTime, key *int8, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETInt8Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Typex_T)
+	ret.fn = ret.readETInt8Typex_T
 	return ret
 }
 
@@ -5534,14 +5534,14 @@ func (v *iterNative) readInt8Typex_U(key *int8, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerInt8Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Typex_U)
+	ret.fn = ret.readInt8Typex_U
 	return ret
 }
 
@@ -5555,14 +5555,14 @@ func (v *iterNative) readETInt8Typex_U(et *typex.EventTime, key *int8, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETInt8Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Typex_U)
+	ret.fn = ret.readETInt8Typex_U
 	return ret
 }
 
@@ -5575,14 +5575,14 @@ func (v *iterNative) readInt8Typex_V(key *int8, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerInt8Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Typex_V)
+	ret.fn = ret.readInt8Typex_V
 	return ret
 }
 
@@ -5596,14 +5596,14 @@ func (v *iterNative) readETInt8Typex_V(et *typex.EventTime, key *int8, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETInt8Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Typex_V)
+	ret.fn = ret.readETInt8Typex_V
 	return ret
 }
 
@@ -5616,14 +5616,14 @@ func (v *iterNative) readInt8Typex_W(key *int8, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerInt8Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Typex_W)
+	ret.fn = ret.readInt8Typex_W
 	return ret
 }
 
@@ -5637,14 +5637,14 @@ func (v *iterNative) readETInt8Typex_W(et *typex.EventTime, key *int8, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETInt8Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Typex_W)
+	ret.fn = ret.readETInt8Typex_W
 	return ret
 }
 
@@ -5657,14 +5657,14 @@ func (v *iterNative) readInt8Typex_X(key *int8, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerInt8Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Typex_X)
+	ret.fn = ret.readInt8Typex_X
 	return ret
 }
 
@@ -5678,14 +5678,14 @@ func (v *iterNative) readETInt8Typex_X(et *typex.EventTime, key *int8, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETInt8Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Typex_X)
+	ret.fn = ret.readETInt8Typex_X
 	return ret
 }
 
@@ -5698,14 +5698,14 @@ func (v *iterNative) readInt8Typex_Y(key *int8, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerInt8Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Typex_Y)
+	ret.fn = ret.readInt8Typex_Y
 	return ret
 }
 
@@ -5719,14 +5719,14 @@ func (v *iterNative) readETInt8Typex_Y(et *typex.EventTime, key *int8, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETInt8Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Typex_Y)
+	ret.fn = ret.readETInt8Typex_Y
 	return ret
 }
 
@@ -5739,14 +5739,14 @@ func (v *iterNative) readInt8Typex_Z(key *int8, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerInt8Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt8Typex_Z)
+	ret.fn = ret.readInt8Typex_Z
 	return ret
 }
 
@@ -5760,14 +5760,14 @@ func (v *iterNative) readETInt8Typex_Z(et *typex.EventTime, key *int8, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int8)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int8)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETInt8Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt8Typex_Z)
+	ret.fn = ret.readETInt8Typex_Z
 	return ret
 }
 
@@ -5780,13 +5780,13 @@ func (v *iterNative) readInt16(val *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(int16)
+	*val = elm.Elm.(int16)
 	return true
 }
 
 func iterMakerInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16)
+	ret.fn = ret.readInt16
 	return ret
 }
 
@@ -5800,13 +5800,13 @@ func (v *iterNative) readETInt16(et *typex.EventTime, val *int16) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(int16)
+	*val = elm.Elm.(int16)
 	return true
 }
 
 func iterMakerETInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16)
+	ret.fn = ret.readETInt16
 	return ret
 }
 
@@ -5819,14 +5819,14 @@ func (v *iterNative) readInt16ByteSlice(key *int16, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerInt16ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16ByteSlice)
+	ret.fn = ret.readInt16ByteSlice
 	return ret
 }
 
@@ -5840,14 +5840,14 @@ func (v *iterNative) readETInt16ByteSlice(et *typex.EventTime, key *int16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETInt16ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16ByteSlice)
+	ret.fn = ret.readETInt16ByteSlice
 	return ret
 }
 
@@ -5860,14 +5860,14 @@ func (v *iterNative) readInt16Bool(key *int16, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerInt16Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Bool)
+	ret.fn = ret.readInt16Bool
 	return ret
 }
 
@@ -5881,14 +5881,14 @@ func (v *iterNative) readETInt16Bool(et *typex.EventTime, key *int16, value *boo
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETInt16Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Bool)
+	ret.fn = ret.readETInt16Bool
 	return ret
 }
 
@@ -5901,14 +5901,14 @@ func (v *iterNative) readInt16String(key *int16, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerInt16String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16String)
+	ret.fn = ret.readInt16String
 	return ret
 }
 
@@ -5922,14 +5922,14 @@ func (v *iterNative) readETInt16String(et *typex.EventTime, key *int16, value *s
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETInt16String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16String)
+	ret.fn = ret.readETInt16String
 	return ret
 }
 
@@ -5942,14 +5942,14 @@ func (v *iterNative) readInt16Int(key *int16, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerInt16Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Int)
+	ret.fn = ret.readInt16Int
 	return ret
 }
 
@@ -5963,14 +5963,14 @@ func (v *iterNative) readETInt16Int(et *typex.EventTime, key *int16, value *int)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETInt16Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Int)
+	ret.fn = ret.readETInt16Int
 	return ret
 }
 
@@ -5983,14 +5983,14 @@ func (v *iterNative) readInt16Int8(key *int16, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerInt16Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Int8)
+	ret.fn = ret.readInt16Int8
 	return ret
 }
 
@@ -6004,14 +6004,14 @@ func (v *iterNative) readETInt16Int8(et *typex.EventTime, key *int16, value *int
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETInt16Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Int8)
+	ret.fn = ret.readETInt16Int8
 	return ret
 }
 
@@ -6024,14 +6024,14 @@ func (v *iterNative) readInt16Int16(key *int16, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerInt16Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Int16)
+	ret.fn = ret.readInt16Int16
 	return ret
 }
 
@@ -6045,14 +6045,14 @@ func (v *iterNative) readETInt16Int16(et *typex.EventTime, key *int16, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETInt16Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Int16)
+	ret.fn = ret.readETInt16Int16
 	return ret
 }
 
@@ -6065,14 +6065,14 @@ func (v *iterNative) readInt16Int32(key *int16, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerInt16Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Int32)
+	ret.fn = ret.readInt16Int32
 	return ret
 }
 
@@ -6086,14 +6086,14 @@ func (v *iterNative) readETInt16Int32(et *typex.EventTime, key *int16, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETInt16Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Int32)
+	ret.fn = ret.readETInt16Int32
 	return ret
 }
 
@@ -6106,14 +6106,14 @@ func (v *iterNative) readInt16Int64(key *int16, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerInt16Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Int64)
+	ret.fn = ret.readInt16Int64
 	return ret
 }
 
@@ -6127,14 +6127,14 @@ func (v *iterNative) readETInt16Int64(et *typex.EventTime, key *int16, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETInt16Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Int64)
+	ret.fn = ret.readETInt16Int64
 	return ret
 }
 
@@ -6147,14 +6147,14 @@ func (v *iterNative) readInt16Uint(key *int16, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerInt16Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Uint)
+	ret.fn = ret.readInt16Uint
 	return ret
 }
 
@@ -6168,14 +6168,14 @@ func (v *iterNative) readETInt16Uint(et *typex.EventTime, key *int16, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETInt16Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Uint)
+	ret.fn = ret.readETInt16Uint
 	return ret
 }
 
@@ -6188,14 +6188,14 @@ func (v *iterNative) readInt16Uint8(key *int16, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerInt16Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Uint8)
+	ret.fn = ret.readInt16Uint8
 	return ret
 }
 
@@ -6209,14 +6209,14 @@ func (v *iterNative) readETInt16Uint8(et *typex.EventTime, key *int16, value *ui
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETInt16Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Uint8)
+	ret.fn = ret.readETInt16Uint8
 	return ret
 }
 
@@ -6229,14 +6229,14 @@ func (v *iterNative) readInt16Uint16(key *int16, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerInt16Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Uint16)
+	ret.fn = ret.readInt16Uint16
 	return ret
 }
 
@@ -6250,14 +6250,14 @@ func (v *iterNative) readETInt16Uint16(et *typex.EventTime, key *int16, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETInt16Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Uint16)
+	ret.fn = ret.readETInt16Uint16
 	return ret
 }
 
@@ -6270,14 +6270,14 @@ func (v *iterNative) readInt16Uint32(key *int16, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerInt16Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Uint32)
+	ret.fn = ret.readInt16Uint32
 	return ret
 }
 
@@ -6291,14 +6291,14 @@ func (v *iterNative) readETInt16Uint32(et *typex.EventTime, key *int16, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETInt16Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Uint32)
+	ret.fn = ret.readETInt16Uint32
 	return ret
 }
 
@@ -6311,14 +6311,14 @@ func (v *iterNative) readInt16Uint64(key *int16, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerInt16Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Uint64)
+	ret.fn = ret.readInt16Uint64
 	return ret
 }
 
@@ -6332,14 +6332,14 @@ func (v *iterNative) readETInt16Uint64(et *typex.EventTime, key *int16, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETInt16Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Uint64)
+	ret.fn = ret.readETInt16Uint64
 	return ret
 }
 
@@ -6352,14 +6352,14 @@ func (v *iterNative) readInt16Float32(key *int16, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerInt16Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Float32)
+	ret.fn = ret.readInt16Float32
 	return ret
 }
 
@@ -6373,14 +6373,14 @@ func (v *iterNative) readETInt16Float32(et *typex.EventTime, key *int16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETInt16Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Float32)
+	ret.fn = ret.readETInt16Float32
 	return ret
 }
 
@@ -6393,14 +6393,14 @@ func (v *iterNative) readInt16Float64(key *int16, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerInt16Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Float64)
+	ret.fn = ret.readInt16Float64
 	return ret
 }
 
@@ -6414,14 +6414,14 @@ func (v *iterNative) readETInt16Float64(et *typex.EventTime, key *int16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETInt16Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Float64)
+	ret.fn = ret.readETInt16Float64
 	return ret
 }
 
@@ -6434,14 +6434,14 @@ func (v *iterNative) readInt16Typex_T(key *int16, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerInt16Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Typex_T)
+	ret.fn = ret.readInt16Typex_T
 	return ret
 }
 
@@ -6455,14 +6455,14 @@ func (v *iterNative) readETInt16Typex_T(et *typex.EventTime, key *int16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETInt16Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Typex_T)
+	ret.fn = ret.readETInt16Typex_T
 	return ret
 }
 
@@ -6475,14 +6475,14 @@ func (v *iterNative) readInt16Typex_U(key *int16, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerInt16Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Typex_U)
+	ret.fn = ret.readInt16Typex_U
 	return ret
 }
 
@@ -6496,14 +6496,14 @@ func (v *iterNative) readETInt16Typex_U(et *typex.EventTime, key *int16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETInt16Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Typex_U)
+	ret.fn = ret.readETInt16Typex_U
 	return ret
 }
 
@@ -6516,14 +6516,14 @@ func (v *iterNative) readInt16Typex_V(key *int16, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerInt16Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Typex_V)
+	ret.fn = ret.readInt16Typex_V
 	return ret
 }
 
@@ -6537,14 +6537,14 @@ func (v *iterNative) readETInt16Typex_V(et *typex.EventTime, key *int16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETInt16Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Typex_V)
+	ret.fn = ret.readETInt16Typex_V
 	return ret
 }
 
@@ -6557,14 +6557,14 @@ func (v *iterNative) readInt16Typex_W(key *int16, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerInt16Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Typex_W)
+	ret.fn = ret.readInt16Typex_W
 	return ret
 }
 
@@ -6578,14 +6578,14 @@ func (v *iterNative) readETInt16Typex_W(et *typex.EventTime, key *int16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETInt16Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Typex_W)
+	ret.fn = ret.readETInt16Typex_W
 	return ret
 }
 
@@ -6598,14 +6598,14 @@ func (v *iterNative) readInt16Typex_X(key *int16, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerInt16Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Typex_X)
+	ret.fn = ret.readInt16Typex_X
 	return ret
 }
 
@@ -6619,14 +6619,14 @@ func (v *iterNative) readETInt16Typex_X(et *typex.EventTime, key *int16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETInt16Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Typex_X)
+	ret.fn = ret.readETInt16Typex_X
 	return ret
 }
 
@@ -6639,14 +6639,14 @@ func (v *iterNative) readInt16Typex_Y(key *int16, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerInt16Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Typex_Y)
+	ret.fn = ret.readInt16Typex_Y
 	return ret
 }
 
@@ -6660,14 +6660,14 @@ func (v *iterNative) readETInt16Typex_Y(et *typex.EventTime, key *int16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETInt16Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Typex_Y)
+	ret.fn = ret.readETInt16Typex_Y
 	return ret
 }
 
@@ -6680,14 +6680,14 @@ func (v *iterNative) readInt16Typex_Z(key *int16, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerInt16Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt16Typex_Z)
+	ret.fn = ret.readInt16Typex_Z
 	return ret
 }
 
@@ -6701,14 +6701,14 @@ func (v *iterNative) readETInt16Typex_Z(et *typex.EventTime, key *int16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int16)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int16)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETInt16Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt16Typex_Z)
+	ret.fn = ret.readETInt16Typex_Z
 	return ret
 }
 
@@ -6721,13 +6721,13 @@ func (v *iterNative) readInt32(val *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(int32)
+	*val = elm.Elm.(int32)
 	return true
 }
 
 func iterMakerInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32)
+	ret.fn = ret.readInt32
 	return ret
 }
 
@@ -6741,13 +6741,13 @@ func (v *iterNative) readETInt32(et *typex.EventTime, val *int32) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(int32)
+	*val = elm.Elm.(int32)
 	return true
 }
 
 func iterMakerETInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32)
+	ret.fn = ret.readETInt32
 	return ret
 }
 
@@ -6760,14 +6760,14 @@ func (v *iterNative) readInt32ByteSlice(key *int32, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerInt32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32ByteSlice)
+	ret.fn = ret.readInt32ByteSlice
 	return ret
 }
 
@@ -6781,14 +6781,14 @@ func (v *iterNative) readETInt32ByteSlice(et *typex.EventTime, key *int32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETInt32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32ByteSlice)
+	ret.fn = ret.readETInt32ByteSlice
 	return ret
 }
 
@@ -6801,14 +6801,14 @@ func (v *iterNative) readInt32Bool(key *int32, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerInt32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Bool)
+	ret.fn = ret.readInt32Bool
 	return ret
 }
 
@@ -6822,14 +6822,14 @@ func (v *iterNative) readETInt32Bool(et *typex.EventTime, key *int32, value *boo
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETInt32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Bool)
+	ret.fn = ret.readETInt32Bool
 	return ret
 }
 
@@ -6842,14 +6842,14 @@ func (v *iterNative) readInt32String(key *int32, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerInt32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32String)
+	ret.fn = ret.readInt32String
 	return ret
 }
 
@@ -6863,14 +6863,14 @@ func (v *iterNative) readETInt32String(et *typex.EventTime, key *int32, value *s
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETInt32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32String)
+	ret.fn = ret.readETInt32String
 	return ret
 }
 
@@ -6883,14 +6883,14 @@ func (v *iterNative) readInt32Int(key *int32, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerInt32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Int)
+	ret.fn = ret.readInt32Int
 	return ret
 }
 
@@ -6904,14 +6904,14 @@ func (v *iterNative) readETInt32Int(et *typex.EventTime, key *int32, value *int)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETInt32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Int)
+	ret.fn = ret.readETInt32Int
 	return ret
 }
 
@@ -6924,14 +6924,14 @@ func (v *iterNative) readInt32Int8(key *int32, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerInt32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Int8)
+	ret.fn = ret.readInt32Int8
 	return ret
 }
 
@@ -6945,14 +6945,14 @@ func (v *iterNative) readETInt32Int8(et *typex.EventTime, key *int32, value *int
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETInt32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Int8)
+	ret.fn = ret.readETInt32Int8
 	return ret
 }
 
@@ -6965,14 +6965,14 @@ func (v *iterNative) readInt32Int16(key *int32, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerInt32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Int16)
+	ret.fn = ret.readInt32Int16
 	return ret
 }
 
@@ -6986,14 +6986,14 @@ func (v *iterNative) readETInt32Int16(et *typex.EventTime, key *int32, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETInt32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Int16)
+	ret.fn = ret.readETInt32Int16
 	return ret
 }
 
@@ -7006,14 +7006,14 @@ func (v *iterNative) readInt32Int32(key *int32, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerInt32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Int32)
+	ret.fn = ret.readInt32Int32
 	return ret
 }
 
@@ -7027,14 +7027,14 @@ func (v *iterNative) readETInt32Int32(et *typex.EventTime, key *int32, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETInt32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Int32)
+	ret.fn = ret.readETInt32Int32
 	return ret
 }
 
@@ -7047,14 +7047,14 @@ func (v *iterNative) readInt32Int64(key *int32, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerInt32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Int64)
+	ret.fn = ret.readInt32Int64
 	return ret
 }
 
@@ -7068,14 +7068,14 @@ func (v *iterNative) readETInt32Int64(et *typex.EventTime, key *int32, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETInt32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Int64)
+	ret.fn = ret.readETInt32Int64
 	return ret
 }
 
@@ -7088,14 +7088,14 @@ func (v *iterNative) readInt32Uint(key *int32, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerInt32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Uint)
+	ret.fn = ret.readInt32Uint
 	return ret
 }
 
@@ -7109,14 +7109,14 @@ func (v *iterNative) readETInt32Uint(et *typex.EventTime, key *int32, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETInt32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Uint)
+	ret.fn = ret.readETInt32Uint
 	return ret
 }
 
@@ -7129,14 +7129,14 @@ func (v *iterNative) readInt32Uint8(key *int32, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerInt32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Uint8)
+	ret.fn = ret.readInt32Uint8
 	return ret
 }
 
@@ -7150,14 +7150,14 @@ func (v *iterNative) readETInt32Uint8(et *typex.EventTime, key *int32, value *ui
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETInt32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Uint8)
+	ret.fn = ret.readETInt32Uint8
 	return ret
 }
 
@@ -7170,14 +7170,14 @@ func (v *iterNative) readInt32Uint16(key *int32, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerInt32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Uint16)
+	ret.fn = ret.readInt32Uint16
 	return ret
 }
 
@@ -7191,14 +7191,14 @@ func (v *iterNative) readETInt32Uint16(et *typex.EventTime, key *int32, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETInt32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Uint16)
+	ret.fn = ret.readETInt32Uint16
 	return ret
 }
 
@@ -7211,14 +7211,14 @@ func (v *iterNative) readInt32Uint32(key *int32, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerInt32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Uint32)
+	ret.fn = ret.readInt32Uint32
 	return ret
 }
 
@@ -7232,14 +7232,14 @@ func (v *iterNative) readETInt32Uint32(et *typex.EventTime, key *int32, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETInt32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Uint32)
+	ret.fn = ret.readETInt32Uint32
 	return ret
 }
 
@@ -7252,14 +7252,14 @@ func (v *iterNative) readInt32Uint64(key *int32, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerInt32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Uint64)
+	ret.fn = ret.readInt32Uint64
 	return ret
 }
 
@@ -7273,14 +7273,14 @@ func (v *iterNative) readETInt32Uint64(et *typex.EventTime, key *int32, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETInt32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Uint64)
+	ret.fn = ret.readETInt32Uint64
 	return ret
 }
 
@@ -7293,14 +7293,14 @@ func (v *iterNative) readInt32Float32(key *int32, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerInt32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Float32)
+	ret.fn = ret.readInt32Float32
 	return ret
 }
 
@@ -7314,14 +7314,14 @@ func (v *iterNative) readETInt32Float32(et *typex.EventTime, key *int32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETInt32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Float32)
+	ret.fn = ret.readETInt32Float32
 	return ret
 }
 
@@ -7334,14 +7334,14 @@ func (v *iterNative) readInt32Float64(key *int32, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerInt32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Float64)
+	ret.fn = ret.readInt32Float64
 	return ret
 }
 
@@ -7355,14 +7355,14 @@ func (v *iterNative) readETInt32Float64(et *typex.EventTime, key *int32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETInt32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Float64)
+	ret.fn = ret.readETInt32Float64
 	return ret
 }
 
@@ -7375,14 +7375,14 @@ func (v *iterNative) readInt32Typex_T(key *int32, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerInt32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Typex_T)
+	ret.fn = ret.readInt32Typex_T
 	return ret
 }
 
@@ -7396,14 +7396,14 @@ func (v *iterNative) readETInt32Typex_T(et *typex.EventTime, key *int32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETInt32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Typex_T)
+	ret.fn = ret.readETInt32Typex_T
 	return ret
 }
 
@@ -7416,14 +7416,14 @@ func (v *iterNative) readInt32Typex_U(key *int32, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerInt32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Typex_U)
+	ret.fn = ret.readInt32Typex_U
 	return ret
 }
 
@@ -7437,14 +7437,14 @@ func (v *iterNative) readETInt32Typex_U(et *typex.EventTime, key *int32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETInt32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Typex_U)
+	ret.fn = ret.readETInt32Typex_U
 	return ret
 }
 
@@ -7457,14 +7457,14 @@ func (v *iterNative) readInt32Typex_V(key *int32, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerInt32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Typex_V)
+	ret.fn = ret.readInt32Typex_V
 	return ret
 }
 
@@ -7478,14 +7478,14 @@ func (v *iterNative) readETInt32Typex_V(et *typex.EventTime, key *int32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETInt32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Typex_V)
+	ret.fn = ret.readETInt32Typex_V
 	return ret
 }
 
@@ -7498,14 +7498,14 @@ func (v *iterNative) readInt32Typex_W(key *int32, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerInt32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Typex_W)
+	ret.fn = ret.readInt32Typex_W
 	return ret
 }
 
@@ -7519,14 +7519,14 @@ func (v *iterNative) readETInt32Typex_W(et *typex.EventTime, key *int32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETInt32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Typex_W)
+	ret.fn = ret.readETInt32Typex_W
 	return ret
 }
 
@@ -7539,14 +7539,14 @@ func (v *iterNative) readInt32Typex_X(key *int32, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerInt32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Typex_X)
+	ret.fn = ret.readInt32Typex_X
 	return ret
 }
 
@@ -7560,14 +7560,14 @@ func (v *iterNative) readETInt32Typex_X(et *typex.EventTime, key *int32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETInt32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Typex_X)
+	ret.fn = ret.readETInt32Typex_X
 	return ret
 }
 
@@ -7580,14 +7580,14 @@ func (v *iterNative) readInt32Typex_Y(key *int32, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerInt32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Typex_Y)
+	ret.fn = ret.readInt32Typex_Y
 	return ret
 }
 
@@ -7601,14 +7601,14 @@ func (v *iterNative) readETInt32Typex_Y(et *typex.EventTime, key *int32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETInt32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Typex_Y)
+	ret.fn = ret.readETInt32Typex_Y
 	return ret
 }
 
@@ -7621,14 +7621,14 @@ func (v *iterNative) readInt32Typex_Z(key *int32, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerInt32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt32Typex_Z)
+	ret.fn = ret.readInt32Typex_Z
 	return ret
 }
 
@@ -7642,14 +7642,14 @@ func (v *iterNative) readETInt32Typex_Z(et *typex.EventTime, key *int32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int32)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int32)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETInt32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt32Typex_Z)
+	ret.fn = ret.readETInt32Typex_Z
 	return ret
 }
 
@@ -7662,13 +7662,13 @@ func (v *iterNative) readInt64(val *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(int64)
+	*val = elm.Elm.(int64)
 	return true
 }
 
 func iterMakerInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64)
+	ret.fn = ret.readInt64
 	return ret
 }
 
@@ -7682,13 +7682,13 @@ func (v *iterNative) readETInt64(et *typex.EventTime, val *int64) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(int64)
+	*val = elm.Elm.(int64)
 	return true
 }
 
 func iterMakerETInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64)
+	ret.fn = ret.readETInt64
 	return ret
 }
 
@@ -7701,14 +7701,14 @@ func (v *iterNative) readInt64ByteSlice(key *int64, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerInt64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64ByteSlice)
+	ret.fn = ret.readInt64ByteSlice
 	return ret
 }
 
@@ -7722,14 +7722,14 @@ func (v *iterNative) readETInt64ByteSlice(et *typex.EventTime, key *int64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETInt64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64ByteSlice)
+	ret.fn = ret.readETInt64ByteSlice
 	return ret
 }
 
@@ -7742,14 +7742,14 @@ func (v *iterNative) readInt64Bool(key *int64, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerInt64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Bool)
+	ret.fn = ret.readInt64Bool
 	return ret
 }
 
@@ -7763,14 +7763,14 @@ func (v *iterNative) readETInt64Bool(et *typex.EventTime, key *int64, value *boo
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETInt64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Bool)
+	ret.fn = ret.readETInt64Bool
 	return ret
 }
 
@@ -7783,14 +7783,14 @@ func (v *iterNative) readInt64String(key *int64, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerInt64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64String)
+	ret.fn = ret.readInt64String
 	return ret
 }
 
@@ -7804,14 +7804,14 @@ func (v *iterNative) readETInt64String(et *typex.EventTime, key *int64, value *s
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETInt64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64String)
+	ret.fn = ret.readETInt64String
 	return ret
 }
 
@@ -7824,14 +7824,14 @@ func (v *iterNative) readInt64Int(key *int64, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerInt64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Int)
+	ret.fn = ret.readInt64Int
 	return ret
 }
 
@@ -7845,14 +7845,14 @@ func (v *iterNative) readETInt64Int(et *typex.EventTime, key *int64, value *int)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETInt64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Int)
+	ret.fn = ret.readETInt64Int
 	return ret
 }
 
@@ -7865,14 +7865,14 @@ func (v *iterNative) readInt64Int8(key *int64, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerInt64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Int8)
+	ret.fn = ret.readInt64Int8
 	return ret
 }
 
@@ -7886,14 +7886,14 @@ func (v *iterNative) readETInt64Int8(et *typex.EventTime, key *int64, value *int
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETInt64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Int8)
+	ret.fn = ret.readETInt64Int8
 	return ret
 }
 
@@ -7906,14 +7906,14 @@ func (v *iterNative) readInt64Int16(key *int64, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerInt64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Int16)
+	ret.fn = ret.readInt64Int16
 	return ret
 }
 
@@ -7927,14 +7927,14 @@ func (v *iterNative) readETInt64Int16(et *typex.EventTime, key *int64, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETInt64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Int16)
+	ret.fn = ret.readETInt64Int16
 	return ret
 }
 
@@ -7947,14 +7947,14 @@ func (v *iterNative) readInt64Int32(key *int64, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerInt64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Int32)
+	ret.fn = ret.readInt64Int32
 	return ret
 }
 
@@ -7968,14 +7968,14 @@ func (v *iterNative) readETInt64Int32(et *typex.EventTime, key *int64, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETInt64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Int32)
+	ret.fn = ret.readETInt64Int32
 	return ret
 }
 
@@ -7988,14 +7988,14 @@ func (v *iterNative) readInt64Int64(key *int64, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerInt64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Int64)
+	ret.fn = ret.readInt64Int64
 	return ret
 }
 
@@ -8009,14 +8009,14 @@ func (v *iterNative) readETInt64Int64(et *typex.EventTime, key *int64, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETInt64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Int64)
+	ret.fn = ret.readETInt64Int64
 	return ret
 }
 
@@ -8029,14 +8029,14 @@ func (v *iterNative) readInt64Uint(key *int64, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerInt64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Uint)
+	ret.fn = ret.readInt64Uint
 	return ret
 }
 
@@ -8050,14 +8050,14 @@ func (v *iterNative) readETInt64Uint(et *typex.EventTime, key *int64, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETInt64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Uint)
+	ret.fn = ret.readETInt64Uint
 	return ret
 }
 
@@ -8070,14 +8070,14 @@ func (v *iterNative) readInt64Uint8(key *int64, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerInt64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Uint8)
+	ret.fn = ret.readInt64Uint8
 	return ret
 }
 
@@ -8091,14 +8091,14 @@ func (v *iterNative) readETInt64Uint8(et *typex.EventTime, key *int64, value *ui
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETInt64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Uint8)
+	ret.fn = ret.readETInt64Uint8
 	return ret
 }
 
@@ -8111,14 +8111,14 @@ func (v *iterNative) readInt64Uint16(key *int64, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerInt64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Uint16)
+	ret.fn = ret.readInt64Uint16
 	return ret
 }
 
@@ -8132,14 +8132,14 @@ func (v *iterNative) readETInt64Uint16(et *typex.EventTime, key *int64, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETInt64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Uint16)
+	ret.fn = ret.readETInt64Uint16
 	return ret
 }
 
@@ -8152,14 +8152,14 @@ func (v *iterNative) readInt64Uint32(key *int64, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerInt64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Uint32)
+	ret.fn = ret.readInt64Uint32
 	return ret
 }
 
@@ -8173,14 +8173,14 @@ func (v *iterNative) readETInt64Uint32(et *typex.EventTime, key *int64, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETInt64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Uint32)
+	ret.fn = ret.readETInt64Uint32
 	return ret
 }
 
@@ -8193,14 +8193,14 @@ func (v *iterNative) readInt64Uint64(key *int64, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerInt64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Uint64)
+	ret.fn = ret.readInt64Uint64
 	return ret
 }
 
@@ -8214,14 +8214,14 @@ func (v *iterNative) readETInt64Uint64(et *typex.EventTime, key *int64, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETInt64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Uint64)
+	ret.fn = ret.readETInt64Uint64
 	return ret
 }
 
@@ -8234,14 +8234,14 @@ func (v *iterNative) readInt64Float32(key *int64, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerInt64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Float32)
+	ret.fn = ret.readInt64Float32
 	return ret
 }
 
@@ -8255,14 +8255,14 @@ func (v *iterNative) readETInt64Float32(et *typex.EventTime, key *int64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETInt64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Float32)
+	ret.fn = ret.readETInt64Float32
 	return ret
 }
 
@@ -8275,14 +8275,14 @@ func (v *iterNative) readInt64Float64(key *int64, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerInt64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Float64)
+	ret.fn = ret.readInt64Float64
 	return ret
 }
 
@@ -8296,14 +8296,14 @@ func (v *iterNative) readETInt64Float64(et *typex.EventTime, key *int64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETInt64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Float64)
+	ret.fn = ret.readETInt64Float64
 	return ret
 }
 
@@ -8316,14 +8316,14 @@ func (v *iterNative) readInt64Typex_T(key *int64, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerInt64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Typex_T)
+	ret.fn = ret.readInt64Typex_T
 	return ret
 }
 
@@ -8337,14 +8337,14 @@ func (v *iterNative) readETInt64Typex_T(et *typex.EventTime, key *int64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETInt64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Typex_T)
+	ret.fn = ret.readETInt64Typex_T
 	return ret
 }
 
@@ -8357,14 +8357,14 @@ func (v *iterNative) readInt64Typex_U(key *int64, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerInt64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Typex_U)
+	ret.fn = ret.readInt64Typex_U
 	return ret
 }
 
@@ -8378,14 +8378,14 @@ func (v *iterNative) readETInt64Typex_U(et *typex.EventTime, key *int64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETInt64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Typex_U)
+	ret.fn = ret.readETInt64Typex_U
 	return ret
 }
 
@@ -8398,14 +8398,14 @@ func (v *iterNative) readInt64Typex_V(key *int64, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerInt64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Typex_V)
+	ret.fn = ret.readInt64Typex_V
 	return ret
 }
 
@@ -8419,14 +8419,14 @@ func (v *iterNative) readETInt64Typex_V(et *typex.EventTime, key *int64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETInt64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Typex_V)
+	ret.fn = ret.readETInt64Typex_V
 	return ret
 }
 
@@ -8439,14 +8439,14 @@ func (v *iterNative) readInt64Typex_W(key *int64, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerInt64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Typex_W)
+	ret.fn = ret.readInt64Typex_W
 	return ret
 }
 
@@ -8460,14 +8460,14 @@ func (v *iterNative) readETInt64Typex_W(et *typex.EventTime, key *int64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETInt64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Typex_W)
+	ret.fn = ret.readETInt64Typex_W
 	return ret
 }
 
@@ -8480,14 +8480,14 @@ func (v *iterNative) readInt64Typex_X(key *int64, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerInt64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Typex_X)
+	ret.fn = ret.readInt64Typex_X
 	return ret
 }
 
@@ -8501,14 +8501,14 @@ func (v *iterNative) readETInt64Typex_X(et *typex.EventTime, key *int64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETInt64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Typex_X)
+	ret.fn = ret.readETInt64Typex_X
 	return ret
 }
 
@@ -8521,14 +8521,14 @@ func (v *iterNative) readInt64Typex_Y(key *int64, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerInt64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Typex_Y)
+	ret.fn = ret.readInt64Typex_Y
 	return ret
 }
 
@@ -8542,14 +8542,14 @@ func (v *iterNative) readETInt64Typex_Y(et *typex.EventTime, key *int64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETInt64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Typex_Y)
+	ret.fn = ret.readETInt64Typex_Y
 	return ret
 }
 
@@ -8562,14 +8562,14 @@ func (v *iterNative) readInt64Typex_Z(key *int64, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerInt64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readInt64Typex_Z)
+	ret.fn = ret.readInt64Typex_Z
 	return ret
 }
 
@@ -8583,14 +8583,14 @@ func (v *iterNative) readETInt64Typex_Z(et *typex.EventTime, key *int64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(int64)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(int64)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETInt64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETInt64Typex_Z)
+	ret.fn = ret.readETInt64Typex_Z
 	return ret
 }
 
@@ -8603,13 +8603,13 @@ func (v *iterNative) readUint(val *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(uint)
+	*val = elm.Elm.(uint)
 	return true
 }
 
 func iterMakerUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint)
+	ret.fn = ret.readUint
 	return ret
 }
 
@@ -8623,13 +8623,13 @@ func (v *iterNative) readETUint(et *typex.EventTime, val *uint) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(uint)
+	*val = elm.Elm.(uint)
 	return true
 }
 
 func iterMakerETUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint)
+	ret.fn = ret.readETUint
 	return ret
 }
 
@@ -8642,14 +8642,14 @@ func (v *iterNative) readUintByteSlice(key *uint, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerUintByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintByteSlice)
+	ret.fn = ret.readUintByteSlice
 	return ret
 }
 
@@ -8663,14 +8663,14 @@ func (v *iterNative) readETUintByteSlice(et *typex.EventTime, key *uint, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETUintByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintByteSlice)
+	ret.fn = ret.readETUintByteSlice
 	return ret
 }
 
@@ -8683,14 +8683,14 @@ func (v *iterNative) readUintBool(key *uint, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerUintBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintBool)
+	ret.fn = ret.readUintBool
 	return ret
 }
 
@@ -8704,14 +8704,14 @@ func (v *iterNative) readETUintBool(et *typex.EventTime, key *uint, value *bool)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETUintBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintBool)
+	ret.fn = ret.readETUintBool
 	return ret
 }
 
@@ -8724,14 +8724,14 @@ func (v *iterNative) readUintString(key *uint, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerUintString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintString)
+	ret.fn = ret.readUintString
 	return ret
 }
 
@@ -8745,14 +8745,14 @@ func (v *iterNative) readETUintString(et *typex.EventTime, key *uint, value *str
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETUintString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintString)
+	ret.fn = ret.readETUintString
 	return ret
 }
 
@@ -8765,14 +8765,14 @@ func (v *iterNative) readUintInt(key *uint, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerUintInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintInt)
+	ret.fn = ret.readUintInt
 	return ret
 }
 
@@ -8786,14 +8786,14 @@ func (v *iterNative) readETUintInt(et *typex.EventTime, key *uint, value *int) b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETUintInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintInt)
+	ret.fn = ret.readETUintInt
 	return ret
 }
 
@@ -8806,14 +8806,14 @@ func (v *iterNative) readUintInt8(key *uint, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerUintInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintInt8)
+	ret.fn = ret.readUintInt8
 	return ret
 }
 
@@ -8827,14 +8827,14 @@ func (v *iterNative) readETUintInt8(et *typex.EventTime, key *uint, value *int8)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETUintInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintInt8)
+	ret.fn = ret.readETUintInt8
 	return ret
 }
 
@@ -8847,14 +8847,14 @@ func (v *iterNative) readUintInt16(key *uint, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerUintInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintInt16)
+	ret.fn = ret.readUintInt16
 	return ret
 }
 
@@ -8868,14 +8868,14 @@ func (v *iterNative) readETUintInt16(et *typex.EventTime, key *uint, value *int1
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETUintInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintInt16)
+	ret.fn = ret.readETUintInt16
 	return ret
 }
 
@@ -8888,14 +8888,14 @@ func (v *iterNative) readUintInt32(key *uint, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerUintInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintInt32)
+	ret.fn = ret.readUintInt32
 	return ret
 }
 
@@ -8909,14 +8909,14 @@ func (v *iterNative) readETUintInt32(et *typex.EventTime, key *uint, value *int3
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETUintInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintInt32)
+	ret.fn = ret.readETUintInt32
 	return ret
 }
 
@@ -8929,14 +8929,14 @@ func (v *iterNative) readUintInt64(key *uint, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerUintInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintInt64)
+	ret.fn = ret.readUintInt64
 	return ret
 }
 
@@ -8950,14 +8950,14 @@ func (v *iterNative) readETUintInt64(et *typex.EventTime, key *uint, value *int6
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETUintInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintInt64)
+	ret.fn = ret.readETUintInt64
 	return ret
 }
 
@@ -8970,14 +8970,14 @@ func (v *iterNative) readUintUint(key *uint, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerUintUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintUint)
+	ret.fn = ret.readUintUint
 	return ret
 }
 
@@ -8991,14 +8991,14 @@ func (v *iterNative) readETUintUint(et *typex.EventTime, key *uint, value *uint)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETUintUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintUint)
+	ret.fn = ret.readETUintUint
 	return ret
 }
 
@@ -9011,14 +9011,14 @@ func (v *iterNative) readUintUint8(key *uint, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerUintUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintUint8)
+	ret.fn = ret.readUintUint8
 	return ret
 }
 
@@ -9032,14 +9032,14 @@ func (v *iterNative) readETUintUint8(et *typex.EventTime, key *uint, value *uint
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETUintUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintUint8)
+	ret.fn = ret.readETUintUint8
 	return ret
 }
 
@@ -9052,14 +9052,14 @@ func (v *iterNative) readUintUint16(key *uint, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerUintUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintUint16)
+	ret.fn = ret.readUintUint16
 	return ret
 }
 
@@ -9073,14 +9073,14 @@ func (v *iterNative) readETUintUint16(et *typex.EventTime, key *uint, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETUintUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintUint16)
+	ret.fn = ret.readETUintUint16
 	return ret
 }
 
@@ -9093,14 +9093,14 @@ func (v *iterNative) readUintUint32(key *uint, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerUintUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintUint32)
+	ret.fn = ret.readUintUint32
 	return ret
 }
 
@@ -9114,14 +9114,14 @@ func (v *iterNative) readETUintUint32(et *typex.EventTime, key *uint, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETUintUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintUint32)
+	ret.fn = ret.readETUintUint32
 	return ret
 }
 
@@ -9134,14 +9134,14 @@ func (v *iterNative) readUintUint64(key *uint, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerUintUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintUint64)
+	ret.fn = ret.readUintUint64
 	return ret
 }
 
@@ -9155,14 +9155,14 @@ func (v *iterNative) readETUintUint64(et *typex.EventTime, key *uint, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETUintUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintUint64)
+	ret.fn = ret.readETUintUint64
 	return ret
 }
 
@@ -9175,14 +9175,14 @@ func (v *iterNative) readUintFloat32(key *uint, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerUintFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintFloat32)
+	ret.fn = ret.readUintFloat32
 	return ret
 }
 
@@ -9196,14 +9196,14 @@ func (v *iterNative) readETUintFloat32(et *typex.EventTime, key *uint, value *fl
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETUintFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintFloat32)
+	ret.fn = ret.readETUintFloat32
 	return ret
 }
 
@@ -9216,14 +9216,14 @@ func (v *iterNative) readUintFloat64(key *uint, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerUintFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintFloat64)
+	ret.fn = ret.readUintFloat64
 	return ret
 }
 
@@ -9237,14 +9237,14 @@ func (v *iterNative) readETUintFloat64(et *typex.EventTime, key *uint, value *fl
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETUintFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintFloat64)
+	ret.fn = ret.readETUintFloat64
 	return ret
 }
 
@@ -9257,14 +9257,14 @@ func (v *iterNative) readUintTypex_T(key *uint, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerUintTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintTypex_T)
+	ret.fn = ret.readUintTypex_T
 	return ret
 }
 
@@ -9278,14 +9278,14 @@ func (v *iterNative) readETUintTypex_T(et *typex.EventTime, key *uint, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETUintTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintTypex_T)
+	ret.fn = ret.readETUintTypex_T
 	return ret
 }
 
@@ -9298,14 +9298,14 @@ func (v *iterNative) readUintTypex_U(key *uint, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerUintTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintTypex_U)
+	ret.fn = ret.readUintTypex_U
 	return ret
 }
 
@@ -9319,14 +9319,14 @@ func (v *iterNative) readETUintTypex_U(et *typex.EventTime, key *uint, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETUintTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintTypex_U)
+	ret.fn = ret.readETUintTypex_U
 	return ret
 }
 
@@ -9339,14 +9339,14 @@ func (v *iterNative) readUintTypex_V(key *uint, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerUintTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintTypex_V)
+	ret.fn = ret.readUintTypex_V
 	return ret
 }
 
@@ -9360,14 +9360,14 @@ func (v *iterNative) readETUintTypex_V(et *typex.EventTime, key *uint, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETUintTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintTypex_V)
+	ret.fn = ret.readETUintTypex_V
 	return ret
 }
 
@@ -9380,14 +9380,14 @@ func (v *iterNative) readUintTypex_W(key *uint, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerUintTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintTypex_W)
+	ret.fn = ret.readUintTypex_W
 	return ret
 }
 
@@ -9401,14 +9401,14 @@ func (v *iterNative) readETUintTypex_W(et *typex.EventTime, key *uint, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETUintTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintTypex_W)
+	ret.fn = ret.readETUintTypex_W
 	return ret
 }
 
@@ -9421,14 +9421,14 @@ func (v *iterNative) readUintTypex_X(key *uint, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerUintTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintTypex_X)
+	ret.fn = ret.readUintTypex_X
 	return ret
 }
 
@@ -9442,14 +9442,14 @@ func (v *iterNative) readETUintTypex_X(et *typex.EventTime, key *uint, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETUintTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintTypex_X)
+	ret.fn = ret.readETUintTypex_X
 	return ret
 }
 
@@ -9462,14 +9462,14 @@ func (v *iterNative) readUintTypex_Y(key *uint, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerUintTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintTypex_Y)
+	ret.fn = ret.readUintTypex_Y
 	return ret
 }
 
@@ -9483,14 +9483,14 @@ func (v *iterNative) readETUintTypex_Y(et *typex.EventTime, key *uint, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETUintTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintTypex_Y)
+	ret.fn = ret.readETUintTypex_Y
 	return ret
 }
 
@@ -9503,14 +9503,14 @@ func (v *iterNative) readUintTypex_Z(key *uint, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerUintTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUintTypex_Z)
+	ret.fn = ret.readUintTypex_Z
 	return ret
 }
 
@@ -9524,14 +9524,14 @@ func (v *iterNative) readETUintTypex_Z(et *typex.EventTime, key *uint, value *ty
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETUintTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUintTypex_Z)
+	ret.fn = ret.readETUintTypex_Z
 	return ret
 }
 
@@ -9544,13 +9544,13 @@ func (v *iterNative) readUint8(val *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(uint8)
+	*val = elm.Elm.(uint8)
 	return true
 }
 
 func iterMakerUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8)
+	ret.fn = ret.readUint8
 	return ret
 }
 
@@ -9564,13 +9564,13 @@ func (v *iterNative) readETUint8(et *typex.EventTime, val *uint8) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(uint8)
+	*val = elm.Elm.(uint8)
 	return true
 }
 
 func iterMakerETUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8)
+	ret.fn = ret.readETUint8
 	return ret
 }
 
@@ -9583,14 +9583,14 @@ func (v *iterNative) readUint8ByteSlice(key *uint8, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerUint8ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8ByteSlice)
+	ret.fn = ret.readUint8ByteSlice
 	return ret
 }
 
@@ -9604,14 +9604,14 @@ func (v *iterNative) readETUint8ByteSlice(et *typex.EventTime, key *uint8, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETUint8ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8ByteSlice)
+	ret.fn = ret.readETUint8ByteSlice
 	return ret
 }
 
@@ -9624,14 +9624,14 @@ func (v *iterNative) readUint8Bool(key *uint8, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerUint8Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Bool)
+	ret.fn = ret.readUint8Bool
 	return ret
 }
 
@@ -9645,14 +9645,14 @@ func (v *iterNative) readETUint8Bool(et *typex.EventTime, key *uint8, value *boo
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETUint8Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Bool)
+	ret.fn = ret.readETUint8Bool
 	return ret
 }
 
@@ -9665,14 +9665,14 @@ func (v *iterNative) readUint8String(key *uint8, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerUint8String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8String)
+	ret.fn = ret.readUint8String
 	return ret
 }
 
@@ -9686,14 +9686,14 @@ func (v *iterNative) readETUint8String(et *typex.EventTime, key *uint8, value *s
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETUint8String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8String)
+	ret.fn = ret.readETUint8String
 	return ret
 }
 
@@ -9706,14 +9706,14 @@ func (v *iterNative) readUint8Int(key *uint8, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerUint8Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Int)
+	ret.fn = ret.readUint8Int
 	return ret
 }
 
@@ -9727,14 +9727,14 @@ func (v *iterNative) readETUint8Int(et *typex.EventTime, key *uint8, value *int)
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETUint8Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Int)
+	ret.fn = ret.readETUint8Int
 	return ret
 }
 
@@ -9747,14 +9747,14 @@ func (v *iterNative) readUint8Int8(key *uint8, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerUint8Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Int8)
+	ret.fn = ret.readUint8Int8
 	return ret
 }
 
@@ -9768,14 +9768,14 @@ func (v *iterNative) readETUint8Int8(et *typex.EventTime, key *uint8, value *int
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETUint8Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Int8)
+	ret.fn = ret.readETUint8Int8
 	return ret
 }
 
@@ -9788,14 +9788,14 @@ func (v *iterNative) readUint8Int16(key *uint8, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerUint8Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Int16)
+	ret.fn = ret.readUint8Int16
 	return ret
 }
 
@@ -9809,14 +9809,14 @@ func (v *iterNative) readETUint8Int16(et *typex.EventTime, key *uint8, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETUint8Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Int16)
+	ret.fn = ret.readETUint8Int16
 	return ret
 }
 
@@ -9829,14 +9829,14 @@ func (v *iterNative) readUint8Int32(key *uint8, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerUint8Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Int32)
+	ret.fn = ret.readUint8Int32
 	return ret
 }
 
@@ -9850,14 +9850,14 @@ func (v *iterNative) readETUint8Int32(et *typex.EventTime, key *uint8, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETUint8Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Int32)
+	ret.fn = ret.readETUint8Int32
 	return ret
 }
 
@@ -9870,14 +9870,14 @@ func (v *iterNative) readUint8Int64(key *uint8, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerUint8Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Int64)
+	ret.fn = ret.readUint8Int64
 	return ret
 }
 
@@ -9891,14 +9891,14 @@ func (v *iterNative) readETUint8Int64(et *typex.EventTime, key *uint8, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETUint8Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Int64)
+	ret.fn = ret.readETUint8Int64
 	return ret
 }
 
@@ -9911,14 +9911,14 @@ func (v *iterNative) readUint8Uint(key *uint8, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerUint8Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Uint)
+	ret.fn = ret.readUint8Uint
 	return ret
 }
 
@@ -9932,14 +9932,14 @@ func (v *iterNative) readETUint8Uint(et *typex.EventTime, key *uint8, value *uin
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETUint8Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Uint)
+	ret.fn = ret.readETUint8Uint
 	return ret
 }
 
@@ -9952,14 +9952,14 @@ func (v *iterNative) readUint8Uint8(key *uint8, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerUint8Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Uint8)
+	ret.fn = ret.readUint8Uint8
 	return ret
 }
 
@@ -9973,14 +9973,14 @@ func (v *iterNative) readETUint8Uint8(et *typex.EventTime, key *uint8, value *ui
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETUint8Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Uint8)
+	ret.fn = ret.readETUint8Uint8
 	return ret
 }
 
@@ -9993,14 +9993,14 @@ func (v *iterNative) readUint8Uint16(key *uint8, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerUint8Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Uint16)
+	ret.fn = ret.readUint8Uint16
 	return ret
 }
 
@@ -10014,14 +10014,14 @@ func (v *iterNative) readETUint8Uint16(et *typex.EventTime, key *uint8, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETUint8Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Uint16)
+	ret.fn = ret.readETUint8Uint16
 	return ret
 }
 
@@ -10034,14 +10034,14 @@ func (v *iterNative) readUint8Uint32(key *uint8, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerUint8Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Uint32)
+	ret.fn = ret.readUint8Uint32
 	return ret
 }
 
@@ -10055,14 +10055,14 @@ func (v *iterNative) readETUint8Uint32(et *typex.EventTime, key *uint8, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETUint8Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Uint32)
+	ret.fn = ret.readETUint8Uint32
 	return ret
 }
 
@@ -10075,14 +10075,14 @@ func (v *iterNative) readUint8Uint64(key *uint8, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerUint8Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Uint64)
+	ret.fn = ret.readUint8Uint64
 	return ret
 }
 
@@ -10096,14 +10096,14 @@ func (v *iterNative) readETUint8Uint64(et *typex.EventTime, key *uint8, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETUint8Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Uint64)
+	ret.fn = ret.readETUint8Uint64
 	return ret
 }
 
@@ -10116,14 +10116,14 @@ func (v *iterNative) readUint8Float32(key *uint8, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerUint8Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Float32)
+	ret.fn = ret.readUint8Float32
 	return ret
 }
 
@@ -10137,14 +10137,14 @@ func (v *iterNative) readETUint8Float32(et *typex.EventTime, key *uint8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETUint8Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Float32)
+	ret.fn = ret.readETUint8Float32
 	return ret
 }
 
@@ -10157,14 +10157,14 @@ func (v *iterNative) readUint8Float64(key *uint8, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerUint8Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Float64)
+	ret.fn = ret.readUint8Float64
 	return ret
 }
 
@@ -10178,14 +10178,14 @@ func (v *iterNative) readETUint8Float64(et *typex.EventTime, key *uint8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETUint8Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Float64)
+	ret.fn = ret.readETUint8Float64
 	return ret
 }
 
@@ -10198,14 +10198,14 @@ func (v *iterNative) readUint8Typex_T(key *uint8, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerUint8Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Typex_T)
+	ret.fn = ret.readUint8Typex_T
 	return ret
 }
 
@@ -10219,14 +10219,14 @@ func (v *iterNative) readETUint8Typex_T(et *typex.EventTime, key *uint8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETUint8Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Typex_T)
+	ret.fn = ret.readETUint8Typex_T
 	return ret
 }
 
@@ -10239,14 +10239,14 @@ func (v *iterNative) readUint8Typex_U(key *uint8, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerUint8Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Typex_U)
+	ret.fn = ret.readUint8Typex_U
 	return ret
 }
 
@@ -10260,14 +10260,14 @@ func (v *iterNative) readETUint8Typex_U(et *typex.EventTime, key *uint8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETUint8Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Typex_U)
+	ret.fn = ret.readETUint8Typex_U
 	return ret
 }
 
@@ -10280,14 +10280,14 @@ func (v *iterNative) readUint8Typex_V(key *uint8, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerUint8Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Typex_V)
+	ret.fn = ret.readUint8Typex_V
 	return ret
 }
 
@@ -10301,14 +10301,14 @@ func (v *iterNative) readETUint8Typex_V(et *typex.EventTime, key *uint8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETUint8Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Typex_V)
+	ret.fn = ret.readETUint8Typex_V
 	return ret
 }
 
@@ -10321,14 +10321,14 @@ func (v *iterNative) readUint8Typex_W(key *uint8, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerUint8Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Typex_W)
+	ret.fn = ret.readUint8Typex_W
 	return ret
 }
 
@@ -10342,14 +10342,14 @@ func (v *iterNative) readETUint8Typex_W(et *typex.EventTime, key *uint8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETUint8Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Typex_W)
+	ret.fn = ret.readETUint8Typex_W
 	return ret
 }
 
@@ -10362,14 +10362,14 @@ func (v *iterNative) readUint8Typex_X(key *uint8, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerUint8Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Typex_X)
+	ret.fn = ret.readUint8Typex_X
 	return ret
 }
 
@@ -10383,14 +10383,14 @@ func (v *iterNative) readETUint8Typex_X(et *typex.EventTime, key *uint8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETUint8Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Typex_X)
+	ret.fn = ret.readETUint8Typex_X
 	return ret
 }
 
@@ -10403,14 +10403,14 @@ func (v *iterNative) readUint8Typex_Y(key *uint8, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerUint8Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Typex_Y)
+	ret.fn = ret.readUint8Typex_Y
 	return ret
 }
 
@@ -10424,14 +10424,14 @@ func (v *iterNative) readETUint8Typex_Y(et *typex.EventTime, key *uint8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETUint8Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Typex_Y)
+	ret.fn = ret.readETUint8Typex_Y
 	return ret
 }
 
@@ -10444,14 +10444,14 @@ func (v *iterNative) readUint8Typex_Z(key *uint8, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerUint8Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint8Typex_Z)
+	ret.fn = ret.readUint8Typex_Z
 	return ret
 }
 
@@ -10465,14 +10465,14 @@ func (v *iterNative) readETUint8Typex_Z(et *typex.EventTime, key *uint8, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint8)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint8)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETUint8Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint8Typex_Z)
+	ret.fn = ret.readETUint8Typex_Z
 	return ret
 }
 
@@ -10485,13 +10485,13 @@ func (v *iterNative) readUint16(val *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(uint16)
+	*val = elm.Elm.(uint16)
 	return true
 }
 
 func iterMakerUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16)
+	ret.fn = ret.readUint16
 	return ret
 }
 
@@ -10505,13 +10505,13 @@ func (v *iterNative) readETUint16(et *typex.EventTime, val *uint16) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(uint16)
+	*val = elm.Elm.(uint16)
 	return true
 }
 
 func iterMakerETUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16)
+	ret.fn = ret.readETUint16
 	return ret
 }
 
@@ -10524,14 +10524,14 @@ func (v *iterNative) readUint16ByteSlice(key *uint16, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerUint16ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16ByteSlice)
+	ret.fn = ret.readUint16ByteSlice
 	return ret
 }
 
@@ -10545,14 +10545,14 @@ func (v *iterNative) readETUint16ByteSlice(et *typex.EventTime, key *uint16, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETUint16ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16ByteSlice)
+	ret.fn = ret.readETUint16ByteSlice
 	return ret
 }
 
@@ -10565,14 +10565,14 @@ func (v *iterNative) readUint16Bool(key *uint16, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerUint16Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Bool)
+	ret.fn = ret.readUint16Bool
 	return ret
 }
 
@@ -10586,14 +10586,14 @@ func (v *iterNative) readETUint16Bool(et *typex.EventTime, key *uint16, value *b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETUint16Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Bool)
+	ret.fn = ret.readETUint16Bool
 	return ret
 }
 
@@ -10606,14 +10606,14 @@ func (v *iterNative) readUint16String(key *uint16, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerUint16String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16String)
+	ret.fn = ret.readUint16String
 	return ret
 }
 
@@ -10627,14 +10627,14 @@ func (v *iterNative) readETUint16String(et *typex.EventTime, key *uint16, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETUint16String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16String)
+	ret.fn = ret.readETUint16String
 	return ret
 }
 
@@ -10647,14 +10647,14 @@ func (v *iterNative) readUint16Int(key *uint16, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerUint16Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Int)
+	ret.fn = ret.readUint16Int
 	return ret
 }
 
@@ -10668,14 +10668,14 @@ func (v *iterNative) readETUint16Int(et *typex.EventTime, key *uint16, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETUint16Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Int)
+	ret.fn = ret.readETUint16Int
 	return ret
 }
 
@@ -10688,14 +10688,14 @@ func (v *iterNative) readUint16Int8(key *uint16, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerUint16Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Int8)
+	ret.fn = ret.readUint16Int8
 	return ret
 }
 
@@ -10709,14 +10709,14 @@ func (v *iterNative) readETUint16Int8(et *typex.EventTime, key *uint16, value *i
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETUint16Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Int8)
+	ret.fn = ret.readETUint16Int8
 	return ret
 }
 
@@ -10729,14 +10729,14 @@ func (v *iterNative) readUint16Int16(key *uint16, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerUint16Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Int16)
+	ret.fn = ret.readUint16Int16
 	return ret
 }
 
@@ -10750,14 +10750,14 @@ func (v *iterNative) readETUint16Int16(et *typex.EventTime, key *uint16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETUint16Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Int16)
+	ret.fn = ret.readETUint16Int16
 	return ret
 }
 
@@ -10770,14 +10770,14 @@ func (v *iterNative) readUint16Int32(key *uint16, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerUint16Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Int32)
+	ret.fn = ret.readUint16Int32
 	return ret
 }
 
@@ -10791,14 +10791,14 @@ func (v *iterNative) readETUint16Int32(et *typex.EventTime, key *uint16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETUint16Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Int32)
+	ret.fn = ret.readETUint16Int32
 	return ret
 }
 
@@ -10811,14 +10811,14 @@ func (v *iterNative) readUint16Int64(key *uint16, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerUint16Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Int64)
+	ret.fn = ret.readUint16Int64
 	return ret
 }
 
@@ -10832,14 +10832,14 @@ func (v *iterNative) readETUint16Int64(et *typex.EventTime, key *uint16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETUint16Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Int64)
+	ret.fn = ret.readETUint16Int64
 	return ret
 }
 
@@ -10852,14 +10852,14 @@ func (v *iterNative) readUint16Uint(key *uint16, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerUint16Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Uint)
+	ret.fn = ret.readUint16Uint
 	return ret
 }
 
@@ -10873,14 +10873,14 @@ func (v *iterNative) readETUint16Uint(et *typex.EventTime, key *uint16, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETUint16Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Uint)
+	ret.fn = ret.readETUint16Uint
 	return ret
 }
 
@@ -10893,14 +10893,14 @@ func (v *iterNative) readUint16Uint8(key *uint16, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerUint16Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Uint8)
+	ret.fn = ret.readUint16Uint8
 	return ret
 }
 
@@ -10914,14 +10914,14 @@ func (v *iterNative) readETUint16Uint8(et *typex.EventTime, key *uint16, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETUint16Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Uint8)
+	ret.fn = ret.readETUint16Uint8
 	return ret
 }
 
@@ -10934,14 +10934,14 @@ func (v *iterNative) readUint16Uint16(key *uint16, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerUint16Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Uint16)
+	ret.fn = ret.readUint16Uint16
 	return ret
 }
 
@@ -10955,14 +10955,14 @@ func (v *iterNative) readETUint16Uint16(et *typex.EventTime, key *uint16, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETUint16Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Uint16)
+	ret.fn = ret.readETUint16Uint16
 	return ret
 }
 
@@ -10975,14 +10975,14 @@ func (v *iterNative) readUint16Uint32(key *uint16, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerUint16Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Uint32)
+	ret.fn = ret.readUint16Uint32
 	return ret
 }
 
@@ -10996,14 +10996,14 @@ func (v *iterNative) readETUint16Uint32(et *typex.EventTime, key *uint16, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETUint16Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Uint32)
+	ret.fn = ret.readETUint16Uint32
 	return ret
 }
 
@@ -11016,14 +11016,14 @@ func (v *iterNative) readUint16Uint64(key *uint16, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerUint16Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Uint64)
+	ret.fn = ret.readUint16Uint64
 	return ret
 }
 
@@ -11037,14 +11037,14 @@ func (v *iterNative) readETUint16Uint64(et *typex.EventTime, key *uint16, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETUint16Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Uint64)
+	ret.fn = ret.readETUint16Uint64
 	return ret
 }
 
@@ -11057,14 +11057,14 @@ func (v *iterNative) readUint16Float32(key *uint16, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerUint16Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Float32)
+	ret.fn = ret.readUint16Float32
 	return ret
 }
 
@@ -11078,14 +11078,14 @@ func (v *iterNative) readETUint16Float32(et *typex.EventTime, key *uint16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETUint16Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Float32)
+	ret.fn = ret.readETUint16Float32
 	return ret
 }
 
@@ -11098,14 +11098,14 @@ func (v *iterNative) readUint16Float64(key *uint16, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerUint16Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Float64)
+	ret.fn = ret.readUint16Float64
 	return ret
 }
 
@@ -11119,14 +11119,14 @@ func (v *iterNative) readETUint16Float64(et *typex.EventTime, key *uint16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETUint16Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Float64)
+	ret.fn = ret.readETUint16Float64
 	return ret
 }
 
@@ -11139,14 +11139,14 @@ func (v *iterNative) readUint16Typex_T(key *uint16, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerUint16Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Typex_T)
+	ret.fn = ret.readUint16Typex_T
 	return ret
 }
 
@@ -11160,14 +11160,14 @@ func (v *iterNative) readETUint16Typex_T(et *typex.EventTime, key *uint16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETUint16Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Typex_T)
+	ret.fn = ret.readETUint16Typex_T
 	return ret
 }
 
@@ -11180,14 +11180,14 @@ func (v *iterNative) readUint16Typex_U(key *uint16, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerUint16Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Typex_U)
+	ret.fn = ret.readUint16Typex_U
 	return ret
 }
 
@@ -11201,14 +11201,14 @@ func (v *iterNative) readETUint16Typex_U(et *typex.EventTime, key *uint16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETUint16Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Typex_U)
+	ret.fn = ret.readETUint16Typex_U
 	return ret
 }
 
@@ -11221,14 +11221,14 @@ func (v *iterNative) readUint16Typex_V(key *uint16, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerUint16Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Typex_V)
+	ret.fn = ret.readUint16Typex_V
 	return ret
 }
 
@@ -11242,14 +11242,14 @@ func (v *iterNative) readETUint16Typex_V(et *typex.EventTime, key *uint16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETUint16Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Typex_V)
+	ret.fn = ret.readETUint16Typex_V
 	return ret
 }
 
@@ -11262,14 +11262,14 @@ func (v *iterNative) readUint16Typex_W(key *uint16, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerUint16Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Typex_W)
+	ret.fn = ret.readUint16Typex_W
 	return ret
 }
 
@@ -11283,14 +11283,14 @@ func (v *iterNative) readETUint16Typex_W(et *typex.EventTime, key *uint16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETUint16Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Typex_W)
+	ret.fn = ret.readETUint16Typex_W
 	return ret
 }
 
@@ -11303,14 +11303,14 @@ func (v *iterNative) readUint16Typex_X(key *uint16, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerUint16Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Typex_X)
+	ret.fn = ret.readUint16Typex_X
 	return ret
 }
 
@@ -11324,14 +11324,14 @@ func (v *iterNative) readETUint16Typex_X(et *typex.EventTime, key *uint16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETUint16Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Typex_X)
+	ret.fn = ret.readETUint16Typex_X
 	return ret
 }
 
@@ -11344,14 +11344,14 @@ func (v *iterNative) readUint16Typex_Y(key *uint16, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerUint16Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Typex_Y)
+	ret.fn = ret.readUint16Typex_Y
 	return ret
 }
 
@@ -11365,14 +11365,14 @@ func (v *iterNative) readETUint16Typex_Y(et *typex.EventTime, key *uint16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETUint16Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Typex_Y)
+	ret.fn = ret.readETUint16Typex_Y
 	return ret
 }
 
@@ -11385,14 +11385,14 @@ func (v *iterNative) readUint16Typex_Z(key *uint16, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerUint16Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint16Typex_Z)
+	ret.fn = ret.readUint16Typex_Z
 	return ret
 }
 
@@ -11406,14 +11406,14 @@ func (v *iterNative) readETUint16Typex_Z(et *typex.EventTime, key *uint16, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint16)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint16)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETUint16Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint16Typex_Z)
+	ret.fn = ret.readETUint16Typex_Z
 	return ret
 }
 
@@ -11426,13 +11426,13 @@ func (v *iterNative) readUint32(val *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(uint32)
+	*val = elm.Elm.(uint32)
 	return true
 }
 
 func iterMakerUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32)
+	ret.fn = ret.readUint32
 	return ret
 }
 
@@ -11446,13 +11446,13 @@ func (v *iterNative) readETUint32(et *typex.EventTime, val *uint32) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(uint32)
+	*val = elm.Elm.(uint32)
 	return true
 }
 
 func iterMakerETUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32)
+	ret.fn = ret.readETUint32
 	return ret
 }
 
@@ -11465,14 +11465,14 @@ func (v *iterNative) readUint32ByteSlice(key *uint32, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerUint32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32ByteSlice)
+	ret.fn = ret.readUint32ByteSlice
 	return ret
 }
 
@@ -11486,14 +11486,14 @@ func (v *iterNative) readETUint32ByteSlice(et *typex.EventTime, key *uint32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETUint32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32ByteSlice)
+	ret.fn = ret.readETUint32ByteSlice
 	return ret
 }
 
@@ -11506,14 +11506,14 @@ func (v *iterNative) readUint32Bool(key *uint32, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerUint32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Bool)
+	ret.fn = ret.readUint32Bool
 	return ret
 }
 
@@ -11527,14 +11527,14 @@ func (v *iterNative) readETUint32Bool(et *typex.EventTime, key *uint32, value *b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETUint32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Bool)
+	ret.fn = ret.readETUint32Bool
 	return ret
 }
 
@@ -11547,14 +11547,14 @@ func (v *iterNative) readUint32String(key *uint32, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerUint32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32String)
+	ret.fn = ret.readUint32String
 	return ret
 }
 
@@ -11568,14 +11568,14 @@ func (v *iterNative) readETUint32String(et *typex.EventTime, key *uint32, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETUint32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32String)
+	ret.fn = ret.readETUint32String
 	return ret
 }
 
@@ -11588,14 +11588,14 @@ func (v *iterNative) readUint32Int(key *uint32, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerUint32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Int)
+	ret.fn = ret.readUint32Int
 	return ret
 }
 
@@ -11609,14 +11609,14 @@ func (v *iterNative) readETUint32Int(et *typex.EventTime, key *uint32, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETUint32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Int)
+	ret.fn = ret.readETUint32Int
 	return ret
 }
 
@@ -11629,14 +11629,14 @@ func (v *iterNative) readUint32Int8(key *uint32, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerUint32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Int8)
+	ret.fn = ret.readUint32Int8
 	return ret
 }
 
@@ -11650,14 +11650,14 @@ func (v *iterNative) readETUint32Int8(et *typex.EventTime, key *uint32, value *i
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETUint32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Int8)
+	ret.fn = ret.readETUint32Int8
 	return ret
 }
 
@@ -11670,14 +11670,14 @@ func (v *iterNative) readUint32Int16(key *uint32, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerUint32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Int16)
+	ret.fn = ret.readUint32Int16
 	return ret
 }
 
@@ -11691,14 +11691,14 @@ func (v *iterNative) readETUint32Int16(et *typex.EventTime, key *uint32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETUint32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Int16)
+	ret.fn = ret.readETUint32Int16
 	return ret
 }
 
@@ -11711,14 +11711,14 @@ func (v *iterNative) readUint32Int32(key *uint32, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerUint32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Int32)
+	ret.fn = ret.readUint32Int32
 	return ret
 }
 
@@ -11732,14 +11732,14 @@ func (v *iterNative) readETUint32Int32(et *typex.EventTime, key *uint32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETUint32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Int32)
+	ret.fn = ret.readETUint32Int32
 	return ret
 }
 
@@ -11752,14 +11752,14 @@ func (v *iterNative) readUint32Int64(key *uint32, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerUint32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Int64)
+	ret.fn = ret.readUint32Int64
 	return ret
 }
 
@@ -11773,14 +11773,14 @@ func (v *iterNative) readETUint32Int64(et *typex.EventTime, key *uint32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETUint32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Int64)
+	ret.fn = ret.readETUint32Int64
 	return ret
 }
 
@@ -11793,14 +11793,14 @@ func (v *iterNative) readUint32Uint(key *uint32, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerUint32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Uint)
+	ret.fn = ret.readUint32Uint
 	return ret
 }
 
@@ -11814,14 +11814,14 @@ func (v *iterNative) readETUint32Uint(et *typex.EventTime, key *uint32, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETUint32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Uint)
+	ret.fn = ret.readETUint32Uint
 	return ret
 }
 
@@ -11834,14 +11834,14 @@ func (v *iterNative) readUint32Uint8(key *uint32, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerUint32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Uint8)
+	ret.fn = ret.readUint32Uint8
 	return ret
 }
 
@@ -11855,14 +11855,14 @@ func (v *iterNative) readETUint32Uint8(et *typex.EventTime, key *uint32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETUint32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Uint8)
+	ret.fn = ret.readETUint32Uint8
 	return ret
 }
 
@@ -11875,14 +11875,14 @@ func (v *iterNative) readUint32Uint16(key *uint32, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerUint32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Uint16)
+	ret.fn = ret.readUint32Uint16
 	return ret
 }
 
@@ -11896,14 +11896,14 @@ func (v *iterNative) readETUint32Uint16(et *typex.EventTime, key *uint32, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETUint32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Uint16)
+	ret.fn = ret.readETUint32Uint16
 	return ret
 }
 
@@ -11916,14 +11916,14 @@ func (v *iterNative) readUint32Uint32(key *uint32, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerUint32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Uint32)
+	ret.fn = ret.readUint32Uint32
 	return ret
 }
 
@@ -11937,14 +11937,14 @@ func (v *iterNative) readETUint32Uint32(et *typex.EventTime, key *uint32, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETUint32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Uint32)
+	ret.fn = ret.readETUint32Uint32
 	return ret
 }
 
@@ -11957,14 +11957,14 @@ func (v *iterNative) readUint32Uint64(key *uint32, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerUint32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Uint64)
+	ret.fn = ret.readUint32Uint64
 	return ret
 }
 
@@ -11978,14 +11978,14 @@ func (v *iterNative) readETUint32Uint64(et *typex.EventTime, key *uint32, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETUint32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Uint64)
+	ret.fn = ret.readETUint32Uint64
 	return ret
 }
 
@@ -11998,14 +11998,14 @@ func (v *iterNative) readUint32Float32(key *uint32, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerUint32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Float32)
+	ret.fn = ret.readUint32Float32
 	return ret
 }
 
@@ -12019,14 +12019,14 @@ func (v *iterNative) readETUint32Float32(et *typex.EventTime, key *uint32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETUint32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Float32)
+	ret.fn = ret.readETUint32Float32
 	return ret
 }
 
@@ -12039,14 +12039,14 @@ func (v *iterNative) readUint32Float64(key *uint32, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerUint32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Float64)
+	ret.fn = ret.readUint32Float64
 	return ret
 }
 
@@ -12060,14 +12060,14 @@ func (v *iterNative) readETUint32Float64(et *typex.EventTime, key *uint32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETUint32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Float64)
+	ret.fn = ret.readETUint32Float64
 	return ret
 }
 
@@ -12080,14 +12080,14 @@ func (v *iterNative) readUint32Typex_T(key *uint32, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerUint32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Typex_T)
+	ret.fn = ret.readUint32Typex_T
 	return ret
 }
 
@@ -12101,14 +12101,14 @@ func (v *iterNative) readETUint32Typex_T(et *typex.EventTime, key *uint32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETUint32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Typex_T)
+	ret.fn = ret.readETUint32Typex_T
 	return ret
 }
 
@@ -12121,14 +12121,14 @@ func (v *iterNative) readUint32Typex_U(key *uint32, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerUint32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Typex_U)
+	ret.fn = ret.readUint32Typex_U
 	return ret
 }
 
@@ -12142,14 +12142,14 @@ func (v *iterNative) readETUint32Typex_U(et *typex.EventTime, key *uint32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETUint32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Typex_U)
+	ret.fn = ret.readETUint32Typex_U
 	return ret
 }
 
@@ -12162,14 +12162,14 @@ func (v *iterNative) readUint32Typex_V(key *uint32, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerUint32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Typex_V)
+	ret.fn = ret.readUint32Typex_V
 	return ret
 }
 
@@ -12183,14 +12183,14 @@ func (v *iterNative) readETUint32Typex_V(et *typex.EventTime, key *uint32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETUint32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Typex_V)
+	ret.fn = ret.readETUint32Typex_V
 	return ret
 }
 
@@ -12203,14 +12203,14 @@ func (v *iterNative) readUint32Typex_W(key *uint32, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerUint32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Typex_W)
+	ret.fn = ret.readUint32Typex_W
 	return ret
 }
 
@@ -12224,14 +12224,14 @@ func (v *iterNative) readETUint32Typex_W(et *typex.EventTime, key *uint32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETUint32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Typex_W)
+	ret.fn = ret.readETUint32Typex_W
 	return ret
 }
 
@@ -12244,14 +12244,14 @@ func (v *iterNative) readUint32Typex_X(key *uint32, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerUint32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Typex_X)
+	ret.fn = ret.readUint32Typex_X
 	return ret
 }
 
@@ -12265,14 +12265,14 @@ func (v *iterNative) readETUint32Typex_X(et *typex.EventTime, key *uint32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETUint32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Typex_X)
+	ret.fn = ret.readETUint32Typex_X
 	return ret
 }
 
@@ -12285,14 +12285,14 @@ func (v *iterNative) readUint32Typex_Y(key *uint32, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerUint32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Typex_Y)
+	ret.fn = ret.readUint32Typex_Y
 	return ret
 }
 
@@ -12306,14 +12306,14 @@ func (v *iterNative) readETUint32Typex_Y(et *typex.EventTime, key *uint32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETUint32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Typex_Y)
+	ret.fn = ret.readETUint32Typex_Y
 	return ret
 }
 
@@ -12326,14 +12326,14 @@ func (v *iterNative) readUint32Typex_Z(key *uint32, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerUint32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint32Typex_Z)
+	ret.fn = ret.readUint32Typex_Z
 	return ret
 }
 
@@ -12347,14 +12347,14 @@ func (v *iterNative) readETUint32Typex_Z(et *typex.EventTime, key *uint32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint32)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint32)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETUint32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint32Typex_Z)
+	ret.fn = ret.readETUint32Typex_Z
 	return ret
 }
 
@@ -12367,13 +12367,13 @@ func (v *iterNative) readUint64(val *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(uint64)
+	*val = elm.Elm.(uint64)
 	return true
 }
 
 func iterMakerUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64)
+	ret.fn = ret.readUint64
 	return ret
 }
 
@@ -12387,13 +12387,13 @@ func (v *iterNative) readETUint64(et *typex.EventTime, val *uint64) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(uint64)
+	*val = elm.Elm.(uint64)
 	return true
 }
 
 func iterMakerETUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64)
+	ret.fn = ret.readETUint64
 	return ret
 }
 
@@ -12406,14 +12406,14 @@ func (v *iterNative) readUint64ByteSlice(key *uint64, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerUint64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64ByteSlice)
+	ret.fn = ret.readUint64ByteSlice
 	return ret
 }
 
@@ -12427,14 +12427,14 @@ func (v *iterNative) readETUint64ByteSlice(et *typex.EventTime, key *uint64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETUint64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64ByteSlice)
+	ret.fn = ret.readETUint64ByteSlice
 	return ret
 }
 
@@ -12447,14 +12447,14 @@ func (v *iterNative) readUint64Bool(key *uint64, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerUint64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Bool)
+	ret.fn = ret.readUint64Bool
 	return ret
 }
 
@@ -12468,14 +12468,14 @@ func (v *iterNative) readETUint64Bool(et *typex.EventTime, key *uint64, value *b
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETUint64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Bool)
+	ret.fn = ret.readETUint64Bool
 	return ret
 }
 
@@ -12488,14 +12488,14 @@ func (v *iterNative) readUint64String(key *uint64, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerUint64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64String)
+	ret.fn = ret.readUint64String
 	return ret
 }
 
@@ -12509,14 +12509,14 @@ func (v *iterNative) readETUint64String(et *typex.EventTime, key *uint64, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETUint64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64String)
+	ret.fn = ret.readETUint64String
 	return ret
 }
 
@@ -12529,14 +12529,14 @@ func (v *iterNative) readUint64Int(key *uint64, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerUint64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Int)
+	ret.fn = ret.readUint64Int
 	return ret
 }
 
@@ -12550,14 +12550,14 @@ func (v *iterNative) readETUint64Int(et *typex.EventTime, key *uint64, value *in
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETUint64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Int)
+	ret.fn = ret.readETUint64Int
 	return ret
 }
 
@@ -12570,14 +12570,14 @@ func (v *iterNative) readUint64Int8(key *uint64, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerUint64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Int8)
+	ret.fn = ret.readUint64Int8
 	return ret
 }
 
@@ -12591,14 +12591,14 @@ func (v *iterNative) readETUint64Int8(et *typex.EventTime, key *uint64, value *i
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETUint64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Int8)
+	ret.fn = ret.readETUint64Int8
 	return ret
 }
 
@@ -12611,14 +12611,14 @@ func (v *iterNative) readUint64Int16(key *uint64, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerUint64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Int16)
+	ret.fn = ret.readUint64Int16
 	return ret
 }
 
@@ -12632,14 +12632,14 @@ func (v *iterNative) readETUint64Int16(et *typex.EventTime, key *uint64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETUint64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Int16)
+	ret.fn = ret.readETUint64Int16
 	return ret
 }
 
@@ -12652,14 +12652,14 @@ func (v *iterNative) readUint64Int32(key *uint64, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerUint64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Int32)
+	ret.fn = ret.readUint64Int32
 	return ret
 }
 
@@ -12673,14 +12673,14 @@ func (v *iterNative) readETUint64Int32(et *typex.EventTime, key *uint64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETUint64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Int32)
+	ret.fn = ret.readETUint64Int32
 	return ret
 }
 
@@ -12693,14 +12693,14 @@ func (v *iterNative) readUint64Int64(key *uint64, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerUint64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Int64)
+	ret.fn = ret.readUint64Int64
 	return ret
 }
 
@@ -12714,14 +12714,14 @@ func (v *iterNative) readETUint64Int64(et *typex.EventTime, key *uint64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETUint64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Int64)
+	ret.fn = ret.readETUint64Int64
 	return ret
 }
 
@@ -12734,14 +12734,14 @@ func (v *iterNative) readUint64Uint(key *uint64, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerUint64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Uint)
+	ret.fn = ret.readUint64Uint
 	return ret
 }
 
@@ -12755,14 +12755,14 @@ func (v *iterNative) readETUint64Uint(et *typex.EventTime, key *uint64, value *u
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETUint64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Uint)
+	ret.fn = ret.readETUint64Uint
 	return ret
 }
 
@@ -12775,14 +12775,14 @@ func (v *iterNative) readUint64Uint8(key *uint64, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerUint64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Uint8)
+	ret.fn = ret.readUint64Uint8
 	return ret
 }
 
@@ -12796,14 +12796,14 @@ func (v *iterNative) readETUint64Uint8(et *typex.EventTime, key *uint64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETUint64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Uint8)
+	ret.fn = ret.readETUint64Uint8
 	return ret
 }
 
@@ -12816,14 +12816,14 @@ func (v *iterNative) readUint64Uint16(key *uint64, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerUint64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Uint16)
+	ret.fn = ret.readUint64Uint16
 	return ret
 }
 
@@ -12837,14 +12837,14 @@ func (v *iterNative) readETUint64Uint16(et *typex.EventTime, key *uint64, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETUint64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Uint16)
+	ret.fn = ret.readETUint64Uint16
 	return ret
 }
 
@@ -12857,14 +12857,14 @@ func (v *iterNative) readUint64Uint32(key *uint64, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerUint64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Uint32)
+	ret.fn = ret.readUint64Uint32
 	return ret
 }
 
@@ -12878,14 +12878,14 @@ func (v *iterNative) readETUint64Uint32(et *typex.EventTime, key *uint64, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETUint64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Uint32)
+	ret.fn = ret.readETUint64Uint32
 	return ret
 }
 
@@ -12898,14 +12898,14 @@ func (v *iterNative) readUint64Uint64(key *uint64, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerUint64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Uint64)
+	ret.fn = ret.readUint64Uint64
 	return ret
 }
 
@@ -12919,14 +12919,14 @@ func (v *iterNative) readETUint64Uint64(et *typex.EventTime, key *uint64, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETUint64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Uint64)
+	ret.fn = ret.readETUint64Uint64
 	return ret
 }
 
@@ -12939,14 +12939,14 @@ func (v *iterNative) readUint64Float32(key *uint64, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerUint64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Float32)
+	ret.fn = ret.readUint64Float32
 	return ret
 }
 
@@ -12960,14 +12960,14 @@ func (v *iterNative) readETUint64Float32(et *typex.EventTime, key *uint64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETUint64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Float32)
+	ret.fn = ret.readETUint64Float32
 	return ret
 }
 
@@ -12980,14 +12980,14 @@ func (v *iterNative) readUint64Float64(key *uint64, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerUint64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Float64)
+	ret.fn = ret.readUint64Float64
 	return ret
 }
 
@@ -13001,14 +13001,14 @@ func (v *iterNative) readETUint64Float64(et *typex.EventTime, key *uint64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETUint64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Float64)
+	ret.fn = ret.readETUint64Float64
 	return ret
 }
 
@@ -13021,14 +13021,14 @@ func (v *iterNative) readUint64Typex_T(key *uint64, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerUint64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Typex_T)
+	ret.fn = ret.readUint64Typex_T
 	return ret
 }
 
@@ -13042,14 +13042,14 @@ func (v *iterNative) readETUint64Typex_T(et *typex.EventTime, key *uint64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETUint64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Typex_T)
+	ret.fn = ret.readETUint64Typex_T
 	return ret
 }
 
@@ -13062,14 +13062,14 @@ func (v *iterNative) readUint64Typex_U(key *uint64, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerUint64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Typex_U)
+	ret.fn = ret.readUint64Typex_U
 	return ret
 }
 
@@ -13083,14 +13083,14 @@ func (v *iterNative) readETUint64Typex_U(et *typex.EventTime, key *uint64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETUint64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Typex_U)
+	ret.fn = ret.readETUint64Typex_U
 	return ret
 }
 
@@ -13103,14 +13103,14 @@ func (v *iterNative) readUint64Typex_V(key *uint64, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerUint64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Typex_V)
+	ret.fn = ret.readUint64Typex_V
 	return ret
 }
 
@@ -13124,14 +13124,14 @@ func (v *iterNative) readETUint64Typex_V(et *typex.EventTime, key *uint64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETUint64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Typex_V)
+	ret.fn = ret.readETUint64Typex_V
 	return ret
 }
 
@@ -13144,14 +13144,14 @@ func (v *iterNative) readUint64Typex_W(key *uint64, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerUint64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Typex_W)
+	ret.fn = ret.readUint64Typex_W
 	return ret
 }
 
@@ -13165,14 +13165,14 @@ func (v *iterNative) readETUint64Typex_W(et *typex.EventTime, key *uint64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETUint64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Typex_W)
+	ret.fn = ret.readETUint64Typex_W
 	return ret
 }
 
@@ -13185,14 +13185,14 @@ func (v *iterNative) readUint64Typex_X(key *uint64, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerUint64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Typex_X)
+	ret.fn = ret.readUint64Typex_X
 	return ret
 }
 
@@ -13206,14 +13206,14 @@ func (v *iterNative) readETUint64Typex_X(et *typex.EventTime, key *uint64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETUint64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Typex_X)
+	ret.fn = ret.readETUint64Typex_X
 	return ret
 }
 
@@ -13226,14 +13226,14 @@ func (v *iterNative) readUint64Typex_Y(key *uint64, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerUint64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Typex_Y)
+	ret.fn = ret.readUint64Typex_Y
 	return ret
 }
 
@@ -13247,14 +13247,14 @@ func (v *iterNative) readETUint64Typex_Y(et *typex.EventTime, key *uint64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETUint64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Typex_Y)
+	ret.fn = ret.readETUint64Typex_Y
 	return ret
 }
 
@@ -13267,14 +13267,14 @@ func (v *iterNative) readUint64Typex_Z(key *uint64, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerUint64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readUint64Typex_Z)
+	ret.fn = ret.readUint64Typex_Z
 	return ret
 }
 
@@ -13288,14 +13288,14 @@ func (v *iterNative) readETUint64Typex_Z(et *typex.EventTime, key *uint64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(uint64)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(uint64)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETUint64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETUint64Typex_Z)
+	ret.fn = ret.readETUint64Typex_Z
 	return ret
 }
 
@@ -13308,13 +13308,13 @@ func (v *iterNative) readFloat32(val *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(float32)
+	*val = elm.Elm.(float32)
 	return true
 }
 
 func iterMakerFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32)
+	ret.fn = ret.readFloat32
 	return ret
 }
 
@@ -13328,13 +13328,13 @@ func (v *iterNative) readETFloat32(et *typex.EventTime, val *float32) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(float32)
+	*val = elm.Elm.(float32)
 	return true
 }
 
 func iterMakerETFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32)
+	ret.fn = ret.readETFloat32
 	return ret
 }
 
@@ -13347,14 +13347,14 @@ func (v *iterNative) readFloat32ByteSlice(key *float32, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerFloat32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32ByteSlice)
+	ret.fn = ret.readFloat32ByteSlice
 	return ret
 }
 
@@ -13368,14 +13368,14 @@ func (v *iterNative) readETFloat32ByteSlice(et *typex.EventTime, key *float32, v
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETFloat32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32ByteSlice)
+	ret.fn = ret.readETFloat32ByteSlice
 	return ret
 }
 
@@ -13388,14 +13388,14 @@ func (v *iterNative) readFloat32Bool(key *float32, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerFloat32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Bool)
+	ret.fn = ret.readFloat32Bool
 	return ret
 }
 
@@ -13409,14 +13409,14 @@ func (v *iterNative) readETFloat32Bool(et *typex.EventTime, key *float32, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETFloat32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Bool)
+	ret.fn = ret.readETFloat32Bool
 	return ret
 }
 
@@ -13429,14 +13429,14 @@ func (v *iterNative) readFloat32String(key *float32, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerFloat32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32String)
+	ret.fn = ret.readFloat32String
 	return ret
 }
 
@@ -13450,14 +13450,14 @@ func (v *iterNative) readETFloat32String(et *typex.EventTime, key *float32, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETFloat32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32String)
+	ret.fn = ret.readETFloat32String
 	return ret
 }
 
@@ -13470,14 +13470,14 @@ func (v *iterNative) readFloat32Int(key *float32, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerFloat32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Int)
+	ret.fn = ret.readFloat32Int
 	return ret
 }
 
@@ -13491,14 +13491,14 @@ func (v *iterNative) readETFloat32Int(et *typex.EventTime, key *float32, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETFloat32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Int)
+	ret.fn = ret.readETFloat32Int
 	return ret
 }
 
@@ -13511,14 +13511,14 @@ func (v *iterNative) readFloat32Int8(key *float32, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerFloat32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Int8)
+	ret.fn = ret.readFloat32Int8
 	return ret
 }
 
@@ -13532,14 +13532,14 @@ func (v *iterNative) readETFloat32Int8(et *typex.EventTime, key *float32, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETFloat32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Int8)
+	ret.fn = ret.readETFloat32Int8
 	return ret
 }
 
@@ -13552,14 +13552,14 @@ func (v *iterNative) readFloat32Int16(key *float32, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerFloat32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Int16)
+	ret.fn = ret.readFloat32Int16
 	return ret
 }
 
@@ -13573,14 +13573,14 @@ func (v *iterNative) readETFloat32Int16(et *typex.EventTime, key *float32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETFloat32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Int16)
+	ret.fn = ret.readETFloat32Int16
 	return ret
 }
 
@@ -13593,14 +13593,14 @@ func (v *iterNative) readFloat32Int32(key *float32, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerFloat32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Int32)
+	ret.fn = ret.readFloat32Int32
 	return ret
 }
 
@@ -13614,14 +13614,14 @@ func (v *iterNative) readETFloat32Int32(et *typex.EventTime, key *float32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETFloat32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Int32)
+	ret.fn = ret.readETFloat32Int32
 	return ret
 }
 
@@ -13634,14 +13634,14 @@ func (v *iterNative) readFloat32Int64(key *float32, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerFloat32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Int64)
+	ret.fn = ret.readFloat32Int64
 	return ret
 }
 
@@ -13655,14 +13655,14 @@ func (v *iterNative) readETFloat32Int64(et *typex.EventTime, key *float32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETFloat32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Int64)
+	ret.fn = ret.readETFloat32Int64
 	return ret
 }
 
@@ -13675,14 +13675,14 @@ func (v *iterNative) readFloat32Uint(key *float32, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerFloat32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Uint)
+	ret.fn = ret.readFloat32Uint
 	return ret
 }
 
@@ -13696,14 +13696,14 @@ func (v *iterNative) readETFloat32Uint(et *typex.EventTime, key *float32, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETFloat32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Uint)
+	ret.fn = ret.readETFloat32Uint
 	return ret
 }
 
@@ -13716,14 +13716,14 @@ func (v *iterNative) readFloat32Uint8(key *float32, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerFloat32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Uint8)
+	ret.fn = ret.readFloat32Uint8
 	return ret
 }
 
@@ -13737,14 +13737,14 @@ func (v *iterNative) readETFloat32Uint8(et *typex.EventTime, key *float32, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETFloat32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Uint8)
+	ret.fn = ret.readETFloat32Uint8
 	return ret
 }
 
@@ -13757,14 +13757,14 @@ func (v *iterNative) readFloat32Uint16(key *float32, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerFloat32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Uint16)
+	ret.fn = ret.readFloat32Uint16
 	return ret
 }
 
@@ -13778,14 +13778,14 @@ func (v *iterNative) readETFloat32Uint16(et *typex.EventTime, key *float32, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETFloat32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Uint16)
+	ret.fn = ret.readETFloat32Uint16
 	return ret
 }
 
@@ -13798,14 +13798,14 @@ func (v *iterNative) readFloat32Uint32(key *float32, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerFloat32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Uint32)
+	ret.fn = ret.readFloat32Uint32
 	return ret
 }
 
@@ -13819,14 +13819,14 @@ func (v *iterNative) readETFloat32Uint32(et *typex.EventTime, key *float32, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETFloat32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Uint32)
+	ret.fn = ret.readETFloat32Uint32
 	return ret
 }
 
@@ -13839,14 +13839,14 @@ func (v *iterNative) readFloat32Uint64(key *float32, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerFloat32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Uint64)
+	ret.fn = ret.readFloat32Uint64
 	return ret
 }
 
@@ -13860,14 +13860,14 @@ func (v *iterNative) readETFloat32Uint64(et *typex.EventTime, key *float32, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETFloat32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Uint64)
+	ret.fn = ret.readETFloat32Uint64
 	return ret
 }
 
@@ -13880,14 +13880,14 @@ func (v *iterNative) readFloat32Float32(key *float32, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerFloat32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Float32)
+	ret.fn = ret.readFloat32Float32
 	return ret
 }
 
@@ -13901,14 +13901,14 @@ func (v *iterNative) readETFloat32Float32(et *typex.EventTime, key *float32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETFloat32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Float32)
+	ret.fn = ret.readETFloat32Float32
 	return ret
 }
 
@@ -13921,14 +13921,14 @@ func (v *iterNative) readFloat32Float64(key *float32, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerFloat32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Float64)
+	ret.fn = ret.readFloat32Float64
 	return ret
 }
 
@@ -13942,14 +13942,14 @@ func (v *iterNative) readETFloat32Float64(et *typex.EventTime, key *float32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETFloat32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Float64)
+	ret.fn = ret.readETFloat32Float64
 	return ret
 }
 
@@ -13962,14 +13962,14 @@ func (v *iterNative) readFloat32Typex_T(key *float32, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerFloat32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Typex_T)
+	ret.fn = ret.readFloat32Typex_T
 	return ret
 }
 
@@ -13983,14 +13983,14 @@ func (v *iterNative) readETFloat32Typex_T(et *typex.EventTime, key *float32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETFloat32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_T)
+	ret.fn = ret.readETFloat32Typex_T
 	return ret
 }
 
@@ -14003,14 +14003,14 @@ func (v *iterNative) readFloat32Typex_U(key *float32, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerFloat32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Typex_U)
+	ret.fn = ret.readFloat32Typex_U
 	return ret
 }
 
@@ -14024,14 +14024,14 @@ func (v *iterNative) readETFloat32Typex_U(et *typex.EventTime, key *float32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETFloat32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_U)
+	ret.fn = ret.readETFloat32Typex_U
 	return ret
 }
 
@@ -14044,14 +14044,14 @@ func (v *iterNative) readFloat32Typex_V(key *float32, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerFloat32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Typex_V)
+	ret.fn = ret.readFloat32Typex_V
 	return ret
 }
 
@@ -14065,14 +14065,14 @@ func (v *iterNative) readETFloat32Typex_V(et *typex.EventTime, key *float32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETFloat32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_V)
+	ret.fn = ret.readETFloat32Typex_V
 	return ret
 }
 
@@ -14085,14 +14085,14 @@ func (v *iterNative) readFloat32Typex_W(key *float32, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerFloat32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Typex_W)
+	ret.fn = ret.readFloat32Typex_W
 	return ret
 }
 
@@ -14106,14 +14106,14 @@ func (v *iterNative) readETFloat32Typex_W(et *typex.EventTime, key *float32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETFloat32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_W)
+	ret.fn = ret.readETFloat32Typex_W
 	return ret
 }
 
@@ -14126,14 +14126,14 @@ func (v *iterNative) readFloat32Typex_X(key *float32, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerFloat32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Typex_X)
+	ret.fn = ret.readFloat32Typex_X
 	return ret
 }
 
@@ -14147,14 +14147,14 @@ func (v *iterNative) readETFloat32Typex_X(et *typex.EventTime, key *float32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETFloat32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_X)
+	ret.fn = ret.readETFloat32Typex_X
 	return ret
 }
 
@@ -14167,14 +14167,14 @@ func (v *iterNative) readFloat32Typex_Y(key *float32, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerFloat32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Typex_Y)
+	ret.fn = ret.readFloat32Typex_Y
 	return ret
 }
 
@@ -14188,14 +14188,14 @@ func (v *iterNative) readETFloat32Typex_Y(et *typex.EventTime, key *float32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETFloat32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_Y)
+	ret.fn = ret.readETFloat32Typex_Y
 	return ret
 }
 
@@ -14208,14 +14208,14 @@ func (v *iterNative) readFloat32Typex_Z(key *float32, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerFloat32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat32Typex_Z)
+	ret.fn = ret.readFloat32Typex_Z
 	return ret
 }
 
@@ -14229,14 +14229,14 @@ func (v *iterNative) readETFloat32Typex_Z(et *typex.EventTime, key *float32, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float32)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(float32)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETFloat32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_Z)
+	ret.fn = ret.readETFloat32Typex_Z
 	return ret
 }
 
@@ -14249,13 +14249,13 @@ func (v *iterNative) readFloat64(val *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(float64)
+	*val = elm.Elm.(float64)
 	return true
 }
 
 func iterMakerFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64)
+	ret.fn = ret.readFloat64
 	return ret
 }
 
@@ -14269,13 +14269,13 @@ func (v *iterNative) readETFloat64(et *typex.EventTime, val *float64) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(float64)
+	*val = elm.Elm.(float64)
 	return true
 }
 
 func iterMakerETFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64)
+	ret.fn = ret.readETFloat64
 	return ret
 }
 
@@ -14288,14 +14288,14 @@ func (v *iterNative) readFloat64ByteSlice(key *float64, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerFloat64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64ByteSlice)
+	ret.fn = ret.readFloat64ByteSlice
 	return ret
 }
 
@@ -14309,14 +14309,14 @@ func (v *iterNative) readETFloat64ByteSlice(et *typex.EventTime, key *float64, v
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETFloat64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64ByteSlice)
+	ret.fn = ret.readETFloat64ByteSlice
 	return ret
 }
 
@@ -14329,14 +14329,14 @@ func (v *iterNative) readFloat64Bool(key *float64, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerFloat64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Bool)
+	ret.fn = ret.readFloat64Bool
 	return ret
 }
 
@@ -14350,14 +14350,14 @@ func (v *iterNative) readETFloat64Bool(et *typex.EventTime, key *float64, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETFloat64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Bool)
+	ret.fn = ret.readETFloat64Bool
 	return ret
 }
 
@@ -14370,14 +14370,14 @@ func (v *iterNative) readFloat64String(key *float64, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerFloat64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64String)
+	ret.fn = ret.readFloat64String
 	return ret
 }
 
@@ -14391,14 +14391,14 @@ func (v *iterNative) readETFloat64String(et *typex.EventTime, key *float64, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETFloat64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64String)
+	ret.fn = ret.readETFloat64String
 	return ret
 }
 
@@ -14411,14 +14411,14 @@ func (v *iterNative) readFloat64Int(key *float64, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerFloat64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Int)
+	ret.fn = ret.readFloat64Int
 	return ret
 }
 
@@ -14432,14 +14432,14 @@ func (v *iterNative) readETFloat64Int(et *typex.EventTime, key *float64, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETFloat64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Int)
+	ret.fn = ret.readETFloat64Int
 	return ret
 }
 
@@ -14452,14 +14452,14 @@ func (v *iterNative) readFloat64Int8(key *float64, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerFloat64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Int8)
+	ret.fn = ret.readFloat64Int8
 	return ret
 }
 
@@ -14473,14 +14473,14 @@ func (v *iterNative) readETFloat64Int8(et *typex.EventTime, key *float64, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETFloat64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Int8)
+	ret.fn = ret.readETFloat64Int8
 	return ret
 }
 
@@ -14493,14 +14493,14 @@ func (v *iterNative) readFloat64Int16(key *float64, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerFloat64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Int16)
+	ret.fn = ret.readFloat64Int16
 	return ret
 }
 
@@ -14514,14 +14514,14 @@ func (v *iterNative) readETFloat64Int16(et *typex.EventTime, key *float64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETFloat64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Int16)
+	ret.fn = ret.readETFloat64Int16
 	return ret
 }
 
@@ -14534,14 +14534,14 @@ func (v *iterNative) readFloat64Int32(key *float64, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerFloat64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Int32)
+	ret.fn = ret.readFloat64Int32
 	return ret
 }
 
@@ -14555,14 +14555,14 @@ func (v *iterNative) readETFloat64Int32(et *typex.EventTime, key *float64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETFloat64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Int32)
+	ret.fn = ret.readETFloat64Int32
 	return ret
 }
 
@@ -14575,14 +14575,14 @@ func (v *iterNative) readFloat64Int64(key *float64, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerFloat64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Int64)
+	ret.fn = ret.readFloat64Int64
 	return ret
 }
 
@@ -14596,14 +14596,14 @@ func (v *iterNative) readETFloat64Int64(et *typex.EventTime, key *float64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETFloat64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Int64)
+	ret.fn = ret.readETFloat64Int64
 	return ret
 }
 
@@ -14616,14 +14616,14 @@ func (v *iterNative) readFloat64Uint(key *float64, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerFloat64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Uint)
+	ret.fn = ret.readFloat64Uint
 	return ret
 }
 
@@ -14637,14 +14637,14 @@ func (v *iterNative) readETFloat64Uint(et *typex.EventTime, key *float64, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETFloat64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Uint)
+	ret.fn = ret.readETFloat64Uint
 	return ret
 }
 
@@ -14657,14 +14657,14 @@ func (v *iterNative) readFloat64Uint8(key *float64, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerFloat64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Uint8)
+	ret.fn = ret.readFloat64Uint8
 	return ret
 }
 
@@ -14678,14 +14678,14 @@ func (v *iterNative) readETFloat64Uint8(et *typex.EventTime, key *float64, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETFloat64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Uint8)
+	ret.fn = ret.readETFloat64Uint8
 	return ret
 }
 
@@ -14698,14 +14698,14 @@ func (v *iterNative) readFloat64Uint16(key *float64, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerFloat64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Uint16)
+	ret.fn = ret.readFloat64Uint16
 	return ret
 }
 
@@ -14719,14 +14719,14 @@ func (v *iterNative) readETFloat64Uint16(et *typex.EventTime, key *float64, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETFloat64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Uint16)
+	ret.fn = ret.readETFloat64Uint16
 	return ret
 }
 
@@ -14739,14 +14739,14 @@ func (v *iterNative) readFloat64Uint32(key *float64, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerFloat64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Uint32)
+	ret.fn = ret.readFloat64Uint32
 	return ret
 }
 
@@ -14760,14 +14760,14 @@ func (v *iterNative) readETFloat64Uint32(et *typex.EventTime, key *float64, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETFloat64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Uint32)
+	ret.fn = ret.readETFloat64Uint32
 	return ret
 }
 
@@ -14780,14 +14780,14 @@ func (v *iterNative) readFloat64Uint64(key *float64, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerFloat64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Uint64)
+	ret.fn = ret.readFloat64Uint64
 	return ret
 }
 
@@ -14801,14 +14801,14 @@ func (v *iterNative) readETFloat64Uint64(et *typex.EventTime, key *float64, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETFloat64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Uint64)
+	ret.fn = ret.readETFloat64Uint64
 	return ret
 }
 
@@ -14821,14 +14821,14 @@ func (v *iterNative) readFloat64Float32(key *float64, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerFloat64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Float32)
+	ret.fn = ret.readFloat64Float32
 	return ret
 }
 
@@ -14842,14 +14842,14 @@ func (v *iterNative) readETFloat64Float32(et *typex.EventTime, key *float64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETFloat64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Float32)
+	ret.fn = ret.readETFloat64Float32
 	return ret
 }
 
@@ -14862,14 +14862,14 @@ func (v *iterNative) readFloat64Float64(key *float64, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerFloat64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Float64)
+	ret.fn = ret.readFloat64Float64
 	return ret
 }
 
@@ -14883,14 +14883,14 @@ func (v *iterNative) readETFloat64Float64(et *typex.EventTime, key *float64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETFloat64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Float64)
+	ret.fn = ret.readETFloat64Float64
 	return ret
 }
 
@@ -14903,14 +14903,14 @@ func (v *iterNative) readFloat64Typex_T(key *float64, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerFloat64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Typex_T)
+	ret.fn = ret.readFloat64Typex_T
 	return ret
 }
 
@@ -14924,14 +14924,14 @@ func (v *iterNative) readETFloat64Typex_T(et *typex.EventTime, key *float64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETFloat64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_T)
+	ret.fn = ret.readETFloat64Typex_T
 	return ret
 }
 
@@ -14944,14 +14944,14 @@ func (v *iterNative) readFloat64Typex_U(key *float64, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerFloat64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Typex_U)
+	ret.fn = ret.readFloat64Typex_U
 	return ret
 }
 
@@ -14965,14 +14965,14 @@ func (v *iterNative) readETFloat64Typex_U(et *typex.EventTime, key *float64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETFloat64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_U)
+	ret.fn = ret.readETFloat64Typex_U
 	return ret
 }
 
@@ -14985,14 +14985,14 @@ func (v *iterNative) readFloat64Typex_V(key *float64, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerFloat64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Typex_V)
+	ret.fn = ret.readFloat64Typex_V
 	return ret
 }
 
@@ -15006,14 +15006,14 @@ func (v *iterNative) readETFloat64Typex_V(et *typex.EventTime, key *float64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETFloat64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_V)
+	ret.fn = ret.readETFloat64Typex_V
 	return ret
 }
 
@@ -15026,14 +15026,14 @@ func (v *iterNative) readFloat64Typex_W(key *float64, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerFloat64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Typex_W)
+	ret.fn = ret.readFloat64Typex_W
 	return ret
 }
 
@@ -15047,14 +15047,14 @@ func (v *iterNative) readETFloat64Typex_W(et *typex.EventTime, key *float64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETFloat64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_W)
+	ret.fn = ret.readETFloat64Typex_W
 	return ret
 }
 
@@ -15067,14 +15067,14 @@ func (v *iterNative) readFloat64Typex_X(key *float64, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerFloat64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Typex_X)
+	ret.fn = ret.readFloat64Typex_X
 	return ret
 }
 
@@ -15088,14 +15088,14 @@ func (v *iterNative) readETFloat64Typex_X(et *typex.EventTime, key *float64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETFloat64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_X)
+	ret.fn = ret.readETFloat64Typex_X
 	return ret
 }
 
@@ -15108,14 +15108,14 @@ func (v *iterNative) readFloat64Typex_Y(key *float64, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerFloat64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Typex_Y)
+	ret.fn = ret.readFloat64Typex_Y
 	return ret
 }
 
@@ -15129,14 +15129,14 @@ func (v *iterNative) readETFloat64Typex_Y(et *typex.EventTime, key *float64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETFloat64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_Y)
+	ret.fn = ret.readETFloat64Typex_Y
 	return ret
 }
 
@@ -15149,14 +15149,14 @@ func (v *iterNative) readFloat64Typex_Z(key *float64, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerFloat64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readFloat64Typex_Z)
+	ret.fn = ret.readFloat64Typex_Z
 	return ret
 }
 
@@ -15170,14 +15170,14 @@ func (v *iterNative) readETFloat64Typex_Z(et *typex.EventTime, key *float64, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(float64)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(float64)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETFloat64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_Z)
+	ret.fn = ret.readETFloat64Typex_Z
 	return ret
 }
 
@@ -15190,13 +15190,13 @@ func (v *iterNative) readTypex_T(val *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(typex.T)
+	*val = elm.Elm.(typex.T)
 	return true
 }
 
 func iterMakerTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_T)
+	ret.fn = ret.readTypex_T
 	return ret
 }
 
@@ -15210,13 +15210,13 @@ func (v *iterNative) readETTypex_T(et *typex.EventTime, val *typex.T) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(typex.T)
+	*val = elm.Elm.(typex.T)
 	return true
 }
 
 func iterMakerETTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_T)
+	ret.fn = ret.readETTypex_T
 	return ret
 }
 
@@ -15229,14 +15229,14 @@ func (v *iterNative) readTypex_TByteSlice(key *typex.T, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerTypex_TByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TByteSlice)
+	ret.fn = ret.readTypex_TByteSlice
 	return ret
 }
 
@@ -15250,14 +15250,14 @@ func (v *iterNative) readETTypex_TByteSlice(et *typex.EventTime, key *typex.T, v
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETTypex_TByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TByteSlice)
+	ret.fn = ret.readETTypex_TByteSlice
 	return ret
 }
 
@@ -15270,14 +15270,14 @@ func (v *iterNative) readTypex_TBool(key *typex.T, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerTypex_TBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TBool)
+	ret.fn = ret.readTypex_TBool
 	return ret
 }
 
@@ -15291,14 +15291,14 @@ func (v *iterNative) readETTypex_TBool(et *typex.EventTime, key *typex.T, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETTypex_TBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TBool)
+	ret.fn = ret.readETTypex_TBool
 	return ret
 }
 
@@ -15311,14 +15311,14 @@ func (v *iterNative) readTypex_TString(key *typex.T, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerTypex_TString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TString)
+	ret.fn = ret.readTypex_TString
 	return ret
 }
 
@@ -15332,14 +15332,14 @@ func (v *iterNative) readETTypex_TString(et *typex.EventTime, key *typex.T, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETTypex_TString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TString)
+	ret.fn = ret.readETTypex_TString
 	return ret
 }
 
@@ -15352,14 +15352,14 @@ func (v *iterNative) readTypex_TInt(key *typex.T, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerTypex_TInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TInt)
+	ret.fn = ret.readTypex_TInt
 	return ret
 }
 
@@ -15373,14 +15373,14 @@ func (v *iterNative) readETTypex_TInt(et *typex.EventTime, key *typex.T, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETTypex_TInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TInt)
+	ret.fn = ret.readETTypex_TInt
 	return ret
 }
 
@@ -15393,14 +15393,14 @@ func (v *iterNative) readTypex_TInt8(key *typex.T, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerTypex_TInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TInt8)
+	ret.fn = ret.readTypex_TInt8
 	return ret
 }
 
@@ -15414,14 +15414,14 @@ func (v *iterNative) readETTypex_TInt8(et *typex.EventTime, key *typex.T, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETTypex_TInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TInt8)
+	ret.fn = ret.readETTypex_TInt8
 	return ret
 }
 
@@ -15434,14 +15434,14 @@ func (v *iterNative) readTypex_TInt16(key *typex.T, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerTypex_TInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TInt16)
+	ret.fn = ret.readTypex_TInt16
 	return ret
 }
 
@@ -15455,14 +15455,14 @@ func (v *iterNative) readETTypex_TInt16(et *typex.EventTime, key *typex.T, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETTypex_TInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TInt16)
+	ret.fn = ret.readETTypex_TInt16
 	return ret
 }
 
@@ -15475,14 +15475,14 @@ func (v *iterNative) readTypex_TInt32(key *typex.T, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerTypex_TInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TInt32)
+	ret.fn = ret.readTypex_TInt32
 	return ret
 }
 
@@ -15496,14 +15496,14 @@ func (v *iterNative) readETTypex_TInt32(et *typex.EventTime, key *typex.T, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETTypex_TInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TInt32)
+	ret.fn = ret.readETTypex_TInt32
 	return ret
 }
 
@@ -15516,14 +15516,14 @@ func (v *iterNative) readTypex_TInt64(key *typex.T, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerTypex_TInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TInt64)
+	ret.fn = ret.readTypex_TInt64
 	return ret
 }
 
@@ -15537,14 +15537,14 @@ func (v *iterNative) readETTypex_TInt64(et *typex.EventTime, key *typex.T, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETTypex_TInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TInt64)
+	ret.fn = ret.readETTypex_TInt64
 	return ret
 }
 
@@ -15557,14 +15557,14 @@ func (v *iterNative) readTypex_TUint(key *typex.T, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerTypex_TUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TUint)
+	ret.fn = ret.readTypex_TUint
 	return ret
 }
 
@@ -15578,14 +15578,14 @@ func (v *iterNative) readETTypex_TUint(et *typex.EventTime, key *typex.T, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETTypex_TUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TUint)
+	ret.fn = ret.readETTypex_TUint
 	return ret
 }
 
@@ -15598,14 +15598,14 @@ func (v *iterNative) readTypex_TUint8(key *typex.T, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerTypex_TUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TUint8)
+	ret.fn = ret.readTypex_TUint8
 	return ret
 }
 
@@ -15619,14 +15619,14 @@ func (v *iterNative) readETTypex_TUint8(et *typex.EventTime, key *typex.T, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETTypex_TUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TUint8)
+	ret.fn = ret.readETTypex_TUint8
 	return ret
 }
 
@@ -15639,14 +15639,14 @@ func (v *iterNative) readTypex_TUint16(key *typex.T, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerTypex_TUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TUint16)
+	ret.fn = ret.readTypex_TUint16
 	return ret
 }
 
@@ -15660,14 +15660,14 @@ func (v *iterNative) readETTypex_TUint16(et *typex.EventTime, key *typex.T, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETTypex_TUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TUint16)
+	ret.fn = ret.readETTypex_TUint16
 	return ret
 }
 
@@ -15680,14 +15680,14 @@ func (v *iterNative) readTypex_TUint32(key *typex.T, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerTypex_TUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TUint32)
+	ret.fn = ret.readTypex_TUint32
 	return ret
 }
 
@@ -15701,14 +15701,14 @@ func (v *iterNative) readETTypex_TUint32(et *typex.EventTime, key *typex.T, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETTypex_TUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TUint32)
+	ret.fn = ret.readETTypex_TUint32
 	return ret
 }
 
@@ -15721,14 +15721,14 @@ func (v *iterNative) readTypex_TUint64(key *typex.T, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerTypex_TUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TUint64)
+	ret.fn = ret.readTypex_TUint64
 	return ret
 }
 
@@ -15742,14 +15742,14 @@ func (v *iterNative) readETTypex_TUint64(et *typex.EventTime, key *typex.T, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETTypex_TUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TUint64)
+	ret.fn = ret.readETTypex_TUint64
 	return ret
 }
 
@@ -15762,14 +15762,14 @@ func (v *iterNative) readTypex_TFloat32(key *typex.T, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerTypex_TFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TFloat32)
+	ret.fn = ret.readTypex_TFloat32
 	return ret
 }
 
@@ -15783,14 +15783,14 @@ func (v *iterNative) readETTypex_TFloat32(et *typex.EventTime, key *typex.T, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETTypex_TFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TFloat32)
+	ret.fn = ret.readETTypex_TFloat32
 	return ret
 }
 
@@ -15803,14 +15803,14 @@ func (v *iterNative) readTypex_TFloat64(key *typex.T, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerTypex_TFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TFloat64)
+	ret.fn = ret.readTypex_TFloat64
 	return ret
 }
 
@@ -15824,14 +15824,14 @@ func (v *iterNative) readETTypex_TFloat64(et *typex.EventTime, key *typex.T, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETTypex_TFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TFloat64)
+	ret.fn = ret.readETTypex_TFloat64
 	return ret
 }
 
@@ -15844,14 +15844,14 @@ func (v *iterNative) readTypex_TTypex_T(key *typex.T, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerTypex_TTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_T)
+	ret.fn = ret.readTypex_TTypex_T
 	return ret
 }
 
@@ -15865,14 +15865,14 @@ func (v *iterNative) readETTypex_TTypex_T(et *typex.EventTime, key *typex.T, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETTypex_TTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_T)
+	ret.fn = ret.readETTypex_TTypex_T
 	return ret
 }
 
@@ -15885,14 +15885,14 @@ func (v *iterNative) readTypex_TTypex_U(key *typex.T, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerTypex_TTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_U)
+	ret.fn = ret.readTypex_TTypex_U
 	return ret
 }
 
@@ -15906,14 +15906,14 @@ func (v *iterNative) readETTypex_TTypex_U(et *typex.EventTime, key *typex.T, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETTypex_TTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_U)
+	ret.fn = ret.readETTypex_TTypex_U
 	return ret
 }
 
@@ -15926,14 +15926,14 @@ func (v *iterNative) readTypex_TTypex_V(key *typex.T, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerTypex_TTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_V)
+	ret.fn = ret.readTypex_TTypex_V
 	return ret
 }
 
@@ -15947,14 +15947,14 @@ func (v *iterNative) readETTypex_TTypex_V(et *typex.EventTime, key *typex.T, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETTypex_TTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_V)
+	ret.fn = ret.readETTypex_TTypex_V
 	return ret
 }
 
@@ -15967,14 +15967,14 @@ func (v *iterNative) readTypex_TTypex_W(key *typex.T, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerTypex_TTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_W)
+	ret.fn = ret.readTypex_TTypex_W
 	return ret
 }
 
@@ -15988,14 +15988,14 @@ func (v *iterNative) readETTypex_TTypex_W(et *typex.EventTime, key *typex.T, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETTypex_TTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_W)
+	ret.fn = ret.readETTypex_TTypex_W
 	return ret
 }
 
@@ -16008,14 +16008,14 @@ func (v *iterNative) readTypex_TTypex_X(key *typex.T, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerTypex_TTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_X)
+	ret.fn = ret.readTypex_TTypex_X
 	return ret
 }
 
@@ -16029,14 +16029,14 @@ func (v *iterNative) readETTypex_TTypex_X(et *typex.EventTime, key *typex.T, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETTypex_TTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_X)
+	ret.fn = ret.readETTypex_TTypex_X
 	return ret
 }
 
@@ -16049,14 +16049,14 @@ func (v *iterNative) readTypex_TTypex_Y(key *typex.T, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerTypex_TTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_Y)
+	ret.fn = ret.readTypex_TTypex_Y
 	return ret
 }
 
@@ -16070,14 +16070,14 @@ func (v *iterNative) readETTypex_TTypex_Y(et *typex.EventTime, key *typex.T, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETTypex_TTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_Y)
+	ret.fn = ret.readETTypex_TTypex_Y
 	return ret
 }
 
@@ -16090,14 +16090,14 @@ func (v *iterNative) readTypex_TTypex_Z(key *typex.T, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerTypex_TTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_Z)
+	ret.fn = ret.readTypex_TTypex_Z
 	return ret
 }
 
@@ -16111,14 +16111,14 @@ func (v *iterNative) readETTypex_TTypex_Z(et *typex.EventTime, key *typex.T, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.T)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.T)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETTypex_TTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_Z)
+	ret.fn = ret.readETTypex_TTypex_Z
 	return ret
 }
 
@@ -16131,13 +16131,13 @@ func (v *iterNative) readTypex_U(val *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(typex.U)
+	*val = elm.Elm.(typex.U)
 	return true
 }
 
 func iterMakerTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_U)
+	ret.fn = ret.readTypex_U
 	return ret
 }
 
@@ -16151,13 +16151,13 @@ func (v *iterNative) readETTypex_U(et *typex.EventTime, val *typex.U) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(typex.U)
+	*val = elm.Elm.(typex.U)
 	return true
 }
 
 func iterMakerETTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_U)
+	ret.fn = ret.readETTypex_U
 	return ret
 }
 
@@ -16170,14 +16170,14 @@ func (v *iterNative) readTypex_UByteSlice(key *typex.U, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerTypex_UByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UByteSlice)
+	ret.fn = ret.readTypex_UByteSlice
 	return ret
 }
 
@@ -16191,14 +16191,14 @@ func (v *iterNative) readETTypex_UByteSlice(et *typex.EventTime, key *typex.U, v
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETTypex_UByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UByteSlice)
+	ret.fn = ret.readETTypex_UByteSlice
 	return ret
 }
 
@@ -16211,14 +16211,14 @@ func (v *iterNative) readTypex_UBool(key *typex.U, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerTypex_UBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UBool)
+	ret.fn = ret.readTypex_UBool
 	return ret
 }
 
@@ -16232,14 +16232,14 @@ func (v *iterNative) readETTypex_UBool(et *typex.EventTime, key *typex.U, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETTypex_UBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UBool)
+	ret.fn = ret.readETTypex_UBool
 	return ret
 }
 
@@ -16252,14 +16252,14 @@ func (v *iterNative) readTypex_UString(key *typex.U, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerTypex_UString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UString)
+	ret.fn = ret.readTypex_UString
 	return ret
 }
 
@@ -16273,14 +16273,14 @@ func (v *iterNative) readETTypex_UString(et *typex.EventTime, key *typex.U, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETTypex_UString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UString)
+	ret.fn = ret.readETTypex_UString
 	return ret
 }
 
@@ -16293,14 +16293,14 @@ func (v *iterNative) readTypex_UInt(key *typex.U, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerTypex_UInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UInt)
+	ret.fn = ret.readTypex_UInt
 	return ret
 }
 
@@ -16314,14 +16314,14 @@ func (v *iterNative) readETTypex_UInt(et *typex.EventTime, key *typex.U, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETTypex_UInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UInt)
+	ret.fn = ret.readETTypex_UInt
 	return ret
 }
 
@@ -16334,14 +16334,14 @@ func (v *iterNative) readTypex_UInt8(key *typex.U, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerTypex_UInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UInt8)
+	ret.fn = ret.readTypex_UInt8
 	return ret
 }
 
@@ -16355,14 +16355,14 @@ func (v *iterNative) readETTypex_UInt8(et *typex.EventTime, key *typex.U, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETTypex_UInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UInt8)
+	ret.fn = ret.readETTypex_UInt8
 	return ret
 }
 
@@ -16375,14 +16375,14 @@ func (v *iterNative) readTypex_UInt16(key *typex.U, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerTypex_UInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UInt16)
+	ret.fn = ret.readTypex_UInt16
 	return ret
 }
 
@@ -16396,14 +16396,14 @@ func (v *iterNative) readETTypex_UInt16(et *typex.EventTime, key *typex.U, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETTypex_UInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UInt16)
+	ret.fn = ret.readETTypex_UInt16
 	return ret
 }
 
@@ -16416,14 +16416,14 @@ func (v *iterNative) readTypex_UInt32(key *typex.U, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerTypex_UInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UInt32)
+	ret.fn = ret.readTypex_UInt32
 	return ret
 }
 
@@ -16437,14 +16437,14 @@ func (v *iterNative) readETTypex_UInt32(et *typex.EventTime, key *typex.U, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETTypex_UInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UInt32)
+	ret.fn = ret.readETTypex_UInt32
 	return ret
 }
 
@@ -16457,14 +16457,14 @@ func (v *iterNative) readTypex_UInt64(key *typex.U, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerTypex_UInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UInt64)
+	ret.fn = ret.readTypex_UInt64
 	return ret
 }
 
@@ -16478,14 +16478,14 @@ func (v *iterNative) readETTypex_UInt64(et *typex.EventTime, key *typex.U, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETTypex_UInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UInt64)
+	ret.fn = ret.readETTypex_UInt64
 	return ret
 }
 
@@ -16498,14 +16498,14 @@ func (v *iterNative) readTypex_UUint(key *typex.U, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerTypex_UUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UUint)
+	ret.fn = ret.readTypex_UUint
 	return ret
 }
 
@@ -16519,14 +16519,14 @@ func (v *iterNative) readETTypex_UUint(et *typex.EventTime, key *typex.U, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETTypex_UUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UUint)
+	ret.fn = ret.readETTypex_UUint
 	return ret
 }
 
@@ -16539,14 +16539,14 @@ func (v *iterNative) readTypex_UUint8(key *typex.U, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerTypex_UUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UUint8)
+	ret.fn = ret.readTypex_UUint8
 	return ret
 }
 
@@ -16560,14 +16560,14 @@ func (v *iterNative) readETTypex_UUint8(et *typex.EventTime, key *typex.U, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETTypex_UUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UUint8)
+	ret.fn = ret.readETTypex_UUint8
 	return ret
 }
 
@@ -16580,14 +16580,14 @@ func (v *iterNative) readTypex_UUint16(key *typex.U, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerTypex_UUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UUint16)
+	ret.fn = ret.readTypex_UUint16
 	return ret
 }
 
@@ -16601,14 +16601,14 @@ func (v *iterNative) readETTypex_UUint16(et *typex.EventTime, key *typex.U, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETTypex_UUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UUint16)
+	ret.fn = ret.readETTypex_UUint16
 	return ret
 }
 
@@ -16621,14 +16621,14 @@ func (v *iterNative) readTypex_UUint32(key *typex.U, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerTypex_UUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UUint32)
+	ret.fn = ret.readTypex_UUint32
 	return ret
 }
 
@@ -16642,14 +16642,14 @@ func (v *iterNative) readETTypex_UUint32(et *typex.EventTime, key *typex.U, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETTypex_UUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UUint32)
+	ret.fn = ret.readETTypex_UUint32
 	return ret
 }
 
@@ -16662,14 +16662,14 @@ func (v *iterNative) readTypex_UUint64(key *typex.U, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerTypex_UUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UUint64)
+	ret.fn = ret.readTypex_UUint64
 	return ret
 }
 
@@ -16683,14 +16683,14 @@ func (v *iterNative) readETTypex_UUint64(et *typex.EventTime, key *typex.U, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETTypex_UUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UUint64)
+	ret.fn = ret.readETTypex_UUint64
 	return ret
 }
 
@@ -16703,14 +16703,14 @@ func (v *iterNative) readTypex_UFloat32(key *typex.U, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerTypex_UFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UFloat32)
+	ret.fn = ret.readTypex_UFloat32
 	return ret
 }
 
@@ -16724,14 +16724,14 @@ func (v *iterNative) readETTypex_UFloat32(et *typex.EventTime, key *typex.U, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETTypex_UFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UFloat32)
+	ret.fn = ret.readETTypex_UFloat32
 	return ret
 }
 
@@ -16744,14 +16744,14 @@ func (v *iterNative) readTypex_UFloat64(key *typex.U, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerTypex_UFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UFloat64)
+	ret.fn = ret.readTypex_UFloat64
 	return ret
 }
 
@@ -16765,14 +16765,14 @@ func (v *iterNative) readETTypex_UFloat64(et *typex.EventTime, key *typex.U, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETTypex_UFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UFloat64)
+	ret.fn = ret.readETTypex_UFloat64
 	return ret
 }
 
@@ -16785,14 +16785,14 @@ func (v *iterNative) readTypex_UTypex_T(key *typex.U, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerTypex_UTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_T)
+	ret.fn = ret.readTypex_UTypex_T
 	return ret
 }
 
@@ -16806,14 +16806,14 @@ func (v *iterNative) readETTypex_UTypex_T(et *typex.EventTime, key *typex.U, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETTypex_UTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_T)
+	ret.fn = ret.readETTypex_UTypex_T
 	return ret
 }
 
@@ -16826,14 +16826,14 @@ func (v *iterNative) readTypex_UTypex_U(key *typex.U, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerTypex_UTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_U)
+	ret.fn = ret.readTypex_UTypex_U
 	return ret
 }
 
@@ -16847,14 +16847,14 @@ func (v *iterNative) readETTypex_UTypex_U(et *typex.EventTime, key *typex.U, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETTypex_UTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_U)
+	ret.fn = ret.readETTypex_UTypex_U
 	return ret
 }
 
@@ -16867,14 +16867,14 @@ func (v *iterNative) readTypex_UTypex_V(key *typex.U, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerTypex_UTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_V)
+	ret.fn = ret.readTypex_UTypex_V
 	return ret
 }
 
@@ -16888,14 +16888,14 @@ func (v *iterNative) readETTypex_UTypex_V(et *typex.EventTime, key *typex.U, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETTypex_UTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_V)
+	ret.fn = ret.readETTypex_UTypex_V
 	return ret
 }
 
@@ -16908,14 +16908,14 @@ func (v *iterNative) readTypex_UTypex_W(key *typex.U, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerTypex_UTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_W)
+	ret.fn = ret.readTypex_UTypex_W
 	return ret
 }
 
@@ -16929,14 +16929,14 @@ func (v *iterNative) readETTypex_UTypex_W(et *typex.EventTime, key *typex.U, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETTypex_UTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_W)
+	ret.fn = ret.readETTypex_UTypex_W
 	return ret
 }
 
@@ -16949,14 +16949,14 @@ func (v *iterNative) readTypex_UTypex_X(key *typex.U, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerTypex_UTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_X)
+	ret.fn = ret.readTypex_UTypex_X
 	return ret
 }
 
@@ -16970,14 +16970,14 @@ func (v *iterNative) readETTypex_UTypex_X(et *typex.EventTime, key *typex.U, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETTypex_UTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_X)
+	ret.fn = ret.readETTypex_UTypex_X
 	return ret
 }
 
@@ -16990,14 +16990,14 @@ func (v *iterNative) readTypex_UTypex_Y(key *typex.U, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerTypex_UTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_Y)
+	ret.fn = ret.readTypex_UTypex_Y
 	return ret
 }
 
@@ -17011,14 +17011,14 @@ func (v *iterNative) readETTypex_UTypex_Y(et *typex.EventTime, key *typex.U, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETTypex_UTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_Y)
+	ret.fn = ret.readETTypex_UTypex_Y
 	return ret
 }
 
@@ -17031,14 +17031,14 @@ func (v *iterNative) readTypex_UTypex_Z(key *typex.U, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerTypex_UTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_Z)
+	ret.fn = ret.readTypex_UTypex_Z
 	return ret
 }
 
@@ -17052,14 +17052,14 @@ func (v *iterNative) readETTypex_UTypex_Z(et *typex.EventTime, key *typex.U, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.U)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.U)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETTypex_UTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_Z)
+	ret.fn = ret.readETTypex_UTypex_Z
 	return ret
 }
 
@@ -17072,13 +17072,13 @@ func (v *iterNative) readTypex_V(val *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(typex.V)
+	*val = elm.Elm.(typex.V)
 	return true
 }
 
 func iterMakerTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_V)
+	ret.fn = ret.readTypex_V
 	return ret
 }
 
@@ -17092,13 +17092,13 @@ func (v *iterNative) readETTypex_V(et *typex.EventTime, val *typex.V) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(typex.V)
+	*val = elm.Elm.(typex.V)
 	return true
 }
 
 func iterMakerETTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_V)
+	ret.fn = ret.readETTypex_V
 	return ret
 }
 
@@ -17111,14 +17111,14 @@ func (v *iterNative) readTypex_VByteSlice(key *typex.V, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerTypex_VByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VByteSlice)
+	ret.fn = ret.readTypex_VByteSlice
 	return ret
 }
 
@@ -17132,14 +17132,14 @@ func (v *iterNative) readETTypex_VByteSlice(et *typex.EventTime, key *typex.V, v
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETTypex_VByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VByteSlice)
+	ret.fn = ret.readETTypex_VByteSlice
 	return ret
 }
 
@@ -17152,14 +17152,14 @@ func (v *iterNative) readTypex_VBool(key *typex.V, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerTypex_VBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VBool)
+	ret.fn = ret.readTypex_VBool
 	return ret
 }
 
@@ -17173,14 +17173,14 @@ func (v *iterNative) readETTypex_VBool(et *typex.EventTime, key *typex.V, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETTypex_VBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VBool)
+	ret.fn = ret.readETTypex_VBool
 	return ret
 }
 
@@ -17193,14 +17193,14 @@ func (v *iterNative) readTypex_VString(key *typex.V, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerTypex_VString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VString)
+	ret.fn = ret.readTypex_VString
 	return ret
 }
 
@@ -17214,14 +17214,14 @@ func (v *iterNative) readETTypex_VString(et *typex.EventTime, key *typex.V, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETTypex_VString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VString)
+	ret.fn = ret.readETTypex_VString
 	return ret
 }
 
@@ -17234,14 +17234,14 @@ func (v *iterNative) readTypex_VInt(key *typex.V, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerTypex_VInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VInt)
+	ret.fn = ret.readTypex_VInt
 	return ret
 }
 
@@ -17255,14 +17255,14 @@ func (v *iterNative) readETTypex_VInt(et *typex.EventTime, key *typex.V, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETTypex_VInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VInt)
+	ret.fn = ret.readETTypex_VInt
 	return ret
 }
 
@@ -17275,14 +17275,14 @@ func (v *iterNative) readTypex_VInt8(key *typex.V, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerTypex_VInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VInt8)
+	ret.fn = ret.readTypex_VInt8
 	return ret
 }
 
@@ -17296,14 +17296,14 @@ func (v *iterNative) readETTypex_VInt8(et *typex.EventTime, key *typex.V, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETTypex_VInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VInt8)
+	ret.fn = ret.readETTypex_VInt8
 	return ret
 }
 
@@ -17316,14 +17316,14 @@ func (v *iterNative) readTypex_VInt16(key *typex.V, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerTypex_VInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VInt16)
+	ret.fn = ret.readTypex_VInt16
 	return ret
 }
 
@@ -17337,14 +17337,14 @@ func (v *iterNative) readETTypex_VInt16(et *typex.EventTime, key *typex.V, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETTypex_VInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VInt16)
+	ret.fn = ret.readETTypex_VInt16
 	return ret
 }
 
@@ -17357,14 +17357,14 @@ func (v *iterNative) readTypex_VInt32(key *typex.V, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerTypex_VInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VInt32)
+	ret.fn = ret.readTypex_VInt32
 	return ret
 }
 
@@ -17378,14 +17378,14 @@ func (v *iterNative) readETTypex_VInt32(et *typex.EventTime, key *typex.V, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETTypex_VInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VInt32)
+	ret.fn = ret.readETTypex_VInt32
 	return ret
 }
 
@@ -17398,14 +17398,14 @@ func (v *iterNative) readTypex_VInt64(key *typex.V, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerTypex_VInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VInt64)
+	ret.fn = ret.readTypex_VInt64
 	return ret
 }
 
@@ -17419,14 +17419,14 @@ func (v *iterNative) readETTypex_VInt64(et *typex.EventTime, key *typex.V, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETTypex_VInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VInt64)
+	ret.fn = ret.readETTypex_VInt64
 	return ret
 }
 
@@ -17439,14 +17439,14 @@ func (v *iterNative) readTypex_VUint(key *typex.V, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerTypex_VUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VUint)
+	ret.fn = ret.readTypex_VUint
 	return ret
 }
 
@@ -17460,14 +17460,14 @@ func (v *iterNative) readETTypex_VUint(et *typex.EventTime, key *typex.V, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETTypex_VUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VUint)
+	ret.fn = ret.readETTypex_VUint
 	return ret
 }
 
@@ -17480,14 +17480,14 @@ func (v *iterNative) readTypex_VUint8(key *typex.V, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerTypex_VUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VUint8)
+	ret.fn = ret.readTypex_VUint8
 	return ret
 }
 
@@ -17501,14 +17501,14 @@ func (v *iterNative) readETTypex_VUint8(et *typex.EventTime, key *typex.V, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETTypex_VUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VUint8)
+	ret.fn = ret.readETTypex_VUint8
 	return ret
 }
 
@@ -17521,14 +17521,14 @@ func (v *iterNative) readTypex_VUint16(key *typex.V, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerTypex_VUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VUint16)
+	ret.fn = ret.readTypex_VUint16
 	return ret
 }
 
@@ -17542,14 +17542,14 @@ func (v *iterNative) readETTypex_VUint16(et *typex.EventTime, key *typex.V, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETTypex_VUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VUint16)
+	ret.fn = ret.readETTypex_VUint16
 	return ret
 }
 
@@ -17562,14 +17562,14 @@ func (v *iterNative) readTypex_VUint32(key *typex.V, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerTypex_VUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VUint32)
+	ret.fn = ret.readTypex_VUint32
 	return ret
 }
 
@@ -17583,14 +17583,14 @@ func (v *iterNative) readETTypex_VUint32(et *typex.EventTime, key *typex.V, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETTypex_VUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VUint32)
+	ret.fn = ret.readETTypex_VUint32
 	return ret
 }
 
@@ -17603,14 +17603,14 @@ func (v *iterNative) readTypex_VUint64(key *typex.V, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerTypex_VUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VUint64)
+	ret.fn = ret.readTypex_VUint64
 	return ret
 }
 
@@ -17624,14 +17624,14 @@ func (v *iterNative) readETTypex_VUint64(et *typex.EventTime, key *typex.V, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETTypex_VUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VUint64)
+	ret.fn = ret.readETTypex_VUint64
 	return ret
 }
 
@@ -17644,14 +17644,14 @@ func (v *iterNative) readTypex_VFloat32(key *typex.V, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerTypex_VFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VFloat32)
+	ret.fn = ret.readTypex_VFloat32
 	return ret
 }
 
@@ -17665,14 +17665,14 @@ func (v *iterNative) readETTypex_VFloat32(et *typex.EventTime, key *typex.V, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETTypex_VFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VFloat32)
+	ret.fn = ret.readETTypex_VFloat32
 	return ret
 }
 
@@ -17685,14 +17685,14 @@ func (v *iterNative) readTypex_VFloat64(key *typex.V, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerTypex_VFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VFloat64)
+	ret.fn = ret.readTypex_VFloat64
 	return ret
 }
 
@@ -17706,14 +17706,14 @@ func (v *iterNative) readETTypex_VFloat64(et *typex.EventTime, key *typex.V, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETTypex_VFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VFloat64)
+	ret.fn = ret.readETTypex_VFloat64
 	return ret
 }
 
@@ -17726,14 +17726,14 @@ func (v *iterNative) readTypex_VTypex_T(key *typex.V, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerTypex_VTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_T)
+	ret.fn = ret.readTypex_VTypex_T
 	return ret
 }
 
@@ -17747,14 +17747,14 @@ func (v *iterNative) readETTypex_VTypex_T(et *typex.EventTime, key *typex.V, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETTypex_VTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_T)
+	ret.fn = ret.readETTypex_VTypex_T
 	return ret
 }
 
@@ -17767,14 +17767,14 @@ func (v *iterNative) readTypex_VTypex_U(key *typex.V, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerTypex_VTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_U)
+	ret.fn = ret.readTypex_VTypex_U
 	return ret
 }
 
@@ -17788,14 +17788,14 @@ func (v *iterNative) readETTypex_VTypex_U(et *typex.EventTime, key *typex.V, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETTypex_VTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_U)
+	ret.fn = ret.readETTypex_VTypex_U
 	return ret
 }
 
@@ -17808,14 +17808,14 @@ func (v *iterNative) readTypex_VTypex_V(key *typex.V, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerTypex_VTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_V)
+	ret.fn = ret.readTypex_VTypex_V
 	return ret
 }
 
@@ -17829,14 +17829,14 @@ func (v *iterNative) readETTypex_VTypex_V(et *typex.EventTime, key *typex.V, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETTypex_VTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_V)
+	ret.fn = ret.readETTypex_VTypex_V
 	return ret
 }
 
@@ -17849,14 +17849,14 @@ func (v *iterNative) readTypex_VTypex_W(key *typex.V, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerTypex_VTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_W)
+	ret.fn = ret.readTypex_VTypex_W
 	return ret
 }
 
@@ -17870,14 +17870,14 @@ func (v *iterNative) readETTypex_VTypex_W(et *typex.EventTime, key *typex.V, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETTypex_VTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_W)
+	ret.fn = ret.readETTypex_VTypex_W
 	return ret
 }
 
@@ -17890,14 +17890,14 @@ func (v *iterNative) readTypex_VTypex_X(key *typex.V, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerTypex_VTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_X)
+	ret.fn = ret.readTypex_VTypex_X
 	return ret
 }
 
@@ -17911,14 +17911,14 @@ func (v *iterNative) readETTypex_VTypex_X(et *typex.EventTime, key *typex.V, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETTypex_VTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_X)
+	ret.fn = ret.readETTypex_VTypex_X
 	return ret
 }
 
@@ -17931,14 +17931,14 @@ func (v *iterNative) readTypex_VTypex_Y(key *typex.V, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerTypex_VTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_Y)
+	ret.fn = ret.readTypex_VTypex_Y
 	return ret
 }
 
@@ -17952,14 +17952,14 @@ func (v *iterNative) readETTypex_VTypex_Y(et *typex.EventTime, key *typex.V, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETTypex_VTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_Y)
+	ret.fn = ret.readETTypex_VTypex_Y
 	return ret
 }
 
@@ -17972,14 +17972,14 @@ func (v *iterNative) readTypex_VTypex_Z(key *typex.V, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerTypex_VTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_Z)
+	ret.fn = ret.readTypex_VTypex_Z
 	return ret
 }
 
@@ -17993,14 +17993,14 @@ func (v *iterNative) readETTypex_VTypex_Z(et *typex.EventTime, key *typex.V, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.V)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.V)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETTypex_VTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_Z)
+	ret.fn = ret.readETTypex_VTypex_Z
 	return ret
 }
 
@@ -18013,13 +18013,13 @@ func (v *iterNative) readTypex_W(val *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(typex.W)
+	*val = elm.Elm.(typex.W)
 	return true
 }
 
 func iterMakerTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_W)
+	ret.fn = ret.readTypex_W
 	return ret
 }
 
@@ -18033,13 +18033,13 @@ func (v *iterNative) readETTypex_W(et *typex.EventTime, val *typex.W) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(typex.W)
+	*val = elm.Elm.(typex.W)
 	return true
 }
 
 func iterMakerETTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_W)
+	ret.fn = ret.readETTypex_W
 	return ret
 }
 
@@ -18052,14 +18052,14 @@ func (v *iterNative) readTypex_WByteSlice(key *typex.W, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerTypex_WByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WByteSlice)
+	ret.fn = ret.readTypex_WByteSlice
 	return ret
 }
 
@@ -18073,14 +18073,14 @@ func (v *iterNative) readETTypex_WByteSlice(et *typex.EventTime, key *typex.W, v
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETTypex_WByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WByteSlice)
+	ret.fn = ret.readETTypex_WByteSlice
 	return ret
 }
 
@@ -18093,14 +18093,14 @@ func (v *iterNative) readTypex_WBool(key *typex.W, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerTypex_WBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WBool)
+	ret.fn = ret.readTypex_WBool
 	return ret
 }
 
@@ -18114,14 +18114,14 @@ func (v *iterNative) readETTypex_WBool(et *typex.EventTime, key *typex.W, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETTypex_WBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WBool)
+	ret.fn = ret.readETTypex_WBool
 	return ret
 }
 
@@ -18134,14 +18134,14 @@ func (v *iterNative) readTypex_WString(key *typex.W, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerTypex_WString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WString)
+	ret.fn = ret.readTypex_WString
 	return ret
 }
 
@@ -18155,14 +18155,14 @@ func (v *iterNative) readETTypex_WString(et *typex.EventTime, key *typex.W, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETTypex_WString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WString)
+	ret.fn = ret.readETTypex_WString
 	return ret
 }
 
@@ -18175,14 +18175,14 @@ func (v *iterNative) readTypex_WInt(key *typex.W, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerTypex_WInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WInt)
+	ret.fn = ret.readTypex_WInt
 	return ret
 }
 
@@ -18196,14 +18196,14 @@ func (v *iterNative) readETTypex_WInt(et *typex.EventTime, key *typex.W, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETTypex_WInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WInt)
+	ret.fn = ret.readETTypex_WInt
 	return ret
 }
 
@@ -18216,14 +18216,14 @@ func (v *iterNative) readTypex_WInt8(key *typex.W, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerTypex_WInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WInt8)
+	ret.fn = ret.readTypex_WInt8
 	return ret
 }
 
@@ -18237,14 +18237,14 @@ func (v *iterNative) readETTypex_WInt8(et *typex.EventTime, key *typex.W, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETTypex_WInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WInt8)
+	ret.fn = ret.readETTypex_WInt8
 	return ret
 }
 
@@ -18257,14 +18257,14 @@ func (v *iterNative) readTypex_WInt16(key *typex.W, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerTypex_WInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WInt16)
+	ret.fn = ret.readTypex_WInt16
 	return ret
 }
 
@@ -18278,14 +18278,14 @@ func (v *iterNative) readETTypex_WInt16(et *typex.EventTime, key *typex.W, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETTypex_WInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WInt16)
+	ret.fn = ret.readETTypex_WInt16
 	return ret
 }
 
@@ -18298,14 +18298,14 @@ func (v *iterNative) readTypex_WInt32(key *typex.W, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerTypex_WInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WInt32)
+	ret.fn = ret.readTypex_WInt32
 	return ret
 }
 
@@ -18319,14 +18319,14 @@ func (v *iterNative) readETTypex_WInt32(et *typex.EventTime, key *typex.W, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETTypex_WInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WInt32)
+	ret.fn = ret.readETTypex_WInt32
 	return ret
 }
 
@@ -18339,14 +18339,14 @@ func (v *iterNative) readTypex_WInt64(key *typex.W, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerTypex_WInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WInt64)
+	ret.fn = ret.readTypex_WInt64
 	return ret
 }
 
@@ -18360,14 +18360,14 @@ func (v *iterNative) readETTypex_WInt64(et *typex.EventTime, key *typex.W, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETTypex_WInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WInt64)
+	ret.fn = ret.readETTypex_WInt64
 	return ret
 }
 
@@ -18380,14 +18380,14 @@ func (v *iterNative) readTypex_WUint(key *typex.W, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerTypex_WUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WUint)
+	ret.fn = ret.readTypex_WUint
 	return ret
 }
 
@@ -18401,14 +18401,14 @@ func (v *iterNative) readETTypex_WUint(et *typex.EventTime, key *typex.W, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETTypex_WUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WUint)
+	ret.fn = ret.readETTypex_WUint
 	return ret
 }
 
@@ -18421,14 +18421,14 @@ func (v *iterNative) readTypex_WUint8(key *typex.W, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerTypex_WUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WUint8)
+	ret.fn = ret.readTypex_WUint8
 	return ret
 }
 
@@ -18442,14 +18442,14 @@ func (v *iterNative) readETTypex_WUint8(et *typex.EventTime, key *typex.W, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETTypex_WUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WUint8)
+	ret.fn = ret.readETTypex_WUint8
 	return ret
 }
 
@@ -18462,14 +18462,14 @@ func (v *iterNative) readTypex_WUint16(key *typex.W, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerTypex_WUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WUint16)
+	ret.fn = ret.readTypex_WUint16
 	return ret
 }
 
@@ -18483,14 +18483,14 @@ func (v *iterNative) readETTypex_WUint16(et *typex.EventTime, key *typex.W, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETTypex_WUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WUint16)
+	ret.fn = ret.readETTypex_WUint16
 	return ret
 }
 
@@ -18503,14 +18503,14 @@ func (v *iterNative) readTypex_WUint32(key *typex.W, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerTypex_WUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WUint32)
+	ret.fn = ret.readTypex_WUint32
 	return ret
 }
 
@@ -18524,14 +18524,14 @@ func (v *iterNative) readETTypex_WUint32(et *typex.EventTime, key *typex.W, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETTypex_WUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WUint32)
+	ret.fn = ret.readETTypex_WUint32
 	return ret
 }
 
@@ -18544,14 +18544,14 @@ func (v *iterNative) readTypex_WUint64(key *typex.W, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerTypex_WUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WUint64)
+	ret.fn = ret.readTypex_WUint64
 	return ret
 }
 
@@ -18565,14 +18565,14 @@ func (v *iterNative) readETTypex_WUint64(et *typex.EventTime, key *typex.W, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETTypex_WUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WUint64)
+	ret.fn = ret.readETTypex_WUint64
 	return ret
 }
 
@@ -18585,14 +18585,14 @@ func (v *iterNative) readTypex_WFloat32(key *typex.W, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerTypex_WFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WFloat32)
+	ret.fn = ret.readTypex_WFloat32
 	return ret
 }
 
@@ -18606,14 +18606,14 @@ func (v *iterNative) readETTypex_WFloat32(et *typex.EventTime, key *typex.W, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETTypex_WFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WFloat32)
+	ret.fn = ret.readETTypex_WFloat32
 	return ret
 }
 
@@ -18626,14 +18626,14 @@ func (v *iterNative) readTypex_WFloat64(key *typex.W, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerTypex_WFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WFloat64)
+	ret.fn = ret.readTypex_WFloat64
 	return ret
 }
 
@@ -18647,14 +18647,14 @@ func (v *iterNative) readETTypex_WFloat64(et *typex.EventTime, key *typex.W, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETTypex_WFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WFloat64)
+	ret.fn = ret.readETTypex_WFloat64
 	return ret
 }
 
@@ -18667,14 +18667,14 @@ func (v *iterNative) readTypex_WTypex_T(key *typex.W, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerTypex_WTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_T)
+	ret.fn = ret.readTypex_WTypex_T
 	return ret
 }
 
@@ -18688,14 +18688,14 @@ func (v *iterNative) readETTypex_WTypex_T(et *typex.EventTime, key *typex.W, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETTypex_WTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_T)
+	ret.fn = ret.readETTypex_WTypex_T
 	return ret
 }
 
@@ -18708,14 +18708,14 @@ func (v *iterNative) readTypex_WTypex_U(key *typex.W, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerTypex_WTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_U)
+	ret.fn = ret.readTypex_WTypex_U
 	return ret
 }
 
@@ -18729,14 +18729,14 @@ func (v *iterNative) readETTypex_WTypex_U(et *typex.EventTime, key *typex.W, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETTypex_WTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_U)
+	ret.fn = ret.readETTypex_WTypex_U
 	return ret
 }
 
@@ -18749,14 +18749,14 @@ func (v *iterNative) readTypex_WTypex_V(key *typex.W, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerTypex_WTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_V)
+	ret.fn = ret.readTypex_WTypex_V
 	return ret
 }
 
@@ -18770,14 +18770,14 @@ func (v *iterNative) readETTypex_WTypex_V(et *typex.EventTime, key *typex.W, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETTypex_WTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_V)
+	ret.fn = ret.readETTypex_WTypex_V
 	return ret
 }
 
@@ -18790,14 +18790,14 @@ func (v *iterNative) readTypex_WTypex_W(key *typex.W, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerTypex_WTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_W)
+	ret.fn = ret.readTypex_WTypex_W
 	return ret
 }
 
@@ -18811,14 +18811,14 @@ func (v *iterNative) readETTypex_WTypex_W(et *typex.EventTime, key *typex.W, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETTypex_WTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_W)
+	ret.fn = ret.readETTypex_WTypex_W
 	return ret
 }
 
@@ -18831,14 +18831,14 @@ func (v *iterNative) readTypex_WTypex_X(key *typex.W, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerTypex_WTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_X)
+	ret.fn = ret.readTypex_WTypex_X
 	return ret
 }
 
@@ -18852,14 +18852,14 @@ func (v *iterNative) readETTypex_WTypex_X(et *typex.EventTime, key *typex.W, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETTypex_WTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_X)
+	ret.fn = ret.readETTypex_WTypex_X
 	return ret
 }
 
@@ -18872,14 +18872,14 @@ func (v *iterNative) readTypex_WTypex_Y(key *typex.W, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerTypex_WTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_Y)
+	ret.fn = ret.readTypex_WTypex_Y
 	return ret
 }
 
@@ -18893,14 +18893,14 @@ func (v *iterNative) readETTypex_WTypex_Y(et *typex.EventTime, key *typex.W, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETTypex_WTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_Y)
+	ret.fn = ret.readETTypex_WTypex_Y
 	return ret
 }
 
@@ -18913,14 +18913,14 @@ func (v *iterNative) readTypex_WTypex_Z(key *typex.W, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerTypex_WTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_Z)
+	ret.fn = ret.readTypex_WTypex_Z
 	return ret
 }
 
@@ -18934,14 +18934,14 @@ func (v *iterNative) readETTypex_WTypex_Z(et *typex.EventTime, key *typex.W, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.W)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.W)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETTypex_WTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_Z)
+	ret.fn = ret.readETTypex_WTypex_Z
 	return ret
 }
 
@@ -18954,13 +18954,13 @@ func (v *iterNative) readTypex_X(val *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(typex.X)
+	*val = elm.Elm.(typex.X)
 	return true
 }
 
 func iterMakerTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_X)
+	ret.fn = ret.readTypex_X
 	return ret
 }
 
@@ -18974,13 +18974,13 @@ func (v *iterNative) readETTypex_X(et *typex.EventTime, val *typex.X) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(typex.X)
+	*val = elm.Elm.(typex.X)
 	return true
 }
 
 func iterMakerETTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_X)
+	ret.fn = ret.readETTypex_X
 	return ret
 }
 
@@ -18993,14 +18993,14 @@ func (v *iterNative) readTypex_XByteSlice(key *typex.X, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerTypex_XByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XByteSlice)
+	ret.fn = ret.readTypex_XByteSlice
 	return ret
 }
 
@@ -19014,14 +19014,14 @@ func (v *iterNative) readETTypex_XByteSlice(et *typex.EventTime, key *typex.X, v
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETTypex_XByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XByteSlice)
+	ret.fn = ret.readETTypex_XByteSlice
 	return ret
 }
 
@@ -19034,14 +19034,14 @@ func (v *iterNative) readTypex_XBool(key *typex.X, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerTypex_XBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XBool)
+	ret.fn = ret.readTypex_XBool
 	return ret
 }
 
@@ -19055,14 +19055,14 @@ func (v *iterNative) readETTypex_XBool(et *typex.EventTime, key *typex.X, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETTypex_XBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XBool)
+	ret.fn = ret.readETTypex_XBool
 	return ret
 }
 
@@ -19075,14 +19075,14 @@ func (v *iterNative) readTypex_XString(key *typex.X, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerTypex_XString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XString)
+	ret.fn = ret.readTypex_XString
 	return ret
 }
 
@@ -19096,14 +19096,14 @@ func (v *iterNative) readETTypex_XString(et *typex.EventTime, key *typex.X, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETTypex_XString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XString)
+	ret.fn = ret.readETTypex_XString
 	return ret
 }
 
@@ -19116,14 +19116,14 @@ func (v *iterNative) readTypex_XInt(key *typex.X, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerTypex_XInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XInt)
+	ret.fn = ret.readTypex_XInt
 	return ret
 }
 
@@ -19137,14 +19137,14 @@ func (v *iterNative) readETTypex_XInt(et *typex.EventTime, key *typex.X, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETTypex_XInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XInt)
+	ret.fn = ret.readETTypex_XInt
 	return ret
 }
 
@@ -19157,14 +19157,14 @@ func (v *iterNative) readTypex_XInt8(key *typex.X, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerTypex_XInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XInt8)
+	ret.fn = ret.readTypex_XInt8
 	return ret
 }
 
@@ -19178,14 +19178,14 @@ func (v *iterNative) readETTypex_XInt8(et *typex.EventTime, key *typex.X, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETTypex_XInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XInt8)
+	ret.fn = ret.readETTypex_XInt8
 	return ret
 }
 
@@ -19198,14 +19198,14 @@ func (v *iterNative) readTypex_XInt16(key *typex.X, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerTypex_XInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XInt16)
+	ret.fn = ret.readTypex_XInt16
 	return ret
 }
 
@@ -19219,14 +19219,14 @@ func (v *iterNative) readETTypex_XInt16(et *typex.EventTime, key *typex.X, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETTypex_XInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XInt16)
+	ret.fn = ret.readETTypex_XInt16
 	return ret
 }
 
@@ -19239,14 +19239,14 @@ func (v *iterNative) readTypex_XInt32(key *typex.X, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerTypex_XInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XInt32)
+	ret.fn = ret.readTypex_XInt32
 	return ret
 }
 
@@ -19260,14 +19260,14 @@ func (v *iterNative) readETTypex_XInt32(et *typex.EventTime, key *typex.X, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETTypex_XInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XInt32)
+	ret.fn = ret.readETTypex_XInt32
 	return ret
 }
 
@@ -19280,14 +19280,14 @@ func (v *iterNative) readTypex_XInt64(key *typex.X, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerTypex_XInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XInt64)
+	ret.fn = ret.readTypex_XInt64
 	return ret
 }
 
@@ -19301,14 +19301,14 @@ func (v *iterNative) readETTypex_XInt64(et *typex.EventTime, key *typex.X, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETTypex_XInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XInt64)
+	ret.fn = ret.readETTypex_XInt64
 	return ret
 }
 
@@ -19321,14 +19321,14 @@ func (v *iterNative) readTypex_XUint(key *typex.X, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerTypex_XUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XUint)
+	ret.fn = ret.readTypex_XUint
 	return ret
 }
 
@@ -19342,14 +19342,14 @@ func (v *iterNative) readETTypex_XUint(et *typex.EventTime, key *typex.X, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETTypex_XUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XUint)
+	ret.fn = ret.readETTypex_XUint
 	return ret
 }
 
@@ -19362,14 +19362,14 @@ func (v *iterNative) readTypex_XUint8(key *typex.X, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerTypex_XUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XUint8)
+	ret.fn = ret.readTypex_XUint8
 	return ret
 }
 
@@ -19383,14 +19383,14 @@ func (v *iterNative) readETTypex_XUint8(et *typex.EventTime, key *typex.X, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETTypex_XUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XUint8)
+	ret.fn = ret.readETTypex_XUint8
 	return ret
 }
 
@@ -19403,14 +19403,14 @@ func (v *iterNative) readTypex_XUint16(key *typex.X, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerTypex_XUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XUint16)
+	ret.fn = ret.readTypex_XUint16
 	return ret
 }
 
@@ -19424,14 +19424,14 @@ func (v *iterNative) readETTypex_XUint16(et *typex.EventTime, key *typex.X, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETTypex_XUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XUint16)
+	ret.fn = ret.readETTypex_XUint16
 	return ret
 }
 
@@ -19444,14 +19444,14 @@ func (v *iterNative) readTypex_XUint32(key *typex.X, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerTypex_XUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XUint32)
+	ret.fn = ret.readTypex_XUint32
 	return ret
 }
 
@@ -19465,14 +19465,14 @@ func (v *iterNative) readETTypex_XUint32(et *typex.EventTime, key *typex.X, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETTypex_XUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XUint32)
+	ret.fn = ret.readETTypex_XUint32
 	return ret
 }
 
@@ -19485,14 +19485,14 @@ func (v *iterNative) readTypex_XUint64(key *typex.X, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerTypex_XUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XUint64)
+	ret.fn = ret.readTypex_XUint64
 	return ret
 }
 
@@ -19506,14 +19506,14 @@ func (v *iterNative) readETTypex_XUint64(et *typex.EventTime, key *typex.X, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETTypex_XUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XUint64)
+	ret.fn = ret.readETTypex_XUint64
 	return ret
 }
 
@@ -19526,14 +19526,14 @@ func (v *iterNative) readTypex_XFloat32(key *typex.X, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerTypex_XFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XFloat32)
+	ret.fn = ret.readTypex_XFloat32
 	return ret
 }
 
@@ -19547,14 +19547,14 @@ func (v *iterNative) readETTypex_XFloat32(et *typex.EventTime, key *typex.X, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETTypex_XFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XFloat32)
+	ret.fn = ret.readETTypex_XFloat32
 	return ret
 }
 
@@ -19567,14 +19567,14 @@ func (v *iterNative) readTypex_XFloat64(key *typex.X, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerTypex_XFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XFloat64)
+	ret.fn = ret.readTypex_XFloat64
 	return ret
 }
 
@@ -19588,14 +19588,14 @@ func (v *iterNative) readETTypex_XFloat64(et *typex.EventTime, key *typex.X, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETTypex_XFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XFloat64)
+	ret.fn = ret.readETTypex_XFloat64
 	return ret
 }
 
@@ -19608,14 +19608,14 @@ func (v *iterNative) readTypex_XTypex_T(key *typex.X, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerTypex_XTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_T)
+	ret.fn = ret.readTypex_XTypex_T
 	return ret
 }
 
@@ -19629,14 +19629,14 @@ func (v *iterNative) readETTypex_XTypex_T(et *typex.EventTime, key *typex.X, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETTypex_XTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_T)
+	ret.fn = ret.readETTypex_XTypex_T
 	return ret
 }
 
@@ -19649,14 +19649,14 @@ func (v *iterNative) readTypex_XTypex_U(key *typex.X, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerTypex_XTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_U)
+	ret.fn = ret.readTypex_XTypex_U
 	return ret
 }
 
@@ -19670,14 +19670,14 @@ func (v *iterNative) readETTypex_XTypex_U(et *typex.EventTime, key *typex.X, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETTypex_XTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_U)
+	ret.fn = ret.readETTypex_XTypex_U
 	return ret
 }
 
@@ -19690,14 +19690,14 @@ func (v *iterNative) readTypex_XTypex_V(key *typex.X, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerTypex_XTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_V)
+	ret.fn = ret.readTypex_XTypex_V
 	return ret
 }
 
@@ -19711,14 +19711,14 @@ func (v *iterNative) readETTypex_XTypex_V(et *typex.EventTime, key *typex.X, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETTypex_XTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_V)
+	ret.fn = ret.readETTypex_XTypex_V
 	return ret
 }
 
@@ -19731,14 +19731,14 @@ func (v *iterNative) readTypex_XTypex_W(key *typex.X, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerTypex_XTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_W)
+	ret.fn = ret.readTypex_XTypex_W
 	return ret
 }
 
@@ -19752,14 +19752,14 @@ func (v *iterNative) readETTypex_XTypex_W(et *typex.EventTime, key *typex.X, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETTypex_XTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_W)
+	ret.fn = ret.readETTypex_XTypex_W
 	return ret
 }
 
@@ -19772,14 +19772,14 @@ func (v *iterNative) readTypex_XTypex_X(key *typex.X, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerTypex_XTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_X)
+	ret.fn = ret.readTypex_XTypex_X
 	return ret
 }
 
@@ -19793,14 +19793,14 @@ func (v *iterNative) readETTypex_XTypex_X(et *typex.EventTime, key *typex.X, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETTypex_XTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_X)
+	ret.fn = ret.readETTypex_XTypex_X
 	return ret
 }
 
@@ -19813,14 +19813,14 @@ func (v *iterNative) readTypex_XTypex_Y(key *typex.X, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerTypex_XTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_Y)
+	ret.fn = ret.readTypex_XTypex_Y
 	return ret
 }
 
@@ -19834,14 +19834,14 @@ func (v *iterNative) readETTypex_XTypex_Y(et *typex.EventTime, key *typex.X, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETTypex_XTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_Y)
+	ret.fn = ret.readETTypex_XTypex_Y
 	return ret
 }
 
@@ -19854,14 +19854,14 @@ func (v *iterNative) readTypex_XTypex_Z(key *typex.X, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerTypex_XTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_Z)
+	ret.fn = ret.readTypex_XTypex_Z
 	return ret
 }
 
@@ -19875,14 +19875,14 @@ func (v *iterNative) readETTypex_XTypex_Z(et *typex.EventTime, key *typex.X, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.X)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.X)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETTypex_XTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_Z)
+	ret.fn = ret.readETTypex_XTypex_Z
 	return ret
 }
 
@@ -19895,13 +19895,13 @@ func (v *iterNative) readTypex_Y(val *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(typex.Y)
+	*val = elm.Elm.(typex.Y)
 	return true
 }
 
 func iterMakerTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_Y)
+	ret.fn = ret.readTypex_Y
 	return ret
 }
 
@@ -19915,13 +19915,13 @@ func (v *iterNative) readETTypex_Y(et *typex.EventTime, val *typex.Y) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(typex.Y)
+	*val = elm.Elm.(typex.Y)
 	return true
 }
 
 func iterMakerETTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_Y)
+	ret.fn = ret.readETTypex_Y
 	return ret
 }
 
@@ -19934,14 +19934,14 @@ func (v *iterNative) readTypex_YByteSlice(key *typex.Y, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerTypex_YByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YByteSlice)
+	ret.fn = ret.readTypex_YByteSlice
 	return ret
 }
 
@@ -19955,14 +19955,14 @@ func (v *iterNative) readETTypex_YByteSlice(et *typex.EventTime, key *typex.Y, v
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETTypex_YByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YByteSlice)
+	ret.fn = ret.readETTypex_YByteSlice
 	return ret
 }
 
@@ -19975,14 +19975,14 @@ func (v *iterNative) readTypex_YBool(key *typex.Y, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerTypex_YBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YBool)
+	ret.fn = ret.readTypex_YBool
 	return ret
 }
 
@@ -19996,14 +19996,14 @@ func (v *iterNative) readETTypex_YBool(et *typex.EventTime, key *typex.Y, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETTypex_YBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YBool)
+	ret.fn = ret.readETTypex_YBool
 	return ret
 }
 
@@ -20016,14 +20016,14 @@ func (v *iterNative) readTypex_YString(key *typex.Y, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerTypex_YString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YString)
+	ret.fn = ret.readTypex_YString
 	return ret
 }
 
@@ -20037,14 +20037,14 @@ func (v *iterNative) readETTypex_YString(et *typex.EventTime, key *typex.Y, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETTypex_YString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YString)
+	ret.fn = ret.readETTypex_YString
 	return ret
 }
 
@@ -20057,14 +20057,14 @@ func (v *iterNative) readTypex_YInt(key *typex.Y, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerTypex_YInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YInt)
+	ret.fn = ret.readTypex_YInt
 	return ret
 }
 
@@ -20078,14 +20078,14 @@ func (v *iterNative) readETTypex_YInt(et *typex.EventTime, key *typex.Y, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETTypex_YInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YInt)
+	ret.fn = ret.readETTypex_YInt
 	return ret
 }
 
@@ -20098,14 +20098,14 @@ func (v *iterNative) readTypex_YInt8(key *typex.Y, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerTypex_YInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YInt8)
+	ret.fn = ret.readTypex_YInt8
 	return ret
 }
 
@@ -20119,14 +20119,14 @@ func (v *iterNative) readETTypex_YInt8(et *typex.EventTime, key *typex.Y, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETTypex_YInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YInt8)
+	ret.fn = ret.readETTypex_YInt8
 	return ret
 }
 
@@ -20139,14 +20139,14 @@ func (v *iterNative) readTypex_YInt16(key *typex.Y, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerTypex_YInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YInt16)
+	ret.fn = ret.readTypex_YInt16
 	return ret
 }
 
@@ -20160,14 +20160,14 @@ func (v *iterNative) readETTypex_YInt16(et *typex.EventTime, key *typex.Y, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETTypex_YInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YInt16)
+	ret.fn = ret.readETTypex_YInt16
 	return ret
 }
 
@@ -20180,14 +20180,14 @@ func (v *iterNative) readTypex_YInt32(key *typex.Y, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerTypex_YInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YInt32)
+	ret.fn = ret.readTypex_YInt32
 	return ret
 }
 
@@ -20201,14 +20201,14 @@ func (v *iterNative) readETTypex_YInt32(et *typex.EventTime, key *typex.Y, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETTypex_YInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YInt32)
+	ret.fn = ret.readETTypex_YInt32
 	return ret
 }
 
@@ -20221,14 +20221,14 @@ func (v *iterNative) readTypex_YInt64(key *typex.Y, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerTypex_YInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YInt64)
+	ret.fn = ret.readTypex_YInt64
 	return ret
 }
 
@@ -20242,14 +20242,14 @@ func (v *iterNative) readETTypex_YInt64(et *typex.EventTime, key *typex.Y, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETTypex_YInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YInt64)
+	ret.fn = ret.readETTypex_YInt64
 	return ret
 }
 
@@ -20262,14 +20262,14 @@ func (v *iterNative) readTypex_YUint(key *typex.Y, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerTypex_YUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YUint)
+	ret.fn = ret.readTypex_YUint
 	return ret
 }
 
@@ -20283,14 +20283,14 @@ func (v *iterNative) readETTypex_YUint(et *typex.EventTime, key *typex.Y, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETTypex_YUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YUint)
+	ret.fn = ret.readETTypex_YUint
 	return ret
 }
 
@@ -20303,14 +20303,14 @@ func (v *iterNative) readTypex_YUint8(key *typex.Y, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerTypex_YUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YUint8)
+	ret.fn = ret.readTypex_YUint8
 	return ret
 }
 
@@ -20324,14 +20324,14 @@ func (v *iterNative) readETTypex_YUint8(et *typex.EventTime, key *typex.Y, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETTypex_YUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YUint8)
+	ret.fn = ret.readETTypex_YUint8
 	return ret
 }
 
@@ -20344,14 +20344,14 @@ func (v *iterNative) readTypex_YUint16(key *typex.Y, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerTypex_YUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YUint16)
+	ret.fn = ret.readTypex_YUint16
 	return ret
 }
 
@@ -20365,14 +20365,14 @@ func (v *iterNative) readETTypex_YUint16(et *typex.EventTime, key *typex.Y, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETTypex_YUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YUint16)
+	ret.fn = ret.readETTypex_YUint16
 	return ret
 }
 
@@ -20385,14 +20385,14 @@ func (v *iterNative) readTypex_YUint32(key *typex.Y, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerTypex_YUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YUint32)
+	ret.fn = ret.readTypex_YUint32
 	return ret
 }
 
@@ -20406,14 +20406,14 @@ func (v *iterNative) readETTypex_YUint32(et *typex.EventTime, key *typex.Y, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETTypex_YUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YUint32)
+	ret.fn = ret.readETTypex_YUint32
 	return ret
 }
 
@@ -20426,14 +20426,14 @@ func (v *iterNative) readTypex_YUint64(key *typex.Y, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerTypex_YUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YUint64)
+	ret.fn = ret.readTypex_YUint64
 	return ret
 }
 
@@ -20447,14 +20447,14 @@ func (v *iterNative) readETTypex_YUint64(et *typex.EventTime, key *typex.Y, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETTypex_YUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YUint64)
+	ret.fn = ret.readETTypex_YUint64
 	return ret
 }
 
@@ -20467,14 +20467,14 @@ func (v *iterNative) readTypex_YFloat32(key *typex.Y, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerTypex_YFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YFloat32)
+	ret.fn = ret.readTypex_YFloat32
 	return ret
 }
 
@@ -20488,14 +20488,14 @@ func (v *iterNative) readETTypex_YFloat32(et *typex.EventTime, key *typex.Y, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETTypex_YFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YFloat32)
+	ret.fn = ret.readETTypex_YFloat32
 	return ret
 }
 
@@ -20508,14 +20508,14 @@ func (v *iterNative) readTypex_YFloat64(key *typex.Y, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerTypex_YFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YFloat64)
+	ret.fn = ret.readTypex_YFloat64
 	return ret
 }
 
@@ -20529,14 +20529,14 @@ func (v *iterNative) readETTypex_YFloat64(et *typex.EventTime, key *typex.Y, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETTypex_YFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YFloat64)
+	ret.fn = ret.readETTypex_YFloat64
 	return ret
 }
 
@@ -20549,14 +20549,14 @@ func (v *iterNative) readTypex_YTypex_T(key *typex.Y, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerTypex_YTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_T)
+	ret.fn = ret.readTypex_YTypex_T
 	return ret
 }
 
@@ -20570,14 +20570,14 @@ func (v *iterNative) readETTypex_YTypex_T(et *typex.EventTime, key *typex.Y, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETTypex_YTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_T)
+	ret.fn = ret.readETTypex_YTypex_T
 	return ret
 }
 
@@ -20590,14 +20590,14 @@ func (v *iterNative) readTypex_YTypex_U(key *typex.Y, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerTypex_YTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_U)
+	ret.fn = ret.readTypex_YTypex_U
 	return ret
 }
 
@@ -20611,14 +20611,14 @@ func (v *iterNative) readETTypex_YTypex_U(et *typex.EventTime, key *typex.Y, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETTypex_YTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_U)
+	ret.fn = ret.readETTypex_YTypex_U
 	return ret
 }
 
@@ -20631,14 +20631,14 @@ func (v *iterNative) readTypex_YTypex_V(key *typex.Y, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerTypex_YTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_V)
+	ret.fn = ret.readTypex_YTypex_V
 	return ret
 }
 
@@ -20652,14 +20652,14 @@ func (v *iterNative) readETTypex_YTypex_V(et *typex.EventTime, key *typex.Y, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETTypex_YTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_V)
+	ret.fn = ret.readETTypex_YTypex_V
 	return ret
 }
 
@@ -20672,14 +20672,14 @@ func (v *iterNative) readTypex_YTypex_W(key *typex.Y, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerTypex_YTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_W)
+	ret.fn = ret.readTypex_YTypex_W
 	return ret
 }
 
@@ -20693,14 +20693,14 @@ func (v *iterNative) readETTypex_YTypex_W(et *typex.EventTime, key *typex.Y, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETTypex_YTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_W)
+	ret.fn = ret.readETTypex_YTypex_W
 	return ret
 }
 
@@ -20713,14 +20713,14 @@ func (v *iterNative) readTypex_YTypex_X(key *typex.Y, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerTypex_YTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_X)
+	ret.fn = ret.readTypex_YTypex_X
 	return ret
 }
 
@@ -20734,14 +20734,14 @@ func (v *iterNative) readETTypex_YTypex_X(et *typex.EventTime, key *typex.Y, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETTypex_YTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_X)
+	ret.fn = ret.readETTypex_YTypex_X
 	return ret
 }
 
@@ -20754,14 +20754,14 @@ func (v *iterNative) readTypex_YTypex_Y(key *typex.Y, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerTypex_YTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_Y)
+	ret.fn = ret.readTypex_YTypex_Y
 	return ret
 }
 
@@ -20775,14 +20775,14 @@ func (v *iterNative) readETTypex_YTypex_Y(et *typex.EventTime, key *typex.Y, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETTypex_YTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_Y)
+	ret.fn = ret.readETTypex_YTypex_Y
 	return ret
 }
 
@@ -20795,14 +20795,14 @@ func (v *iterNative) readTypex_YTypex_Z(key *typex.Y, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerTypex_YTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_Z)
+	ret.fn = ret.readTypex_YTypex_Z
 	return ret
 }
 
@@ -20816,14 +20816,14 @@ func (v *iterNative) readETTypex_YTypex_Z(et *typex.EventTime, key *typex.Y, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Y)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.Y)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETTypex_YTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_Z)
+	ret.fn = ret.readETTypex_YTypex_Z
 	return ret
 }
 
@@ -20836,13 +20836,13 @@ func (v *iterNative) readTypex_Z(val *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*val = elm.Elm.Interface().(typex.Z)
+	*val = elm.Elm.(typex.Z)
 	return true
 }
 
 func iterMakerTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_Z)
+	ret.fn = ret.readTypex_Z
 	return ret
 }
 
@@ -20856,13 +20856,13 @@ func (v *iterNative) readETTypex_Z(et *typex.EventTime, val *typex.Z) bool {
 	}
 
 	*et = elm.Timestamp
-	*val = elm.Elm.Interface().(typex.Z)
+	*val = elm.Elm.(typex.Z)
 	return true
 }
 
 func iterMakerETTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_Z)
+	ret.fn = ret.readETTypex_Z
 	return ret
 }
 
@@ -20875,14 +20875,14 @@ func (v *iterNative) readTypex_ZByteSlice(key *typex.Z, value *[]byte) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerTypex_ZByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZByteSlice)
+	ret.fn = ret.readTypex_ZByteSlice
 	return ret
 }
 
@@ -20896,14 +20896,14 @@ func (v *iterNative) readETTypex_ZByteSlice(et *typex.EventTime, key *typex.Z, v
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().([]byte)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.([]byte)
 	return true
 }
 
 func iterMakerETTypex_ZByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZByteSlice)
+	ret.fn = ret.readETTypex_ZByteSlice
 	return ret
 }
 
@@ -20916,14 +20916,14 @@ func (v *iterNative) readTypex_ZBool(key *typex.Z, value *bool) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerTypex_ZBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZBool)
+	ret.fn = ret.readTypex_ZBool
 	return ret
 }
 
@@ -20937,14 +20937,14 @@ func (v *iterNative) readETTypex_ZBool(et *typex.EventTime, key *typex.Z, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(bool)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(bool)
 	return true
 }
 
 func iterMakerETTypex_ZBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZBool)
+	ret.fn = ret.readETTypex_ZBool
 	return ret
 }
 
@@ -20957,14 +20957,14 @@ func (v *iterNative) readTypex_ZString(key *typex.Z, value *string) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerTypex_ZString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZString)
+	ret.fn = ret.readTypex_ZString
 	return ret
 }
 
@@ -20978,14 +20978,14 @@ func (v *iterNative) readETTypex_ZString(et *typex.EventTime, key *typex.Z, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(string)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(string)
 	return true
 }
 
 func iterMakerETTypex_ZString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZString)
+	ret.fn = ret.readETTypex_ZString
 	return ret
 }
 
@@ -20998,14 +20998,14 @@ func (v *iterNative) readTypex_ZInt(key *typex.Z, value *int) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerTypex_ZInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZInt)
+	ret.fn = ret.readTypex_ZInt
 	return ret
 }
 
@@ -21019,14 +21019,14 @@ func (v *iterNative) readETTypex_ZInt(et *typex.EventTime, key *typex.Z, value *
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int)
 	return true
 }
 
 func iterMakerETTypex_ZInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt)
+	ret.fn = ret.readETTypex_ZInt
 	return ret
 }
 
@@ -21039,14 +21039,14 @@ func (v *iterNative) readTypex_ZInt8(key *typex.Z, value *int8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerTypex_ZInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZInt8)
+	ret.fn = ret.readTypex_ZInt8
 	return ret
 }
 
@@ -21060,14 +21060,14 @@ func (v *iterNative) readETTypex_ZInt8(et *typex.EventTime, key *typex.Z, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int8)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int8)
 	return true
 }
 
 func iterMakerETTypex_ZInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt8)
+	ret.fn = ret.readETTypex_ZInt8
 	return ret
 }
 
@@ -21080,14 +21080,14 @@ func (v *iterNative) readTypex_ZInt16(key *typex.Z, value *int16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerTypex_ZInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZInt16)
+	ret.fn = ret.readTypex_ZInt16
 	return ret
 }
 
@@ -21101,14 +21101,14 @@ func (v *iterNative) readETTypex_ZInt16(et *typex.EventTime, key *typex.Z, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int16)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int16)
 	return true
 }
 
 func iterMakerETTypex_ZInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt16)
+	ret.fn = ret.readETTypex_ZInt16
 	return ret
 }
 
@@ -21121,14 +21121,14 @@ func (v *iterNative) readTypex_ZInt32(key *typex.Z, value *int32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerTypex_ZInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZInt32)
+	ret.fn = ret.readTypex_ZInt32
 	return ret
 }
 
@@ -21142,14 +21142,14 @@ func (v *iterNative) readETTypex_ZInt32(et *typex.EventTime, key *typex.Z, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int32)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int32)
 	return true
 }
 
 func iterMakerETTypex_ZInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt32)
+	ret.fn = ret.readETTypex_ZInt32
 	return ret
 }
 
@@ -21162,14 +21162,14 @@ func (v *iterNative) readTypex_ZInt64(key *typex.Z, value *int64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerTypex_ZInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZInt64)
+	ret.fn = ret.readTypex_ZInt64
 	return ret
 }
 
@@ -21183,14 +21183,14 @@ func (v *iterNative) readETTypex_ZInt64(et *typex.EventTime, key *typex.Z, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(int64)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(int64)
 	return true
 }
 
 func iterMakerETTypex_ZInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt64)
+	ret.fn = ret.readETTypex_ZInt64
 	return ret
 }
 
@@ -21203,14 +21203,14 @@ func (v *iterNative) readTypex_ZUint(key *typex.Z, value *uint) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerTypex_ZUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZUint)
+	ret.fn = ret.readTypex_ZUint
 	return ret
 }
 
@@ -21224,14 +21224,14 @@ func (v *iterNative) readETTypex_ZUint(et *typex.EventTime, key *typex.Z, value 
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint)
 	return true
 }
 
 func iterMakerETTypex_ZUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint)
+	ret.fn = ret.readETTypex_ZUint
 	return ret
 }
 
@@ -21244,14 +21244,14 @@ func (v *iterNative) readTypex_ZUint8(key *typex.Z, value *uint8) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerTypex_ZUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZUint8)
+	ret.fn = ret.readTypex_ZUint8
 	return ret
 }
 
@@ -21265,14 +21265,14 @@ func (v *iterNative) readETTypex_ZUint8(et *typex.EventTime, key *typex.Z, value
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint8)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint8)
 	return true
 }
 
 func iterMakerETTypex_ZUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint8)
+	ret.fn = ret.readETTypex_ZUint8
 	return ret
 }
 
@@ -21285,14 +21285,14 @@ func (v *iterNative) readTypex_ZUint16(key *typex.Z, value *uint16) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerTypex_ZUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZUint16)
+	ret.fn = ret.readTypex_ZUint16
 	return ret
 }
 
@@ -21306,14 +21306,14 @@ func (v *iterNative) readETTypex_ZUint16(et *typex.EventTime, key *typex.Z, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint16)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint16)
 	return true
 }
 
 func iterMakerETTypex_ZUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint16)
+	ret.fn = ret.readETTypex_ZUint16
 	return ret
 }
 
@@ -21326,14 +21326,14 @@ func (v *iterNative) readTypex_ZUint32(key *typex.Z, value *uint32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerTypex_ZUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZUint32)
+	ret.fn = ret.readTypex_ZUint32
 	return ret
 }
 
@@ -21347,14 +21347,14 @@ func (v *iterNative) readETTypex_ZUint32(et *typex.EventTime, key *typex.Z, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint32)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint32)
 	return true
 }
 
 func iterMakerETTypex_ZUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint32)
+	ret.fn = ret.readETTypex_ZUint32
 	return ret
 }
 
@@ -21367,14 +21367,14 @@ func (v *iterNative) readTypex_ZUint64(key *typex.Z, value *uint64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerTypex_ZUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZUint64)
+	ret.fn = ret.readTypex_ZUint64
 	return ret
 }
 
@@ -21388,14 +21388,14 @@ func (v *iterNative) readETTypex_ZUint64(et *typex.EventTime, key *typex.Z, valu
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(uint64)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(uint64)
 	return true
 }
 
 func iterMakerETTypex_ZUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint64)
+	ret.fn = ret.readETTypex_ZUint64
 	return ret
 }
 
@@ -21408,14 +21408,14 @@ func (v *iterNative) readTypex_ZFloat32(key *typex.Z, value *float32) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerTypex_ZFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZFloat32)
+	ret.fn = ret.readTypex_ZFloat32
 	return ret
 }
 
@@ -21429,14 +21429,14 @@ func (v *iterNative) readETTypex_ZFloat32(et *typex.EventTime, key *typex.Z, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(float32)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(float32)
 	return true
 }
 
 func iterMakerETTypex_ZFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZFloat32)
+	ret.fn = ret.readETTypex_ZFloat32
 	return ret
 }
 
@@ -21449,14 +21449,14 @@ func (v *iterNative) readTypex_ZFloat64(key *typex.Z, value *float64) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerTypex_ZFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZFloat64)
+	ret.fn = ret.readTypex_ZFloat64
 	return ret
 }
 
@@ -21470,14 +21470,14 @@ func (v *iterNative) readETTypex_ZFloat64(et *typex.EventTime, key *typex.Z, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(float64)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(float64)
 	return true
 }
 
 func iterMakerETTypex_ZFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZFloat64)
+	ret.fn = ret.readETTypex_ZFloat64
 	return ret
 }
 
@@ -21490,14 +21490,14 @@ func (v *iterNative) readTypex_ZTypex_T(key *typex.Z, value *typex.T) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerTypex_ZTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_T)
+	ret.fn = ret.readTypex_ZTypex_T
 	return ret
 }
 
@@ -21511,14 +21511,14 @@ func (v *iterNative) readETTypex_ZTypex_T(et *typex.EventTime, key *typex.Z, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.T)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.T)
 	return true
 }
 
 func iterMakerETTypex_ZTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_T)
+	ret.fn = ret.readETTypex_ZTypex_T
 	return ret
 }
 
@@ -21531,14 +21531,14 @@ func (v *iterNative) readTypex_ZTypex_U(key *typex.Z, value *typex.U) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerTypex_ZTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_U)
+	ret.fn = ret.readTypex_ZTypex_U
 	return ret
 }
 
@@ -21552,14 +21552,14 @@ func (v *iterNative) readETTypex_ZTypex_U(et *typex.EventTime, key *typex.Z, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.U)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.U)
 	return true
 }
 
 func iterMakerETTypex_ZTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_U)
+	ret.fn = ret.readETTypex_ZTypex_U
 	return ret
 }
 
@@ -21572,14 +21572,14 @@ func (v *iterNative) readTypex_ZTypex_V(key *typex.Z, value *typex.V) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerTypex_ZTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_V)
+	ret.fn = ret.readTypex_ZTypex_V
 	return ret
 }
 
@@ -21593,14 +21593,14 @@ func (v *iterNative) readETTypex_ZTypex_V(et *typex.EventTime, key *typex.Z, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.V)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.V)
 	return true
 }
 
 func iterMakerETTypex_ZTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_V)
+	ret.fn = ret.readETTypex_ZTypex_V
 	return ret
 }
 
@@ -21613,14 +21613,14 @@ func (v *iterNative) readTypex_ZTypex_W(key *typex.Z, value *typex.W) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerTypex_ZTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_W)
+	ret.fn = ret.readTypex_ZTypex_W
 	return ret
 }
 
@@ -21634,14 +21634,14 @@ func (v *iterNative) readETTypex_ZTypex_W(et *typex.EventTime, key *typex.Z, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.W)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.W)
 	return true
 }
 
 func iterMakerETTypex_ZTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_W)
+	ret.fn = ret.readETTypex_ZTypex_W
 	return ret
 }
 
@@ -21654,14 +21654,14 @@ func (v *iterNative) readTypex_ZTypex_X(key *typex.Z, value *typex.X) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerTypex_ZTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_X)
+	ret.fn = ret.readTypex_ZTypex_X
 	return ret
 }
 
@@ -21675,14 +21675,14 @@ func (v *iterNative) readETTypex_ZTypex_X(et *typex.EventTime, key *typex.Z, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.X)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.X)
 	return true
 }
 
 func iterMakerETTypex_ZTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_X)
+	ret.fn = ret.readETTypex_ZTypex_X
 	return ret
 }
 
@@ -21695,14 +21695,14 @@ func (v *iterNative) readTypex_ZTypex_Y(key *typex.Z, value *typex.Y) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerTypex_ZTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_Y)
+	ret.fn = ret.readTypex_ZTypex_Y
 	return ret
 }
 
@@ -21716,14 +21716,14 @@ func (v *iterNative) readETTypex_ZTypex_Y(et *typex.EventTime, key *typex.Z, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.Y)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.Y)
 	return true
 }
 
 func iterMakerETTypex_ZTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_Y)
+	ret.fn = ret.readETTypex_ZTypex_Y
 	return ret
 }
 
@@ -21736,14 +21736,14 @@ func (v *iterNative) readTypex_ZTypex_Z(key *typex.Z, value *typex.Z) bool {
 		panic(fmt.Sprintf("broken stream: %v", err))
 	}
 
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerTypex_ZTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_Z)
+	ret.fn = ret.readTypex_ZTypex_Z
 	return ret
 }
 
@@ -21757,13 +21757,13 @@ func (v *iterNative) readETTypex_ZTypex_Z(et *typex.EventTime, key *typex.Z, val
 	}
 
 	*et = elm.Timestamp
-	*key = elm.Elm.Interface().(typex.Z)
-	*value = elm.Elm2.Interface().(typex.Z)
+	*key = elm.Elm.(typex.Z)
+	*value = elm.Elm2.(typex.Z)
 	return true
 }
 
 func iterMakerETTypex_ZTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
-	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_Z)
+	ret.fn = ret.readETTypex_ZTypex_Z
 	return ret
 }
