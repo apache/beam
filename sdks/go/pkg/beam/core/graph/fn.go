@@ -61,7 +61,9 @@ type DynFn struct {
 	Name string
 	// T is the type of the generated function
 	T reflect.Type
-	// Data holds the data for the generator. This data is trivially serializable.
+	// Data holds the data, if any, for the generator. Each function
+	// generator typically needs some configuration data, which is
+	// required by the DynFn to be encoded.
 	Data []byte
 	// Gen is the function generator. The function generator itself must be a
 	// function with a unique symbol.
