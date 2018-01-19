@@ -42,6 +42,7 @@ def spark_version = "2.2.1"
 def pubsub_grpc_version = "0.1.18"
 def apex_core_version = "3.6.0"
 def apex_malhar_version = "3.4.0"
+def postgres_version = "9.4.1212.jre7"
 
 // A map of maps containing common libraries used per language. To use:
 // dependencies {
@@ -131,6 +132,7 @@ ext.library = [
     netty_handler: "io.netty:netty-handler:$netty_version",
     netty_tcnative_boringssl_static: "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26",
     netty_transport_native_epoll: "io.netty:netty-transport-native-epoll:$netty_version",
+    postgres: "org.postgresql:postgresql:$postgres_version",
     protobuf_java: "com.google.protobuf:protobuf-java:$protobuf_version",
     protobuf_java_util: "com.google.protobuf:protobuf-java-util:$protobuf_version",
     proto_google_cloud_pubsub_v1: "com.google.api.grpc:proto-google-cloud-pubsub-v1:$pubsub_grpc_version",

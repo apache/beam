@@ -25,6 +25,7 @@ dependencies {
   compile library.java.guava
   shadow project(path: ":sdks:java:core", configuration: "shadow")
   testCompile library.java.junit
+  testCompile library.java.postgres
 }
 
 task packageTests(type: Jar) {
