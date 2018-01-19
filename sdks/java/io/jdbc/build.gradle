@@ -42,10 +42,10 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
+  testCompile library.java.postgres
   testCompile group: "org.apache.derby", name: "derby", version:"10.12.1.1"
   testCompile group: "org.apache.derby", name: "derbyclient", version:"10.12.1.1"
   testCompile group: "org.apache.derby", name: "derbynet", version:"10.12.1.1"
-  testCompile group: "org.postgresql", name: "postgresql", version:"9.4.1212.jre7"
 }
 
 task packageTests(type: Jar) {
