@@ -25,7 +25,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,9 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderException;
@@ -83,6 +80,7 @@ import org.apache.beam.sdk.nexmark.queries.Query9Model;
 import org.apache.beam.sdk.nexmark.queries.sql.NexmarkSqlQuery;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -92,7 +90,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
 import org.joda.time.Duration;
 import org.slf4j.LoggerFactory;
 
@@ -1203,7 +1200,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   private List<NexmarkQuery> createSqlQueries() {
     return Arrays.<NexmarkQuery> asList(
         new NexmarkSqlQuery(configuration, new SqlQuery0()),
-        new NexmarkSqlQuery(configuration, new SqlQuery1()));
+        new NexmarkSqlQuery(configuration, new SqlQuery1()),
+        new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)));
   }
 
   private List<NexmarkQuery> createJavaQueries() {
