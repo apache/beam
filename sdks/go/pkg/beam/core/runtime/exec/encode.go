@@ -30,7 +30,7 @@ type Encoder interface {
 }
 
 func makeEncoder(fn reflectx.Func) Encoder {
-	// Detect one of the valid decoder forms and allow it to be invoked
+	// Detect one of the valid encoder forms and allow it to be invoked
 	// efficiently, relying on the general reflectx.Func framework for
 	// avoiding expensive reflection calls. There are 4 forms:
 	//
