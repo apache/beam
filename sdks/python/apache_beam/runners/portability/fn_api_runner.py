@@ -1180,8 +1180,9 @@ class FnApiMetrics(metrics.metric.MetricResults):
           self._counters[key] = proto.counter_data.value
         elif proto.HasField('distribution_data'):
           self._distributions[
-              key] = metrics.cells.DistributionData.from_runner_api(
-                  proto.distribution_data)
+              key] = metrics.cells.DistributionResult(
+                  metrics.cells.DistributionData.from_runner_api(
+                      proto.distribution_data))
 
   def query(self, filter=None):
     counters = [metrics.execution.MetricResult(k, v, v)
