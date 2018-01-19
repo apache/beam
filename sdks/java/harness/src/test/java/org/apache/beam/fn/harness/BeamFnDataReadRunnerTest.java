@@ -41,12 +41,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.ServiceLoader;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.CompletableFutureInboundDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -56,6 +56,7 @@ import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.test.TestExecutors;
@@ -153,7 +154,7 @@ public class BeamFnDataReadRunnerTest {
 
     verifyZeroInteractions(mockBeamFnDataClient);
 
-    CompletableFuture<Void> completionFuture = new CompletableFuture<>();
+    InboundDataClient completionFuture = CompletableFutureInboundDataClient.create();
     when(mockBeamFnDataClient.receive(any(), any(), any(), any()))
         .thenReturn(completionFuture);
     Iterables.getOnlyElement(startFunctions).run();
@@ -172,7 +173,7 @@ public class BeamFnDataReadRunnerTest {
 
     assertThat(consumers.keySet(), containsInAnyOrder(localOutputId));
 
-    completionFuture.complete(null);
+    completionFuture.complete();
     Iterables.getOnlyElement(finishFunctions).run();
 
     verifyNoMoreInteractions(mockBeamFnDataClient);
@@ -180,8 +181,8 @@ public class BeamFnDataReadRunnerTest {
 
   @Test
   public void testReuseForMultipleBundles() throws Exception {
-    CompletableFuture<Void> bundle1Future = new CompletableFuture<>();
-    CompletableFuture<Void> bundle2Future = new CompletableFuture<>();
+    InboundDataClient bundle1Future = CompletableFutureInboundDataClient.create();
+    InboundDataClient bundle2Future = CompletableFutureInboundDataClient.create();
     when(mockBeamFnDataClient.receive(
         any(),
         any(),
@@ -218,9 +219,9 @@ public class BeamFnDataReadRunnerTest {
           consumerCaptor.getValue().accept(valueInGlobalWindow("ABC"));
           consumerCaptor.getValue().accept(valueInGlobalWindow("DEF"));
         } catch (Exception e) {
-          bundle1Future.completeExceptionally(e);
+          bundle1Future.fail(e);
         } finally {
-          bundle1Future.complete(null);
+          bundle1Future.complete();
         }
       }
     });
@@ -250,9 +251,9 @@ public class BeamFnDataReadRunnerTest {
           consumerCaptor.getValue().accept(valueInGlobalWindow("GHI"));
           consumerCaptor.getValue().accept(valueInGlobalWindow("JKL"));
         } catch (Exception e) {
-          bundle2Future.completeExceptionally(e);
+          bundle2Future.fail(e);
         } finally {
-          bundle2Future.complete(null);
+          bundle2Future.complete();
         }
       }
     });

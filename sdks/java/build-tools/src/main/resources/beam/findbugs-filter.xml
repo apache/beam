@@ -69,6 +69,17 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.fn.harness.data.CompletableFutureInboundDataClient"/>
+    <Method name="complete"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
+
+  <Match>
     <Class name="org.apache.beam.sdk.coders.AvroCoder$SerializableSchemaSupplier"/>
     <Field name="schema"/>
     <Bug pattern="SE_BAD_FIELD"/>
