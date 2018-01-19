@@ -160,8 +160,8 @@ class PipelineTest(unittest.TestCase):
 
   # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
   # @attr('ValidatesRunner')
-  def test_metrics_in_source(self):
-    pipeline = TestPipeline()
+  def test_metrics_in_fake_source(self):
+    pipeline = TestPipeline(runner='DirectRunner')
     pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
     assert_that(pcoll, equal_to([1, 2, 3, 4, 5, 6]))
     res = pipeline.run()
@@ -171,8 +171,8 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(outputs_counter.key.metric.name, 'outputs')
     self.assertEqual(outputs_counter.committed, 6)
 
-  def test_read(self):
-    pipeline = TestPipeline()
+  def test_fake_read(self):
+    pipeline = TestPipeline(runner='DirectRunner')
     pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
     assert_that(pcoll, equal_to([1, 2, 3]))
     pipeline.run()
@@ -326,7 +326,7 @@ class PipelineTest(unittest.TestCase):
 
     file_system_override_mock.side_effect = get_overrides
 
-    with Pipeline() as p:
+    with Pipeline(runner='DirectRunner') as p:
       pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
       assert_that(pcoll, equal_to([3, 6, 9]))
 
