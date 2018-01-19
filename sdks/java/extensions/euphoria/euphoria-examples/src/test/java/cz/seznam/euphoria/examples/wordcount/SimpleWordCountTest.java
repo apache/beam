@@ -18,6 +18,7 @@ package cz.seznam.euphoria.examples.wordcount;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.executor.local.LocalExecutor;
 import cz.seznam.euphoria.testing.AbstractFlowTest;
 import org.junit.Test;
 
@@ -38,7 +39,7 @@ public class SimpleWordCountTest {
   }
 
   private static void execute(FlowTest test) {
-    test.execute();
+    test.execute(new LocalExecutor());
   }
 
   @Test
