@@ -48,16 +48,29 @@ public class MetricsPusher implements Serializable {
 
   public static void createAndStart(
       MetricsContainerStepMap metricsContainerStepMap, PipelineOptions pipelineOptions) {
-    synchronized (MetricsPusher.class) {
-      if (instance == null) {
-        instance = new MetricsPusher(metricsContainerStepMap, pipelineOptions);
-        instance.start();
+    if (instance == null) {
+      synchronized (MetricsPusher.class) {
+        if (instance == null) {
+          instance = new MetricsPusher(metricsContainerStepMap, pipelineOptions);
+          instance.start();
+        } else {
+          /*    if the thread is stopped, then it means that the pipeline is finished. If we run multiple
+          pipelines in the same JVM, as MetricsPusher is a singleton, the instance will still be in
+          memory but the thread will be stopped.*/
+          if (instance.scheduledFuture.isCancelled()) {
+            instance.start();
+          }
+        }
       }
     }
   }
 
   public static MetricsPusher getInstance(){
-    return instance;
+    if (instance == null) {
+      throw new IllegalStateException("Metrics pusher not been instantiated");
+    } else {
+      return instance;
+    }
   }
   /**
    * Lazily set the pipelineResult.
@@ -77,8 +90,10 @@ public class MetricsPusher implements Serializable {
         .scheduleAtFixedRate(new PushingThread(), 0, period,
             TimeUnit.SECONDS);
   }
-  private static void stop(){
-    instance.scheduledFuture.cancel(true);
+  private static synchronized void stop(){
+    if (!instance.scheduledFuture.isCancelled()) {
+      instance.scheduledFuture.cancel(true);
+    }
   }
 
   public void pushMetrics(){
