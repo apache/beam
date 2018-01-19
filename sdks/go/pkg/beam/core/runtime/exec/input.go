@@ -38,7 +38,7 @@ type ReusableInput interface {
 	// Init initializes the value before use.
 	Init() error
 	// Value returns the side input value.
-	Value() reflect.Value
+	Value() interface{}
 	// Reset resets the value after use.
 	Reset() error
 }
@@ -64,7 +64,7 @@ func RegisterInput(t reflect.Type, maker func(ReStream) ReusableInput) {
 type reIterValue struct {
 	t  reflect.Type
 	s  ReStream
-	fn reflect.Value
+	fn interface{}
 }
 
 func makeReIter(t reflect.Type, s ReStream) ReusableInput {
@@ -73,7 +73,7 @@ func makeReIter(t reflect.Type, s ReStream) ReusableInput {
 	}
 
 	ret := &reIterValue{t: t, s: s}
-	ret.fn = reflect.MakeFunc(t, ret.invoke)
+	ret.fn = reflect.MakeFunc(t, ret.invoke).Interface()
 	return ret
 }
 
@@ -81,7 +81,7 @@ func (v *reIterValue) Init() error {
 	return nil
 }
 
-func (v *reIterValue) Value() reflect.Value {
+func (v *reIterValue) Value() interface{} {
 	return v.fn
 }
 
@@ -92,12 +92,12 @@ func (v *reIterValue) Reset() error {
 func (v *reIterValue) invoke(args []reflect.Value) []reflect.Value {
 	iter := makeIter(v.t.Out(0), v.s)
 	iter.Init()
-	return []reflect.Value{iter.Value()}
+	return []reflect.Value{reflect.ValueOf(iter.Value())}
 }
 
 type iterValue struct {
 	s     ReStream
-	fn    reflect.Value
+	fn    interface{}
 	types []reflect.Type
 
 	// cur is the "current" stream, if any.
@@ -122,7 +122,7 @@ func makeIter(t reflect.Type, s ReStream) ReusableInput {
 	}
 
 	ret := &iterValue{types: types, s: s}
-	ret.fn = reflect.MakeFunc(t, ret.invoke)
+	ret.fn = reflect.MakeFunc(t, ret.invoke).Interface()
 	return ret
 }
 
@@ -131,7 +131,7 @@ func (v *iterValue) Init() error {
 	return nil
 }
 
-func (v *iterValue) Value() reflect.Value {
+func (v *iterValue) Value() interface{} {
 	return v.fn
 }
 
@@ -161,10 +161,10 @@ func (v *iterValue) invoke(args []reflect.Value) []reflect.Value {
 		case t == typex.EventTimeType:
 			v = reflect.ValueOf(elm.Timestamp)
 		case isKey:
-			v = Convert(elm.Elm, t)
+			v = reflect.ValueOf(Convert(elm.Elm, t))
 			isKey = false
 		default:
-			v = Convert(elm.Elm2, t)
+			v = reflect.ValueOf(Convert(elm.Elm2, t))
 		}
 		args[i].Elem().Set(v)
 	}
@@ -172,14 +172,14 @@ func (v *iterValue) invoke(args []reflect.Value) []reflect.Value {
 }
 
 type fixedValue struct {
-	val reflect.Value
+	val interface{}
 }
 
 func (v *fixedValue) Init() error {
 	return nil
 }
 
-func (v *fixedValue) Value() reflect.Value {
+func (v *fixedValue) Value() interface{} {
 	return v.val
 }
 

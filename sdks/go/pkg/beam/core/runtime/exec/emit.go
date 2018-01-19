@@ -32,7 +32,7 @@ type ReusableEmitter interface {
 	// Init resets the value. Can be called multiple times.
 	Init(ctx context.Context, t typex.EventTime) error
 	// Value returns the side input value. Constant value.
-	Value() reflect.Value
+	Value() interface{}
 }
 
 var (
@@ -71,14 +71,16 @@ func makeEmit(t reflect.Type, n ElementProcessor) ReusableEmitter {
 	}
 
 	ret := &emitValue{n: n, types: types}
-	ret.fn = reflect.MakeFunc(t, ret.invoke)
+	ret.fn = reflect.MakeFunc(t, ret.invoke).Interface()
 	return ret
 }
+
+// TODO(herohde) 1/19/2018: we could have an emitter for each arity in the reflection case.
 
 // emitValue is the reflection-based default emitter implementation.
 type emitValue struct {
 	n     ElementProcessor
-	fn    reflect.Value
+	fn    interface{}
 	types []reflect.Type
 
 	ctx context.Context
@@ -91,7 +93,7 @@ func (e *emitValue) Init(ctx context.Context, et typex.EventTime) error {
 	return nil
 }
 
-func (e *emitValue) Value() reflect.Value {
+func (e *emitValue) Value() interface{} {
 	return e.fn
 }
 
@@ -103,10 +105,10 @@ func (e *emitValue) invoke(args []reflect.Value) []reflect.Value {
 		case t == typex.EventTimeType:
 			value.Timestamp = args[i].Interface().(typex.EventTime)
 		case isKey:
-			value.Elm = args[i]
+			value.Elm = args[i].Interface()
 			isKey = false
 		default:
-			value.Elm2 = args[i]
+			value.Elm2 = args[i].Interface()
 		}
 	}
 

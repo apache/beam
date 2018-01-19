@@ -34,17 +34,17 @@ type MainInput struct {
 
 // Invoke invokes the fn with the given values. The extra values must match the non-main
 // side input and emitters. It returns the direct output, if any.
-func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...reflect.Value) (*FullValue, error) {
+func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interface{}) (*FullValue, error) {
 	if fn == nil {
 		return nil, nil // ok: nothing to Invoke
 	}
 
 	// (1) Populate contexts
 
-	args := make([]reflect.Value, len(fn.Param))
+	args := make([]interface{}, len(fn.Param))
 
 	if index, ok := fn.Context(); ok {
-		args[index] = reflect.ValueOf(ctx)
+		args[index] = ctx
 	}
 
 	// (2) Main input from value, if any.
@@ -54,12 +54,12 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...reflect.
 
 	if opt != nil {
 		if index, ok := fn.EventTime(); ok {
-			args[index] = reflect.ValueOf(opt.Key.Timestamp)
+			args[index] = opt.Key.Timestamp
 		}
 
 		args[in[i]] = Convert(opt.Key.Elm, fn.Param[in[i]].T)
 		i++
-		if opt.Key.Elm2.Kind() != reflect.Invalid {
+		if opt.Key.Elm2 != nil {
 			args[in[i]] = Convert(opt.Key.Elm2, fn.Param[in[i]].T)
 			i++
 		}
@@ -89,7 +89,7 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...reflect.
 
 	// (4) Invoke
 
-	ret, err := reflectx.CallNoPanic(fn.Fn, reflectx.Interface(args))
+	ret, err := reflectx.CallNoPanic(fn.Fn, args)
 	if err != nil {
 		return nil, err
 	}
@@ -106,9 +106,9 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...reflect.
 			value.Timestamp = ret[index].(typex.EventTime)
 		}
 
-		value.Elm = reflect.ValueOf(ret[out[0]])
+		value.Elm = ret[out[0]]
 		if len(out) > 1 {
-			value.Elm2 = reflect.ValueOf(ret[out[1]])
+			value.Elm2 = ret[out[1]]
 		}
 		return value, nil
 	}
@@ -185,9 +185,9 @@ func makeSideInput(kind graph.InputKind, t reflect.Type, values ReStream) (Reusa
 		}
 		slice := reflect.MakeSlice(t, len(elms), len(elms))
 		for i := 0; i < len(elms); i++ {
-			slice.Index(i).Set(Convert(elms[i].Elm, t.Elem()))
+			slice.Index(i).Set(reflect.ValueOf(Convert(elms[i].Elm, t.Elem())))
 		}
-		return &fixedValue{val: slice}, nil
+		return &fixedValue{val: slice.Interface()}, nil
 
 	case graph.Iter:
 		return makeIter(t, values), nil

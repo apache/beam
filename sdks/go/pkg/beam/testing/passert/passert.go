@@ -142,7 +142,7 @@ func index(c *coder.Coder, iter func(*beam.T) bool) (map[string]indexEntry, erro
 	var val beam.T
 	for iter(&val) {
 		var buf bytes.Buffer
-		if err := enc.Encode(exec.FullValue{Elm: reflect.ValueOf(val)}, &buf); err != nil {
+		if err := enc.Encode(exec.FullValue{Elm: val}, &buf); err != nil {
 			return nil, fmt.Errorf("value %v not encodable by %v", val, c)
 		}
 		encoded := buf.String()

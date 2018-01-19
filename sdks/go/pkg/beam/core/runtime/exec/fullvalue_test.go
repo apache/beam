@@ -19,26 +19,18 @@ import (
 	"reflect"
 )
 
-func makeValue(v interface{}) FullValue {
-	return FullValue{Elm: reflect.ValueOf(v)}
-}
-
 func makeValues(vs ...interface{}) []FullValue {
 	var ret []FullValue
 	for _, v := range vs {
-		ret = append(ret, makeValue(v))
+		ret = append(ret, FullValue{Elm: v})
 	}
 	return ret
-}
-
-func extractValue(v FullValue) interface{} {
-	return v.Elm.Interface()
 }
 
 func extractValues(vs ...FullValue) []interface{} {
 	var ret []interface{}
 	for _, v := range vs {
-		ret = append(ret, extractValue(v))
+		ret = append(ret, v.Elm)
 	}
 	return ret
 }
@@ -59,20 +51,20 @@ func equal(a, b FullValue) bool {
 	if a.Timestamp != b.Timestamp {
 		return false
 	}
-	if (a.Elm.Kind() == reflect.Invalid) != (b.Elm.Kind() == reflect.Invalid) {
+	if (a.Elm == nil) != (b.Elm == nil) {
 		return false
 	}
-	if (a.Elm2.Kind() == reflect.Invalid) != (b.Elm2.Kind() == reflect.Invalid) {
+	if (a.Elm2 == nil) != (b.Elm2 == nil) {
 		return false
 	}
 
-	if a.Elm.Kind() != reflect.Invalid {
-		if !reflect.DeepEqual(a.Elm.Interface(), b.Elm.Interface()) {
+	if a.Elm != nil {
+		if !reflect.DeepEqual(a.Elm, b.Elm) {
 			return false
 		}
 	}
-	if a.Elm2.Kind() != reflect.Invalid {
-		if !reflect.DeepEqual(a.Elm2.Interface(), b.Elm2.Interface()) {
+	if a.Elm2 != nil {
+		if !reflect.DeepEqual(a.Elm2, b.Elm2) {
 			return false
 		}
 	}

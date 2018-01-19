@@ -19,7 +19,6 @@ import (
 	"context"
 	"fmt"
 	"path"
-	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
@@ -38,7 +37,7 @@ type ParDo struct {
 	ready     bool
 	sideinput []ReusableInput
 	emitters  []ReusableEmitter
-	extra     []reflect.Value
+	extra     []interface{}
 
 	status Status
 	err    errorx.GuardedError

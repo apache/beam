@@ -29,18 +29,19 @@ import (
 // implicit context. The result of a GBK or CoGBK is not a single FullValue.
 // The consumer is responsible for converting the values to the correct type.
 type FullValue struct {
-	Elm  reflect.Value // Element or KV key.
-	Elm2 reflect.Value // KV value, if not invalid
+	Elm  interface{} // Element or KV key.
+	Elm2 interface{} // KV value, if not invalid
 
 	Timestamp typex.EventTime
 	// TODO: Window, pane
 }
 
 func (v FullValue) String() string {
-	if v.Elm2.Kind() == reflect.Invalid {
-		return fmt.Sprintf("%v [@%v]", v.Elm.Interface(), time.Time(v.Timestamp).Unix())
+
+	if v.Elm2 == nil {
+		return fmt.Sprintf("%v [@%v]", v.Elm, time.Time(v.Timestamp).Unix())
 	}
-	return fmt.Sprintf("KV<%v,%v> [@%v]", v.Elm.Interface(), v.Elm2.Interface(), time.Time(v.Timestamp).Unix())
+	return fmt.Sprintf("KV<%v,%v> [@%v]", v.Elm, v.Elm2, time.Time(v.Timestamp).Unix())
 }
 
 // Stream is a FullValue reader. It returns io.EOF when complete, but can be
@@ -84,35 +85,41 @@ func (s *FixedStream) Read() (FullValue, error) {
 	return ret, nil
 }
 
+// TODO(herohde) 1/19/2018: type-specialize list and other conversions?
+
 // Convert converts type of the runtime value to the desired one. It is needed
 // to drop the universal type and convert Aggregate types.
-func Convert(value reflect.Value, to reflect.Type) reflect.Value {
-	from := value.Type()
+func Convert(v interface{}, to reflect.Type) interface{} {
+	from := reflect.TypeOf(v)
+
 	switch {
 	case from == to:
-		return value
+		return v
 
 	case typex.IsUniversal(from):
 		// We need to drop T to obtain the underlying type of the value.
-		return reflectx.UnderlyingType(value)
+		return reflectx.UnderlyingType(reflect.ValueOf(v)).Interface()
+		// TODO(herohde) 1/19/2018: reflect.ValueOf(v).Convert(to).Interface() instead?
 
 	case typex.IsList(from) && typex.IsList(to):
 		// Convert []A to []B.
 
+		value := reflect.ValueOf(v)
+
 		ret := reflect.New(to).Elem()
 		for i := 0; i < value.Len(); i++ {
-			ret = reflect.Append(ret, Convert(value.Index(i), to.Elem()))
+			ret = reflect.Append(ret, reflect.ValueOf(Convert(value.Index(i).Interface(), to.Elem())))
 		}
-		return ret
+		return ret.Interface()
 
 	default:
 		switch {
 		// Perform conservative type conversions.
 		case from == reflectx.ByteSlice && to == reflectx.String:
-			return value.Convert(to)
+			return reflect.ValueOf(v).Convert(to).Interface()
 
 		default:
-			return value
+			return v
 		}
 	}
 }
