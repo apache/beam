@@ -60,8 +60,6 @@ type Root interface {
 	Process(ctx context.Context) error
 }
 
-// TODO(herohde) 12/21/2017: maybe switch to interface{} from reflect.Value.
-
 // ElementProcessor presents a component that can process an element.
 type ElementProcessor interface {
 	// Call processes a single element. If GBK or CoGBK result, the values

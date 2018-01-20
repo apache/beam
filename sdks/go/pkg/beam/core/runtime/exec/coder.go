@@ -135,7 +135,7 @@ type bytesEncoder struct{}
 func (*bytesEncoder) Encode(val FullValue, w io.Writer) error {
 	// Encoding: size (varint) + raw data
 
-	data := reflectx.UnderlyingType(val.Elm).Convert(reflectx.ByteSlice).Interface().([]byte)
+	data := reflect.ValueOf(val.Elm).Convert(reflectx.ByteSlice).Interface().([]byte)
 	size := len(data)
 
 	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
@@ -158,7 +158,7 @@ func (*bytesDecoder) Decode(r io.Reader) (FullValue, error) {
 	if err != nil {
 		return FullValue{}, err
 	}
-	return FullValue{Elm: reflect.ValueOf(data)}, nil
+	return FullValue{Elm: data}, nil
 }
 
 type varIntEncoder struct{}
@@ -166,7 +166,7 @@ type varIntEncoder struct{}
 func (*varIntEncoder) Encode(val FullValue, w io.Writer) error {
 	// Encoding: beam varint
 
-	n := reflectx.UnderlyingType(val.Elm).Convert(reflectx.Int32).Interface().(int32)
+	n := Convert(val.Elm, reflectx.Int32).(int32) // Convert needed?
 	return coder.EncodeVarInt(n, w)
 }
 
@@ -179,7 +179,7 @@ func (*varIntDecoder) Decode(r io.Reader) (FullValue, error) {
 	if err != nil {
 		return FullValue{}, err
 	}
-	return FullValue{Elm: reflect.ValueOf(n)}, nil
+	return FullValue{Elm: n}, nil
 }
 
 type customEncoder struct {
@@ -190,7 +190,7 @@ type customEncoder struct {
 func (c *customEncoder) Encode(val FullValue, w io.Writer) error {
 	// (1) Call encode
 
-	data, err := c.enc.Encode(c.t, val.Elm.Interface())
+	data, err := c.enc.Encode(c.t, val.Elm)
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func (c *customDecoder) Decode(r io.Reader) (FullValue, error) {
 	if err != nil {
 		return FullValue{}, err
 	}
-	return FullValue{Elm: reflect.ValueOf(val)}, err
+	return FullValue{Elm: val}, err
 }
 
 type kvEncoder struct {
