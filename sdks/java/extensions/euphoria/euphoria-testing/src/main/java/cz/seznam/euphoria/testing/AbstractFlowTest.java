@@ -19,7 +19,6 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.executor.Executor;
-import cz.seznam.euphoria.executor.local.LocalExecutor;
 
 import java.util.List;
 
@@ -45,11 +44,10 @@ public abstract class AbstractFlowTest<OUT> {
    */
   protected abstract Dataset<OUT> buildFlow(Flow flow);
 
-  public void execute() {
+  public void execute(Executor executor) {
     final Flow flow = Flow.create("test");
     final ListDataSink<OUT> sink = ListDataSink.get();
     buildFlow(flow).persist(sink);
-    final Executor executor = new LocalExecutor();
     executor.submit(flow).join();
     DatasetAssert.unorderedEquals(getOutput(), sink.getOutputs());
   }
