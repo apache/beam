@@ -142,7 +142,8 @@ class FnApiRunnerTest(
     dist, = res.metrics().query(beam.metrics.MetricsFilter().with_step('dist'))[
         'distributions']
     self.assertEqual(
-        dist.committed, beam.metrics.cells.DistributionData(4, 2, 1, 3))
+        dist.committed.data, beam.metrics.cells.DistributionData(4, 2, 1, 3))
+    self.assertEqual(dist.committed.mean, 2.0)
 
   def test_progress_metrics(self):
     p = self.create_pipeline()
