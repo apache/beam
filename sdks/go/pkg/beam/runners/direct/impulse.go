@@ -18,7 +18,6 @@ package direct
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 )
@@ -43,7 +42,7 @@ func (n *Impulse) StartBundle(ctx context.Context, id string, data exec.DataMana
 }
 
 func (n *Impulse) Process(ctx context.Context) error {
-	value := exec.FullValue{Elm: reflect.ValueOf(n.Value)}
+	value := exec.FullValue{Elm: n.Value}
 	// TODO(herohde) 6/23/2017: set value.Timestamp
 
 	return n.Out.ProcessElement(ctx, value)

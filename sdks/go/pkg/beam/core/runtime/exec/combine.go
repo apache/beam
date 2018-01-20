@@ -35,7 +35,7 @@ type Combine struct {
 	Edge *graph.MultiEdge
 	Out  Node
 
-	accum             reflect.Value // global accumulator, only used/valid if isPerKey == false
+	accum             interface{} // global accumulator, only used/valid if isPerKey == false
 	first             bool
 	isPerKey, usesKey bool
 
@@ -85,7 +85,7 @@ func (n *Combine) StartBundle(ctx context.Context, id string, data DataManager) 
 		return nil
 	}
 
-	a, err := n.newAccum(ctx, reflect.Value{})
+	a, err := n.newAccum(ctx, nil)
 	if err != nil {
 		return n.fail(err)
 	}
@@ -181,10 +181,10 @@ func (n *Combine) Down(ctx context.Context) error {
 	return n.err.Error()
 }
 
-func (n *Combine) newAccum(ctx context.Context, key reflect.Value) (reflect.Value, error) {
+func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, error) {
 	fn := n.Edge.CombineFn.CreateAccumulatorFn()
 	if fn == nil {
-		return reflect.Zero(n.Edge.CombineFn.MergeAccumulatorsFn().Ret[0].T), nil
+		return reflect.Zero(n.Edge.CombineFn.MergeAccumulatorsFn().Ret[0].T).Interface(), nil
 	}
 
 	var opt *MainInput
@@ -194,12 +194,12 @@ func (n *Combine) newAccum(ctx context.Context, key reflect.Value) (reflect.Valu
 
 	val, err := Invoke(ctx, fn, opt)
 	if err != nil {
-		return reflect.Value{}, fmt.Errorf("CreateAccumulator failed: %v", err)
+		return nil, fmt.Errorf("CreateAccumulator failed: %v", err)
 	}
 	return val.Elm, nil
 }
 
-func (n *Combine) addInput(ctx context.Context, accum, key, value reflect.Value, timestamp typex.EventTime, first bool) (reflect.Value, error) {
+func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, timestamp typex.EventTime, first bool) (interface{}, error) {
 	// log.Printf("AddInput: %v %v into %v", key, value, accum)
 
 	fn := n.Edge.CombineFn.AddInputFn()
@@ -213,9 +213,7 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value reflect.Value,
 		// TODO(herohde) 7/5/2017: do we want to allow addInput to be optional
 		// if non-binary merge is defined?
 
-		a := reflectx.UnderlyingType(accum)
-		b := reflectx.UnderlyingType(value)
-		return reflect.ValueOf(n.mergeFn.Call2x1(a.Interface(), b.Interface())), nil
+		return n.mergeFn.Call2x1(accum, value), nil
 	}
 
 	opt := &MainInput{
@@ -235,12 +233,12 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value reflect.Value,
 
 	val, err := Invoke(ctx, n.Edge.CombineFn.AddInputFn(), opt, v)
 	if err != nil {
-		return reflect.Value{}, n.fail(fmt.Errorf("AddInput failed: %v", err))
+		return nil, n.fail(fmt.Errorf("AddInput failed: %v", err))
 	}
 	return val.Elm, err
 }
 
-func (n *Combine) extract(ctx context.Context, accum reflect.Value) (reflect.Value, error) {
+func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, error) {
 	fn := n.Edge.CombineFn.ExtractOutputFn()
 	if fn == nil {
 		// Merge function only. Accumulator type is the output type.
@@ -249,7 +247,7 @@ func (n *Combine) extract(ctx context.Context, accum reflect.Value) (reflect.Val
 
 	val, err := Invoke(ctx, n.Edge.CombineFn.ExtractOutputFn(), nil, accum)
 	if err != nil {
-		return reflect.Value{}, n.fail(fmt.Errorf("ExtractOutput failed: %v", err))
+		return nil, n.fail(fmt.Errorf("ExtractOutput failed: %v", err))
 	}
 	return val.Elm, err
 }
