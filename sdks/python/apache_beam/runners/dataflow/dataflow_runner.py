@@ -34,6 +34,7 @@ from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
@@ -614,6 +615,15 @@ class DataflowRunner(PipelineRunner):
             transform_node.inputs[0].windowing)
 
   def apply_CombineValues(self, transform, pcoll):
+    # TODO(BEAM-2937): Disable combiner lifting for fnapi. Remove this
+    # restrictions once this feature is supported in the portability framework.
+    debug_options = pcoll.pipeline._options.view_as(DebugOptions)
+    use_fn_api = (
+        debug_options.experiments and 'beam_fn_api' in debug_options.experiments
+    )
+    if use_fn_api:
+      return self.apply_PTransform(transform, pcoll)
+
     return pvalue.PCollection(pcoll.pipeline)
 
   def run_CombineValues(self, transform_node):
