@@ -890,7 +890,7 @@ public class DatastoreV1 {
         QueryResultBatch currentBatch = null;
 
         while (moreResults) {
-          Query.Builder queryBuilder = query.toBuilder().clone();
+          Query.Builder queryBuilder = query.toBuilder();
           queryBuilder.setLimit(Int32Value.newBuilder().setValue(
               Math.min(userLimit, QUERY_BATCH_LIMIT)));
 
