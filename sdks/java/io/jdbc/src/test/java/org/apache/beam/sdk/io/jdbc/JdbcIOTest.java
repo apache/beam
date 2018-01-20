@@ -43,6 +43,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.derby.drda.NetworkServerControl;
@@ -313,5 +316,70 @@ public class JdbcIOTest implements Serializable {
             }));
 
     pipeline.run();
+  }
+
+  private static class ModuloTen
+        extends DoFn<KV<Integer, String>, KV<Integer, KV<Integer, String>>> {
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      context.output(KV.of(context.element().getKey() % 10, context.element()));
+    }
+  }
+
+  private static class GetValues
+        extends DoFn<KV<Integer, Iterable<KV<Integer, String>>>, Iterable<KV<Integer, String>>>
+        implements Serializable {
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      context.output(context.element().getValue());
+    }
+  }
+
+  @Test
+  public void testWriteIterator() throws Exception {
+    final long rowsToAdd = 1000L;
+
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ITERATOR");
+    DatabaseTestHelper.createTable(dataSource, tableName);
+    try {
+      ArrayList<KV<Integer, String>> data = new ArrayList<>();
+      for (int i = 0; i < rowsToAdd; i++) {
+        KV<Integer, String> kv = KV.of(i, "Test");
+        data.add(kv);
+      }
+      pipeline.apply(Create.of(data))
+          .apply(ParDo.of(new ModuloTen()))
+          .apply(GroupByKey.<Integer, KV<Integer, String>> create())
+          .apply(ParDo.of(new GetValues()))
+          .apply(JdbcIO.<KV<Integer, String>>writeIterable()
+              .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
+                  "org.apache.derby.jdbc.ClientDriver",
+                  "jdbc:derby://localhost:" + port + "/target/beam"))
+              .withStatement(String.format("insert into %s values(?, ?)", tableName))
+              .withPreparedStatementSetter(
+                  new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
+                public void setParameters(
+                    KV<Integer, String> element, PreparedStatement statement) throws Exception {
+                  statement.setInt(1, element.getKey());
+                  statement.setString(2, element.getValue());
+                }
+              }));
+
+      pipeline.run();
+
+      try (Connection connection = dataSource.getConnection()) {
+        try (Statement statement = connection.createStatement()) {
+          try (ResultSet resultSet = statement.executeQuery("select count(*) from "
+                + tableName)) {
+            resultSet.next();
+            int count = resultSet.getInt(1);
+
+            Assert.assertEquals(EXPECTED_ROW_COUNT, count);
+          }
+        }
+      }
+    } finally {
+      DatabaseTestHelper.deleteTable(dataSource, tableName);
+    }
   }
 }

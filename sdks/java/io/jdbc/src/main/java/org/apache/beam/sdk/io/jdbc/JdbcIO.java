@@ -163,6 +163,10 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_Write.Builder<T>().build();
   }
 
+  public static <T> WriteIterable<T> writeIterable() {
+    return new AutoValue_JdbcIO_WriteIterable.Builder<T>().build();
+  }
+
   private JdbcIO() {}
 
   /**
@@ -506,13 +510,92 @@ public class JdbcIO {
     void setParameters(T element, PreparedStatement preparedStatement) throws Exception;
   }
 
-  /** A {@link PTransform} to write to a JDBC datasource. */
-  @AutoValue
-  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+  /** Abstract base class for JdbcIO write operations. */
+  abstract static class AbstractWrite<RowT, InputT> extends PTransform<PCollection<InputT>, PDone> {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
     @Nullable abstract String getStatement();
-    @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+    @Nullable abstract PreparedStatementSetter<RowT> getPreparedStatementSetter();
 
+    @Override
+    public PDone expand(PCollection<InputT> input) {
+      checkArgument(
+          getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
+      checkArgument(getStatement() != null, "withStatement() is required");
+      checkArgument(
+          getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
+
+      input.apply(ParDo.of(createWriteFn(this)));
+      return PDone.in(input.getPipeline());
+    }
+
+    protected abstract AbstractWriteFn<RowT, InputT>
+            createWriteFn(AbstractWrite<RowT, InputT> write);
+
+    abstract static class AbstractWriteFn<RowT, InputT> extends DoFn<InputT, Void> {
+      protected final AbstractWrite<RowT, InputT> spec;
+
+      protected DataSource dataSource;
+      protected Connection connection;
+      protected PreparedStatement preparedStatement;
+
+      protected int batchCount;
+
+      public AbstractWriteFn(AbstractWrite<RowT, InputT> spec) {
+        this.spec = spec;
+      }
+
+      @Setup
+      public void setup() throws Exception {
+        dataSource = spec.getDataSourceConfiguration().buildDatasource();
+        connection = dataSource.getConnection();
+        connection.setAutoCommit(false);
+        preparedStatement = connection.prepareStatement(spec.getStatement());
+      }
+
+      @StartBundle
+      public void startBundle() {
+        batchCount = 0;
+      }
+
+      @ProcessElement
+      public abstract void processElement(ProcessContext context) throws Exception;
+
+      @FinishBundle
+      public void finishBundle() throws Exception {
+        executeBatch();
+      }
+
+      protected void executeBatch() throws SQLException {
+        if (batchCount > 0) {
+          preparedStatement.executeBatch();
+          connection.commit();
+          batchCount = 0;
+        }
+      }
+
+      @Teardown
+      public void teardown() throws Exception {
+        try {
+          if (preparedStatement != null) {
+            preparedStatement.close();
+          }
+        } finally {
+          if (connection != null) {
+            connection.close();
+          }
+          if (dataSource instanceof AutoCloseable) {
+            ((AutoCloseable) dataSource).close();
+          }
+        }
+      }
+    }
+  }
+
+  /** A {@link PTransform} to write to a JDBC datasource. */
+  @AutoValue
+  public abstract static class Write<T> extends AbstractWrite<T, T> {
+    // Override is needed, otherwise the code generator complains about the type parameter
+    @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -535,45 +618,19 @@ public class JdbcIO {
     }
 
     @Override
-    public PDone expand(PCollection<T> input) {
-      checkArgument(
-          getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
-      checkArgument(getStatement() != null, "withStatement() is required");
-      checkArgument(
-          getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
-
-      input.apply(ParDo.of(new WriteFn<T>(this)));
-      return PDone.in(input.getPipeline());
+    protected WriteFn<T> createWriteFn(AbstractWrite<T, T> write) {
+      return new WriteFn<T>(write);
     }
 
-    private static class WriteFn<T> extends DoFn<T, Void> {
+    private static class WriteFn<T> extends AbstractWriteFn<T, T> {
       private static final int DEFAULT_BATCH_SIZE = 1000;
 
-      private final Write<T> spec;
-
-      private DataSource dataSource;
-      private Connection connection;
-      private PreparedStatement preparedStatement;
-      private int batchCount;
-
-      public WriteFn(Write<T> spec) {
-        this.spec = spec;
-      }
-
-      @Setup
-      public void setup() throws Exception {
-        dataSource = spec.getDataSourceConfiguration().buildDatasource();
-        connection = dataSource.getConnection();
-        connection.setAutoCommit(false);
-        preparedStatement = connection.prepareStatement(spec.getStatement());
-      }
-
-      @StartBundle
-      public void startBundle() {
-        batchCount = 0;
+      public WriteFn(AbstractWrite<T, T> spec) {
+        super(spec);
       }
 
       @ProcessElement
+      @Override
       public void processElement(ProcessContext context) throws Exception {
         T record = context.element();
 
@@ -587,33 +644,60 @@ public class JdbcIO {
           executeBatch();
         }
       }
+    }
+  }
 
-      @FinishBundle
-      public void finishBundle() throws Exception {
-        executeBatch();
+  /**
+   * A {@link PTransform} to write to a JDBC datasource where the input is an
+   * Iterable of the row type.
+   */
+  @AutoValue
+  public abstract static class WriteIterable<T> extends AbstractWrite<T, Iterable<T>> {
+    // Override is needed, otherwise the code generator complains about the type parameter
+    @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
+      abstract Builder<T> setStatement(String statement);
+      abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
+
+      abstract WriteIterable<T> build();
+    }
+
+    public WriteIterable<T> withDataSourceConfiguration(DataSourceConfiguration config) {
+      return toBuilder().setDataSourceConfiguration(config).build();
+    }
+    public WriteIterable<T> withStatement(String statement) {
+      return toBuilder().setStatement(statement).build();
+    }
+    public WriteIterable<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
+      return toBuilder().setPreparedStatementSetter(setter).build();
+    }
+
+    @Override
+    protected WriteIterableFn<T> createWriteFn(AbstractWrite<T, Iterable<T>> write) {
+      return new WriteIterableFn<T>(write);
+    }
+
+    private static class WriteIterableFn<T> extends AbstractWriteFn<T, Iterable<T>> {
+
+      public WriteIterableFn(AbstractWrite<T, Iterable<T>> spec) {
+        super(spec);
       }
 
-      private void executeBatch() throws SQLException {
-        if (batchCount > 0) {
-          preparedStatement.executeBatch();
-          connection.commit();
-          batchCount = 0;
-        }
-      }
+      @ProcessElement
+      @Override
+      public void processElement(ProcessContext context) throws Exception {
+        Iterable<T> records = context.element();
 
-      @Teardown
-      public void teardown() throws Exception {
-        try {
-          if (preparedStatement != null) {
-            preparedStatement.close();
-          }
-        } finally {
-          if (connection != null) {
-            connection.close();
-          }
-          if (dataSource instanceof AutoCloseable) {
-            ((AutoCloseable) dataSource).close();
-          }
+        for (T record : records) {
+          preparedStatement.clearParameters();
+          spec.getPreparedStatementSetter().setParameters(record, preparedStatement);
+          preparedStatement.addBatch();
+
+          batchCount++;
         }
       }
     }
