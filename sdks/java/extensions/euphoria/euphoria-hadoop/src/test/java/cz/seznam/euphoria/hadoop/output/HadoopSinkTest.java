@@ -44,8 +44,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
+import static org.junit.Assert.assertNotNull;
 
 public class HadoopSinkTest {
 
@@ -79,8 +79,9 @@ public class HadoopSinkTest {
     final Executor executor = new LocalExecutor().setDefaultParallelism(4);
     executor.submit(flow).join();
 
-    final List<Pair<Text, LongWritable>> output = Arrays
-        .stream(Objects.requireNonNull(new File(outputDir).list()))
+    String[] files = new File(outputDir).list();
+    assertNotNull(files);
+    final List<Pair<Text, LongWritable>> output = Arrays.stream(files)
         .filter(file -> file.startsWith("part-r-"))
         .flatMap(part -> ExceptionUtils.unchecked(() -> {
           try (final SequenceFileRecordReader<Text, LongWritable> reader =
