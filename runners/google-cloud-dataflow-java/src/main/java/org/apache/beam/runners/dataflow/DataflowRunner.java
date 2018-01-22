@@ -1084,7 +1084,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             byteArrayToJsonString(
                 serializeToByteArray(new IdentityMessageFn())));
       }
-      stepContext.addOutput(context.getOutput(transform));
+      stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
   }
 
@@ -1298,7 +1298,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
           stepContext.addInput(PropertyNames.FORMAT, "pubsub");
           stepContext.addInput(PropertyNames.PUBSUB_SUBSCRIPTION, "_starting_signal/");
-          stepContext.addOutput(context.getOutput(transform));
+          stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
         } else {
           StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
           stepContext.addInput(PropertyNames.FORMAT, "impulse");
@@ -1314,7 +1314,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           }
           stepContext.addInput(
               PropertyNames.IMPULSE_ELEMENT, byteArrayToJsonString(encodedImpulse));
-          stepContext.addOutput(context.getOutput(transform));
+          stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
         }
       }
     }
