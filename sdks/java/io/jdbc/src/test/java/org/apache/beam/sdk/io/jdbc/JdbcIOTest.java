@@ -268,6 +268,7 @@ public class JdbcIOTest implements Serializable {
                   "org.apache.derby.jdbc.ClientDriver",
                   "jdbc:derby://localhost:" + port + "/target/beam"))
               .withStatement(String.format("insert into %s values(?, ?)", tableName))
+              .withBatchSize(10L)
               .withPreparedStatementSetter(
                   new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
                 public void setParameters(
@@ -314,4 +315,5 @@ public class JdbcIOTest implements Serializable {
 
     pipeline.run();
   }
+
 }
