@@ -15,13 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
+package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import com.datastax.driver.core.Row;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
-import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -77,14 +75,14 @@ public class HIFIOCassandraIT implements Serializable {
   private static final String PASSWORD = "cassandra.password";
   private static final String INPUT_KEYSPACE_USERNAME_CONFIG = "cassandra.input.keyspace.username";
   private static final String INPUT_KEYSPACE_PASSWD_CONFIG = "cassandra.input.keyspace.passwd";
-  private static HIFTestOptions options;
+  private static HIFITestOptions options;
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setUp() {
-    PipelineOptionsFactory.register(HIFTestOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
+    PipelineOptionsFactory.register(HIFITestOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(HIFITestOptions.class);
   }
 
   /**
@@ -150,7 +148,7 @@ public class HIFIOCassandraIT implements Serializable {
    * class, InputFormat value class, Thrift address, Thrift port, partitioner class, keyspace and
    * columnfamily name.
    */
-  private static Configuration getConfiguration(HIFTestOptions options) {
+  private static Configuration getConfiguration(HIFITestOptions options) {
     Configuration conf = new Configuration();
     conf.set(CASSANDRA_THRIFT_PORT_PROPERTY, options.getCassandraServerPort().toString());
     conf.set(CASSANDRA_THRIFT_ADDRESS_PROPERTY, options.getCassandraServerIp());

@@ -19,14 +19,41 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-sdks-java-io-hadoop-parent</artifactId>
+    <artifactId>beam-sdks-java-io-parent</artifactId>
     <version>2.3.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
-  <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop :: input-format</name>
-  <description>IO to read data from data sources which implement Hadoop Input Format.</description>
 
+  <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
+  <name>Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format</name>
+  <description>IO to read data from sources that implement Hadoop Input Format.</description>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- Don't run the tests in parallel since HIFIOWithElasticTest uses
+             a static port number which can lead to port in use errors. -->
+          <parallel>none</parallel>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <!--The dataflow-runner and spark-runner profiles support using those runners
+    during an integration test. These are not the long-term way we want to support
+    using runners in ITs (e.g. it is annoying to add to all IO modules.) We cannot
+    create a dependency IO -> Runners since the runners depend on IO (e.g. kafka
+    depends on spark.) -->
   <profiles>
     <!-- Include the Google Cloud Dataflow runner activated by -DintegrationTestRunner=dataflow -->
     <profile>
@@ -41,6 +68,39 @@
         <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
+      <id>spark-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-spark</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-streaming_2.11</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-core_2.11</artifactId>
+          <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>org.slf4j</groupId>
+              <artifactId>jul-to-slf4j</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.fasterxml.jackson.module</groupId>
+          <artifactId>jackson-module-scala_2.11</artifactId>
+          <version>2.8.9</version>
           <scope>runtime</scope>
         </dependency>
       </dependencies>
@@ -218,7 +278,24 @@
     </profile>
   </profiles>
 
+  <properties>
+    <log4j.core.version>2.6.2</log4j.core.version>
+    <guava.version>19.0</guava.version>
+    <transport.netty4.client.version>5.0.0</transport.netty4.client.version>
+    <netty.transport.native.epoll.version>4.1.0.CR3</netty.transport.native.epoll.version>
+    <elasticsearch.version>5.0.0</elasticsearch.version>
+    <cassandra.driver.mapping.version>3.1.1</cassandra.driver.mapping.version>
+    <cassandra.all.verison>3.9</cassandra.all.verison>
+    <cassandra.driver.core.version>3.1.1</cassandra.driver.core.version>
+    <commons.io.version>2.4</commons.io.version>
+  </properties>
+
   <dependencies>
+    <!-- compile dependencies -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
@@ -231,8 +308,6 @@
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
     </dependency>
-
-    <!-- compile dependencies -->
     <dependency>
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
@@ -256,10 +331,17 @@
     <!-- test dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+    <!-- We need to depend on the non test-jar artifact to get
+       the repackaged transitive dependencies on the classpath. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-common</artifactId>
@@ -272,8 +354,71 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-common</artifactId>
+      <scope>test</scope>
+      <classifier>tests</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.elasticsearch.plugin</groupId>
+      <artifactId>transport-netty4-client</artifactId>
+      <version>${transport.netty4.client.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.elasticsearch.client</groupId>
+      <artifactId>transport</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-epoll</artifactId>
+      <version>${netty.transport.native.epoll.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.elasticsearch</groupId>
+      <artifactId>elasticsearch</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.elasticsearch</groupId>
+      <artifactId>elasticsearch-hadoop</artifactId>
+      <version>${elasticsearch.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-core_2.10</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-streaming_2.10</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>spark-sql_2.10</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.datastax.cassandra</groupId>
+      <artifactId>cassandra-driver-mapping</artifactId>
+      <version>${cassandra.driver.mapping.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.cassandra</groupId>
+      <artifactId>cassandra-all</artifactId>
+      <version>${cassandra.all.verison}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.datastax.cassandra</groupId>
+      <artifactId>cassandra-driver-core</artifactId>
+      <version>${cassandra.driver.core.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -285,6 +430,34 @@
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>${log4j.core.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- runtime dependencies -->
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>${commons.io.version}</version>
+      <scope>runtime</scope>
     </dependency>
   </dependencies>
 </project>

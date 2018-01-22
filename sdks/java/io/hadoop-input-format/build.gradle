@@ -19,7 +19,7 @@
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
-description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop :: jdk1.8-tests"
+description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format"
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
@@ -45,33 +45,34 @@ configurations.testRuntimeClasspath {
 }
 
 dependencies {
-  shadow library.java.protobuf_java
   shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:hadoop:input-format", configuration: "shadow")
+  compile library.java.guava
   shadow library.java.slf4j_api
-  shadow ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
-    exclude group: "org.apache.spark", module: "spark-core_2.10"
-    exclude group: "org.apache.spark", module: "spark-streaming_2.10"
-    exclude group: "org.apache.spark", module: "spark-sql_2.10"
-  }
-  shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9"
-  shadow library.java.commons_io_2x
+  shadow library.java.findbugs_jsr305
+  shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":runners:direct-java")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
   testCompile project(":sdks:java:io:common").sourceSets.test.output
-  testCompile library.java.hamcrest_core
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile "org.elasticsearch.client:transport:$elastic_search_version"
   testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
+  testCompile ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
+    exclude group: "org.apache.spark", module: "spark-core_2.10"
+    exclude group: "org.apache.spark", module: "spark-streaming_2.10"
+    exclude group: "org.apache.spark", module: "spark-sql_2.10"
+  }
   testCompile "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver"
   testCompile "org.apache.cassandra:cassandra-all:3.9"
   testCompile "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver"
+  testCompile project(path: ":sdks:java:io:jdbc", configuration: "shadow")
+  testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
-  testCompile library.java.mockito_core
+  shadow library.java.commons_io_2x
 }
 
 task packageTests(type: Jar) {
