@@ -103,7 +103,7 @@ public interface TransformTranslator<TransformT extends PTransform> {
      * <p>The input {@link PValue} must have already been produced by a step earlier in this
      * {@link Pipeline}. If the input value has not yet been produced yet (by a call to either
      * {@link StepTranslationContext#addOutput(String, PCollection)} or
-     * {@link StepTranslationContext#addCollectionToSingletonOutput(PCollection, PCollectionView)})
+     * {@link StepTranslationContext#addCollectionToSingletonOutput(PCollection, String, PCollectionView)})
      * this method will throw an exception.
      */
     void addInput(String name, PInput value);
