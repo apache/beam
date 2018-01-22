@@ -102,7 +102,7 @@ public interface TransformTranslator<TransformT extends PTransform> {
      *
      * <p>The input {@link PValue} must have already been produced by a step earlier in this
      * {@link Pipeline}. If the input value has not yet been produced yet (by a call to either
-     * {@link StepTranslationContext#addOutput(PCollection)} or
+     * {@link StepTranslationContext#addOutput(String, PCollection)} or
      * {@link StepTranslationContext#addCollectionToSingletonOutput(PCollection, PCollectionView)})
      * this method will throw an exception.
      */
@@ -115,18 +115,19 @@ public interface TransformTranslator<TransformT extends PTransform> {
     void addInput(String name, List<? extends Map<String, Object>> elements);
 
     /**
-     * Adds a primitive output to this Dataflow step, producing the specified output {@code PValue},
-     * including its {@code Coder} if a {@code TypedPValue}. If the {@code PValue} is a {@code
-     * PCollection}, wraps its coder inside a {@code WindowedValueCoder}. Returns a pipeline level
-     * unique id.
+     * Adds a primitive output to this Dataflow step with the given name as the local output name,
+     * producing the specified output {@code PValue}, including its {@code Coder} if a
+     * {@code TypedPValue}. If the {@code PValue} is a {@code PCollection}, wraps its coder
+     * inside a {@code WindowedValueCoder}.
      */
-    long addOutput(PCollection<?> value);
+    void addOutput(String name, PCollection<?> value);
 
     /**
      * Adds an output to this {@code CollectionToSingleton} Dataflow step, consuming the specified
      * input {@code PValue} and producing the specified output {@code PValue}. This step requires
      * special treatment for its output encoding. Returns a pipeline level unique id.
      */
-    long addCollectionToSingletonOutput(PCollection<?> inputValue, PCollectionView<?> outputValue);
+    void addCollectionToSingletonOutput(PCollection<?> inputValue,
+        String outputName, PCollectionView<?> outputValue);
   }
 }

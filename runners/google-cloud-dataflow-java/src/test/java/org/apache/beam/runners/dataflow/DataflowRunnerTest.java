@@ -83,6 +83,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFact
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -1149,15 +1150,13 @@ public class DataflowRunnerTest implements Serializable {
         new TransformTranslator<TestTransform>() {
           @SuppressWarnings("unchecked")
           @Override
-          public void translate(
-              TestTransform transform,
-              TranslationContext context) {
+          public void translate(TestTransform transform, TranslationContext context) {
             transform.translated = true;
 
             // Note: This is about the minimum needed to fake out a
             // translation. This obviously isn't a real translation.
             StepTranslationContext stepContext = context.addStep(transform, "TestTranslate");
-            stepContext.addOutput(context.getOutput(transform));
+            stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });
 
