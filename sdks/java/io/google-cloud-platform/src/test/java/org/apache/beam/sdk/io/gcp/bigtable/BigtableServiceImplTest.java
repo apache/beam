@@ -96,7 +96,7 @@ public class BigtableServiceImplTest {
   public void testRead() throws IOException, InterruptedException {
     ByteKey start = ByteKey.copyFrom("a".getBytes());
     ByteKey end = ByteKey.copyFrom("b".getBytes());
-    when(mockBigtableSource.getRange()).thenReturn(ByteKeyRange.of(start, end));
+    when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
     @SuppressWarnings("unchecked")
     ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
     Row expectedRow = Row.newBuilder()
