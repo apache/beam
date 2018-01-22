@@ -88,7 +88,7 @@ public class SparkSideInputReader implements SideInputReader {
 
     ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
     Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-    return viewFn.apply(
+    return (T) viewFn.apply(
         InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) sideInputForWindow));
   }
 

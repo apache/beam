@@ -191,7 +191,8 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
     ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
     Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-    return viewFn.apply(InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
+    return (T)
+            viewFn.apply(InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
   }
 
   @Override
