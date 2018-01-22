@@ -27,7 +27,7 @@ apply from: project(":").file("build_rules.gradle")
 // a dependency version which should match across multiple
 // Maven artifacts.
 def google_cloud_bigdataoss_version = "1.4.5"
-def bigtable_version = "1.0.0-pre3"
+def bigtable_version = "1.0.0"
 def google_clients_version = "1.22.0"
 def google_auth_version = "0.7.1"
 def grpc_version = "1.2.0"
