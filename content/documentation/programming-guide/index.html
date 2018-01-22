@@ -805,12 +805,12 @@ finite length. An unbounded <code class="highlighter-rouge">PCollection</code> m
 job that runs continuously, as the entire collection can never be available for
 processing at any one time.</p>
 
-<p>When performing an operation that groups elements in an unbounded <code class="highlighter-rouge">PCollection</code>,
-Beam requires a concept called <strong>windowing</strong> to divide a continuously updating
-data set into logical windows of finite size.  Beam processes each window as a
-bundle, and processing continues as the data set is generated. These logical
-windows are determined by some characteristic associated with a data element,
-such as a <strong>timestamp</strong>.</p>
+<p>Beam uses <a href="#windowing">windowing</a> to divide a continuously updating unbounded
+<code class="highlighter-rouge">PCollection</code> into logical windows of finite size. These logical windows are
+determined by some characteristic associated with a data element, such as a
+<strong>timestamp</strong>. Aggregation transforms (such as <code class="highlighter-rouge">GroupByKey</code> and <code class="highlighter-rouge">Combine</code>) work
+on a per-window basis — as the data set is generated, they process each
+<code class="highlighter-rouge">PCollection</code> as a succession of these finite windows.</p>
 
 <h4 id="element-timestamps">3.2.5. Element timestamps</h4>
 
