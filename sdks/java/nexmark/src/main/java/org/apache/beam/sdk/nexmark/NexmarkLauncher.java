@@ -25,7 +25,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,9 +33,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderException;
@@ -82,6 +79,8 @@ import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
 import org.apache.beam.sdk.nexmark.queries.sql.NexmarkSqlQuery;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -91,7 +90,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-
 import org.joda.time.Duration;
 import org.slf4j.LoggerFactory;
 
@@ -481,6 +479,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     long lastActivityMsSinceEpoch = -1;
     NexmarkPerf perf = null;
     boolean waitingForShutdown = false;
+    boolean cancelJob = false;
     boolean publisherCancelled = false;
     List<String> errors = new ArrayList<>();
 
@@ -527,15 +526,17 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
           NexmarkUtils.console("job has fatal errors, cancelling.");
           errors.add(String.format("Pipeline reported %s fatal errors", fatalCount));
           waitingForShutdown = true;
+          cancelJob = true;
         } else if (configuration.debug && configuration.numEvents > 0
                    && currPerf.numEvents == configuration.numEvents
                    && currPerf.numResults >= 0 && quietFor.isLongerThan(DONE_DELAY)) {
-          NexmarkUtils.console("streaming query appears to have finished, cancelling job.");
+          NexmarkUtils.console("streaming query appears to have finished waiting for completion.");
           waitingForShutdown = true;
         } else if (quietFor.isLongerThan(STUCK_TERMINATE_DELAY)) {
           NexmarkUtils.console("streaming query appears to have gotten stuck, cancelling job.");
-          errors.add("Streaming job was cancelled since appeared stuck");
+          errors.add("Cancelling streaming job since it appeared stuck");
           waitingForShutdown = true;
+          cancelJob = true;
         } else if (quietFor.isLongerThan(STUCK_WARNING_DELAY)) {
           NexmarkUtils.console("WARNING: streaming query appears to have been stuck for %d min.",
               quietFor.getStandardMinutes());
@@ -543,7 +544,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
               String.format("Streaming query was stuck for %d min", quietFor.getStandardMinutes()));
         }
 
-        if (waitingForShutdown) {
+        if (cancelJob) {
           try {
             job.cancel();
           } catch (IOException e) {
@@ -567,7 +568,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
           break;
         case CANCELLED:
           running = false;
-          if (!waitingForShutdown) {
+          if (!cancelJob) {
             errors.add("Job was unexpectedly cancelled");
           }
           break;
@@ -1198,7 +1199,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   private List<NexmarkQuery> createSqlQueries() {
     return Arrays.<NexmarkQuery> asList(
-        new NexmarkSqlQuery(configuration, new SqlQuery0()));
+        new NexmarkSqlQuery(configuration, new SqlQuery0()),
+        new NexmarkSqlQuery(configuration, new SqlQuery1()),
+        new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)));
   }
 
   private List<NexmarkQuery> createJavaQueries() {

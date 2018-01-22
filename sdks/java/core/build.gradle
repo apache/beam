@@ -29,7 +29,7 @@ description = "Apache Beam :: SDKs :: Java :: Core"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":beam-model-parent:beam-model-fn-execution")
+evaluationDependsOn(":model:fn-execution")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -65,7 +65,7 @@ dependencies {
   shadow library.java.hamcrest_library
   shadow library.java.junit
   shadow "org.tukaani:xz:1.5"
-  shadowTest project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output
+  shadowTest project(":model:fn-execution").sourceSets.test.output
   shadowTest library.java.guava_testlib
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.slf4j_jdk14
@@ -80,10 +80,10 @@ shadowJar {
     include(dependency(library.java.byte_buddy))
     include(dependency("org.apache.commons:.*"))
   }
-  relocate "com.google.thirdparty", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.thirdparty"
-  relocate "com.google.protobuf", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.protobuf"
-  relocate "net.bytebuddy", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.net.bytebuddy"
-  relocate "org.apache.commons", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.org.apache.commons"
+  relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
+  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+  relocate "net.bytebuddy", getJavaRelocatedPath("net.bytebuddy")
+  relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
 }
 
 // Create a shaded test jar.
@@ -99,17 +99,17 @@ task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
     include(dependency(library.java.byte_buddy))
     include(dependency("org.apache.commons:.*"))
   }
-  relocate("com.google.common", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.common") {
+  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
     // com.google.common is too generic, need to exclude guava-testlib
     exclude "com.google.common.collect.testing.**"
     exclude "com.google.common.escape.testing.**"
     exclude "com.google.common.testing.**"
     exclude "com.google.common.util.concurrent.testing.**"
   }
-  relocate "com.google.thirdparty", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.thirdparty"
-  relocate "com.google.protobuf", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.protobuf"
-  relocate "net.bytebuddy", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.net.bytebuddy"
-  relocate "org.apache.commons", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.org.apache.commons"
+  relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
+  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+  relocate "net.bytebuddy", getJavaRelocatedPath("net.bytebuddy")
+  relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
 }
 
 task packageTests(type: Jar) {

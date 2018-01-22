@@ -17,12 +17,12 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(javaVersion: 1.8)
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples - Java 8"
 
 dependencies {
-  shadow project(path: ":beam-examples-parent:beam-examples-java8", configuration: "shadow")
+  shadow project(path: ":examples:java8", configuration: "shadow")
 }
 
 task packageTests(type: Jar) {

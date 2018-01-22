@@ -21,10 +21,10 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.sdk.runners.PTransformOverride;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.View;
 
 /**
  * {@link PTransform} overrides for Flink runner.
@@ -35,15 +35,16 @@ public class FlinkTransformOverrides {
       return ImmutableList.<PTransformOverride>builder()
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.splittableParDoMulti(),
+                  PTransformMatchers.splittableParDo(),
                   new FlinkStreamingPipelineTranslator.SplittableParDoOverrideFactory()))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(SplittableParDo.ProcessKeyedElements.class),
+                  PTransformMatchers.urnEqualTo(
+                      SplittableParDo.SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN),
                   new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
+                  PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
                   new CreateStreamingFlinkView.Factory()))
           .build();
     } else {

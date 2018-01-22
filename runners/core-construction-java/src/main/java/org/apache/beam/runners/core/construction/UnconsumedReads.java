@@ -46,8 +46,8 @@ public class UnconsumedReads {
 
           @Override
           public void visitValue(PValue value, Node producer) {
-            if (producer.getTransform() instanceof Read.Bounded
-                || producer.getTransform() instanceof Read.Unbounded) {
+            String urn = PTransformTranslation.urnForTransformOrNull(producer.getTransform());
+            if (PTransformTranslation.READ_TRANSFORM_URN.equals(urn)) {
               unconsumed.add((PCollection<?>) value);
             }
           }

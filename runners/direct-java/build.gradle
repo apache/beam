@@ -28,24 +28,24 @@ description = "Apache Beam :: Runners :: Direct Java"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":beam-runners-parent:beam-runners-core-java")
-evaluationDependsOn(":beam-model-parent:beam-model-fn-execution")
+evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":model:fn-execution")
 
 dependencies {
   compile library.java.guava
-  compile project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
-  compile project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
-  compile project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
-  compile project(path: ":beam-runners-parent:beam-runners-local-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  compile project(path: ":model:pipeline", configuration: "shadow")
+  compile project(path: ":runners:core-construction-java", configuration: "shadow")
+  compile project(path: ":runners:core-java", configuration: "shadow")
+  compile project(path: ":runners:local-java", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow library.java.hamcrest_core
   shadow library.java.junit
-  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(":beam-runners-parent:beam-runners-core-java").sourceSets.test.output
-  testCompile project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(":runners:core-java").sourceSets.test.output
+  testCompile project(":model:fn-execution").sourceSets.test.output
   testCompile library.java.guava_testlib
   testCompile library.java.slf4j_jdk14
   testCompile library.java.mockito_core
@@ -59,15 +59,15 @@ shadowJar {
   dependencies {
     include(dependency(library.java.protobuf_java))
     include(dependency(library.java.protobuf_java_util))
-    include(project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow"))
-    include(project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-parent:beam-runners-local-java-core", configuration: "shadow"))
+    include(project(path: ":model:pipeline", configuration: "shadow"))
+    include(project(path: ":runners:core-construction-java", configuration: "shadow"))
+    include(project(path: ":runners:core-java", configuration: "shadow"))
+    include(project(path: ":runners:local-java", configuration: "shadow"))
   }
-  relocate "org.apache.beam.runners.core", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.runners.core"
-  relocate "org.apache.beam.model", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.model"
-  relocate "com.google.protobuf", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.protobuf"
-  relocate "javax.annotation", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.javax.annotation"
+  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
+  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
+  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+  relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
 }
 
 task packageTests(type: Jar) {

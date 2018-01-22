@@ -38,18 +38,13 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
+from apache_beam.runners.worker import statesampler
 from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 
 # This module is experimental. No backwards-compatibility guarantees.
-
-
-try:
-  from apache_beam.runners.worker import statesampler
-except ImportError:
-  from apache_beam.runners.worker import statesampler_fake as statesampler
 
 
 DATA_INPUT_URN = 'urn:org.apache.beam:source:runner:0.1'
@@ -604,6 +599,20 @@ def _create_combine_phase_operation(
           operation_specs.WorkerCombineFn(
               serialized_combine_fn,
               phase,
+              None,
+              [factory.get_only_output_coder(transform_proto)]),
+          factory.counter_factory,
+          factory.state_sampler),
+      transform_proto.unique_name,
+      consumers)
+
+
+@BeamTransformFactory.register_urn(urns.FLATTEN_TRANSFORM, None)
+def create(factory, transform_id, transform_proto, unused_parameter, consumers):
+  return factory.augment_oldstyle_op(
+      operations.create_operation(
+          transform_proto.unique_name,
+          operation_specs.WorkerFlatten(
               None,
               [factory.get_only_output_coder(transform_proto)]),
           factory.counter_factory,

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +30,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.CombineTranslation;
+import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMergingNonShuffleReduceFunction;
@@ -47,27 +52,26 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineFnBase;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -129,12 +133,23 @@ class FlinkBatchTransformTranslators {
   }
 
   private static class ReadSourceTranslatorBatch<T>
-      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Read.Bounded<T>> {
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
+        PTransform<PBegin, PCollection<T>>> {
 
     @Override
-    public void translateNode(Read.Bounded<T> transform, FlinkBatchTranslationContext context) {
+    public void translateNode(PTransform<PBegin, PCollection<T>> transform,
+        FlinkBatchTranslationContext context) {
+      @SuppressWarnings("unchecked")
+      AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> application =
+          (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
+              context.getCurrentTransform();
+      BoundedSource<T> source;
+      try {
+        source = ReadTranslation.boundedSourceFromTransform(application);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       String name = transform.getName();
-      BoundedSource<T> source = transform.getSource();
       PCollection<T> output = context.getOutput(transform);
 
       TypeInformation<WindowedValue<T>> typeInformation = context.getTypeInfo(output);
@@ -151,10 +166,12 @@ class FlinkBatchTransformTranslators {
   }
 
   private static class WindowAssignTranslatorBatch<T>
-      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<Window.Assign<T>> {
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
+        PTransform<PCollection<T>, PCollection<T>>> {
 
     @Override
-    public void translateNode(Window.Assign<T> transform, FlinkBatchTranslationContext context) {
+    public void translateNode(PTransform<PCollection<T>, PCollection<T>> transform,
+        FlinkBatchTranslationContext context) {
       PValue input = context.getInput(transform);
 
       TypeInformation<WindowedValue<T>> resultTypeInfo =
@@ -182,11 +199,12 @@ class FlinkBatchTransformTranslators {
   }
 
   private static class GroupByKeyTranslatorBatch<K, InputT>
-      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<GroupByKey<K, InputT>> {
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>>> {
 
     @Override
     public void translateNode(
-        GroupByKey<K, InputT> transform,
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> transform,
         FlinkBatchTranslationContext context) {
 
       // for now, this is copied from the Combine.PerKey translater. Once we have the new runner API
@@ -332,18 +350,23 @@ class FlinkBatchTransformTranslators {
 
   private static class CombinePerKeyTranslatorBatch<K, InputT, AccumT, OutputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
-          Combine.PerKey<K, InputT, OutputT>> {
+          PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
 
     @Override
     @SuppressWarnings("unchecked")
     public void translateNode(
-        Combine.PerKey<K, InputT, OutputT> transform,
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
         FlinkBatchTranslationContext context) {
       DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn =
-          (CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT>) transform.getFn();
+      CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
+      try {
+            combineFn = (CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT>) CombineTranslation
+                .getCombineFn(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
 
       KvCoder<K, InputT> inputCoder =
           (KvCoder<K, InputT>) context.getInput(transform).getCoder();
@@ -373,7 +396,13 @@ class FlinkBatchTransformTranslators {
       // construct a map from side input to WindowingStrategy so that
       // the DoFn runner can map main-input windows to side input windows
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
-      for (PCollectionView<?> sideInput: transform.getSideInputs()) {
+      List<PCollectionView<?>> sideInputs;
+      try {
+        sideInputs = CombineTranslation.getSideInputs(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      for (PCollectionView<?> sideInput: sideInputs) {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
       }
 
@@ -406,7 +435,7 @@ class FlinkBatchTransformTranslators {
                 partialReduceFunction,
                 "GroupCombine: " + transform.getName());
 
-        transformSideInputs(transform.getSideInputs(), groupCombine, context);
+        transformSideInputs(sideInputs, groupCombine, context);
 
         TypeInformation<WindowedValue<KV<K, OutputT>>> reduceTypeInfo =
             context.getTypeInfo(context.getOutput(transform));
@@ -420,7 +449,7 @@ class FlinkBatchTransformTranslators {
             new GroupReduceOperator<>(
                 intermediateGrouping, reduceTypeInfo, reduceFunction, transform.getName());
 
-        transformSideInputs(transform.getSideInputs(), outputDataSet, context);
+        transformSideInputs(sideInputs, outputDataSet, context);
 
         context.setOutputDataSet(context.getOutput(transform), outputDataSet);
 
@@ -445,7 +474,7 @@ class FlinkBatchTransformTranslators {
             new GroupReduceOperator<>(
                 grouping, reduceTypeInfo, reduceFunction, transform.getName());
 
-        transformSideInputs(transform.getSideInputs(), outputDataSet, context);
+        transformSideInputs(sideInputs, outputDataSet, context);
 
         context.setOutputDataSet(context.getOutput(transform), outputDataSet);
       }
@@ -466,23 +495,34 @@ class FlinkBatchTransformTranslators {
 
   private static class ParDoTranslatorBatch<InputT, OutputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
-      ParDo.MultiOutput<InputT, OutputT>> {
+      PTransform<PCollection<InputT>, PCollectionTuple>> {
 
     @Override
     @SuppressWarnings("unchecked")
     public void translateNode(
-        ParDo.MultiOutput<InputT, OutputT> transform,
+        PTransform<PCollection<InputT>, PCollectionTuple> transform,
         FlinkBatchTranslationContext context) {
-      DoFn<InputT, OutputT> doFn = transform.getFn();
+      DoFn<InputT, OutputT> doFn;
+      try {
+        doFn = (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       rejectSplittable(doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
       Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
 
+      TupleTag<?> mainOutputTag;
+      try {
+        mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       Map<TupleTag<?>, Integer> outputMap = Maps.newHashMap();
       // put the main output at index 0, FlinkMultiOutputDoFnFunction  expects this
-      outputMap.put(transform.getMainOutputTag(), 0);
+      outputMap.put(mainOutputTag, 0);
       int count = 1;
       for (TupleTag<?> tag : outputs.keySet()) {
         if (!outputMap.containsKey(tag)) {
@@ -490,12 +530,19 @@ class FlinkBatchTransformTranslators {
         }
       }
 
+      // Union coder elements must match the order of the output tags.
+      Map<Integer, TupleTag<?>> indexMap = Maps.newTreeMap();
+      for (Map.Entry<TupleTag<?>, Integer> entry : outputMap.entrySet()) {
+        indexMap.put(entry.getValue(), entry.getKey());
+      }
+
       // assume that the windowing strategy is the same for all outputs
       WindowingStrategy<?, ?> windowingStrategy = null;
 
       // collect all output Coders and create a UnionCoder for our tagged outputs
       List<Coder<?>> outputCoders = Lists.newArrayList();
-      for (PValue taggedValue : outputs.values()) {
+      for (TupleTag<?> tag : indexMap.values()) {
+        PValue taggedValue = outputs.get(tag);
         checkState(
             taggedValue instanceof PCollection,
             "Within ParDo, got a non-PCollection output %s of type %s",
@@ -518,7 +565,12 @@ class FlinkBatchTransformTranslators {
                   unionCoder,
                   windowingStrategy.getWindowFn().windowCoder()));
 
-      List<PCollectionView<?>> sideInputs = transform.getSideInputs();
+      List<PCollectionView<?>> sideInputs;
+      try {
+        sideInputs = ParDoTranslation.getSideInputs(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
 
       // construct a map from side input to WindowingStrategy so that
       // the DoFn runner can map main-input windows to side input windows
@@ -528,9 +580,13 @@ class FlinkBatchTransformTranslators {
       }
 
       SingleInputUdfOperator<WindowedValue<InputT>, WindowedValue<RawUnionValue>, ?> outputDataSet;
-      DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-      if (signature.stateDeclarations().size() > 0
-          || signature.timerDeclarations().size() > 0) {
+      boolean usesStateOrTimers;
+      try {
+        usesStateOrTimers = ParDoTranslation.usesStateOrTimers(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      if (usesStateOrTimers) {
 
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed
@@ -540,7 +596,7 @@ class FlinkBatchTransformTranslators {
         FlinkStatefulDoFnFunction<?, ?, OutputT> doFnWrapper = new FlinkStatefulDoFnFunction<>(
             (DoFn) doFn, context.getCurrentTransform().getFullName(),
             windowingStrategy, sideInputStrategies, context.getPipelineOptions(),
-            outputMap, transform.getMainOutputTag()
+            outputMap, (TupleTag<OutputT>) mainOutputTag
         );
 
         Grouping<WindowedValue<InputT>> grouping =
@@ -558,7 +614,7 @@ class FlinkBatchTransformTranslators {
                 sideInputStrategies,
                 context.getPipelineOptions(),
                 outputMap,
-                transform.getMainOutputTag());
+                mainOutputTag);
 
         outputDataSet = new MapPartitionOperator<>(
             inputDataSet, typeInformation,
@@ -601,12 +657,12 @@ class FlinkBatchTransformTranslators {
 
   private static class FlattenPCollectionTranslatorBatch<T>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
-      Flatten.PCollections<T>> {
+      PTransform<PCollectionList<T>, PCollection<T>>> {
 
     @Override
     @SuppressWarnings("unchecked")
     public void translateNode(
-        Flatten.PCollections<T> transform,
+        PTransform<PCollectionList<T>, PCollection<T>> transform,
         FlinkBatchTranslationContext context) {
 
       Map<TupleTag<?>, PValue> allInputs = context.getInputs(transform);
@@ -661,17 +717,30 @@ class FlinkBatchTransformTranslators {
 
   private static class CreatePCollectionViewTranslatorBatch<ElemT, ViewT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
-          View.CreatePCollectionView<ElemT, ViewT>> {
+          PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
 
     @Override
     public void translateNode(
-        View.CreatePCollectionView<ElemT, ViewT> transform,
+        PTransform<PCollection<ElemT>, PCollection<ElemT>> transform,
         FlinkBatchTranslationContext context) {
       DataSet<WindowedValue<ElemT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
-      PCollectionView<ViewT> input = transform.getView();
-
+      @SuppressWarnings("unchecked")
+      AppliedPTransform<
+          PCollection<ElemT>,
+          PCollection<ElemT>,
+          PTransform<PCollection<ElemT>, PCollection<ElemT>>> application =
+          (AppliedPTransform<
+              PCollection<ElemT>,
+              PCollection<ElemT>,
+              PTransform<PCollection<ElemT>, PCollection<ElemT>>>) context.getCurrentTransform();
+      PCollectionView<ViewT> input;
+      try {
+        input = CreatePCollectionViewTranslation.getView(application);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       context.setSideInputDataSet(input, inputDataSet);
     }
   }

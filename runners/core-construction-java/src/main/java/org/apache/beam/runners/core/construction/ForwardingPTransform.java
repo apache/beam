@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import java.util.Map;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -24,6 +25,8 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * A base class for implementing {@link PTransform} overrides, which behave identically to the
@@ -46,6 +49,11 @@ public abstract class ForwardingPTransform<InputT extends PInput, OutputT extend
       }
     }
     return res;
+  }
+
+  @Override
+  public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+    return delegate().getAdditionalInputs();
   }
 
   @Override

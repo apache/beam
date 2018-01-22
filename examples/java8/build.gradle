@@ -23,10 +23,10 @@ description = "Apache Beam :: Examples :: Java 8"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":beam-examples-parent:beam-examples-java", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":examples:java", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.avro
   shadow library.java.joda_time
@@ -35,7 +35,7 @@ dependencies {
   shadow library.java.google_oauth_client
   shadow library.java.google_api_services_pubsub
   shadow library.java.google_api_client
-  shadow project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  shadow project(path: ":runners:direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core

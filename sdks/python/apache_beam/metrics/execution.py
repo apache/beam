@@ -58,7 +58,7 @@ class MetricKey(object):
     return (self.step == other.step and
             self.metric == other.metric)
 
-  def __str__(self):
+  def __repr__(self):
     return 'MetricKey(step={}, metric={})'.format(
         self.step, self.metric)
 
@@ -105,7 +105,7 @@ class MetricResult(object):
             self.committed == other.committed and
             self.attempted == other.attempted)
 
-  def __str__(self):
+  def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
         self.key, str(self.committed), str(self.attempted))
 
