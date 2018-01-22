@@ -28,6 +28,7 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.security.User;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -82,6 +83,12 @@ public class HFileSinkTest extends HBaseTestCase {
     super.setUp();
     flow = Flow.create();
     loadedPaths = new ArrayList<>();
+  }
+
+  @Override
+  protected void additionalConf() throws Exception {
+    cluster.getConfiguration().set(HFileSink.HBASE_USER, User.getCurrent().getName());
+    cluster.getConfiguration().set(HFileSink.HDFS_USER, User.getCurrent().getName());
   }
 
   @Override
