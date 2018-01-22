@@ -23,9 +23,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Dial is a convenience wrapper over grpc.Dial that specifies an insecure,
-// blocking connection with a timeout.
-func Dial(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
+// Dial is a convenience wrapper over grpc.Dial. It can be overridden
+// to provide a customized dialing behavior.
+var Dial = DefaultDial
+
+// DefaultDial is a dialer that specifies an insecure blocking connection with a timeout.
+func DefaultDial(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
