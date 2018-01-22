@@ -133,7 +133,6 @@
                             </arguments>
                         </configuration>
                     </plugin>
-
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
@@ -145,6 +144,28 @@
                 </plugins>
             </build>
         </profile>
+
+        <!--
+            This profile invokes PerfKitBenchmarker, which does benchmarking of
+            the IO ITs with HDFS filesystem. The arguments passed to it allow it
+            to invoke mvn again with the desired benchmark.
+
+            To invoke this, run:
+
+            mvn verify -Dio-it-hdfs-small -pl sdks/java/io/file-based-io-tests
+                -DpkbLocation="path-to-pkb.py" \
+                -DintegrationTestPipelineOptions='["&ndash;&ndash;numberOfRecords=100000", \
+                "&ndash;&ndash;tempRoot=gs://bucket-name/"]' \
+                -DpkbExtraProperties='["filesystem=hdfs"]' \
+                -DfileBasedIoItClass=file-based IO IT class, eg. org.apache.beam.sdk.io.text.TextIOIT
+
+            For DirectRunner, please use -DforceDirectRunner=true argument and check
+            .test-infra/kubernetes/hadoop/SmallITCluster/pkb-config.yml for info about necessary modifications.
+            Line containing argument beam_kubernetes_scripts must be commented out, because test infrastructure
+            when testing on DirectRunner must be created manually using provided scripts.
+
+            For other runners please check doc in BEAM-3060 and https://beam.apache.org/documentation/io/testing/
+        -->
         <profile>
             <id>io-it-hdfs-small</id>
             <activation>
