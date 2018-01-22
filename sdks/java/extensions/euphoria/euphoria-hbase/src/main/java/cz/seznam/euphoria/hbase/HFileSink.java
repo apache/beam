@@ -33,11 +33,16 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.ExceptionUtils;
 import cz.seznam.euphoria.hadoop.output.HadoopSink;
 import cz.seznam.euphoria.hadoop.output.HadoopSink.HadoopWriter;
+import cz.seznam.euphoria.hbase.util.RecursiveAllPathIterator;
 import cz.seznam.euphoria.shadow.com.google.common.base.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellComparator;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -61,6 +66,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -394,13 +400,8 @@ public class HFileSink implements DataSink<Cell> {
     if (doBulkLoad) {
       try {
         LOG.info("Bulk loading path {}", path);
-        final Configuration conf = rawSink.getConfiguration();
-        final UserGroupInformation ugi = UserGroupInformation.createRemoteUser(hdfsUser);
-        ugi.doAs((PrivilegedAction<Void>) () -> ExceptionUtils.unchecked(() -> {
-          final FileSystem fs = path.getFileSystem(conf);
-          fs.setOwner(path, hbaseUser, null);
-          return null;
-        }));
+        Configuration conf = rawSink.getConfiguration();
+        setPermissionsForHbaseUser(conf, path);
         final LoadIncrementalHFiles load = new LoadIncrementalHFiles(conf);
         final TableName t = TableName.valueOf(tableName);
         try (Connection conn = ConnectionFactory.createConnection(conf);
@@ -416,6 +417,30 @@ public class HFileSink implements DataSink<Cell> {
     } else {
       LOG.info("Skipping bulkloading by request.");
     }
+  }
+
+  /**
+   * For the bulk load the files Hbase user (typically hbase) has to have ALL permissions to operate
+   * over HFiles (for move operation). The running user then has to have permissions to delete remaining folders.
+   *
+   * @param conf hbase configuration
+   * @param path root path for bulk load
+   */
+  private void setPermissionsForHbaseUser(Configuration conf, Path path) throws IOException {
+    LOG.info("Granting permissions for hbase bulk load to user " + hbaseUser);
+    final UserGroupInformation ugi = UserGroupInformation.createRemoteUser(hdfsUser);
+    ugi.doAs((PrivilegedAction<Void>) () -> ExceptionUtils.unchecked(() -> {
+      FileSystem fs = path.getFileSystem(conf);
+      RemoteIterator<Path> listAllIterator = new RecursiveAllPathIterator(fs, path);
+      while (listAllIterator.hasNext()) {
+        Path nextPath = listAllIterator.next();
+        fs.setOwner(nextPath, hbaseUser, null);// move ownership to hbase user
+        if (fs.isDirectory(nextPath)) { // make accessible to hbase, deletable by running user
+          fs.setPermission(nextPath, new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+        }
+      };
+      return null;
+    }));
   }
 
   private static int toRegionIdUninitialized(

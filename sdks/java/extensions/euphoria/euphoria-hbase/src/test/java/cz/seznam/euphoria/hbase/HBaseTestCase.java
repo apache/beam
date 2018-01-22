@@ -31,6 +31,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.security.User;
 import org.junit.After;
 import org.junit.Before;
 
@@ -48,9 +49,14 @@ public class HBaseTestCase {
   public void setUp() throws Exception {
     utility = new HBaseTestingUtility();
     cluster = utility.startMiniCluster();
+    additionalConf();
     conn = ConnectionFactory.createConnection(cluster.getConfiguration());
     TableName table = createTable();
     client = conn.getTable(table);
+  }
+
+  protected void additionalConf() throws Exception {
+    // by default empty
   }
 
   @After
