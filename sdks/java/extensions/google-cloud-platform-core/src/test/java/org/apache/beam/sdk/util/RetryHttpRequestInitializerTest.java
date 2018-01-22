@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.security.PrivateKey;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.hamcrest.Matchers;
@@ -255,6 +256,7 @@ public class RetryHttpRequestInitializerTest {
    */
   @Test
   public void testIOExceptionHandlerIsInvokedOnTimeout() throws Exception {
+    FastNanoClockAndSleeper fakeClockAndSleeper = new FastNanoClockAndSleeper();
     // Counts the number of calls to execute the HTTP request.
     final AtomicLong executeCount = new AtomicLong();
 
@@ -273,10 +275,18 @@ public class RetryHttpRequestInitializerTest {
           }
         }).build();
 
-    // A sample HTTP request to Google Cloud Storage that uses both default Transport and default
-    // RetryHttpInitializer.
+    // A sample HTTP request to Google Cloud Storage that uses both a default Transport and
+    // effectively a default RetryHttpRequestInitializer (same args as default with fake
+    // clock/sleeper).
     Storage storage = new Storage.Builder(
-        transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()).build();
+        transport,
+        Transport.getJsonFactory(),
+        new RetryHttpRequestInitializer(
+            fakeClockAndSleeper,
+            fakeClockAndSleeper,
+            Collections.<Integer>emptyList(),
+            null)
+    ).build();
 
     Get getRequest = storage.objects().get("gs://fake", "file");
 

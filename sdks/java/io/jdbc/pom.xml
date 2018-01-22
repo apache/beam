@@ -122,6 +122,7 @@
               <executable>${python.interpreter.bin}</executable>
               <arguments>
                 <argument>${pkbLocation}</argument>
+                <argument>-beam_it_timeout=1800</argument>
                 <argument>-benchmarks=beam_integration_benchmark</argument>
                 <argument>-beam_it_profile=io-it</argument>
                 <argument>-beam_location=${beamRootProjectDir}</argument>
@@ -204,6 +205,7 @@
               <executable>${python.interpreter.bin}</executable>
               <arguments>
                 <argument>${pkbLocation}</argument>
+                <argument>-beam_it_timeout=1800</argument>
                 <argument>-benchmarks=beam_integration_benchmark</argument>
                 <argument>-beam_it_profile=io-it</argument>
                 <argument>-beam_location=${beamRootProjectDir}</argument>
@@ -326,7 +328,6 @@
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
-      <version>9.4.1212.jre7</version>
       <scope>test</scope>
     </dependency>
     <dependency>

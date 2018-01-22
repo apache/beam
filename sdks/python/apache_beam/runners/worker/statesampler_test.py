@@ -22,21 +22,12 @@ import logging
 import time
 import unittest
 
-from nose.plugins.skip import SkipTest
-
+from apache_beam.runners.worker import statesampler
 from apache_beam.utils.counters import CounterFactory
+from apache_beam.utils.counters import CounterName
 
 
 class StateSamplerTest(unittest.TestCase):
-
-  def setUp(self):
-    try:
-      # pylint: disable=global-variable-not-assigned
-      global statesampler
-      from apache_beam.runners.worker import statesampler
-    except ImportError:
-      raise SkipTest('State sampler not compiled.')
-    super(StateSamplerTest, self).setUp()
 
   def test_basic_sampler(self):
     # Set up state sampler.
@@ -46,21 +37,38 @@ class StateSamplerTest(unittest.TestCase):
 
     # Run basic workload transitioning between 3 states.
     sampler.start()
-    with sampler.scoped_state('statea'):
+    with sampler.scoped_state('step1', 'statea'):
       time.sleep(0.1)
-      with sampler.scoped_state('stateb'):
+      self.assertEqual(
+          sampler.current_state().name,
+          CounterName(
+              'statea-msecs', step_name='step1', stage_name='basic'))
+      with sampler.scoped_state('step1', 'stateb'):
         time.sleep(0.2 / 2)
-        with sampler.scoped_state('statec'):
+        self.assertEqual(
+            sampler.current_state().name,
+            CounterName(
+                'stateb-msecs', step_name='step1', stage_name='basic'))
+        with sampler.scoped_state('step1', 'statec'):
           time.sleep(0.3)
+          self.assertEqual(
+              sampler.current_state().name,
+              CounterName(
+                  'statec-msecs', step_name='step1', stage_name='basic'))
         time.sleep(0.2 / 2)
+
     sampler.stop()
     sampler.commit_counters()
 
+    if not statesampler.FAST_SAMPLER:
+      # The slow sampler does not implement sampling, so we won't test it.
+      return
+
     # Test that sampled state timings are close to their expected values.
     expected_counter_values = {
-        'basic-statea-msecs': 100,
-        'basic-stateb-msecs': 200,
-        'basic-statec-msecs': 300,
+        CounterName('statea-msecs', step_name='step1', stage_name='basic'): 100,
+        CounterName('stateb-msecs', step_name='step1', stage_name='basic'): 200,
+        CounterName('statec-msecs', step_name='step1', stage_name='basic'): 300,
     }
     for counter in counter_factory.get_counters():
       self.assertIn(counter.name, expected_counter_values)
@@ -76,9 +84,9 @@ class StateSamplerTest(unittest.TestCase):
                                         sampling_period_ms=10)
 
     # Run basic workload transitioning between 3 states.
-    state_a = sampler.scoped_state('statea')
-    state_b = sampler.scoped_state('stateb')
-    state_c = sampler.scoped_state('statec')
+    state_a = sampler.scoped_state('step1', 'statea')
+    state_b = sampler.scoped_state('step1', 'stateb')
+    state_c = sampler.scoped_state('step1', 'statec')
     start_time = time.time()
     sampler.start()
     for _ in range(100000):

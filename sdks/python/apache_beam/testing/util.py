@@ -69,6 +69,9 @@ def contains_in_any_order(iterable):
     def __eq__(self, other):
       return self._counter == collections.Counter(other)
 
+    def __repr__(self):
+      return "InAnyOrder(%s)" % self._counter
+
   return InAnyOrder(iterable)
 
 

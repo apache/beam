@@ -35,8 +35,10 @@ task setupTest {
 }
 
 task sdist {
-  exec {
-    commandLine 'python', 'setup.py', 'sdist', '--formats', 'zip,gztar', '--dist-dir', project.buildDir
+  doLast {
+    exec {
+      commandLine 'python', 'setup.py', 'sdist', '--formats', 'zip,gztar', '--dist-dir', project.buildDir
+    }
   }
 }
 

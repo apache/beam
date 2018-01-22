@@ -58,7 +58,7 @@ public class SocketAddressFactory {
       HostAndPort hostAndPort = HostAndPort.fromString(value);
       checkArgument(hostAndPort.hasPort(),
           "Address must be a unix:// path or be in the form host:port. Got: %s", value);
-      return new InetSocketAddress(hostAndPort.getHostText(), hostAndPort.getPort());
+      return new InetSocketAddress(hostAndPort.getHost(), hostAndPort.getPort());
     }
   }
 }

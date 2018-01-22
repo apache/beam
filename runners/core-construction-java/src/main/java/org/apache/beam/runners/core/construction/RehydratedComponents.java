@@ -59,8 +59,15 @@ public class RehydratedComponents {
               new CacheLoader<String, WindowingStrategy<?, ?>>() {
                 @Override
                 public WindowingStrategy<?, ?> load(String id) throws Exception {
+                  @Nullable
+                  RunnerApi.WindowingStrategy windowingStrategyProto =
+                      components.getWindowingStrategiesOrDefault(id, null);
+                  checkState(
+                      windowingStrategyProto != null,
+                      "No WindowingStrategy with id '%s' in serialized components",
+                      id);
                   return WindowingStrategyTranslation.fromProto(
-                      components.getWindowingStrategiesOrThrow(id), RehydratedComponents.this);
+                      windowingStrategyProto, RehydratedComponents.this);
                 }
               });
 
