@@ -206,6 +206,7 @@ class PValueCache(object):
     # and tag names converted to strings.
 
     self._use_disk_backed_cache = use_disk_backed_cache
+    self._output_renamings = {}
     if use_disk_backed_cache:
       self._tempdir = tempfile.mkdtemp()
       self._cache = shelve.open(os.path.join(self._tempdir, 'shelve'))
@@ -220,8 +221,25 @@ class PValueCache(object):
   def __len__(self):
     return len(self._cache)
 
+  def register_replacement_outputs(self, output_map):
+    """Register the given map of original to replacement PCollections.
+
+    Args:
+      output_map: A map from original pipeline PCollection to replacement
+      pipeline PCollections, resulting from the application of
+      PTransformOverrides in pipeline.Pipeline.replace_all().
+    """
+    for original, replacement in output_map.iteritems():
+      self._output_renamings[(original.producer.full_label, original.tag)] = (
+          replacement.producer.full_label, replacement.tag)
+    print 'REPL!!!!', self._output_renamings
+
   def to_cache_key(self, transform, tag):
-    return transform.full_label, tag
+    cache_key = (transform.full_label, tag)
+    if cache_key in self._output_renamings:
+      print 'REDIRECTED', cache_key, self._output_renamings[cache_key]
+      cache_key = self._output_renamings[cache_key]
+    return cache_key
 
   def _ensure_pvalue_has_real_producer(self, pvalue):
     """Ensure the passed-in PValue has the real_producer attribute.

@@ -293,6 +293,8 @@ class Pipeline(object):
     for transform in input_replacements:
       transform.inputs = input_replacements[transform]
 
+    return output_map
+
   def _check_replacement(self, override):
     matcher = override.get_matcher()
 
@@ -317,9 +319,10 @@ class Pipeline(object):
       replacements (List[~apache_beam.pipeline.PTransformOverride]): a list of
         :class:`~apache_beam.pipeline.PTransformOverride` objects.
     """
+    output_map = {}
     for override in replacements:
       assert isinstance(override, PTransformOverride)
-      self._replace(override)
+      output_map.update(self._replace(override))
 
     # Checking if the PTransforms have been successfully replaced. This will
     # result in a failure if a PTransform that was replaced in a given override
@@ -327,6 +330,8 @@ class Pipeline(object):
     # of PTransformOverride objects in 'replacements' is important.
     for override in replacements:
       self._check_replacement(override)
+
+    return output_map
 
   def run(self, test_runner_api=True):
     """Runs the pipeline. Returns whatever our runner returns after running."""

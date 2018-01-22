@@ -39,7 +39,7 @@ class LiftedCombinePerKey(beam.PTransform):
     return (
         pcoll
         | beam.ParDo(PartialGroupByKeyCombiningValues(self._combine_fn))
-        | 'NewGBK' >> beam.GroupByKey()
+        | beam.GroupByKey()
         | beam.ParDo(FinishCombine(self._combine_fn)))
 
 

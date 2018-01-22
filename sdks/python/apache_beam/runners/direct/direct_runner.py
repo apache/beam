@@ -116,7 +116,7 @@ def _get_transform_overrides():
       # pylint: disable=wrong-import-position
       from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
       try:
-        print 'YES REPLACE', transform
+        print 'YES REPLACE', transform, transform.fn, transform.args, transform.kwargs
         a= LiftedCombinePerKey(
             transform.fn, transform.args, transform.kwargs)
         print 'REPL', a
@@ -234,7 +234,9 @@ class DirectRunner(PipelineRunner):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(self._ptransform_overrides)
+    output_map = pipeline.replace_all(self._ptransform_overrides)
+    if self._cache:
+      self._cache.register_replacement_outputs(output_map)
 
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
     # with resolving imports when they are at top.
@@ -308,6 +310,16 @@ class BufferingInMemoryCache(object):
   @property
   def pvalue_cache(self):
     return self._pvalue_cache
+
+  def register_replacement_outputs(self, output_map):
+    """Register the given map of original to replacement PCollections.
+
+    Args:
+      output_map: A map from original pipeline PCollection to replacement
+      pipeline PCollections, resulting from the application of
+      PTransformOverrides in pipeline.Pipeline.replace_all().
+    """
+    self._pvalue_cache.register_replacement_outputs(output_map)
 
   def append(self, applied_ptransform, tag, elements):
     assert not self._finalized

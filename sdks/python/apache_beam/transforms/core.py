@@ -1094,6 +1094,7 @@ class CombineGlobally(PTransform):
     self.fn = fn
     self.args = args
     self.kwargs = kwargs
+    print 'CG', args, kwargs
 
   def display_data(self):
     return {'combine_fn':
@@ -1102,7 +1103,7 @@ class CombineGlobally(PTransform):
             self.fn}
 
   def default_label(self):
-    return 'CombineGlobally(%s)' % ptransform.label_from_callable(self.fn)
+    return 'CombineGlobally(%s, %s, %s)' % (ptransform.label_from_callable(self.fn), self.args, self.kwargs)
 
   def _clone(self, **extra_attributes):
     clone = copy.copy(self)
@@ -1150,7 +1151,7 @@ class CombineGlobally(PTransform):
       if pcoll.windowing.windowfn != GlobalWindows():
         raise ValueError(
             "Default values are not yet supported in CombineGlobally() if the "
-            "output  PCollection is not windowed by GlobalWindows. "
+            "output PCollection is not windowed by GlobalWindows. "
             "Instead, use CombineGlobally().without_defaults() to output "
             "an empty PCollection if the input PCollection is empty, "
             "or CombineGlobally().as_singleton_view() to get the default "
@@ -1204,13 +1205,20 @@ class CombinePerKey(PTransformWithSideInputs):
   def expand(self, pcoll):
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
+    print 'EXPAND', self.args, self.kwargs
     return pcoll | GroupByKey() | 'Combine' >> CombineValues(
         self.fn, *args, **kwargs)
 
+
   def to_runner_api_parameter(self, context):
+    if self.args or self.kwargs:
+      from apache_beam.transforms.combiners import curry_combine_fn
+      combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
+    else:
+      combine_fn = self.fn
     return (
         urns.COMBINE_PER_KEY_TRANSFORM,
-        _combine_payload(self.fn, context))
+        _combine_payload(combine_fn, context))
 
   @PTransform.register_urn(
       urns.COMBINE_PER_KEY_TRANSFORM, beam_runner_api_pb2.CombinePayload)
@@ -1241,9 +1249,14 @@ class CombineValues(PTransformWithSideInputs):
         *args, **kwargs)
 
   def to_runner_api_parameter(self, context):
+    if self.args or self.kwargs:
+      from apache_beam.transforms.combiners import curry_combine_fn
+      combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
+    else:
+      combine_fn = self.fn
     return (
         urns.COMBINE_GROUPED_VALUES_TRANSFORM,
-        _combine_payload(self.fn, context))
+        _combine_payload(combine_fn, context))
 
   @PTransform.register_urn(
       urns.COMBINE_GROUPED_VALUES_TRANSFORM, beam_runner_api_pb2.CombinePayload)
