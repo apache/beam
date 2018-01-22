@@ -92,6 +92,8 @@ class TransformEvaluatorRegistry(object):
     assert applied_ptransform
     assert bool(applied_ptransform.side_inputs) == bool(side_inputs)
 
+    print 'GETEVALUATOR', applied_ptransform
+
     # Walk up the class hierarchy to find an evaluable type. This is necessary
     # for supporting sub-classes of core transforms.
     for cls in applied_ptransform.transform.__class__.mro():

@@ -169,12 +169,18 @@ class Pipeline(object):
     return self.transforms_stack[0]
 
   def _remove_labels_recursively(self, applied_transform):
+    print 'REM', applied_transform
+    print 'REM_PARTS', applied_transform.parts
     for part in applied_transform.parts:
       if part.full_label in self.applied_labels:
+        print 'REMOVED', part.full_label
+        part.transform = None
         self.applied_labels.remove(part.full_label)
       if part.parts:
-        for part2 in part.parts:
-          self._remove_labels_recursively(part2)
+        for child_part in part.parts:
+          child_part.transform = None
+          self.applied_labels.remove(child_part.full_label)
+          self._remove_labels_recursively(child_part)
 
   def _replace(self, override):
 
@@ -210,6 +216,7 @@ class Pipeline(object):
           # removing labels of child transforms since they will be replaced
           # during the expand below.
           self.pipeline._remove_labels_recursively(transform_node)
+          transform_node.parts = []  # TODO: ccy
 
           new_output = replacement_transform.expand(inputs[0])
           if new_output.producer is None:

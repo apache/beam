@@ -88,6 +88,7 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
         context.windowing_strategies.get_by_id(payload.value))
 
 
+
 def _get_transform_overrides():
   # A list of PTransformOverride objects to be applied before running a pipeline
   # using DirectRunner.
@@ -98,8 +99,39 @@ def _get_transform_overrides():
   # Importing following locally to avoid a circular dependency.
   from apache_beam.runners.sdf_common import SplittableParDoOverride
   from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
+  from apache_beam.pipeline import PTransformOverride
+
+  from apache_beam.transforms.core import CombinePerKey
+
+  class CombinePerKeyOverride(PTransformOverride):
+    def get_matcher(self):
+      def _matcher(applied_ptransform):
+        if isinstance(applied_ptransform.transform, CombinePerKey):
+          return True
+      return _matcher
+
+    def get_replacement_transform(self, transform):
+      # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
+      # with resolving imports when they are at top.
+      # pylint: disable=wrong-import-position
+      from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
+      try:
+        print 'YES REPLACE', transform
+        a= LiftedCombinePerKey(
+            transform.fn, transform.args, transform.kwargs)
+        print 'REPL', a
+        return a
+      except NotImplementedError:
+        print 'NO REPLACE'
+        return transform
+
   return [SplittableParDoOverride(),
-          ProcessKeyedElementsViaKeyedWorkItemsOverride()]
+          ProcessKeyedElementsViaKeyedWorkItemsOverride(),
+          CombinePerKeyOverride(),
+          ]
+
+
+
 
 
 class DirectRunner(PipelineRunner):
@@ -110,16 +142,17 @@ class DirectRunner(PipelineRunner):
     self._use_test_clock = False  # use RealClock() in production
     self._ptransform_overrides = _get_transform_overrides()
 
-  def apply_CombinePerKey(self, transform, pcoll):
-    # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
-    # with resolving imports when they are at top.
-    # pylint: disable=wrong-import-position
-    from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
-    try:
-      return pcoll | LiftedCombinePerKey(
-          transform.fn, transform.args, transform.kwargs)
-    except NotImplementedError:
-      return transform.expand(pcoll)
+  # def apply_CombinePerKey(self, transform, pcoll):
+  #   raise Exception
+  #   # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
+  #   # with resolving imports when they are at top.
+  #   # pylint: disable=wrong-import-position
+  #   from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
+  #   try:
+  #     return pcoll | LiftedCombinePerKey(
+  #         transform.fn, transform.args, transform.kwargs)
+  #   except NotImplementedError:
+  #     return transform.expand(pcoll)
 
   def apply_TestStream(self, transform, pcoll):
     self._use_test_clock = True  # use TestClock() for testing
