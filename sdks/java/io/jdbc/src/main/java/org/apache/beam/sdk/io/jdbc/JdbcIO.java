@@ -154,6 +154,8 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_ReadAll.Builder<ParameterT, OutputT>().build();
   }
 
+  private static final long DEFAULT_BATCH_SIZE = 1000L;
+
   /**
    * Write data to a JDBC datasource.
    *
@@ -161,7 +163,7 @@ public class JdbcIO {
    */
   public static <T> Write<T> write() {
     return new AutoValue_JdbcIO_Write.Builder<T>()
-            .setBatchSize(1000L)
+            .setBatchSize(DEFAULT_BATCH_SIZE)
             .build();
   }
 
