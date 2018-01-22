@@ -12,13 +12,11 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.integration.tests;
+package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO;
-import org.apache.beam.sdk.io.hadoop.inputformat.custom.options.HIFTestOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -71,14 +69,14 @@ public class HIFIOElasticIT implements Serializable {
   private static final String ELASTIC_INDEX_NAME = "test_data";
   private static final String ELASTIC_TYPE_NAME = "test_type";
   private static final String ELASTIC_RESOURCE = "/" + ELASTIC_INDEX_NAME + "/" + ELASTIC_TYPE_NAME;
-  private static HIFTestOptions options;
+  private static HIFITestOptions options;
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void setUp() {
-    PipelineOptionsFactory.register(HIFTestOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(HIFTestOptions.class);
+    PipelineOptionsFactory.register(HIFITestOptions.class);
+    options = TestPipeline.testingPipelineOptions().as(HIFITestOptions.class);
   }
 
   /**
@@ -190,7 +188,7 @@ public class HIFIOElasticIT implements Serializable {
    * refer <a href="https://www.elastic.co/guide/en/elasticsearch/hadoop/current/configuration.html"
    * >Elasticsearch Configuration</a> for more details.
    */
-  private static Configuration getConfiguration(HIFTestOptions options) {
+  private static Configuration getConfiguration(HIFITestOptions options) {
     Configuration conf = new Configuration();
     conf.set(ConfigurationOptions.ES_NODES, options.getElasticServerIp());
     conf.set(ConfigurationOptions.ES_PORT, options.getElasticServerPort().toString());

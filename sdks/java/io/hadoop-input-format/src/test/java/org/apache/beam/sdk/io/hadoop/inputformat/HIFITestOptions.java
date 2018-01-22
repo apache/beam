@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.hadoop.inputformat.custom.options;
+package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -24,7 +24,7 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
 /**
  * Properties needed when using HadoopInputFormatIO with the Beam SDK.
  */
-public interface HIFTestOptions extends TestPipelineOptions {
+public interface HIFITestOptions extends TestPipelineOptions {
 
   //Cassandra test options
   @Description("Cassandra Server IP")
