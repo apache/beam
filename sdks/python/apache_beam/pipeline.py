@@ -55,6 +55,7 @@ import tempfile
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -123,6 +124,8 @@ class Pipeline(object):
             'Parameter argv, if specified, must be a list. Received : %r', argv)
     else:
       self._options = PipelineOptions([])
+
+    FileSystems.set_options(self._options)
 
     if runner is None:
       runner = self._options.view_as(StandardOptions).runner
