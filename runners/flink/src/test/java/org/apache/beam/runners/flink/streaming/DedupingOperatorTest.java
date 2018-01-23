@@ -100,23 +100,13 @@ public class DedupingOperatorTest {
     DedupingOperator<String> operator = new DedupingOperator<>();
 
     return new KeyedOneInputStreamOperatorTestHarness<>(operator,
-        new KeySelector<WindowedValue<ValueWithRecordId<String>>, ByteBuffer>() {
-      @Override
-      public ByteBuffer getKey(WindowedValue<ValueWithRecordId<String>> value) throws Exception {
-        return ByteBuffer.wrap(value.getValue().getId());
-      }
-    }, TypeInformation.of(ByteBuffer.class));
+        value -> ByteBuffer.wrap(value.getValue().getId()), TypeInformation.of(ByteBuffer.class));
   }
 
   private <T> Iterable<WindowedValue<T>> stripStreamRecordFromWindowedValue(
       Iterable<Object> input) {
 
-    return FluentIterable.from(input).filter(new Predicate<Object>() {
-      @Override
-      public boolean apply(@Nullable Object o) {
-        return o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue;
-      }
-    }).transform(new Function<Object, WindowedValue<T>>() {
+    return FluentIterable.from(input).filter(o -> o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue).transform(new Function<Object, WindowedValue<T>>() {
       @Nullable
       @Override
       @SuppressWarnings({"unchecked", "rawtypes"})

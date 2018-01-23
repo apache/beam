@@ -276,12 +276,7 @@ public class DoFnOperatorTest {
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
             doFnOperator,
-            new KeySelector<WindowedValue<Integer>, Integer>() {
-              @Override
-              public Integer getKey(WindowedValue<Integer> integerWindowedValue) throws Exception {
-                return integerWindowedValue.getValue();
-              }
-            },
+            integerWindowedValue -> integerWindowedValue.getValue(),
             new CoderTypeInformation<>(VarIntCoder.of()));
 
     testHarness.setup(new CoderTypeSerializer<>(outputCoder));
@@ -363,12 +358,7 @@ public class DoFnOperatorTest {
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
             doFnOperator,
-            new KeySelector<WindowedValue<Integer>, Integer>() {
-              @Override
-              public Integer getKey(WindowedValue<Integer> integerWindowedValue) throws Exception {
-                return integerWindowedValue.getValue();
-              }
-            },
+            integerWindowedValue -> integerWindowedValue.getValue(),
             new CoderTypeInformation<>(VarIntCoder.of()));
 
     testHarness.open();
@@ -479,13 +469,7 @@ public class DoFnOperatorTest {
         WindowedValue<KV<String, Integer>>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
             doFnOperator,
-            new KeySelector<WindowedValue<KV<String, Integer>>, String>() {
-              @Override
-              public String getKey(
-                  WindowedValue<KV<String, Integer>> kvWindowedValue) throws Exception {
-                return kvWindowedValue.getValue().getKey();
-              }
-            },
+            kvWindowedValue -> kvWindowedValue.getValue().getKey(),
             new CoderTypeInformation<>(StringUtf8Coder.of()));
 
     testHarness.open();
@@ -743,12 +727,7 @@ public class DoFnOperatorTest {
   private <T> Iterable<WindowedValue<T>> stripStreamRecordFromWindowedValue(
       Iterable<Object> input) {
 
-    return FluentIterable.from(input).filter(new Predicate<Object>() {
-      @Override
-      public boolean apply(@Nullable Object o) {
-        return o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue;
-      }
-    }).transform(new Function<Object, WindowedValue<T>>() {
+    return FluentIterable.from(input).filter(o -> o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue).transform(new Function<Object, WindowedValue<T>>() {
       @Nullable
       @Override
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -762,12 +741,7 @@ public class DoFnOperatorTest {
   }
 
   private Iterable<WindowedValue<String>> stripStreamRecord(Iterable<?> input) {
-    return FluentIterable.from(input).filter(new Predicate<Object>() {
-      @Override
-      public boolean apply(@Nullable Object o) {
-        return o instanceof StreamRecord;
-      }
-    }).transform(new Function<Object, WindowedValue<String>>() {
+    return FluentIterable.from(input).filter(o -> o instanceof StreamRecord).transform(new Function<Object, WindowedValue<String>>() {
       @Nullable
       @Override
       @SuppressWarnings({"unchecked", "rawtypes"})

@@ -405,18 +405,15 @@ public class SplittableDoFnTest implements Serializable {
         .containsInAnyOrder("a:0", "a:1", "b:2", "b:3");
     PAssert.that(grouped)
         .satisfies(
-            new SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>() {
-              @Override
-              public Void apply(Iterable<KV<String, Iterable<Integer>>> input) {
-                List<Integer> expected = new ArrayList<>();
-                for (int i = 0; i < SDFWithMultipleOutputsPerBlockAndSideInput.MAX_INDEX; ++i) {
-                  expected.add(i);
-                }
-                for (KV<String, Iterable<Integer>> kv : input) {
-                  assertEquals(expected, Ordering.<Integer>natural().sortedCopy(kv.getValue()));
-                }
-                return null;
+            input -> {
+              List<Integer> expected = new ArrayList<>();
+              for (int i = 0; i < SDFWithMultipleOutputsPerBlockAndSideInput.MAX_INDEX; ++i) {
+                expected.add(i);
               }
+              for (KV<String, Iterable<Integer>> kv : input) {
+                assertEquals(expected, Ordering.<Integer>natural().sortedCopy(kv.getValue()));
+              }
+              return null;
             });
     p.run();
 

@@ -220,14 +220,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       private Collection<TimerInternals.TimerData> filterTimersEligibleForProcessing(
           final Collection<TimerInternals.TimerData> timers, final Instant inputWatermark) {
         final Predicate<TimerInternals.TimerData> eligibleForProcessing =
-            new Predicate<TimerInternals.TimerData>() {
-
-              @Override
-              public boolean apply(final TimerInternals.TimerData timer) {
-                return !timer.getDomain().equals(TimeDomain.EVENT_TIME)
-                    || inputWatermark.isAfter(timer.getTimestamp());
-              }
-            };
+            timer -> !timer.getDomain().equals(TimeDomain.EVENT_TIME)
+                || inputWatermark.isAfter(timer.getTimestamp());
 
         return FluentIterable.from(timers).filter(eligibleForProcessing).toSet();
       }
@@ -504,24 +498,15 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       final Coder<K> keyCoder,
       final FullWindowedValueCoder<InputT> wvCoder) {
 
+    /*K*//*WV<KV<K, Itr<I>>>*//*K*//*WV<KV<K, Itr<I>>>*/
     return JavaPairDStream.fromPairDStream(
             firedStream,
             JavaSparkContext$.MODULE$.<ByteArray>fakeClassTag(),
             JavaSparkContext$.MODULE$.<Tuple2<StateAndTimers, List<byte[]>>>fakeClassTag())
         .filter(
-            new Function<
-                Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>,
-                Boolean>() {
-              @Override
-              public Boolean call(
-                  final Tuple2<
-                          /*K*/ ByteArray,
-                          Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>
-                      t2)
-                  throws Exception {
-                // filter output if defined.
-                return !t2._2()._2().isEmpty();
-              }
+            t2 -> {
+              // filter output if defined.
+              return !t2._2()._2().isEmpty();
             })
         .flatMap(
             new FlatMapFunction<
@@ -564,51 +549,33 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     //---- Iterable: Itr
     //---- AccumT: A
     //---- InputT: I
+    // we use mapPartitions with the RDD API because its the only available API
+// that allows to preserve partitioning.
     final DStream<Tuple2<ByteArray, byte[]>> tupleDStream =
         inputDStream
             .transformToPair(
-                new Function2<
-                    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>>, Time,
-                    JavaPairRDD<ByteArray, byte[]>>() {
-
-                  // we use mapPartitions with the RDD API because its the only available API
-                  // that allows to preserve partitioning.
-                  @Override
-                  public JavaPairRDD<ByteArray, byte[]> call(
-                      final JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> rdd,
-                      final Time time)
-                      throws Exception {
-                    return rdd.mapPartitions(
-                            TranslationUtils.functionToFlatMapFunction(
-                                WindowingHelpers
-                                    .<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction()),
-                            true)
-                        .mapPartitionsToPair(
-                            TranslationUtils
-                                .<K, Iterable<WindowedValue<InputT>>>toPairFlatMapFunction(),
-                            true)
-                        .mapValues(
-                            new Function<
-                                Iterable<WindowedValue<InputT>>,
-                                KV<Long, Iterable<WindowedValue<InputT>>>>() {
-
-                              @Override
-                              public KV<Long, Iterable<WindowedValue<InputT>>> call(
-                                  final Iterable<WindowedValue<InputT>> values) throws Exception {
-                                // add the batch timestamp for visibility (e.g., debugging)
-                                return KV.of(time.milliseconds(), values);
-                              }
-                            })
-                        // move to bytes representation and use coders for deserialization
-                        // because of checkpointing.
-                        .mapPartitionsToPair(
-                            TranslationUtils.pairFunctionToPairFlatMapFunction(
-                                CoderHelpers.toByteFunction(
-                                    keyCoder,
-                                    KvCoder.of(VarLongCoder.of(), IterableCoder.of(wvCoder)))),
-                            true);
-                  }
-                })
+                (rdd, time) -> rdd.mapPartitions(
+                        TranslationUtils.functionToFlatMapFunction(
+                            WindowingHelpers
+                                .<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction()),
+                        true)
+                    .mapPartitionsToPair(
+                        TranslationUtils
+                            .<K, Iterable<WindowedValue<InputT>>>toPairFlatMapFunction(),
+                        true)
+                    .mapValues(
+                        values -> {
+                          // add the batch timestamp for visibility (e.g., debugging)
+                          return KV.of(time.milliseconds(), values);
+                        })
+                    // move to bytes representation and use coders for deserialization
+                    // because of checkpointing.
+                    .mapPartitionsToPair(
+                        TranslationUtils.pairFunctionToPairFlatMapFunction(
+                            CoderHelpers.toByteFunction(
+                                keyCoder,
+                                KvCoder.of(VarLongCoder.of(), IterableCoder.of(wvCoder)))),
+                        true))
             .dstream();
 
     return DStream.toPairDStreamFunctions(

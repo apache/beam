@@ -1393,23 +1393,20 @@ public class ParDoTest implements Serializable {
 
     PAssert.that(outputs)
         .satisfies(
-            new SerializableFunction<Iterable<Long>, Void>() {
-              @Override
-              public Void apply(Iterable<Long> input) {
-                // This element is not shifted backwards in time. It must be present in the output.
-                assertThat(input, hasItem(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
-                for (Long elem : input) {
-                  // Sanity check the outputs. 0L and the end of the global window are shifted
-                  // backwards in time and theoretically could be dropped.
-                  assertThat(
-                      elem,
-                      anyOf(
-                          equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()),
-                          equalTo(GlobalWindow.INSTANCE.maxTimestamp().getMillis()),
-                          equalTo(0L)));
-                }
-                return null;
+            input -> {
+              // This element is not shifted backwards in time. It must be present in the output.
+              assertThat(input, hasItem(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+              for (Long elem : input) {
+                // Sanity check the outputs. 0L and the end of the global window are shifted
+                // backwards in time and theoretically could be dropped.
+                assertThat(
+                    elem,
+                    anyOf(
+                        equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()),
+                        equalTo(GlobalWindow.INSTANCE.maxTimestamp().getMillis()),
+                        equalTo(0L)));
               }
+              return null;
             });
 
     pipeline.run();

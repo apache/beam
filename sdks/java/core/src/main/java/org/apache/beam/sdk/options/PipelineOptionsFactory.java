@@ -354,16 +354,13 @@ public class PipelineOptionsFactory {
         // If we didn't find an exact match, look for any that match the class name.
         Iterable<Class<? extends PipelineOptions>> matches = Iterables.filter(
             getRegisteredOptions(),
-            new Predicate<Class<? extends PipelineOptions>>() {
-              @Override
-              public boolean apply(@Nonnull Class<? extends PipelineOptions> input) {
-                if (helpOption.contains(".")) {
-                  return input.getName().endsWith(helpOption);
-                } else {
-                  return input.getSimpleName().equals(helpOption);
-                }
+            input -> {
+              if (helpOption.contains(".")) {
+                return input.getName().endsWith(helpOption);
+              } else {
+                return input.getSimpleName().equals(helpOption);
               }
-          });
+            });
         try {
           printHelp(printStream, Iterables.getOnlyElement(matches));
         } catch (NoSuchElementException exception) {
@@ -470,12 +467,7 @@ public class PipelineOptionsFactory {
 
   /** A predicate that checks if a method is synthetic via {@link Method#isSynthetic()}. */
   private static final Predicate<Method> NOT_SYNTHETIC_PREDICATE =
-      new Predicate<Method>() {
-        @Override
-        public boolean apply(@Nonnull Method input) {
-          return !input.isSynthetic();
-        }
-      };
+      input -> !input.isSynthetic();
 
   /** The set of options that have been registered and visible to the user. */
   private static final Set<Class<? extends PipelineOptions>> REGISTERED_OPTIONS =
@@ -1257,12 +1249,7 @@ public class PipelineOptionsFactory {
         Sets.filter(
             Sets.difference(Sets.newHashSet(iface.getMethods()), knownMethods),
             Predicates.and(NOT_SYNTHETIC_PREDICATE,
-                new Predicate<Method>() {
-                  @Override
-                  public boolean apply(@Nonnull Method input) {
-                    return !knownMethodsNames.contains(input.getName());
-                  }
-                })));
+                input -> !knownMethodsNames.contains(input.getName()))));
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
@@ -1470,44 +1457,24 @@ public class PipelineOptionsFactory {
   static class AnnotationPredicates {
     static final AnnotationPredicates JSON_IGNORE = new AnnotationPredicates(
         JsonIgnore.class,
-        new Predicate<Annotation>() {
-          @Override
-          public boolean apply(@Nonnull Annotation input) {
-            return JsonIgnore.class.equals(input.annotationType());
-          }
-        },
-        new Predicate<Method>() {
-          @Override
-          public boolean apply(@Nonnull Method input) {
-            return input.isAnnotationPresent(JsonIgnore.class);
-          }});
+        input -> JsonIgnore.class.equals(input.annotationType()),
+        input -> input.isAnnotationPresent(JsonIgnore.class));
 
     private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES = Sets.newHashSet(
         FluentIterable.from(Default.class.getDeclaredClasses())
-        .filter(new Predicate<Class<?>>() {
-          @Override
-          public boolean apply(@Nonnull Class<?> klass) {
-            return klass.isAnnotation();
-          }}));
+        .filter(klass -> klass.isAnnotation()));
 
     static final AnnotationPredicates DEFAULT_VALUE = new AnnotationPredicates(
         Default.class,
-        new Predicate<Annotation>() {
-          @Override
-          public boolean apply(@Nonnull Annotation input) {
-            return DEFAULT_ANNOTATION_CLASSES.contains(input.annotationType());
-          }
-        },
-        new Predicate<Method> () {
-          @Override
-          public boolean apply(@Nonnull Method input) {
-            for (Annotation annotation : input.getAnnotations()) {
-              if (DEFAULT_ANNOTATION_CLASSES.contains(annotation.annotationType())) {
-                return true;
-              }
+        input -> DEFAULT_ANNOTATION_CLASSES.contains(input.annotationType()),
+        input -> {
+          for (Annotation annotation : input.getAnnotations()) {
+            if (DEFAULT_ANNOTATION_CLASSES.contains(annotation.annotationType())) {
+              return true;
             }
-            return false;
-          }});
+          }
+          return false;
+        });
 
     final Class<? extends Annotation> annotationClass;
     final Predicate<Annotation> forAnnotation;
@@ -1616,12 +1583,7 @@ public class PipelineOptionsFactory {
         // Either off by one or off by two character errors.
         if (!propertyNamesToGetters.containsKey(entry.getKey())) {
           SortedSet<String> closestMatches = new TreeSet<>(
-              Sets.filter(propertyNamesToGetters.keySet(), new Predicate<String>() {
-                @Override
-                public boolean apply(@Nonnull String input) {
-                  return StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2;
-                }
-          }));
+              Sets.filter(propertyNamesToGetters.keySet(), input -> StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2));
           switch (closestMatches.size()) {
             case 0:
               throw new IllegalArgumentException(
@@ -1667,12 +1629,7 @@ public class PipelineOptionsFactory {
         } else if (isCollectionOrArrayOfAllowedTypes(returnType, type)) {
           // Split any strings with ","
           List<String> values = FluentIterable.from(entry.getValue())
-              .transformAndConcat(new Function<String, Iterable<String>>() {
-                @Override
-                public Iterable<String> apply(@Nonnull String input) {
-                  return Arrays.asList(input.split(","));
-                }
-          }).toList();
+              .transformAndConcat(input -> Arrays.asList(input.split(","))).toList();
 
           if (values.contains("")) {
             checkEmptyStringAllowed(returnType, type, method.getGenericReturnType().toString());

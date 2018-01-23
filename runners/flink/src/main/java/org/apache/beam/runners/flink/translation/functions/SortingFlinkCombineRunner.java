@@ -66,15 +66,8 @@ public class SortingFlinkCombineRunner<K, InputT, AccumT, OutputT, W extends Bou
         sortedInput.add(exploded);
       }
     }
-    Collections.sort(sortedInput, new Comparator<WindowedValue<KV<K, InputT>>>() {
-      @Override
-      public int compare(
-          WindowedValue<KV<K, InputT>> o1,
-          WindowedValue<KV<K, InputT>> o2) {
-        return Iterables.getOnlyElement(o1.getWindows()).maxTimestamp()
-            .compareTo(Iterables.getOnlyElement(o2.getWindows()).maxTimestamp());
-      }
-    });
+    Collections.sort(sortedInput, (o1, o2) -> Iterables.getOnlyElement(o1.getWindows()).maxTimestamp()
+        .compareTo(Iterables.getOnlyElement(o2.getWindows()).maxTimestamp()));
 
     if (!windowingStrategy.getWindowFn().isNonMerging()) {
       // merge windows, we have to do it in an extra pre-processing step and

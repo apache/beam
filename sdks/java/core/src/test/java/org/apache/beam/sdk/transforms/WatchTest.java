@@ -209,12 +209,7 @@ public class WatchTest implements Serializable {
                                 standardSeconds(3) /* timeToDeclareOutputFinal */,
                                 standardSeconds(30) /* timeToFail */),
                             Requirements.empty()),
-                        new SerializableFunction<KV<Integer, String>, Integer>() {
-                          @Override
-                          public Integer apply(KV<Integer, String> input) {
-                            return input.getKey();
-                          }
-                        })
+                    input -> input.getKey())
                     .withTerminationPerInput(Watch.Growth.<String>afterTotalOf(standardSeconds(5)))
                     .withPollInterval(Duration.millis(100))
                     .withOutputCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
@@ -282,25 +277,19 @@ public class WatchTest implements Serializable {
 
     PAssert.that("Poll called only once", res.apply(Keys.<String>create()))
         .satisfies(
-            new SerializableFunction<Iterable<String>, Void>() {
-              @Override
-              public Void apply(Iterable<String> pollIds) {
-                assertEquals(1, Sets.newHashSet(pollIds).size());
-                return null;
-              }
+            pollIds -> {
+              assertEquals(1, Sets.newHashSet(pollIds).size());
+              return null;
             });
     PAssert.that("Yields all expected results", res.apply("Drop poll id", Values.<Integer>create()))
         .satisfies(
-            new SerializableFunction<Iterable<Integer>, Void>() {
-              @Override
-              public Void apply(Iterable<Integer> input) {
-                assertEquals(
-                    "Total number of results mismatches",
-                    numResults,
-                    Lists.newArrayList(input).size());
-                assertEquals("Results are not unique", numResults, Sets.newHashSet(input).size());
-                return null;
-              }
+            input -> {
+              assertEquals(
+                  "Total number of results mismatches",
+                  numResults,
+                  Lists.newArrayList(input).size());
+              assertEquals("Results are not unique", numResults, Sets.newHashSet(input).size());
+              return null;
             });
 
     p.run();
@@ -331,45 +320,42 @@ public class WatchTest implements Serializable {
 
     PAssert.that(res)
         .satisfies(
-            new SerializableFunction<Iterable<TimestampedValue<Integer>>, Void>() {
-              @Override
-              public Void apply(Iterable<TimestampedValue<Integer>> outputs) {
-                Function<TimestampedValue<Integer>, Integer> extractValueFn =
-                    new Function<TimestampedValue<Integer>, Integer>() {
-                      @Nullable
-                      @Override
-                      public Integer apply(@Nullable TimestampedValue<Integer> input) {
-                        return input.getValue();
-                      }
-                    };
-                Function<TimestampedValue<Integer>, Instant> extractTimestampFn =
-                    new Function<TimestampedValue<Integer>, Instant>() {
-                      @Nullable
-                      @Override
-                      public Instant apply(@Nullable TimestampedValue<Integer> input) {
-                        return input.getTimestamp();
-                      }
-                    };
+            outputs -> {
+              Function<TimestampedValue<Integer>, Integer> extractValueFn =
+                  new Function<TimestampedValue<Integer>, Integer>() {
+                    @Nullable
+                    @Override
+                    public Integer apply(@Nullable TimestampedValue<Integer> input) {
+                      return input.getValue();
+                    }
+                  };
+              Function<TimestampedValue<Integer>, Instant> extractTimestampFn =
+                  new Function<TimestampedValue<Integer>, Instant>() {
+                    @Nullable
+                    @Override
+                    public Instant apply(@Nullable TimestampedValue<Integer> input) {
+                      return input.getTimestamp();
+                    }
+                  };
 
-                Ordering<TimestampedValue<Integer>> byValue =
-                    Ordering.natural().onResultOf(extractValueFn);
-                Ordering<TimestampedValue<Integer>> byTimestamp =
-                    Ordering.natural().onResultOf(extractTimestampFn);
-                // New outputs appear in timestamp order because each output's assigned timestamp
-                // is Instant.now() at the time of poll.
-                assertTrue(
-                    "Outputs must be in timestamp order",
-                    byTimestamp.isOrdered(byValue.sortedCopy(outputs)));
-                assertEquals(
-                    "Yields all expected values",
-                    Sets.newHashSet(Iterables.transform(outputs, extractValueFn)).size(),
-                    numResults);
-                assertThat(
-                    "Poll called more than once",
-                    Sets.newHashSet(Iterables.transform(outputs, extractTimestampFn)).size(),
-                    greaterThan(1));
-                return null;
-              }
+              Ordering<TimestampedValue<Integer>> byValue =
+                  Ordering.natural().onResultOf(extractValueFn);
+              Ordering<TimestampedValue<Integer>> byTimestamp =
+                  Ordering.natural().onResultOf(extractTimestampFn);
+              // New outputs appear in timestamp order because each output's assigned timestamp
+              // is Instant.now() at the time of poll.
+              assertTrue(
+                  "Outputs must be in timestamp order",
+                  byTimestamp.isOrdered(byValue.sortedCopy(outputs)));
+              assertEquals(
+                  "Yields all expected values",
+                  Sets.newHashSet(Iterables.transform(outputs, extractValueFn)).size(),
+                  numResults);
+              assertThat(
+                  "Poll called more than once",
+                  Sets.newHashSet(Iterables.transform(outputs, extractTimestampFn)).size(),
+                  greaterThan(1));
+              return null;
             });
 
     p.run();

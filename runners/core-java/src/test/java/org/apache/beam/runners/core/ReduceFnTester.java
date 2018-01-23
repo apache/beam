@@ -436,12 +436,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public List<WindowedValue<OutputT>> extractOutput() {
     ImmutableList<WindowedValue<OutputT>> result =
         FluentIterable.from(testOutputter.outputs)
-            .transform(new Function<WindowedValue<KV<String, OutputT>>, WindowedValue<OutputT>>() {
-              @Override
-              public WindowedValue<OutputT> apply(WindowedValue<KV<String, OutputT>> input) {
-                return input.withValue(input.getValue().getValue());
-              }
-            })
+            .transform(input -> input.withValue(input.getValue().getValue()))
             .toList();
     testOutputter.outputs.clear();
     return result;
@@ -547,20 +542,17 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     Iterable<WindowedValue<InputT>> inputs =
         Iterables.transform(
             Arrays.asList(values),
-            new Function<TimestampedValue<InputT>, WindowedValue<InputT>>() {
-              @Override
-              public WindowedValue<InputT> apply(TimestampedValue<InputT> input) {
-                try {
-                  InputT value = input.getValue();
-                  Instant timestamp = input.getTimestamp();
-                  Collection<W> windows =
-                      windowFn.assignWindows(
-                          new TestAssignContext<W>(
-                              windowFn, value, timestamp, GlobalWindow.INSTANCE));
-                  return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
-                } catch (Exception e) {
-                  throw new RuntimeException(e);
-                }
+            input -> {
+              try {
+                InputT value = input.getValue();
+                Instant timestamp = input.getTimestamp();
+                Collection<W> windows =
+                    windowFn.assignWindows(
+                        new TestAssignContext<W>(
+                            windowFn, value, timestamp, GlobalWindow.INSTANCE));
+                return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
               }
             });
 

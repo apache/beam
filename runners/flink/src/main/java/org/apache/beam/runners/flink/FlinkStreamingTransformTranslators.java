@@ -594,37 +594,19 @@ class FlinkStreamingTransformTranslators {
           mainOutputTag,
           additionalOutputTags.getAll(),
           context,
-          new ParDoTranslationHelper.DoFnOperatorFactory<InputT, OutputT>() {
-            @Override
-            public DoFnOperator<InputT, OutputT> createDoFnOperator(
-                DoFn<InputT, OutputT> doFn,
-                String stepName,
-                List<PCollectionView<?>> sideInputs,
-                TupleTag<OutputT> mainOutputTag,
-                List<TupleTag<?>> additionalOutputTags,
-                FlinkStreamingTranslationContext context,
-                WindowingStrategy<?, ?> windowingStrategy,
-                Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
-                Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
-                Map<TupleTag<?>, Integer> tagsToIds,
-                Coder<WindowedValue<InputT>> inputCoder,
-                Coder keyCoder,
-                Map<Integer, PCollectionView<?>> transformedSideInputs) {
-              return new DoFnOperator<>(
-                  doFn,
-                  stepName,
-                  inputCoder,
-                  mainOutputTag,
-                  additionalOutputTags,
-                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                      mainOutputTag, tagsToOutputTags, tagsToCoders, tagsToIds),
-                  windowingStrategy,
-                  transformedSideInputs,
-                  sideInputs,
-                  context.getPipelineOptions(),
-                  keyCoder);
-            }
-          });
+          (doFn1, stepName, sideInputs1, mainOutputTag1, additionalOutputTags1, context1, windowingStrategy, tagsToOutputTags, tagsToCoders, tagsToIds, inputCoder, keyCoder, transformedSideInputs) -> new DoFnOperator<>(
+              doFn1,
+              stepName,
+              inputCoder,
+              mainOutputTag1,
+              additionalOutputTags1,
+              new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                  mainOutputTag1, tagsToOutputTags, tagsToCoders, tagsToIds),
+              windowingStrategy,
+              transformedSideInputs,
+              sideInputs1,
+              context1.getPipelineOptions(),
+              keyCoder));
     }
   }
 
@@ -648,40 +630,19 @@ class FlinkStreamingTransformTranslators {
           transform.getMainOutputTag(),
           transform.getAdditionalOutputTags().getAll(),
           context,
-          new ParDoTranslationHelper.DoFnOperatorFactory<
-              KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>() {
-            @Override
-            public DoFnOperator<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
-                createDoFnOperator(
-                DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> doFn,
-                String stepName,
-                List<PCollectionView<?>> sideInputs,
-                TupleTag<OutputT> mainOutputTag,
-                List<TupleTag<?>> additionalOutputTags,
-                FlinkStreamingTranslationContext context,
-                WindowingStrategy<?, ?> windowingStrategy,
-                Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags,
-                Map<TupleTag<?>, Coder<WindowedValue<?>>> tagsToCoders,
-                Map<TupleTag<?>, Integer> tagsToIds,
-                Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>>
-                    inputCoder,
-                Coder keyCoder,
-                Map<Integer, PCollectionView<?>> transformedSideInputs) {
-              return new SplittableDoFnOperator<>(
-                  doFn,
-                  stepName,
-                  inputCoder,
-                  mainOutputTag,
-                  additionalOutputTags,
-                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                      mainOutputTag, tagsToOutputTags, tagsToCoders, tagsToIds),
-                  windowingStrategy,
-                  transformedSideInputs,
-                  sideInputs,
-                  context.getPipelineOptions(),
-                  keyCoder);
-            }
-          });
+          (doFn, stepName, sideInputs, mainOutputTag, additionalOutputTags, context1, windowingStrategy, tagsToOutputTags, tagsToCoders, tagsToIds, inputCoder, keyCoder, transformedSideInputs) -> new SplittableDoFnOperator<>(
+              doFn,
+              stepName,
+              inputCoder,
+              mainOutputTag,
+              additionalOutputTags,
+              new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                  mainOutputTag, tagsToOutputTags, tagsToCoders, tagsToIds),
+              windowingStrategy,
+              transformedSideInputs,
+              sideInputs,
+              context1.getPipelineOptions(),
+              keyCoder));
     }
   }
 
@@ -1071,14 +1032,9 @@ class FlinkStreamingTransformTranslators {
         DataStreamSource<String> dummySource =
             context.getExecutionEnvironment().fromElements("dummy");
 
-        DataStream<WindowedValue<T>> result = dummySource.flatMap(
-            new FlatMapFunction<String, WindowedValue<T>>() {
-              @Override
-              public void flatMap(
-                  String s,
-                  Collector<WindowedValue<T>> collector) throws Exception {
-                // never return anything
-              }
+        DataStream<WindowedValue<T>> result = dummySource.<WindowedValue<T>>flatMap(
+            (s, collector) -> {
+              // never return anything
             }).returns(
             new CoderTypeInformation<>(
                 WindowedValue.getFullCoder(

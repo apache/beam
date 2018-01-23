@@ -240,19 +240,11 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
         .withKeyDeserializer(StringDeserializer.class)
         .withValueDeserializer(InstantDeserializer.class)
         .updateConsumerProperties(ImmutableMap.<String, Object>of("auto.offset.reset", "earliest"))
-        .withTimestampFn(new SerializableFunction<KV<String, Instant>, Instant>() {
-          @Override
-          public Instant apply(KV<String, Instant> kv) {
-            return kv.getValue();
-          }
-        }).withWatermarkFn(new SerializableFunction<KV<String, Instant>, Instant>() {
-          @Override
-          public Instant apply(KV<String, Instant> kv) {
-            // at EOF move WM to infinity.
-            String key = kv.getKey();
-            Instant instant = kv.getValue();
-            return key.equals("EOF") ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
-          }
+        .withTimestampFn(kv -> kv.getValue()).withWatermarkFn(kv -> {
+          // at EOF move WM to infinity.
+          String key = kv.getKey();
+          Instant instant = kv.getValue();
+          return key.equals("EOF") ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
         });
 
     TestSparkPipelineOptions options =

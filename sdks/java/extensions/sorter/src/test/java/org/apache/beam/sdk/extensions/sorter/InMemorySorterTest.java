@@ -58,12 +58,7 @@ public class InMemorySorterTest {
   @Test
   public void testManySorters() throws Exception {
     SorterTestUtils.testRandom(
-        new SorterGenerator() {
-          @Override
-          public Sorter generateSorter() throws Exception {
-            return InMemorySorter.create(new InMemorySorter.Options());
-          }
-        },
+        () -> InMemorySorter.create(new InMemorySorter.Options()),
         1000000,
         10);
   }
@@ -90,13 +85,10 @@ public class InMemorySorterTest {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(is("No space remaining for in memory sorting"));
     SorterTestUtils.testRandom(
-        new SorterGenerator() {
-          @Override
-          public Sorter generateSorter() throws Exception {
-            InMemorySorter.Options options = new InMemorySorter.Options();
-            options.setMemoryMB(1);
-            return InMemorySorter.create(options);
-          }
+        () -> {
+          InMemorySorter.Options options = new InMemorySorter.Options();
+          options.setMemoryMB(1);
+          return InMemorySorter.create(options);
         },
         1,
         10000000);

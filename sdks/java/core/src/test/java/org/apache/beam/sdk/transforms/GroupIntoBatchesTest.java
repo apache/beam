@@ -182,50 +182,42 @@ public class GroupIntoBatchesTest implements Serializable {
 
     PAssert.that("Wrong number of elements in windows after GroupIntoBatches", countOutput)
         .satisfies(
-            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-
-              @Override
-              public Void apply(Iterable<KV<String, Long>> input) {
-                Iterator<KV<String, Long>> inputIterator = input.iterator();
-                // first element
-                long count0 = inputIterator.next().getValue();
-                // window duration is 6 and batch size is 5, so there should be 2 elements in the
-                // window (flush because batchSize reached and for end of window reached)
-                assertEquals("Wrong number of elements in first window", 2, count0);
-                // second element
-                long count1 = inputIterator.next().getValue();
-                // collection is 10 elements, there is only 4 elements left, so there should be only
-                // one element in the window (flush because end of window/collection reached)
-                assertEquals("Wrong number of elements in second window", 1, count1);
-                // third element
-                return null;
-              }
+            input -> {
+              Iterator<KV<String, Long>> inputIterator = input.iterator();
+              // first element
+              long count0 = inputIterator.next().getValue();
+              // window duration is 6 and batch size is 5, so there should be 2 elements in the
+              // window (flush because batchSize reached and for end of window reached)
+              assertEquals("Wrong number of elements in first window", 2, count0);
+              // second element
+              long count1 = inputIterator.next().getValue();
+              // collection is 10 elements, there is only 4 elements left, so there should be only
+              // one element in the window (flush because end of window/collection reached)
+              assertEquals("Wrong number of elements in second window", 1, count1);
+              // third element
+              return null;
             });
 
     PAssert.that("Incorrect output collection after GroupIntoBatches", outputCollection)
         .satisfies(
-            new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
-
-              @Override
-              public Void apply(Iterable<KV<String, Iterable<String>>> input) {
-                Iterator<KV<String, Iterable<String>>> inputIterator = input.iterator();
-                // first element
-                int size0 = Iterables.size(inputIterator.next().getValue());
-                // window duration is 6 and batch size is 5, so output batch size should de 5
-                // (flush because of batchSize reached)
-                assertEquals("Wrong first element batch Size", 5, size0);
-                // second element
-                int size1 = Iterables.size(inputIterator.next().getValue());
-                // there is only one element left in the window so batch size should be 1
-                // (flush because of end of window reached)
-                assertEquals("Wrong second element batch Size", 1, size1);
-                // third element
-                int size2 = Iterables.size(inputIterator.next().getValue());
-                // collection is 10 elements, there is only 4 left, so batch size should be 4
-                // (flush because end of collection reached)
-                assertEquals("Wrong third element batch Size", 4, size2);
-                return null;
-              }
+            input -> {
+              Iterator<KV<String, Iterable<String>>> inputIterator = input.iterator();
+              // first element
+              int size0 = Iterables.size(inputIterator.next().getValue());
+              // window duration is 6 and batch size is 5, so output batch size should de 5
+              // (flush because of batchSize reached)
+              assertEquals("Wrong first element batch Size", 5, size0);
+              // second element
+              int size1 = Iterables.size(inputIterator.next().getValue());
+              // there is only one element left in the window so batch size should be 1
+              // (flush because of end of window reached)
+              assertEquals("Wrong second element batch Size", 1, size1);
+              // third element
+              int size2 = Iterables.size(inputIterator.next().getValue());
+              // collection is 10 elements, there is only 4 left, so batch size should be 4
+              // (flush because end of collection reached)
+              assertEquals("Wrong third element batch Size", 4, size2);
+              return null;
             });
     pipeline.run().waitUntilFinish();
   }

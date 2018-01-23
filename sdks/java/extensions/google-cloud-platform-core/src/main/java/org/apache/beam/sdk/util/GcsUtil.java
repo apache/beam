@@ -583,11 +583,9 @@ public class GcsUtil {
 
     List<ListenableFuture<Void>> futures = new LinkedList<>();
     for (final BatchRequest batch : batches) {
-      futures.add(executor.submit(new Callable<Void>() {
-        public Void call() throws IOException {
-          batch.execute();
-          return null;
-        }
+      futures.add(executor.submit(() -> {
+        batch.execute();
+        return null;
       }));
     }
 

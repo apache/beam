@@ -70,21 +70,13 @@ public class SparkSideInputReader implements SideInputReader {
         (Iterable<WindowedValue<KV<?, ?>>>) windowedBroadcastHelper.getValue().getValue();
     Iterable<KV<?, ?>> sideInputForWindow =
         Iterables.transform(
-            Iterables.filter(availableSideInputs, new Predicate<WindowedValue<?>>() {
-              @Override
-              public boolean apply(@Nullable WindowedValue<?> sideInputCandidate) {
-                if (sideInputCandidate == null) {
-                  return false;
-                }
-                return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
+            Iterables.filter(availableSideInputs, sideInputCandidate -> {
+              if (sideInputCandidate == null) {
+                return false;
               }
+              return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
             }),
-            new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
-              @Override
-              public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
-                return windowedValue.getValue();
-              }
-            });
+            windowedValue -> windowedValue.getValue());
 
     ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
     Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();

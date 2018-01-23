@@ -48,13 +48,7 @@ public class ApiSurfaceTest {
         FluentIterable.from(
                 Iterables.concat(Sets.newHashSet(classToExamine), Sets.newHashSet(exposedClasses)))
             .transform(
-                new Function<Class, Matcher<Class<?>>>() {
-
-                  @Override
-                  public Matcher<Class<?>> apply(@Nonnull final Class input) {
-                    return Matchers.<Class<?>>equalTo(input);
-                  }
-                })
+                input -> Matchers.<Class<?>>equalTo(input))
             .toSet();
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowed));

@@ -163,17 +163,14 @@ public class TestDataflowRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
-        .thenAnswer(new Answer<State>() {
-          @Override
-          public State answer(InvocationOnMock invocation) {
-            JobMessage message = new JobMessage();
-            message.setMessageText("FooException");
-            message.setTime(TimeUtil.toCloudTime(Instant.now()));
-            message.setMessageImportance("JOB_MESSAGE_ERROR");
-            ((MonitoringUtil.JobMessagesHandler) invocation.getArguments()[1])
-                .process(Arrays.asList(message));
-            return State.CANCELLED;
-          }
+        .thenAnswer(invocation -> {
+          JobMessage message = new JobMessage();
+          message.setMessageText("FooException");
+          message.setTime(TimeUtil.toCloudTime(Instant.now()));
+          message.setMessageImportance("JOB_MESSAGE_ERROR");
+          ((JobMessagesHandler) invocation.getArguments()[1])
+              .process(Arrays.asList(message));
+          return State.CANCELLED;
         });
 
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
@@ -376,17 +373,14 @@ public class TestDataflowRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
-        .thenAnswer(new Answer<State>() {
-          @Override
-          public State answer(InvocationOnMock invocation) {
-            JobMessage message = new JobMessage();
-            message.setMessageText("FooException");
-            message.setTime(TimeUtil.toCloudTime(Instant.now()));
-            message.setMessageImportance("JOB_MESSAGE_ERROR");
-            ((MonitoringUtil.JobMessagesHandler) invocation.getArguments()[1])
-                .process(Arrays.asList(message));
-            return State.CANCELLED;
-          }
+        .thenAnswer(invocation -> {
+          JobMessage message = new JobMessage();
+          message.setMessageText("FooException");
+          message.setTime(TimeUtil.toCloudTime(Instant.now()));
+          message.setMessageImportance("JOB_MESSAGE_ERROR");
+          ((JobMessagesHandler) invocation.getArguments()[1])
+              .process(Arrays.asList(message));
+          return State.CANCELLED;
         });
 
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);

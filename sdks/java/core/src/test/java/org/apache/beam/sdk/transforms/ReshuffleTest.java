@@ -125,12 +125,7 @@ public class ReshuffleTest implements Serializable {
                     .withCoder(StringUtf8Coder.of()))
             .apply(
                 WithKeys.of(
-                    new SerializableFunction<String, String>() {
-                      @Override
-                      public String apply(String input) {
-                        return input;
-                      }
-                    }))
+                    input12 -> input12))
             .apply("ReifyOriginalTimestamps", Reify.<String, String>timestampsInValue());
 
     // The outer TimestampedValue is the reified timestamp post-reshuffle. The inner
@@ -145,19 +140,16 @@ public class ReshuffleTest implements Serializable {
 
     PAssert.that(output)
         .satisfies(
-            new SerializableFunction<Iterable<TimestampedValue<TimestampedValue<String>>>, Void>() {
-              @Override
-              public Void apply(Iterable<TimestampedValue<TimestampedValue<String>>> input) {
-                for (TimestampedValue<TimestampedValue<String>> elem : input) {
-                  Instant originalTimestamp = elem.getValue().getTimestamp();
-                  Instant afterReshuffleTimestamp = elem.getTimestamp();
-                  assertThat(
-                      "Reshuffle must preserve element timestamps",
-                      afterReshuffleTimestamp,
-                      equalTo(originalTimestamp));
-                }
-                return null;
+            input1 -> {
+              for (TimestampedValue<TimestampedValue<String>> elem : input1) {
+                Instant originalTimestamp = elem.getValue().getTimestamp();
+                Instant afterReshuffleTimestamp = elem.getTimestamp();
+                assertThat(
+                    "Reshuffle must preserve element timestamps",
+                    afterReshuffleTimestamp,
+                    equalTo(originalTimestamp));
               }
+              return null;
             });
 
     pipeline.run();

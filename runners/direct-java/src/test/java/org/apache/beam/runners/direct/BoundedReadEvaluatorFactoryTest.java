@@ -232,12 +232,7 @@ public class BoundedReadEvaluatorFactoryTest {
   public void getInitialInputsSplitsIntoBundles() throws Exception {
     when(context.createRootBundle())
         .thenAnswer(
-            new Answer<UncommittedBundle<?>>() {
-              @Override
-              public UncommittedBundle<?> answer(InvocationOnMock invocation) throws Throwable {
-                return bundleFactory.createRootBundle();
-              }
-            });
+            invocation -> bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context)
             .getInitialInputs(longsProducer, 3);

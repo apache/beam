@@ -478,12 +478,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object>>
         splittableDoFn = (ProcessFn) doFn;
       splittableDoFn.setStateInternalsFactory(stateInternalsFactory);
-      TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
-         @Override
-         public TimerInternals timerInternalsForKey(String key) {
-           return currentKeyTimerInternals;
-          }
-        };
+      TimerInternalsFactory<String> timerInternalsFactory = key -> currentKeyTimerInternals;
       splittableDoFn.setTimerInternalsFactory(timerInternalsFactory);
       splittableDoFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(

@@ -45,12 +45,7 @@ import org.junit.runners.JUnit4;
 public class ReifyTest implements Serializable {
   public static final WithTimestamps<KV<String, Integer>> TIMESTAMP_FROM_V =
       WithTimestamps.of(
-          new SerializableFunction<KV<String, Integer>, Instant>() {
-            @Override
-            public Instant apply(KV<String, Integer> input) {
-              return new Instant(input.getValue().longValue());
-            }
-          });
+          input -> new Instant(input.getValue().longValue()));
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test

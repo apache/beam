@@ -261,12 +261,7 @@ class SideInputContainer {
       @SuppressWarnings("unchecked") Iterable<KV<?, ?>> elements = Iterables.transform(
           (Iterable<WindowedValue<KV<?, ?>>>) viewContents.getUnchecked(
               PCollectionViewWindow.of(view, window)).get(),
-          new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
-            @Override
-            public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
-              return windowedValue.getValue();
-            }
-          });
+          windowedValue -> windowedValue.getValue());
 
       ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
       Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();

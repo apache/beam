@@ -97,12 +97,7 @@ public abstract class StreamObserverFactory {
   }
 
   private static Runnable arriveAtPhaserHandler(final AdvancingPhaser phaser) {
-    return new Runnable() {
-      @Override
-      public void run() {
-        phaser.arrive();
-      }
-    };
+    return () -> phaser.arrive();
   }
 
   /**

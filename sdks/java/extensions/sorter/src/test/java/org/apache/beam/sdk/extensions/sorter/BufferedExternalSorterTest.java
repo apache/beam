@@ -165,13 +165,8 @@ public class BufferedExternalSorterTest {
   @Test
   public void testManySortersFewRecords() throws Exception {
     SorterTestUtils.testRandom(
-        new SorterGenerator() {
-          @Override
-          public Sorter generateSorter() throws Exception {
-            return BufferedExternalSorter.create(BufferedExternalSorter.options()
-                .withTempLocation(tmpLocation.toString()));
-          }
-        },
+        () -> BufferedExternalSorter.create(BufferedExternalSorter.options()
+            .withTempLocation(tmpLocation.toString())),
         1000000,
         10);
   }
@@ -179,13 +174,8 @@ public class BufferedExternalSorterTest {
   @Test
   public void testOneSorterManyRecords() throws Exception {
     SorterTestUtils.testRandom(
-        new SorterGenerator() {
-          @Override
-          public Sorter generateSorter() throws Exception {
-            return BufferedExternalSorter.create(BufferedExternalSorter.options()
-                .withTempLocation(tmpLocation.toString()));
-          }
-        },
+        () -> BufferedExternalSorter.create(BufferedExternalSorter.options()
+            .withTempLocation(tmpLocation.toString())),
         1,
         1000000);
   }

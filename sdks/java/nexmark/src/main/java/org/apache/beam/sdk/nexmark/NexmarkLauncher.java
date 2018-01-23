@@ -932,18 +932,15 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             // Send synthesized events to Pubsub in separate publisher job.
             // We won't start the main pipeline until the publisher has sent the pre-load events.
             // We'll shutdown the publisher job when we notice the main job has finished.
-            invokeBuilderForPublishOnlyPipeline(new PipelineBuilder<NexmarkOptions>() {
-              @Override
-              public void build(NexmarkOptions publishOnlyOptions) {
-                Pipeline sp = Pipeline.create(options);
-                NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
-                publisherMonitor = new Monitor<>(queryName, "publisher");
-                sinkEventsToPubsub(
-                    sourceEventsFromSynthetic(sp)
-                            .apply(queryName + ".Monitor", publisherMonitor.getTransform()),
-                    now);
-                publisherResult = sp.run();
-              }
+            invokeBuilderForPublishOnlyPipeline(publishOnlyOptions -> {
+              Pipeline sp = Pipeline.create(options);
+              NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
+              publisherMonitor = new Monitor<>(queryName, "publisher");
+              sinkEventsToPubsub(
+                  sourceEventsFromSynthetic(sp)
+                          .apply(queryName + ".Monitor", publisherMonitor.getTransform()),
+                  now);
+              publisherResult = sp.run();
             });
             break;
         }

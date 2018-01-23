@@ -135,13 +135,9 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldInterruptKinesisReadingAndStopShortly() throws TransientKinesisException {
-    when(firstIterator.readNextBatch()).thenAnswer(new Answer<List<KinesisRecord>>() {
-
-      @Override
-      public List<KinesisRecord> answer(InvocationOnMock invocation) throws Throwable {
-        Thread.sleep(TimeUnit.MINUTES.toMillis(1));
-        return Collections.emptyList();
-      }
+    when(firstIterator.readNextBatch()).thenAnswer(invocation -> {
+      Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+      return Collections.emptyList();
     });
     shardReadersPool.start();
 

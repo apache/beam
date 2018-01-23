@@ -116,23 +116,11 @@ public class BeamFnControlClientTest {
                        BeamFnApi.InstructionResponse.Builder>> handlers =
                        new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
       handlers.put(BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
-        new ThrowingFunction<BeamFnApi.InstructionRequest,
-                             BeamFnApi.InstructionResponse.Builder>() {
-          @Override
-          public BeamFnApi.InstructionResponse.Builder apply(BeamFnApi.InstructionRequest value)
-              throws Exception {
-            return BeamFnApi.InstructionResponse.newBuilder()
-                .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance());
-          }
-        });
+          value -> BeamFnApi.InstructionResponse.newBuilder()
+              .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance()));
       handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER,
-          new ThrowingFunction<BeamFnApi.InstructionRequest,
-                               BeamFnApi.InstructionResponse.Builder>() {
-            @Override
-            public BeamFnApi.InstructionResponse.Builder apply(BeamFnApi.InstructionRequest value)
-                throws Exception {
-              throw FAILURE;
-            }
+          value -> {
+            throw FAILURE;
           });
 
       BeamFnControlClient client = new BeamFnControlClient(
@@ -146,12 +134,9 @@ public class BeamFnControlClientTest {
           outboundServerObservers.take();
 
       ExecutorService executor = Executors.newCachedThreadPool();
-      Future<Void> future = executor.submit(new Callable<Void>() {
-        @Override
-        public Void call() throws Exception {
-          client.processInstructionRequests(executor);
-          return null;
-        }
+      Future<Void> future = executor.submit(() -> {
+        client.processInstructionRequests(executor);
+        return null;
       });
 
       outboundServerObserver.onNext(SUCCESSFUL_REQUEST);

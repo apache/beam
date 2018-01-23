@@ -313,12 +313,7 @@ public class ApexYarnLauncher {
     checkArgument(file.exists() && file.isFile(), "invalid file path %s", file);
     final LaunchParams params = (LaunchParams) SerializationUtils.deserialize(
         new FileInputStream(file));
-    StreamingApplication apexApp = new StreamingApplication() {
-      @Override
-      public void populateDAG(DAG dag, Configuration conf) {
-        copyShallow(params.dag, dag);
-      }
-    };
+    StreamingApplication apexApp = (dag, conf) -> copyShallow(params.dag, dag);
     Configuration conf = new Configuration(); // configuration from Hadoop client
     addProperties(conf, params.configProperties);
     AppHandle appHandle = params.getApexLauncher().launchApp(apexApp, conf,

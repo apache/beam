@@ -112,12 +112,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   @Test
   public void generatesInitialSplits() throws Exception {
-    when(context.createRootBundle()).thenAnswer(new Answer<UncommittedBundle<?>>() {
-      @Override
-      public UncommittedBundle<?> answer(InvocationOnMock invocation) throws Throwable {
-        return bundleFactory.createRootBundle();
-      }
-    });
+    when(context.createRootBundle()).thenAnswer(invocation -> bundleFactory.createRootBundle());
 
     int numSplits = 5;
     Collection<CommittedBundle<?>> initialInputs =

@@ -90,13 +90,8 @@ public class ExternalSorterTest {
   @Test
   public void testRandom() throws Exception {
     SorterTestUtils.testRandom(
-        new SorterGenerator() {
-          @Override
-          public Sorter generateSorter() throws Exception {
-            return ExternalSorter.create(new ExternalSorter.Options()
-                .setTempLocation(tmpLocation.toString()));
-          }
-        },
+        () -> ExternalSorter.create(new ExternalSorter.Options()
+            .setTempLocation(tmpLocation.toString())),
         1,
         1000000);
   }

@@ -108,12 +108,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
         Read.from(getAdaptedSource()));
     if (source.requiresDeduping()) {
       read = read.apply(Distinct.withRepresentativeValueFn(
-          new SerializableFunction<ValueWithRecordId<T>, byte[]>() {
-            @Override
-            public byte[] apply(ValueWithRecordId<T> input) {
-              return input.getId();
-            }
-          }));
+          input1 -> input1.getId()));
     }
     return read.apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()))
         .setCoder(source.getOutputCoder());

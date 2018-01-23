@@ -77,11 +77,7 @@ public class NumShardsTest {
 
     int count = 0;
     Set<String> expected = Sets.newHashSet("hi: 5", "there: 1", "sue: 2", "bob: 2");
-    for (File f : tmpDir.getRoot().listFiles(new FileFilter() {
-      @Override public boolean accept(File pathname) {
-        return pathname.getName().matches("out-.*\\.txt");
-      }
-    })) {
+    for (File f : tmpDir.getRoot().listFiles(pathname -> pathname.getName().matches("out-.*\\.txt"))) {
       count++;
       for (String line : Files.readLines(f, Charsets.UTF_8)) {
         assertTrue(line + " not found", expected.remove(line));

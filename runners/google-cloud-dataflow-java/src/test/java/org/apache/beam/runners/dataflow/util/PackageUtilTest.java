@@ -274,12 +274,7 @@ public class PackageUtilTest {
             new FileNotFoundException("some/path"))));
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
-        .thenAnswer(new Answer<SinkChannel>() {
-          @Override
-          public SinkChannel answer(InvocationOnMock invocation) throws Throwable {
-            return Pipe.open().sink();
-          }
-        });
+        .thenAnswer(invocation -> Pipe.open().sink());
 
     List<DataflowPackage> targets =
         defaultPackageUtil.stageClasspathElements(

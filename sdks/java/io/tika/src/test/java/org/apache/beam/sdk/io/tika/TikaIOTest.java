@@ -112,14 +112,11 @@ public class TikaIOTest implements Serializable {
 
     PAssert.thatSingleton(res)
         .satisfies(
-            new SerializableFunction<ParseResult, Void>() {
-              @Override
-              public Void apply(ParseResult input) {
-                assertEquals(path, input.getFileLocation());
-                assertFalse(input.isSuccess());
-                assertTrue(input.getError() instanceof TikaException);
-                return null;
-              }
+            input -> {
+              assertEquals(path, input.getFileLocation());
+              assertFalse(input.isSuccess());
+              assertTrue(input.getError() instanceof TikaException);
+              return null;
             });
     p.run();
   }

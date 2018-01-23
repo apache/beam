@@ -229,12 +229,7 @@ public class AutoComplete {
             // ...together with those (previously excluded) candidates of length
             // exactly minPrefix...
             .and(input.apply(Filter.by(
-                new SerializableFunction<CompletionCandidate, Boolean>() {
-                  @Override
-                  public Boolean apply(CompletionCandidate c) {
-                    return c.getValue().length() == minPrefix;
-                  }
-                })))
+                c -> c.getValue().length() == minPrefix)))
             .apply("FlattenSmall", Flatten.<CompletionCandidate>pCollections())
             // ...set the key to be the minPrefix-length prefix...
             .apply(ParDo.of(new AllPrefixes(minPrefix, minPrefix)))

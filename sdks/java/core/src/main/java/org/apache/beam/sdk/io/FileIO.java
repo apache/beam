@@ -776,71 +776,53 @@ public class FileIO {
 
     public static FileNaming defaultNaming(
         final ValueProvider<String> prefix, final ValueProvider<String> suffix) {
-      return new FileNaming() {
-        @Override
-        public String getFilename(
-            BoundedWindow window,
-            PaneInfo pane,
-            int numShards,
-            int shardIndex,
-            Compression compression) {
-          checkArgument(window != null, "window can not be null");
-          checkArgument(pane != null, "pane can not be null");
-          checkArgument(compression != null, "compression can not be null");
-          StringBuilder res = new StringBuilder(prefix.get());
-          if (window != GlobalWindow.INSTANCE) {
-            if (res.length() > 0) {
-              res.append("-");
-            }
-            checkArgument(
-                window instanceof IntervalWindow,
-                "defaultNaming() supports only windows of type %s, "
-                    + "but got window %s of type %s",
-                IntervalWindow.class.getSimpleName(),
-                window,
-                window.getClass().getSimpleName());
-            IntervalWindow iw = (IntervalWindow) window;
-            res.append(iw.start().toString()).append("-").append(iw.end().toString());
-          }
-          boolean isOnlyFiring = pane.isFirst() && pane.isLast();
-          if (!isOnlyFiring) {
-            if (res.length() > 0) {
-              res.append("-");
-            }
-            res.append(pane.getIndex());
-          }
+      return (window, pane, numShards, shardIndex, compression) -> {
+        checkArgument(window != null, "window can not be null");
+        checkArgument(pane != null, "pane can not be null");
+        checkArgument(compression != null, "compression can not be null");
+        StringBuilder res = new StringBuilder(prefix.get());
+        if (window != GlobalWindow.INSTANCE) {
           if (res.length() > 0) {
             res.append("-");
           }
-          String numShardsStr = String.valueOf(numShards);
-          // A trillion shards per window per pane ought to be enough for everybody.
-          DecimalFormat df =
-              new DecimalFormat("000000000000".substring(0, Math.max(5, numShardsStr.length())));
-          res.append(df.format(shardIndex)).append("-of-").append(df.format(numShards));
-          res.append(suffix.get());
-          res.append(compression.getSuggestedSuffix());
-          return res.toString();
+          checkArgument(
+              window instanceof IntervalWindow,
+              "defaultNaming() supports only windows of type %s, "
+                  + "but got window %s of type %s",
+              IntervalWindow.class.getSimpleName(),
+              window,
+              window.getClass().getSimpleName());
+          IntervalWindow iw = (IntervalWindow) window;
+          res.append(iw.start().toString()).append("-").append(iw.end().toString());
         }
+        boolean isOnlyFiring = pane.isFirst() && pane.isLast();
+        if (!isOnlyFiring) {
+          if (res.length() > 0) {
+            res.append("-");
+          }
+          res.append(pane.getIndex());
+        }
+        if (res.length() > 0) {
+          res.append("-");
+        }
+        String numShardsStr = String.valueOf(numShards);
+        // A trillion shards per window per pane ought to be enough for everybody.
+        DecimalFormat df =
+            new DecimalFormat("000000000000".substring(0, Math.max(5, numShardsStr.length())));
+        res.append(df.format(shardIndex)).append("-of-").append(df.format(numShards));
+        res.append(suffix.get());
+        res.append(compression.getSuggestedSuffix());
+        return res.toString();
       };
     }
 
     public static FileNaming relativeFileNaming(
         final ValueProvider<String> baseDirectory, final FileNaming innerNaming) {
-      return new FileNaming() {
-        @Override
-        public String getFilename(
-            BoundedWindow window,
-            PaneInfo pane,
-            int numShards,
-            int shardIndex,
-            Compression compression) {
-          return FileSystems.matchNewResource(baseDirectory.get(), true /* isDirectory */)
-              .resolve(
-                  innerNaming.getFilename(window, pane, numShards, shardIndex, compression),
-                  RESOLVE_FILE)
-              .toString();
-        }
-      };
+      return (window, pane, numShards, shardIndex, compression) -> FileSystems.matchNewResource(baseDirectory.get(), true /* isDirectory */)
+          .resolve(
+              innerNaming.getFilename(window, pane, numShards, shardIndex, compression),
+              RESOLVE_FILE)
+          .toString();
     }
 
     abstract boolean getDynamic();
@@ -1209,14 +1191,11 @@ public class FileIO {
                 + ".withNaming() taking a function form DestinationT");
         fileNamingFn =
             Contextful.fn(
-                new Fn<DestinationT, FileNaming>() {
-                  @Override
-                  public FileNaming apply(DestinationT element, Context c) throws Exception {
-                    FileNaming naming = getFileNamingFn().getClosure().apply(element, c);
-                    return getOutputDirectory() == null
-                        ? naming
-                        : relativeFileNaming(getOutputDirectory(), naming);
-                  }
+                (element, c) -> {
+                  FileNaming naming = getFileNamingFn().getClosure().apply(element, c);
+                  return getOutputDirectory() == null
+                      ? naming
+                      : relativeFileNaming(getOutputDirectory(), naming);
                 },
                 getFileNamingFn().getRequirements());
       } else {
@@ -1310,12 +1289,7 @@ public class FileIO {
         super(
             ValueProvider.NestedValueProvider.of(
                 spec.getTempDirectory(),
-                new SerializableFunction<String, ResourceId>() {
-                  @Override
-                  public ResourceId apply(String input) {
-                    return FileSystems.matchNewResource(input, true /* isDirectory */);
-                  }
-                }),
+                input -> FileSystems.matchNewResource(input, true /* isDirectory */)),
             new DynamicDestinationsAdapter<UserT, DestinationT, OutputT>(spec),
             spec.getCompression());
         this.spec = spec;

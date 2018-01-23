@@ -109,12 +109,7 @@ public class DelegateCoderTest implements Serializable {
   @Test
   public void testCoderEquals() throws Exception {
     DelegateCoder.CodingFunction<Integer, Integer> identityFn =
-        new DelegateCoder.CodingFunction<Integer, Integer>() {
-          @Override
-          public Integer apply(Integer input) {
-            return input;
-          }
-        };
+        input -> input;
     Coder<Integer> varIntCoder1 = DelegateCoder.of(VarIntCoder.of(), identityFn, identityFn);
     Coder<Integer> varIntCoder2 = DelegateCoder.of(VarIntCoder.of(), identityFn, identityFn);
     Coder<Integer> bigEndianIntegerCoder =
@@ -131,18 +126,8 @@ public class DelegateCoderTest implements Serializable {
     assertThat(
         DelegateCoder.of(
             StringUtf8Coder.of(),
-            new DelegateCoder.CodingFunction<Integer, String>() {
-              @Override
-              public String apply(Integer input) {
-                return String.valueOf(input);
-              }
-            },
-            new DelegateCoder.CodingFunction<String, Integer>() {
-              @Override
-              public Integer apply(String input) {
-                return Integer.valueOf(input);
-              }
-            },
+            input -> String.valueOf(input),
+            input -> Integer.valueOf(input),
             new TypeDescriptor<Integer>(){}).getEncodedTypeDescriptor(),
         equalTo(TypeDescriptor.of(Integer.class)));
   }

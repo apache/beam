@@ -376,12 +376,7 @@ public class DoFnInvokersTest {
     invoker.invokeSplitRestriction(
         "blah",
         restriction,
-        new DoFn.OutputReceiver<SomeRestriction>() {
-          @Override
-          public void output(SomeRestriction output) {
-            outputs.add(output);
-          }
-        });
+        output -> outputs.add(output));
     assertEquals(Arrays.asList(part1, part2, part3), outputs);
     assertEquals(tracker, invoker.invokeNewTracker(restriction));
     assertEquals(

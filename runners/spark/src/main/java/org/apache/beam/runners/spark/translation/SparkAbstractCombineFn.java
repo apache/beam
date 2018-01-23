@@ -80,13 +80,8 @@ public class SparkAbstractCombineFn implements Serializable {
 
   protected static <T> Iterable<WindowedValue<T>> sortByWindows(Iterable<WindowedValue<T>> iter) {
     List<WindowedValue<T>> sorted = Lists.newArrayList(iter);
-    Collections.sort(sorted, new Comparator<WindowedValue<T>>() {
-      @Override
-      public int compare(WindowedValue<T> o1, WindowedValue<T> o2) {
-        return Iterables.getOnlyElement(o1.getWindows()).maxTimestamp().compareTo(
-            Iterables.getOnlyElement(o2.getWindows()).maxTimestamp());
-      }
-    });
+    Collections.sort(sorted, (o1, o2) -> Iterables.getOnlyElement(o1.getWindows()).maxTimestamp().compareTo(
+        Iterables.getOnlyElement(o2.getWindows()).maxTimestamp()));
     return sorted;
   }
 

@@ -73,12 +73,7 @@ public class ReferenceRunnerJobServiceTest {
     service =
         ReferenceRunnerJobService.create(serverFactory)
             .withStagingPathSupplier(
-                new Callable<Path>() {
-                  @Override
-                  public Path call() throws Exception {
-                    return runnerTemp.getRoot().toPath();
-                  }
-                });
+                () -> runnerTemp.getRoot().toPath());
     server = GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
     stub =
         JobServiceGrpc.newBlockingStub(

@@ -177,14 +177,11 @@ public class MongoDbIOTest implements Serializable {
           }
         }))
         .apply("Count Scientist", Count.<String, Void>perKey())
-    ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-      @Override
-      public Void apply(Iterable<KV<String, Long>> input) {
-        for (KV<String, Long> element : input) {
-          assertEquals(100L, element.getValue().longValue());
-        }
-        return null;
+    ).satisfies(input -> {
+      for (KV<String, Long> element : input) {
+        assertEquals(100L, element.getValue().longValue());
       }
+      return null;
     });
 
     pipeline.run();
@@ -213,14 +210,11 @@ public class MongoDbIOTest implements Serializable {
           }
         }))
         .apply("Count Scientist", Count.<String, Void>perKey())
-    ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-      @Override
-      public Void apply(Iterable<KV<String, Long>> input) {
-        for (KV<String, Long> element : input) {
-          assertEquals(100L, element.getValue().longValue());
-        }
-        return null;
+    ).satisfies(input -> {
+      for (KV<String, Long> element : input) {
+        assertEquals(100L, element.getValue().longValue());
       }
+      return null;
     });
 
     pipeline.run();

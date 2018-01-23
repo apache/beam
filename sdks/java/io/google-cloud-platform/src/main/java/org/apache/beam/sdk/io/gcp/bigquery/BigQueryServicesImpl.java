@@ -711,27 +711,24 @@ class BigQueryServicesImpl implements BigQueryServices {
                     content);
 
             futures.add(
-                executor.submit(new Callable<List<TableDataInsertAllResponse.InsertErrors>>() {
-                  @Override
-                  public List<TableDataInsertAllResponse.InsertErrors> call() throws IOException {
-                    // A backoff for rate limit exceeded errors. Retries forever.
-                    BackOff backoff = BackOffAdapter.toGcpBackOff(
-                        RATE_LIMIT_BACKOFF_FACTORY.backoff());
-                    while (true) {
-                      try {
-                        return insert.execute().getInsertErrors();
-                      } catch (IOException e) {
-                        if (new ApiErrorExtractor().rateLimited(e)) {
-                          LOG.info("BigQuery insertAll exceeded rate limit, retrying");
-                          try {
-                            sleeper.sleep(backoff.nextBackOffMillis());
-                          } catch (InterruptedException interrupted) {
-                            throw new IOException(
-                                "Interrupted while waiting before retrying insertAll");
-                          }
-                        } else {
-                          throw e;
+                executor.submit(() -> {
+                  // A backoff for rate limit exceeded errors. Retries forever.
+                  BackOff backoff1 = BackOffAdapter.toGcpBackOff(
+                      RATE_LIMIT_BACKOFF_FACTORY.backoff());
+                  while (true) {
+                    try {
+                      return insert.execute().getInsertErrors();
+                    } catch (IOException e) {
+                      if (new ApiErrorExtractor().rateLimited(e)) {
+                        LOG.info("BigQuery insertAll exceeded rate limit, retrying");
+                        try {
+                          sleeper.sleep(backoff1.nextBackOffMillis());
+                        } catch (InterruptedException interrupted) {
+                          throw new IOException(
+                              "Interrupted while waiting before retrying insertAll");
                         }
+                      } else {
+                        throw e;
                       }
                     }
                   }
@@ -839,21 +836,13 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   static final SerializableFunction<IOException, Boolean> DONT_RETRY_NOT_FOUND =
-      new SerializableFunction<IOException, Boolean>() {
-        @Override
-        public Boolean apply(IOException input) {
-          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-          return !errorExtractor.itemNotFound(input);
-        }
+      input -> {
+        ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+        return !errorExtractor.itemNotFound(input);
       };
 
   static final SerializableFunction<IOException, Boolean> ALWAYS_RETRY =
-      new SerializableFunction<IOException, Boolean>() {
-        @Override
-        public Boolean apply(IOException input) {
-          return true;
-        }
-      };
+      input -> true;
 
 
   @VisibleForTesting

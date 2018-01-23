@@ -72,13 +72,7 @@ class ShardReadersPool {
     executorService = Executors.newFixedThreadPool(shardIteratorsMap.size());
     recordsQueue = new LinkedBlockingQueue<>(queueCapacityPerShard * shardIteratorsMap.size());
     for (final ShardRecordsIterator shardRecordsIterator : shardIteratorsMap.values()) {
-      executorService.submit(new Runnable() {
-
-        @Override
-        public void run() {
-          readLoop(shardRecordsIterator);
-        }
-      });
+      executorService.submit(() -> readLoop(shardRecordsIterator));
     }
   }
 
@@ -145,12 +139,9 @@ class ShardReadersPool {
 
   KinesisReaderCheckpoint getCheckpointMark() {
     return new KinesisReaderCheckpoint(transform(shardIteratorsMap.values(),
-        new Function<ShardRecordsIterator, ShardCheckpoint>() {
-          @Override
-          public ShardCheckpoint apply(ShardRecordsIterator shardRecordsIterator) {
-            checkArgument(shardRecordsIterator != null, "shardRecordsIterator can not be null");
-            return shardRecordsIterator.getCheckpoint();
-          }
+        shardRecordsIterator -> {
+          checkArgument(shardRecordsIterator != null, "shardRecordsIterator can not be null");
+          return shardRecordsIterator.getCheckpoint();
         }));
   }
 

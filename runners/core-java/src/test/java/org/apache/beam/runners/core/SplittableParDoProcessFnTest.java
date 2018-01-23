@@ -139,19 +139,9 @@ public class SplittableParDoProcessFnTest {
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
       processFn.setStateInternalsFactory(
-          new StateInternalsFactory<String>() {
-            @Override
-            public StateInternals stateInternalsForKey(String key) {
-              return stateInternals;
-            }
-          });
+          key -> stateInternals);
       processFn.setTimerInternalsFactory(
-          new TimerInternalsFactory<String>() {
-            @Override
-            public TimerInternals timerInternalsForKey(String key) {
-              return timerInternals;
-            }
-          });
+          key -> timerInternals);
       processFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<
               InputT, OutputT, RestrictionT, TrackerT>(

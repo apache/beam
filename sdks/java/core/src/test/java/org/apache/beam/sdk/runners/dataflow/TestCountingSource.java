@@ -133,18 +133,8 @@ public class TestCountingSource
   public Coder<CounterMark> getCheckpointMarkCoder() {
     return DelegateCoder.of(
         VarIntCoder.of(),
-        new DelegateCoder.CodingFunction<CounterMark, Integer>() {
-          @Override
-          public Integer apply(CounterMark input) {
-            return input.current;
-          }
-        },
-        new DelegateCoder.CodingFunction<Integer, CounterMark>() {
-          @Override
-          public CounterMark apply(Integer input) {
-            return new CounterMark(input);
-          }
-        });
+        input -> input.current,
+        input -> new CounterMark(input));
   }
 
   @Override

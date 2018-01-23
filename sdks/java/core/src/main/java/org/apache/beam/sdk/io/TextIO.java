@@ -687,12 +687,7 @@ public class TextIO {
     /** Like {@link #to(String)}. */
     public TypedWrite<UserT, DestinationT> to(ValueProvider<String> outputPrefix) {
       return toResource(NestedValueProvider.of(outputPrefix,
-          new SerializableFunction<String, ResourceId>() {
-            @Override
-            public ResourceId apply(String input) {
-              return FileBasedSink.convertToFileResourceIfPossible(input);
-            }
-          }));
+          input -> FileBasedSink.convertToFileResourceIfPossible(input)));
     }
 
     /**

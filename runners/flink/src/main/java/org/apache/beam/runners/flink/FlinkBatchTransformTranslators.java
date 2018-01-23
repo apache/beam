@@ -77,7 +77,6 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -88,7 +87,6 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
-import org.apache.flink.util.Collector;
 
 /**
  * Translators for transforming {@link PTransform PTransforms} to
@@ -675,11 +673,8 @@ class FlinkBatchTransformTranslators {
         // add the flatMap that simply never forwards the single element
         DataSource<String> dummySource =
             context.getExecutionEnvironment().fromElements("dummy");
-        result = dummySource.flatMap(new FlatMapFunction<String, WindowedValue<T>>() {
-          @Override
-          public void flatMap(String s, Collector<WindowedValue<T>> collector) throws Exception {
-            // never return anything
-          }
+        result = dummySource.<WindowedValue<T>>flatMap((s, collector) -> {
+          // never return anything
         }).returns(
             new CoderTypeInformation<>(
                 WindowedValue.getFullCoder(
@@ -705,12 +700,7 @@ class FlinkBatchTransformTranslators {
       // insert a dummy filter, there seems to be a bug in Flink
       // that produces duplicate elements after the union in some cases
       // if we don't
-      result = result.filter(new FilterFunction<WindowedValue<T>>() {
-        @Override
-        public boolean filter(WindowedValue<T> tWindowedValue) throws Exception {
-          return true;
-        }
-      }).name("UnionFixFilter");
+      result = result.filter(tWindowedValue -> true).name("UnionFixFilter");
       context.setOutputDataSet(context.getOutput(transform), result);
     }
   }

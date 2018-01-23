@@ -196,12 +196,7 @@ public class DisplayDataMatchers {
       }
 
       private DisplayData subComponentData(final String path) {
-        return DisplayData.from(new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder.include(path, subComponent);
-          }
-        });
+        return DisplayData.from(builder -> builder.include(path, subComponent));
       }
 
       private DisplayDataComparison checkSubset(

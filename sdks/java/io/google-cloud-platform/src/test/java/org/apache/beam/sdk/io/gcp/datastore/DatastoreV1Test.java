@@ -722,12 +722,9 @@ public class DatastoreV1Test {
     when(mockDatastore.runQuery(any(RunQueryRequest.class)))
         .thenThrow(
             new DatastoreException("RunQuery", Code.DEADLINE_EXCEEDED, "", null))
-        .thenAnswer(new Answer<RunQueryResponse>() {
-          @Override
-          public RunQueryResponse answer(InvocationOnMock invocationOnMock) throws Throwable {
-            Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
-            return mockResponseForQuery(q);
-          }
+        .thenAnswer(invocationOnMock -> {
+          Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
+          return mockResponseForQuery(q);
         });
 
     ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);
@@ -915,12 +912,9 @@ public class DatastoreV1Test {
 
     // Use mockResponseForQuery to generate results.
     when(mockDatastore.runQuery(any(RunQueryRequest.class)))
-        .thenAnswer(new Answer<RunQueryResponse>() {
-          @Override
-          public RunQueryResponse answer(InvocationOnMock invocationOnMock) throws Throwable {
-            Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
-            return mockResponseForQuery(q);
-          }
+        .thenAnswer(invocationOnMock -> {
+          Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
+          return mockResponseForQuery(q);
         });
 
     ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);

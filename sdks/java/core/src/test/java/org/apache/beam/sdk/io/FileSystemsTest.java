@@ -22,7 +22,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
@@ -188,11 +187,7 @@ public class FileSystemsTest {
   private List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {
     return FluentIterable
         .from(paths)
-        .transform(new Function<Path, ResourceId>() {
-          @Override
-          public ResourceId apply(Path path) {
-            return LocalResourceId.fromPath(path, isDirectory);
-          }})
+        .transform(path -> (ResourceId) LocalResourceId.fromPath(path, isDirectory))
         .toList();
   }
 

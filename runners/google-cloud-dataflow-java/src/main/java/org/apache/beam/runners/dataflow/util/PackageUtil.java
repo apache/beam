@@ -141,21 +141,18 @@ class PackageUtil implements Closeable {
       final DataflowPackage source, final String stagingPath) {
 
     return executorService.submit(
-        new Callable<PackageAttributes>() {
-          @Override
-          public PackageAttributes call() throws Exception {
-            final File file = new File(source.getLocation());
-            if (!file.exists()) {
-              throw new FileNotFoundException(
-                  String.format("Non-existent file to stage: %s", file.getAbsolutePath()));
-            }
-
-            PackageAttributes attributes = PackageAttributes.forFileToStage(file, stagingPath);
-            if (source.getName() != null) {
-              attributes = attributes.withPackageName(source.getName());
-            }
-            return attributes;
+        () -> {
+          final File file = new File(source.getLocation());
+          if (!file.exists()) {
+            throw new FileNotFoundException(
+                String.format("Non-existent file to stage: %s", file.getAbsolutePath()));
           }
+
+          PackageAttributes attributes = PackageAttributes.forFileToStage(file, stagingPath);
+          if (source.getName() != null) {
+            attributes = attributes.withPackageName(source.getName());
+          }
+          return attributes;
         });
   }
 
@@ -176,12 +173,7 @@ class PackageUtil implements Closeable {
       final Sleeper retrySleeper,
       final CreateOptions createOptions) {
     return executorService.submit(
-        new Callable<StagingResult>() {
-          @Override
-          public StagingResult call() throws Exception {
-            return stagePackageSynchronously(attributes, retrySleeper, createOptions);
-          }
-        });
+        () -> stagePackageSynchronously(attributes, retrySleeper, createOptions));
   }
 
   /** Synchronously stages a package, with retry and backoff for resiliency. */
@@ -365,27 +357,18 @@ class PackageUtil implements Closeable {
       ListenableFuture<StagingResult> stagingResult =
           Futures.transformAsync(
               computePackageAttributes(sourcePackage, stagingPath),
-              new AsyncFunction<PackageAttributes, StagingResult>() {
-                @Override
-                public ListenableFuture<StagingResult> apply(
-                    final PackageAttributes packageAttributes) throws Exception {
-                  return stagePackage(packageAttributes, retrySleeper, createOptions);
-                }
-              });
+              packageAttributes -> stagePackage(packageAttributes, retrySleeper, createOptions));
 
       ListenableFuture<DataflowPackage> stagedPackage =
           Futures.transform(
               stagingResult,
-              new Function<StagingResult, DataflowPackage>() {
-                @Override
-                public DataflowPackage apply(StagingResult stagingResult) {
-                  if (stagingResult.alreadyStaged()) {
-                    numCached.incrementAndGet();
-                  } else {
-                    numUploaded.incrementAndGet();
-                  }
-                  return stagingResult.getPackageAttributes().getDestination();
+              stagingResult1 -> {
+                if (stagingResult1.alreadyStaged()) {
+                  numCached.incrementAndGet();
+                } else {
+                  numUploaded.incrementAndGet();
                 }
+                return stagingResult1.getPackageAttributes().getDestination();
               });
 
       destinationPackages.add(stagedPackage);
