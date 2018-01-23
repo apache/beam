@@ -89,7 +89,7 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
 
 
 
-def _get_transform_overrides():
+def _get_transform_overrides(pipeline_options):
   # A list of PTransformOverride objects to be applied before running a pipeline
   # using DirectRunner.
   # Currently this only works for overrides where the input and output types do
@@ -102,6 +102,7 @@ def _get_transform_overrides():
   from apache_beam.pipeline import PTransformOverride
 
   from apache_beam.transforms.core import CombinePerKey
+  from apache_beam.transforms.core import _GroupByKeyOnly
 
   class CombinePerKeyOverride(PTransformOverride):
     def get_matcher(self):
@@ -125,10 +126,48 @@ def _get_transform_overrides():
         print 'NO REPLACE'
         return transform
 
-  return [SplittableParDoOverride(),
+  class StreamingGroupByKeyOverride(PTransformOverride):
+    def get_matcher(self):
+      def _matcher(applied_ptransform):
+        if applied_ptransform.transform.__class__ == _GroupByKeyOnly:
+          return True
+      return _matcher
+
+    def get_replacement_transform(self, transform):
+      # Use specialized streaming implementation, if requested.
+      type_hints = transform.get_type_hints()
+      transform = (_StreamingGroupByKeyOnly()
+                      .with_input_types(*type_hints.input_types[0])
+                      .with_output_types(*type_hints.output_types[0]))
+      print 'a', transform
+      return transform
+
+  class StreamingGroupAlsoByWindowOverride(PTransformOverride):
+    def get_matcher(self):
+      def _matcher(applied_ptransform):
+        if applied_ptransform.transform.__class__ == _GroupAlsoByWindow:
+          return True
+      return _matcher
+
+    def get_replacement_transform(self, transform):
+      # Use specialized streaming implementation, if requested.
+      type_hints = transform.get_type_hints()
+      transform = (_StreamingGroupAlsoByWindow(transform.windowing)
+                      .with_input_types(*type_hints.input_types[0])
+                      .with_output_types(*type_hints.output_types[0]))
+      print 'a', transform
+      return transform
+
+  overrides = [SplittableParDoOverride(),
           ProcessKeyedElementsViaKeyedWorkItemsOverride(),
           CombinePerKeyOverride(),
           ]
+
+  if pipeline_options.view_as(StandardOptions).streaming:
+    overrides.append(StreamingGroupByKeyOverride())
+    overrides.append(StreamingGroupAlsoByWindowOverride())
+
+  return overrides
 
 
 
@@ -140,7 +179,6 @@ class DirectRunner(PipelineRunner):
   def __init__(self):
     self._cache = None
     self._use_test_clock = False  # use RealClock() in production
-    self._ptransform_overrides = _get_transform_overrides()
 
   # def apply_CombinePerKey(self, transform, pcoll):
   #   raise Exception
@@ -158,25 +196,25 @@ class DirectRunner(PipelineRunner):
     self._use_test_clock = True  # use TestClock() for testing
     return transform.expand(pcoll)
 
-  def apply__GroupByKeyOnly(self, transform, pcoll):
-    if (transform.__class__ == _GroupByKeyOnly and
-        pcoll.pipeline._options.view_as(StandardOptions).streaming):
-      # Use specialized streaming implementation, if requested.
-      type_hints = transform.get_type_hints()
-      return pcoll | (_StreamingGroupByKeyOnly()
-                      .with_input_types(*type_hints.input_types[0])
-                      .with_output_types(*type_hints.output_types[0]))
-    return transform.expand(pcoll)
+  # def apply__GroupByKeyOnly(self, transform, pcoll):
+  #   if (transform.__class__ == _GroupByKeyOnly and
+  #       pcoll.pipeline._options.view_as(StandardOptions).streaming):
+  #     # Use specialized streaming implementation, if requested.
+  #     type_hints = transform.get_type_hints()
+  #     return pcoll | (_StreamingGroupByKeyOnly()
+  #                     .with_input_types(*type_hints.input_types[0])
+  #                     .with_output_types(*type_hints.output_types[0]))
+  #   return transform.expand(pcoll)
 
-  def apply__GroupAlsoByWindow(self, transform, pcoll):
-    if (transform.__class__ == _GroupAlsoByWindow and
-        pcoll.pipeline._options.view_as(StandardOptions).streaming):
-      # Use specialized streaming implementation, if requested.
-      type_hints = transform.get_type_hints()
-      return pcoll | (_StreamingGroupAlsoByWindow(transform.windowing)
-                      .with_input_types(*type_hints.input_types[0])
-                      .with_output_types(*type_hints.output_types[0]))
-    return transform.expand(pcoll)
+  # def apply__GroupAlsoByWindow(self, transform, pcoll):
+  #   if (transform.__class__ == _GroupAlsoByWindow and
+  #       pcoll.pipeline._options.view_as(StandardOptions).streaming):
+  #     # Use specialized streaming implementation, if requested.
+  #     type_hints = transform.get_type_hints()
+  #     return pcoll | (_StreamingGroupAlsoByWindow(transform.windowing)
+  #                     .with_input_types(*type_hints.input_types[0])
+  #                     .with_output_types(*type_hints.output_types[0]))
+  #   return transform.expand(pcoll)
 
   def apply_ReadStringsFromPubSub(self, transform, pcoll):
     try:
@@ -234,7 +272,7 @@ class DirectRunner(PipelineRunner):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
     # Performing configured PTransform overrides.
-    output_map = pipeline.replace_all(self._ptransform_overrides)
+    output_map = pipeline.replace_all(_get_transform_overrides(pipeline._options))
     if self._cache:
       self._cache.register_replacement_outputs(output_map)
 
