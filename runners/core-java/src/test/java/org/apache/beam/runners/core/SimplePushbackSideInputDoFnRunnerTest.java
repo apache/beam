@@ -88,7 +88,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   @Test
   public void startFinishBundleDelegates() {
     PushbackSideInputDoFnRunner runner =
-        createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
+        createRunner(ImmutableList.of(singletonView));
 
     assertThat(underlying.started, is(true));
     assertThat(underlying.finished, is(false));
@@ -102,7 +102,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         .thenReturn(false);
 
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
-        createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
+        createRunner(ImmutableList.of(singletonView));
 
     WindowedValue<Integer> oneWindow =
         WindowedValue.of(
@@ -113,7 +113,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> oneWindowPushback =
         runner.processElementInReadyWindows(oneWindow);
     assertThat(oneWindowPushback, containsInAnyOrder(oneWindow));
-    assertThat(underlying.inputElems, Matchers.<WindowedValue<Integer>>emptyIterable());
+    assertThat(underlying.inputElems, Matchers.emptyIterable());
   }
 
   @Test
@@ -122,7 +122,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         .thenReturn(false);
 
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
-        createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
+        createRunner(ImmutableList.of(singletonView));
 
     WindowedValue<Integer> multiWindow =
         WindowedValue.of(
@@ -136,7 +136,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     Iterable<WindowedValue<Integer>> multiWindowPushback =
         runner.processElementInReadyWindows(multiWindow);
     assertThat(multiWindowPushback, equalTo(multiWindow.explodeWindows()));
-    assertThat(underlying.inputElems, Matchers.<WindowedValue<Integer>>emptyIterable());
+    assertThat(underlying.inputElems, Matchers.emptyIterable());
   }
 
   @Test
@@ -150,7 +150,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
         .thenReturn(true);
 
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
-        createRunner(ImmutableList.<PCollectionView<?>>of(singletonView));
+        createRunner(ImmutableList.of(singletonView));
 
     IntervalWindow littleWindow = new IntervalWindow(new Instant(-500L), new Instant(0L));
     IntervalWindow bigWindow =
@@ -179,7 +179,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     when(reader.isReady(Mockito.eq(singletonView), Mockito.any(BoundedWindow.class)))
         .thenReturn(true);
 
-    ImmutableList<PCollectionView<?>> views = ImmutableList.<PCollectionView<?>>of(singletonView);
+    ImmutableList<PCollectionView<?>> views = ImmutableList.of(singletonView);
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner = createRunner(views);
 
     WindowedValue<Integer> multiWindow =
@@ -202,7 +202,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   @Test
   public void processElementNoSideInputs() {
     SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
-        createRunner(ImmutableList.<PCollectionView<?>>of());
+        createRunner(ImmutableList.of());
 
     WindowedValue<Integer> multiWindow =
         WindowedValue.of(
@@ -224,7 +224,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   @Test
   public void testOnTimerCalled() {
     PushbackSideInputDoFnRunner<Integer, Integer> runner =
-        createRunner(ImmutableList.<PCollectionView<?>>of());
+        createRunner(ImmutableList.of());
 
     String timerId = "fooTimer";
     IntervalWindow window = new IntervalWindow(new Instant(4), new Instant(16));

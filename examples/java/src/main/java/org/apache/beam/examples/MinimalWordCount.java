@@ -95,7 +95,7 @@ public class MinimalWordCount {
      // Concept #3: Apply the Count transform to our PCollection of individual words. The Count
      // transform returns a new PCollection of key/value pairs, where each key represents a unique
      // word in the text. The associated value is the occurrence count for that word.
-     .apply(Count.<String>perElement())
+     .apply(Count.perElement())
 
      // Apply a MapElements transform that formats our PCollection of word counts into a printable
      // string, suitable for writing to an output file.

@@ -497,7 +497,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     @SuppressWarnings({"unchecked", "rawtypes"})
     List<ValueInSingleWindow<T>> elems = (List) getOutputs().get(tag);
     return ImmutableList.copyOf(
-        MoreObjects.firstNonNull(elems, Collections.<ValueInSingleWindow<T>>emptyList()));
+        MoreObjects.firstNonNull(elems, Collections.emptyList()));
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})

@@ -196,7 +196,7 @@ public class Latest {
             })).setCoder(KvCoder.of(
                 inputCoder.getKeyCoder(),
                 TimestampedValue.TimestampedValueCoder.of(inputCoder.getValueCoder())))
-          .apply("Latest Value", Combine.<K, TimestampedValue<V>, V>perKey(new LatestFn<V>()))
+          .apply("Latest Value", Combine.perKey(new LatestFn<V>()))
             .setCoder(inputCoder);
     }
   }

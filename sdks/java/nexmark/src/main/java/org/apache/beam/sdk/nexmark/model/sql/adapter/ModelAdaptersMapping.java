@@ -54,7 +54,7 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(Person p) {
-        return Collections.<Object> unmodifiableList(Arrays.asList(
+        return Collections.unmodifiableList(Arrays.asList(
             p.id,
             p.name,
             p.emailAddress,
@@ -79,7 +79,7 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(Bid b) {
-        return Collections.<Object> unmodifiableList(Arrays.asList(
+        return Collections.unmodifiableList(Arrays.asList(
             b.auction,
             b.bidder,
             b.price,
@@ -106,7 +106,7 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(Auction a) {
-        return Collections.<Object>unmodifiableList(Arrays.asList(
+        return Collections.unmodifiableList(Arrays.asList(
             a.id,
             a.itemName,
             a.description,

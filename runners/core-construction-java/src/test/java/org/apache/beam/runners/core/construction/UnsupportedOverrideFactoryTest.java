@@ -52,6 +52,6 @@ public class UnsupportedOverrideFactoryTest {
   public void mapOutputThrows() {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage(message);
-    factory.mapOutputs(Collections.<TupleTag<?>, PValue>emptyMap(), PDone.in(pipeline));
+    factory.mapOutputs(Collections.emptyMap(), PDone.in(pipeline));
   }
 }

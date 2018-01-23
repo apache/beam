@@ -62,7 +62,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    return Combine.<K, Integer, Integer>perKey(Sum.ofIntegers());
+    return Combine.perKey(Sum.ofIntegers());
   }
 
   /**
@@ -85,7 +85,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    return Combine.<K, Long, Long>perKey(Sum.ofLongs());
+    return Combine.perKey(Sum.ofLongs());
   }
 
   /**
@@ -108,7 +108,7 @@ public class Sum {
    * that key in the input {@code PCollection}.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    return Combine.<K, Double, Double>perKey(Sum.ofDoubles());
+    return Combine.perKey(Sum.ofDoubles());
   }
 
   /**

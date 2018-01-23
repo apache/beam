@@ -208,10 +208,10 @@ public class BigQueryIOWriteTest implements Serializable {
 
     final PCollectionView<List<String>> sideInput1 =
         p.apply("Create SideInput 1", Create.of("a", "b", "c").withCoder(StringUtf8Coder.of()))
-            .apply("asList", View.<String>asList());
+            .apply("asList", View.asList());
     final PCollectionView<Map<String, String>> sideInput2 =
         p.apply("Create SideInput2", Create.of(KV.of("a", "a"), KV.of("b", "b"), KV.of("c", "c")))
-            .apply("AsMap", View.<String, String>asMap());
+            .apply("AsMap", View.asMap());
 
     final List<String> allUsernames = ImmutableList.of("bill", "bob", "randolph");
     List<String> userList = Lists.newArrayList();
@@ -415,7 +415,7 @@ public class BigQueryIOWriteTest implements Serializable {
             ImmutableList.of(new ErrorProto().setReason("timeout")));
 
     fakeDatasetService.failOnInsert(
-        ImmutableMap.<TableRow, List<TableDataInsertAllResponse.InsertErrors>>of(
+        ImmutableMap.of(
             row1, ImmutableList.of(ephemeralError, ephemeralError),
             row2, ImmutableList.of(ephemeralError, ephemeralError)));
 
@@ -454,7 +454,7 @@ public class BigQueryIOWriteTest implements Serializable {
             ImmutableList.of(new ErrorProto().setReason("invalidQuery")));
 
     fakeDatasetService.failOnInsert(
-        ImmutableMap.<TableRow, List<TableDataInsertAllResponse.InsertErrors>>of(
+        ImmutableMap.of(
             row1, ImmutableList.of(ephemeralError, ephemeralError),
             row2, ImmutableList.of(ephemeralError, ephemeralError, persistentError)));
 
@@ -693,7 +693,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     PCollectionView<Map<String, String>> schemasView =
         p.apply("CreateSchemaMap", Create.of(schemas))
-            .apply("ViewSchemaAsMap", View.<String, String>asMap());
+            .apply("ViewSchemaAsMap", View.asMap());
 
     input
         .apply(Window.into(windowFn))
@@ -773,7 +773,7 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testWriteWithMissingSchemaFromView() throws Exception {
     PCollectionView<Map<String, String>> view =
         p.apply("Create schema view", Create.of(KV.of("foo", "bar"), KV.of("bar", "boo")))
-            .apply(View.<String, String>asMap());
+            .apply(View.asMap());
     p.apply(Create.empty(TableRowJsonCoder.of()))
         .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
@@ -1055,7 +1055,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     String tempFilePrefix = testFolder.newFolder("BigQueryIOTest").getAbsolutePath();
     PCollectionView<String> tempFilePrefixView =
-        p.apply(Create.of(tempFilePrefix)).apply(View.<String>asSingleton());
+        p.apply(Create.of(tempFilePrefix)).apply(View.asSingleton());
 
     WritePartition<TableDestination> writePartition =
         new WritePartition<>(
@@ -1168,8 +1168,8 @@ public class BigQueryIOWriteTest implements Serializable {
         p.apply(Create.of(partitions));
     PCollectionView<String> jobIdTokenView = p
         .apply("CreateJobId", Create.of("jobId"))
-        .apply(View.<String>asSingleton());
-    List<PCollectionView<?>> sideInputs = ImmutableList.<PCollectionView<?>>of(jobIdTokenView);
+        .apply(View.asSingleton());
+    List<PCollectionView<?>> sideInputs = ImmutableList.of(jobIdTokenView);
 
     WriteTables<String> writeTables =
         new WriteTables<>(
@@ -1255,7 +1255,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     PCollectionView<String> jobIdTokenView = p
         .apply("CreateJobId", Create.of("jobId"))
-        .apply(View.<String>asSingleton());
+        .apply(View.asSingleton());
 
     WriteRename writeRename =
         new WriteRename(

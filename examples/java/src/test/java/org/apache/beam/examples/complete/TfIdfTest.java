@@ -58,8 +58,8 @@ public class TfIdfTest {
         .apply(new TfIdf.ComputeTfIdf());
 
     PCollection<String> words = wordToUriAndTfIdf
-        .apply(Keys.<String>create())
-        .apply(Distinct.<String>create());
+        .apply(Keys.create())
+        .apply(Distinct.create());
 
     PAssert.that(words).containsInAnyOrder(Arrays.asList("a", "m", "n", "b", "c", "d"));
 

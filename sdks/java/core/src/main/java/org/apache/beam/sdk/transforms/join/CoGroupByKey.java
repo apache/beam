@@ -121,10 +121,10 @@ public class CoGroupByKey<K> extends
     }
 
     PCollection<KV<K, RawUnionValue>> flattenedTable =
-        unionTables.apply(Flatten.<KV<K, RawUnionValue>>pCollections());
+        unionTables.apply(Flatten.pCollections());
 
     PCollection<KV<K, Iterable<RawUnionValue>>> groupedTable =
-        flattenedTable.apply(GroupByKey.<K, RawUnionValue>create());
+        flattenedTable.apply(GroupByKey.create());
 
     CoGbkResultSchema tupleTags = input.getCoGbkResultSchema();
     PCollection<KV<K, CoGbkResult>> result = groupedTable.apply("ConstructCoGbkResultFn",

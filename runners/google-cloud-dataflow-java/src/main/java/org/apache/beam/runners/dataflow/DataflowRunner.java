@@ -849,7 +849,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       majorVersion = runnerInfo.getLegacyEnvironmentMajorVersion();
       jobType = options.isStreaming() ? "STREAMING" : "JAVA_BATCH_AUTOSCALING";
     }
-    return ImmutableMap.<String, Object>of(
+    return ImmutableMap.of(
         PropertyNames.ENVIRONMENT_VERSION_MAJOR_KEY, majorVersion,
         PropertyNames.ENVIRONMENT_VERSION_JOB_TYPE_KEY, jobType);
   }
@@ -1433,7 +1433,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .apply(WithKeys.of(value -> Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS))
           // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
-          .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
+          .apply(Reshuffle.of())
           .apply(
               "StripIds",
               ParDo.of(
@@ -1525,7 +1525,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                     }
                   }))
           .setCoder((Coder<BoundedSource<T>>) SerializableCoder.of((Class) BoundedSource.class))
-          .apply(Reshuffle.<BoundedSource<T>>viaRandomKey())
+          .apply(Reshuffle.viaRandomKey())
           .apply(
               ParDo.of(
                   new DoFn<BoundedSource<T>, T>() {

@@ -74,7 +74,7 @@ public class RedisIOTest {
     PCollection<KV<String,  String>> readNotMatch = readPipeline.apply("ReadNotMatch",
         RedisIO.read().withEndpoint("::1", embeddedRedis.getPort())
             .withKeyPattern("foobar*"));
-    PAssert.thatSingleton(readNotMatch.apply(Count.<KV<String, String>>globally())).isEqualTo(0L);
+    PAssert.thatSingleton(readNotMatch.apply(Count.globally())).isEqualTo(0L);
 
     readPipeline.run();
   }

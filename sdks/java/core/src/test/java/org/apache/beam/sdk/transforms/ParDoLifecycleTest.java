@@ -57,7 +57,7 @@ public class ParDoLifecycleTest implements Serializable {
   public void testOldFnCallSequence() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.<Integer>pCollections())
+        .apply(Flatten.pCollections())
         .apply(ParDo.of(new CallSequenceEnforcingDoFn<Integer>()));
 
     p.run();
@@ -68,7 +68,7 @@ public class ParDoLifecycleTest implements Serializable {
   public void testOldFnCallSequenceMulti() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.<Integer>pCollections())
+        .apply(Flatten.pCollections())
         .apply(ParDo.of(new CallSequenceEnforcingDoFn<Integer>())
             .withOutputTags(new TupleTag<Integer>() {}, TupleTagList.empty()));
 
@@ -136,7 +136,7 @@ public class ParDoLifecycleTest implements Serializable {
   public void testFnCallSequence() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.<Integer>pCollections())
+        .apply(Flatten.pCollections())
         .apply(ParDo.of(new CallSequenceEnforcingFn<Integer>()));
 
     p.run();
@@ -147,7 +147,7 @@ public class ParDoLifecycleTest implements Serializable {
   public void testFnCallSequenceMulti() {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
-        .apply(Flatten.<Integer>pCollections())
+        .apply(Flatten.pCollections())
         .apply(ParDo.of(new CallSequenceEnforcingFn<Integer>())
             .withOutputTags(new TupleTag<Integer>() {
             }, TupleTagList.empty()));
@@ -162,7 +162,7 @@ public class ParDoLifecycleTest implements Serializable {
         .and(
             p.apply(
                 "Polite", Create.of(KV.of("b", 3), KV.of("a", 5), KV.of("c", 6), KV.of("c", 7))))
-        .apply(Flatten.<KV<String, Integer>>pCollections())
+        .apply(Flatten.pCollections())
         .apply(
             ParDo.of(new CallSequenceEnforcingStatefulFn<String, Integer>())
                 .withOutputTags(new TupleTag<KV<String, Integer>>() {}, TupleTagList.empty()));

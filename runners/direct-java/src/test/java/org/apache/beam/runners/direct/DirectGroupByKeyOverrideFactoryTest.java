@@ -49,7 +49,7 @@ public class DirectGroupByKeyOverrideFactoryTest {
             Create.of(KV.of("foo", 1))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
     PCollection<KV<String, Iterable<Integer>>> grouped =
-        input.apply(GroupByKey.<String, Integer>create());
+        input.apply(GroupByKey.create());
     AppliedPTransform<?, ?, ?> producer = DirectGraphs.getProducer(grouped);
     PTransformReplacement<
             PCollection<KV<String, Integer>>, PCollection<KV<String, Iterable<Integer>>>>

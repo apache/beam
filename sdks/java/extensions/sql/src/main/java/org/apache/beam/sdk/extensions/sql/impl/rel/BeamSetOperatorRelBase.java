@@ -89,7 +89,7 @@ public class BeamSetOperatorRelBase {
         .and(rightTag, rightRows.apply(
             stageName + "_CreateRightIndex", MapElements.via(
                 new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-        .apply(CoGroupByKey.<BeamRecord>create());
+        .apply(CoGroupByKey.create());
     PCollection<BeamRecord> ret = coGbkResultCollection
         .apply(ParDo.of(new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(leftTag, rightTag,
             opType, all)));

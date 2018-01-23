@@ -426,7 +426,7 @@ public class AvroIO {
         .setShardTemplate(null)
         .setNumShards(0)
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
-        .setMetadata(ImmutableMap.<String, Object>of())
+        .setMetadata(ImmutableMap.of())
         .setWindowedWrites(false);
   }
 
@@ -1221,33 +1221,33 @@ public class AvroIO {
       return new Write<>(
           inner
               .to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix))
-              .withFormatFunction(SerializableFunctions.<T>identity()));
+              .withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ResourceId)} . */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> to(ResourceId outputPrefix) {
       return new Write<T>(
-          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.<T>identity()));
+          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ValueProvider)}. */
     public Write<T> to(ValueProvider<String> outputPrefix) {
       return new Write<>(
-          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.<T>identity()));
+          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ResourceId)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> toResource(ValueProvider<ResourceId> outputPrefix) {
       return new Write<>(
-          inner.toResource(outputPrefix).withFormatFunction(SerializableFunctions.<T>identity()));
+          inner.toResource(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(FilenamePolicy)}. */
     public Write<T> to(FilenamePolicy filenamePolicy) {
       return new Write<>(
-          inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.<T>identity()));
+          inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /**
@@ -1362,7 +1362,7 @@ public class AvroIO {
   public static <ElementT> Sink<ElementT> sink(final Class<ElementT> clazz) {
     return new AutoValue_AvroIO_Sink.Builder<ElementT>()
         .setJsonSchema(ReflectData.get().getSchema(clazz).toString())
-        .setMetadata(ImmutableMap.<String, Object>of())
+        .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .build();
   }
@@ -1377,7 +1377,7 @@ public class AvroIO {
     return new AutoValue_AvroIO_Sink.Builder<ElementT>()
         .setRecordFormatter(formatter)
         .setJsonSchema(schema.toString())
-        .setMetadata(ImmutableMap.<String, Object>of())
+        .setMetadata(ImmutableMap.of())
         .setCodec(TypedWrite.DEFAULT_SERIALIZABLE_CODEC)
         .build();
   }

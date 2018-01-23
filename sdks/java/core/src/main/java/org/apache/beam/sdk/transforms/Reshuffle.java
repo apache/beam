@@ -84,8 +84,8 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
 
     return input
         .apply(rewindow)
-        .apply("ReifyOriginalTimestamps", Reify.<K, V>timestampsInValue())
-        .apply(GroupByKey.<K, TimestampedValue<V>>create())
+        .apply("ReifyOriginalTimestamps", Reify.timestampsInValue())
+        .apply(GroupByKey.create())
         // Set the windowing strategy directly, so that it doesn't get counted as the user having
         // set allowed lateness.
         .setWindowingStrategyInternal(originalStrategy)
@@ -103,7 +103,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
                 }))
         .apply(
             "RestoreOriginalTimestamps",
-            ReifyTimestamps.<K, V>extractFromValues());
+            ReifyTimestamps.extractFromValues());
   }
 
   /** Implementation of {@link #viaRandomKey()}. */
@@ -114,8 +114,8 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     public PCollection<T> expand(PCollection<T> input) {
       return input
           .apply("Pair with random key", ParDo.of(new AssignShardFn<T>()))
-          .apply(Reshuffle.<Integer, T>of())
-          .apply(Values.<T>create());
+          .apply(Reshuffle.of())
+          .apply(Values.create());
     }
 
     private static class AssignShardFn<T> extends DoFn<T, KV<Integer, T>> {

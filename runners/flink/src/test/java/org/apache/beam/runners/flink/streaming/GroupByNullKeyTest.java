@@ -89,14 +89,14 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
 
     PCollection<String> output =
       p.apply(Create.of(Arrays.asList(
-          KV.<Integer, String>of(0, "user1"),
-          KV.<Integer, String>of(1, "user1"),
-          KV.<Integer, String>of(2, "user1"),
-          KV.<Integer, String>of(10, "user2"),
-          KV.<Integer, String>of(1, "user2"),
-          KV.<Integer, String>of(15000, "user2"),
-          KV.<Integer, String>of(12000, "user2"),
-          KV.<Integer, String>of(25000, "user3"))))
+          KV.of(0, "user1"),
+          KV.of(1, "user1"),
+          KV.of(2, "user1"),
+          KV.of(10, "user2"),
+          KV.of(1, "user2"),
+          KV.of(15000, "user2"),
+          KV.of(12000, "user2"),
+          KV.of(25000, "user3"))))
           .apply(ParDo.of(new ExtractUserAndTimestamp()))
           .apply(Window.<String>into(FixedWindows.of(Duration.standardHours(1)))
               .triggering(AfterWatermark.pastEndOfWindow())
@@ -107,10 +107,10 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
             @ProcessElement
             public void processElement(ProcessContext c) throws Exception {
               String elem = c.element();
-              c.output(KV.<Void, String>of(null, elem));
+              c.output(KV.of(null, elem));
             }
           }))
-          .apply(GroupByKey.<Void, String>create())
+          .apply(GroupByKey.create())
           .apply(ParDo.of(new DoFn<KV<Void, Iterable<String>>, String>() {
             @ProcessElement
             public void processElement(ProcessContext c) throws Exception {

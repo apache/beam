@@ -40,7 +40,7 @@ class AfterSynchronizedProcessingTimeStateMachine extends AfterDelayFromFirstEle
 
   private AfterSynchronizedProcessingTimeStateMachine() {
     super(TimeDomain.SYNCHRONIZED_PROCESSING_TIME,
-        Collections.<SerializableFunction<Instant, Instant>>emptyList());
+        Collections.emptyList());
   }
 
   @Override

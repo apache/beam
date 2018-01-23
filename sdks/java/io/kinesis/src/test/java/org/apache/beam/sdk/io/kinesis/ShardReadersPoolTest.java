@@ -72,13 +72,13 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldReturnAllRecords() throws TransientKinesisException {
     when(firstIterator.readNextBatch())
-        .thenReturn(Collections.<KinesisRecord>emptyList())
+        .thenReturn(Collections.emptyList())
         .thenReturn(asList(a, b))
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
     when(secondIterator.readNextBatch())
         .thenReturn(singletonList(c))
         .thenReturn(singletonList(d))
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
     List<KinesisRecord> fetchedRecords = new ArrayList<>();
@@ -94,9 +94,9 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldReturnAbsentOptionalWhenNoRecords() throws TransientKinesisException {
     when(firstIterator.readNextBatch())
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
     when(secondIterator.readNextBatch())
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
     CustomOptional<KinesisRecord> nextRecord = shardReadersPool.nextRecord();
@@ -107,11 +107,11 @@ public class ShardReadersPoolTest {
   public void shouldCheckpointReadRecords() throws TransientKinesisException {
     when(firstIterator.readNextBatch())
         .thenReturn(asList(a, b))
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
     when(secondIterator.readNextBatch())
         .thenReturn(singletonList(c))
         .thenReturn(singletonList(d))
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
     int recordsFound = 0;

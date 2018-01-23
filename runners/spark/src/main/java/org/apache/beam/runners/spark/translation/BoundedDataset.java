@@ -53,7 +53,7 @@ public class BoundedDataset<T> implements Dataset {
 
   BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
     this.windowedValues =
-        Iterables.transform(values, WindowingHelpers.<T>windowValueFunction());
+        Iterables.transform(values, WindowingHelpers.windowValueFunction());
     this.jsc = jsc;
     this.coder = coder;
   }
@@ -112,7 +112,7 @@ public class BoundedDataset<T> implements Dataset {
   @Override
   public void action() {
     // Empty function to force computation of RDD.
-    rdd.foreach(TranslationUtils.<WindowedValue<T>>emptyVoidFunction());
+    rdd.foreach(TranslationUtils.emptyVoidFunction());
   }
 
   @Override

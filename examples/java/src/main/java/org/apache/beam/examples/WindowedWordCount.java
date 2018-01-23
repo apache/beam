@@ -193,7 +193,7 @@ public class WindowedWordCount {
      */
     PCollection<String> windowedWords =
         input.apply(
-            Window.<String>into(
+            Window.into(
                 FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
 
     /**

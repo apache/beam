@@ -54,10 +54,10 @@ public class AfterWatermarkStateMachineTest {
 
   private SimpleTriggerStateMachineTester<IntervalWindow> tester;
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
-    return Mockito.<TriggerStateMachine.TriggerContext>any();
+    return Mockito.any();
   }
   private static TriggerStateMachine.OnElementContext anyElementContext() {
-    return Mockito.<TriggerStateMachine.OnElementContext>any();
+    return Mockito.any();
   }
 
   private void injectElements(int... elements) throws Exception {

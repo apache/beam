@@ -34,9 +34,9 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 public abstract class MetricUpdates {
 
   public static final MetricUpdates EMPTY = MetricUpdates.create(
-      Collections.<MetricUpdate<Long>>emptyList(),
-      Collections.<MetricUpdate<DistributionData>>emptyList(),
-      Collections.<MetricUpdate<GaugeData>>emptyList());
+      Collections.emptyList(),
+      Collections.emptyList(),
+      Collections.emptyList());
 
   /**
    * Representation of a single metric update.

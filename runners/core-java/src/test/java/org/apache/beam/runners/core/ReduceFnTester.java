@@ -117,7 +117,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         windowingStrategy,
         TriggerStateMachines.stateMachineForTrigger(
             TriggerTranslation.toProto(windowingStrategy.getTrigger())),
-        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
+        SystemReduceFn.buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()),
         PipelineOptionsFactory.create(),
         NullSideInputReader.empty());
@@ -137,7 +137,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     return new ReduceFnTester<>(
         windowingStrategy,
         triggerStateMachine,
-        SystemReduceFn.<String, Integer, W>buffering(VarIntCoder.of()),
+        SystemReduceFn.buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()),
         PipelineOptionsFactory.create(),
         NullSideInputReader.empty());
@@ -174,7 +174,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
+        AppliedCombineFn.withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
@@ -201,13 +201,13 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
+        AppliedCombineFn.withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return new ReduceFnTester<Integer, OutputT, W>(
         strategy,
         triggerStateMachine,
-        SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn),
+        SystemReduceFn.combining(StringUtf8Coder.of(), fn),
         outputCoder,
         PipelineOptionsFactory.create(),
         NullSideInputReader.empty());
@@ -223,7 +223,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
+        AppliedCombineFn.withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
@@ -247,13 +247,13 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
       throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
     AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.<String, Integer, AccumT, OutputT>withInputCoder(
+        AppliedCombineFn.withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return new ReduceFnTester<Integer, OutputT, W>(
         strategy,
         triggerStateMachine,
-        SystemReduceFn.<String, Integer, AccumT, OutputT, W>combining(StringUtf8Coder.of(), fn),
+        SystemReduceFn.combining(StringUtf8Coder.of(), fn),
         outputCoder,
         options,
         sideInputReader);
@@ -314,14 +314,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<?>>of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
+        ImmutableSet.of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndStateFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<?>>of(
+        ImmutableSet.of(
             ((SystemReduceFn<?, ?, ?, ?, ?>) reduceFn).getBufferTag(),
             TriggerStateMachineRunner.FINISHED_BITS_TAG,
             PaneInfoTracker.PANE_INFO_TAG,
@@ -334,7 +334,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<?>>of(
+        ImmutableSet.of(
             TriggerStateMachineRunner.FINISHED_BITS_TAG,
             PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForTimestampCombiner(
@@ -344,14 +344,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
   public final void assertHasOnlyGlobalState() {
     assertHasOnlyGlobalAndAllowedTags(
-        Collections.<W>emptySet(), Collections.<StateTag<?>>emptySet());
+        Collections.emptySet(), Collections.emptySet());
   }
 
   @SafeVarargs
   public final void assertHasOnlyGlobalAndPaneInfoFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.<StateTag<?>>of(
+        ImmutableSet.of(
             PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForTimestampCombiner(
                 objectStrategy.getTimestampCombiner()),
@@ -600,7 +600,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
       // Copy the output value (using coders) before capturing it.
-      KV<String, OutputT> copy = SerializableUtils.<KV<String, OutputT>>ensureSerializableByCoder(
+      KV<String, OutputT> copy = SerializableUtils.ensureSerializableByCoder(
           KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
       WindowedValue<KV<String, OutputT>> value = WindowedValue.of(copy, timestamp, windows, pane);
       outputs.add(value);

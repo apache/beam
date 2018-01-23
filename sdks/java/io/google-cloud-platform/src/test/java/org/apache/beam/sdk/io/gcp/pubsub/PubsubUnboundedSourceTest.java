@@ -115,7 +115,7 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void checkpointCoderIsSane() throws Exception {
-    setupOneMessage(ImmutableList.<IncomingMessage>of());
+    setupOneMessage(ImmutableList.of());
     CoderProperties.coderSerializable(primSource.getCheckpointMarkCoder());
     // Since we only serialize/deserialize the 'notYetReadIds', and we don't want to make
     // equals on checkpoints ignore those fields, we'll test serialization and deserialization

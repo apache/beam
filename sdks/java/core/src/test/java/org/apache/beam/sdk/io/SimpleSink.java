@@ -47,7 +47,7 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, Strin
       ResourceId tempDirectory, FilenamePolicy filenamePolicy) {
     return new SimpleSink<>(
         tempDirectory,
-        DynamicFileDestinations.<String>constant(filenamePolicy),
+        DynamicFileDestinations.constant(filenamePolicy),
         Compression.UNCOMPRESSED);
   }
 

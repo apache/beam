@@ -646,8 +646,8 @@ public class JdbcIO {
       // a single query may produce many gigabytes of query results.
       PCollectionView<Iterable<T>> empty =
           input
-              .apply("Consume", Filter.by(SerializableFunctions.<T, Boolean>constant(false)))
-              .apply(View.<T>asIterable());
+              .apply("Consume", Filter.by(SerializableFunctions.constant(false)))
+              .apply(View.asIterable());
       PCollection<T> materialized =
           input.apply(
               "Identity",
@@ -659,7 +659,7 @@ public class JdbcIO {
                         }
                       })
                   .withSideInputs(empty));
-      return materialized.apply(Reshuffle.<T>viaRandomKey());
+      return materialized.apply(Reshuffle.viaRandomKey());
     }
   }
 }

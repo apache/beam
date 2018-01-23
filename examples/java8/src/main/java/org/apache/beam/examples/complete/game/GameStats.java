@@ -107,10 +107,10 @@ public class GameStats extends LeaderBoard {
 
       // Get the sum of scores for each user.
       PCollection<KV<String, Integer>> sumScores = userScores
-          .apply("UserSum", Sum.<String>integersPerKey());
+          .apply("UserSum", Sum.integersPerKey());
 
       // Extract the score from each element, and use it to find the global mean.
-      final PCollectionView<Double> globalMeanScore = sumScores.apply(Values.<Integer>create())
+      final PCollectionView<Double> globalMeanScore = sumScores.apply(Values.create())
           .apply(Mean.<Integer>globally().asSingletonView());
 
       // Filter the user sums using the global mean.
@@ -258,7 +258,7 @@ public class GameStats extends LeaderBoard {
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.
     final PCollectionView<Map<String, Integer>> spammersView = userEvents
-      .apply("FixedWindowsUser", Window.<KV<String, Integer>>into(
+      .apply("FixedWindowsUser", Window.into(
           FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
 
       // Filter out everyone but those with (SCORE_WEIGHT * avg) clickrate.
@@ -266,7 +266,7 @@ public class GameStats extends LeaderBoard {
       .apply("CalculateSpammyUsers", new CalculateSpammyUsers())
       // Derive a view from the collection of spammer users. It will be used as a side input
       // in calculating the team score sums, below.
-      .apply("CreateSpammersView", View.<String, Integer>asMap());
+      .apply("CreateSpammersView", View.asMap());
 
     // [START DocInclude_FilterAndCalc]
     // Calculate the total score per team over fixed windows,
@@ -274,7 +274,7 @@ public class GameStats extends LeaderBoard {
     // suspected robots-- to filter out scores from those users from the sum.
     // Write the results to BigQuery.
     rawEvents
-      .apply("WindowIntoFixedWindows", Window.<GameActionInfo>into(
+      .apply("WindowIntoFixedWindows", Window.into(
           FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
       // Filter out the detected spammer users, using the side input derived above.
       .apply("FilterOutSpammers", ParDo
@@ -315,7 +315,7 @@ public class GameStats extends LeaderBoard {
       // [END DocInclude_SessionCalc]
       // [START DocInclude_Rewindow]
       // Re-window to process groups of session sums according to when the sessions complete.
-      .apply("WindowToExtractSessionMean", Window.<Integer>into(
+      .apply("WindowToExtractSessionMean", Window.into(
           FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
       // Find the mean session duration in each window.
       .apply(Mean.<Integer>globally().withoutDefaults())

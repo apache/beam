@@ -353,7 +353,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
       // Join auctions and bids.
       KeyedPCollectionTuple.of(NexmarkQuery.AUCTION_TAG, auctionsById)
         .and(NexmarkQuery.BID_TAG, bidsByAuctionId)
-        .apply(CoGroupByKey.<Long>create())
+        .apply(CoGroupByKey.create())
         // Filter and select.
         .apply(name + ".Join",
           ParDo.of(new DoFn<KV<Long, CoGbkResult>, AuctionBid>() {

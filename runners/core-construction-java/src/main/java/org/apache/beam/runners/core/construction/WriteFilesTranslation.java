@@ -192,7 +192,7 @@ public class WriteFilesTranslation {
     return WriteFilesPayload.parseFrom(
         PTransformTranslation.toProto(
                 transform,
-                Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+                Collections.emptyList(),
                 SdkComponents.create())
             .getSpec()
             .getPayload());
@@ -302,7 +302,7 @@ public class WriteFilesTranslation {
     @Override
     public Map<Class<? extends PTransform>, TransformPayloadTranslator>
         getTransformPayloadTranslators() {
-      return Collections.<Class<? extends PTransform>, TransformPayloadTranslator>singletonMap(
+      return Collections.singletonMap(
           WriteFiles.CONCRETE_CLASS, new WriteFilesTranslator());
     }
 

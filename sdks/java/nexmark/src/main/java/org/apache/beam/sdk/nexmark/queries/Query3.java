@@ -123,7 +123,7 @@ public class Query3 extends NexmarkQuery {
     KeyedPCollectionTuple.of(AUCTION_TAG, auctionsBySellerId)
         .and(PERSON_TAG, personsById)
         // group auctions and persons by personId
-        .apply(CoGroupByKey.<Long>create())
+        .apply(CoGroupByKey.create())
         .apply(name + ".Join", ParDo.of(joinDoFn))
 
         // Project what we want.

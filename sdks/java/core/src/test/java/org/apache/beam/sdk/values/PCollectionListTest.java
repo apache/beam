@@ -111,7 +111,7 @@ public class PCollectionListTest {
     PCollectionList<Long> list = PCollectionList.of(createOne).and(createOne).and(createOne);
     assertThat(
         list.expand().values(),
-        Matchers.<PValue>containsInAnyOrder(createOne, createOne, createOne));
+        Matchers.containsInAnyOrder(createOne, createOne, createOne));
   }
 
   @Test

@@ -114,14 +114,14 @@ public class SideInputContainerTest {
     MockitoAnnotations.initMocks(this);
 
     PCollection<Integer> create =
-        pipeline.apply("forBaseCollection", Create.<Integer>of(1, 2, 3, 4));
+        pipeline.apply("forBaseCollection", Create.of(1, 2, 3, 4));
 
     mapView =
-        create.apply("forKeyTypes", WithKeys.<String, Integer>of("foo"))
-            .apply("asMapView", View.<String, Integer>asMap());
+        create.apply("forKeyTypes", WithKeys.of("foo"))
+            .apply("asMapView", View.asMap());
 
     singletonView = create.apply("forCombinedTypes", Mean.<Integer>globally().asSingletonView());
-    iterableView = create.apply("asIterableView", View.<Integer>asIterable());
+    iterableView = create.apply("asIterableView", View.asIterable());
 
     container = SideInputContainer.create(
         context, ImmutableList.of(iterableView, mapView, singletonView));
@@ -148,7 +148,7 @@ public class SideInputContainerTest {
 
     Map<String, Integer> viewContents =
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
+            .createReaderForViews(ImmutableList.of(mapView))
             .get(mapView, FIRST_WINDOW);
     assertThat(viewContents, hasEntry("one", 1));
     assertThat(viewContents, hasEntry("two", 2));
@@ -176,7 +176,7 @@ public class SideInputContainerTest {
 
     Map<String, Integer> viewContents =
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
+            .createReaderForViews(ImmutableList.of(mapView))
             .get(mapView, SECOND_WINDOW);
     assertThat(viewContents, hasEntry("one", 1));
     assertThat(viewContents, hasEntry("two", 2));
@@ -194,7 +194,7 @@ public class SideInputContainerTest {
 
     Map<String, Integer> overwrittenViewContents =
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
+            .createReaderForViews(ImmutableList.of(mapView))
             .get(mapView, SECOND_WINDOW);
     assertThat(overwrittenViewContents, hasEntry("three", 3));
     assertThat(overwrittenViewContents.size(), is(1));
@@ -209,7 +209,7 @@ public class SideInputContainerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("not ready");
 
-    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
+    container.createReaderForViews(ImmutableList.of(mapView))
         .get(mapView, GlobalWindow.INSTANCE);
   }
 
@@ -218,13 +218,13 @@ public class SideInputContainerTest {
     PCollection<KV<String, String>> input =
         pipeline.apply(Create.empty(new TypeDescriptor<KV<String, String>>() {}));
     PCollectionView<Map<String, Iterable<String>>> newView =
-        input.apply(View.<String, String>asMultimap());
+        input.apply(View.asMultimap());
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("unknown views");
     thrown.expectMessage(newView.toString());
 
-    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(newView));
+    container.createReaderForViews(ImmutableList.of(newView));
   }
 
   @Test
@@ -232,7 +232,7 @@ public class SideInputContainerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("unknown view: " + iterableView.toString());
 
-    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
+    container.createReaderForViews(ImmutableList.of(mapView))
         .get(iterableView, GlobalWindow.INSTANCE);
   }
 
@@ -256,12 +256,12 @@ public class SideInputContainerTest {
     container.write(singletonView, valuesBuilder.build());
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+            .createReaderForViews(ImmutableList.of(singletonView))
             .get(singletonView, FIRST_WINDOW),
         equalTo(2.875));
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+            .createReaderForViews(ImmutableList.of(singletonView))
             .get(singletonView, SECOND_WINDOW),
         equalTo(4.125));
   }
@@ -280,7 +280,7 @@ public class SideInputContainerTest {
 
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(iterableView))
+            .createReaderForViews(ImmutableList.of(iterableView))
             .get(iterableView, FIRST_WINDOW),
         contains(44, 44));
   }
@@ -298,12 +298,12 @@ public class SideInputContainerTest {
     container.write(singletonView, valuesBuilder.build());
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+            .createReaderForViews(ImmutableList.of(singletonView))
             .get(singletonView, FIRST_WINDOW),
         equalTo(2.875));
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+            .createReaderForViews(ImmutableList.of(singletonView))
             .get(singletonView, SECOND_WINDOW),
         equalTo(2.875));
   }
@@ -331,7 +331,7 @@ public class SideInputContainerTest {
 
     Map<String, Integer> viewContents =
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
+            .createReaderForViews(ImmutableList.of(mapView))
             .get(mapView, SECOND_WINDOW);
 
     assertThat(viewContents, hasEntry("one", 1));
@@ -344,7 +344,7 @@ public class SideInputContainerTest {
     immediatelyInvokeCallback(mapView, SECOND_WINDOW);
     Future<Map<String, Integer>> mapFuture =
         getFutureOfView(
-            container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView)),
+            container.createReaderForViews(ImmutableList.of(mapView)),
             mapView,
             SECOND_WINDOW);
 
@@ -358,7 +358,7 @@ public class SideInputContainerTest {
   @Test
   public void isReadyInEmptyReaderThrows() {
     ReadyCheckingSideInputReader reader =
-        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of());
+        container.createReaderForViews(ImmutableList.of());
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("does not contain");
     thrown.expectMessage(ImmutableList.of().toString());

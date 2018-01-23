@@ -116,7 +116,7 @@ public class AutoComplete {
     public PCollection<KV<String, List<CompletionCandidate>>> expand(PCollection<String> input) {
       PCollection<CompletionCandidate> candidates = input
         // First count how often each token appears.
-        .apply(Count.<String>perElement())
+        .apply(Count.perElement())
 
         // Map the KV outputs of Count into our own CompletionCandiate class.
         .apply("CreateCompletionCandidates", ParDo.of(
@@ -131,7 +131,7 @@ public class AutoComplete {
       if (recursive) {
         return candidates
           .apply(new ComputeTopRecursive(candidatesPerPrefix, 1))
-          .apply(Flatten.<KV<String, List<CompletionCandidate>>>pCollections());
+          .apply(Flatten.pCollections());
       } else {
         return candidates
           .apply(new ComputeTopFlat(candidatesPerPrefix, 1));
@@ -228,14 +228,14 @@ public class AutoComplete {
                 // ...together with those (previously excluded) candidates of length
                 // exactly minPrefix...
                 .and(input.apply(Filter.by(c -> c.getValue().length() == minPrefix)))
-                .apply("FlattenSmall", Flatten.<CompletionCandidate>pCollections())
+                .apply("FlattenSmall", Flatten.pCollections())
                 // ...set the key to be the minPrefix-length prefix...
                 .apply(ParDo.of(new AllPrefixes(minPrefix, minPrefix)))
                 // ...and (re)apply the Top operator to all of them together.
-                .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix));
+                .apply(Top.largestPerKey(candidatesPerPrefix));
 
           PCollection<KV<String, List<CompletionCandidate>>> flattenLarger = larger
-              .apply("FlattenLarge", Flatten.<KV<String, List<CompletionCandidate>>>pCollections());
+              .apply("FlattenLarge", Flatten.pCollections());
 
           return PCollectionList.of(flattenLarger).and(small);
         }
@@ -464,7 +464,7 @@ public class AutoComplete {
     PCollection<KV<String, List<CompletionCandidate>>> toWrite = p
       .apply(TextIO.read().from(options.getInputFile()))
       .apply(ParDo.of(new ExtractHashtags()))
-      .apply(Window.<String>into(windowFn))
+      .apply(Window.into(windowFn))
       .apply(ComputeTopCompletions.top(10, options.getRecursive()));
 
     if (options.getOutputToDatastore()) {

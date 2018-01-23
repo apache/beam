@@ -139,7 +139,7 @@ class SerializableMatchers implements Serializable {
   @SafeVarargs
   public static <T> SerializableMatcher<T[]>
   arrayContaining(final SerializableMatcher<? super T>... matchers) {
-    return fromSupplier(() -> Matchers.<T>arrayContaining(matchers));
+    return fromSupplier(() -> Matchers.arrayContaining(matchers));
   }
 
   /**
@@ -189,7 +189,7 @@ class SerializableMatchers implements Serializable {
   @SafeVarargs
   public static <T> SerializableMatcher<T[]> arrayContainingInAnyOrder(
       final SerializableMatcher<? super T>... matchers) {
-    return fromSupplier(() -> Matchers.<T>arrayContainingInAnyOrder(matchers));
+    return fromSupplier(() -> Matchers.arrayContainingInAnyOrder(matchers));
   }
 
   /**
@@ -264,7 +264,7 @@ class SerializableMatchers implements Serializable {
   @SafeVarargs
   public static <T> SerializableMatcher<Iterable<? extends T>> contains(
       final SerializableMatcher<? super T>... matchers) {
-    return fromSupplier(() -> Matchers.<T>contains(matchers));
+    return fromSupplier(() -> Matchers.contains(matchers));
   }
 
   /**
@@ -314,7 +314,7 @@ class SerializableMatchers implements Serializable {
   @SafeVarargs
   public static <T> SerializableMatcher<Iterable<? extends T>> containsInAnyOrder(
       final SerializableMatcher<? super T>... matchers) {
-    return fromSupplier(() -> Matchers.<T>containsInAnyOrder(matchers));
+    return fromSupplier(() -> Matchers.containsInAnyOrder(matchers));
   }
 
   /**
@@ -611,9 +611,9 @@ class SerializableMatchers implements Serializable {
       final SerializableMatcher<? super K> keyMatcher,
       final SerializableMatcher<? super V> valueMatcher) {
 
-    return SerializableMatchers.<KV<? extends K, ? extends V>>allOf(
-        SerializableMatchers.<K, V>kvWithKey(keyMatcher),
-        SerializableMatchers.<K, V>kvWithValue(valueMatcher));
+    return SerializableMatchers.allOf(
+        SerializableMatchers.kvWithKey(keyMatcher),
+        SerializableMatchers.kvWithValue(valueMatcher));
   }
 
   /**

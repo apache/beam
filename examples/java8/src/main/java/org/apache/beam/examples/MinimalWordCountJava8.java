@@ -60,7 +60,7 @@ public class MinimalWordCountJava8 {
          .into(TypeDescriptors.strings())
          .via((String word) -> Arrays.asList(word.split("[^\\p{L}]+"))))
      .apply(Filter.by((String word) -> !word.isEmpty()))
-     .apply(Count.<String>perElement())
+     .apply(Count.perElement())
      .apply(MapElements
          .into(TypeDescriptors.strings())
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))

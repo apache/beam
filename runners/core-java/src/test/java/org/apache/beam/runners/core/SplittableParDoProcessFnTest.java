@@ -211,7 +211,7 @@ public class SplittableParDoProcessFnTest {
         return false;
       }
       tester.processElement(
-          KeyedWorkItems.<String, KV<InputT, RestrictionT>>timersWorkItem("key", timers));
+          KeyedWorkItems.timersWorkItem("key", timers));
       return true;
     }
 

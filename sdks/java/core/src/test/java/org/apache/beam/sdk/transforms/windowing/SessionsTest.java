@@ -138,7 +138,7 @@ public class SessionsTest {
   @Test
   public void testInvalidOutputAtEarliest() throws Exception {
     try {
-      WindowFnTestUtils.<Object, IntervalWindow>validateGetOutputTimestamps(
+      WindowFnTestUtils.validateGetOutputTimestamps(
           Sessions.withGapDuration(Duration.millis(10)),
           TimestampCombiner.EARLIEST,
           ImmutableList.of(
@@ -160,7 +160,7 @@ public class SessionsTest {
    */
   @Test
   public void testValidOutputAtEndTimes() throws Exception {
-    WindowFnTestUtils.<Object, IntervalWindow>validateGetOutputTimestamps(
+    WindowFnTestUtils.validateGetOutputTimestamps(
         Sessions.withGapDuration(Duration.millis(10)),
         TimestampCombiner.END_OF_WINDOW,
           ImmutableList.of(

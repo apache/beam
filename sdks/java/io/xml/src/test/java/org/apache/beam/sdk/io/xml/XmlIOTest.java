@@ -106,7 +106,7 @@ public class XmlIOTest {
                         .withPrefix("birds")
                         .withSuffix(".xml"))
                 .getPerDestinationOutputFilenames()
-                .apply(Values.<String>create())
+                .apply(Values.create())
                 .apply(FileIO.matchAll())
                 .apply(FileIO.readMatches())
                 .apply(

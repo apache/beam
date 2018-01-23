@@ -357,7 +357,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
     @Override
     public Iterable<T> read() {
       Iterable<T> result = extractOutput();
-      return result != null ? result : Collections.<T>emptyList();
+      return result != null ? result : Collections.emptyList();
     }
 
     @Override

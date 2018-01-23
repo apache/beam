@@ -68,11 +68,11 @@ public class PipelineOptionsTest {
         "stepName",
         coder,
         mainTag,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
-        Collections.<PCollectionView<?>>emptyList(),
+        Collections.emptyList(),
         null,
         null);
 
@@ -92,11 +92,11 @@ public class PipelineOptionsTest {
         "stepName",
         coder,
         mainTag,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(),
-        Collections.<PCollectionView<?>>emptyList(),
+        Collections.emptyList(),
         options,
         null);
 

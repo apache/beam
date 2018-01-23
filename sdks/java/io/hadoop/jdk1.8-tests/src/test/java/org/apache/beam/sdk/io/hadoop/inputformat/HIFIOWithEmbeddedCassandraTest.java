@@ -82,9 +82,9 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
         p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
             .withValueTranslation(myValueTranslate));
     // Verify the count of data retrieved from Cassandra matches expected count.
-    PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
+    PAssert.thatSingleton(cassandraData.apply("Count", Count.globally()))
         .isEqualTo(TEST_DATA_ROW_COUNT);
-    PCollection<String> textValues = cassandraData.apply(Values.<String>create());
+    PCollection<String> textValues = cassandraData.apply(Values.create());
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());
@@ -115,9 +115,9 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
         p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
             .withValueTranslation(myValueTranslate));
     // Verify the count of data retrieved from Cassandra matches expected count.
-    PAssert.thatSingleton(cassandraData.apply("Count", Count.<KV<Long, String>>globally()))
+    PAssert.thatSingleton(cassandraData.apply("Count", Count.globally()))
         .isEqualTo(expectedCount);
-    PCollection<String> textValues = cassandraData.apply(Values.<String>create());
+    PCollection<String> textValues = cassandraData.apply(Values.create());
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
         textValues.apply(Combine.globally(new HashingFn()).withoutDefaults());

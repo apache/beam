@@ -657,7 +657,7 @@ public class ElasticsearchIO {
             restClient.performRequest(
                 "GET",
                 "/_search/scroll",
-                Collections.<String, String>emptyMap(),
+                Collections.emptyMap(),
                 scrollEntity);
         JsonNode searchResult = parseResponse(response);
         updateScrollId(searchResult);
@@ -701,7 +701,7 @@ public class ElasticsearchIO {
         restClient.performRequest(
             "DELETE",
             "/_search/scroll",
-            Collections.<String, String>emptyMap(),
+            Collections.emptyMap(),
             entity);
       } finally {
         if (restClient != null) {
@@ -860,7 +860,7 @@ public class ElasticsearchIO {
             restClient.performRequest(
                 "POST",
                 endPoint,
-                Collections.<String, String>emptyMap(),
+                Collections.emptyMap(),
                 requestBody);
         checkForErrors(response, backendVersion);
       }

@@ -123,7 +123,7 @@ public class HadoopInputFormatIOIT {
   public void readUsingHadoopInputFormat() {
     writePipeline.apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
         .apply("Produce db rows", ParDo.of(new DeterministicallyConstructTestRowFn()))
-        .apply("Prevent fusion before writing", Reshuffle.<TestRow>viaRandomKey())
+        .apply("Prevent fusion before writing", Reshuffle.viaRandomKey())
         .apply("Write using JDBCIO", JdbcIO.<TestRow>write()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
             .withStatement(String.format("insert into %s values(?, ?)", tableName))
@@ -135,7 +135,7 @@ public class HadoopInputFormatIOIT {
         .apply("Read using HadoopInputFormat", HadoopInputFormatIO
             .<LongWritable, TestRowDBWritable>read()
             .withConfiguration(hadoopConfiguration.get()))
-        .apply("Get values only", Values.<TestRowDBWritable>create())
+        .apply("Get values only", Values.create())
         .apply("Values as string", ParDo.of(new SelectNameFn()))
         .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 

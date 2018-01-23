@@ -341,7 +341,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       context.output(
           KV.of(
               context.element(),
-              invoker.<RestrictionT>invokeGetInitialRestriction(context.element())));
+              invoker.invokeGetInitialRestriction(context.element())));
     }
   }
 

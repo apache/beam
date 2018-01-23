@@ -39,7 +39,7 @@ public class DataflowPipelineRegistrar {
   public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(
+      return ImmutableList.of(
           DataflowPipelineOptions.class);
     }
   }
@@ -51,7 +51,7 @@ public class DataflowPipelineRegistrar {
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
+      return ImmutableList.of(
           DataflowRunner.class, TestDataflowRunner.class);
     }
   }

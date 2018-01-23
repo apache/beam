@@ -91,7 +91,7 @@ class WindowEvaluatorFactory implements TransformEvaluatorFactory {
       for (WindowedValue<InputT> element : compressedElement.explodeWindows()) {
         Collection<? extends BoundedWindow> windows = assignWindows(windowFn, element);
         outputBundle.add(
-            WindowedValue.<InputT>of(
+            WindowedValue.of(
                 element.getValue(), element.getTimestamp(), windows, element.getPane()));
       }
     }

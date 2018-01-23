@@ -97,7 +97,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
           if (traceTuples) {
             LOG.debug("\nemitting watermark {}\n", mark.getTimestamp());
           }
-          output.emit(ApexStreamTuple.WatermarkTuple.<WindowedValue<KV<K, Iterable<V>>>>of(
+          output.emit(ApexStreamTuple.WatermarkTuple.of(
               mark.getTimestamp()));
           return;
         }
@@ -194,7 +194,7 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
           }
         },
         NullSideInputReader.empty(),
-        SystemReduceFn.<K, V, BoundedWindow>buffering(this.valueCoder),
+        SystemReduceFn.buffering(this.valueCoder),
         serializedOptions.get());
   }
 

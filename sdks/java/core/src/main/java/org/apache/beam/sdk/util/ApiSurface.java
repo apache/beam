@@ -196,7 +196,7 @@ public class ApiSurface {
         final ImmutableList<String> messages =
             FluentIterable.from(abandonedClassMatchers)
                 .transform(toMessage)
-                .toSortedList(Ordering.<String>natural());
+                .toSortedList(Ordering.natural());
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
@@ -234,7 +234,7 @@ public class ApiSurface {
 
         final ImmutableList<String> messages =
             FluentIterable.from(Maps.transformEntries(exposures, toMessage).values())
-                .toSortedList(Ordering.<String>natural());
+                .toSortedList(Ordering.natural());
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
@@ -280,7 +280,7 @@ public class ApiSurface {
   /** Returns an empty {@link ApiSurface}. */
   public static ApiSurface empty() {
     LOG.debug("Returning an empty ApiSurface");
-    return new ApiSurface(Collections.<Class<?>>emptySet(), Collections.<Pattern>emptySet());
+    return new ApiSurface(Collections.emptySet(), Collections.emptySet());
   }
 
   /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */

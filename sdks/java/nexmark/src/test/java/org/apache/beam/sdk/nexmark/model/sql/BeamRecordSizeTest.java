@@ -60,7 +60,7 @@ public class BeamRecordSizeTest {
       .withVarcharField("f_varchar")
       .build();
 
-  private static final List<Object> VALUES = ImmutableList.<Object>of(
+  private static final List<Object> VALUES = ImmutableList.of(
       (byte) 1,
       (short) 2,
       (int) 3,

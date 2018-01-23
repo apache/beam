@@ -277,7 +277,7 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testReadValidationFailsMissingConfiguration() {
-    HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read();
+    HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.read();
     thrown.expect(IllegalArgumentException.class);
     read.validateTransform();
   }

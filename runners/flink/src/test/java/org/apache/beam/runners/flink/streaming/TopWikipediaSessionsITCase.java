@@ -113,9 +113,9 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
         }
       }))
 
-      .apply(Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(1))))
+      .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))))
 
-      .apply(Count.<String>perElement());
+      .apply(Count.perElement());
 
     PCollection<String> format = output.apply(ParDo.of(new DoFn<KV<String, Long>, String>() {
       @ProcessElement

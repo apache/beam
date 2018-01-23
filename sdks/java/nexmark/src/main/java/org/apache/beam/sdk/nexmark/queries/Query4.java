@@ -90,7 +90,7 @@ public class Query4 extends NexmarkQuery {
                 }))
 
         // Re-window so we can calculate a sliding average
-        .apply(Window.<KV<Long, Long>>into(
+        .apply(Window.into(
             SlidingWindows.of(Duration.standardSeconds(configuration.windowSizeSec))
                 .every(Duration.standardSeconds(configuration.windowPeriodSec))))
 

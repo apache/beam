@@ -71,7 +71,7 @@ public class ValueProvidersTest {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
     String serializedOptions = MAPPER.writeValueAsString(submitOptions);
     String updatedOptions = ValueProviders.updateSerializedOptions(
-      serializedOptions, ImmutableMap.<String, String>of());
+      serializedOptions, ImmutableMap.of());
     TestOptions runtime = MAPPER.readValue(updatedOptions, PipelineOptions.class)
       .as(TestOptions.class);
     assertNull(runtime.getString());

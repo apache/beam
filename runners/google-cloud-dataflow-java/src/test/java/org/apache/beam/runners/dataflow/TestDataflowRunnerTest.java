@@ -231,7 +231,7 @@ public class TestDataflowRunnerTest {
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
 
     when(mockClient.getJobMetrics(anyString()))
-        .thenReturn(generateMockStreamingMetricResponse(ImmutableMap.<String, BigDecimal>of()));
+        .thenReturn(generateMockStreamingMetricResponse(ImmutableMap.of()));
     TestDataflowRunner runner = TestDataflowRunner.fromOptionsAndClient(options, mockClient);
     runner.run(p, mockRunner);
   }
@@ -258,7 +258,7 @@ public class TestDataflowRunnerTest {
     MetricStructuredName name = new MetricStructuredName();
     name.setName(success ? "PAssertSuccess" : "PAssertFailure");
     name.setContext(
-        tentative ? ImmutableMap.of("tentative", "") : ImmutableMap.<String, String>of());
+        tentative ? ImmutableMap.of("tentative", "") : ImmutableMap.of());
 
     MetricUpdate metric = new MetricUpdate();
     metric.setName(name);

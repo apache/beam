@@ -157,7 +157,7 @@ public class WriteWithShardingFactoryTest implements Serializable {
             PTransform<PCollection<Object>, WriteFilesResult<Void>>>
         originalApplication =
             AppliedPTransform.of(
-                "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
+                "write", objs.expand(), Collections.emptyMap(), original, p);
 
     assertThat(
         factory.getReplacementTransform(originalApplication).getTransform(),

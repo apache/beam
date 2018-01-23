@@ -88,7 +88,7 @@ public class FlatMapElementsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testFlatMapBasicWithSideInput() throws Exception {
     final PCollectionView<Integer> view =
-        pipeline.apply("Create base", Create.of(40)).apply(View.<Integer>asSingleton());
+        pipeline.apply("Create base", Create.of(40)).apply(View.asSingleton());
     PCollection<Integer> output =
         pipeline
             .apply(Create.of(0, 1, 2))
@@ -137,7 +137,7 @@ public class FlatMapElementsTest implements Serializable {
   private static class PolymorphicSimpleFunction<T> extends SimpleFunction<T, Iterable<T>> {
     @Override
     public Iterable<T> apply(T input) {
-      return Collections.<T>emptyList();
+      return Collections.emptyList();
     }
   }
 
@@ -200,7 +200,7 @@ public class FlatMapElementsTest implements Serializable {
   public void testVoidValues() throws Exception {
     pipeline
         .apply(Create.of("hello"))
-        .apply(WithKeys.<String, String>of("k"))
+        .apply(WithKeys.of("k"))
         .apply(new VoidValues<String, String>() {});
     // Make sure the pipeline runs
     pipeline.run();

@@ -44,9 +44,9 @@ public class CollectionCoderTest {
 
   private static final Coder<Collection<Integer>> TEST_CODER = CollectionCoder.of(VarIntCoder.of());
 
-  private static final List<Collection<Integer>> TEST_VALUES = Arrays.<Collection<Integer>>asList(
-      Collections.<Integer>emptyList(),
-      Collections.<Integer>emptySet(),
+  private static final List<Collection<Integer>> TEST_VALUES = Arrays.asList(
+      Collections.emptyList(),
+      Collections.emptySet(),
       Collections.singletonList(13),
       Arrays.asList(1, 2, 3, 4),
       new LinkedList<>(Arrays.asList(7, 6, 5)),

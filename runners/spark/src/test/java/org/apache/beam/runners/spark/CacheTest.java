@@ -44,11 +44,11 @@ public class CacheTest {
     Pipeline pipeline = Pipeline.create(options);
     PCollection<String> pCollection = pipeline.apply(Create.of("foo", "bar"));
     // first read
-    pCollection.apply(Count.<String>globally());
+    pCollection.apply(Count.globally());
     // second read
     // as we access the same PCollection two times, the Spark runner does optimization and so
     // will cache the RDD representing this PCollection
-    pCollection.apply(Count.<String>globally());
+    pCollection.apply(Count.globally());
 
     JavaSparkContext jsc = SparkContextFactory.getSparkContext(options);
     EvaluationContext ctxt = new EvaluationContext(jsc, pipeline, options);

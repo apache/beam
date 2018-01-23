@@ -136,17 +136,17 @@ public class CloudObjectsTest {
               .add(NullableCoder.of(IntervalWindow.getCoder()))
               .add(
                   UnionCoder.of(
-                      ImmutableList.<Coder<?>>of(
+                      ImmutableList.of(
                           VarLongCoder.of(),
                           ByteArrayCoder.of(),
                           KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()))))
               .add(
                   CoGbkResultCoder.of(
                       CoGbkResultSchema.of(
-                          ImmutableList.<TupleTag<?>>of(
+                          ImmutableList.of(
                               new TupleTag<Long>(), new TupleTag<byte[]>())),
                       UnionCoder.of(
-                          ImmutableList.<Coder<?>>of(VarLongCoder.of(), ByteArrayCoder.of()))));
+                          ImmutableList.of(VarLongCoder.of(), ByteArrayCoder.of()))));
       for (Class<? extends Coder> atomicCoder :
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());

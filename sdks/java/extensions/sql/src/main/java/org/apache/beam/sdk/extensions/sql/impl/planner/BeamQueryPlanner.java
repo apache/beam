@@ -91,7 +91,7 @@ public class BeamQueryPlanner {
     List<SqlOperatorTable> sqlOperatorTables = new ArrayList<>();
     sqlOperatorTables.add(SqlStdOperatorTable.instance());
     sqlOperatorTables.add(new CalciteCatalogReader(CalciteSchema.from(schema), false,
-        Collections.<String>emptyList(), TYPE_FACTORY));
+        Collections.emptyList(), TYPE_FACTORY));
 
     FrameworkConfig config = Frameworks.newConfigBuilder()
         .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build()).defaultSchema(schema)

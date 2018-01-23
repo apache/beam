@@ -104,9 +104,9 @@ public class WatchTest implements Serializable {
   @Category({NeedsRunner.class, UsesSplittableParDo.class})
   public void testSinglePollMultipleInputsWithSideInput() {
     final PCollectionView<String> moo =
-        p.apply("moo", Create.of("moo")).apply("moo singleton", View.<String>asSingleton());
+        p.apply("moo", Create.of("moo")).apply("moo singleton", View.asSingleton());
     final PCollectionView<String> zoo =
-        p.apply("zoo", Create.of("zoo")).apply("zoo singleton", View.<String>asSingleton());
+        p.apply("zoo", Create.of("zoo")).apply("zoo singleton", View.asSingleton());
     PCollection<KV<String, String>> res =
         p.apply("input", Create.of("a", "b"))
             .apply(
@@ -155,7 +155,7 @@ public class WatchTest implements Serializable {
                             standardSeconds(3) /* timeToDeclareOutputFinal */,
                             standardSeconds(30) /* timeToFail */))
                     .withTerminationPerInput(
-                        Watch.Growth.<String>afterTotalOf(
+                        Watch.Growth.afterTotalOf(
                             standardSeconds(
                                 // At 2 seconds, all output has been yielded, but not yet
                                 // declared final - so polling should terminate per termination
@@ -166,7 +166,7 @@ public class WatchTest implements Serializable {
                                 terminationConditionElapsesBeforeOutputIsFinal ? 2 : 100)))
                     .withPollInterval(Duration.millis(300))
                     .withOutputCoder(VarIntCoder.of()))
-            .apply("Drop input", Values.<Integer>create());
+            .apply("Drop input", Values.create());
 
     PAssert.that(res).containsInAnyOrder(all);
 
@@ -202,7 +202,7 @@ public class WatchTest implements Serializable {
         p.apply(Create.of("a"))
             .apply(
                 Watch.growthOf(
-                        Contextful.<PollFn<String, KV<Integer, String>>>of(
+                        Contextful.of(
                             new TimedPollFn<String, KV<Integer, String>>(
                                 polls,
                                 standardSeconds(1) /* timeToOutputEverything */,
@@ -210,11 +210,11 @@ public class WatchTest implements Serializable {
                                 standardSeconds(30) /* timeToFail */),
                             Requirements.empty()),
                         input -> input.getKey())
-                    .withTerminationPerInput(Watch.Growth.<String>afterTotalOf(standardSeconds(5)))
+                    .withTerminationPerInput(Watch.Growth.afterTotalOf(standardSeconds(5)))
                     .withPollInterval(Duration.millis(100))
                     .withOutputCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
-            .apply("Drop input", Values.<KV<Integer, String>>create())
-            .apply("Drop auxiliary string", Keys.<Integer>create());
+            .apply("Drop input", Values.create())
+            .apply("Drop auxiliary string", Keys.create());
 
     PAssert.that(res).containsInAnyOrder(expected);
 
@@ -239,10 +239,10 @@ public class WatchTest implements Serializable {
                             standardSeconds(30) /* timeToFail */))
                     // Should terminate after 4 seconds - earlier than timeToFail
                     .withTerminationPerInput(
-                        Watch.Growth.<String>afterTimeSinceNewOutput(standardSeconds(3)))
+                        Watch.Growth.afterTimeSinceNewOutput(standardSeconds(3)))
                     .withPollInterval(Duration.millis(300))
                     .withOutputCoder(VarIntCoder.of()))
-            .apply("Drop input", Values.<Integer>create());
+            .apply("Drop input", Values.create());
 
     PAssert.that(res).containsInAnyOrder(all);
 
@@ -270,18 +270,18 @@ public class WatchTest implements Serializable {
                             return PollResult.complete(Instant.now(), output);
                           }
                         })
-                    .withTerminationPerInput(Watch.Growth.<String>afterTotalOf(standardSeconds(1)))
+                    .withTerminationPerInput(Watch.Growth.afterTotalOf(standardSeconds(1)))
                     .withPollInterval(Duration.millis(1))
                     .withOutputCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-            .apply("Drop input", Values.<KV<String, Integer>>create());
+            .apply("Drop input", Values.create());
 
-    PAssert.that("Poll called only once", res.apply(Keys.<String>create()))
+    PAssert.that("Poll called only once", res.apply(Keys.create()))
         .satisfies(
             pollIds -> {
               assertEquals(1, Sets.newHashSet(pollIds).size());
               return null;
             });
-    PAssert.that("Yields all expected results", res.apply("Drop poll id", Values.<Integer>create()))
+    PAssert.that("Yields all expected results", res.apply("Drop poll id", Values.create()))
         .satisfies(
             input -> {
               assertEquals(
@@ -315,8 +315,8 @@ public class WatchTest implements Serializable {
                             standardSeconds(30) /* timeToFail */))
                     .withPollInterval(Duration.millis(500))
                     .withOutputCoder(VarIntCoder.of()))
-            .apply(Reify.<String, Integer>timestampsInValue())
-            .apply("Drop timestamped input", Values.<TimestampedValue<Integer>>create());
+            .apply(Reify.timestampsInValue())
+            .apply("Drop timestamped input", Values.create());
 
     PAssert.that(res)
         .satisfies(
@@ -480,7 +480,7 @@ public class WatchTest implements Serializable {
   private static GrowthTracker<String, String, Integer> newTracker(
       GrowthState<String, String, Integer> state) {
     return new GrowthTracker<>(
-        SerializableFunctions.<String>identity(), StringUtf8Coder.of(), state, never());
+        SerializableFunctions.identity(), StringUtf8Coder.of(), state, never());
   }
 
   private static GrowthTracker<String, String, Integer> newTracker() {
@@ -498,7 +498,7 @@ public class WatchTest implements Serializable {
     assertEquals(
         primary.toString(condition),
         new GrowthState<>(
-                Collections.<HashCode, Instant>emptyMap() /* completed */,
+                Collections.emptyMap() /* completed */,
                 Collections.<TimestampedValue<String>>emptyList() /* pending */,
                 true /* isOutputFinal */,
                 (Integer) null /* terminationState */,
@@ -507,7 +507,7 @@ public class WatchTest implements Serializable {
     assertEquals(
         residual.toString(condition),
         new GrowthState<>(
-                Collections.<HashCode, Instant>emptyMap() /* completed */,
+                Collections.emptyMap() /* completed */,
                 Collections.<TimestampedValue<String>>emptyList() /* pending */,
                 false /* isOutputFinal */,
                 0 /* terminationState */,
@@ -777,13 +777,13 @@ public class WatchTest implements Serializable {
     {
       GrowthTracker<String, String, Integer> tracker = newTracker();
       tracker.addNewAsPending(
-          PollResult.incomplete(Collections.<TimestampedValue<String>>emptyList()));
+          PollResult.incomplete(Collections.emptyList()));
       assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, tracker.getWatermark());
 
       // Simulate resuming from the checkpoint but there are still no new elements.
       GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
       tracker.addNewAsPending(
-          PollResult.incomplete(Collections.<TimestampedValue<String>>emptyList()));
+          PollResult.incomplete(Collections.emptyList()));
       // No new elements and no explicit watermark supplied - still no watermark.
       assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, residualTracker.getWatermark());
     }
@@ -799,7 +799,7 @@ public class WatchTest implements Serializable {
       // Simulate resuming from the checkpoint but there are still no new elements.
       GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
       tracker.addNewAsPending(
-          PollResult.incomplete(Collections.<TimestampedValue<String>>emptyList()));
+          PollResult.incomplete(Collections.emptyList()));
       // No new elements and no explicit watermark supplied - should keep old watermark.
       assertEquals(now, residualTracker.getWatermark());
     }

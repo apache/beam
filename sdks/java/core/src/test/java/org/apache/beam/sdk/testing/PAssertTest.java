@@ -223,7 +223,7 @@ public class PAssertTest implements Serializable {
             TimestampedValue.of(new NotSerializableObject(), new Instant(250L)),
             TimestampedValue.of(new NotSerializableObject(), new Instant(500L)))
             .withCoder(NotSerializableObjectCoder.of()))
-        .apply(Window.<NotSerializableObject>into(FixedWindows.of(Duration.millis(300L))));
+        .apply(Window.into(FixedWindows.of(Duration.millis(300L))));
 
     PAssert.that(pcollection)
         .inWindow(new IntervalWindow(new Instant(0L), new Instant(300L)))
@@ -319,7 +319,7 @@ public class PAssertTest implements Serializable {
     PCollection<Integer> pcollection =
         pipeline.apply(Create.timestamped(TimestampedValue.of(43, new Instant(250L)),
             TimestampedValue.of(22, new Instant(-250L))))
-            .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(500L))));
+            .apply(Window.into(FixedWindows.of(Duration.millis(500L))));
     PAssert.thatSingleton(pcollection)
         .inOnlyPane(new IntervalWindow(new Instant(0L), new Instant(500L)))
         .isEqualTo(43);
@@ -409,7 +409,7 @@ public class PAssertTest implements Serializable {
             TimestampedValue.of(2, new Instant(200L)),
             TimestampedValue.of(3, new Instant(300L)),
             TimestampedValue.of(4, new Instant(400L))))
-            .apply(Window.<Integer>into(SlidingWindows.of(Duration.millis(200L))
+            .apply(Window.into(SlidingWindows.of(Duration.millis(200L))
                 .every(Duration.millis(100L))
                 .withOffset(Duration.millis(50L))));
 

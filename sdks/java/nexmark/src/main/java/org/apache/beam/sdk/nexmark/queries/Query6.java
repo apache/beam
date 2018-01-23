@@ -136,7 +136,7 @@ public class Query6 extends NexmarkQuery {
                 .withAllowedLateness(Duration.ZERO))
 
         // Find the average of last 10 winning bids for each seller.
-        .apply(Combine.<Long, Bid, Long>perKey(new MovingMeanSellingPrice(10)))
+        .apply(Combine.perKey(new MovingMeanSellingPrice(10)))
 
         // Project into our datatype.
         .apply(name + ".Select",

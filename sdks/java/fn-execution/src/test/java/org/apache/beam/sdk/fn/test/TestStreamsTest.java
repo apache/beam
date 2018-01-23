@@ -80,6 +80,6 @@ public class TestStreamsTest {
         .withOnError(item -> onErrorWasCalled.add(item))
         .build()
         .onError(throwable);
-    assertThat(onErrorWasCalled, Matchers.<Throwable>contains(throwable));
+    assertThat(onErrorWasCalled, Matchers.contains(throwable));
   }
 }

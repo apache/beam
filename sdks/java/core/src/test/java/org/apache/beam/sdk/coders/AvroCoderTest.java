@@ -370,8 +370,8 @@ public class AvroCoderTest {
       coder.verifyDeterministic();
       fail("Expected " + coder + " to be non-deterministic.");
     } catch (NonDeterministicException e) {
-      assertThat(e.getReasons(), Matchers.<String>iterableWithSize(1));
-      assertThat(e.getReasons(), Matchers.<String>contains(reason1));
+      assertThat(e.getReasons(), Matchers.iterableWithSize(1));
+      assertThat(e.getReasons(), Matchers.contains(reason1));
     }
   }
 

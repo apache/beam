@@ -156,7 +156,7 @@ public class PubsubJsonClientTest {
                                 .execute()))
            .thenReturn(expectedResponse);
     OutgoingMessage actualMessage = new OutgoingMessage(
-        DATA.getBytes(), ImmutableMap.<String, String>of(), MESSAGE_TIME, RECORD_ID);
+        DATA.getBytes(), ImmutableMap.of(), MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }

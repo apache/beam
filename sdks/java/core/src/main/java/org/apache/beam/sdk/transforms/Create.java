@@ -116,7 +116,7 @@ public class Create<T> {
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   public static <T> Values<T> of(Iterable<T> elems) {
-    return new Values<>(elems, Optional.<Coder<T>>absent(), Optional.<TypeDescriptor<T>>absent());
+    return new Values<>(elems, Optional.absent(), Optional.absent());
   }
 
   /**
@@ -157,7 +157,7 @@ public class Create<T> {
    */
   public static <T> Values<T> empty(Coder<T> coder) {
     return new Values<>(new ArrayList<T>(), Optional.of(coder),
-        Optional.<TypeDescriptor<T>>absent());
+        Optional.absent());
   }
 
   /**
@@ -174,7 +174,7 @@ public class Create<T> {
    * {@code TypeDescriptor<T>}.
    */
   public static <T> Values<T> empty(TypeDescriptor<T> type) {
-    return new Values<>(new ArrayList<T>(), Optional.<Coder<T>>absent(), Optional.of(type));
+    return new Values<>(new ArrayList<T>(), Optional.absent(), Optional.of(type));
   }
 
   /**
@@ -224,8 +224,8 @@ public class Create<T> {
   public static <T> TimestampedValues<T> timestamped(Iterable<TimestampedValue<T>> elems) {
     return new TimestampedValues<>(
         elems,
-        Optional.<Coder<T>>absent(),
-        Optional.<TypeDescriptor<T>>absent());
+        Optional.absent(),
+        Optional.absent());
   }
 
   /**

@@ -684,7 +684,7 @@ public class BigQueryIO {
         final String staticJobUuid = BigQueryHelpers.randomUUIDString();
         jobIdTokenView =
             p.apply("TriggerIdCreation", Create.of(staticJobUuid))
-                .apply("ViewId", View.<String>asSingleton());
+                .apply("ViewId", View.asSingleton());
         // Apply the traditional Source model.
         rows = p.apply(org.apache.beam.sdk.io.Read.from(createSource(staticJobUuid, coder)));
       } else {
@@ -700,7 +700,7 @@ public class BigQueryIO {
                             return BigQueryHelpers.randomUUIDString();
                           }
                         }));
-        jobIdTokenView = jobIdTokenCollection.apply("ViewId", View.<String>asSingleton());
+        jobIdTokenView = jobIdTokenCollection.apply("ViewId", View.asSingleton());
 
         final TupleTag<String> filesTag = new TupleTag<>();
         final TupleTag<String> tableSchemaTag = new TupleTag<>();
@@ -725,11 +725,11 @@ public class BigQueryIO {
         tuple.get(filesTag).setCoder(StringUtf8Coder.of());
         tuple.get(tableSchemaTag).setCoder(StringUtf8Coder.of());
         final PCollectionView<String> schemaView =
-            tuple.get(tableSchemaTag).apply(View.<String>asSingleton());
+            tuple.get(tableSchemaTag).apply(View.asSingleton());
         rows =
             tuple
                 .get(filesTag)
-                .apply(Reshuffle.<String>viaRandomKey())
+                .apply(Reshuffle.viaRandomKey())
                 .apply(
                     "ReadFiles",
                     ParDo.of(

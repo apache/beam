@@ -978,7 +978,7 @@ public class TextIO {
     @VisibleForTesting TypedWrite<String, ?> inner;
 
     Write() {
-      this(TextIO.<String>writeCustomType());
+      this(TextIO.writeCustomType());
     }
 
     Write(TypedWrite<String, ?> inner) {
@@ -988,20 +988,20 @@ public class TextIO {
     /** See {@link TypedWrite#to(String)}. */
     public Write to(String filenamePrefix) {
       return new Write(
-          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.<String>identity()));
+          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ResourceId)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write to(ResourceId filenamePrefix) {
       return new Write(
-          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.<String>identity()));
+          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ValueProvider)}. */
     public Write to(ValueProvider<String> outputPrefix) {
       return new Write(
-          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.<String>identity()));
+          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#toResource(ValueProvider)}. */
@@ -1010,14 +1010,14 @@ public class TextIO {
       return new Write(
           inner
               .toResource(filenamePrefix)
-              .withFormatFunction(SerializableFunctions.<String>identity()));
+              .withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(FilenamePolicy)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write to(FilenamePolicy filenamePolicy) {
       return new Write(
-          inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.<String>identity()));
+          inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /**
@@ -1046,7 +1046,7 @@ public class TextIO {
       return new Write(
           inner
               .to(destinationFunction, emptyDestination)
-              .withFormatFunction(SerializableFunctions.<String>identity()));
+              .withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */

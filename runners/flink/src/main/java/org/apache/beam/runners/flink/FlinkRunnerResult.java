@@ -40,7 +40,7 @@ public class FlinkRunnerResult implements PipelineResult {
 
   FlinkRunnerResult(Map<String, Object> accumulators, long runtime) {
     this.accumulators = (accumulators == null || accumulators.isEmpty())
-        ? Collections.<String, Object>emptyMap()
+        ? Collections.emptyMap()
         : Collections.unmodifiableMap(accumulators);
     this.runtime = runtime;
   }

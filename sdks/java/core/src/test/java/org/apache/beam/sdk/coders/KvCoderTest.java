@@ -68,7 +68,7 @@ public class KvCoderTest {
               Arrays.asList(KV.of("", -1), KV.of("hello", 0), KV.of("goodbye", Integer.MAX_VALUE))),
           coderAndData(
               ListCoder.of(VarLongCoder.of()),
-              Arrays.asList(Arrays.asList(1L, 2L, 3L), Collections.<Long>emptyList())));
+              Arrays.asList(Arrays.asList(1L, 2L, 3L), Collections.emptyList())));
 
   @Test
   @SuppressWarnings("rawtypes")

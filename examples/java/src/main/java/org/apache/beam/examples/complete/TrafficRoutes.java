@@ -297,7 +297,7 @@ public class TrafficRoutes {
       // Apply a GroupByKey transform to collect a list of all station
       // readings for a given route.
       PCollection<KV<String, Iterable<StationSpeed>>> timeGroup = stationSpeed.apply(
-        GroupByKey.<String, StationSpeed>create());
+        GroupByKey.create());
 
       // Analyze 'slowdown' over the route readings.
       PCollection<KV<String, RouteInfo>> stats = timeGroup.apply(ParDo.of(new GatherStats()));
@@ -374,7 +374,7 @@ public class TrafficRoutes {
         // row... => <station route, station speed> ...
         .apply(ParDo.of(new ExtractStationSpeedFn()))
         // map the incoming data stream into sliding windows.
-        .apply(Window.<KV<String, StationSpeed>>into(SlidingWindows.of(
+        .apply(Window.into(SlidingWindows.of(
             Duration.standardMinutes(options.getWindowDuration())).
             every(Duration.standardMinutes(options.getWindowSlideEvery()))))
         .apply(new TrackSpeed())

@@ -56,12 +56,12 @@ public class ViewEvaluatorFactoryTest {
   @Test
   public void testInMemoryEvaluator() throws Exception {
     PCollection<String> input = p.apply(Create.of("foo", "bar"));
-    PCollectionView<Iterable<String>> pCollectionView = input.apply(View.<String>asIterable());
+    PCollectionView<Iterable<String>> pCollectionView = input.apply(View.asIterable());
     PCollection<Iterable<String>> concat =
-        input.apply(WithKeys.<Void, String>of((Void) null))
+        input.apply(WithKeys.of((Void) null))
             .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
-            .apply(GroupByKey.<Void, String>create())
-            .apply(Values.<Iterable<String>>create());
+            .apply(GroupByKey.create())
+            .apply(Values.create());
     PCollection<Iterable<String>> view =
         concat.apply(
             new ViewOverrideFactory.WriteView<String, Iterable<String>>(pCollectionView));
@@ -77,7 +77,7 @@ public class ViewEvaluatorFactoryTest {
             .forApplication(producer, inputBundle);
 
     evaluator.processElement(
-        WindowedValue.<Iterable<String>>valueInGlobalWindow(ImmutableList.of("foo", "bar")));
+        WindowedValue.valueInGlobalWindow(ImmutableList.of("foo", "bar")));
     assertThat(viewWriter.latest, nullValue());
 
     evaluator.finishBundle();

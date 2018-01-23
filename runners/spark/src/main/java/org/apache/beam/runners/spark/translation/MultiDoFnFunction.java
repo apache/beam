@@ -150,7 +150,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     return new SparkProcessContext<>(
         doFn, doFnRunnerWithMetrics, outputManager,
         stateful ? new TimerDataIterator(timerInternals) :
-            Collections.<TimerInternals.TimerData>emptyIterator()).processPartition(iter)
+            Collections.emptyIterator()).processPartition(iter)
               .iterator();
   }
 
@@ -217,7 +217,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     @Override
     public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> iterator() {
       Iterator<Map.Entry<TupleTag<?>, WindowedValue<?>>> entryIter = outputs.entries().iterator();
-      return Iterators.transform(entryIter, this.<TupleTag<?>, WindowedValue<?>>entryToTupleFn());
+      return Iterators.transform(entryIter, this.entryToTupleFn());
     }
 
     private <K, V> Function<Map.Entry<K, V>, Tuple2<K, V>> entryToTupleFn() {

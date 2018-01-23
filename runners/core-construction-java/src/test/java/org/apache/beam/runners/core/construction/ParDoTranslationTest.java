@@ -86,11 +86,11 @@ public class ParDoTranslationTest {
 
     private static PCollectionView<Long> singletonSideInput =
         p.apply("GenerateSingleton", GenerateSequence.from(0L).to(1L))
-            .apply(View.<Long>asSingleton());
+            .apply(View.asSingleton());
     private static PCollectionView<Map<Long, Iterable<String>>> multimapSideInput =
         p.apply("CreateMultimap", Create.of(KV.of(1L, "foo"), KV.of(1L, "bar"), KV.of(2L, "spam")))
             .setCoder(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
-            .apply(View.<Long, String>asMultimap());
+            .apply(View.asMultimap());
 
     private static PCollection<KV<Long, String>> mainInput =
         p.apply(
@@ -98,7 +98,7 @@ public class ParDoTranslationTest {
 
     @Parameters(name = "{index}: {0}")
     public static Iterable<ParDo.MultiOutput<?, ?>> data() {
-      return ImmutableList.<ParDo.MultiOutput<?, ?>>of(
+      return ImmutableList.of(
           ParDo.of(new DropElementsFn()).withOutputTags(new TupleTag<Void>(), TupleTagList.empty()),
           ParDo.of(new DropElementsFn())
               .withOutputTags(new TupleTag<Void>(), TupleTagList.empty())
@@ -126,10 +126,10 @@ public class ParDoTranslationTest {
       SdkComponents components = SdkComponents.create();
       ParDoPayload payload = ParDoTranslation.translateParDo(parDo, components);
 
-      assertThat(ParDoTranslation.getDoFn(payload), Matchers.<DoFn<?, ?>>equalTo(parDo.getFn()));
+      assertThat(ParDoTranslation.getDoFn(payload), Matchers.equalTo(parDo.getFn()));
       assertThat(
           ParDoTranslation.getMainOutputTag(payload),
-          Matchers.<TupleTag<?>>equalTo(parDo.getMainOutputTag()));
+          Matchers.equalTo(parDo.getMainOutputTag()));
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
@@ -168,16 +168,16 @@ public class ParDoTranslationTest {
                 protoTransform,
                 rehydratedComponents);
         assertThat(restoredView.getTagInternal(),
-            Matchers.<TupleTag<?>>equalTo(view.getTagInternal()));
+            Matchers.equalTo(view.getTagInternal()));
         assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
         assertThat(
             restoredView.getWindowMappingFn(), instanceOf(view.getWindowMappingFn().getClass()));
         assertThat(
             restoredView.getWindowingStrategyInternal(),
-            Matchers.<WindowingStrategy<?, ?>>equalTo(
+            Matchers.equalTo(
                 view.getWindowingStrategyInternal().fixDefaults()));
         assertThat(restoredView.getCoderInternal(),
-            Matchers.<Coder<?>>equalTo(view.getCoderInternal()));
+            Matchers.equalTo(view.getCoderInternal()));
       }
       String mainInputId = sdkComponents.registerPCollection(mainInput);
       assertThat(
@@ -217,7 +217,7 @@ public class ParDoTranslationTest {
       StateSpec<?> deserializedStateSpec =
           ParDoTranslation.fromProto(stateSpecProto, rehydratedComponents);
 
-      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+      assertThat(stateSpec, Matchers.equalTo(deserializedStateSpec));
     }
   }
 

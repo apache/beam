@@ -101,7 +101,7 @@ public final class StreamingTransformTranslator {
         @SuppressWarnings("unchecked")
         JavaDStream<WindowedValue<T>> dstream =
             ((UnboundedDataset<T>) (context).borrowDataset(transform)).getDStream();
-        dstream.map(WindowingHelpers.<T>unwindowFunction()).print(transform.getNum());
+        dstream.map(WindowingHelpers.unwindowFunction()).print(transform.getNum());
       }
 
       @Override
@@ -194,7 +194,7 @@ public final class StreamingTransformTranslator {
             ? new JavaInputDStream<>(
                 new WatermarkSyncedDStream<>(
                     rddQueue, transform.getBatchDuration(), context.getStreamingContext().ssc()),
-                JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag())
+                JavaSparkContext$.MODULE$.fakeClassTag())
             : context.getStreamingContext().queueStream(rddQueue, true);
       }
 

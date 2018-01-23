@@ -63,7 +63,7 @@ public class MinimalWordCountJava8Test implements Serializable {
          .into(TypeDescriptors.strings())
          .via((String word) -> Arrays.asList(word.split("[^a-zA-Z']+"))))
      .apply(Filter.by((String word) -> !word.isEmpty()))
-     .apply(Count.<String>perElement())
+     .apply(Count.perElement())
      .apply(MapElements
          .into(TypeDescriptors.strings())
          .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))

@@ -872,7 +872,7 @@ public class BigtableIOTest {
         .apply(defaultWrite.withTableId(table));
 
     thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(Matchers.<Throwable>instanceOf(IOException.class));
+    thrown.expectCause(Matchers.instanceOf(IOException.class));
     thrown.expectMessage("At least 1 errors occurred writing to Bigtable. First 1 errors:");
     thrown.expectMessage("Error mutating row " + key + " with mutations []: cell value missing");
     p.run();

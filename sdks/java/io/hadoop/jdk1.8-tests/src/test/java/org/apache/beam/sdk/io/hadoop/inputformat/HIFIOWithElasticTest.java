@@ -113,10 +113,10 @@ public class HIFIOWithElasticTest implements Serializable {
     Configuration conf = getConfiguration();
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    PCollection<Long> count = esData.apply(Count.globally());
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PAssert.thatSingleton(count).isEqualTo((long) TEST_DATA_ROW_COUNT);
-    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    PCollection<LinkedMapWritable> values = esData.apply(Values.create());
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
@@ -126,7 +126,7 @@ public class HIFIOWithElasticTest implements Serializable {
   }
 
   MapElements<LinkedMapWritable, String> transformFunc =
-      MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
+      MapElements.via(new SimpleFunction<LinkedMapWritable, String>() {
         @Override
         public String apply(LinkedMapWritable mapw) {
           return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
@@ -155,10 +155,10 @@ public class HIFIOWithElasticTest implements Serializable {
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    PCollection<Long> count = esData.apply(Count.globally());
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PAssert.thatSingleton(count).isEqualTo(expectedRowCount);
-    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    PCollection<LinkedMapWritable> values = esData.apply(Values.create());
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =

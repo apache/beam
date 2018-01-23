@@ -88,7 +88,7 @@ public class GroupIntoBatchesTest implements Serializable {
     PCollection<KV<String, Iterable<String>>> collection =
         pipeline
             .apply("Input data", Create.of(data))
-            .apply(GroupIntoBatches.<String, String>ofSize(BATCH_SIZE))
+            .apply(GroupIntoBatches.ofSize(BATCH_SIZE))
             //set output coder
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
     PAssert.that("Incorrect batch size in one ore more elements", collection)
@@ -112,7 +112,7 @@ public class GroupIntoBatchesTest implements Serializable {
             });
     PAssert.thatSingleton(
             "Incorrect collection size",
-            collection.apply("Count", Count.<KV<String, Iterable<String>>>globally()))
+            collection.apply("Count", Count.globally()))
         .isEqualTo(NUM_ELEMENTS / BATCH_SIZE);
     pipeline.run();
   }
@@ -170,7 +170,7 @@ public class GroupIntoBatchesTest implements Serializable {
 
     PCollection<KV<String, Iterable<String>>> outputCollection =
         inputCollection
-            .apply(GroupIntoBatches.<String, String>ofSize(BATCH_SIZE))
+            .apply(GroupIntoBatches.ofSize(BATCH_SIZE))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
 
     // elements have the same key and collection is divided into windows,
@@ -178,7 +178,7 @@ public class GroupIntoBatchesTest implements Serializable {
     PCollection<KV<String, Long>> countOutput =
         outputCollection.apply(
             "Count elements in windows after applying GroupIntoBatches",
-            Count.<String, Iterable<String>>perKey());
+            Count.perKey());
 
     PAssert.that("Wrong number of elements in windows after GroupIntoBatches", countOutput)
         .satisfies(

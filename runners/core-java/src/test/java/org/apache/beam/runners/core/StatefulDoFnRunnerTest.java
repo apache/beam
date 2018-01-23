@@ -75,7 +75,7 @@ public class StatefulDoFnRunnerTest {
   private InMemoryTimerInternals timerInternals;
 
   private static StateNamespace windowNamespace(IntervalWindow window) {
-    return StateNamespaces.<IntervalWindow>window(
+    return StateNamespaces.window(
         (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder(), window);
   }
 
@@ -201,7 +201,7 @@ public class StatefulDoFnRunnerTest {
         NullSideInputReader.empty(),
         null,
         null,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         mockStepContext,
         WINDOWING_STRATEGY);
   }
