@@ -173,7 +173,7 @@ public class Max {
    */
   public static <T extends Comparable<? super T>>
   Combine.Globally<T, T> globally() {
-    return Combine.globally(Max.naturalOrder());
+    return Combine.globally(Max.<T>naturalOrder());
   }
 
   /**
@@ -186,7 +186,7 @@ public class Max {
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
-    return Combine.perKey(Max.naturalOrder());
+    return Combine.perKey(Max.<T>naturalOrder());
   }
 
   /**
