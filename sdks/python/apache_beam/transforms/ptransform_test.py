@@ -540,17 +540,12 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])
 
-    class SomeDoFn(beam.DoFn):
-      def process(self, element):
-        if len(element) % 2 == 0:
-          yield element
-        else:
-          yield pvalue.TaggedOutput('odd_length', element)
+    def split_even_odd(element):
+      tag = 'even_length' if len(element) % 2 == 0 else 'odd_length'
+      return pvalue.TaggedOutput(tag, element)
 
-    results = (input | 'Split' >> beam.ParDo(SomeDoFn())
-               .with_outputs('odd_length', main='even_length'))
-    even_length = results.even_length
-    odd_length = results.odd_length
+    even_length, odd_length = (input | beam.Map(split_even_odd)
+                               .with_outputs('even_length', 'odd_length'))
     merged = (even_length, odd_length) | 'Flatten' >> beam.Flatten()
 
     assert_that(merged, equal_to(['AA', 'BBB', 'CC']))
