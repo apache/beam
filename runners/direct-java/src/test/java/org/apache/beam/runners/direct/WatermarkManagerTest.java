@@ -1332,6 +1332,103 @@ public class WatermarkManagerTest implements Serializable {
   }
 
   @Test
+  public void processingTimeTimersCanBeReset() {
+    Collection<FiredTimers> initialTimers = manager.extractFiredTimers();
+    assertThat(initialTimers, emptyIterable());
+
+    String timerId = "myTimer";
+    StructuralKey<?> key = StructuralKey.of(-12L, VarLongCoder.of());
+
+    TimerData initialTimer =
+        TimerData.of(timerId, StateNamespaces.global(), new Instant(5000L),
+            TimeDomain.PROCESSING_TIME);
+
+    TimerData overridingTimer =
+        TimerData.of(timerId, StateNamespaces.global(), new Instant(10000L),
+            TimeDomain.PROCESSING_TIME);
+
+    TimerUpdate initialUpdate = TimerUpdate.builder(key).setTimer(initialTimer).build();
+    TimerUpdate overridingUpdate = TimerUpdate.builder(key).setTimer(overridingTimer).build();
+
+    manager.updateWatermarks(
+        null,
+        initialUpdate,
+        result(graph.getProducer(createdInts),
+            null,
+            Collections.<CommittedBundle<?>>emptyList()),
+        new Instant(5000L));
+    manager.refreshAll();
+
+    // This update should override the previous timer.
+    manager.updateWatermarks(null,
+        overridingUpdate,
+        result(graph.getProducer(createdInts),
+            null,
+            Collections.<CommittedBundle<?>>emptyList()),
+        new Instant(10000L));
+
+    // Set clock past the timers.
+    clock.set(new Instant(50000L));
+    manager.refreshAll();
+
+    Collection<FiredTimers> firedTimers =
+        manager.extractFiredTimers();
+    assertThat(firedTimers, not(Matchers.<FiredTimers>emptyIterable()));
+    FiredTimers timers = Iterables.getOnlyElement(firedTimers);
+    assertThat(timers.getTimers(), contains(overridingTimer));
+  }
+
+  @Test
+  public void eventTimeTimersCanBeReset() {
+    Collection<FiredTimers> initialTimers = manager.extractFiredTimers();
+    assertThat(initialTimers, emptyIterable());
+
+    String timerId = "myTimer";
+    StructuralKey<?> key = StructuralKey.of(-12L, VarLongCoder.of());
+
+    TimerData initialTimer = TimerData
+        .of(timerId, StateNamespaces.global(), new Instant(1000L), TimeDomain.EVENT_TIME);
+    TimerData overridingTimer = TimerData
+        .of(timerId, StateNamespaces.global(), new Instant(2000L), TimeDomain.EVENT_TIME);
+
+    TimerUpdate initialUpdate = TimerUpdate.builder(key).setTimer(initialTimer).build();
+    TimerUpdate overridingUpdate = TimerUpdate.builder(key).setTimer(overridingTimer).build();
+
+    CommittedBundle<Integer> createdBundle = multiWindowedBundle(filtered);
+    manager.updateWatermarks(createdBundle,
+        initialUpdate,
+        result(graph.getProducer(filtered),
+            createdBundle.withElements(Collections.<WindowedValue<Integer>>emptyList()),
+            Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten))),
+        new Instant(1000L));
+    manager.refreshAll();
+
+    // This update should override the previous timer.
+    manager.updateWatermarks(createdBundle,
+        overridingUpdate,
+        result(graph.getProducer(filtered),
+            createdBundle.withElements(Collections.<WindowedValue<Integer>>emptyList()),
+            Collections.<CommittedBundle<?>>singleton(multiWindowedBundle(intsToFlatten))),
+        new Instant(1000L));
+    manager.refreshAll();
+
+    // Set WM past the timers.
+    manager.updateWatermarks(null,
+        TimerUpdate.empty(),
+        result(graph.getProducer(createdInts),
+            null,
+            Collections.singleton(createdBundle)),
+        new Instant(3000L));
+    manager.refreshAll();
+
+    Collection<FiredTimers> firstFiredTimers =
+        manager.extractFiredTimers();
+    assertThat(firstFiredTimers, not(Matchers.<FiredTimers>emptyIterable()));
+    FiredTimers firstFired = Iterables.getOnlyElement(firstFiredTimers);
+    assertThat(firstFired.getTimers(), contains(overridingTimer));
+  }
+
+  @Test
   public void timerUpdateBuilderBuildAddsAllAddedTimers() {
     TimerData set = TimerData.of(StateNamespaces.global(), new Instant(10L), TimeDomain.EVENT_TIME);
     TimerData deleted =

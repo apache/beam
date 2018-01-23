@@ -22,8 +22,8 @@ applyJavaNature()
 description = "Apache Beam :: Runners :: Reference :: Java"
 
 dependencies {
-  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
   shadow library.java.slf4j_api
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

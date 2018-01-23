@@ -113,6 +113,12 @@ public class SdkComponents {
     return transformIds.get(appliedPTransform);
   }
 
+  public String getPTransformIdOrThrow(AppliedPTransform<?, ?, ?> appliedPTransform) {
+    String existing = transformIds.get(appliedPTransform);
+    checkArgument(existing != null, "PTransform id not found for: %s", appliedPTransform);
+    return existing;
+  }
+
   /**
    * Registers the provided {@link PCollection} into this {@link SdkComponents}, returning a unique
    * ID for the {@link PCollection}. Multiple registrations of the same {@link PCollection} will

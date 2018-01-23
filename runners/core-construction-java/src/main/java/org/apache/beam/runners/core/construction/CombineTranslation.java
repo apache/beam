@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.COMBINE_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
@@ -26,8 +27,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -49,6 +52,8 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Methods for translating between {@link Combine.PerKey} {@link PTransform PTransforms} and {@link
@@ -91,8 +96,7 @@ public class CombineTranslation {
           "%s received transform with null spec",
           getClass().getSimpleName());
       checkArgument(protoTransform.getSpec().getUrn().equals(COMBINE_TRANSFORM_URN));
-      return new RawCombine<>(
-          CombinePayload.parseFrom(protoTransform.getSpec().getPayload()), rehydratedComponents);
+      return new RawCombine<>(protoTransform, rehydratedComponents);
     }
 
     /** Registers {@link CombinePayloadTranslator}. */
@@ -173,7 +177,7 @@ public class CombineTranslation {
             Map<String, SideInput> sideInputs = new HashMap<>();
             for (PCollectionView<?> sideInput : combine.getTransform().getSideInputs()) {
               sideInputs.put(
-                  sideInput.getTagInternal().getId(), ParDoTranslation.toProto(sideInput));
+                  sideInput.getTagInternal().getId(), ParDoTranslation.translateView(sideInput));
             }
             return sideInputs;
           }
@@ -181,24 +185,52 @@ public class CombineTranslation {
         components);
   }
 
+  public static List<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> application)
+      throws IOException {
+    PTransform<?, ?> transform = application.getTransform();
+    if (transform instanceof Combine.PerKey) {
+      return ((Combine.PerKey<?, ?, ?>) transform).getSideInputs();
+    }
+
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.PTransform combineProto = PTransformTranslation.toProto(application, sdkComponents);
+    CombinePayload payload = CombinePayload.parseFrom(combineProto.getSpec().getPayload());
+
+    List<PCollectionView<?>> views = new ArrayList<>();
+    RehydratedComponents components =
+        RehydratedComponents.forComponents(sdkComponents.toComponents());
+    for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
+      String sideInputTag = sideInputEntry.getKey();
+      RunnerApi.SideInput sideInput = sideInputEntry.getValue();
+      PCollection<?> originalPCollection =
+          checkNotNull(
+              (PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)),
+              "no input with tag %s",
+              sideInputTag);
+      views.add(
+          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection,
+              combineProto, components));
+    }
+    return views;
+  }
+
   private static class RawCombine<K, InputT, AccumT, OutputT>
       extends PTransformTranslation.RawPTransform<
           PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>
       implements CombineLike {
 
+    private final RunnerApi.PTransform protoTransform;
     private final transient RehydratedComponents rehydratedComponents;
     private final FunctionSpec spec;
     private final CombinePayload payload;
     private final Coder<AccumT> accumulatorCoder;
 
-    private RawCombine(CombinePayload payload, RehydratedComponents rehydratedComponents) {
+    private RawCombine(RunnerApi.PTransform protoTransform,
+        RehydratedComponents rehydratedComponents) throws IOException {
+      this.protoTransform = protoTransform;
       this.rehydratedComponents = rehydratedComponents;
-      this.payload = payload;
-      this.spec =
-          FunctionSpec.newBuilder()
-              .setUrn(COMBINE_TRANSFORM_URN)
-              .setPayload(payload.toByteString())
-              .build();
+      this.spec = protoTransform.getSpec();
+      this.payload = CombinePayload.parseFrom(spec.getPayload());
 
       // Eagerly extract the coder to throw a good exception here
       try {
@@ -240,6 +272,25 @@ public class CombineTranslation {
     @Override
     public Coder<?> getAccumulatorCoder() {
       return accumulatorCoder;
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      Map<TupleTag<?>, PValue> additionalInputs = new HashMap<>();
+      for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
+        try {
+          additionalInputs.put(
+              new TupleTag<>(sideInputEntry.getKey()),
+              rehydratedComponents.getPCollection(
+                  protoTransform.getInputsOrThrow(sideInputEntry.getKey())));
+        } catch (IOException exc) {
+          throw new IllegalStateException(
+              String.format(
+                  "Could not find input with name %s for %s transform",
+                  sideInputEntry.getKey(), Combine.class.getSimpleName()));
+        }
+      }
+      return additionalInputs;
     }
 
     @Override

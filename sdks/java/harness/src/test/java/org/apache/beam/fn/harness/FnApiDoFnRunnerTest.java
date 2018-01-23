@@ -108,18 +108,13 @@ public class FnApiDoFnRunnerTest {
   @Test
   public void testCreatingAndProcessingDoFn() throws Exception {
     String pTransformId = "pTransformId";
-    String mainOutputId = "101";
-    String additionalOutputId = "102";
 
     DoFnInfo<?, ?> doFnInfo = DoFnInfo.forFn(
         new TestDoFn(),
         WindowingStrategy.globalDefault(),
         ImmutableList.of(),
         StringUtf8Coder.of(),
-        Long.parseLong(mainOutputId),
-        ImmutableMap.of(
-            Long.parseLong(mainOutputId), TestDoFn.mainOutput,
-            Long.parseLong(additionalOutputId), TestDoFn.additionalOutput));
+        TestDoFn.mainOutput);
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
             .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
@@ -129,8 +124,8 @@ public class FnApiDoFnRunnerTest {
         .setSpec(functionSpec)
         .putInputs("inputA", "inputATarget")
         .putInputs("inputB", "inputBTarget")
-        .putOutputs(mainOutputId, "mainOutputTarget")
-        .putOutputs(additionalOutputId, "additionalOutputTarget")
+        .putOutputs(TestDoFn.mainOutput.getId(), "mainOutputTarget")
+        .putOutputs(TestDoFn.additionalOutput.getId(), "additionalOutputTarget")
         .build();
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
@@ -165,7 +160,7 @@ public class FnApiDoFnRunnerTest {
 
     Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A1"));
     Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A2"));
-    Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("B"));
+    Iterables.getOnlyElement(consumers.get("inputBTarget")).accept(valueInGlobalWindow("B"));
     assertThat(mainOutputValues, contains(
         valueInGlobalWindow("MainOutputA1"),
         valueInGlobalWindow("MainOutputA2"),
@@ -278,15 +273,12 @@ public class FnApiDoFnRunnerTest {
 
   @Test
   public void testUsingUserState() throws Exception {
-    String mainOutputId = "101";
-
     DoFnInfo<?, ?> doFnInfo = DoFnInfo.forFn(
         new TestStatefulDoFn(),
         WindowingStrategy.globalDefault(),
         ImmutableList.of(),
         KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()),
-        Long.parseLong(mainOutputId),
-        ImmutableMap.of(Long.parseLong(mainOutputId), new TupleTag<String>("mainOutput")));
+        new TupleTag<>("mainOutput"));
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
             .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
@@ -295,7 +287,7 @@ public class FnApiDoFnRunnerTest {
     RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
         .setSpec(functionSpec)
         .putInputs("input", "inputTarget")
-        .putOutputs(mainOutputId, "mainOutputTarget")
+        .putOutputs("mainOutput", "mainOutputTarget")
         .build();
 
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(ImmutableMap.of(

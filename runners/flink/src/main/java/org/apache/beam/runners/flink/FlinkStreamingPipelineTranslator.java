@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import java.util.Map;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.UnconsumedReads;
@@ -109,9 +110,10 @@ class FlinkStreamingPipelineTranslator extends FlinkPipelineTranslator {
         FlinkStreamingTransformTranslators.getTranslator(transform);
 
     if (translator == null || !applyCanTranslate(transform, node, translator)) {
-      LOG.info(node.getTransform().getClass().toString());
+      String transformUrn = PTransformTranslation.urnForTransform(transform);
+      LOG.info(transformUrn);
       throw new UnsupportedOperationException(
-          "The transform " + transform + " is currently not supported.");
+          "The transform " + transformUrn + " is currently not supported.");
     }
     applyStreamingTransform(transform, node, translator);
   }

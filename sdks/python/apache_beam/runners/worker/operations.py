@@ -118,6 +118,12 @@ class Operation(object):
     self.counter_factory = counter_factory
     self.consumers = collections.defaultdict(list)
 
+    # These are overwritten in the legacy harness.
+    self.step_name = operation_name
+    self.metrics_container = MetricsContainer(self.step_name)
+    self.scoped_metrics_container = ScopedMetricsContainer(
+        self.metrics_container)
+
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
         self.operation_name, 'start')
@@ -127,7 +133,6 @@ class Operation(object):
         self.operation_name, 'finish')
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
-    self.scoped_metrics_container = None
     self.receivers = []
 
   def start(self):
@@ -219,15 +224,16 @@ class ReadOperation(Operation):
 
   def start(self):
     with self.scoped_start_state:
-      super(ReadOperation, self).start()
-      range_tracker = self.spec.source.source.get_range_tracker(
-          self.spec.source.start_position, self.spec.source.stop_position)
-      for value in self.spec.source.source.read(range_tracker):
-        if isinstance(value, WindowedValue):
-          windowed_value = value
-        else:
-          windowed_value = _globally_windowed_value.with_value(value)
-        self.output(windowed_value)
+      with self.scoped_metrics_container:
+        super(ReadOperation, self).start()
+        range_tracker = self.spec.source.source.get_range_tracker(
+            self.spec.source.start_position, self.spec.source.stop_position)
+        for value in self.spec.source.source.read(range_tracker):
+          if isinstance(value, WindowedValue):
+            windowed_value = value
+          else:
+            windowed_value = _globally_windowed_value.with_value(value)
+          self.output(windowed_value)
 
 
 class InMemoryWriteOperation(Operation):
@@ -260,6 +266,7 @@ class DoOperation(Operation):
       self, name, spec, counter_factory, sampler, side_input_maps=None):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
+    self.tagged_receivers = None
 
   def _read_side_inputs(self, tags_and_types):
     """Generator reading side inputs in the order prescribed by tags_and_types.
@@ -398,7 +405,6 @@ class CombineOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.serialized_fn)[:3]
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
-    self.scoped_metrics_container = ScopedMetricsContainer()
 
   def finish(self):
     logging.debug('Finishing %s', self)

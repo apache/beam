@@ -22,8 +22,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.ServerSocket;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentSkipListSet;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
 import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
@@ -37,6 +37,7 @@ import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
 import org.fusesource.mqtt.client.QoS;
 import org.fusesource.mqtt.client.Topic;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -51,9 +52,9 @@ public class MqttIOTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIOTest.class);
 
-  private static transient BrokerService brokerService;
+  private BrokerService brokerService;
 
-  private static int port;
+  private int port;
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -61,9 +62,9 @@ public class MqttIOTest {
   @Before
   public void startBroker() throws Exception {
     LOG.info("Finding free network port");
-    ServerSocket socket = new ServerSocket(0);
-    port = socket.getLocalPort();
-    socket.close();
+    try (ServerSocket socket = new ServerSocket(0)) {
+      port = socket.getLocalPort();
+    }
 
     LOG.info("Starting ActiveMQ brokerService on {}", port);
     brokerService = new BrokerService();
@@ -79,11 +80,9 @@ public class MqttIOTest {
   public void testReadNoClientId() throws Exception {
     final String topicName = "READ_TOPIC_NO_CLIENT_ID";
     Read mqttReader = MqttIO.read()
-    .withConnectionConfiguration(
-        MqttIO.ConnectionConfiguration.create(
-            "tcp://localhost:" + port,
-            topicName))
-  .withMaxNumRecords(10);
+        .withConnectionConfiguration(
+            MqttIO.ConnectionConfiguration.create("tcp://localhost:" + port, topicName))
+        .withMaxNumRecords(10);
     PCollection<byte[]> output = pipeline.apply(mqttReader);
     PAssert.that(output).containsInAnyOrder(
         "This is test 0".getBytes(),
@@ -120,7 +119,7 @@ public class MqttIOTest {
           }
           for (int i = 0; i < 10; i++) {
             publishConnection.publish(topicName, ("This is test " + i).getBytes(),
-                QoS.AT_LEAST_ONCE, false);
+                QoS.EXACTLY_ONCE, false);
           }
         } catch (Exception e) {
           // nothing to do
@@ -134,7 +133,7 @@ public class MqttIOTest {
     publisherThread.join();
   }
 
-  @Test(timeout = 60 * 1000)
+  @Test(timeout = 30 * 1000)
   public void testRead() throws Exception {
     PCollection<byte[]> output = pipeline.apply(
         MqttIO.read()
@@ -143,7 +142,7 @@ public class MqttIOTest {
                     "tcp://localhost:" + port,
                     "READ_TOPIC",
                     "READ_PIPELINE"))
-          .withMaxNumRecords(10));
+            .withMaxReadTime(Duration.standardSeconds(3)));
     PAssert.that(output).containsInAnyOrder(
         "This is test 0".getBytes(),
         "This is test 1".getBytes(),
@@ -179,7 +178,7 @@ public class MqttIOTest {
           }
           for (int i = 0; i < 10; i++) {
             publishConnection.publish("READ_TOPIC", ("This is test " + i).getBytes(),
-                QoS.AT_LEAST_ONCE, false);
+                QoS.EXACTLY_ONCE, false);
           }
         } catch (Exception e) {
           // nothing to do
@@ -189,24 +188,41 @@ public class MqttIOTest {
     publisherThread.start();
     pipeline.run();
 
-    publishConnection.disconnect();
     publisherThread.join();
+    publishConnection.disconnect();
+  }
+
+  /**
+   * Test for BEAM-3282: this test should not timeout.
+   */
+  @Test(timeout = 30 * 1000)
+  public void testReceiveWithTimeoutAndNoData() throws Exception {
+    pipeline.apply(MqttIO.read()
+        .withConnectionConfiguration(
+            MqttIO.ConnectionConfiguration.create(
+                "tcp://localhost:" + port,
+                "READ_TOPIC",
+                "READ_PIPELINE")).withMaxReadTime(Duration.standardSeconds(2)));
+
+    // should stop before the test timeout
+    pipeline.run();
   }
 
   @Test
   public void testWrite() throws Exception {
+    final int numberOfTestMessages = 200;
     MQTT client = new MQTT();
     client.setHost("tcp://localhost:" + port);
     final BlockingConnection connection = client.blockingConnection();
     connection.connect();
-    connection.subscribe(new Topic[]{new Topic(Buffer.utf8("WRITE_TOPIC"), QoS.AT_LEAST_ONCE)});
+    connection.subscribe(new Topic[]{new Topic(Buffer.utf8("WRITE_TOPIC"), QoS.EXACTLY_ONCE)});
 
-    final Set<String> messages = new HashSet<>();
+    final Set<String> messages = new ConcurrentSkipListSet<>();
 
     Thread subscriber = new Thread() {
       public void run() {
         try {
-          for (int i = 0; i < 200; i++) {
+          for (int i = 0; i < numberOfTestMessages; i++) {
             Message message = connection.receive();
             messages.add(new String(message.getPayload()));
             message.ack();
@@ -219,7 +235,7 @@ public class MqttIOTest {
     subscriber.start();
 
     ArrayList<byte[]> data = new ArrayList<>();
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < numberOfTestMessages; i++) {
       data.add(("Test " + i).getBytes());
     }
     pipeline.apply(Create.of(data))
@@ -233,8 +249,8 @@ public class MqttIOTest {
 
     connection.disconnect();
 
-    assertEquals(200, messages.size());
-    for (int i = 0; i < 200; i++) {
+    assertEquals(numberOfTestMessages, messages.size());
+    for (int i = 0; i < numberOfTestMessages; i++) {
       assertTrue(messages.contains("Test " + i));
     }
   }

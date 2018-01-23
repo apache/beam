@@ -19,7 +19,9 @@ package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
 import java.util.List;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
@@ -83,6 +85,13 @@ class FlinkPipelineExecutionEnvironment {
   public void translate(FlinkRunner flinkRunner, Pipeline pipeline) {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
+
+    // Serialize and rehydrate pipeline to make sure we only depend serialized transforms.
+    try {
+      pipeline = PipelineTranslation.fromProto(PipelineTranslation.toProto(pipeline));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
 
     pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options.isStreaming()));
 

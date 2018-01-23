@@ -17,17 +17,16 @@
  */
 package org.apache.beam.fn.harness;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -35,10 +34,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -142,15 +139,15 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         Consumer<ThrowingRunnable> addFinishFunction) {
 
       // For every output PCollection, create a map from output name to Consumer
-      ImmutableMap.Builder<String, Collection<FnDataReceiver<WindowedValue<?>>>>
-          outputMapBuilder = ImmutableMap.builder();
+      ImmutableListMultimap.Builder<TupleTag<?>, FnDataReceiver<WindowedValue<?>>>
+          tagToOutputMapBuilder = ImmutableListMultimap.builder();
       for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
-        outputMapBuilder.put(
-            entry.getKey(),
+        tagToOutputMapBuilder.putAll(
+            new TupleTag<>(entry.getKey()),
             pCollectionIdsToConsumers.get(entry.getValue()));
       }
-      ImmutableMap<String, Collection<FnDataReceiver<WindowedValue<?>>>> outputMap =
-          outputMapBuilder.build();
+      ListMultimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> tagToOutputMap =
+          tagToOutputMapBuilder.build();
 
       // Get the DoFnInfo from the serialized blob.
       ByteString serializedFn = pTransform.getSpec().getPayload();
@@ -158,40 +155,16 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       DoFnInfo<InputT, OutputT> doFnInfo = (DoFnInfo) SerializableUtils.deserializeFromByteArray(
           serializedFn.toByteArray(), "DoFnInfo");
 
-      // Verify that the DoFnInfo tag to output map matches the output map on the PTransform.
-      checkArgument(
-          Objects.equals(
-              new HashSet<>(Collections2.transform(outputMap.keySet(), Long::parseLong)),
-              doFnInfo.getOutputMap().keySet()),
-          "Unexpected mismatch between transform output map %s and DoFnInfo output map %s.",
-          outputMap.keySet(),
-          doFnInfo.getOutputMap());
-
-      ImmutableMultimap.Builder<TupleTag<?>,
-          FnDataReceiver<WindowedValue<?>>> tagToOutputMapBuilder =
-          ImmutableMultimap.builder();
-      for (Map.Entry<Long, TupleTag<?>> entry : doFnInfo.getOutputMap().entrySet()) {
         @SuppressWarnings({"unchecked", "rawtypes"})
-        Collection<FnDataReceiver<WindowedValue<?>>> consumers =
-            outputMap.get(Long.toString(entry.getKey()));
-        tagToOutputMapBuilder.putAll(entry.getValue(), consumers);
-      }
-
-      ImmutableMultimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> tagToOutputMap =
-          tagToOutputMapBuilder.build();
-
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      DoFnRunner<InputT, OutputT> runner = new FnApiDoFnRunner<>(
+      DoFnRunner<InputT, OutputT> runner = new FnApiDoFnRunner<InputT, OutputT>(
           pipelineOptions,
           beamFnStateClient,
           pTransformId,
           processBundleInstructionId,
           doFnInfo.getDoFn(),
-          WindowedValue.getFullCoder(
-              doFnInfo.getInputCoder(),
-              doFnInfo.getWindowingStrategy().getWindowFn().windowCoder()),
+          doFnInfo.getInputCoder(),
           (Collection<FnDataReceiver<WindowedValue<OutputT>>>) (Collection)
-              tagToOutputMap.get(doFnInfo.getOutputMap().get(doFnInfo.getMainOutput())),
+              tagToOutputMap.get(doFnInfo.getMainOutput()),
           tagToOutputMap,
           doFnInfo.getWindowingStrategy());
 
@@ -221,7 +194,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
       DoFn<InputT, OutputT> doFn;
       TupleTag<OutputT> mainOutputTag;
-      WindowedValueCoder<InputT> inputCoder;
+      Coder<InputT> inputCoder;
       WindowingStrategy<InputT, ?> windowingStrategy;
 
       try {
@@ -237,7 +210,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         // There will only be one due to the check above.
         RunnerApi.PCollection mainInput = pCollections.get(
             Iterables.getOnlyElement(pTransform.getInputsMap().values()));
-        inputCoder = (WindowedValueCoder<InputT>) rehydratedComponents.getCoder(
+        inputCoder = (Coder<InputT>) rehydratedComponents.getCoder(
             mainInput.getCoderId());
         windowingStrategy = (WindowingStrategy) rehydratedComponents.getWindowingStrategy(
             mainInput.getWindowingStrategyId());
@@ -247,13 +220,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         throw new IllegalArgumentException("Malformed ParDoPayload", exn);
       }
 
-      ImmutableMultimap.Builder<TupleTag<?>, FnDataReceiver<WindowedValue<?>>>
-          tagToConsumerBuilder = ImmutableMultimap.builder();
+      ImmutableListMultimap.Builder<TupleTag<?>, FnDataReceiver<WindowedValue<?>>>
+          tagToConsumerBuilder = ImmutableListMultimap.builder();
       for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
         tagToConsumerBuilder.putAll(
             new TupleTag<>(entry.getKey()), pCollectionIdsToConsumers.get(entry.getValue()));
       }
-      Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> tagToConsumer =
+      ListMultimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> tagToConsumer =
           tagToConsumerBuilder.build();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -297,7 +270,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private final String ptransformId;
   private final Supplier<String> processBundleInstructionId;
   private final DoFn<InputT, OutputT> doFn;
-  private final WindowedValueCoder<InputT> inputCoder;
+  private final Coder<InputT> inputCoder;
   private final Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers;
   private final Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> outputMap;
   private final WindowingStrategy windowingStrategy;
@@ -335,7 +308,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       String ptransformId,
       Supplier<String> processBundleInstructionId,
       DoFn<InputT, OutputT> doFn,
-      WindowedValueCoder<InputT> inputCoder,
+      Coder<InputT> inputCoder,
       Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers,
       Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> outputMap,
       WindowingStrategy windowingStrategy) {
@@ -982,12 +955,19 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       checkState(currentElement.getValue() instanceof KV,
           "Accessing state in unkeyed context. Current element is not a KV: %s.",
           currentElement);
-      checkState(inputCoder.getCoderArguments().get(0) instanceof KvCoder,
-          "Accessing state in unkeyed context. No keyed coder found.");
+      checkState(
+          // TODO: Stop passing windowed value coders within PCollections.
+          inputCoder instanceof KvCoder
+              || (inputCoder instanceof WindowedValueCoder
+              && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof KvCoder)),
+          "Accessing state in unkeyed context. Keyed coder expected but found %s.",
+          inputCoder);
 
       ByteString.Output encodedKeyOut = ByteString.newOutput();
 
-      Coder<K> keyCoder = ((KvCoder<K, ?>) inputCoder.getValueCoder()).getKeyCoder();
+      Coder<K> keyCoder = inputCoder instanceof WindowedValueCoder
+          ? ((KvCoder<K, ?>) ((WindowedValueCoder) inputCoder).getValueCoder()).getKeyCoder()
+          : ((KvCoder<K, ?>) inputCoder).getKeyCoder();
       try {
         keyCoder.encode(((KV<K, ?>) currentElement.getValue()).getKey(), encodedKeyOut);
       } catch (IOException e) {

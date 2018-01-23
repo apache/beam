@@ -106,7 +106,8 @@ class PackageUtil implements Closeable {
 
   public static PackageUtil withDefaultThreadPool() {
     return PackageUtil.withExecutorService(
-        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(DEFAULT_THREAD_POOL_SIZE)));
+        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(DEFAULT_THREAD_POOL_SIZE,
+            MoreExecutors.platformThreadFactory())));
   }
 
   public static PackageUtil withExecutorService(ListeningExecutorService executorService) {

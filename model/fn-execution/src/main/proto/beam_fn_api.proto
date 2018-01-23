@@ -76,6 +76,9 @@ message RemoteGrpcPort {
   // (Required) An API descriptor which describes where to
   // connect to including any authentication that is required.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor api_service_descriptor = 1;
+
+  // (Required) The ID of the Coder that will be used to encode and decode data sent over this port.
+  string coder_id = 2;
 }
 
 /*
@@ -280,11 +283,44 @@ message Metrics {
 
   // User defined metrics
   message User {
-    // TODO: Define it.
+
+    // A key for identifying a metric at the most granular level.
+    message MetricKey {
+      // The step, if any, this metric is associated with.
+      string step = 1;
+
+      // (Required): The namespace of this metric.
+      string namespace = 2;
+
+      // (Required): The name of this metric.
+      string name = 3;
+    }
+
+    // Data associated with a counter metric.
+    message CounterData {
+      int64 value = 1;
+    }
+
+    // Data associated with a distribution metric.
+    message DistributionData {
+      int64 count = 1;
+      int64 sum = 2;
+      int64 min = 3;
+      int64 max = 4;
+    }
+
+    // (Required) The identifier for this metric.
+    MetricKey key = 1;
+
+    // (Required) The data for this metric.
+    oneof data {
+      CounterData counter_data = 1001;
+      DistributionData distribution_data = 1002;
+    }
   }
 
   map<string, PTransform> ptransforms = 1;
-  map<string, User> user = 2;
+  repeated User user = 2;
 }
 
 message ProcessBundleProgressResponse {

@@ -51,10 +51,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -67,6 +69,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -115,6 +119,63 @@ public class PipelineTest {
     public PipelineResult run(Pipeline pipeline) {
       throw new IllegalStateException("SDK exception");
     }
+  }
+
+  @Test
+  public void testConflictingNames() {
+    final PipelineOptions options = TestPipeline.testingPipelineOptions();
+    final Pipeline p = Pipeline.create(options);
+
+    // Check pipeline runner correctly catches user errors.
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(new BaseMatcher<String>() { // more readable than a regex
+      @Override
+      public void describeTo(final Description description) {
+        description.appendText("validates the conflicting instances are "
+                + "listed into the exception message");
+      }
+
+      @Override
+      public boolean matches(final Object o) {
+        /*
+          example value (first 2 lines are a single one):
+
+          Pipeline update will not be possible because the following transforms do not have stable
+          unique names: ParDo(Anonymous)2.
+
+          Conflicting instances:
+          - name=ParDo(Anonymous):
+              - org.apache.beam.sdk.PipelineTest$3@75d2da2d
+              - org.apache.beam.sdk.PipelineTest$2@4278284b
+
+          You can fix it adding a name when you call apply(): pipeline.apply(<name>, <transform>).
+         */
+        final String sanitized = String.class.cast(o)
+                                     .replaceAll("\\$[\\p{Alnum}]+@[\\p{Alnum}]+", "\\$x@y");
+        return sanitized.contains(
+              "Conflicting instances:\n"
+              + "- name=ParDo(Anonymous):\n"
+              + "    - org.apache.beam.sdk.PipelineTest$x@y\n"
+              + "    - org.apache.beam.sdk.PipelineTest$x@y\n\n"
+              + "You can fix it adding a name when you call apply(): "
+              + "pipeline.apply(<name>, <transform>).");
+      }
+    });
+    p.apply(Create.of("a"))
+     // 2 anonymous classes are conflicting
+     .apply(ParDo.of(new DoFn<String, String>() {
+       @ProcessElement
+       public void onElement(final ProcessContext ctx) {
+         ctx.output(ctx.element());
+       }
+     }))
+     .apply(ParDo.of(new DoFn<String, String>() {
+       @ProcessElement
+       public void onElement(final ProcessContext ctx) {
+         // no-op
+       }
+     }));
+    p.run();
   }
 
   @Test

@@ -83,15 +83,16 @@ public class SideInputInitializer<ViewT>
 
       ViewFn<MultimapView, ViewT> viewFn = (ViewFn<MultimapView, ViewT>) view.getViewFn();
       Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-      resultMap.put(elements.getKey(), viewFn.apply(InMemoryMultimapSideInputView.fromIterable(
-          keyCoder,
-          (Iterable) Iterables.transform(elements.getValue(),
-              new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
-                @Override
-                public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
-                  return windowedValue.getValue();
-                }
-              }))));
+      resultMap.put(elements.getKey(),
+              (ViewT) viewFn.apply(InMemoryMultimapSideInputView.fromIterable(
+                keyCoder,
+                (Iterable) Iterables.transform(elements.getValue(),
+                    new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
+                      @Override
+                      public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
+                        return windowedValue.getValue();
+                      }
+                    }))));
     }
 
     return resultMap;

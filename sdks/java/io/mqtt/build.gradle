@@ -23,13 +23,13 @@ description = "Apache Beam :: SDKs :: Java :: IO :: MQTT"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow "org.fusesource.mqtt-client:mqtt-client:1.14"
   shadow "org.fusesource.hawtbuf:hawtbuf:1.11"
-  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.activemq_broker
   testCompile library.java.activemq_mqtt
   testCompile library.java.activemq_kahadb_store
