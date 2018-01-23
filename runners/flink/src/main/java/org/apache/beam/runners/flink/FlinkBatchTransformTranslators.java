@@ -235,7 +235,6 @@ class FlinkBatchTransformTranslators {
                   KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder),
                   windowingStrategy.getWindowFn().windowCoder()));
 
-
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
           inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 

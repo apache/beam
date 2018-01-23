@@ -279,8 +279,7 @@ public class Sample {
       }
 
       this.sampleSize = sampleSize;
-      topCombineFn = new Top.TopCombineFn<>(
-          sampleSize, new KV.OrderByKey<>());
+      topCombineFn = new Top.TopCombineFn<>(sampleSize, new KV.OrderByKey<>());
     }
 
     @Override

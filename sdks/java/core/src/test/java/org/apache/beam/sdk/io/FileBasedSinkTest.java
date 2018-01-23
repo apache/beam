@@ -363,12 +363,13 @@ public class FileBasedSinkTest {
     try {
       List<FileResult<Void>> results = Lists.newArrayList();
       for (int i = 0; i < 3; ++i) {
-        results.add(new FileResult<>(
-            root.resolve("temp" + i, StandardResolveOptions.RESOLVE_FILE),
-            1 /* shard - should be different, but is the same */,
-            GlobalWindow.INSTANCE,
-            PaneInfo.ON_TIME_AND_ONLY_FIRING,
-            null));
+        results.add(
+            new FileResult<>(
+                root.resolve("temp" + i, StandardResolveOptions.RESOLVE_FILE),
+                1 /* shard - should be different, but is the same */,
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                null));
       }
       writeOp.finalizeDestination(null, GlobalWindow.INSTANCE, 5 /* numShards */, results);
       fail("Should have failed.");

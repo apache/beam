@@ -109,8 +109,7 @@ public final class Contextful<ClosureT> implements Serializable {
    */
   public static <InputT, OutputT> Contextful<Fn<InputT, OutputT>> fn(
       final SerializableFunction<InputT, OutputT> fn) {
-    return new Contextful<>(
-        (element, c) -> fn.apply(element), Requirements.empty());
+    return new Contextful<>((element, c) -> fn.apply(element), Requirements.empty());
   }
 
   /** Same with {@link #of} but with better type inference behavior for the case of {@link Fn}. */

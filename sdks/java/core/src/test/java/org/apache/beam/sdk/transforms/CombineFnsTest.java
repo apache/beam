@@ -266,9 +266,10 @@ public class  CombineFnsTest {
     DisplayDataCombineFn combineFn1 = new DisplayDataCombineFn("value1");
     DisplayDataCombineFn combineFn2 = new DisplayDataCombineFn("value2");
 
-    CombineFns.ComposedCombineFn<String> composedCombine = CombineFns.compose()
-        .with(extractFn, combineFn1, new TupleTag<>())
-        .with(extractFn, combineFn2, new TupleTag<>());
+    CombineFns.ComposedCombineFn<String> composedCombine =
+        CombineFns.compose()
+            .with(extractFn, combineFn1, new TupleTag<>())
+            .with(extractFn, combineFn2, new TupleTag<>());
 
     DisplayData displayData = DisplayData.from(composedCombine);
     assertThat(displayData, hasDisplayItem("combineFn1", combineFn1.getClass()));

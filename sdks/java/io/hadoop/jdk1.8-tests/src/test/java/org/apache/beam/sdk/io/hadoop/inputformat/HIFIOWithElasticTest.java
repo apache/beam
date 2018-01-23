@@ -271,6 +271,7 @@ public class HIFIOWithElasticTest implements Serializable {
 
     private static final long serialVersionUID = 1L;
     static Collection<Class<? extends Plugin>> list = new ArrayList<>();
+
     static {
       list.add(Netty4Plugin.class);
     }

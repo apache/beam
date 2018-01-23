@@ -409,20 +409,20 @@ public class CoGroupByKeyTest implements Serializable {
         .and(addressesTag, Arrays.asList("2a", "2b"))
         .and(namesTag, Arrays.asList("1a"));
     // result 2 should be counted because it has an address and purchases.
-    CoGbkResult result2 = CoGbkResult
-        .of(purchasesTag, Arrays.asList("5a", "5b"))
-        .and(addressesTag, Arrays.asList("4a"))
-        .and(namesTag, new ArrayList<>());
+    CoGbkResult result2 =
+        CoGbkResult.of(purchasesTag, Arrays.asList("5a", "5b"))
+            .and(addressesTag, Arrays.asList("4a"))
+            .and(namesTag, new ArrayList<>());
     // result 3 should not be counted because it has no addresses.
-    CoGbkResult result3 = CoGbkResult
-        .of(purchasesTag, Arrays.asList("7a", "7b"))
-        .and(addressesTag, new ArrayList<>())
-        .and(namesTag, new ArrayList<>());
+    CoGbkResult result3 =
+        CoGbkResult.of(purchasesTag, Arrays.asList("7a", "7b"))
+            .and(addressesTag, new ArrayList<>())
+            .and(namesTag, new ArrayList<>());
     // result 4 should be counted as 0, because it has no purchases.
-    CoGbkResult result4 = CoGbkResult
-        .of(purchasesTag, new ArrayList<>())
-        .and(addressesTag, Arrays.asList("8a"))
-        .and(namesTag, new ArrayList<>());
+    CoGbkResult result4 =
+        CoGbkResult.of(purchasesTag, new ArrayList<>())
+            .and(addressesTag, Arrays.asList("8a"))
+            .and(namesTag, new ArrayList<>());
 
     List<KV<String, Integer>> results =
         DoFnTester.of(

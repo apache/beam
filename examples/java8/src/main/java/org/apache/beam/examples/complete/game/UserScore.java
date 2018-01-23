@@ -197,8 +197,7 @@ public class UserScore {
    */
   protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
       configureOutput() {
-    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config =
-        new HashMap<>();
+    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config = new HashMap<>();
     config.put("user", (c, w) -> c.element().getKey());
     config.put("total_score", (c, w) -> c.element().getValue());
     return config;
@@ -220,11 +219,7 @@ public class UserScore {
         // Extract and sum username/score pairs from the event data.
         .apply("ExtractUserScore", new ExtractAndSumScore("user"))
         .apply(
-            "WriteUserScoreSums",
-            new WriteToText<>(
-                options.getOutput(),
-                configureOutput(),
-                false));
+            "WriteUserScoreSums", new WriteToText<>(options.getOutput(), configureOutput(), false));
 
     // Run the batch pipeline.
     pipeline.run().waitUntilFinish();

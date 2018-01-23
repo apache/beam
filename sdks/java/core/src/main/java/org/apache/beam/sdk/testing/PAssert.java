@@ -1019,9 +1019,7 @@ public class PAssert {
                       .discardingFiredPanes())
               .apply("GroupDummyAndContents", GroupByKey.create());
 
-      return dummyAndContents
-          .apply(Values.create())
-          .apply(ParDo.of(new ConcatFn<>()));
+      return dummyAndContents.apply(Values.create()).apply(ParDo.of(new ConcatFn<>()));
     }
   }
 

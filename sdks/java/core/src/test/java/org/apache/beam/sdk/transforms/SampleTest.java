@@ -158,8 +158,7 @@ public class SampleTest {
     }
 
     void runPickAnyTest(final List<String> lines, int limit) {
-      checkArgument(new HashSet<>(lines).size() == lines.size(),
-                    "Duplicates are unsupported.");
+      checkArgument(new HashSet<>(lines).size() == lines.size(), "Duplicates are unsupported.");
 
       PCollection<String> input = p.apply(Create.of(lines)
                                                 .withCoder(StringUtf8Coder.of()));

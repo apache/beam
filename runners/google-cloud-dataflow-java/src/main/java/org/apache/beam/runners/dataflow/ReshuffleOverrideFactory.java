@@ -50,8 +50,7 @@ class ReshuffleOverrideFactory<K, V>
           AppliedPTransform<PCollection<KV<K, V>>, PCollection<KV<K, V>>, Reshuffle<K, V>>
               transform) {
     return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
-        new ReshuffleWithOnlyTrigger<>());
+        PTransformReplacements.getSingletonMainInput(transform), new ReshuffleWithOnlyTrigger<>());
   }
 
   private static class ReshuffleWithOnlyTrigger<K, V>

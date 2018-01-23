@@ -407,8 +407,11 @@ public class GcsUtil {
    */
   public SeekableByteChannel open(GcsPath path)
       throws IOException {
-    return new GoogleCloudStorageReadChannel(storageClient, path.getBucket(),
-            path.getObject(), errorExtractor,
+    return new GoogleCloudStorageReadChannel(
+        storageClient,
+        path.getBucket(),
+        path.getObject(),
+        errorExtractor,
         new ClientRequestHelper<>());
   }
 
@@ -575,11 +578,15 @@ public class GcsUtil {
   }
 
   private static void executeBatches(List<BatchRequest> batches) throws IOException {
-    ListeningExecutorService executor = MoreExecutors.listeningDecorator(
-        MoreExecutors.getExitingExecutorService(
-            new ThreadPoolExecutor(MAX_CONCURRENT_BATCHES, MAX_CONCURRENT_BATCHES,
-                0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<>())));
+    ListeningExecutorService executor =
+        MoreExecutors.listeningDecorator(
+            MoreExecutors.getExitingExecutorService(
+                new ThreadPoolExecutor(
+                    MAX_CONCURRENT_BATCHES,
+                    MAX_CONCURRENT_BATCHES,
+                    0L,
+                    TimeUnit.MILLISECONDS,
+                    new LinkedBlockingQueue<>())));
 
     List<ListenableFuture<Void>> futures = new LinkedList<>();
     for (final BatchRequest batch : batches) {

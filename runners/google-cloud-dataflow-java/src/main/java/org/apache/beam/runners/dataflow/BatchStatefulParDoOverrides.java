@@ -264,9 +264,7 @@ public class BatchStatefulParDoOverrides {
                   KvCoder.of(InstantCoder.of(), WindowedValue.getFullCoder(kvCoder, windowCoder))))
 
           // Group by key and sort by timestamp, dropping windows as they are reified
-          .apply(
-              "PartitionKeys",
-              new GroupByKeyAndSortValuesOnly<>())
+          .apply("PartitionKeys", new GroupByKeyAndSortValuesOnly<>())
 
           // The GBKO sets the windowing strategy to the global default
           .setWindowingStrategyInternal(inputWindowingStrategy);

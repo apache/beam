@@ -126,19 +126,23 @@ public class MapElementsTest implements Serializable {
   public void testPolymorphicSimpleFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
 
-        // This is the function that needs to propagate the input T to output T
-        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<>()))
+            // This is the function that needs to propagate the input T to output T
+            .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<>()))
 
-        // This is a consumer to ensure that all coder inference logic is executed.
-        .apply("Test Consumer", MapElements.via(new SimpleFunction<Integer, Integer>() {
-          @Override
-          public Integer apply(Integer input) {
-            return input;
-          }
-        }));
+            // This is a consumer to ensure that all coder inference logic is executed.
+            .apply(
+                "Test Consumer",
+                MapElements.via(
+                    new SimpleFunction<Integer, Integer>() {
+                      @Override
+                      public Integer apply(Integer input) {
+                        return input;
+                      }
+                    }));
   }
 
   /**
@@ -154,9 +158,7 @@ public class MapElementsTest implements Serializable {
             .apply(Create.of(1, 2, 3))
 
             // This is the function that needs to propagate the input T to output T
-            .apply(
-                "Polymorphic Identity",
-                MapElements.via(new NestedPolymorphicSimpleFunction<>()))
+            .apply("Polymorphic Identity", MapElements.via(new NestedPolymorphicSimpleFunction<>()))
 
             // This is a consumer to ensure that all coder inference logic is executed.
             .apply(

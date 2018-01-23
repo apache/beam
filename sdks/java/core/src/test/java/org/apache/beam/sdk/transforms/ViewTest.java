@@ -306,36 +306,40 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateSideInput", Create.of(11)).apply(View.asList());
 
     PCollection<Integer> output =
-        pipeline.apply("CreateMainInput", Create.of(29))
-            .apply("OutputSideInputs",
-                ParDo.of(new DoFn<Integer, Integer>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    try {
-                      c.sideInput(view).clear();
-                      fail("Expected UnsupportedOperationException on clear()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    try {
-                      c.sideInput(view).add(4);
-                      fail("Expected UnsupportedOperationException on add()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    try {
-                      c.sideInput(view).addAll(new ArrayList<>());
-                      fail("Expected UnsupportedOperationException on addAll()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    try {
-                      c.sideInput(view).remove(0);
-                      fail("Expected UnsupportedOperationException on remove()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    for (Integer i : c.sideInput(view)) {
-                      c.output(i);
-                    }
-                  }
-                }).withSideInputs(view));
+        pipeline
+            .apply("CreateMainInput", Create.of(29))
+            .apply(
+                "OutputSideInputs",
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            try {
+                              c.sideInput(view).clear();
+                              fail("Expected UnsupportedOperationException on clear()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            try {
+                              c.sideInput(view).add(4);
+                              fail("Expected UnsupportedOperationException on add()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            try {
+                              c.sideInput(view).addAll(new ArrayList<>());
+                              fail("Expected UnsupportedOperationException on addAll()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            try {
+                              c.sideInput(view).remove(0);
+                              fail("Expected UnsupportedOperationException on remove()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            for (Integer i : c.sideInput(view)) {
+                              c.output(i);
+                            }
+                          }
+                        })
+                    .withSideInputs(view));
 
     // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(output).containsInAnyOrder(11);
@@ -791,37 +795,40 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1))).apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
-        pipeline.apply("CreateMainInput", Create.of("apple"))
+        pipeline
+            .apply("CreateMainInput", Create.of("apple"))
             .apply(
                 "OutputSideInputs",
-                ParDo.of(new DoFn<String, KV<String, Integer>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    try {
-                      c.sideInput(view).clear();
-                      fail("Expected UnsupportedOperationException on clear()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    try {
-                      c.sideInput(view).put("c", ImmutableList.of(3));
-                      fail("Expected UnsupportedOperationException on put()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    try {
-                      c.sideInput(view).remove("c");
-                      fail("Expected UnsupportedOperationException on remove()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    try {
-                      c.sideInput(view).putAll(new HashMap<>());
-                      fail("Expected UnsupportedOperationException on putAll()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
-                      c.output(KV.of(c.element(), v));
-                    }
-                  }
-                }).withSideInputs(view));
+                ParDo.of(
+                        new DoFn<String, KV<String, Integer>>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            try {
+                              c.sideInput(view).clear();
+                              fail("Expected UnsupportedOperationException on clear()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            try {
+                              c.sideInput(view).put("c", ImmutableList.of(3));
+                              fail("Expected UnsupportedOperationException on put()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            try {
+                              c.sideInput(view).remove("c");
+                              fail("Expected UnsupportedOperationException on remove()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            try {
+                              c.sideInput(view).putAll(new HashMap<>());
+                              fail("Expected UnsupportedOperationException on putAll()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            for (Integer v : c.sideInput(view).get(c.element().substring(0, 1))) {
+                              c.output(KV.of(c.element(), v));
+                            }
+                          }
+                        })
+                    .withSideInputs(view));
 
     // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(output).containsInAnyOrder(KV.of("apple", 1));
@@ -1152,36 +1159,41 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1))).apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
-        pipeline.apply("CreateMainInput", Create.of("apple"))
+        pipeline
+            .apply("CreateMainInput", Create.of("apple"))
             .apply(
                 "OutputSideInputs",
-                ParDo.of(new DoFn<String, KV<String, Integer>>() {
-                  @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    try {
-                      c.sideInput(view).clear();
-                      fail("Expected UnsupportedOperationException on clear()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    try {
-                      c.sideInput(view).put("c", 3);
-                      fail("Expected UnsupportedOperationException on put()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    try {
-                      c.sideInput(view).remove("c");
-                      fail("Expected UnsupportedOperationException on remove()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    try {
-                      c.sideInput(view).putAll(new HashMap<>());
-                      fail("Expected UnsupportedOperationException on putAll()");
-                    } catch (UnsupportedOperationException expected) {
-                    }
-                    c.output(
-                        KV.of(c.element(), c.sideInput(view).get(c.element().substring(0, 1))));
-                  }
-                }).withSideInputs(view));
+                ParDo.of(
+                        new DoFn<String, KV<String, Integer>>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            try {
+                              c.sideInput(view).clear();
+                              fail("Expected UnsupportedOperationException on clear()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            try {
+                              c.sideInput(view).put("c", 3);
+                              fail("Expected UnsupportedOperationException on put()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            try {
+                              c.sideInput(view).remove("c");
+                              fail("Expected UnsupportedOperationException on remove()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            try {
+                              c.sideInput(view).putAll(new HashMap<>());
+                              fail("Expected UnsupportedOperationException on putAll()");
+                            } catch (UnsupportedOperationException expected) {
+                            }
+                            c.output(
+                                KV.of(
+                                    c.element(),
+                                    c.sideInput(view).get(c.element().substring(0, 1))));
+                          }
+                        })
+                    .withSideInputs(view));
 
     // Pass at least one value through to guarantee that DoFn executes.
     PAssert.that(output).containsInAnyOrder(KV.of("apple", 1));

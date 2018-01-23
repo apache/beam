@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Random;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
 
-
 /**
  * This is a generator that simulates usage data from a mobile game, and either publishes the data
  * to a pubsub topic or writes it to a file.
@@ -92,17 +91,53 @@ class Injector {
 
   // Lists used to generate random team names.
   private static final ArrayList<String> COLORS =
-      new ArrayList<>(Arrays.asList(
-          "Magenta", "AliceBlue", "Almond", "Amaranth", "Amber",
-          "Amethyst", "AndroidGreen", "AntiqueBrass", "Fuchsia", "Ruby", "AppleGreen",
-          "Apricot", "Aqua", "ArmyGreen", "Asparagus", "Auburn", "Azure", "Banana",
-          "Beige", "Bisque", "BarnRed", "BattleshipGrey"));
+      new ArrayList<>(
+          Arrays.asList(
+              "Magenta",
+              "AliceBlue",
+              "Almond",
+              "Amaranth",
+              "Amber",
+              "Amethyst",
+              "AndroidGreen",
+              "AntiqueBrass",
+              "Fuchsia",
+              "Ruby",
+              "AppleGreen",
+              "Apricot",
+              "Aqua",
+              "ArmyGreen",
+              "Asparagus",
+              "Auburn",
+              "Azure",
+              "Banana",
+              "Beige",
+              "Bisque",
+              "BarnRed",
+              "BattleshipGrey"));
 
   private static final ArrayList<String> ANIMALS =
-      new ArrayList<>(Arrays.asList(
-          "Echidna", "Koala", "Wombat", "Marmot", "Quokka", "Kangaroo", "Dingo", "Numbat", "Emu",
-          "Wallaby", "CaneToad", "Bilby", "Possum", "Cassowary", "Kookaburra", "Platypus",
-          "Bandicoot", "Cockatoo", "Antechinus"));
+      new ArrayList<>(
+          Arrays.asList(
+              "Echidna",
+              "Koala",
+              "Wombat",
+              "Marmot",
+              "Quokka",
+              "Kangaroo",
+              "Dingo",
+              "Numbat",
+              "Emu",
+              "Wallaby",
+              "CaneToad",
+              "Bilby",
+              "Possum",
+              "Cassowary",
+              "Kookaburra",
+              "Platypus",
+              "Bandicoot",
+              "Cockatoo",
+              "Antechinus"));
 
   // The list of live teams.
   private static ArrayList<TeamInfo> liveTeams = new ArrayList<>();

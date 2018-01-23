@@ -742,8 +742,8 @@ public class GcsUtilTest {
   @Test
   public void testGCSChannelCloseIdempotent() throws IOException {
     SeekableByteChannel channel =
-        new GoogleCloudStorageReadChannel(null, "dummybucket", "dummyobject", null,
-            new ClientRequestHelper<>());
+        new GoogleCloudStorageReadChannel(
+            null, "dummybucket", "dummyobject", null, new ClientRequestHelper<>());
     channel.close();
     channel.close();
   }

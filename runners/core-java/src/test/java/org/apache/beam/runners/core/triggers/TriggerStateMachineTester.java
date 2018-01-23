@@ -264,8 +264,9 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
       try {
         InputT value = input.getValue();
         Instant timestamp = input.getTimestamp();
-        Collection<W> assignedWindows = windowFn.assignWindows(new TestAssignContext<>(
-            windowFn, value, timestamp, GlobalWindow.INSTANCE));
+        Collection<W> assignedWindows =
+            windowFn.assignWindows(
+                new TestAssignContext<>(windowFn, value, timestamp, GlobalWindow.INSTANCE));
 
         for (W window : assignedWindows) {
           activeWindows.addActiveForTesting(window);
@@ -331,29 +332,34 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
    */
   public final void mergeWindows() throws Exception {
     windowToMergeResult.clear();
-    activeWindows.merge(new MergeCallback<W>() {
-      @Override
-      public void prefetchOnMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {}
+    activeWindows.merge(
+        new MergeCallback<W>() {
+          @Override
+          public void prefetchOnMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {}
 
-      @Override
-      public void onMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-        List<W> activeToBeMerged = new ArrayList<>();
-        for (W window : toBeMerged) {
-          windowToMergeResult.put(window, mergeResult);
-          if (activeWindows.isActive(window)) {
-            activeToBeMerged.add(window);
+          @Override
+          public void onMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {
+            List<W> activeToBeMerged = new ArrayList<>();
+            for (W window : toBeMerged) {
+              windowToMergeResult.put(window, mergeResult);
+              if (activeWindows.isActive(window)) {
+                activeToBeMerged.add(window);
+              }
+            }
+            Map<W, FinishedTriggers> mergingFinishedSets =
+                Maps.newHashMapWithExpectedSize(activeToBeMerged.size());
+            for (W oldWindow : activeToBeMerged) {
+              mergingFinishedSets.put(oldWindow, getFinishedSet(oldWindow));
+            }
+            executableTrigger.invokeOnMerge(
+                contextFactory.createOnMergeContext(
+                    mergeResult,
+                    new TestTimers(windowNamespace(mergeResult)),
+                    executableTrigger,
+                    getFinishedSet(mergeResult),
+                    mergingFinishedSets));
           }
-        }
-        Map<W, FinishedTriggers> mergingFinishedSets =
-            Maps.newHashMapWithExpectedSize(activeToBeMerged.size());
-        for (W oldWindow : activeToBeMerged) {
-          mergingFinishedSets.put(oldWindow, getFinishedSet(oldWindow));
-        }
-        executableTrigger.invokeOnMerge(contextFactory.createOnMergeContext(mergeResult,
-            new TestTimers(windowNamespace(mergeResult)), executableTrigger,
-            getFinishedSet(mergeResult), mergingFinishedSets));
-      }
-    });
+        });
   }
 
   public  W mergeResult(W window) {

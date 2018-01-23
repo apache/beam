@@ -33,9 +33,9 @@ public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
     public void testDefaultCharsetLiteral() {
         String sql = "SELECT * FROM TABLE_A WHERE f_string = '第四行'";
 
-        PCollection<BeamRecord> result =
-                PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-                        .apply("testCompositeFilter", BeamSql.queryMulti(sql));
+    PCollection<BeamRecord> result =
+        PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
+            .apply("testCompositeFilter", BeamSql.queryMulti(sql));
 
         PAssert.that(result).containsInAnyOrder(recordsInTableA.get(3));
 
@@ -46,9 +46,9 @@ public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
     public void testNationalCharsetLiteral() {
         String sql = "SELECT * FROM TABLE_A WHERE f_string = N'第四行'";
 
-        PCollection<BeamRecord> result =
-                PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-                        .apply("testCompositeFilter", BeamSql.queryMulti(sql));
+    PCollection<BeamRecord> result =
+        PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
+            .apply("testCompositeFilter", BeamSql.queryMulti(sql));
 
         PAssert.that(result).containsInAnyOrder(recordsInTableA.get(3));
 
