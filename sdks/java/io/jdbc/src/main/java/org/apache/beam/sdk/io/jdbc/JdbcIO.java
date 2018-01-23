@@ -154,13 +154,17 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_ReadAll.Builder<ParameterT, OutputT>().build();
   }
 
+  private static final long DEFAULT_BATCH_SIZE = 1000L;
+
   /**
    * Write data to a JDBC datasource.
    *
    * @param <T> Type of the data to be written.
    */
   public static <T> Write<T> write() {
-    return new AutoValue_JdbcIO_Write.Builder<T>().build();
+    return new AutoValue_JdbcIO_Write.Builder<T>()
+            .setBatchSize(DEFAULT_BATCH_SIZE)
+            .build();
   }
 
   public static <T> WriteIterable<T> writeIterable() {
@@ -515,6 +519,7 @@ public class JdbcIO {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
     @Nullable abstract String getStatement();
     @Nullable abstract PreparedStatementSetter<RowT> getPreparedStatementSetter();
+    abstract long getBatchSize();
 
     @Override
     public PDone expand(PCollection<InputT> input) {
@@ -596,12 +601,14 @@ public class JdbcIO {
   public abstract static class Write<T> extends AbstractWrite<T, T> {
     // Override is needed, otherwise the code generator complains about the type parameter
     @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
       abstract Builder<T> setStatement(String statement);
+      abstract Builder<T> setBatchSize(long batchSize);
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
 
       abstract Write<T> build();
@@ -616,6 +623,17 @@ public class JdbcIO {
     public Write<T> withPreparedStatementSetter(PreparedStatementSetter<T> setter) {
       return toBuilder().setPreparedStatementSetter(setter).build();
     }
+    
+    /**
+     * Provide a maximum size in number of SQL statement for the batch. Default is 1000.
+     *
+     * @param batchSize maximum batch size in number of statements
+     * @return the {@link Write} with connection batch size set
+     */
+    public Write<T> withBatchSize(long batchSize) {
+      checkArgument(batchSize > 0, "batchSize must be > 0, but was %d", batchSize);
+      return toBuilder().setBatchSize(batchSize).build();
+    }
 
     @Override
     protected WriteFn<T> createWriteFn(AbstractWrite<T, T> write) {
@@ -623,7 +641,6 @@ public class JdbcIO {
     }
 
     private static class WriteFn<T> extends AbstractWriteFn<T, T> {
-      private static final int DEFAULT_BATCH_SIZE = 1000;
 
       public WriteFn(AbstractWrite<T, T> spec) {
         super(spec);
@@ -640,7 +657,7 @@ public class JdbcIO {
 
         batchCount++;
 
-        if (batchCount >= DEFAULT_BATCH_SIZE) {
+        if (batchCount >= spec.getBatchSize()) {
           executeBatch();
         }
       }
@@ -655,6 +672,7 @@ public class JdbcIO {
   public abstract static class WriteIterable<T> extends AbstractWrite<T, Iterable<T>> {
     // Override is needed, otherwise the code generator complains about the type parameter
     @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder

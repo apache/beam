@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(javaVersion: 1.8)
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop :: jdk1.8-tests"
 
@@ -49,7 +49,11 @@ dependencies {
   shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow project(path: ":sdks:java:io:hadoop:input-format", configuration: "shadow")
   shadow library.java.slf4j_api
-  shadow "org.elasticsearch:elasticsearch-hadoop:$elastic_search_version"
+  shadow ("org.elasticsearch:elasticsearch-hadoop:$elastic_search_version") {
+    exclude group: "org.apache.spark", module: "spark-core_2.10"
+    exclude group: "org.apache.spark", module: "spark-streaming_2.10"
+    exclude group: "org.apache.spark", module: "spark-sql_2.10"
+  }
   shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9"
   shadow library.java.commons_io_2x
   provided library.java.hadoop_common

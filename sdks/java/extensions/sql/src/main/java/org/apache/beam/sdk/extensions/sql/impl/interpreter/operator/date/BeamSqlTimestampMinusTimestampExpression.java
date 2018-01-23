@@ -71,8 +71,8 @@ public class BeamSqlTimestampMinusTimestampExpression extends BeamSqlExpression 
    * multiplied by the corresponding TimeUnit.multiplier
    */
   public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    DateTime timestampStart = new DateTime(opValueEvaluated(1, inputRow, window));
-    DateTime timestampEnd = new DateTime(opValueEvaluated(0, inputRow, window));
+    DateTime timestampStart = new DateTime((Object) opValueEvaluated(1, inputRow, window));
+    DateTime timestampEnd = new DateTime((Object) opValueEvaluated(0, inputRow, window));
 
     long numberOfIntervals = numberOfIntervalsBetweenDates(timestampStart, timestampEnd);
     long multiplier = TimeUnitUtils.timeUnitInternalMultiplier(intervalType).longValue();
