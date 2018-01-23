@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -122,7 +123,9 @@ public class ReshuffleTest implements Serializable {
                         TimestampedValue.of("bar", new Instant(33)),
                         TimestampedValue.of("bar", GlobalWindow.INSTANCE.maxTimestamp()))
                     .withCoder(StringUtf8Coder.of()))
-            .apply(WithKeys.of(input12 -> input12))
+            .apply(
+                WithKeys.<String, String>of(input12 -> input12)
+                    .withKeyType(TypeDescriptors.strings()))
             .apply("ReifyOriginalTimestamps", Reify.timestampsInValue());
 
     // The outer TimestampedValue is the reified timestamp post-reshuffle. The inner
