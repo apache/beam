@@ -339,9 +339,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output(
-          KV.of(
-              context.element(),
-              invoker.invokeGetInitialRestriction(context.element())));
+          KV.of(context.element(), invoker.invokeGetInitialRestriction(context.element())));
     }
   }
 

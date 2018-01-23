@@ -280,8 +280,7 @@ public class ApproximateUnique {
       @SuppressWarnings("unchecked")
       final Coder<V> coder = ((KvCoder<K, V>) inputCoder).getValueCoder();
 
-      return input.apply(
-          Combine.perKey(new ApproximateUniqueCombineFn<>(sampleSize, coder)));
+      return input.apply(Combine.perKey(new ApproximateUniqueCombineFn<>(sampleSize, coder)));
     }
 
     @Override

@@ -82,9 +82,7 @@ public class DirectGraphVisitorTest implements Serializable {
         DirectRunner.fromOptions(TestPipeline.testingPipelineOptions())
             .defaultTransformOverrides());
     p.traverseTopologically(visitor);
-    assertThat(
-        visitor.getGraph().getViews(),
-        Matchers.containsInAnyOrder(listView, singletonView));
+    assertThat(visitor.getGraph().getViews(), Matchers.containsInAnyOrder(listView, singletonView));
   }
 
   @Test
@@ -116,9 +114,7 @@ public class DirectGraphVisitorTest implements Serializable {
     empty.setCoder(StringUtf8Coder.of());
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();
-    assertThat(
-        graph.getRootTransforms(),
-        Matchers.containsInAnyOrder(graph.getProducer(empty)));
+    assertThat(graph.getRootTransforms(), Matchers.containsInAnyOrder(graph.getProducer(empty)));
     AppliedPTransform<?, ?, ?> onlyRoot = Iterables.getOnlyElement(graph.getRootTransforms());
     assertThat(onlyRoot.getTransform(), Matchers.equalTo(flatten));
     assertThat(onlyRoot.getInputs().entrySet(), emptyIterable());
@@ -152,11 +148,9 @@ public class DirectGraphVisitorTest implements Serializable {
 
     assertThat(
         graph.getPerElementConsumers(created),
-        Matchers.containsInAnyOrder(
-            transformedProducer, flattenedProducer));
+        Matchers.containsInAnyOrder(transformedProducer, flattenedProducer));
     assertThat(
-        graph.getPerElementConsumers(transformed),
-        Matchers.containsInAnyOrder(flattenedProducer));
+        graph.getPerElementConsumers(transformed), Matchers.containsInAnyOrder(flattenedProducer));
     assertThat(graph.getPerElementConsumers(flattened), emptyIterable());
   }
 
@@ -174,8 +168,7 @@ public class DirectGraphVisitorTest implements Serializable {
 
     assertThat(
         graph.getPerElementConsumers(created),
-        Matchers.containsInAnyOrder(flattenedProducer,
-            flattenedProducer));
+        Matchers.containsInAnyOrder(flattenedProducer, flattenedProducer));
     assertThat(graph.getPerElementConsumers(flattened), emptyIterable());
   }
 

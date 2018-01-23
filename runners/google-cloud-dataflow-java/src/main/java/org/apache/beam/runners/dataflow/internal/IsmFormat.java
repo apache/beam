@@ -256,8 +256,7 @@ public class IsmFormat {
         keyComponents.add(keyCoder.decode(inStream));
       }
       if (isMetadataKey(keyComponents)) {
-        return IsmRecord.meta(
-            keyComponents, ByteArrayCoder.of().decode(inStream));
+        return IsmRecord.meta(keyComponents, ByteArrayCoder.of().decode(inStream));
       } else {
         return IsmRecord.of(keyComponents, valueCoder.decode(inStream));
       }

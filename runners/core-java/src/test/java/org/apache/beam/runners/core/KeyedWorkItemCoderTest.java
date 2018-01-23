@@ -57,8 +57,7 @@ public class KeyedWorkItemCoderTest {
 
     CoderProperties.coderDecodeEncodeEqual(coder, KeyedWorkItems.workItem("foo", timers, elements));
     CoderProperties.coderDecodeEncodeEqual(coder, KeyedWorkItems.elementsWorkItem("foo", elements));
-    CoderProperties.coderDecodeEncodeEqual(
-        coder, KeyedWorkItems.timersWorkItem("foo", timers));
+    CoderProperties.coderDecodeEncodeEqual(coder, KeyedWorkItems.timersWorkItem("foo", timers));
   }
 
   @Test

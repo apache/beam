@@ -297,9 +297,11 @@ public class CreateTest {
         Matchers.containsString("Unable to infer a coder"));
 
     // Create won't infer a default coder in this case.
-    PCollection<Record> c = p.apply(Create.timestamped(
-        TimestampedValue.of(new Record(), new Instant(0)),
-        TimestampedValue.of(new Record2(), new Instant(0))));
+    PCollection<Record> c =
+        p.apply(
+            Create.timestamped(
+                TimestampedValue.of(new Record(), new Instant(0)),
+                TimestampedValue.of(new Record2(), new Instant(0))));
 
     p.run();
 
@@ -311,8 +313,8 @@ public class CreateTest {
     Coder<Record> coder = new RecordCoder();
     Create.TimestampedValues<Record> values =
         Create.timestamped(
-            TimestampedValue.of(new Record(), new Instant(0)),
-            TimestampedValue.of(new Record2(), new Instant(0)))
+                TimestampedValue.of(new Record(), new Instant(0)),
+                TimestampedValue.of(new Record2(), new Instant(0)))
             .withCoder(coder);
     assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
@@ -323,8 +325,8 @@ public class CreateTest {
     p.getCoderRegistry().registerCoderForClass(Record.class, coder);
     Create.TimestampedValues<Record> values =
         Create.timestamped(
-            TimestampedValue.of(new Record(), new Instant(0)),
-            TimestampedValue.of(new Record2(), new Instant(0)))
+                TimestampedValue.of(new Record(), new Instant(0)),
+                TimestampedValue.of(new Record2(), new Instant(0)))
             .withType(new TypeDescriptor<Record>() {});
     assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
@@ -438,8 +440,7 @@ public class CreateTest {
   @Test
   public void testSourceSplitVoid() throws Exception {
     CreateSource<Void> source =
-        CreateSource.fromIterable(
-            Lists.newArrayList(null, null, null, null, null), VoidCoder.of());
+        CreateSource.fromIterable(Lists.newArrayList(null, null, null, null, null), VoidCoder.of());
     PipelineOptions options = PipelineOptionsFactory.create();
     List<? extends BoundedSource<Void>> splitSources = source.split(3, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splitSources, options);

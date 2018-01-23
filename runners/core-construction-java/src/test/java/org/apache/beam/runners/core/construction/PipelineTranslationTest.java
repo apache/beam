@@ -98,8 +98,7 @@ public class PipelineTranslationTest {
                 .withAllowedLateness(Duration.standardMinutes(3L)));
     final WindowingStrategy<?, ?> windowedStrategy = windowed.getWindowingStrategy();
     PCollection<KV<String, Long>> keyed = windowed.apply(WithKeys.of("foo"));
-    PCollection<KV<String, Iterable<Long>>> grouped =
-        keyed.apply(GroupByKey.create());
+    PCollection<KV<String, Iterable<Long>>> grouped = keyed.apply(GroupByKey.create());
 
     return ImmutableList.of(trivialPipeline, sideInputPipeline, complexPipeline);
   }

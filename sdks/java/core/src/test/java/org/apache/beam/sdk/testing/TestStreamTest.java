@@ -92,10 +92,12 @@ public class TestStreamTest implements Serializable {
                 .withLateFirings(AfterPane.elementCountAtLeast(1)))
             .accumulatingFiredPanes()
             .withAllowedLateness(Duration.standardMinutes(5), ClosingBehavior.FIRE_ALWAYS));
-    PCollection<Integer> triggered = windowed.apply(WithKeys.of(1))
-        .apply(GroupByKey.create())
-        .apply(Values.create())
-        .apply(Flatten.iterables());
+    PCollection<Integer> triggered =
+        windowed
+            .apply(WithKeys.of(1))
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(Flatten.iterables());
     PCollection<Long> count =
         windowed.apply(Combine.globally(Count.<Integer>combineFn()).withoutDefaults());
     PCollection<Integer> sum = windowed.apply(Sum.integersGlobally().withoutDefaults());
@@ -214,14 +216,17 @@ public class TestStreamTest implements Serializable {
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
     Duration allowedLateness = Duration.millis(5000L);
-    PCollection<String> values = p.apply(stream)
-        .apply(Window.<String>into(windowFn).triggering(DefaultTrigger.of())
-            .discardingFiredPanes()
-            .withAllowedLateness(allowedLateness))
-        .apply(WithKeys.of(1))
-        .apply(GroupByKey.create())
-        .apply(Values.create())
-        .apply(Flatten.iterables());
+    PCollection<String> values =
+        p.apply(stream)
+            .apply(
+                Window.<String>into(windowFn)
+                    .triggering(DefaultTrigger.of())
+                    .discardingFiredPanes()
+                    .withAllowedLateness(allowedLateness))
+            .apply(WithKeys.of(1))
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(Flatten.iterables());
 
     PAssert.that(values).inWindow(windowFn.assignWindow(lateElementTimestamp)).empty();
     PAssert.that(values)

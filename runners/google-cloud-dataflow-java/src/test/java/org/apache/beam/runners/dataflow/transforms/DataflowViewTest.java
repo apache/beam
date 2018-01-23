@@ -113,9 +113,12 @@ public class DataflowViewTest {
     thrown.expectMessage("Unable to create a side-input view from input");
     thrown.expectCause(
         ThrowableMessageMatcher.hasMessage(Matchers.containsString("Consumed by GroupByKey")));
-    pipeline.apply(Create.of(KV.of("hello", 5)))
-        .apply(Window.into(new InvalidWindows<>(
-            "Consumed by GroupByKey", FixedWindows.of(Duration.standardHours(1)))))
+    pipeline
+        .apply(Create.of(KV.of("hello", 5)))
+        .apply(
+            Window.into(
+                new InvalidWindows<>(
+                    "Consumed by GroupByKey", FixedWindows.of(Duration.standardHours(1)))))
         .apply(view);
   }
 

@@ -99,8 +99,9 @@ public class FlattenPCollectionTranslatorTest {
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
     Pipeline p = Pipeline.create();
     PCollection<String> single = p.apply(Create.of(Collections.singletonList("1")));
-    PCollectionList.of(single).apply(Flatten.pCollections())
-      .apply(ParDo.of(new EmbeddedCollector()));
+    PCollectionList.of(single)
+        .apply(Flatten.pCollections())
+        .apply(ParDo.of(new EmbeddedCollector()));
     DAG dag = TestApexRunner.translate(p, options);
     Assert.assertNotNull(
         dag.getOperatorMeta("ParDo(EmbeddedCollector)/ParMultiDo(EmbeddedCollector)"));

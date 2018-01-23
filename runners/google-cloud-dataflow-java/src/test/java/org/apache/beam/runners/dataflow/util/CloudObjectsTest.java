@@ -143,10 +143,8 @@ public class CloudObjectsTest {
               .add(
                   CoGbkResultCoder.of(
                       CoGbkResultSchema.of(
-                          ImmutableList.of(
-                              new TupleTag<Long>(), new TupleTag<byte[]>())),
-                      UnionCoder.of(
-                          ImmutableList.of(VarLongCoder.of(), ByteArrayCoder.of()))));
+                          ImmutableList.of(new TupleTag<Long>(), new TupleTag<byte[]>())),
+                      UnionCoder.of(ImmutableList.of(VarLongCoder.of(), ByteArrayCoder.of()))));
       for (Class<? extends Coder> atomicCoder :
           DefaultCoderCloudObjectTranslatorRegistrar.KNOWN_ATOMIC_CODERS) {
         dataBuilder.add(InstanceBuilder.ofType(atomicCoder).fromFactoryMethod("of").build());

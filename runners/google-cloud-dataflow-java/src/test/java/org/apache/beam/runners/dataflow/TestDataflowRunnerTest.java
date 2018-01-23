@@ -257,8 +257,7 @@ public class TestDataflowRunnerTest {
   private List<MetricUpdate> generateMockMetrics(boolean success, boolean tentative) {
     MetricStructuredName name = new MetricStructuredName();
     name.setName(success ? "PAssertSuccess" : "PAssertFailure");
-    name.setContext(
-        tentative ? ImmutableMap.of("tentative", "") : ImmutableMap.of());
+    name.setContext(tentative ? ImmutableMap.of("tentative", "") : ImmutableMap.of());
 
     MetricUpdate metric = new MetricUpdate();
     metric.setName(name);

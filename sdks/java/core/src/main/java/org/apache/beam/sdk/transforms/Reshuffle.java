@@ -101,9 +101,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
                     }
                   }
                 }))
-        .apply(
-            "RestoreOriginalTimestamps",
-            ReifyTimestamps.extractFromValues());
+        .apply("RestoreOriginalTimestamps", ReifyTimestamps.extractFromValues());
   }
 
   /** Implementation of {@link #viaRandomKey()}. */

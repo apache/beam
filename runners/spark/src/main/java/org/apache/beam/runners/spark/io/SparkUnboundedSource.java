@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
-
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -63,7 +62,6 @@ import org.joda.time.Instant;
 import scala.Tuple2;
 import scala.runtime.BoxedUnit;
 
-
 /**
  * A "composite" InputDStream implementation for {@link UnboundedSource}s.
  *
@@ -92,9 +90,10 @@ public class SparkUnboundedSource {
         new SourceDStream<>(jssc.ssc(), source, rc, maxRecordsPerBatch);
 
     JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream =
-        JavaPairInputDStream$.MODULE$.fromInputDStream(sourceDStream,
+        JavaPairInputDStream$.MODULE$.fromInputDStream(
+            sourceDStream,
             JavaSparkContext$.MODULE$.fakeClassTag(),
-                JavaSparkContext$.MODULE$.fakeClassTag());
+            JavaSparkContext$.MODULE$.fakeClassTag());
 
     // call mapWithState to read from a checkpointable sources.
     JavaMapWithStateDStream<Source<T>, CheckpointMarkT, Tuple2<byte[], Instant>,

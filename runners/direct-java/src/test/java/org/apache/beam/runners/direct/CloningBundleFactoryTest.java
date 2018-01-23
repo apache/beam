@@ -123,8 +123,7 @@ public class CloningBundleFactoryTest {
         not(theInstance(foos.getValue())));
     assertThat(keyedBundle.getPCollection(), equalTo(keyed));
     assertThat(
-        keyedBundle.getKey(),
-        Matchers.equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
+        keyedBundle.getKey(), Matchers.equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
   }
 
   @Test

@@ -137,15 +137,14 @@ public class DefaultCoderTest {
         registry.getCoder(new TypeDescriptor<List<AvroRecord>>(){});
     assertThat(avroRecordCoder, instanceOf(ListCoder.class));
     assertThat(((ListCoder) avroRecordCoder).getElemCoder(), instanceOf(AvroCoder.class));
-    assertThat(registry.getCoder(new TypeDescriptor<List<SerializableRecord>>(){}),
-        Matchers.equalTo(
-            ListCoder.of(SerializableCoder.of(SerializableRecord.class))));
+    assertThat(
+        registry.getCoder(new TypeDescriptor<List<SerializableRecord>>() {}),
+        Matchers.equalTo(ListCoder.of(SerializableCoder.of(SerializableRecord.class))));
   }
 
   @Test
   public void testUnknown() throws Exception {
     thrown.expect(CannotProvideCoderException.class);
-    new DefaultCoderProvider().coderFor(
-        TypeDescriptor.of(Unknown.class), Collections.emptyList());
+    new DefaultCoderProvider().coderFor(TypeDescriptor.of(Unknown.class), Collections.emptyList());
   }
 }

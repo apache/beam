@@ -266,8 +266,9 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
           @Nullable List<TimestampedValue<T>> residualElementsList,
           @Nullable BoundedSource<T> residualSource,
           PipelineOptions options) {
-        this.residualElements = residualElementsList == null
-            ? new ResidualElements(Collections.emptyList())
+        this.residualElements =
+            residualElementsList == null
+                ? new ResidualElements(Collections.emptyList())
                 : new ResidualElements(residualElementsList);
         this.residualSource =
             residualSource == null ? null : new ResidualSource(residualSource, options);

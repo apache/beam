@@ -373,8 +373,7 @@ public class KafkaIO {
      */
     public Read<K, V> withBootstrapServers(String bootstrapServers) {
       return updateConsumerProperties(
-          ImmutableMap.of(
-              ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     /**
@@ -559,8 +558,7 @@ public class KafkaIO {
      * for more description.
      */
     public Read<K, V> withReadCommitted() {
-      return updateConsumerProperties(
-        ImmutableMap.of("isolation.level", "read_committed"));
+      return updateConsumerProperties(ImmutableMap.of("isolation.level", "read_committed"));
     }
 
     /**
@@ -655,8 +653,10 @@ public class KafkaIO {
     // set config defaults
     private static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
         ImmutableMap.of(
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+            ByteArrayDeserializer.class.getName(),
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+            ByteArrayDeserializer.class.getName(),
 
             // Use large receive buffer. Once KAFKA-3135 is fixed, this _may_ not be required.
             // with default value of of 32K, It takes multiple seconds between successful polls.
@@ -665,12 +665,15 @@ public class KafkaIO {
             // about half of the time select() inside kafka consumer waited for 20-30ms, though
             // the server had lots of data in tcp send buffers on its side. Compared to default,
             // this setting increased throughput increased by many fold (3-4x).
-            ConsumerConfig.RECEIVE_BUFFER_CONFIG, 512 * 1024,
+            ConsumerConfig.RECEIVE_BUFFER_CONFIG,
+            512 * 1024,
 
             // default to latest offset when we are not resuming.
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest",
+            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+            "latest",
             // disable auto commit of offsets. we don't require group_id. could be enabled by user.
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+            false);
 
     // default Kafka 0.9 Consumer supplier.
     private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
@@ -1446,8 +1449,7 @@ public class KafkaIO {
      */
     public Write<K, V> withBootstrapServers(String bootstrapServers) {
       return updateProducerProperties(
-          ImmutableMap.of(
-              ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     /**
@@ -1609,8 +1611,7 @@ public class KafkaIO {
 
     // set config defaults
     private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
-        ImmutableMap.of(
-            ProducerConfig.RETRIES_CONFIG, 3);
+        ImmutableMap.of(ProducerConfig.RETRIES_CONFIG, 3);
 
     /**
      * A set of properties that are not required or don't make sense for our producer.
@@ -1887,16 +1888,19 @@ public class KafkaIO {
       checkState(numShards > 0, "Could not set number of shards");
 
       return input
-          .apply(Window.<KV<K, V>>into(new GlobalWindows()) // Everything into global window.
-                     .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-                     .discardingFiredPanes())
-          .apply(String.format("Shuffle across %d shards", numShards),
-                 ParDo.of(new EOSReshard<K, V>(numShards)))
+          .apply(
+              Window.<KV<K, V>>into(new GlobalWindows()) // Everything into global window.
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .discardingFiredPanes())
+          .apply(
+              String.format("Shuffle across %d shards", numShards),
+              ParDo.of(new EOSReshard<K, V>(numShards)))
           .apply("Persist sharding", GroupByKey.create())
           .apply("Assign sequential ids", ParDo.of(new EOSSequencer<K, V>()))
           .apply("Persist ids", GroupByKey.create())
-          .apply(String.format("Write to Kafka topic '%s'", spec.getTopic()),
-                 ParDo.of(new KafkaEOWriter<>(spec, input.getCoder())));
+          .apply(
+              String.format("Write to Kafka topic '%s'", spec.getTopic()),
+              ParDo.of(new KafkaEOWriter<>(spec, input.getCoder())));
     }
   }
 

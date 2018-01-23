@@ -70,8 +70,8 @@ public class ValueProvidersTest {
   public void testUpdateSerializeEmptyUpdate() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
     String serializedOptions = MAPPER.writeValueAsString(submitOptions);
-    String updatedOptions = ValueProviders.updateSerializedOptions(
-      serializedOptions, ImmutableMap.of());
+    String updatedOptions =
+        ValueProviders.updateSerializedOptions(serializedOptions, ImmutableMap.of());
     TestOptions runtime = MAPPER.readValue(updatedOptions, PipelineOptions.class)
       .as(TestOptions.class);
     assertNull(runtime.getString());

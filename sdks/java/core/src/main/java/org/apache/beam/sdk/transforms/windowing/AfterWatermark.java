@@ -89,9 +89,10 @@ public class AfterWatermark {
 
     @SuppressWarnings("unchecked")
     private AfterWatermarkEarlyAndLate(OnceTrigger earlyTrigger, OnceTrigger lateTrigger) {
-      super(lateTrigger == null
-          ? ImmutableList.of(earlyTrigger)
-          : ImmutableList.of(earlyTrigger, lateTrigger));
+      super(
+          lateTrigger == null
+              ? ImmutableList.of(earlyTrigger)
+              : ImmutableList.of(earlyTrigger, lateTrigger));
       this.earlyTrigger = checkNotNull(earlyTrigger, "earlyTrigger should not be null");
       this.lateTrigger = lateTrigger;
     }

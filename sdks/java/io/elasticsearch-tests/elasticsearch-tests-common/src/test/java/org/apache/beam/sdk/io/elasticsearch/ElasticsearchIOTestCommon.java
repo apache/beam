@@ -176,11 +176,7 @@ class ElasticsearchIOTestCommon implements Serializable {
         connectionConfiguration.getType());
     HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
     Response response =
-        restClient.performRequest(
-            "GET",
-            endPoint,
-            Collections.emptyMap(),
-            httpEntity);
+        restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
     JsonNode searchResult = parseResponse(response);
     int count = searchResult.path("hits").path("total").asInt();
     assertEquals(numDocs / NUM_SCIENTISTS, count);

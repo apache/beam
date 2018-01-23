@@ -54,16 +54,9 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(Person p) {
-        return Collections.unmodifiableList(Arrays.asList(
-            p.id,
-            p.name,
-            p.emailAddress,
-            p.creditCard,
-            p.city,
-            p.state,
-            p.dateTime,
-            p.extra
-        ));
+        return Collections.unmodifiableList(
+            Arrays.asList(
+                p.id, p.name, p.emailAddress, p.creditCard, p.city, p.state, p.dateTime, p.extra));
       }
     };
   }
@@ -79,13 +72,8 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(Bid b) {
-        return Collections.unmodifiableList(Arrays.asList(
-            b.auction,
-            b.bidder,
-            b.price,
-            b.dateTime,
-            b.extra
-        ));
+        return Collections.unmodifiableList(
+            Arrays.asList(b.auction, b.bidder, b.price, b.dateTime, b.extra));
       }
     };
   }
@@ -106,18 +94,18 @@ public class ModelAdaptersMapping {
             .build()) {
       @Override
       public List<Object> getFieldsValues(Auction a) {
-        return Collections.unmodifiableList(Arrays.asList(
-            a.id,
-            a.itemName,
-            a.description,
-            a.initialBid,
-            a.reserve,
-            a.dateTime,
-            a.expires,
-            a.seller,
-            a.category,
-            a.extra
-        ));
+        return Collections.unmodifiableList(
+            Arrays.asList(
+                a.id,
+                a.itemName,
+                a.description,
+                a.initialBid,
+                a.reserve,
+                a.dateTime,
+                a.expires,
+                a.seller,
+                a.category,
+                a.extra));
       }
     };
   }

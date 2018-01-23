@@ -63,19 +63,19 @@ public class PipelineOptionsTest {
   public void parDoBaseClassPipelineOptionsNullTest() {
     TupleTag<String> mainTag = new TupleTag<>("main-output");
     Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
-    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
-        new TestDoFn(),
-        "stepName",
-        coder,
-        mainTag,
-        Collections.emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
-        WindowingStrategy.globalDefault(),
-        new HashMap<Integer, PCollectionView<?>>(),
-        Collections.emptyList(),
-        null,
-        null);
-
+    DoFnOperator<String, String> doFnOperator =
+        new DoFnOperator<>(
+            new TestDoFn(),
+            "stepName",
+            coder,
+            mainTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
+            WindowingStrategy.globalDefault(),
+            new HashMap<Integer, PCollectionView<?>>(),
+            Collections.emptyList(),
+            null,
+            null);
   }
 
   /**
@@ -87,18 +87,19 @@ public class PipelineOptionsTest {
     TupleTag<String> mainTag = new TupleTag<>("main-output");
 
     Coder<WindowedValue<String>> coder = WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
-    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
-        new TestDoFn(),
-        "stepName",
-        coder,
-        mainTag,
-        Collections.emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
-        WindowingStrategy.globalDefault(),
-        new HashMap<Integer, PCollectionView<?>>(),
-        Collections.emptyList(),
-        options,
-        null);
+    DoFnOperator<String, String> doFnOperator =
+        new DoFnOperator<>(
+            new TestDoFn(),
+            "stepName",
+            coder,
+            mainTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
+            WindowingStrategy.globalDefault(),
+            new HashMap<Integer, PCollectionView<?>>(),
+            Collections.emptyList(),
+            options,
+            null);
 
     final byte[] serialized = SerializationUtils.serialize(doFnOperator);
 

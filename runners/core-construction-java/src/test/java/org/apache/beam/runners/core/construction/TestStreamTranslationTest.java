@@ -27,7 +27,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TestStreamPayload;
 import org.apache.beam.runners.core.construction.TestStreamTranslationTest.TestStreamPayloadTranslation;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -92,8 +91,7 @@ public class TestStreamTranslationTest {
       PCollection<String> output = p.apply(testStream);
 
       AppliedPTransform<PBegin, PCollection<String>, TestStream<String>> appliedTestStream =
-          AppliedPTransform.of(
-              "fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
+          AppliedPTransform.of("fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
 
       SdkComponents components = SdkComponents.create();
       RunnerApi.FunctionSpec spec =

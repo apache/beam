@@ -122,8 +122,7 @@ public class SideInputTranslationTest implements Serializable {
     assertEquals(
         ListCoder.of(
             KvCoder.of(VoidCoder.of(), KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))),
-        getTranslatedSideInputCoder(
-            ImmutableList.of(KV.of("a", 1), KV.of("b", 3)), View.asMap()));
+        getTranslatedSideInputCoder(ImmutableList.of(KV.of("a", 1), KV.of("b", 3)), View.asMap()));
   }
 
   @Test
@@ -132,8 +131,7 @@ public class SideInputTranslationTest implements Serializable {
         ListCoder.of(
             KvCoder.of(VoidCoder.of(), KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))),
         getTranslatedSideInputCoder(
-            ImmutableList.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)),
-            View.asMultimap()));
+            ImmutableList.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)), View.asMultimap()));
   }
 
   private <T> Coder<?> getTranslatedSideInputCoder(

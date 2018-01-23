@@ -95,8 +95,7 @@ public class CassandraIOIT implements Serializable {
         .withEntity(Scientist.class)
         .withCoder(SerializableCoder.of(Scientist.class)));
 
-    PAssert.thatSingleton(output.apply("Count scientist", Count.globally()))
-        .isEqualTo(1000L);
+    PAssert.thatSingleton(output.apply("Count scientist", Count.globally())).isEqualTo(1000L);
 
     PCollection<KV<String, Integer>> mapped =
         output.apply(

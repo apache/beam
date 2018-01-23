@@ -33,11 +33,8 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplaceme
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
-import org.apache.beam.sdk.transforms.ViewFn;
-import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -62,14 +59,8 @@ public class ViewOverrideFactoryTest implements Serializable {
     final PCollectionView<List<Integer>> view = ints.apply(View.asList());
     PTransformReplacement<PCollection<Integer>, PCollection<Integer>> replacement =
         factory.getReplacementTransform(
-            AppliedPTransform
-                .
-                    of(
-                        "foo",
-                        ints.expand(),
-                        view.expand(),
-                        CreatePCollectionView.of(view),
-                        p));
+            AppliedPTransform.of(
+                "foo", ints.expand(), view.expand(), CreatePCollectionView.of(view), p));
     ints.apply(replacement.getTransform());
     final AtomicBoolean writeViewVisited = new AtomicBoolean();
     p.traverseTopologically(
@@ -86,11 +77,8 @@ public class ViewOverrideFactoryTest implements Serializable {
               // replacementView.getPCollection() is null, but that is not a requirement
               // so not asserted one way or the other
               assertThat(
-                  replacementView.getTagInternal(),
-                  equalTo((TupleTag) view.getTagInternal()));
-              assertThat(
-                  replacementView.getViewFn(),
-                  Matchers.equalTo(view.getViewFn()));
+                  replacementView.getTagInternal(), equalTo((TupleTag) view.getTagInternal()));
+              assertThat(replacementView.getViewFn(), Matchers.equalTo(view.getViewFn()));
               assertThat(
                   replacementView.getWindowMappingFn(),
                   Matchers.equalTo(view.getWindowMappingFn()));

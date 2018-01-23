@@ -126,9 +126,7 @@ import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Description;
 import org.hamcrest.Matchers;
@@ -1094,8 +1092,7 @@ public class DataflowRunnerTest implements Serializable {
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(Matchers.containsString("no translator registered"));
     DataflowPipelineTranslator.fromOptions(options)
-        .translate(
-            p, DataflowRunner.fromOptions(options), Collections.emptyList());
+        .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -1127,8 +1124,7 @@ public class DataflowRunnerTest implements Serializable {
           stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform1));
         });
 
-    translator.translate(
-        p, DataflowRunner.fromOptions(options), Collections.emptyList());
+    translator.translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
     assertTrue(transform.translated);
   }
 
@@ -1352,13 +1348,15 @@ public class DataflowRunnerTest implements Serializable {
 
     p.apply(Create.of(KV.of(13, 42)))
         .apply(Window.into(Sessions.withGapDuration(Duration.millis(1))))
-        .apply(ParDo.of(new DoFn<KV<Integer, Integer>, Void>() {
-          @StateId("fizzle")
-          private final StateSpec<ValueState<Void>> voidState = StateSpecs.value();
+        .apply(
+            ParDo.of(
+                new DoFn<KV<Integer, Integer>, Void>() {
+                  @StateId("fizzle")
+                  private final StateSpec<ValueState<Void>> voidState = StateSpecs.value();
 
-          @ProcessElement
-          public void process() {}
-        }));
+                  @ProcessElement
+                  public void process() {}
+                }));
 
     thrown.expectMessage("merging");
     thrown.expect(UnsupportedOperationException.class);
@@ -1388,12 +1386,7 @@ public class DataflowRunnerTest implements Serializable {
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
     AppliedPTransform<PCollection<Object>, WriteFilesResult<Void>, WriteFiles<Object, Void, Object>>
         originalApplication =
-            AppliedPTransform.of(
-                "writefiles",
-                objs.expand(),
-                Collections.emptyMap(),
-                original,
-                p);
+            AppliedPTransform.of("writefiles", objs.expand(), Collections.emptyMap(), original, p);
 
     WriteFiles<Object, Void, Object> replacement =
         (WriteFiles<Object, Void, Object>)

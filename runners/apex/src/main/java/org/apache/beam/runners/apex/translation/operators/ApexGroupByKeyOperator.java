@@ -88,29 +88,28 @@ public class ApexGroupByKeyOperator<K, V> implements Operator,
 
   public final transient DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>> input =
       new DefaultInputPort<ApexStreamTuple<WindowedValue<KV<K, V>>>>() {
-    @Override
-    public void process(ApexStreamTuple<WindowedValue<KV<K, V>>> t) {
-      try {
-        if (t instanceof ApexStreamTuple.WatermarkTuple) {
-          ApexStreamTuple.WatermarkTuple<?> mark = (ApexStreamTuple.WatermarkTuple<?>) t;
-          processWatermark(mark);
-          if (traceTuples) {
-            LOG.debug("\nemitting watermark {}\n", mark.getTimestamp());
+        @Override
+        public void process(ApexStreamTuple<WindowedValue<KV<K, V>>> t) {
+          try {
+            if (t instanceof ApexStreamTuple.WatermarkTuple) {
+              ApexStreamTuple.WatermarkTuple<?> mark = (ApexStreamTuple.WatermarkTuple<?>) t;
+              processWatermark(mark);
+              if (traceTuples) {
+                LOG.debug("\nemitting watermark {}\n", mark.getTimestamp());
+              }
+              output.emit(ApexStreamTuple.WatermarkTuple.of(mark.getTimestamp()));
+              return;
+            }
+            if (traceTuples) {
+              LOG.debug("\ninput {}\n", t.getValue());
+            }
+            processElement(t.getValue());
+          } catch (Exception e) {
+            Throwables.throwIfUnchecked(e);
+            throw new RuntimeException(e);
           }
-          output.emit(ApexStreamTuple.WatermarkTuple.of(
-              mark.getTimestamp()));
-          return;
         }
-        if (traceTuples) {
-          LOG.debug("\ninput {}\n", t.getValue());
-        }
-        processElement(t.getValue());
-      } catch (Exception e) {
-        Throwables.throwIfUnchecked(e);
-        throw new RuntimeException(e);
-      }
-    }
-  };
+      };
 
   @OutputPortFieldAnnotation(optional = true)
   public final transient DefaultOutputPort<ApexStreamTuple<WindowedValue<KV<K, Iterable<V>>>>>

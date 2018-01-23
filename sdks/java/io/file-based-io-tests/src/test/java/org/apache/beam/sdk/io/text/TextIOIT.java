@@ -87,13 +87,16 @@ public class TextIOIT {
         .withOutputFilenames()
         .withCompression(compressionType);
 
-    PCollection<String> testFilenames = pipeline
-        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-        .apply("Produce text lines",
-            ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
-        .apply("Write content to files", write)
-        .getPerDestinationOutputFilenames().apply(Values.create())
-        .apply(Reshuffle.viaRandomKey());
+    PCollection<String> testFilenames =
+        pipeline
+            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+            .apply(
+                "Produce text lines",
+                ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
+            .apply("Write content to files", write)
+            .getPerDestinationOutputFilenames()
+            .apply(Values.create())
+            .apply(Reshuffle.viaRandomKey());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", TextIO.readAll().withCompression(AUTO))
@@ -102,8 +105,10 @@ public class TextIOIT {
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFilenames.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-        .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+    testFilenames.apply(
+        "Delete test files",
+        ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+            .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }

@@ -76,8 +76,7 @@ public class PCollectionTranslationTest {
     PCollection<Long> longs = pipeline.apply("unbounded longs", GenerateSequence.from(0));
     PCollection<Long> windowedLongs =
         longs.apply(
-            "into fixed windows",
-            Window.into(FixedWindows.of(Duration.standardMinutes(10L))));
+            "into fixed windows", Window.into(FixedWindows.of(Duration.standardMinutes(10L))));
     PCollection<KV<String, Iterable<String>>> groupedStrings =
         pipeline
             .apply(
@@ -129,8 +128,7 @@ public class PCollectionTranslationTest {
     assertThat(decodedCollection.getCoder(), Matchers.equalTo(testCollection.getCoder()));
     assertThat(
         decodedCollection.getWindowingStrategy(),
-        Matchers.equalTo(
-            testCollection.getWindowingStrategy().fixDefaults()));
+        Matchers.equalTo(testCollection.getWindowingStrategy().fixDefaults()));
     assertThat(decodedCollection.isBounded(), equalTo(testCollection.isBounded()));
   }
 
@@ -148,9 +146,7 @@ public class PCollectionTranslationTest {
 
     assertThat(decodedCoder, Matchers.equalTo(testCollection.getCoder()));
     assertThat(
-        decodedStrategy,
-        Matchers.equalTo(
-            testCollection.getWindowingStrategy().fixDefaults()));
+        decodedStrategy, Matchers.equalTo(testCollection.getWindowingStrategy().fixDefaults()));
     assertThat(decodedIsBounded, equalTo(testCollection.isBounded()));
   }
 

@@ -62,8 +62,7 @@ public class KvSwapTest {
         p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), NullableCoder.of(BigEndianIntegerCoder.of()))));
 
-    PCollection<KV<Integer, String>> output = input.apply(
-        KvSwap.create());
+    PCollection<KV<Integer, String>> output = input.apply(KvSwap.create());
 
     PAssert.that(output).containsInAnyOrder(
         KV.of(1, "one"),
@@ -83,8 +82,7 @@ public class KvSwapTest {
         p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-    PCollection<KV<Integer, String>> output = input.apply(
-        KvSwap.create());
+    PCollection<KV<Integer, String>> output = input.apply(KvSwap.create());
 
     PAssert.that(output).empty();
     p.run();

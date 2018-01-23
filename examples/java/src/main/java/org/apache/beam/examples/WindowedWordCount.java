@@ -40,7 +40,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-
 /**
  * An example that counts words in text, and can run over either unbounded or bounded input
  * collections.
@@ -193,8 +192,7 @@ public class WindowedWordCount {
      */
     PCollection<String> windowedWords =
         input.apply(
-            Window.into(
-                FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
+            Window.into(FixedWindows.of(Duration.standardMinutes(options.getWindowSize()))));
 
     /**
      * Concept #4: Re-use our existing CountWords transform that does not have knowledge of

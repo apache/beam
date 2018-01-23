@@ -239,8 +239,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
             .withTopics(Collections.singletonList(TOPIC))
             .withKeyDeserializer(StringDeserializer.class)
             .withValueDeserializer(InstantDeserializer.class)
-            .updateConsumerProperties(
-                ImmutableMap.of("auto.offset.reset", "earliest"))
+            .updateConsumerProperties(ImmutableMap.of("auto.offset.reset", "earliest"))
             .withTimestampFn(kv -> kv.getValue())
             .withWatermarkFn(
                 kv -> {
@@ -272,16 +271,18 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
     PCollection<KV<String, Instant>> kafkaStream = p.apply(read.withoutMetadata());
 
-    PCollection<Iterable<String>> grouped = kafkaStream
-        .apply(Keys.create())
-        .apply("EOFShallNotPassFn", ParDo.of(new EOFShallNotPassFn(view)).withSideInputs(view))
-        .apply(Window.<String>into(FixedWindows.of(Duration.millis(500)))
-            .triggering(AfterWatermark.pastEndOfWindow())
-                .accumulatingFiredPanes()
-                .withAllowedLateness(Duration.ZERO))
-        .apply(WithKeys.of(1))
-        .apply(GroupByKey.create())
-        .apply(Values.create());
+    PCollection<Iterable<String>> grouped =
+        kafkaStream
+            .apply(Keys.create())
+            .apply("EOFShallNotPassFn", ParDo.of(new EOFShallNotPassFn(view)).withSideInputs(view))
+            .apply(
+                Window.<String>into(FixedWindows.of(Duration.millis(500)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .accumulatingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO))
+            .apply(WithKeys.of(1))
+            .apply(GroupByKey.create())
+            .apply(Values.create());
 
     grouped.apply(new PAssertWithoutFlatten<>("k1", "k2", "k3", "k4", "k5"));
 

@@ -122,20 +122,18 @@ public class  CombineFnsTest {
 
     TupleTag<Integer> maxIntTag = new TupleTag<Integer>();
     TupleTag<UserString> concatStringTag = new TupleTag<UserString>();
-    PCollection<KV<String, KV<Integer, String>>> combineGlobally = perKeyInput
-        .apply(Values.create())
-        .apply(Combine.globally(CombineFns.compose()
-            .with(
-                new GetIntegerFunction(),
-                Max.ofIntegers(),
-                maxIntTag)
-            .with(
-                new GetUserStringFunction(),
-                new ConcatString(),
-                concatStringTag)))
-        .apply(WithKeys.of("global"))
-        .apply(
-            "ExtractGloballyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
+    PCollection<KV<String, KV<Integer, String>>> combineGlobally =
+        perKeyInput
+            .apply(Values.create())
+            .apply(
+                Combine.globally(
+                    CombineFns.compose()
+                        .with(new GetIntegerFunction(), Max.ofIntegers(), maxIntTag)
+                        .with(new GetUserStringFunction(), new ConcatString(), concatStringTag)))
+            .apply(WithKeys.of("global"))
+            .apply(
+                "ExtractGloballyResult",
+                ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
 
     PCollection<KV<String, KV<Integer, String>>> combinePerKey =
         perKeyInput
@@ -159,9 +157,7 @@ public class  CombineFnsTest {
   public void testComposedCombineWithContext() {
     p.getCoderRegistry().registerCoderForClass(UserString.class, UserStringCoder.of());
 
-    PCollectionView<String> view = p
-        .apply(Create.of("I"))
-        .apply(View.asSingleton());
+    PCollectionView<String> view = p.apply(Create.of("I")).apply(View.asSingleton());
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
         Create.timestamped(
@@ -178,22 +174,23 @@ public class  CombineFnsTest {
 
     TupleTag<Integer> maxIntTag = new TupleTag<Integer>();
     TupleTag<UserString> concatStringTag = new TupleTag<UserString>();
-    PCollection<KV<String, KV<Integer, String>>> combineGlobally = perKeyInput
-        .apply(Values.create())
-        .apply(Combine.globally(CombineFns.compose()
-            .with(
-                new GetIntegerFunction(),
-                Max.ofIntegers(),
-                maxIntTag)
-            .with(
-                new GetUserStringFunction(),
-                new ConcatStringWithContext(view),
-                concatStringTag))
-            .withoutDefaults()
-            .withSideInputs(ImmutableList.of(view)))
-        .apply(WithKeys.of("global"))
-        .apply(
-            "ExtractGloballyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
+    PCollection<KV<String, KV<Integer, String>>> combineGlobally =
+        perKeyInput
+            .apply(Values.create())
+            .apply(
+                Combine.globally(
+                        CombineFns.compose()
+                            .with(new GetIntegerFunction(), Max.ofIntegers(), maxIntTag)
+                            .with(
+                                new GetUserStringFunction(),
+                                new ConcatStringWithContext(view),
+                                concatStringTag))
+                    .withoutDefaults()
+                    .withSideInputs(ImmutableList.of(view)))
+            .apply(WithKeys.of("global"))
+            .apply(
+                "ExtractGloballyResult",
+                ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
 
     PCollection<KV<String, KV<Integer, String>>> combinePerKey =
         perKeyInput

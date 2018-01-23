@@ -91,15 +91,11 @@ public class FlattenEvaluatorFactoryTest {
     TransformResult<Integer> rightSideResult = rightSideEvaluator.finishBundle();
     TransformResult<Integer> leftSideResult = leftSideEvaluator.finishBundle();
 
-    assertThat(
-        rightSideResult.getOutputBundles(),
-        Matchers.contains(flattenedRightBundle));
+    assertThat(rightSideResult.getOutputBundles(), Matchers.contains(flattenedRightBundle));
     assertThat(
         rightSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattenedProducer));
-    assertThat(
-        leftSideResult.getOutputBundles(),
-        Matchers.contains(flattenedLeftBundle));
+    assertThat(leftSideResult.getOutputBundles(), Matchers.contains(flattenedLeftBundle));
     assertThat(
         leftSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattenedProducer));

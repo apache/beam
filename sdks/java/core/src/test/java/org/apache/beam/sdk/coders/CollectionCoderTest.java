@@ -44,13 +44,14 @@ public class CollectionCoderTest {
 
   private static final Coder<Collection<Integer>> TEST_CODER = CollectionCoder.of(VarIntCoder.of());
 
-  private static final List<Collection<Integer>> TEST_VALUES = Arrays.asList(
-      Collections.emptyList(),
-      Collections.emptySet(),
-      Collections.singletonList(13),
-      Arrays.asList(1, 2, 3, 4),
-      new LinkedList<>(Arrays.asList(7, 6, 5)),
-      new TreeSet<>(Arrays.asList(31, -5, 83)));
+  private static final List<Collection<Integer>> TEST_VALUES =
+      Arrays.asList(
+          Collections.emptyList(),
+          Collections.emptySet(),
+          Collections.singletonList(13),
+          Arrays.asList(1, 2, 3, 4),
+          new LinkedList<>(Arrays.asList(7, 6, 5)),
+          new TreeSet<>(Arrays.asList(31, -5, 83)));
 
   @Test
   public void testDecodeEncodeContentsEqual() throws Exception {

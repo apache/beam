@@ -157,9 +157,10 @@ class BatchViewOverrides {
               && !previousWindowStructuralValue.get().equals(currentWindowStructuralValue)) {
             // Construct the transformed map containing all the elements since we
             // are at a window boundary.
-            c.output(IsmRecord.of(
-                ImmutableList.of(previousWindow.get()),
-                valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.of(), map))));
+            c.output(
+                IsmRecord.of(
+                    ImmutableList.of(previousWindow.get()),
+                    valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.of(), map))));
             map = new HashMap<>();
           }
 
@@ -178,9 +179,10 @@ class BatchViewOverrides {
         // The last value for this hash is guaranteed to be at a window boundary
         // so we output a transformed map containing all the elements since the last
         // window boundary.
-        c.output(IsmRecord.of(
-            ImmutableList.of(previousWindow.get()),
-            valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.of(), map))));
+        c.output(
+            IsmRecord.of(
+                ImmutableList.of(previousWindow.get()),
+                valueInEmptyWindows(new TransformedMap<>(WindowedValueToValue.of(), map))));
       }
     }
 
@@ -239,11 +241,7 @@ class BatchViewOverrides {
                   FullWindowedValueCoder.of(inputCoder.getValueCoder(), windowCoder)));
 
       return BatchViewAsSingleton.applyForSingleton(
-          runner,
-          input,
-          new ToMapDoFn<K, V, W>(windowCoder),
-          finalValueCoder,
-          view);
+          runner, input, new ToMapDoFn<K, V, W>(windowCoder), finalValueCoder, view);
     }
   }
 
@@ -521,9 +519,10 @@ class BatchViewOverrides {
 
           size += currentValue.getValue();
           if (!currentWindowStructuralValue.equals(nextWindowStructuralValue)) {
-            c.output(IsmRecord.meta(
-                ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), 0L),
-                CoderUtils.encodeToByteArray(VarLongCoder.of(), size)));
+            c.output(
+                IsmRecord.meta(
+                    ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), 0L),
+                    CoderUtils.encodeToByteArray(VarLongCoder.of(), size)));
             size = 0;
           }
 
@@ -533,9 +532,10 @@ class BatchViewOverrides {
 
         size += currentValue.getValue();
         // Output the final value since it is guaranteed to be on a window boundary.
-        c.output(IsmRecord.meta(
-            ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), 0L),
-            CoderUtils.encodeToByteArray(VarLongCoder.of(), size)));
+        c.output(
+            IsmRecord.meta(
+                ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), 0L),
+                CoderUtils.encodeToByteArray(VarLongCoder.of(), size)));
       }
     }
 
@@ -571,9 +571,11 @@ class BatchViewOverrides {
           KV<W, K> nextValue = iterator.next();
           Object nextWindowStructuralValue = windowCoder.structuralValue(nextValue.getKey());
 
-          c.output(IsmRecord.meta(
-              ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), elementsInWindow),
-              CoderUtils.encodeToByteArray(keyCoder, currentValue.getValue())));
+          c.output(
+              IsmRecord.meta(
+                  ImmutableList.of(
+                      IsmFormat.getMetadataKey(), currentValue.getKey(), elementsInWindow),
+                  CoderUtils.encodeToByteArray(keyCoder, currentValue.getValue())));
           elementsInWindow += 1;
 
           if (!currentWindowStructuralValue.equals(nextWindowStructuralValue)) {
@@ -585,9 +587,11 @@ class BatchViewOverrides {
         }
 
         // Output the final value since it is guaranteed to be on a window boundary.
-        c.output(IsmRecord.meta(
-            ImmutableList.of(IsmFormat.getMetadataKey(), currentValue.getKey(), elementsInWindow),
-            CoderUtils.encodeToByteArray(keyCoder, currentValue.getValue())));
+        c.output(
+            IsmRecord.meta(
+                ImmutableList.of(
+                    IsmFormat.getMetadataKey(), currentValue.getKey(), elementsInWindow),
+                CoderUtils.encodeToByteArray(keyCoder, currentValue.getValue())));
       }
     }
 
@@ -631,11 +635,12 @@ class BatchViewOverrides {
             // are at a window boundary.
             @SuppressWarnings({"unchecked", "rawtypes"})
             Map<K, Iterable<WindowedValue<V>>> resultMap = (Map) multimap.asMap();
-            c.output(IsmRecord.of(
-                ImmutableList.of(previousWindow.get()),
-                valueInEmptyWindows(
-                    new TransformedMap<>(
-                        IterableWithWindowedValuesToIterable.of(), resultMap))));
+            c.output(
+                IsmRecord.of(
+                    ImmutableList.of(previousWindow.get()),
+                    valueInEmptyWindows(
+                        new TransformedMap<>(
+                            IterableWithWindowedValuesToIterable.of(), resultMap))));
             multimap = HashMultimap.create();
           }
 
@@ -650,10 +655,11 @@ class BatchViewOverrides {
         // window boundary.
         @SuppressWarnings({"unchecked", "rawtypes"})
         Map<K, Iterable<WindowedValue<V>>> resultMap = (Map) multimap.asMap();
-        c.output(IsmRecord.of(
-            ImmutableList.of(previousWindow.get()),
-            valueInEmptyWindows(
-                new TransformedMap<>(IterableWithWindowedValuesToIterable.of(), resultMap))));
+        c.output(
+            IsmRecord.of(
+                ImmutableList.of(previousWindow.get()),
+                valueInEmptyWindows(
+                    new TransformedMap<>(IterableWithWindowedValuesToIterable.of(), resultMap))));
       }
     }
 
@@ -712,14 +718,8 @@ class BatchViewOverrides {
               IterableWithWindowedValuesToIterable.of(),
               ImmutableMap.<K, Iterable<WindowedValue<V>>>of());
 
-      return BatchViewAsSingleton
-          .
-              applyForSingleton(
-                  runner,
-                  input,
-                  new ToMultimapDoFn<K, V, W>(windowCoder),
-                  finalValueCoder,
-                  view);
+      return BatchViewAsSingleton.applyForSingleton(
+          runner, input, new ToMultimapDoFn<K, V, W>(windowCoder), finalValueCoder, view);
     }
 
     private static <K, V, W extends BoundedWindow, ViewT> PCollection<?> applyForMapLike(
@@ -750,15 +750,22 @@ class BatchViewOverrides {
 
       // Process all the elements grouped by key hash, and sorted by key and then window
       // outputting to all the outputs defined above.
-      PCollectionTuple outputTuple = input
-          .apply("GBKaSVForData", new GroupByKeyHashAndSortByKeyAndWindow<K, V, W>(ismCoder))
-          .apply(ParDo.of(new ToIsmRecordForMapLikeDoFn<>(
-              outputForSizeTag, outputForEntrySetTag,
-              windowCoder, inputCoder.getKeyCoder(), ismCoder, uniqueKeysExpected))
-              .withOutputTags(mainOutputTag,
-                  TupleTagList.of(
-                      ImmutableList.of(outputForSizeTag,
-                          outputForEntrySetTag))));
+      PCollectionTuple outputTuple =
+          input
+              .apply("GBKaSVForData", new GroupByKeyHashAndSortByKeyAndWindow<K, V, W>(ismCoder))
+              .apply(
+                  ParDo.of(
+                          new ToIsmRecordForMapLikeDoFn<>(
+                              outputForSizeTag,
+                              outputForEntrySetTag,
+                              windowCoder,
+                              inputCoder.getKeyCoder(),
+                              ismCoder,
+                              uniqueKeysExpected))
+                      .withOutputTags(
+                          mainOutputTag,
+                          TupleTagList.of(
+                              ImmutableList.of(outputForSizeTag, outputForEntrySetTag))));
 
       // Set the coder on the main data output.
       PCollection<IsmRecord<WindowedValue<V>>> perHashWithReifiedWindows =
@@ -939,8 +946,7 @@ class BatchViewOverrides {
       reifiedPerWindowAndSorted.setCoder(ismCoder);
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
-      reifiedPerWindowAndSorted.apply(
-          CreateDataflowView.forBatch(view));
+      reifiedPerWindowAndSorted.apply(CreateDataflowView.forBatch(view));
       return reifiedPerWindowAndSorted;
     }
 
@@ -1084,8 +1090,7 @@ class BatchViewOverrides {
         reifiedPerWindowAndSorted.setCoder(ismCoder);
 
         runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
-        reifiedPerWindowAndSorted.apply(
-            CreateDataflowView.forBatch(view));
+        reifiedPerWindowAndSorted.apply(CreateDataflowView.forBatch(view));
         return reifiedPerWindowAndSorted;
       }
 
@@ -1095,8 +1100,7 @@ class BatchViewOverrides {
       reifiedPerWindowAndSorted.setCoder(ismCoder);
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
-      reifiedPerWindowAndSorted.apply(
-          CreateDataflowView.forBatch(view));
+      reifiedPerWindowAndSorted.apply(CreateDataflowView.forBatch(view));
       return reifiedPerWindowAndSorted;
     }
 

@@ -250,9 +250,7 @@ class BatchLoads<DestinationT>
     // determinism.
     PCollectionTuple partitions =
         results
-            .apply(
-                "AttachSingletonKey",
-                WithKeys.of((Void) null))
+            .apply("AttachSingletonKey", WithKeys.of((Void) null))
             .setCoder(
                 KvCoder.of(VoidCoder.of(), WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
             .apply("GroupOntoSingleton", GroupByKey.create())
@@ -366,31 +364,29 @@ class BatchLoads<DestinationT>
   // Generate the temporary-file prefix.
   private PCollectionView<String> createTempFilePrefixView(
       Pipeline p, final PCollectionView<String> jobIdView) {
-    return p
-        .apply(Create.of(""))
+    return p.apply(Create.of(""))
         .apply(
             "GetTempFilePrefix",
             ParDo.of(
-                new DoFn<String, String>() {
-                  @ProcessElement
-                  public void getTempFilePrefix(ProcessContext c) {
-                    String tempLocationRoot;
-                    if (customGcsTempLocation != null) {
-                      tempLocationRoot = customGcsTempLocation.get();
-                    } else {
-                      tempLocationRoot = c.getPipelineOptions().getTempLocation();
-                    }
-                    String tempLocation =
-                        resolveTempLocation(
-                            tempLocationRoot,
-                            "BigQueryWriteTemp",
-                            c.sideInput(jobIdView));
-                    LOG.info(
-                        "Writing BigQuery temporary files to {} before loading them.",
-                        tempLocation);
-                    c.output(tempLocation);
-                  }
-                }).withSideInputs(jobIdView))
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void getTempFilePrefix(ProcessContext c) {
+                        String tempLocationRoot;
+                        if (customGcsTempLocation != null) {
+                          tempLocationRoot = customGcsTempLocation.get();
+                        } else {
+                          tempLocationRoot = c.getPipelineOptions().getTempLocation();
+                        }
+                        String tempLocation =
+                            resolveTempLocation(
+                                tempLocationRoot, "BigQueryWriteTemp", c.sideInput(jobIdView));
+                        LOG.info(
+                            "Writing BigQuery temporary files to {} before loading them.",
+                            tempLocation);
+                        c.output(tempLocation);
+                      }
+                    })
+                .withSideInputs(jobIdView))
         .apply("TempFilePrefixView", View.asSingleton());
   }
 
@@ -501,13 +497,13 @@ class BatchLoads<DestinationT>
         .apply(
             "MultiPartitionsWriteTables",
             new WriteTables<>(
-                        false,
-                        bigQueryServices,
-                        jobIdTokenView,
-                        WriteDisposition.WRITE_EMPTY,
-                        CreateDisposition.CREATE_IF_NEEDED,
-                        sideInputs,
-                        dynamicDestinations));
+                false,
+                bigQueryServices,
+                jobIdTokenView,
+                WriteDisposition.WRITE_EMPTY,
+                CreateDisposition.CREATE_IF_NEEDED,
+                sideInputs,
+                dynamicDestinations));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -530,13 +526,13 @@ class BatchLoads<DestinationT>
         .apply(
             "SinglePartitionWriteTables",
             new WriteTables<>(
-                        true,
-                        bigQueryServices,
-                        jobIdTokenView,
-                        writeDisposition,
-                        createDisposition,
-                        sideInputs,
-                        dynamicDestinations));
+                true,
+                bigQueryServices,
+                jobIdTokenView,
+                writeDisposition,
+                createDisposition,
+                sideInputs,
+                dynamicDestinations));
   }
 
   private WriteResult writeResult(Pipeline p) {

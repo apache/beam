@@ -39,8 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
-
-
 /**
  * A {@link SourceDStream} is an {@link InputDStream} of {@link SourceRDD.Unbounded}s.
  *

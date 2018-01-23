@@ -86,7 +86,7 @@ public class Min {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-   return Combine.perKey(new MinLongFn());
+    return Combine.perKey(new MinLongFn());
   }
 
   /**

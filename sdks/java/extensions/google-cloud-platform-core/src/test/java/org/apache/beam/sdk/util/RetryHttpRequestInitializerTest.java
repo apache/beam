@@ -278,15 +278,13 @@ public class RetryHttpRequestInitializerTest {
     // A sample HTTP request to Google Cloud Storage that uses both a default Transport and
     // effectively a default RetryHttpRequestInitializer (same args as default with fake
     // clock/sleeper).
-    Storage storage = new Storage.Builder(
-        transport,
-        Transport.getJsonFactory(),
-        new RetryHttpRequestInitializer(
-            fakeClockAndSleeper,
-            fakeClockAndSleeper,
-            Collections.emptyList(),
-            null)
-    ).build();
+    Storage storage =
+        new Storage.Builder(
+                transport,
+                Transport.getJsonFactory(),
+                new RetryHttpRequestInitializer(
+                    fakeClockAndSleeper, fakeClockAndSleeper, Collections.emptyList(), null))
+            .build();
 
     Get getRequest = storage.objects().get("gs://fake", "file");
 

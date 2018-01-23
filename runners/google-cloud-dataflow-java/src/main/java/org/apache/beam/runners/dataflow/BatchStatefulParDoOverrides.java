@@ -172,7 +172,8 @@ public class BatchStatefulParDoOverrides {
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {
-        return input.apply(GroupByKey.create())
+        return input
+            .apply(GroupByKey.create())
             .apply(ParDo.of(new ExpandGbkFn<K, InputT>()))
             .apply(originalParDo);
       }
@@ -207,7 +208,8 @@ public class BatchStatefulParDoOverrides {
       DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
 
       if (isFnApi) {
-        return input.apply(GroupByKey.create())
+        return input
+            .apply(GroupByKey.create())
             .apply(ParDo.of(new ExpandGbkFn<K, InputT>()))
             .apply(originalParDo);
       }

@@ -198,8 +198,7 @@ public class PTransformTranslationTest {
   }
 
   private static AppliedPTransform<?, ?, ?> multiMultiParDo(Pipeline pipeline) {
-    PCollectionView<String> view =
-        pipeline.apply(Create.of("foo")).apply(View.asSingleton());
+    PCollectionView<String> view = pipeline.apply(Create.of("foo")).apply(View.asSingleton());
     PCollection<Long> input = pipeline.apply(GenerateSequence.from(0));
     ParDo.MultiOutput<Long, KV<Long, String>> parDo =
         ParDo.of(new TestDoFn())

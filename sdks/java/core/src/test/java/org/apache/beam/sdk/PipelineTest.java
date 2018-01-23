@@ -222,8 +222,7 @@ public class PipelineTest {
     PCollection<String> left = input.apply("Left1", myTransform).apply("Left2", myTransform);
     PCollection<String> right = input.apply("Right", myTransform);
 
-    PCollection<String> both = PCollectionList.of(left).and(right)
-        .apply(Flatten.pCollections());
+    PCollection<String> both = PCollectionList.of(left).and(right).apply(Flatten.pCollections());
 
     PAssert.that(both).containsInAnyOrder("a++", "b++", "a+", "b+");
 
@@ -290,9 +289,10 @@ public class PipelineTest {
   @Category(ValidatesRunner.class)
   public void testIdentityTransform() throws Exception {
 
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3, 4))
-        .apply("IdentityTransform", new IdentityTransform<PCollection<Integer>>());
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3, 4))
+            .apply("IdentityTransform", new IdentityTransform<PCollection<Integer>>());
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
@@ -312,8 +312,7 @@ public class PipelineTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testTupleProjectionTransform() throws Exception {
-    PCollection<Integer> input = pipeline
-        .apply(Create.of(1, 2, 3, 4));
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4));
 
     TupleTag<Integer> tag = new TupleTag<Integer>();
     PCollectionTuple tuple = PCollectionTuple.of(tag, input);
@@ -345,8 +344,7 @@ public class PipelineTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testTupleInjectionTransform() throws Exception {
-    PCollection<Integer> input = pipeline
-        .apply(Create.of(1, 2, 3, 4));
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4));
 
     TupleTag<Integer> tag = new TupleTag<Integer>();
 
@@ -403,10 +401,8 @@ public class PipelineTest {
                   node.getTransform().getClass(),
                   not(
                       anyOf(
-                          Matchers.equalTo(
-                              GenerateSequence.class),
-                          Matchers.equalTo(
-                              Create.Values.class))));
+                          Matchers.equalTo(GenerateSequence.class),
+                          Matchers.equalTo(Create.Values.class))));
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }

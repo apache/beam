@@ -218,9 +218,10 @@ class WriteTables<DestinationT>
         .setCoder(StringUtf8Coder.of())
         .apply(WithKeys.of((Void) null))
         .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
-        .apply(Window.<KV<Void, String>>into(new GlobalWindows())
-            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-            .discardingFiredPanes())
+        .apply(
+            Window.<KV<Void, String>>into(new GlobalWindows())
+                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                .discardingFiredPanes())
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(ParDo.of(new GarbageCollectTemporaryFiles()));

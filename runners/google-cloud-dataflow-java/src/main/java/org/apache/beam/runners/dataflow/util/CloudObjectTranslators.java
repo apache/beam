@@ -65,10 +65,7 @@ class CloudObjectTranslators {
 
   private static List<Coder<?>> getComponents(CloudObject target) {
     List<Map<String, Object>> cloudComponents =
-        Structs.getListOfMaps(
-            target,
-            PropertyNames.COMPONENT_ENCODINGS,
-            Collections.emptyList());
+        Structs.getListOfMaps(target, PropertyNames.COMPONENT_ENCODINGS, Collections.emptyList());
     List<Coder<?>> components = new ArrayList<>();
     for (Map<String, Object> cloudComponent : cloudComponents) {
       components.add(CloudObjects.coderFromCloudObject(CloudObject.fromSpec(cloudComponent)));
@@ -183,8 +180,7 @@ class CloudObjectTranslators {
       @Override
       public CloudObject toCloudObject(GlobalWindow.Coder target) {
         return addComponents(
-            CloudObject.forClassName(CloudObjectKinds.KIND_GLOBAL_WINDOW),
-            Collections.emptyList());
+            CloudObject.forClassName(CloudObjectKinds.KIND_GLOBAL_WINDOW), Collections.emptyList());
       }
 
       @Override
@@ -279,8 +275,7 @@ class CloudObjectTranslators {
       @Override
       public CloudObject toCloudObject(ByteArrayCoder target) {
         return addComponents(
-            CloudObject.forClassName(CloudObjectKinds.KIND_BYTES),
-            Collections.emptyList());
+            CloudObject.forClassName(CloudObjectKinds.KIND_BYTES), Collections.emptyList());
       }
 
       @Override
@@ -297,7 +292,6 @@ class CloudObjectTranslators {
       public String cloudObjectClassName() {
         return CloudObjectKinds.KIND_BYTES;
       }
-
     };
   }
 
@@ -309,8 +303,7 @@ class CloudObjectTranslators {
     return new CloudObjectTranslator<VarLongCoder>() {
       @Override
       public CloudObject toCloudObject(VarLongCoder target) {
-        return addComponents(
-            CloudObject.forClass(target.getClass()), Collections.emptyList());
+        return addComponents(CloudObject.forClass(target.getClass()), Collections.emptyList());
       }
 
       @Override
@@ -565,10 +558,7 @@ class CloudObjectTranslators {
       private CoGbkResultSchema schemaFromCloudObject(CloudObject cloudObject) {
         List<TupleTag<?>> tags = new ArrayList<>();
         List<Map<String, Object>> serializedTags =
-            Structs.getListOfMaps(
-                cloudObject,
-                PropertyNames.TUPLE_TAGS,
-                Collections.emptyList());
+            Structs.getListOfMaps(cloudObject, PropertyNames.TUPLE_TAGS, Collections.emptyList());
         for (Map<String, Object> serializedTag : serializedTags) {
           TupleTag<?> tag = new TupleTag<>(Structs.getString(serializedTag, PropertyNames.VALUE));
           tags.add(tag);

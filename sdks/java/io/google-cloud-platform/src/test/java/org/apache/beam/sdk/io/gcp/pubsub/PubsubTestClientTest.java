@@ -97,10 +97,8 @@ public class PubsubTestClientTest {
     OutgoingMessage expectedOutgoingMessage =
         new OutgoingMessage(DATA.getBytes(), null, MESSAGE_TIME, MESSAGE_ID);
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPublish(
-                 TOPIC,
-                 Sets.newHashSet(expectedOutgoingMessage),
-                 ImmutableList.of())) {
+        PubsubTestClient.createFactoryForPublish(
+            TOPIC, Sets.newHashSet(expectedOutgoingMessage), ImmutableList.of())) {
       try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
         client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
       }

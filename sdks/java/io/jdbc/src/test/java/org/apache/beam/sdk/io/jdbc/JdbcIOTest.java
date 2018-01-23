@@ -213,8 +213,7 @@ public class JdbcIOTest implements Serializable {
             .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
             .withCoder(SerializableCoder.of(TestRow.class)));
 
-    PAssert.thatSingleton(
-        rows.apply("Count All", Count.globally()))
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
         .isEqualTo((long) EXPECTED_ROW_COUNT);
 
     Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
@@ -235,9 +234,7 @@ public class JdbcIOTest implements Serializable {
                 .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
                 .withCoder(SerializableCoder.of(TestRow.class)));
 
-     PAssert.thatSingleton(
-         rows.apply("Count All", Count.globally()))
-         .isEqualTo(1L);
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1L);
 
      Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
      PAssert.that(rows).containsInAnyOrder(expectedValues);

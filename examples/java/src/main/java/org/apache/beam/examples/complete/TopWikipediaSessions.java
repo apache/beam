@@ -96,7 +96,6 @@ public class TopWikipediaSessions {
     public PCollection<KV<String, Long>> expand(PCollection<String> actions) {
       return actions
           .apply(Window.into(Sessions.withGapDuration(Duration.standardHours(1))))
-
           .apply(Count.perElement());
     }
   }

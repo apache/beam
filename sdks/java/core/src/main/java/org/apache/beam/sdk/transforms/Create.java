@@ -156,8 +156,7 @@ public class Create<T> {
    * Instead, the {@code Coder} is provided via the {@code coder} argument.
    */
   public static <T> Values<T> empty(Coder<T> coder) {
-    return new Values<>(new ArrayList<T>(), Optional.of(coder),
-        Optional.absent());
+    return new Values<>(new ArrayList<T>(), Optional.of(coder), Optional.absent());
   }
 
   /**
@@ -222,10 +221,7 @@ public class Create<T> {
    * Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder explicitly.
    */
   public static <T> TimestampedValues<T> timestamped(Iterable<TimestampedValue<T>> elems) {
-    return new TimestampedValues<>(
-        elems,
-        Optional.absent(),
-        Optional.absent());
+    return new TimestampedValues<>(elems, Optional.absent(), Optional.absent());
   }
 
   /**

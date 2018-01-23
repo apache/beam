@@ -29,7 +29,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 
-
 /**
  * An example that counts words in Shakespeare.
  *
@@ -77,41 +76,51 @@ public class MinimalWordCount {
     // This example reads a public data set consisting of the complete works of Shakespeare.
     p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
 
-     // Concept #2: Apply a ParDo transform to our PCollection of text lines. This ParDo invokes a
-     // DoFn (defined in-line) on each element that tokenizes the text line into individual words.
-     // The ParDo returns a PCollection<String>, where each element is an individual word in
-     // Shakespeare's collected texts.
-     .apply("ExtractWords", ParDo.of(new DoFn<String, String>() {
-                       @ProcessElement
-                       public void processElement(ProcessContext c) {
-                         for (String word : c.element().split(ExampleUtils.TOKENIZER_PATTERN)) {
-                           if (!word.isEmpty()) {
-                             c.output(word);
-                           }
-                         }
-                       }
-                     }))
+        // Concept #2: Apply a ParDo transform to our PCollection of text lines. This ParDo invokes
+        // a
+        // DoFn (defined in-line) on each element that tokenizes the text line into individual
+        // words.
+        // The ParDo returns a PCollection<String>, where each element is an individual word in
+        // Shakespeare's collected texts.
+        .apply(
+            "ExtractWords",
+            ParDo.of(
+                new DoFn<String, String>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    for (String word : c.element().split(ExampleUtils.TOKENIZER_PATTERN)) {
+                      if (!word.isEmpty()) {
+                        c.output(word);
+                      }
+                    }
+                  }
+                }))
 
-     // Concept #3: Apply the Count transform to our PCollection of individual words. The Count
-     // transform returns a new PCollection of key/value pairs, where each key represents a unique
-     // word in the text. The associated value is the occurrence count for that word.
-     .apply(Count.perElement())
+        // Concept #3: Apply the Count transform to our PCollection of individual words. The Count
+        // transform returns a new PCollection of key/value pairs, where each key represents a
+        // unique
+        // word in the text. The associated value is the occurrence count for that word.
+        .apply(Count.perElement())
 
-     // Apply a MapElements transform that formats our PCollection of word counts into a printable
-     // string, suitable for writing to an output file.
-     .apply("FormatResults", MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
-                       @Override
-                       public String apply(KV<String, Long> input) {
-                         return input.getKey() + ": " + input.getValue();
-                       }
-                     }))
+        // Apply a MapElements transform that formats our PCollection of word counts into a
+        // printable
+        // string, suitable for writing to an output file.
+        .apply(
+            "FormatResults",
+            MapElements.via(
+                new SimpleFunction<KV<String, Long>, String>() {
+                  @Override
+                  public String apply(KV<String, Long> input) {
+                    return input.getKey() + ": " + input.getValue();
+                  }
+                }))
 
-     // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.
-     // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
-     // formatted strings) to a series of text files.
-     //
-     // By default, it will write to a set of files with names like wordcounts-00001-of-00005
-     .apply(TextIO.write().to("wordcounts"));
+        // Concept #4: Apply a write transform, TextIO.Write, at the end of the pipeline.
+        // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
+        // formatted strings) to a series of text files.
+        //
+        // By default, it will write to a set of files with names like wordcounts-00001-of-00005
+        .apply(TextIO.write().to("wordcounts"));
 
     // Run the pipeline.
     p.run().waitUntilFinish();

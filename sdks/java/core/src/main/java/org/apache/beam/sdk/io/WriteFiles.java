@@ -386,9 +386,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         // iterable to finalize if there are no results.
         return input
             .getPipeline()
-            .apply(
-                Reify.viewInGlobalWindow(
-                    input.apply(View.asList()), ListCoder.of(resultCoder)));
+            .apply(Reify.viewInGlobalWindow(input.apply(View.asList()), ListCoder.of(resultCoder)));
       }
     }
   }

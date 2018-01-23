@@ -21,8 +21,6 @@ package org.apache.beam.runners.core.construction;
 import java.util.Collections;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
