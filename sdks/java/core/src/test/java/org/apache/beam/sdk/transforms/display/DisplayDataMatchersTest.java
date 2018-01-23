@@ -104,12 +104,26 @@ public class DisplayDataMatchersTest {
   public void testHasPath() {
     Matcher<DisplayData> matcher = hasDisplayItem(hasPath("a", "b"));
 
-    final HasDisplayData subComponent =
-        builder -> builder.include("b", builder1 -> builder1.add(DisplayData.item("foo", "bar")));
+    final HasDisplayData subComponent = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.include("b", new HasDisplayData() {
+          @Override
+          public void populateDisplayData(Builder builder) {
+            builder.add(DisplayData.item("foo", "bar"));
+          }
+        });
+      }
+    };
 
     assertFalse(matcher.matches(DisplayData.from(subComponent)));
 
-    assertThat(DisplayData.from(builder -> builder.include("a", subComponent)), matcher);
+    assertThat(DisplayData.from(new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.include("a", subComponent);
+      }
+    }), matcher);
   }
 
   @Test
@@ -128,16 +142,44 @@ public class DisplayDataMatchersTest {
 
   @Test
   public void testIncludes() {
-    final HasDisplayData subComponent = builder -> builder.add(DisplayData.item("foo", "bar"));
-    HasDisplayData hasSubcomponent = builder -> builder.include("p", subComponent);
+    final HasDisplayData subComponent = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
+    HasDisplayData hasSubcomponent = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.include("p", subComponent);
+      }
+    };
 
-    HasDisplayData wrongPath = builder -> builder.include("q", subComponent);
+    HasDisplayData wrongPath = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.include("q", subComponent);
+      }
+    };
 
-    HasDisplayData deeplyNested =
-        builder -> builder.include("p", builder1 -> builder1.include("p", subComponent));
+    HasDisplayData deeplyNested = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.include("p", new HasDisplayData() {
+          @Override
+          public void populateDisplayData(Builder builder) {
+            builder.include("p", subComponent);
+          }
+        });
+      }
+    };
 
-    HasDisplayData sameDisplayItemDifferentComponent =
-        builder -> builder.add(DisplayData.item("foo", "bar"));
+    HasDisplayData sameDisplayItemDifferentComponent = new HasDisplayData() {
+      @Override
+      public void populateDisplayData(Builder builder) {
+        builder.add(DisplayData.item("foo", "bar"));
+      }
+    };
 
     Matcher<DisplayData> matcher = includesDisplayDataFor("p", subComponent);
 

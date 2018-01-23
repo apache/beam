@@ -148,7 +148,8 @@ public class LeaderBoard extends HourlyTeamScore {
             }));
     tableConfigure.put(
         "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+        new WriteWindowedToBigQuery.FieldInfo<>(
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     tableConfigure.put(
         "timing",
         new WriteWindowedToBigQuery.FieldInfo<>(
@@ -184,7 +185,8 @@ public class LeaderBoard extends HourlyTeamScore {
         configureBigQueryWrite();
     tableConfigure.put(
         "processing_time",
-        new WriteToBigQuery.FieldInfo<>("STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+        new WriteToBigQuery.FieldInfo<>(
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 

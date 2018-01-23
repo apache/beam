@@ -38,6 +38,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -105,7 +106,11 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     PCollection<ValueWithRecordId<T>> read = Pipeline.applyTransform(input,
         Read.from(getAdaptedSource()));
     if (source.requiresDeduping()) {
-      read = read.apply(Distinct.withRepresentativeValueFn(input1 -> input1.getId()));
+      read =
+          read.apply(
+              Distinct.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
+                      ValueWithRecordId::getId)
+                  .withRepresentativeType(TypeDescriptor.of(byte[].class)));
     }
     return read.apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<>()))
         .setCoder(source.getOutputCoder());
