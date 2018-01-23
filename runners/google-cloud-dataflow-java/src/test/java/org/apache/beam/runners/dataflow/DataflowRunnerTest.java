@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageF
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
@@ -42,11 +43,23 @@ import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
 import com.google.api.services.storage.model.StorageObject;
+import com.google.auto.service.AutoService;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
@@ -70,6 +83,7 @@ import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFact
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -397,6 +411,118 @@ public class DataflowRunnerTest implements Serializable {
 
     String expectedVersion = DataflowRunnerInfo.getDataflowRunnerInfo().getVersion();
     assertThat(options.getUserAgent(), containsString(expectedVersion));
+  }
+
+  /**
+   * Invasive mock-based test for checking that the JSON generated for the pipeline options has
+   * not had vital fields pruned.
+   */
+  @Test
+  public void testSettingOfSdkPipelineOptions() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+
+    // These options are important only for this test, and need not be global to the test class
+    options.setAppName(DataflowRunnerTest.class.getSimpleName());
+    options.setJobName("some-job-name");
+
+    Pipeline p = Pipeline.create(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+
+    Map<String, Object> sdkPipelineOptions =
+        jobCaptor.getValue().getEnvironment().getSdkPipelineOptions();
+
+    assertThat(sdkPipelineOptions, hasKey("options"));
+    Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
+
+    assertThat(optionsMap, hasEntry("appName", (Object) options.getAppName()));
+    assertThat(optionsMap, hasEntry("project", (Object) options.getProject()));
+    assertThat(
+        optionsMap,
+        hasEntry("pathValidatorClass", (Object) options.getPathValidatorClass().getName()));
+    assertThat(optionsMap, hasEntry("runner", (Object) options.getRunner().getName()));
+    assertThat(optionsMap, hasEntry("jobName", (Object) options.getJobName()));
+    assertThat(optionsMap, hasEntry("tempLocation", (Object) options.getTempLocation()));
+    assertThat(
+        optionsMap, hasEntry("stagingLocation", (Object) options.getStagingLocation()));
+    assertThat(
+        optionsMap,
+        hasEntry("stableUniqueNames", (Object) options.getStableUniqueNames().toString()));
+    assertThat(optionsMap, hasEntry("streaming", (Object) options.isStreaming()));
+    assertThat(
+        optionsMap,
+        hasEntry(
+            "numberOfWorkerHarnessThreads", (Object) options.getNumberOfWorkerHarnessThreads()));
+  }
+
+  /** PipelineOptions used to test auto registration of Jackson modules. */
+  public interface JacksonIncompatibleOptions extends PipelineOptions {
+    JacksonIncompatible getJacksonIncompatible();
+    void setJacksonIncompatible(JacksonIncompatible value);
+  }
+
+  /** A Jackson {@link Module} to test auto-registration of modules. */
+  @AutoService(Module.class)
+  public static class RegisteredTestModule extends SimpleModule {
+    public RegisteredTestModule() {
+      super("RegisteredTestModule");
+      setMixInAnnotation(JacksonIncompatible.class, JacksonIncompatibleMixin.class);
+    }
+  }
+
+  /** A class which Jackson does not know how to serialize/deserialize. */
+  public static class JacksonIncompatible {
+    private final String value;
+    public JacksonIncompatible(String value) {
+      this.value = value;
+    }
+  }
+
+  /** A Jackson mixin used to add annotations to other classes. */
+  @JsonDeserialize(using = JacksonIncompatibleDeserializer.class)
+  @JsonSerialize(using = JacksonIncompatibleSerializer.class)
+  public static final class JacksonIncompatibleMixin {}
+
+  /** A Jackson deserializer for {@link JacksonIncompatible}. */
+  public static class JacksonIncompatibleDeserializer extends
+      JsonDeserializer<JacksonIncompatible> {
+
+    @Override
+    public JacksonIncompatible deserialize(JsonParser jsonParser,
+        DeserializationContext deserializationContext) throws IOException, JsonProcessingException {
+      return new JacksonIncompatible(jsonParser.readValueAs(String.class));
+    }
+  }
+
+  /** A Jackson serializer for {@link JacksonIncompatible}. */
+  public static class JacksonIncompatibleSerializer extends JsonSerializer<JacksonIncompatible> {
+
+    @Override
+    public void serialize(JacksonIncompatible jacksonIncompatible, JsonGenerator jsonGenerator,
+        SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
+      jsonGenerator.writeString(jacksonIncompatible.value);
+    }
+  }
+
+  @Test
+  public void testSettingOfPipelineOptionsWithCustomUserType() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(JacksonIncompatibleOptions.class).setJacksonIncompatible(
+        new JacksonIncompatible("userCustomTypeTest"));
+
+    Pipeline p = Pipeline.create(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+
+    Map<String, Object> sdkPipelineOptions =
+        jobCaptor.getValue().getEnvironment().getSdkPipelineOptions();
+    assertThat(sdkPipelineOptions, hasKey("options"));
+    Map<String, Object> optionsMap = (Map<String, Object>) sdkPipelineOptions.get("options");
+    assertThat(optionsMap, hasEntry("jacksonIncompatible", (Object) "userCustomTypeTest"));
   }
 
   @Test
@@ -1024,15 +1150,13 @@ public class DataflowRunnerTest implements Serializable {
         new TransformTranslator<TestTransform>() {
           @SuppressWarnings("unchecked")
           @Override
-          public void translate(
-              TestTransform transform,
-              TranslationContext context) {
+          public void translate(TestTransform transform, TranslationContext context) {
             transform.translated = true;
 
             // Note: This is about the minimum needed to fake out a
             // translation. This obviously isn't a real translation.
             StepTranslationContext stepContext = context.addStep(transform, "TestTranslate");
-            stepContext.addOutput(context.getOutput(transform));
+            stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
           }
         });
 

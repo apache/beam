@@ -30,7 +30,7 @@ description = "Apache Beam :: Examples :: Java"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
+evaluationDependsOn(":sdks:java:io:google-cloud-platform")
 
 /** Define the list of runners which execute a precommit test. */
 def preCommitRunners = ["apexRunner", "dataflowRunner", "dataflowStreamingRunner", "directRunner", "flinkRunner", "sparkRunner"]
@@ -46,9 +46,9 @@ configurations.sparkRunnerPreCommit {
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   shadow library.java.google_api_client
   shadow library.java.google_api_services_bigquery
   shadow library.java.findbugs_jsr305
@@ -62,9 +62,9 @@ dependencies {
   shadow library.java.datastore_v1_protos
   shadow library.java.joda_time
   shadow library.java.slf4j_api
-  shadow project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  shadow project(path: ":runners:direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
-  shadowTest project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
+  shadowTest project(":sdks:java:io:google-cloud-platform").sourceSets.test.output
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
@@ -72,16 +72,16 @@ dependencies {
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
   for (String runner : preCommitRunners) {
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-parent:beam-examples-java", configuration: "shadow"))
-    delegate.add(runner + "PreCommit", project(path: ":beam-examples-parent:beam-examples-java", configuration: "shadowTest"))
+    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "shadow"))
+    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "shadowTest"))
   }
-  apexRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-apex", configuration: "shadow")
-  dataflowRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-google-cloud-dataflow-java", configuration: "shadow")
-  dataflowStreamingRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-google-cloud-dataflow-java", configuration: "shadow")
-  directRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
-  flinkRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-flink_2.11", configuration: "shadow")
-  sparkRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-spark", configuration: "shadow")
-  sparkRunnerPreCommit project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  apexRunnerPreCommit project(path: ":runners:apex", configuration: "shadow")
+  dataflowRunnerPreCommit project(path: ":runners:google-cloud-dataflow-java", configuration: "shadow")
+  dataflowStreamingRunnerPreCommit project(path: ":runners:google-cloud-dataflow-java", configuration: "shadow")
+  directRunnerPreCommit project(path: ":runners:direct-java", configuration: "shadow")
+  flinkRunnerPreCommit project(path: ":runners:flink", configuration: "shadow")
+  sparkRunnerPreCommit project(path: ":runners:spark", configuration: "shadow")
+  sparkRunnerPreCommit project(path: ":sdks:java:io:hadoop-file-system", configuration: "shadow")
   sparkRunnerPreCommit library.java.spark_streaming
   sparkRunnerPreCommit library.java.spark_core
 }
@@ -95,7 +95,7 @@ task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
     exclude(".*")
     include(dependency(library.java.guava))
   }
-  relocate("com.google.common", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.common") {
+  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
     // com.google.common is too generic, need to exclude guava-testlib
     exclude "com.google.common.collect.testing.**"
     exclude "com.google.common.escape.testing.**"

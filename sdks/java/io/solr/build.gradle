@@ -23,13 +23,13 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Solr"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.commons_compress
   shadow "org.apache.solr:solr-solrj:5.5.4"
   compileOnly "org.apache.httpcomponents:httpclient:4.4.1"
-  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common", configuration: "shadow")
-  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.slf4j_api

@@ -1381,4 +1381,51 @@ public class DoFnSignatures {
       }
     }
   }
+
+  public static StateSpec<?> getStateSpecOrThrow(
+      StateDeclaration stateDeclaration, DoFn<?, ?> target) {
+    try {
+      Object fieldValue = stateDeclaration.field().get(target);
+      checkState(
+          fieldValue instanceof StateSpec,
+          "Malformed %s class %s: state declaration field %s does not have type %s.",
+          DoFn.class.getSimpleName(),
+          target.getClass().getName(),
+          stateDeclaration.field().getName(),
+          StateSpec.class);
+
+      return (StateSpec<?>) stateDeclaration.field().get(target);
+    } catch (IllegalAccessException exc) {
+      throw new RuntimeException(
+          String.format(
+              "Malformed %s class %s: state declaration field %s is not accessible.",
+              DoFn.class.getSimpleName(),
+              target.getClass().getName(),
+              stateDeclaration.field().getName()));
+    }
+  }
+
+  public static TimerSpec getTimerSpecOrThrow(
+      TimerDeclaration timerDeclaration, DoFn<?, ?> target) {
+    try {
+      Object fieldValue = timerDeclaration.field().get(target);
+      checkState(
+          fieldValue instanceof TimerSpec,
+          "Malformed %s class %s: timer declaration field %s does not have type %s.",
+          DoFn.class.getSimpleName(),
+          target.getClass().getName(),
+          timerDeclaration.field().getName(),
+          TimerSpec.class);
+
+      return (TimerSpec) timerDeclaration.field().get(target);
+    } catch (IllegalAccessException exc) {
+      throw new RuntimeException(
+          String.format(
+              "Malformed %s class %s: timer declaration field %s is not accessible.",
+              DoFn.class.getSimpleName(),
+              target.getClass().getName(),
+              timerDeclaration.field().getName()));
+    }
+  }
+
 }
