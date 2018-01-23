@@ -48,7 +48,6 @@ import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
-
 /**
  * DoFunctions ignore outputs that are not the main output. MultiDoFunctions deal with additional
  * outputs by enriching the underlying data with multiple TupleTags.

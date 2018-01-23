@@ -24,7 +24,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.MalformedURLException;
@@ -34,13 +33,11 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -416,8 +413,7 @@ public class SolrIO {
             Slice slice = slices.get(i);
             final Replica replica = slice.getLeader();
             Future<Long> future =
-                executor.submit(
-                    () -> getEstimatedSizeOfShard(ReplicaInfo.create(replica)));
+                executor.submit(() -> getEstimatedSizeOfShard(ReplicaInfo.create(replica)));
             futures.add(future);
           }
           for (Future<Long> future : futures) {

@@ -310,11 +310,10 @@ public class BigQueryIO {
   static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
 
   /**
-   * A formatting function that maps a TableRow to itself. This allows sending a
-   * {@code PCollection<TableRow>} directly to BigQueryIO.Write.
+   * A formatting function that maps a TableRow to itself. This allows sending a {@code
+   * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
-  static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
-      input -> input;
+  static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER = input -> input;
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead.

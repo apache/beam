@@ -38,7 +38,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -64,7 +63,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
-
 
 /**
  * A test suite to test Spark runner implementation of triggers and panes.
@@ -135,20 +133,22 @@ public class CreateStreamTest implements Serializable {
         .containsInAnyOrder(1, 2, 3);
     PAssert.that(count)
         .inWindow(window)
-        .satisfies(input -> {
-          for (Long count1 : input) {
-            assertThat(count1, allOf(greaterThanOrEqualTo(3L), lessThanOrEqualTo(5L)));
-          }
-          return null;
-        });
+        .satisfies(
+            input -> {
+              for (Long count1 : input) {
+                assertThat(count1, allOf(greaterThanOrEqualTo(3L), lessThanOrEqualTo(5L)));
+              }
+              return null;
+            });
     PAssert.that(sum)
         .inWindow(window)
-        .satisfies(input -> {
-          for (Integer sum1 : input) {
-            assertThat(sum1, allOf(greaterThanOrEqualTo(6), lessThanOrEqualTo(15)));
-          }
-          return null;
-        });
+        .satisfies(
+            input -> {
+              for (Integer sum1 : input) {
+                assertThat(sum1, allOf(greaterThanOrEqualTo(6), lessThanOrEqualTo(15)));
+              }
+              return null;
+            });
 
     p.run();
   }

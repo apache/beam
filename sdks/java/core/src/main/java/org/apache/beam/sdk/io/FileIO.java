@@ -787,8 +787,7 @@ public class FileIO {
           }
           checkArgument(
               window instanceof IntervalWindow,
-              "defaultNaming() supports only windows of type %s, "
-                  + "but got window %s of type %s",
+              "defaultNaming() supports only windows of type %s, " + "but got window %s of type %s",
               IntervalWindow.class.getSimpleName(),
               window,
               window.getClass().getSimpleName());
@@ -818,11 +817,12 @@ public class FileIO {
 
     public static FileNaming relativeFileNaming(
         final ValueProvider<String> baseDirectory, final FileNaming innerNaming) {
-      return (window, pane, numShards, shardIndex, compression) -> FileSystems.matchNewResource(baseDirectory.get(), true /* isDirectory */)
-          .resolve(
-              innerNaming.getFilename(window, pane, numShards, shardIndex, compression),
-              RESOLVE_FILE)
-          .toString();
+      return (window, pane, numShards, shardIndex, compression) ->
+          FileSystems.matchNewResource(baseDirectory.get(), true /* isDirectory */)
+              .resolve(
+                  innerNaming.getFilename(window, pane, numShards, shardIndex, compression),
+                  RESOLVE_FILE)
+              .toString();
     }
 
     abstract boolean getDynamic();

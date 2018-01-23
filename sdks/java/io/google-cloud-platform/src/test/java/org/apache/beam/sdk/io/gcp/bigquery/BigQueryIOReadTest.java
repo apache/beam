@@ -772,8 +772,7 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testCoderInference() {
-    SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>> parseFn =
-        input -> null;
+    SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>> parseFn = input -> null;
 
     assertEquals(
         KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(Mutation.class)),

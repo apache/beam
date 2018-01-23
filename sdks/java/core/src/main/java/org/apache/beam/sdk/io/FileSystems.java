@@ -24,7 +24,6 @@ import static com.google.common.base.Verify.verify;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -220,10 +219,8 @@ public class FileSystems {
    * metadata with {@link MatchResult#metadata()}.
    */
   public static List<MatchResult> matchResources(List<ResourceId> resourceIds) throws IOException {
-    return match(FluentIterable
-        .from(resourceIds)
-        .transform(resourceId -> resourceId.toString())
-        .toList());
+    return match(
+        FluentIterable.from(resourceIds).transform(resourceId -> resourceId.toString()).toList());
   }
 
   /**
@@ -362,28 +359,32 @@ public class FileSystems {
     Collection<ResourceId> resourceIdsToDelete;
     if (Sets.newHashSet(moveOptions).contains(
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
-      resourceIdsToDelete = FluentIterable
-          .from(matchResources(Lists.newArrayList(resourceIds)))
-          .filter(matchResult -> !matchResult.status().equals(Status.NOT_FOUND))
-          .transformAndConcat(new Function<MatchResult, Iterable<Metadata>>() {
-            @Nonnull
-            @Override
-            public Iterable<Metadata> apply(@Nonnull MatchResult input) {
-              try {
-                return Lists.newArrayList(input.metadata());
-              } catch (IOException e) {
-                throw new RuntimeException(
-                    String.format("Failed to get metadata from MatchResult: %s.", input),
-                    e);
-              }
-            }})
-          .transform(new Function<Metadata, ResourceId>() {
-            @Nonnull
-            @Override
-            public ResourceId apply(@Nonnull Metadata input) {
-              return input.resourceId();
-            }})
-          .toList();
+      resourceIdsToDelete =
+          FluentIterable.from(matchResources(Lists.newArrayList(resourceIds)))
+              .filter(matchResult -> !matchResult.status().equals(Status.NOT_FOUND))
+              .transformAndConcat(
+                  new Function<MatchResult, Iterable<Metadata>>() {
+                    @Nonnull
+                    @Override
+                    public Iterable<Metadata> apply(@Nonnull MatchResult input) {
+                      try {
+                        return Lists.newArrayList(input.metadata());
+                      } catch (IOException e) {
+                        throw new RuntimeException(
+                            String.format("Failed to get metadata from MatchResult: %s.", input),
+                            e);
+                      }
+                    }
+                  })
+              .transform(
+                  new Function<Metadata, ResourceId>() {
+                    @Nonnull
+                    @Override
+                    public ResourceId apply(@Nonnull Metadata input) {
+                      return input.resourceId();
+                    }
+                  })
+              .toList();
     } else {
       resourceIdsToDelete = resourceIds;
     }
@@ -428,10 +429,11 @@ public class FileSystems {
       return;
     }
 
-    Set<String> schemes = FluentIterable.from(srcResourceIds)
-        .append(destResourceIds)
-        .transform(resourceId -> resourceId.getScheme())
-        .toSet();
+    Set<String> schemes =
+        FluentIterable.from(srcResourceIds)
+            .append(destResourceIds)
+            .transform(resourceId -> resourceId.getScheme())
+            .toSet();
     checkArgument(
         schemes.size() == 1,
         String.format(
@@ -441,9 +443,7 @@ public class FileSystems {
 
   private static String getOnlyScheme(List<String> specs) {
     checkArgument(!specs.isEmpty(), "Expect specs are not empty.");
-    Set<String> schemes = FluentIterable.from(specs)
-        .transform(spec -> parseScheme(spec))
-        .toSet();
+    Set<String> schemes = FluentIterable.from(specs).transform(spec -> parseScheme(spec)).toSet();
     return Iterables.getOnlyElement(schemes);
   }
 
@@ -510,10 +510,12 @@ public class FileSystems {
     for (Entry<String, Collection<FileSystem>> entry
         : fileSystemsBySchemes.asMap().entrySet()) {
       if (entry.getValue().size() > 1) {
-        String conflictingFileSystems = Joiner.on(", ").join(
-            FluentIterable.from(entry.getValue())
-                .transform(input -> input.getClass().getName())
-                .toSortedList(Ordering.<String>natural()));
+        String conflictingFileSystems =
+            Joiner.on(", ")
+                .join(
+                    FluentIterable.from(entry.getValue())
+                        .transform(input -> input.getClass().getName())
+                        .toSortedList(Ordering.<String>natural()));
         throw new IllegalStateException(String.format(
             "Scheme: [%s] has conflicting filesystems: [%s]",
             entry.getKey(),

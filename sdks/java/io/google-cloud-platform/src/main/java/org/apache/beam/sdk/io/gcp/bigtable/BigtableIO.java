@@ -423,7 +423,7 @@ public class BigtableIO {
       getBigtableConfig().validate();
 
       BigtableSource source =
-          new BigtableSource(getBigtableConfig(), getRowFilter(), getKeyRanges(), null);
+          new BigtableSource( getBigtableConfig(), getRowFilter(), getKeyRanges(), null);
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -479,11 +479,8 @@ public class BigtableIO {
           optionsBuilder = userConfigurator.apply(optionsBuilder);
         }
 
-        return optionsBuilder
-          .setBulkOptions(
-            optionsBuilder.build().getBulkOptions().toBuilder()
-              .setUseBulkApi(true)
-              .build());
+        return optionsBuilder.setBulkOptions(
+            optionsBuilder.build().getBulkOptions().toBuilder().setUseBulkApi(true).build());
       };
     }
 

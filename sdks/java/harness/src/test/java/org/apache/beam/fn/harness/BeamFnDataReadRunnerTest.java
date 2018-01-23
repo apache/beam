@@ -210,18 +210,19 @@ public class BeamFnDataReadRunnerTest {
         eq(CODER),
         consumerCaptor.capture());
 
-    executor.submit(() -> {
-      // Sleep for some small amount of time simulating the parent blocking
-      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-      try {
-        consumerCaptor.getValue().accept(valueInGlobalWindow("ABC"));
-        consumerCaptor.getValue().accept(valueInGlobalWindow("DEF"));
-      } catch (Exception e) {
-        bundle1Future.fail(e);
-      } finally {
-        bundle1Future.complete();
-      }
-    });
+    executor.submit(
+        () -> {
+          // Sleep for some small amount of time simulating the parent blocking
+          Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+          try {
+            consumerCaptor.getValue().accept(valueInGlobalWindow("ABC"));
+            consumerCaptor.getValue().accept(valueInGlobalWindow("DEF"));
+          } catch (Exception e) {
+            bundle1Future.fail(e);
+          } finally {
+            bundle1Future.complete();
+          }
+        });
 
     readRunner.blockTillReadFinishes();
     assertThat(valuesA, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
@@ -239,18 +240,19 @@ public class BeamFnDataReadRunnerTest {
         eq(CODER),
         consumerCaptor.capture());
 
-    executor.submit(() -> {
-      // Sleep for some small amount of time simulating the parent blocking
-      Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-      try {
-        consumerCaptor.getValue().accept(valueInGlobalWindow("GHI"));
-        consumerCaptor.getValue().accept(valueInGlobalWindow("JKL"));
-      } catch (Exception e) {
-        bundle2Future.fail(e);
-      } finally {
-        bundle2Future.complete();
-      }
-    });
+    executor.submit(
+        () -> {
+          // Sleep for some small amount of time simulating the parent blocking
+          Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+          try {
+            consumerCaptor.getValue().accept(valueInGlobalWindow("GHI"));
+            consumerCaptor.getValue().accept(valueInGlobalWindow("JKL"));
+          } catch (Exception e) {
+            bundle2Future.fail(e);
+          } finally {
+            bundle2Future.complete();
+          }
+        });
 
     readRunner.blockTillReadFinishes();
     assertThat(valuesA, contains(valueInGlobalWindow("GHI"), valueInGlobalWindow("JKL")));

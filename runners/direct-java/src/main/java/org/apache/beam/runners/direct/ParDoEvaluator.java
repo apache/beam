@@ -59,7 +59,15 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
   }
 
   public static <InputT, OutputT> DoFnRunnerFactory<InputT, OutputT> defaultRunnerFactory() {
-    return (options, fn, sideInputs, sideInputReader, outputManager, mainOutputTag, additionalOutputTags, stepContext, windowingStrategy) -> {
+    return (options,
+        fn,
+        sideInputs,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        windowingStrategy) -> {
       DoFnRunner<InputT, OutputT> underlying =
           DoFnRunners.simpleRunner(
               options,

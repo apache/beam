@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -571,8 +570,7 @@ public class Create<T> {
         } else {
           Iterable<T> rawElements =
               Iterables.transform(
-                  timestampedElements,
-                  timestampedValue -> timestampedValue.getValue());
+                  timestampedElements, timestampedValue -> timestampedValue.getValue());
           coder = getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
         }
 

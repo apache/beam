@@ -33,7 +33,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -664,15 +663,16 @@ public class SourceTestUtils {
                 reader.close();
               }
             });
-    Future<KV<BoundedSource<T>, BoundedSource<T>>> splitterThread = executor.submit(
-        () -> {
-          unblockSplitter.await();
-          BoundedSource<T> residual = reader.splitAtFraction(fraction);
-          if (residual == null) {
-            return null;
-          }
-          return KV.of(reader.getCurrentSource(), residual);
-        });
+    Future<KV<BoundedSource<T>, BoundedSource<T>>> splitterThread =
+        executor.submit(
+            () -> {
+              unblockSplitter.await();
+              BoundedSource<T> residual = reader.splitAtFraction(fraction);
+              if (residual == null) {
+                return null;
+              }
+              return KV.of(reader.getCurrentSource(), residual);
+            });
     List<T> currentItems = readerThread.get();
     KV<BoundedSource<T>, BoundedSource<T>> splitSources = splitterThread.get();
     if (splitSources == null) {

@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -464,13 +463,12 @@ public class DoFnOperatorTest {
             StringUtf8Coder.of() /* key coder */);
 
     KeyedOneInputStreamOperatorTestHarness<
-        String,
-        WindowedValue<KV<String, Integer>>,
-        WindowedValue<KV<String, Integer>>> testHarness =
-        new KeyedOneInputStreamOperatorTestHarness<>(
-            doFnOperator,
-            kvWindowedValue -> kvWindowedValue.getValue().getKey(),
-            new CoderTypeInformation<>(StringUtf8Coder.of()));
+            String, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                doFnOperator,
+                kvWindowedValue -> kvWindowedValue.getValue().getKey(),
+                new CoderTypeInformation<>(StringUtf8Coder.of()));
 
     testHarness.open();
 
@@ -727,31 +725,40 @@ public class DoFnOperatorTest {
   private <T> Iterable<WindowedValue<T>> stripStreamRecordFromWindowedValue(
       Iterable<Object> input) {
 
-    return FluentIterable.from(input).filter(o -> o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue).transform(new Function<Object, WindowedValue<T>>() {
-      @Nullable
-      @Override
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      public WindowedValue<T> apply(@Nullable Object o) {
-        if (o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue) {
-          return (WindowedValue) ((StreamRecord) o).getValue();
-        }
-        throw new RuntimeException("unreachable");
-      }
-    });
+    return FluentIterable.from(input)
+        .filter(
+            o ->
+                o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue)
+        .transform(
+            new Function<Object, WindowedValue<T>>() {
+              @Nullable
+              @Override
+              @SuppressWarnings({"unchecked", "rawtypes"})
+              public WindowedValue<T> apply(@Nullable Object o) {
+                if (o instanceof StreamRecord
+                    && ((StreamRecord) o).getValue() instanceof WindowedValue) {
+                  return (WindowedValue) ((StreamRecord) o).getValue();
+                }
+                throw new RuntimeException("unreachable");
+              }
+            });
   }
 
   private Iterable<WindowedValue<String>> stripStreamRecord(Iterable<?> input) {
-    return FluentIterable.from(input).filter(o -> o instanceof StreamRecord).transform(new Function<Object, WindowedValue<String>>() {
-      @Nullable
-      @Override
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      public WindowedValue<String> apply(@Nullable Object o) {
-        if (o instanceof StreamRecord) {
-          return (WindowedValue<String>) ((StreamRecord) o).getValue();
-        }
-        throw new RuntimeException("unreachable");
-      }
-    });
+    return FluentIterable.from(input)
+        .filter(o -> o instanceof StreamRecord)
+        .transform(
+            new Function<Object, WindowedValue<String>>() {
+              @Nullable
+              @Override
+              @SuppressWarnings({"unchecked", "rawtypes"})
+              public WindowedValue<String> apply(@Nullable Object o) {
+                if (o instanceof StreamRecord) {
+                  return (WindowedValue<String>) ((StreamRecord) o).getValue();
+                }
+                throw new RuntimeException("unreachable");
+              }
+            });
   }
 
   private static class MultiOutputDoFn extends DoFn<String, String> {

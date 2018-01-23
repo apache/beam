@@ -62,7 +62,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -234,18 +233,22 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
   private SparkPipelineResult run(
       Optional<Instant> stopWatermarkOption,
       int expectedAssertions) {
-    KafkaIO.Read<String, Instant> read = KafkaIO.<String, Instant>read()
-        .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
-        .withTopics(Collections.singletonList(TOPIC))
-        .withKeyDeserializer(StringDeserializer.class)
-        .withValueDeserializer(InstantDeserializer.class)
-        .updateConsumerProperties(ImmutableMap.<String, Object>of("auto.offset.reset", "earliest"))
-        .withTimestampFn(kv -> kv.getValue()).withWatermarkFn(kv -> {
-          // at EOF move WM to infinity.
-          String key = kv.getKey();
-          Instant instant = kv.getValue();
-          return key.equals("EOF") ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
-        });
+    KafkaIO.Read<String, Instant> read =
+        KafkaIO.<String, Instant>read()
+            .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
+            .withTopics(Collections.singletonList(TOPIC))
+            .withKeyDeserializer(StringDeserializer.class)
+            .withValueDeserializer(InstantDeserializer.class)
+            .updateConsumerProperties(
+                ImmutableMap.<String, Object>of("auto.offset.reset", "earliest"))
+            .withTimestampFn(kv -> kv.getValue())
+            .withWatermarkFn(
+                kv -> {
+                  // at EOF move WM to infinity.
+                  String key = kv.getKey();
+                  Instant instant = kv.getValue();
+                  return key.equals("EOF") ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
+                });
 
     TestSparkPipelineOptions options =
         PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);

@@ -39,7 +39,6 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
@@ -96,10 +95,7 @@ public class Query3 extends NexmarkQuery {
             .apply(JUST_NEW_AUCTIONS)
 
             // We only want auctions in category 10.
-            .apply(
-                name + ".InCategory",
-                Filter.by(
-                    auction -> auction.category == 10))
+            .apply(name + ".InCategory", Filter.by(auction -> auction.category == 10))
 
             // Key auctions by their seller id.
             .apply("AuctionBySeller", AUCTION_BY_SELLER);
@@ -113,9 +109,10 @@ public class Query3 extends NexmarkQuery {
             .apply(
                 name + ".InState",
                 Filter.by(
-                    person -> person.state.equals("OR")
-                        || person.state.equals("ID")
-                        || person.state.equals("CA")))
+                    person ->
+                        person.state.equals("OR")
+                            || person.state.equals("ID")
+                            || person.state.equals("CA")))
 
             // Key people by their id.
             .apply("PersonById", PERSON_BY_ID);

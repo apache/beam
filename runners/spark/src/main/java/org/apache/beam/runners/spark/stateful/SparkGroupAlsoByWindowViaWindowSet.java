@@ -61,14 +61,9 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.streaming.Duration;
-import org.apache.spark.streaming.Time;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.dstream.DStream;
@@ -220,8 +215,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       private Collection<TimerInternals.TimerData> filterTimersEligibleForProcessing(
           final Collection<TimerInternals.TimerData> timers, final Instant inputWatermark) {
         final Predicate<TimerInternals.TimerData> eligibleForProcessing =
-            timer -> !timer.getDomain().equals(TimeDomain.EVENT_TIME)
-                || inputWatermark.isAfter(timer.getTimestamp());
+            timer ->
+                !timer.getDomain().equals(TimeDomain.EVENT_TIME)
+                    || inputWatermark.isAfter(timer.getTimestamp());
 
         return FluentIterable.from(timers).filter(eligibleForProcessing).toSet();
       }
@@ -498,7 +494,10 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       final Coder<K> keyCoder,
       final FullWindowedValueCoder<InputT> wvCoder) {
 
-    /*K*//*WV<KV<K, Itr<I>>>*//*K*//*WV<KV<K, Itr<I>>>*/
+    /*K*/
+    /*WV<KV<K, Itr<I>>>*/
+    /*K*/
+    /*WV<KV<K, Itr<I>>>*/
     return JavaPairDStream.fromPairDStream(
             firedStream,
             JavaSparkContext$.MODULE$.<ByteArray>fakeClassTag(),
@@ -545,37 +544,38 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     // for checkpointing.
     // for readability, we add comments with actual type next to byte[].
     // to shorten line length, we use:
-    //---- WV: WindowedValue
-    //---- Iterable: Itr
-    //---- AccumT: A
-    //---- InputT: I
+    // ---- WV: WindowedValue
+    // ---- Iterable: Itr
+    // ---- AccumT: A
+    // ---- InputT: I
     // we use mapPartitions with the RDD API because its the only available API
-// that allows to preserve partitioning.
+    // that allows to preserve partitioning.
     final DStream<Tuple2<ByteArray, byte[]>> tupleDStream =
         inputDStream
             .transformToPair(
-                (rdd, time) -> rdd.mapPartitions(
-                        TranslationUtils.functionToFlatMapFunction(
-                            WindowingHelpers
-                                .<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction()),
-                        true)
-                    .mapPartitionsToPair(
-                        TranslationUtils
-                            .<K, Iterable<WindowedValue<InputT>>>toPairFlatMapFunction(),
-                        true)
-                    .mapValues(
-                        values -> {
-                          // add the batch timestamp for visibility (e.g., debugging)
-                          return KV.of(time.milliseconds(), values);
-                        })
-                    // move to bytes representation and use coders for deserialization
-                    // because of checkpointing.
-                    .mapPartitionsToPair(
-                        TranslationUtils.pairFunctionToPairFlatMapFunction(
-                            CoderHelpers.toByteFunction(
-                                keyCoder,
-                                KvCoder.of(VarLongCoder.of(), IterableCoder.of(wvCoder)))),
-                        true))
+                (rdd, time) ->
+                    rdd.mapPartitions(
+                            TranslationUtils.functionToFlatMapFunction(
+                                WindowingHelpers
+                                    .<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction()),
+                            true)
+                        .mapPartitionsToPair(
+                            TranslationUtils
+                                .<K, Iterable<WindowedValue<InputT>>>toPairFlatMapFunction(),
+                            true)
+                        .mapValues(
+                            values -> {
+                              // add the batch timestamp for visibility (e.g., debugging)
+                              return KV.of(time.milliseconds(), values);
+                            })
+                        // move to bytes representation and use coders for deserialization
+                        // because of checkpointing.
+                        .mapPartitionsToPair(
+                            TranslationUtils.pairFunctionToPairFlatMapFunction(
+                                CoderHelpers.toByteFunction(
+                                    keyCoder,
+                                    KvCoder.of(VarLongCoder.of(), IterableCoder.of(wvCoder)))),
+                            true))
             .dstream();
 
     return DStream.toPairDStreamFunctions(

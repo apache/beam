@@ -45,9 +45,10 @@ import org.junit.runners.JUnit4;
 public class NumberedShardedFileTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public ExpectedException thrown = ExpectedException.none();
-  private Sleeper fastClock = millis -> {
-    // No sleep.
-  };
+  private Sleeper fastClock =
+      millis -> {
+        // No sleep.
+      };
 
   private final BackOff backOff = NumberedShardedFile.BACK_OFF_FACTORY.backoff();
   private String filePattern;

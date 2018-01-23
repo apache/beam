@@ -34,7 +34,6 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
-import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
 import org.apache.beam.sdk.values.KV;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -165,8 +164,9 @@ public class BufferedExternalSorterTest {
   @Test
   public void testManySortersFewRecords() throws Exception {
     SorterTestUtils.testRandom(
-        () -> BufferedExternalSorter.create(BufferedExternalSorter.options()
-            .withTempLocation(tmpLocation.toString())),
+        () ->
+            BufferedExternalSorter.create(
+                BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())),
         1000000,
         10);
   }
@@ -174,8 +174,9 @@ public class BufferedExternalSorterTest {
   @Test
   public void testOneSorterManyRecords() throws Exception {
     SorterTestUtils.testRandom(
-        () -> BufferedExternalSorter.create(BufferedExternalSorter.options()
-            .withTempLocation(tmpLocation.toString())),
+        () ->
+            BufferedExternalSorter.create(
+                BufferedExternalSorter.options().withTempLocation(tmpLocation.toString())),
         1,
         1000000);
   }

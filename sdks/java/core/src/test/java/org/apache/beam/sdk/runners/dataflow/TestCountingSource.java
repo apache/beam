@@ -132,9 +132,7 @@ public class TestCountingSource
   @Override
   public Coder<CounterMark> getCheckpointMarkCoder() {
     return DelegateCoder.of(
-        VarIntCoder.of(),
-        input -> input.current,
-        input -> new CounterMark(input));
+        VarIntCoder.of(), input -> input.current, input -> new CounterMark(input));
   }
 
   @Override

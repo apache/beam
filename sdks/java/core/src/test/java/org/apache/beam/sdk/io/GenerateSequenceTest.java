@@ -163,8 +163,7 @@ public class GenerateSequenceTest {
   @Test
   public void testUnboundedDisplayData() {
     Duration maxReadTime = Duration.standardHours(5);
-    SerializableFunction<Long, Instant> timestampFn =
-        input -> Instant.now();
+    SerializableFunction<Long, Instant> timestampFn = input -> Instant.now();
 
     PTransform<?, ?> input =
         GenerateSequence.from(0).to(1234).withMaxReadTime(maxReadTime).withTimestampFn(timestampFn);

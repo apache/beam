@@ -123,7 +123,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -1435,13 +1434,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
           .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
-          .apply("StripIds", ParDo.of(
-              new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  c.output(c.element().getValue().getValue());
-                }
-              }));
+          .apply(
+              "StripIds",
+              ParDo.of(
+                  new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      c.output(c.element().getValue().getValue());
+                    }
+                  }));
     }
   }
 

@@ -65,28 +65,29 @@ public class Bid implements KnownSize, Serializable {
   };
 
   /**
-   * Comparator to order bids by ascending price then descending time
-   * (for finding winning bids).
+   * Comparator to order bids by ascending price then descending time (for finding winning bids).
    */
-  public static final Comparator<Bid> PRICE_THEN_DESCENDING_TIME = (left, right) -> {
-    int i = Double.compare(left.price, right.price);
-    if (i != 0) {
-      return i;
-    }
-    return Long.compare(right.dateTime, left.dateTime);
-  };
+  public static final Comparator<Bid> PRICE_THEN_DESCENDING_TIME =
+      (left, right) -> {
+        int i = Double.compare(left.price, right.price);
+        if (i != 0) {
+          return i;
+        }
+        return Long.compare(right.dateTime, left.dateTime);
+      };
 
   /**
-   * Comparator to order bids by ascending time then ascending price.
-   * (for finding most recent bids).
+   * Comparator to order bids by ascending time then ascending price. (for finding most recent
+   * bids).
    */
-  public static final Comparator<Bid> ASCENDING_TIME_THEN_PRICE = (left, right) -> {
-    int i = Long.compare(left.dateTime, right.dateTime);
-    if (i != 0) {
-      return i;
-    }
-    return Double.compare(left.price, right.price);
-  };
+  public static final Comparator<Bid> ASCENDING_TIME_THEN_PRICE =
+      (left, right) -> {
+        int i = Long.compare(left.dateTime, right.dateTime);
+        if (i != 0) {
+          return i;
+        }
+        return Double.compare(left.price, right.price);
+      };
 
   /** Id of auction this bid is for. */
   @JsonProperty

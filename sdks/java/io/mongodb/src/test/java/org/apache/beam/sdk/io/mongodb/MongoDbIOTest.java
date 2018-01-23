@@ -40,14 +40,12 @@ import java.io.Serializable;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -170,19 +168,24 @@ public class MongoDbIOTest implements Serializable {
     PAssert.thatSingleton(output.apply("Count All", Count.<Document>globally()))
         .isEqualTo(1000L);
 
-    PAssert.that(output
-        .apply("Map Scientist", MapElements.via(new SimpleFunction<Document, KV<String, Void>>() {
-          public KV<String, Void> apply(Document input) {
-            return KV.of(input.getString("scientist"), null);
-          }
-        }))
-        .apply("Count Scientist", Count.<String, Void>perKey())
-    ).satisfies(input -> {
-      for (KV<String, Long> element : input) {
-        assertEquals(100L, element.getValue().longValue());
-      }
-      return null;
-    });
+    PAssert.that(
+            output
+                .apply(
+                    "Map Scientist",
+                    MapElements.via(
+                        new SimpleFunction<Document, KV<String, Void>>() {
+                          public KV<String, Void> apply(Document input) {
+                            return KV.of(input.getString("scientist"), null);
+                          }
+                        }))
+                .apply("Count Scientist", Count.<String, Void>perKey()))
+        .satisfies(
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(100L, element.getValue().longValue());
+              }
+              return null;
+            });
 
     pipeline.run();
   }
@@ -203,19 +206,24 @@ public class MongoDbIOTest implements Serializable {
     PAssert.thatSingleton(documents.apply("Count All", Count.<Document>globally()))
         .isEqualTo(1000L);
 
-    PAssert.that(documents
-        .apply("Map Scientist", MapElements.via(new SimpleFunction<Document, KV<String, Void>>() {
-          public KV<String, Void> apply(Document input) {
-            return KV.of(input.getString("scientist"), null);
-          }
-        }))
-        .apply("Count Scientist", Count.<String, Void>perKey())
-    ).satisfies(input -> {
-      for (KV<String, Long> element : input) {
-        assertEquals(100L, element.getValue().longValue());
-      }
-      return null;
-    });
+    PAssert.that(
+            documents
+                .apply(
+                    "Map Scientist",
+                    MapElements.via(
+                        new SimpleFunction<Document, KV<String, Void>>() {
+                          public KV<String, Void> apply(Document input) {
+                            return KV.of(input.getString("scientist"), null);
+                          }
+                        }))
+                .apply("Count Scientist", Count.<String, Void>perKey()))
+        .satisfies(
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(100L, element.getValue().longValue());
+              }
+              return null;
+            });
 
     pipeline.run();
   }

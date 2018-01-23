@@ -53,15 +53,16 @@ public class BufferingStreamObserverTest {
         new BufferingStreamObserver<>(
             phaser,
             TestStreams.withOnNext(
-                (String t) -> {
-                  // Use the atomic boolean to detect if multiple threads are in this
-                  // critical section. Any thread that enters purposefully blocks by sleeping
-                  // to increase the contention between threads artificially.
-                  assertFalse(isCriticalSectionShared.getAndSet(true));
-                  Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
-                  onNextValues.add(t);
-                  assertTrue(isCriticalSectionShared.getAndSet(false));
-                }).build(),
+                    (String t) -> {
+                      // Use the atomic boolean to detect if multiple threads are in this
+                      // critical section. Any thread that enters purposefully blocks by sleeping
+                      // to increase the contention between threads artificially.
+                      assertFalse(isCriticalSectionShared.getAndSet(true));
+                      Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
+                      onNextValues.add(t);
+                      assertTrue(isCriticalSectionShared.getAndSet(false));
+                    })
+                .build(),
             executor,
             3);
 
@@ -100,10 +101,8 @@ public class BufferingStreamObserverTest {
     final BufferingStreamObserver<String> streamObserver =
         new BufferingStreamObserver<>(
             phaser,
-            TestStreams.withOnNext(
-                (String t) -> assertTrue(elementsAllowed.get()))
-                .withIsReady(
-                    () -> elementsAllowed.get())
+            TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
+                .withIsReady(() -> elementsAllowed.get())
                 .build(),
             executor,
             3);

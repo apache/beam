@@ -26,7 +26,6 @@ import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -57,8 +56,10 @@ public class Query2 extends NexmarkQuery {
         .apply(Filter.by(bid -> bid.auction % configuration.auctionSkip == 0))
 
         // Project just auction id and price.
-        .apply(name + ".Project",
-            ParDo.of(new DoFn<Bid, AuctionPrice>() {
+        .apply(
+            name + ".Project",
+            ParDo.of(
+                new DoFn<Bid, AuctionPrice>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     Bid bid = c.element();

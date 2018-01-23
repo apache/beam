@@ -56,8 +56,7 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   private MetricsMap<MetricName, DistributionCell> distributions =
       new MetricsMap<>(name -> new DistributionCell(name));
 
-  private MetricsMap<MetricName, GaugeCell> gauges =
-      new MetricsMap<>(name -> new GaugeCell(name));
+  private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(name -> new GaugeCell(name));
 
   /**
    * Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}.

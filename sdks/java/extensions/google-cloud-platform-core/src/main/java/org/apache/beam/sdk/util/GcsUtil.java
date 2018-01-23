@@ -59,7 +59,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -583,10 +582,12 @@ public class GcsUtil {
 
     List<ListenableFuture<Void>> futures = new LinkedList<>();
     for (final BatchRequest batch : batches) {
-      futures.add(executor.submit(() -> {
-        batch.execute();
-        return null;
-      }));
+      futures.add(
+          executor.submit(
+              () -> {
+                batch.execute();
+                return null;
+              }));
     }
 
     try {

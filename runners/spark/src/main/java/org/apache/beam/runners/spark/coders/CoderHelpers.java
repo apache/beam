@@ -101,7 +101,9 @@ public final class CoderHelpers {
    */
   public static <T> Iterable<T> fromByteArrays(
       Collection<byte[]> serialized, final Coder<T> coder) {
-    return Iterables.transform(serialized, bytes -> fromByteArray(checkNotNull(bytes, "Cannot decode null values."), coder));
+    return Iterables.transform(
+        serialized,
+        bytes -> fromByteArray(checkNotNull(bytes, "Cannot decode null values."), coder));
   }
 
   /**
@@ -137,8 +139,9 @@ public final class CoderHelpers {
    */
   public static <K, V> PairFunction<Tuple2<K, V>, ByteArray, byte[]> toByteFunction(
       final Coder<K> keyCoder, final Coder<V> valueCoder) {
-    return kv -> new Tuple2<>(new ByteArray(toByteArray(kv._1(), keyCoder)), toByteArray(kv._2(),
-        valueCoder));
+    return kv ->
+        new Tuple2<>(
+            new ByteArray(toByteArray(kv._1(), keyCoder)), toByteArray(kv._2(), valueCoder));
   }
 
   /**
@@ -152,8 +155,9 @@ public final class CoderHelpers {
    */
   public static <K, V> PairFunction<Tuple2<ByteArray, byte[]>, K, V> fromByteFunction(
       final Coder<K> keyCoder, final Coder<V> valueCoder) {
-    return tuple -> new Tuple2<>(fromByteArray(tuple._1().getValue(), keyCoder),
-        fromByteArray(tuple._2(), valueCoder));
+    return tuple ->
+        new Tuple2<>(
+            fromByteArray(tuple._1().getValue(), keyCoder), fromByteArray(tuple._2(), valueCoder));
   }
 
   /**
@@ -168,7 +172,9 @@ public final class CoderHelpers {
    */
   public static <K, V> PairFunction<Tuple2<ByteArray, Iterable<byte[]>>, K, Iterable<V>>
       fromByteFunctionIterable(final Coder<K> keyCoder, final Coder<V> valueCoder) {
-    return tuple -> new Tuple2<>(fromByteArray(tuple._1().getValue(), keyCoder),
-      Iterables.transform(tuple._2(), bytes -> fromByteArray(bytes, valueCoder)));
+    return tuple ->
+        new Tuple2<>(
+            fromByteArray(tuple._1().getValue(), keyCoder),
+            Iterables.transform(tuple._2(), bytes -> fromByteArray(bytes, valueCoder)));
   }
 }

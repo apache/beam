@@ -357,8 +357,7 @@ public class PTransformMatchers {
       if (WRITE_FILES_TRANSFORM_URN.equals(
           PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
         try {
-          return WriteFilesTranslation.isRunnerDeterminedSharding(
-              (AppliedPTransform) application);
+          return WriteFilesTranslation.isRunnerDeterminedSharding((AppliedPTransform) application);
         } catch (IOException exc) {
           throw new RuntimeException(
               String.format(

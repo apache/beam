@@ -173,8 +173,8 @@ public class DisplayDataMatchers {
       protected boolean matchesSafely(DisplayData displayData) {
         DisplayData subComponentData = subComponentData(path);
         if (subComponentData.items().size() == 0) {
-          throw new UnsupportedOperationException("subComponent contains no display data; "
-              + "cannot verify whether it is included");
+          throw new UnsupportedOperationException(
+              "subComponent contains no display data; " + "cannot verify whether it is included");
         }
 
         DisplayDataComparison comparison = checkSubset(displayData, subComponentData, path);
@@ -185,8 +185,7 @@ public class DisplayDataMatchers {
       protected void describeMismatchSafely(
           DisplayData displayData, Description mismatchDescription) {
         DisplayData subComponentDisplayData = subComponentData(path);
-        DisplayDataComparison comparison = checkSubset(
-            displayData, subComponentDisplayData, path);
+        DisplayDataComparison comparison = checkSubset(displayData, subComponentDisplayData, path);
 
         mismatchDescription
             .appendText("did not include:\n")
@@ -203,8 +202,12 @@ public class DisplayDataMatchers {
           DisplayData displayData, DisplayData included, String path) {
         DisplayDataComparison comparison = new DisplayDataComparison(displayData.items());
         for (Item item : included.items()) {
-          Item matchedItem = displayData.asMap().get(DisplayData.Identifier.of(
-              DisplayData.Path.absolute(path), item.getNamespace(), item.getKey()));
+          Item matchedItem =
+              displayData
+                  .asMap()
+                  .get(
+                      DisplayData.Identifier.of(
+                          DisplayData.Path.absolute(path), item.getNamespace(), item.getKey()));
 
           if (matchedItem != null) {
             comparison.matched(matchedItem);

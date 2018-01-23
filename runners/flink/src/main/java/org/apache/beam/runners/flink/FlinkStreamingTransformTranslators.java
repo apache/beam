@@ -594,19 +594,32 @@ class FlinkStreamingTransformTranslators {
           mainOutputTag,
           additionalOutputTags.getAll(),
           context,
-          (doFn1, stepName, sideInputs1, mainOutputTag1, additionalOutputTags1, context1, windowingStrategy, tagsToOutputTags, tagsToCoders, tagsToIds, inputCoder, keyCoder, transformedSideInputs) -> new DoFnOperator<>(
-              doFn1,
+          (doFn1,
               stepName,
-              inputCoder,
+              sideInputs1,
               mainOutputTag1,
               additionalOutputTags1,
-              new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                  mainOutputTag1, tagsToOutputTags, tagsToCoders, tagsToIds),
+              context1,
               windowingStrategy,
-              transformedSideInputs,
-              sideInputs1,
-              context1.getPipelineOptions(),
-              keyCoder));
+              tagsToOutputTags,
+              tagsToCoders,
+              tagsToIds,
+              inputCoder,
+              keyCoder,
+              transformedSideInputs) ->
+              new DoFnOperator<>(
+                  doFn1,
+                  stepName,
+                  inputCoder,
+                  mainOutputTag1,
+                  additionalOutputTags1,
+                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                      mainOutputTag1, tagsToOutputTags, tagsToCoders, tagsToIds),
+                  windowingStrategy,
+                  transformedSideInputs,
+                  sideInputs1,
+                  context1.getPipelineOptions(),
+                  keyCoder));
     }
   }
 
@@ -630,19 +643,32 @@ class FlinkStreamingTransformTranslators {
           transform.getMainOutputTag(),
           transform.getAdditionalOutputTags().getAll(),
           context,
-          (doFn, stepName, sideInputs, mainOutputTag, additionalOutputTags, context1, windowingStrategy, tagsToOutputTags, tagsToCoders, tagsToIds, inputCoder, keyCoder, transformedSideInputs) -> new SplittableDoFnOperator<>(
-              doFn,
+          (doFn,
               stepName,
-              inputCoder,
+              sideInputs,
               mainOutputTag,
               additionalOutputTags,
-              new DoFnOperator.MultiOutputOutputManagerFactory<>(
-                  mainOutputTag, tagsToOutputTags, tagsToCoders, tagsToIds),
+              context1,
               windowingStrategy,
-              transformedSideInputs,
-              sideInputs,
-              context1.getPipelineOptions(),
-              keyCoder));
+              tagsToOutputTags,
+              tagsToCoders,
+              tagsToIds,
+              inputCoder,
+              keyCoder,
+              transformedSideInputs) ->
+              new SplittableDoFnOperator<>(
+                  doFn,
+                  stepName,
+                  inputCoder,
+                  mainOutputTag,
+                  additionalOutputTags,
+                  new DoFnOperator.MultiOutputOutputManagerFactory<>(
+                      mainOutputTag, tagsToOutputTags, tagsToCoders, tagsToIds),
+                  windowingStrategy,
+                  transformedSideInputs,
+                  sideInputs,
+                  context1.getPipelineOptions(),
+                  keyCoder));
     }
   }
 
@@ -1032,14 +1058,16 @@ class FlinkStreamingTransformTranslators {
         DataStreamSource<String> dummySource =
             context.getExecutionEnvironment().fromElements("dummy");
 
-        DataStream<WindowedValue<T>> result = dummySource.<WindowedValue<T>>flatMap(
-            (s, collector) -> {
-              // never return anything
-            }).returns(
-            new CoderTypeInformation<>(
-                WindowedValue.getFullCoder(
-                    (Coder<T>) VoidCoder.of(),
-                    GlobalWindow.Coder.INSTANCE)));
+        DataStream<WindowedValue<T>> result =
+            dummySource
+                .<WindowedValue<T>>flatMap(
+                    (s, collector) -> {
+                      // never return anything
+                    })
+                .returns(
+                    new CoderTypeInformation<>(
+                        WindowedValue.getFullCoder(
+                            (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE)));
         context.setOutputDataStream(context.getOutput(transform), result);
 
       } else {

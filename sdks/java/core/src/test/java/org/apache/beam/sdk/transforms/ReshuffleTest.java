@@ -123,9 +123,7 @@ public class ReshuffleTest implements Serializable {
                         TimestampedValue.of("bar", new Instant(33)),
                         TimestampedValue.of("bar", GlobalWindow.INSTANCE.maxTimestamp()))
                     .withCoder(StringUtf8Coder.of()))
-            .apply(
-                WithKeys.of(
-                    input12 -> input12))
+            .apply(WithKeys.of(input12 -> input12))
             .apply("ReifyOriginalTimestamps", Reify.<String, String>timestampsInValue());
 
     // The outer TimestampedValue is the reified timestamp post-reshuffle. The inner

@@ -27,8 +27,6 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -41,19 +39,21 @@ public class BeamSqlRowCoderTest {
 
   @Test
   public void encodeAndDecode() throws Exception {
-    final RelProtoDataType protoRowType = a0 -> a0.builder()
-        .add("col_tinyint", SqlTypeName.TINYINT)
-        .add("col_smallint", SqlTypeName.SMALLINT)
-        .add("col_integer", SqlTypeName.INTEGER)
-        .add("col_bigint", SqlTypeName.BIGINT)
-        .add("col_float", SqlTypeName.FLOAT)
-        .add("col_double", SqlTypeName.DOUBLE)
-        .add("col_decimal", SqlTypeName.DECIMAL)
-        .add("col_string_varchar", SqlTypeName.VARCHAR)
-        .add("col_time", SqlTypeName.TIME)
-        .add("col_timestamp", SqlTypeName.TIMESTAMP)
-        .add("col_boolean", SqlTypeName.BOOLEAN)
-        .build();
+    final RelProtoDataType protoRowType =
+        a0 ->
+            a0.builder()
+                .add("col_tinyint", SqlTypeName.TINYINT)
+                .add("col_smallint", SqlTypeName.SMALLINT)
+                .add("col_integer", SqlTypeName.INTEGER)
+                .add("col_bigint", SqlTypeName.BIGINT)
+                .add("col_float", SqlTypeName.FLOAT)
+                .add("col_double", SqlTypeName.DOUBLE)
+                .add("col_decimal", SqlTypeName.DECIMAL)
+                .add("col_string_varchar", SqlTypeName.VARCHAR)
+                .add("col_time", SqlTypeName.TIME)
+                .add("col_timestamp", SqlTypeName.TIMESTAMP)
+                .add("col_boolean", SqlTypeName.BOOLEAN)
+                .build();
 
     BeamRecordSqlType beamSQLRowType = CalciteUtils.toBeamRowType(
         protoRowType.apply(new JavaTypeFactoryImpl(

@@ -674,8 +674,7 @@ public class KafkaIO {
 
     // default Kafka 0.9 Consumer supplier.
     private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
-      KAFKA_CONSUMER_FACTORY_FN =
-        config -> new KafkaConsumer<>(config);
+        KAFKA_CONSUMER_FACTORY_FN = config -> new KafkaConsumer<>(config);
 
     @SuppressWarnings("unchecked")
     @Override
@@ -801,11 +800,13 @@ public class KafkaIO {
         }
       }
 
-      Collections.sort(partitions, (tp1, tp2) -> ComparisonChain
-          .start()
-          .compare(tp1.topic(), tp2.topic())
-          .compare(tp1.partition(), tp2.partition())
-          .result());
+      Collections.sort(
+          partitions,
+          (tp1, tp2) ->
+              ComparisonChain.start()
+                  .compare(tp1.topic(), tp2.topic())
+                  .compare(tp1.partition(), tp2.partition())
+                  .result());
 
       checkArgument(desiredNumSplits > 0);
       checkState(partitions.size() > 0,
@@ -1000,8 +1001,9 @@ public class KafkaIO {
       this.name = "Reader-" + source.id;
 
       List<TopicPartition> partitions = source.spec.getTopicPartitions();
-      partitionStates = ImmutableList.copyOf(Lists.transform(partitions,
-          tp -> new PartitionState(tp, UNINITIALIZED_OFFSET)));
+      partitionStates =
+          ImmutableList.copyOf(
+              Lists.transform(partitions, tp -> new PartitionState(tp, UNINITIALIZED_OFFSET)));
 
       if (checkpointMark != null) {
         // a) verify that assigned and check-pointed partitions match exactly
@@ -1125,7 +1127,7 @@ public class KafkaIO {
       // Unfortunately it can block forever in case of network issues like incorrect ACLs.
       // Initialize partition in a separate thread and cancel it if takes longer than a minute.
       for (final PartitionState pState : partitionStates) {
-        Future<?> future =  consumerPollThread.submit(() -> setupInitialOffset(pState));
+        Future<?> future = consumerPollThread.submit(() -> setupInitialOffset(pState));
 
         try {
           // Timeout : 1 minute OR 2 * Kafka consumer request timeout if it is set.
@@ -1153,8 +1155,7 @@ public class KafkaIO {
 
       // Start consumer read loop.
       // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
-      consumerPollThread.submit(
-          () -> consumerPollLoop());
+      consumerPollThread.submit(() -> consumerPollLoop());
 
       // offsetConsumer setup :
 
@@ -1303,12 +1304,14 @@ public class KafkaIO {
     @Override
     public CheckpointMark getCheckpointMark() {
       reportBacklog();
-      return new KafkaCheckpointMark(ImmutableList.copyOf(// avoid lazy (consumedOffset can change)
-          Lists.transform(partitionStates,
-              p -> new PartitionMark(p.topicPartition.topic(),
-                                       p.topicPartition.partition(),
-                                       p.nextOffset)
-          )));
+      return new KafkaCheckpointMark(
+          // avoid lazy (consumedOffset can change)
+          ImmutableList.copyOf(
+              Lists.transform(
+                  partitionStates,
+                  p ->
+                      new PartitionMark(
+                          p.topicPartition.topic(), p.topicPartition.partition(), p.nextOffset))));
     }
 
     @Override
@@ -2289,22 +2292,28 @@ public class KafkaIO {
       private final Cache<Integer, ShardWriter<K, V>> cache;
 
       ShardWriterCache() {
-        this.cache = CacheBuilder
-            .newBuilder()
-            .expireAfterWrite(IDLE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            .<Integer, ShardWriter<K, V>>removalListener(notification -> {
-              if (notification.getCause() != RemovalCause.EXPLICIT) {
-                ShardWriter writer = notification.getValue();
-                LOG.info("{} : Closing idle shard writer {} after 1 minute of idle time.",
-                         writer.shard, writer.producerName);
-                writer.producer.close();
-              }
-            }).build();
+        this.cache =
+            CacheBuilder.newBuilder()
+                .expireAfterWrite(IDLE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .<Integer, ShardWriter<K, V>>removalListener(
+                    notification -> {
+                      if (notification.getCause() != RemovalCause.EXPLICIT) {
+                        ShardWriter writer = notification.getValue();
+                        LOG.info(
+                            "{} : Closing idle shard writer {} after 1 minute of idle time.",
+                            writer.shard,
+                            writer.producerName);
+                        writer.producer.close();
+                      }
+                    })
+                .build();
 
         // run cache.cleanUp() every 10 seconds.
         SCHEDULED_CLEAN_UP_THREAD.scheduleAtFixedRate(
             () -> cache.cleanUp(),
-            CLEAN_UP_CHECK_INTERVAL_MS, CLEAN_UP_CHECK_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            CLEAN_UP_CHECK_INTERVAL_MS,
+            CLEAN_UP_CHECK_INTERVAL_MS,
+            TimeUnit.MILLISECONDS);
       }
 
       ShardWriter<K, V> removeIfPresent(int shard) {

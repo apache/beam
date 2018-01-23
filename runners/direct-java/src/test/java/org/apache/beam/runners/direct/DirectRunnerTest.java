@@ -178,14 +178,15 @@ public class DirectRunnerTest implements Serializable {
   public void byteArrayCountShouldSucceed() {
     Pipeline p = getPipeline();
 
-    SerializableFunction<Integer, byte[]> getBytes = input -> {
-      try {
-        return CoderUtils.encodeToByteArray(VarIntCoder.of(), input);
-      } catch (CoderException e) {
-        fail("Unexpected Coder Exception " + e);
-        throw new AssertionError("Unreachable");
-      }
-    };
+    SerializableFunction<Integer, byte[]> getBytes =
+        input -> {
+          try {
+            return CoderUtils.encodeToByteArray(VarIntCoder.of(), input);
+          } catch (CoderException e) {
+            fail("Unexpected Coder Exception " + e);
+            throw new AssertionError("Unreachable");
+          }
+        };
     TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>() {
     };
     PCollection<byte[]> foos =
@@ -239,27 +240,29 @@ public class DirectRunnerTest implements Serializable {
     p.apply(GenerateSequence.from(0).withRate(1L, Duration.standardSeconds(1)));
 
     final BlockingQueue<PipelineResult> resultExchange = new ArrayBlockingQueue<>(1);
-    Runnable cancelRunnable = () -> {
-      try {
-        resultExchange.take().cancel();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IllegalStateException(e);
-      } catch (IOException e) {
-        throw new IllegalStateException(e);
-      }
-    };
+    Runnable cancelRunnable =
+        () -> {
+          try {
+            resultExchange.take().cancel();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+          } catch (IOException e) {
+            throw new IllegalStateException(e);
+          }
+        };
 
-    Callable<PipelineResult> runPipelineRunnable = () -> {
-      PipelineResult res = p.run();
-      try {
-        resultExchange.put(res);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new IllegalStateException(e);
-      }
-      return res;
-    };
+    Callable<PipelineResult> runPipelineRunnable =
+        () -> {
+          PipelineResult res = p.run();
+          try {
+            resultExchange.put(res);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+          }
+          return res;
+        };
 
     ExecutorService executor = Executors.newCachedThreadPool();
     executor.submit(cancelRunnable);

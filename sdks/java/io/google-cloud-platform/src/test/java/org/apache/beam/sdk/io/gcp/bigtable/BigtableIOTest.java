@@ -143,8 +143,7 @@ public class BigtableIOTest {
       new TypeDescriptor<KV<ByteString, Iterable<Mutation>>>() {};
 
   private static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
-    PORT_CONFIGURATOR =
-      input -> input.setPort(1234);
+      PORT_CONFIGURATOR = input -> input.setPort(1234);
 
   @Before
   public void setup() throws Exception {
@@ -403,17 +402,18 @@ public class BigtableIOTest {
   }
 
   private static List<Row> filterToRanges(List<Row> rows, final List<ByteKeyRange> ranges) {
-    return Lists.newArrayList(Iterables.filter(
-        rows,
-        input -> {
-          verifyNotNull(input, "input");
-          for (ByteKeyRange range : ranges) {
-            if (range.containsKey(makeByteKey(input.getKey()))) {
-              return true;
-            }
-          }
-          return false;
-        }));
+    return Lists.newArrayList(
+        Iterables.filter(
+            rows,
+            input -> {
+              verifyNotNull(input, "input");
+              for (ByteKeyRange range : ranges) {
+                if (range.containsKey(makeByteKey(input.getKey()))) {
+                  return true;
+                }
+              }
+              return false;
+            }));
   }
 
   private void runReadTest(BigtableIO.Read read, List<Row> expected) {

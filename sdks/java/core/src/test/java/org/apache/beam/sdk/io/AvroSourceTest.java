@@ -59,7 +59,6 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.hamcrest.Matchers;
@@ -454,11 +453,12 @@ public class AvroSourceTest {
     AvroSource<Bird> source =
         AvroSource.from(filename)
             .withParseFn(
-                input -> new Bird(
-                    (long) input.get("number"),
-                    input.get("species").toString(),
-                    input.get("quality").toString(),
-                    (long) input.get("quantity")),
+                input ->
+                    new Bird(
+                        (long) input.get("number"),
+                        input.get("species").toString(),
+                        input.get("quality").toString(),
+                        (long) input.get("quantity")),
                 AvroCoder.of(Bird.class));
     List<Bird> actual = SourceTestUtils.readFromSource(source, null);
     assertThat(actual, containsInAnyOrder(expected.toArray()));

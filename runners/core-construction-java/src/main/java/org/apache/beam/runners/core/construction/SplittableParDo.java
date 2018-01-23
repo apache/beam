@@ -366,9 +366,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public void processElement(final ProcessContext c) {
       final InputT element = c.element().getKey();
       invoker.invokeSplitRestriction(
-          element,
-          c.element().getValue(),
-          part -> c.output(KV.of(element, part)));
+          element, c.element().getValue(), part -> c.output(KV.of(element, part)));
     }
   }
 }
