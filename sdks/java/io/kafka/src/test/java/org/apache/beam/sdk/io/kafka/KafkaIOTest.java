@@ -342,20 +342,20 @@ public class KafkaIOTest {
       PCollection<Long> input, long count, long uniqueCount, long min, long max) {
 
     PAssert
-        .thatSingleton(input.apply("Count", Count.<Long>globally()))
+        .thatSingleton(input.apply("Count", Count.globally()))
         .isEqualTo(count);
 
     PAssert
-        .thatSingleton(input.apply(Distinct.<Long>create())
-            .apply("UniqueCount", Count.<Long>globally()))
+        .thatSingleton(input.apply(Distinct.create())
+            .apply("UniqueCount", Count.globally()))
         .isEqualTo(uniqueCount);
 
     PAssert
-        .thatSingleton(input.apply("Min", Min.<Long>globally()))
+        .thatSingleton(input.apply("Min", Min.globally()))
         .isEqualTo(min);
 
     PAssert
-        .thatSingleton(input.apply("Max", Max.<Long>globally()))
+        .thatSingleton(input.apply("Max", Max.globally()))
         .isEqualTo(max);
   }
 
@@ -366,7 +366,7 @@ public class KafkaIOTest {
     PCollection<Long> input = p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
-        .apply(Values.<Long>create());
+        .apply(Values.create());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -388,14 +388,14 @@ public class KafkaIOTest {
             .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
             .withKeyDeserializer(IntegerDeserializer.class)
             .withValueDeserializer(LongDeserializer.class)
-            .updateConsumerProperties(ImmutableMap.<String, Object>of(
+            .updateConsumerProperties(ImmutableMap.of(
                 ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
                 ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
                 ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 8,
                 ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 8))
             .withMaxNumRecords(10)
             .withoutMetadata())
-        .apply(Values.<Long>create());
+        .apply(Values.create());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -419,7 +419,7 @@ public class KafkaIOTest {
 
     PCollection<Long> input = p
         .apply(reader.withoutMetadata())
-        .apply(Values.<Long>create());
+        .apply(Values.create());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -442,7 +442,7 @@ public class KafkaIOTest {
 
     PCollection<Long> input = p
         .apply(reader.withoutMetadata())
-        .apply(Values.<Long>create());
+        .apply(Values.create());
 
     // assert that every element is a multiple of 5.
     PAssert
@@ -450,7 +450,7 @@ public class KafkaIOTest {
       .satisfies(new AssertMultipleOf(5));
 
     PAssert
-      .thatSingleton(input.apply(Count.<Long>globally()))
+      .thatSingleton(input.apply(Count.globally()))
       .isEqualTo(numElements / 10L);
 
     p.run();
@@ -470,13 +470,13 @@ public class KafkaIOTest {
 
     PCollection<Long> input = p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
-        .apply(Values.<Long>create());
+        .apply(Values.create());
 
     addCountingAsserts(input, numElements);
 
     PCollection<Long> diffs = input
         .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-        .apply("DistinctTimestamps", Distinct.<Long>create());
+        .apply("DistinctTimestamps", Distinct.create());
     // This assert also confirms that diffs only has one unique value.
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 
@@ -515,9 +515,9 @@ public class KafkaIOTest {
       pcollections = pcollections.and(
           p.apply("split" + i, Read.from(splits.get(i)).withMaxNumRecords(elementsPerSplit))
            .apply("Remove Metadata " + i, ParDo.of(new RemoveKafkaMetadata<Integer, Long>()))
-           .apply("collection " + i, Values.<Long>create()));
+           .apply("collection " + i, Values.create()));
     }
-    PCollection<Long> input = pcollections.apply(Flatten.<Long>pCollections());
+    PCollection<Long> input = pcollections.apply(Flatten.pCollections());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -709,7 +709,7 @@ public class KafkaIOTest {
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
     assertThat(backlogElementsMetrics.gauges(),
-        IsIterableWithSize.<MetricResult<GaugeResult>>iterableWithSize(1));
+        IsIterableWithSize.iterableWithSize(1));
 
     MetricQueryResults backlogBytesMetrics =
         result.metrics().queryMetrics(
@@ -722,7 +722,7 @@ public class KafkaIOTest {
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
     assertThat(backlogBytesMetrics.gauges(),
-        IsIterableWithSize.<MetricResult<GaugeResult>>iterableWithSize(1));
+        IsIterableWithSize.iterableWithSize(1));
   }
 
   @Test
@@ -773,7 +773,7 @@ public class KafkaIOTest {
       p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
             .withoutMetadata())
-        .apply(Values.<Long>create()) // there are no keys
+        .apply(Values.create()) // there are no keys
         .apply(KafkaIO.<Integer, Long>write()
             .withBootstrapServers("none")
             .withTopic(topic)
@@ -890,7 +890,7 @@ public class KafkaIOTest {
         .apply(mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn())
             .withStartReadTime(new Instant(startTime))
             .withoutMetadata())
-        .apply(Values.<Long>create());
+        .apply(Values.create());
 
     addCountingAsserts(input, maxNumRecords, maxNumRecords, maxNumRecords, numElements - 1);
     p.run();
@@ -914,7 +914,7 @@ public class KafkaIOTest {
     p.apply(mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn())
             .withStartReadTime(new Instant(startTime))
             .withoutMetadata())
-        .apply(Values.<Long>create());
+        .apply(Values.create());
 
     p.run();
 

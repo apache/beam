@@ -56,7 +56,7 @@ public class Join {
     PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
       KeyedPCollectionTuple.of(v1Tuple, leftCollection)
         .and(v2Tuple, rightCollection)
-        .apply(CoGroupByKey.<K>create());
+        .apply(CoGroupByKey.create());
 
     return coGbkResultCollection.apply(ParDo.of(
       new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
@@ -105,7 +105,7 @@ public class Join {
     PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
       KeyedPCollectionTuple.of(v1Tuple, leftCollection)
         .and(v2Tuple, rightCollection)
-        .apply(CoGroupByKey.<K>create());
+        .apply(CoGroupByKey.create());
 
     return coGbkResultCollection.apply(ParDo.of(
       new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
@@ -158,7 +158,7 @@ public class Join {
     PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
       KeyedPCollectionTuple.of(v1Tuple, leftCollection)
         .and(v2Tuple, rightCollection)
-        .apply(CoGroupByKey.<K>create());
+        .apply(CoGroupByKey.create());
 
     return coGbkResultCollection.apply(ParDo.of(
       new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {
@@ -213,7 +213,7 @@ public class Join {
     PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
         KeyedPCollectionTuple.of(v1Tuple, leftCollection)
             .and(v2Tuple, rightCollection)
-            .apply(CoGroupByKey.<K>create());
+            .apply(CoGroupByKey.create());
 
     return coGbkResultCollection.apply(ParDo.of(
         new DoFn<KV<K, CoGbkResult>, KV<K, KV<V1, V2>>>() {

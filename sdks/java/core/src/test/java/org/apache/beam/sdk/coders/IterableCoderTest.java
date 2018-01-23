@@ -40,10 +40,10 @@ public class IterableCoderTest {
 
   private static final Coder<Iterable<Integer>> TEST_CODER = IterableCoder.of(VarIntCoder.of());
 
-  private static final List<Iterable<Integer>> TEST_VALUES = Arrays.<Iterable<Integer>>asList(
-      Collections.<Integer>emptyList(),
-      Collections.<Integer>singletonList(13),
-      Arrays.<Integer>asList(1, 2, 3, 4),
+  private static final List<Iterable<Integer>> TEST_VALUES = Arrays.asList(
+      Collections.emptyList(),
+      Collections.singletonList(13),
+      Arrays.asList(1, 2, 3, 4),
       new LinkedList<>(Arrays.asList(7, 6, 5)));
 
   @Test
@@ -54,7 +54,7 @@ public class IterableCoderTest {
   @Test
   public void testDecodeEncodeContentsInSameOrder() throws Exception {
     for (Iterable<Integer> value : TEST_VALUES) {
-      CoderProperties.<Integer, Iterable<Integer>>coderDecodeEncodeContentsInSameOrder(
+      CoderProperties.coderDecodeEncodeContentsInSameOrder(
           TEST_CODER, value);
     }
   }

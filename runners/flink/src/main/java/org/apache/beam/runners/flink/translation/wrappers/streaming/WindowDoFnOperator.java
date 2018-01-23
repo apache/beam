@@ -106,7 +106,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   @Override
   public void fireTimer(InternalTimer<?, TimerData> timer) {
     doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
-        KeyedWorkItems.<K, InputT>timersWorkItem(
+        KeyedWorkItems.timersWorkItem(
             (K) keyedStateInternals.getKey(),
             Collections.singletonList(timer.getNamespace()))));
   }

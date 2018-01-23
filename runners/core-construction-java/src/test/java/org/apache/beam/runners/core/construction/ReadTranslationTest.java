@@ -58,7 +58,7 @@ public class ReadTranslationTest {
 
   @Parameters(name = "{index}: {0}")
   public static Iterable<Source<?>> data() {
-    return ImmutableList.<Source<?>>of(
+    return ImmutableList.of(
         CountingSource.unbounded(),
         CountingSource.upTo(100L),
         new TestBoundedSource(),
@@ -77,7 +77,7 @@ public class ReadTranslationTest {
     ReadPayload payload = ReadTranslation.toProto(boundedRead, SdkComponents.create());
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.BOUNDED));
     BoundedSource<?> deserializedSource = ReadTranslation.boundedSourceFromProto(payload);
-    assertThat(deserializedSource, Matchers.<Source<?>>equalTo(source));
+    assertThat(deserializedSource, Matchers.equalTo(source));
   }
 
   @Test
@@ -88,7 +88,7 @@ public class ReadTranslationTest {
     ReadPayload payload = ReadTranslation.toProto(unboundedRead, SdkComponents.create());
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.UNBOUNDED));
     UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);
-    assertThat(deserializedSource, Matchers.<Source<?>>equalTo(source));
+    assertThat(deserializedSource, Matchers.equalTo(source));
   }
 
   private static class TestBoundedSource extends BoundedSource<String> {

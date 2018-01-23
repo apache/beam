@@ -100,7 +100,7 @@ public class PubsubTestClientTest {
              PubsubTestClient.createFactoryForPublish(
                  TOPIC,
                  Sets.newHashSet(expectedOutgoingMessage),
-                 ImmutableList.<OutgoingMessage>of())) {
+                 ImmutableList.of())) {
       try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
         client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
       }

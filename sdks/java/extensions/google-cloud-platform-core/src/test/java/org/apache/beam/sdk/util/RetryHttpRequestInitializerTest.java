@@ -284,7 +284,7 @@ public class RetryHttpRequestInitializerTest {
         new RetryHttpRequestInitializer(
             fakeClockAndSleeper,
             fakeClockAndSleeper,
-            Collections.<Integer>emptyList(),
+            Collections.emptyList(),
             null)
     ).build();
 
@@ -294,7 +294,7 @@ public class RetryHttpRequestInitializerTest {
       getRequest.execute();
       fail();
     } catch (Throwable e) {
-      assertThat(e, Matchers.<Throwable>instanceOf(SocketTimeoutException.class));
+      assertThat(e, Matchers.instanceOf(SocketTimeoutException.class));
       assertEquals(1 + defaultNumberOfRetries, executeCount.get());
       expectedLogs.verifyWarn("performed 10 retries due to IOExceptions");
     }

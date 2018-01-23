@@ -78,7 +78,7 @@ public class MultiStepCombineTest implements Serializable {
                     KV.of("bizzle", 3L),
                     KV.of("bar", 4L),
                     KV.of("bizzle", 11L)))
-            .apply(Combine.<String, Long, Long>perKey(new MultiStepCombineFn()));
+            .apply(Combine.perKey(new MultiStepCombineFn()));
 
     PAssert.that(combined)
         .containsInAnyOrder(KV.of("foo", 1L), KV.of("bar", 6L), KV.of("bizzle", 14L));
@@ -97,8 +97,8 @@ public class MultiStepCombineTest implements Serializable {
                     TimestampedValue.of(KV.of("bizzle", 3L), new Instant(3L)),
                     TimestampedValue.of(KV.of("bar", 4L), new Instant(4L)),
                     TimestampedValue.of(KV.of("bizzle", 11L), new Instant(11L))))
-            .apply(Window.<KV<String, Long>>into(windowFn))
-            .apply(Combine.<String, Long, Long>perKey(new MultiStepCombineFn()));
+            .apply(Window.into(windowFn))
+            .apply(Combine.perKey(new MultiStepCombineFn()));
 
     PAssert.that("Windows should combine only elements in their windows", combined)
         .inWindow(new IntervalWindow(new Instant(0L), Duration.millis(6L)))
@@ -138,7 +138,7 @@ public class MultiStepCombineTest implements Serializable {
             .apply(
                 Window.<KV<String, Long>>into(FixedWindows.of(Duration.millis(5L)))
                     .withTimestampCombiner(combiner))
-            .apply(Combine.<String, Long, Long>perKey(new MultiStepCombineFn()));
+            .apply(Combine.perKey(new MultiStepCombineFn()));
     PCollection<KV<String, TimestampedValue<Long>>> reified =
         combined.apply(
             ParDo.of(

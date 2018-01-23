@@ -166,7 +166,7 @@ public class ApproximateUniqueTest implements Serializable {
 
       final PCollection<Double> input = p.apply(Create.of(elements));
       final PCollection<Long> estimate =
-          input.apply(ApproximateUnique.<Double>globally(sampleSize));
+          input.apply(ApproximateUnique.globally(sampleSize));
 
       PAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
 
@@ -237,12 +237,12 @@ public class ApproximateUniqueTest implements Serializable {
     private void runApproximateUniquePipeline(final int sampleSize) {
       final PCollection<String> input = p.apply(Create.of(TEST_LINES));
       final PCollection<Long> approximate =
-          input.apply(ApproximateUnique.<String>globally(sampleSize));
+          input.apply(ApproximateUnique.globally(sampleSize));
       final PCollectionView<Long> exact =
           input
-              .apply(Distinct.<String>create())
-              .apply(Count.<String>globally())
-              .apply(View.<Long>asSingleton());
+              .apply(Distinct.create())
+              .apply(Count.globally())
+              .apply(View.asSingleton());
 
       final PCollection<KV<Long, Long>> approximateAndExact = approximate
           .apply(ParDo.of(new DoFn<Long, KV<Long, Long>>() {
@@ -306,7 +306,7 @@ public class ApproximateUniqueTest implements Serializable {
           Create.of(Arrays.asList(1, 2, 3, 3)));
 
       final PCollection<Long> estimate = input
-          .apply(ApproximateUnique.<Integer>globally(1000));
+          .apply(ApproximateUnique.globally(1000));
 
       PAssert.thatSingleton(estimate).isEqualTo(3L);
 
@@ -337,7 +337,7 @@ public class ApproximateUniqueTest implements Serializable {
 
       final PCollection<Integer> input = p.apply(Create.of(elements));
       final PCollection<Long> estimate =
-          input.apply(ApproximateUnique.<Integer>globally(sampleSize));
+          input.apply(ApproximateUnique.globally(sampleSize));
 
       PAssert.thatSingleton(estimate).satisfies(new VerifyEstimateFn(uniqueCount, sampleSize));
 
@@ -360,7 +360,7 @@ public class ApproximateUniqueTest implements Serializable {
 
       final PCollection<KV<Long, Long>> input = p.apply(Create.of(elements));
       final PCollection<KV<Long, Long>> counts =
-          input.apply(ApproximateUnique.<Long, Long>perKey(sampleSize));
+          input.apply(ApproximateUnique.perKey(sampleSize));
 
       PAssert.that(counts).satisfies(new VerifyEstimatePerKeyFn(sampleSize));
 

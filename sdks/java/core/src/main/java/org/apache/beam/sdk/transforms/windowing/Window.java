@@ -405,7 +405,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
       // A new PCollection must be created in case input is reused in a different location as the
       // two PCollections will, in general, have a different windowing strategy.
       return PCollectionList.of(input)
-          .apply(Flatten.<T>pCollections())
+          .apply(Flatten.pCollections())
           .setWindowingStrategyInternal(outputStrategy);
     } else {
       // This is the AssignWindows primitive

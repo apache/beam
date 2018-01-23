@@ -216,7 +216,7 @@ class ParDoTranslator<InputT, OutputT>
         String msg = context.getFullName() + ": Multiple side inputs with different coders.";
         throw new UnsupportedOperationException(msg);
       }
-      sourceCollections.add(context.<PCollection<Object>>getViewInput(sideInput));
+      sourceCollections.add(context.getViewInput(sideInput));
       unionTags.put(sideInputCollection, i);
     }
 

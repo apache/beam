@@ -52,7 +52,7 @@ class CreateStreamingFlinkView<ElemT, ViewT>
   public PCollection<ElemT> expand(PCollection<ElemT> input) {
     input
         .apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults())
-        .apply(CreateFlinkPCollectionView.<ElemT, ViewT>of(view));
+        .apply(CreateFlinkPCollectionView.of(view));
     return input;
   }
 

@@ -115,7 +115,7 @@ public class DirectRunnerTest implements Serializable {
                 return input;
               }
             }))
-            .apply(Count.<String>perElement());
+            .apply(Count.perElement());
     PCollection<String> countStrs =
         counts.apply(MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
           @Override
@@ -145,7 +145,7 @@ public class DirectRunnerTest implements Serializable {
                 return input;
               }
             }))
-            .apply(Count.<String>perElement());
+            .apply(Count.perElement());
     PCollection<String> countStrs =
         counts.apply(MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
           @Override
@@ -195,8 +195,8 @@ public class DirectRunnerTest implements Serializable {
     PCollection<byte[]> msync =
         p.apply(Create.of(1, -2, -8, -16)).apply(MapElements.into(td).via(getBytes));
     PCollection<byte[]> bytes =
-        PCollectionList.of(foos).and(msync).apply(Flatten.<byte[]>pCollections());
-    PCollection<KV<byte[], Long>> counts = bytes.apply(Count.<byte[]>perElement());
+        PCollectionList.of(foos).and(msync).apply(Flatten.pCollections());
+    PCollection<KV<byte[], Long>> counts = bytes.apply(Count.perElement());
     PCollection<KV<Integer, Long>> countsBackToString =
         counts.apply(MapElements.via(new SimpleFunction<KV<byte[], Long>, KV<Integer, Long>>() {
           @Override

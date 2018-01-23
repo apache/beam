@@ -325,8 +325,8 @@ public class RedisIO {
       // breaking fusion
       PCollectionView<Iterable<KV<String, String>>> empty = input
           .apply("Consume",
-              Filter.by(SerializableFunctions.<KV<String, String>, Boolean>constant(false)))
-          .apply(View.<KV<String, String>>asIterable());
+              Filter.by(SerializableFunctions.constant(false)))
+          .apply(View.asIterable());
       PCollection<KV<String, String>> materialized = input
           .apply("Identity", ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
             @ProcessElement
@@ -334,7 +334,7 @@ public class RedisIO {
               context.output(context.element());
             }
       }).withSideInputs(empty));
-      return materialized.apply(Reshuffle.<KV<String, String>>viaRandomKey());
+      return materialized.apply(Reshuffle.viaRandomKey());
     }
   }
 

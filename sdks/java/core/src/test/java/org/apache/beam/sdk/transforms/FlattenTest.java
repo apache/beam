@@ -93,7 +93,7 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output =
         makePCollectionListOfStrings(p, inputs)
-        .apply(Flatten.<String>pCollections());
+        .apply(Flatten.pCollections());
 
     PAssert.that(output).containsInAnyOrder(flattenLists(inputs));
     p.run();
@@ -103,7 +103,7 @@ public class FlattenTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testFlattenPCollectionsSingletonList() {
     PCollection<String> input = p.apply(Create.of(LINES));
-    PCollection<String> output = PCollectionList.of(input).apply(Flatten.<String>pCollections());
+    PCollection<String> output = PCollectionList.of(input).apply(Flatten.pCollections());
 
     assertThat(output, not(equalTo(input)));
 
@@ -119,7 +119,7 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> output =
         makePCollectionListOfStrings(p, inputs)
-        .apply(Flatten.<String>pCollections())
+        .apply(Flatten.pCollections())
         .apply(ParDo.of(new IdentityFn<String>()));
 
     PAssert.that(output).containsInAnyOrder(flattenLists(inputs));
@@ -131,7 +131,7 @@ public class FlattenTest implements Serializable {
   public void testFlattenPCollectionsEmpty() {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
-        .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of());
+        .apply(Flatten.pCollections()).setCoder(StringUtf8Coder.of());
 
     PAssert.that(output).empty();
     p.run();
@@ -154,7 +154,7 @@ public class FlattenTest implements Serializable {
                     }));
 
     PCollection<Long> flattened =
-        PCollectionList.of(longs).and(longs).and(biggerLongs).apply(Flatten.<Long>pCollections());
+        PCollectionList.of(longs).and(longs).and(biggerLongs).apply(Flatten.pCollections());
 
     List<Long> expectedLongs = new ArrayList<>();
     for (int i = 0; i < count; i++) {
@@ -183,7 +183,7 @@ public class FlattenTest implements Serializable {
     PCollection<Long> flattened =
         PCollectionList.of(bigEndianLongs)
             .and(varLongs)
-            .apply(Flatten.<Long>pCollections())
+            .apply(Flatten.pCollections())
             .setCoder(NullableCoder.of(VarLongCoder.of()));
     PAssert.that(flattened)
         .containsInAnyOrder(
@@ -196,8 +196,8 @@ public class FlattenTest implements Serializable {
   public void testEmptyFlattenAsSideInput() {
     final PCollectionView<Iterable<String>> view =
         PCollectionList.<String>empty(p)
-        .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of())
-        .apply(View.<String>asIterable());
+        .apply(Flatten.pCollections()).setCoder(StringUtf8Coder.of())
+        .apply(View.asIterable());
 
     PCollection<String> output = p
         .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
@@ -219,7 +219,7 @@ public class FlattenTest implements Serializable {
   public void testFlattenPCollectionsEmptyThenParDo() {
     PCollection<String> output =
         PCollectionList.<String>empty(p)
-        .apply(Flatten.<String>pCollections()).setCoder(StringUtf8Coder.of())
+        .apply(Flatten.pCollections()).setCoder(StringUtf8Coder.of())
         .apply(ParDo.of(new IdentityFn<String>()));
 
     PAssert.that(output).empty();
@@ -234,7 +234,7 @@ public class FlattenTest implements Serializable {
     thrown.expectMessage("Unable to return a default Coder");
 
     PCollectionList.<ClassWithoutCoder>empty(p)
-        .apply(Flatten.<ClassWithoutCoder>pCollections());
+        .apply(Flatten.pCollections());
 
     p.run();
   }
@@ -249,7 +249,7 @@ public class FlattenTest implements Serializable {
             .withCoder(IterableCoder.of(StringUtf8Coder.of())));
 
     PCollection<String> output =
-        input.apply(Flatten.<String>iterables());
+        input.apply(Flatten.iterables());
 
     PAssert.that(output)
         .containsInAnyOrder(LINES_ARRAY);
@@ -263,7 +263,7 @@ public class FlattenTest implements Serializable {
     PCollection<List<String>> input =
         p.apply(Create.<List<String>>of(LINES).withCoder(ListCoder.of(StringUtf8Coder.of())));
 
-    PCollection<String> output = input.apply(Flatten.<String>iterables());
+    PCollection<String> output = input.apply(Flatten.iterables());
 
     PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
 
@@ -278,7 +278,7 @@ public class FlattenTest implements Serializable {
     PCollection<Set<String>> input =
         p.apply(Create.<Set<String>>of(linesSet).withCoder(SetCoder.of(StringUtf8Coder.of())));
 
-    PCollection<String> output = input.apply(Flatten.<String>iterables());
+    PCollection<String> output = input.apply(Flatten.iterables());
 
     PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
 
@@ -294,7 +294,7 @@ public class FlattenTest implements Serializable {
         p.apply(Create.<Collection<String>>of(linesSet)
                       .withCoder(CollectionCoder.of(StringUtf8Coder.of())));
 
-    PCollection<String> output = input.apply(Flatten.<String>iterables());
+    PCollection<String> output = input.apply(Flatten.iterables());
 
     PAssert.that(output).containsInAnyOrder(LINES_ARRAY);
 
@@ -309,7 +309,7 @@ public class FlattenTest implements Serializable {
             .withCoder(IterableCoder.of(StringUtf8Coder.of())));
 
     PCollection<String> output =
-        input.apply(Flatten.<String>iterables());
+        input.apply(Flatten.iterables());
 
     PAssert.that(output)
         .containsInAnyOrder(NO_LINES_ARRAY);
@@ -340,7 +340,7 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> outputMerged = PCollectionList.of(outputEvenLength)
         .and(outputOddLength)
-        .apply(Flatten.<String>pCollections());
+        .apply(Flatten.pCollections());
 
     PAssert.that(outputMerged).containsInAnyOrder("AA", "BBB", "CC");
     PAssert.that(outputEvenLength).containsInAnyOrder("AA", "CC");
@@ -356,14 +356,14 @@ public class FlattenTest implements Serializable {
   public void testEqualWindowFnPropagation() {
     PCollection<String> input1 =
         p.apply("CreateInput1", Create.of("Input1"))
-        .apply("Window1", Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+        .apply("Window1", Window.into(FixedWindows.of(Duration.standardMinutes(1))));
     PCollection<String> input2 =
         p.apply("CreateInput2", Create.of("Input2"))
-        .apply("Window2", Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+        .apply("Window2", Window.into(FixedWindows.of(Duration.standardMinutes(1))));
 
     PCollection<String> output =
         PCollectionList.of(input1).and(input2)
-        .apply(Flatten.<String>pCollections());
+        .apply(Flatten.pCollections());
 
     p.run();
 
@@ -377,15 +377,15 @@ public class FlattenTest implements Serializable {
     PCollection<String> input1 =
         p.apply("CreateInput1", Create.of("Input1"))
         .apply("Window1",
-            Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(1))));
+            Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))));
     PCollection<String> input2 =
         p.apply("CreateInput2", Create.of("Input2"))
         .apply("Window2",
-            Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(2))));
+            Window.into(Sessions.withGapDuration(Duration.standardMinutes(2))));
 
     PCollection<String> output =
         PCollectionList.of(input1).and(input2)
-        .apply(Flatten.<String>pCollections());
+        .apply(Flatten.pCollections());
 
     p.run();
 
@@ -399,14 +399,14 @@ public class FlattenTest implements Serializable {
 
     PCollection<String> input1 =
         p.apply("CreateInput1", Create.of("Input1"))
-        .apply("Window1", Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+        .apply("Window1", Window.into(FixedWindows.of(Duration.standardMinutes(1))));
     PCollection<String> input2 =
         p.apply("CreateInput2", Create.of("Input2"))
-        .apply("Window2", Window.<String>into(FixedWindows.of(Duration.standardMinutes(2))));
+        .apply("Window2", Window.into(FixedWindows.of(Duration.standardMinutes(2))));
 
     try {
       PCollectionList.of(input1).and(input2)
-          .apply(Flatten.<String>pCollections());
+          .apply(Flatten.pCollections());
       Assert.fail("Exception should have been thrown");
     } catch (IllegalStateException e) {
       Assert.assertTrue(e.getMessage().startsWith(

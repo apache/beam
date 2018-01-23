@@ -80,7 +80,7 @@ public class CloningBundleFactoryTest {
     PCollection<Integer> created = p.apply(Create.of(1, 3).withCoder(VarIntCoder.of()));
     PCollection<KV<String, Integer>> kvs =
         created
-            .apply(WithKeys.<String, Integer>of("foo"))
+            .apply(WithKeys.of("foo"))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
     WindowedValue<KV<String, Integer>> fooOne = WindowedValue.valueInGlobalWindow(KV.of("foo", 1));
     WindowedValue<KV<String, Integer>> fooThree =
@@ -105,9 +105,9 @@ public class CloningBundleFactoryTest {
 
     PCollection<KV<String, Iterable<Integer>>> keyed =
         created
-            .apply(WithKeys.<String, Integer>of("foo"))
+            .apply(WithKeys.of("foo"))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))
-            .apply(GroupByKey.<String, Integer>create());
+            .apply(GroupByKey.create());
     WindowedValue<KV<String, Iterable<Integer>>> foos =
         WindowedValue.valueInGlobalWindow(
             KV.<String, Iterable<Integer>>of("foo", ImmutableList.of(1, 3)));
@@ -124,7 +124,7 @@ public class CloningBundleFactoryTest {
     assertThat(keyedBundle.getPCollection(), equalTo(keyed));
     assertThat(
         keyedBundle.getKey(),
-        Matchers.<StructuralKey<?>>equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
+        Matchers.equalTo(StructuralKey.of("foo", StringUtf8Coder.of())));
   }
 
   @Test

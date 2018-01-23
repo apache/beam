@@ -101,7 +101,7 @@ public class FixedWindowsTest {
                 return new Instant(100L);
               }
             }),
-        Matchers.<BoundedWindow>equalTo(
+        Matchers.equalTo(
             new IntervalWindow(
                 new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(20L)))));
     assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));

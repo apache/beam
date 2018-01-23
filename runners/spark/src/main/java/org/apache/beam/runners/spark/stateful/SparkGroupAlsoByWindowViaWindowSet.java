@@ -500,8 +500,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     /*WV<KV<K, Itr<I>>>*/
     return JavaPairDStream.fromPairDStream(
             firedStream,
-            JavaSparkContext$.MODULE$.<ByteArray>fakeClassTag(),
-            JavaSparkContext$.MODULE$.<Tuple2<StateAndTimers, List<byte[]>>>fakeClassTag())
+            JavaSparkContext$.MODULE$.fakeClassTag(),
+            JavaSparkContext$.MODULE$.fakeClassTag())
         .filter(
             t2 -> {
               // filter output if defined.
@@ -557,11 +557,11 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                     rdd.mapPartitions(
                             TranslationUtils.functionToFlatMapFunction(
                                 WindowingHelpers
-                                    .<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction()),
+                                    .unwindowFunction()),
                             true)
                         .mapPartitionsToPair(
                             TranslationUtils
-                                .<K, Iterable<WindowedValue<InputT>>>toPairFlatMapFunction(),
+                                .toPairFlatMapFunction(),
                             true)
                         .mapValues(
                             values -> {
@@ -580,8 +580,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
     return DStream.toPairDStreamFunctions(
         tupleDStream,
-        JavaSparkContext$.MODULE$.<ByteArray>fakeClassTag(),
-        JavaSparkContext$.MODULE$.<byte[]>fakeClassTag(),
+        JavaSparkContext$.MODULE$.fakeClassTag(),
+        JavaSparkContext$.MODULE$.fakeClassTag(),
         null);
   }
 
@@ -613,7 +613,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                 updateFunc,
                 pairDStream.defaultPartitioner(pairDStream.defaultPartitioner$default$1()),
                 true,
-                JavaSparkContext$.MODULE$.<Tuple2<StateAndTimers, List<byte[]>>>fakeClassTag());
+                JavaSparkContext$.MODULE$.fakeClassTag());
 
     checkpointIfNeeded(firedStream, options);
 

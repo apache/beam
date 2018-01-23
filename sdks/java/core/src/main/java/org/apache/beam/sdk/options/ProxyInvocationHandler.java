@@ -101,7 +101,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
   private final Map<String, String> settersToPropertyNames;
 
   ProxyInvocationHandler(Map<String, Object> options) {
-    this(bindOptions(options), Maps.<String, JsonNode>newHashMap());
+    this(bindOptions(options), Maps.newHashMap());
   }
 
   private static Map<String, BoundValue> bindOptions(Map<String, Object> inputOptions) {
@@ -648,7 +648,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         // set of serialized options (if any) and updating them with any properties
         // instances that have been modified since the previous serialization.
         Map<String, Object> serializableOptions =
-            Maps.<String, Object>newHashMap(handler.jsonOptions);
+            Maps.newHashMap(handler.jsonOptions);
         for (Map.Entry<String, BoundValue> entry : filteredOptions.entrySet()) {
           serializableOptions.put(entry.getKey(), entry.getValue().getValue());
         }
@@ -741,7 +741,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         fields.put(field.getKey(), field.getValue());
       }
       PipelineOptions options =
-          new ProxyInvocationHandler(Maps.<String, BoundValue>newHashMap(), fields)
+          new ProxyInvocationHandler(Maps.newHashMap(), fields)
               .as(PipelineOptions.class);
       ValueProvider.RuntimeValueProvider.setRuntimeOptions(options);
       return options;

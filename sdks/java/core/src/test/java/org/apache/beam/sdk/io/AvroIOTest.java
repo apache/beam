@@ -268,7 +268,7 @@ public class AvroIOTest implements Serializable {
             (T) new AvroGeneratedUser("Ted", null, "white"));
 
     writePipeline
-        .apply(Create.<T>of(values))
+        .apply(Create.of(values))
         .apply(
             writeTransform
                 .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
@@ -460,7 +460,7 @@ public class AvroIOTest implements Serializable {
                     .from(tmpFolder.getRoot().getAbsolutePath() + "/first*")
                     .watchForNewFiles(
                         Duration.millis(100),
-                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
         .containsInAnyOrder(firstValues);
     PAssert.that(
             readPipeline.apply(
@@ -469,7 +469,7 @@ public class AvroIOTest implements Serializable {
                     .from(tmpFolder.getRoot().getAbsolutePath() + "/first*")
                     .watchForNewFiles(
                         Duration.millis(100),
-                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
         .containsInAnyOrder(firstValues);
 
     PCollection<String> paths =
@@ -484,7 +484,7 @@ public class AvroIOTest implements Serializable {
                 AvroIO.readAll(GenericClass.class)
                     .watchForNewFiles(
                         Duration.millis(100),
-                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)))
                     .withDesiredBundleSizeBytes(10)))
         .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
     PAssert.that(
@@ -494,7 +494,7 @@ public class AvroIOTest implements Serializable {
                     .withCoder(AvroCoder.of(GenericClass.class))
                     .watchForNewFiles(
                         Duration.millis(100),
-                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3)))
                     .withDesiredBundleSizeBytes(10)))
         .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
     readPipeline.run();
@@ -771,7 +771,7 @@ public class AvroIOTest implements Serializable {
     }
     windowedAvroWritePipeline
         .apply(values)
-        .apply(Window.<GenericClass>into(FixedWindows.of(Duration.standardMinutes(1))))
+        .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
         .apply(write);
     windowedAvroWritePipeline.run();
 
@@ -849,7 +849,7 @@ public class AvroIOTest implements Serializable {
 
     @Override
     public List<PCollectionView<?>> getSideInputs() {
-      return ImmutableList.<PCollectionView<?>>of(schemaView);
+      return ImmutableList.of(schemaView);
     }
 
     @Override
@@ -901,7 +901,7 @@ public class AvroIOTest implements Serializable {
     final PCollectionView<Map<String, String>> schemaView =
         writePipeline
             .apply("createSchemaView", Create.of(schemaMap))
-            .apply(View.<String, String>asMap());
+            .apply(View.asMap());
 
     PCollection<String> input =
         writePipeline.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
@@ -1111,7 +1111,7 @@ public class AvroIOTest implements Serializable {
                 .to(outputFile.getAbsolutePath())
                 .withoutSharding()
                 .withMetadata(
-                    ImmutableMap.<String, Object>of(
+                    ImmutableMap.of(
                         "stringKey",
                         "stringValue",
                         "longKey",

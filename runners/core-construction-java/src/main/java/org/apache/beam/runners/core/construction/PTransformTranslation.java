@@ -227,7 +227,7 @@ public class PTransformTranslation {
   static RunnerApi.PTransform toProto(
       AppliedPTransform<?, ?, ?> appliedPTransform, SdkComponents components) throws IOException {
     return toProto(
-        appliedPTransform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), components);
+        appliedPTransform, Collections.emptyList(), components);
   }
 
   private static String toProto(TupleTag<?> tag) {

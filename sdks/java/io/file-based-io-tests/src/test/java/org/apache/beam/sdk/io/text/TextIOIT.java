@@ -92,8 +92,8 @@ public class TextIOIT {
         .apply("Produce text lines",
             ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
         .apply("Write content to files", write)
-        .getPerDestinationOutputFilenames().apply(Values.<String>create())
-        .apply(Reshuffle.<String>viaRandomKey());
+        .getPerDestinationOutputFilenames().apply(Values.create())
+        .apply(Reshuffle.viaRandomKey());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", TextIO.readAll().withCompression(AUTO))
@@ -103,7 +103,7 @@ public class TextIOIT {
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     testFilenames.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-        .withSideInputs(consolidatedHashcode.apply(View.<String>asSingleton())));
+        .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }

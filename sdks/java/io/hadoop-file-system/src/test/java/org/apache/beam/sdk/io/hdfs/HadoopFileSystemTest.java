@@ -203,7 +203,7 @@ public class HadoopFileSystemTest {
             .setIsReadSeekEfficient(true)
             .setSizeBytes("testDataAA".getBytes().length)
             .build())),
-        MatchResult.create(Status.NOT_FOUND, ImmutableList.<Metadata>of()),
+        MatchResult.create(Status.NOT_FOUND, ImmutableList.of()),
         MatchResult.create(Status.OK, ImmutableList.of(Metadata.builder()
             .setResourceId(testPath("testFileBB"))
             .setIsReadSeekEfficient(true)

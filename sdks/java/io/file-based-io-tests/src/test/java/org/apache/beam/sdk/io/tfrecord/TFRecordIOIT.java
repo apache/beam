@@ -111,14 +111,14 @@ public class TFRecordIOIT {
         .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
         .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
         .apply("Calculate hashcode", Combine.globally(new HashingFn()))
-        .apply(Reshuffle.<String>viaRandomKey());
+        .apply(Reshuffle.viaRandomKey());
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     readPipeline.apply(Create.of(filenamePattern))
         .apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-        .withSideInputs(consolidatedHashcode.apply(View.<String>asSingleton())));
+        .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
     readPipeline.run().waitUntilFinish();
   }
 

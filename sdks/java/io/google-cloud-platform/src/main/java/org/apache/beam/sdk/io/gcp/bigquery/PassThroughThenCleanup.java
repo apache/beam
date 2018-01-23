@@ -58,7 +58,7 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
 
     PCollectionView<Iterable<Void>> cleanupSignalView = outputs.get(cleanupSignal)
         .setCoder(VoidCoder.of())
-        .apply(View.<Void>asIterable());
+        .apply(View.asIterable());
 
     input
         .getPipeline()

@@ -168,7 +168,7 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
    * Adds an empty batch.
    */
   public CreateStream<T> emptyBatch() {
-    batches.offer(Collections.<TimestampedValue<T>>emptyList());
+    batches.offer(Collections.emptyList());
     return this;
   }
 

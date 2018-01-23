@@ -266,7 +266,7 @@ public class View {
           materializationInput,
           materializationInput.getWindowingStrategy());
       materializationInput.apply(
-          CreatePCollectionView.<KV<Void, T>, List<T>>of(view));
+          CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -297,7 +297,7 @@ public class View {
           materializationInput,
           materializationInput.getWindowingStrategy());
       materializationInput.apply(
-          CreatePCollectionView.<KV<Void, T>, Iterable<T>>of(view));
+          CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -444,7 +444,7 @@ public class View {
           materializationInput,
           materializationInput.getWindowingStrategy());
       materializationInput.apply(
-          CreatePCollectionView.<KV<Void, KV<K, V>>, Map<K, Iterable<V>>>of(view));
+          CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -483,7 +483,7 @@ public class View {
           materializationInput,
           materializationInput.getWindowingStrategy());
       materializationInput.apply(
-          CreatePCollectionView.<KV<Void, KV<K, V>>, Map<K, V>>of(view));
+          CreatePCollectionView.of(view));
       return view;
     }
   }

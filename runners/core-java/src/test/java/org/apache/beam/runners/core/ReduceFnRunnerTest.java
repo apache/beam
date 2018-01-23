@@ -104,10 +104,10 @@ public class ReduceFnRunnerTest {
   private IntervalWindow firstWindow;
 
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
-    return Mockito.<TriggerStateMachine.TriggerContext>any();
+    return Mockito.any();
   }
   private static TriggerStateMachine.OnElementContext anyElementContext() {
-    return Mockito.<TriggerStateMachine.OnElementContext>any();
+    return Mockito.any();
   }
 
   @Before

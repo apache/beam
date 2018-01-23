@@ -44,7 +44,7 @@ public class GearpumpRunnerRegistrar {
 
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
+      return ImmutableList.of(
         GearpumpRunner.class,
         TestGearpumpRunner.class);
     }
@@ -58,7 +58,7 @@ public class GearpumpRunnerRegistrar {
 
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(GearpumpPipelineOptions.class);
+      return ImmutableList.of(GearpumpPipelineOptions.class);
     }
   }
 }

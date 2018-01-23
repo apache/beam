@@ -58,7 +58,7 @@ public class ReifyTest implements Serializable {
                 KV.of("baz", TimestampedValue.of(3, new Instant(3)))));
 
     PCollection<KV<String, Integer>> timestamped =
-        preified.apply(Reify.<String, Integer>extractTimestampsFromValues());
+        preified.apply(Reify.extractTimestampsFromValues());
 
     PAssert.that(timestamped)
         .containsInAnyOrder(KV.of("foo", 0), KV.of("foo", 1), KV.of("bar", 2), KV.of("baz", 3));
@@ -94,7 +94,7 @@ public class ReifyTest implements Serializable {
                     KV.of("baz", TimestampedValue.of(3, new Instant(3))), new Instant(103L))));
 
     PCollection<KV<String, Integer>> timestamped =
-        preified.apply(ReifyTimestamps.<String, Integer>extractFromValues());
+        preified.apply(ReifyTimestamps.extractFromValues());
 
     PAssert.that(timestamped)
         .containsInAnyOrder(KV.of("foo", 0), KV.of("foo", 1), KV.of("bar", 2), KV.of("baz", 3));
@@ -123,7 +123,7 @@ public class ReifyTest implements Serializable {
                 TestStream.create(StringUtf8Coder.of())
                     .addElements(TimestampedValue.of("dei", new Instant(123L)))
                     .advanceWatermarkToInfinity())
-            .apply(Reify.<String>windows());
+            .apply(Reify.windows());
     PAssert.that(result)
         .containsInAnyOrder(
             ValueInSingleWindow.of(
@@ -140,7 +140,7 @@ public class ReifyTest implements Serializable {
             .apply(TIMESTAMP_FROM_V);
 
     PCollection<KV<String, TimestampedValue<Integer>>> reified =
-        timestamped.apply(Reify.<String, Integer>timestampsInValue());
+        timestamped.apply(Reify.timestampsInValue());
 
     PAssert.that(reified)
         .containsInAnyOrder(
@@ -161,7 +161,7 @@ public class ReifyTest implements Serializable {
                 TimestampedValue.of("foo", new Instant(0L)),
                 TimestampedValue.of("bar", new Instant(1L))));
 
-    PCollection<TimestampedValue<String>> reified = timestamped.apply(Reify.<String>timestamps());
+    PCollection<TimestampedValue<String>> reified = timestamped.apply(Reify.timestamps());
 
     PAssert.that(reified)
         .containsInAnyOrder(
@@ -179,7 +179,7 @@ public class ReifyTest implements Serializable {
             .apply(TIMESTAMP_FROM_V);
 
     PCollection<KV<String, ValueInSingleWindow<Integer>>> reified =
-        timestamped.apply(Reify.<String, Integer>windowsInValue());
+        timestamped.apply(Reify.windowsInValue());
 
     PAssert.that(reified)
         .containsInAnyOrder(

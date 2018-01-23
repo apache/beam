@@ -119,7 +119,7 @@ public class Watch {
   public static <InputT, OutputT> Growth<InputT, OutputT, OutputT> growthOf(
       Growth.PollFn<InputT, OutputT> pollFn, Requirements requirements) {
     return new AutoValue_Watch_Growth.Builder<InputT, OutputT, OutputT>()
-        .setTerminationPerInput(Growth.<InputT>never())
+        .setTerminationPerInput(Growth.never())
         .setPollFn(Contextful.of(pollFn, requirements))
         // use null as a signal that this is the identity function and output coder can be
         // reused as key coder
@@ -147,7 +147,7 @@ public class Watch {
     checkArgument(pollFn != null, "pollFn can not be null");
     checkArgument(outputKeyFn != null, "outputKeyFn can not be null");
     return new AutoValue_Watch_Growth.Builder<InputT, OutputT, KeyT>()
-        .setTerminationPerInput(Watch.Growth.<InputT>never())
+        .setTerminationPerInput(Watch.Growth.never())
         .setPollFn(pollFn)
         .setOutputKeyFn(outputKeyFn)
         .build();

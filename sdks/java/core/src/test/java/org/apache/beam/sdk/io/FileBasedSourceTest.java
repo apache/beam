@@ -886,7 +886,7 @@ public class FileBasedSourceTest {
 
   @Test
   public void testToStringFile() throws Exception {
-    File f = createFileWithData("foo", Collections.<String>emptyList());
+    File f = createFileWithData("foo", Collections.emptyList());
     Metadata metadata = FileSystems.matchSingleFileSpec(f.getPath());
     TestFileBasedSource source = new TestFileBasedSource(metadata, 1, 0, 10, null);
     assertEquals(String.format("%s range [0, 10)", f.getAbsolutePath()), source.toString());

@@ -86,14 +86,14 @@ public class DataflowGroupByKeyTest {
     PCollection<KV<String, Integer>> input =
         p.apply(Create.of(ungroupedPairs)
             .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-        .apply(Window.<KV<String, Integer>>into(
+        .apply(Window.into(
             Sessions.withGapDuration(Duration.standardMinutes(1))));
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("GroupByKey must have a valid Window merge function");
     input
-        .apply("GroupByKey", GroupByKey.<String, Integer>create())
-        .apply("GroupByKeyAgain", GroupByKey.<String, Iterable<Integer>>create());
+        .apply("GroupByKey", GroupByKey.create())
+        .apply("GroupByKeyAgain", GroupByKey.create());
   }
 
   @Test
@@ -118,6 +118,6 @@ public class DataflowGroupByKeyTest {
         "GroupByKey cannot be applied to non-bounded PCollection in the GlobalWindow without "
         + "a trigger. Use a Window.into or Window.triggering transform prior to GroupByKey.");
 
-    input.apply("GroupByKey", GroupByKey.<String, Integer>create());
+    input.apply("GroupByKey", GroupByKey.create());
   }
 }

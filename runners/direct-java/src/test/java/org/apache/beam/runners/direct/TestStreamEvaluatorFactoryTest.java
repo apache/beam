@@ -156,7 +156,7 @@ public class TestStreamEvaluatorFactoryTest {
         Iterables.getOnlyElement(firstResult.getOutputBundles())
             .commit(Instant.now())
             .getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(1),
             WindowedValue.valueInGlobalWindow(2),
             WindowedValue.valueInGlobalWindow(3)));
@@ -165,7 +165,7 @@ public class TestStreamEvaluatorFactoryTest {
         Iterables.getOnlyElement(thirdResult.getOutputBundles())
             .commit(Instant.now())
             .getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(4),
             WindowedValue.valueInGlobalWindow(5),
             WindowedValue.valueInGlobalWindow(6)));

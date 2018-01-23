@@ -64,14 +64,14 @@ public class Query5 extends NexmarkQuery {
         .apply(JUST_BIDS)
         // Window the bids into sliding windows.
         .apply(
-            Window.<Bid>into(
+            Window.into(
                 SlidingWindows.of(Duration.standardSeconds(configuration.windowSizeSec))
                     .every(Duration.standardSeconds(configuration.windowPeriodSec))))
         // Project just the auction id.
         .apply("BidToAuction", BID_TO_AUCTION)
 
         // Count the number of bids per auction id.
-        .apply(Count.<Long>perElement())
+        .apply(Count.perElement())
 
         // We'll want to keep all auctions with the maximal number of bids.
         // Start by lifting each into a singleton list.

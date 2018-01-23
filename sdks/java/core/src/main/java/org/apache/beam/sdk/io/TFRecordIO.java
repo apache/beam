@@ -547,7 +547,7 @@ public class TFRecordIO {
         Compression compression) {
       super(
           outputPrefix,
-          DynamicFileDestinations.<byte[]>constant(
+          DynamicFileDestinations.constant(
               DefaultFilenamePolicy.fromStandardParameters(
                   outputPrefix, shardTemplate, suffix, false)),
           compression);

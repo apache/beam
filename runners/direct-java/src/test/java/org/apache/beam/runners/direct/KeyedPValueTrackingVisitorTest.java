@@ -87,7 +87,7 @@ public class KeyedPValueTrackingVisitorTest {
   public void noInputUnkeyedOutput() {
     PCollection<KV<Integer, Iterable<Void>>> unkeyed =
         p.apply(
-            Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.<Void>emptyList()))
+            Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.emptyList()))
                 .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
 
     p.traverseTopologically(visitor);
@@ -98,7 +98,7 @@ public class KeyedPValueTrackingVisitorTest {
   public void keyedInputWithoutKeyPreserving() {
     PCollection<KV<String, Iterable<Integer>>> onceKeyed =
         p.apply(Create.of(KV.of("hello", 42)))
-            .apply(GroupByKey.<String, Integer>create())
+            .apply(GroupByKey.create())
             .apply(ParDo.of(new IdentityFn<KV<String, Iterable<Integer>>>()));
 
     p.traverseTopologically(visitor);
@@ -180,8 +180,8 @@ public class KeyedPValueTrackingVisitorTest {
     p.apply(
             Create.of(KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
                 .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
-        .apply(GroupByKey.<Integer, Void>create())
-        .apply(Keys.<Integer>create());
+        .apply(GroupByKey.create())
+        .apply(Keys.create());
 
     p.traverseTopologically(visitor);
     thrown.expect(IllegalStateException.class);

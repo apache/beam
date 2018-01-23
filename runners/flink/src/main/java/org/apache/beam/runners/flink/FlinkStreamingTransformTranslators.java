@@ -801,11 +801,11 @@ class FlinkStreamingTransformTranslators {
               context.getCurrentTransform().getFullName(),
               (Coder) windowedWorkItemCoder,
               mainTag,
-              Collections.<TupleTag<?>>emptyList(),
+              Collections.emptyList(),
               new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, outputCoder),
               windowingStrategy,
               new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-              Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+              Collections.emptyList(), /* side inputs */
               context.getPipelineOptions(),
               inputKvCoder.getKeyCoder());
 
@@ -924,11 +924,11 @@ class FlinkStreamingTransformTranslators {
                 context.getCurrentTransform().getFullName(),
                 (Coder) windowedWorkItemCoder,
                 mainTag,
-                Collections.<TupleTag<?>>emptyList(),
+                Collections.emptyList(),
                 new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, outputCoder),
                 windowingStrategy,
                 new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-                Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+                Collections.emptyList(), /* side inputs */
                 context.getPipelineOptions(),
                 inputKvCoder.getKeyCoder());
 
@@ -951,7 +951,7 @@ class FlinkStreamingTransformTranslators {
                 context.getCurrentTransform().getFullName(),
                 (Coder) windowedWorkItemCoder,
                 mainTag,
-                Collections.<TupleTag<?>>emptyList(),
+                Collections.emptyList(),
                 new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, outputCoder),
                 windowingStrategy,
                 transformSideInputs.f0,

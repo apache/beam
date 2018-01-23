@@ -75,7 +75,7 @@ public class DistinctTest {
             .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
-        input.apply(Distinct.<String>create());
+        input.apply(Distinct.create());
 
     PAssert.that(output)
         .containsInAnyOrder("k1", "k5", "k2", "k3");
@@ -92,7 +92,7 @@ public class DistinctTest {
             .withCoder(StringUtf8Coder.of()));
 
     PCollection<String> output =
-        input.apply(Distinct.<String>create());
+        input.apply(Distinct.create());
 
     PAssert.that(output).empty();
     p.run();
@@ -163,8 +163,8 @@ public class DistinctTest {
 
     PCollection<String> distinctValues = windowedDistinctPipeline
         .apply(values)
-        .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(30))))
-        .apply(Distinct.<String>create());
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(30))))
+        .apply(Distinct.create());
     PAssert.that(distinctValues)
         .inWindow(new IntervalWindow(base, base.plus(Duration.standardSeconds(30))))
         .containsInAnyOrder("k1", "k2", "k3");
@@ -207,7 +207,7 @@ public class DistinctTest {
                     Duration.standardSeconds(30))))
             .withAllowedLateness(Duration.ZERO)
             .accumulatingFiredPanes())
-        .apply(Distinct.<String>create());
+        .apply(Distinct.create());
     PAssert.that(distinctValues).containsInAnyOrder("k1", "k2", "k3");
     triggeredDistinctPipeline.run();
   }

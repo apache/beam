@@ -162,14 +162,14 @@ public class SplittableDoFnTest implements Serializable {
                     TimestampedValue.of("a", now),
                     TimestampedValue.of("bb", nowP1),
                     TimestampedValue.of("ccccc", nowP2)))
-            .apply(Window.<String>into(windowFn))
+            .apply(Window.into(windowFn))
             .apply(ParDo.of(new PairStringWithIndexToLength()))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     assertEquals(windowFn, res.getWindowingStrategy().getWindowFn());
 
     PCollection<TimestampedValue<KV<String, Integer>>> timestamped =
-        res.apply(Reify.<KV<String, Integer>>timestamps());
+        res.apply(Reify.timestamps());
 
     for (int i = 0; i < 4; ++i) {
       Instant base = now.minus(Duration.standardSeconds(i));
@@ -247,7 +247,7 @@ public class SplittableDoFnTest implements Serializable {
   public void testOutputAfterCheckpoint() throws Exception {
     PCollection<Integer> outputs = p.apply(Create.of("foo"))
         .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock(3)));
-    PAssert.thatSingleton(outputs.apply(Count.<Integer>globally()))
+    PAssert.thatSingleton(outputs.apply(Count.globally()))
         .isEqualTo((long) SDFWithMultipleOutputsPerBlock.MAX_INDEX);
     p.run();
   }
@@ -276,7 +276,7 @@ public class SplittableDoFnTest implements Serializable {
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testSideInput() throws Exception {
     PCollectionView<String> sideInput =
-        p.apply("side input", Create.of("foo")).apply(View.<String>asSingleton());
+        p.apply("side input", Create.of("foo")).apply(View.asSingleton());
 
     PCollection<String> res =
         p.apply("input", Create.of(0, 1, 2))
@@ -305,15 +305,15 @@ public class SplittableDoFnTest implements Serializable {
                     TimestampedValue.of(5, new Instant(5)),
                     TimestampedValue.of(6, new Instant(6)),
                     TimestampedValue.of(7, new Instant(7))))
-            .apply("window 2", Window.<Integer>into(FixedWindows.of(Duration.millis(2))));
+            .apply("window 2", Window.into(FixedWindows.of(Duration.millis(2))));
 
     PCollectionView<String> sideInput =
         p.apply("side",
                 Create.timestamped(
                     TimestampedValue.of("a", new Instant(0)),
                     TimestampedValue.of("b", new Instant(4))))
-            .apply("window 4", Window.<String>into(FixedWindows.of(Duration.millis(4))))
-            .apply("singleton", View.<String>asSingleton());
+            .apply("window 4", Window.into(FixedWindows.of(Duration.millis(4))))
+            .apply("singleton", View.asSingleton());
 
     PCollection<String> res =
         mainInput.apply(ParDo.of(new SDFWithSideInput(sideInput)).withSideInputs(sideInput));
@@ -382,15 +382,15 @@ public class SplittableDoFnTest implements Serializable {
                     TimestampedValue.of(1, new Instant(1)),
                     TimestampedValue.of(2, new Instant(2)),
                     TimestampedValue.of(3, new Instant(3))))
-            .apply("window 1", Window.<Integer>into(FixedWindows.of(Duration.millis(1))));
+            .apply("window 1", Window.into(FixedWindows.of(Duration.millis(1))));
 
     PCollectionView<String> sideInput =
         p.apply("side",
                 Create.timestamped(
                     TimestampedValue.of("a", new Instant(0)),
                     TimestampedValue.of("b", new Instant(2))))
-            .apply("window 2", Window.<String>into(FixedWindows.of(Duration.millis(2))))
-            .apply("singleton", View.<String>asSingleton());
+            .apply("window 2", Window.into(FixedWindows.of(Duration.millis(2))))
+            .apply("singleton", View.asSingleton());
 
     PCollection<KV<String, Integer>> res =
         mainInput.apply(
@@ -399,9 +399,9 @@ public class SplittableDoFnTest implements Serializable {
                         sideInput, 3 /* numClaimsPerCall */))
                 .withSideInputs(sideInput));
     PCollection<KV<String, Iterable<Integer>>> grouped =
-        res.apply(GroupByKey.<String, Integer>create());
+        res.apply(GroupByKey.create());
 
-    PAssert.that(grouped.apply(Keys.<String>create()))
+    PAssert.that(grouped.apply(Keys.create()))
         .containsInAnyOrder("a:0", "a:1", "b:2", "b:3");
     PAssert.that(grouped)
         .satisfies(
@@ -488,7 +488,7 @@ public class SplittableDoFnTest implements Serializable {
             .setCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of()));
 
     PCollection<String> nonLate =
-        afterSDF.apply(GroupByKey.<String, Integer>create()).apply(Keys.<String>create());
+        afterSDF.apply(GroupByKey.create()).apply(Keys.create());
 
     // The splittable DoFn itself should not drop any data and act as pass-through.
     PAssert.that(afterSDF)

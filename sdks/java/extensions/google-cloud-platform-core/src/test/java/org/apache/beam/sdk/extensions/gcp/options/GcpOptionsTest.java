@@ -122,7 +122,7 @@ public class GcpOptionsTest {
     public void testUnableToGetDefaultProject() throws Exception {
       System.setProperty("user.home", tmpFolder.getRoot().getAbsolutePath());
       DefaultProjectFactory projectFactory = spy(new DefaultProjectFactory());
-      when(projectFactory.getEnvironment()).thenReturn(ImmutableMap.<String, String>of());
+      when(projectFactory.getEnvironment()).thenReturn(ImmutableMap.of());
       assertNull(projectFactory.create(PipelineOptionsFactory.create()));
     }
 

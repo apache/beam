@@ -73,7 +73,7 @@ public class WindowIntoTranslation {
       transformProto =
           PTransformTranslation.toProto(
               application,
-              Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+              Collections.emptyList(),
               SdkComponents.create());
     } catch (IOException exc) {
       throw new RuntimeException(exc);

@@ -216,13 +216,13 @@ class WriteTables<DestinationT>
     writeTablesOutputs
         .get(temporaryFilesTag)
         .setCoder(StringUtf8Coder.of())
-        .apply(WithKeys.<Void, String>of((Void) null))
+        .apply(WithKeys.of((Void) null))
         .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
         .apply(Window.<KV<Void, String>>into(new GlobalWindows())
             .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
             .discardingFiredPanes())
-        .apply(GroupByKey.<Void, String>create())
-        .apply(Values.<Iterable<String>>create())
+        .apply(GroupByKey.create())
+        .apply(Values.create())
         .apply(ParDo.of(new GarbageCollectTemporaryFiles()));
 
     return writeTablesOutputs.get(mainOutputTag);

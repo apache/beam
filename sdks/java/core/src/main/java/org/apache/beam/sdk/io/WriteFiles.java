@@ -374,13 +374,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         // Reshuffle the results to make them stable against retries.
         // Use a single void key to maximize size of bundles for finalization.
         return input
-            .apply("Add void key", WithKeys.<Void, ResultT>of((Void) null))
-            .apply("Reshuffle", Reshuffle.<Void, ResultT>of())
-            .apply("Drop key", Values.<ResultT>create())
+            .apply("Add void key", WithKeys.of((Void) null))
+            .apply("Reshuffle", Reshuffle.of())
+            .apply("Drop key", Values.create())
             .apply("Gather bundles", ParDo.of(new GatherBundlesPerWindowFn<ResultT>()))
             .setCoder(ListCoder.of(resultCoder))
             // Reshuffle one more time to stabilize the contents of the bundle lists to finalize.
-            .apply(Reshuffle.<List<ResultT>>viaRandomKey());
+            .apply(Reshuffle.viaRandomKey());
       } else {
         // Pass results via a side input rather than reshuffle, because we need to get an empty
         // iterable to finalize if there are no results.
@@ -388,7 +388,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
             .getPipeline()
             .apply(
                 Reify.viewInGlobalWindow(
-                    input.apply(View.<ResultT>asList()), ListCoder.of(resultCoder)));
+                    input.apply(View.asList()), ListCoder.of(resultCoder)));
       }
     }
   }
@@ -431,7 +431,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               // number assigned at all. Drop the shard number on the spilled records so that
               // shard numbers are assigned together to both the spilled and non-spilled files in
               // finalize.
-              .apply("GroupUnwritten", GroupByKey.<ShardedKey<Integer>, UserT>create())
+              .apply("GroupUnwritten", GroupByKey.create())
               .apply(
                   "WriteUnwritten",
                   ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))
@@ -447,7 +447,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
                       }));
       return PCollectionList.of(writtenBundleFiles)
           .and(writtenSpilledFiles)
-          .apply(Flatten.<FileResult<DestinationT>>pCollections())
+          .apply(Flatten.pCollections())
           .setCoder(fileResultCoder);
     }
   }
@@ -633,7 +633,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               ParDo.of(new ApplyShardingKeyFn(numShardsView, destinationCoder))
                   .withSideInputs(shardingSideInputs))
           .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
-          .apply("GroupIntoShards", GroupByKey.<ShardedKey<Integer>, UserT>create())
+          .apply("GroupIntoShards", GroupByKey.create())
           .apply(
               "WriteShardsIntoTempFiles",
               ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))

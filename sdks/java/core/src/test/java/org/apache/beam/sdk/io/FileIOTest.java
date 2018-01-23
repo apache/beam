@@ -191,14 +191,14 @@ public class FileIOTest implements Serializable {
                 .filepattern(basePath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
         p.apply(Create.of(basePath.resolve("*").toString()))
             .apply(
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
 
     Thread writer =
         new Thread() {

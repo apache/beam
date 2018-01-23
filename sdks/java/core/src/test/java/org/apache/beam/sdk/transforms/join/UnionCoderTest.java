@@ -37,15 +37,15 @@ public class UnionCoderTest {
   @Test
   public void testGetElementCoders() {
     UnionCoder unionCoder =
-        UnionCoder.of(ImmutableList.<Coder<?>>of(StringUtf8Coder.of(), DoubleCoder.of()));
+        UnionCoder.of(ImmutableList.of(StringUtf8Coder.of(), DoubleCoder.of()));
     assertThat(
-        unionCoder.getElementCoders().get(0), Matchers.<Coder<?>>equalTo(StringUtf8Coder.of()));
-    assertThat(unionCoder.getElementCoders().get(1), Matchers.<Coder<?>>equalTo(DoubleCoder.of()));
+        unionCoder.getElementCoders().get(0), Matchers.equalTo(StringUtf8Coder.of()));
+    assertThat(unionCoder.getElementCoders().get(1), Matchers.equalTo(DoubleCoder.of()));
   }
 
   @Test
   public void testCoderIsSerializable() {
-    CoderProperties.coderSerializable(UnionCoder.of(ImmutableList.<Coder<?>>of(
+    CoderProperties.coderSerializable(UnionCoder.of(ImmutableList.of(
         StringUtf8Coder.of(), DoubleCoder.of())));
   }
 }

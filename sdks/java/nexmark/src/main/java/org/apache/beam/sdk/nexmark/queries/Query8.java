@@ -59,7 +59,7 @@ public class Query8 extends NexmarkQuery {
         events
           .apply(JUST_NEW_PERSONS)
           .apply("Query8.WindowPersons",
-            Window.<Person>into(
+            Window.into(
               FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
             .apply("PersonById", PERSON_BY_ID);
 
@@ -67,14 +67,14 @@ public class Query8 extends NexmarkQuery {
     PCollection<KV<Long, Auction>> auctionsBySeller =
         events.apply(JUST_NEW_AUCTIONS)
           .apply("Query8.WindowAuctions",
-            Window.<Auction>into(
+            Window.into(
               FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
             .apply("AuctionBySeller", AUCTION_BY_SELLER);
 
     // Join people and auctions and project the person id, name and auction reserve price.
     return KeyedPCollectionTuple.of(PERSON_TAG, personsById)
         .and(AUCTION_TAG, auctionsBySeller)
-        .apply(CoGroupByKey.<Long>create())
+        .apply(CoGroupByKey.create())
         .apply(name + ".Select",
             ParDo.of(new DoFn<KV<Long, CoGbkResult>, IdNameReserve>() {
                   @ProcessElement

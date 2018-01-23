@@ -62,7 +62,7 @@ public class LatestTest implements Serializable {
             TimestampedValue.of("bar", new Instant(300)),
             TimestampedValue.of("baz", new Instant(200))
         ))
-        .apply(Latest.<String>globally());
+        .apply(Latest.globally());
 
     PAssert.that(output).containsInAnyOrder("bar");
     p.run();
@@ -76,7 +76,7 @@ public class LatestTest implements Serializable {
 
     PCollection<Long> output =
         p.apply(Create.of(1L, 2L).withCoder(inputCoder))
-            .apply(Latest.<Long>globally());
+            .apply(Latest.globally());
 
     Coder<Long> outputCoder = output.getCoder();
     assertThat(outputCoder, instanceOf(NullableCoder.class));
@@ -87,7 +87,7 @@ public class LatestTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testGloballyEmptyCollection() {
     PCollection<Long> emptyInput = p.apply(Create.empty(VarLongCoder.of()));
-    PCollection<Long> output = emptyInput.apply(Latest.<Long>globally());
+    PCollection<Long> output = emptyInput.apply(Latest.globally());
 
     PAssert.that(output).containsInAnyOrder((Long) null);
     p.run();
@@ -102,7 +102,7 @@ public class LatestTest implements Serializable {
             TimestampedValue.of(KV.of("B", "bar"), new Instant(300)),
             TimestampedValue.of(KV.of("A", "baz"), new Instant(200))
         ))
-            .apply(Latest.<String, String>perKey());
+            .apply(Latest.perKey());
 
     PAssert.that(output).containsInAnyOrder(KV.of("B", "bar"), KV.of("A", "baz"));
     p.run();
@@ -117,7 +117,7 @@ public class LatestTest implements Serializable {
 
     PCollection<KV<String, Long>> output =
         p.apply(Create.of(KV.of("foo", 1L)).withCoder(inputCoder))
-            .apply(Latest.<String, Long>perKey());
+            .apply(Latest.perKey());
 
     assertEquals("Should use input coder for outputs", inputCoder, output.getCoder());
   }
@@ -127,7 +127,7 @@ public class LatestTest implements Serializable {
   public void testPerKeyEmptyCollection() {
     PCollection<KV<String, String>> output =
         p.apply(Create.empty(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of())))
-            .apply(Latest.<String, String>perKey());
+            .apply(Latest.perKey());
 
     PAssert.that(output).empty();
     p.run();

@@ -270,7 +270,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     public PCollection<T> expand(PCollection<T> input) {
       input
           .apply(ParDo.of(new WrapAsList<T>()))
-          .apply(CreateApexPCollectionView.<List<T>, T>of(transform.getView()));
+          .apply(CreateApexPCollectionView.of(transform.getView()));
       return input;
     }
 
@@ -307,7 +307,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     public PCollection<T> expand(PCollection<T> input) {
       return ((PCollection<T>)
               input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults()))
-          .apply(CreateApexPCollectionView.<T, Iterable<T>>of(view));
+          .apply(CreateApexPCollectionView.of(view));
     }
 
     @Override

@@ -373,7 +373,7 @@ public class KafkaIO {
      */
     public Read<K, V> withBootstrapServers(String bootstrapServers) {
       return updateConsumerProperties(
-          ImmutableMap.<String, Object>of(
+          ImmutableMap.of(
               ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
@@ -560,7 +560,7 @@ public class KafkaIO {
      */
     public Read<K, V> withReadCommitted() {
       return updateConsumerProperties(
-        ImmutableMap.<String, Object>of("isolation.level", "read_committed"));
+        ImmutableMap.of("isolation.level", "read_committed"));
     }
 
     /**
@@ -654,7 +654,7 @@ public class KafkaIO {
 
     // set config defaults
     private static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
-        ImmutableMap.<String, Object>of(
+        ImmutableMap.of(
             ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
             ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
 
@@ -833,7 +833,7 @@ public class KafkaIO {
         result.add(
             new UnboundedKafkaSource<>(
                 spec.toBuilder()
-                    .setTopics(Collections.<String>emptyList())
+                    .setTopics(Collections.emptyList())
                     .setTopicPartitions(assignedToSplit)
                     .build(),
                 i));
@@ -1446,7 +1446,7 @@ public class KafkaIO {
      */
     public Write<K, V> withBootstrapServers(String bootstrapServers) {
       return updateProducerProperties(
-          ImmutableMap.<String, Object>of(
+          ImmutableMap.of(
               ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
@@ -1609,7 +1609,7 @@ public class KafkaIO {
 
     // set config defaults
     private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
-        ImmutableMap.<String, Object>of(
+        ImmutableMap.of(
             ProducerConfig.RETRIES_CONFIG, 3);
 
     /**
@@ -1892,9 +1892,9 @@ public class KafkaIO {
                      .discardingFiredPanes())
           .apply(String.format("Shuffle across %d shards", numShards),
                  ParDo.of(new EOSReshard<K, V>(numShards)))
-          .apply("Persist sharding", GroupByKey.<Integer, KV<K, V>>create())
+          .apply("Persist sharding", GroupByKey.create())
           .apply("Assign sequential ids", ParDo.of(new EOSSequencer<K, V>()))
-          .apply("Persist ids", GroupByKey.<Integer, KV<Long, KV<K, V>>>create())
+          .apply("Persist ids", GroupByKey.create())
           .apply(String.format("Write to Kafka topic '%s'", spec.getTopic()),
                  ParDo.of(new KafkaEOWriter<>(spec, input.getCoder())));
     }

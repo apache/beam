@@ -99,7 +99,7 @@ public class WithKeysTest {
             StringUtf8Coder.of()));
 
     PCollection<KV<Integer, String>> output =
-        input.apply(WithKeys.<Integer, String>of(100));
+        input.apply(WithKeys.of(100));
     PAssert.that(output)
         .containsInAnyOrder(WITH_CONST_KEYS);
 
@@ -115,7 +115,7 @@ public class WithKeysTest {
             StringUtf8Coder.of()));
 
     PCollection<KV<Void, String>> output =
-        input.apply(WithKeys.<Void, String>of((Void) null));
+        input.apply(WithKeys.of((Void) null));
     PAssert.that(output)
         .containsInAnyOrder(WITH_CONST_NULL_KEYS);
 

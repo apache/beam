@@ -64,7 +64,7 @@ class QuiescenceDriver implements ExecutionDriver {
   private final PipelineMessageReceiver pipelineMessageReceiver;
 
   private final CompletionCallback defaultCompletionCallback =
-      new TimerIterableCompletionCallback(Collections.<TimerData>emptyList());
+      new TimerIterableCompletionCallback(Collections.emptyList());
 
   private final Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
       pendingRootBundles;
@@ -271,7 +271,7 @@ class QuiescenceDriver implements ExecutionDriver {
           pendingWork.offer(
               WorkUpdate.fromBundle(
                   unprocessedInputs.get(),
-                  Collections.<AppliedPTransform<?, ?, ?>>singleton(
+                  Collections.singleton(
                       committedResult.getTransform())));
         }
       }
@@ -309,13 +309,13 @@ class QuiescenceDriver implements ExecutionDriver {
     private static WorkUpdate fromBundle(
         CommittedBundle<?> bundle, Collection<AppliedPTransform<?, ?, ?>> consumers) {
       return new AutoValue_QuiescenceDriver_WorkUpdate(
-          Optional.of(bundle), consumers, Optional.<Exception>absent());
+          Optional.of(bundle), consumers, Optional.absent());
     }
 
     private static WorkUpdate fromException(Exception e) {
       return new AutoValue_QuiescenceDriver_WorkUpdate(
-          Optional.<CommittedBundle<?>>absent(),
-          Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+          Optional.absent(),
+          Collections.emptyList(),
           Optional.of(e));
     }
 

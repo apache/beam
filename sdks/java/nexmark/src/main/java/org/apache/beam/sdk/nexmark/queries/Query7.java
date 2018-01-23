@@ -55,7 +55,7 @@ public class Query7 extends NexmarkQuery {
   private PCollection<Bid> applyTyped(PCollection<Event> events) {
     // Window the bids.
     PCollection<Bid> slidingBids = events.apply(JUST_BIDS).apply(
-        Window.<Bid>into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))));
+        Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))));
 
     // Find the largest price in all bids.
     // NOTE: It would be more efficient to write this query much as we did for Query5, using

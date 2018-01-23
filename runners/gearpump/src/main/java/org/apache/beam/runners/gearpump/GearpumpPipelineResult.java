@@ -90,7 +90,7 @@ public class GearpumpPipelineResult implements PipelineResult {
   private State getGearpumpState() {
     ApplicationStatus status = null;
     List<AppMasterData> apps =
-        JavaConverters.<AppMasterData>seqAsJavaListConverter(
+        JavaConverters.seqAsJavaListConverter(
             (Seq<AppMasterData>) client.listApps().appMasters()).asJava();
     for (AppMasterData appData: apps) {
       if (appData.appId() == app.appId()) {

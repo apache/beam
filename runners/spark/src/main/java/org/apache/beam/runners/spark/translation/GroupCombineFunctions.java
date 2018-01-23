@@ -55,8 +55,8 @@ public class GroupCombineFunctions {
     JavaPairRDD<ByteArray, byte[]> pairRDD =
         rdd
             .map(new ReifyTimestampsAndWindowsFunction<K, V>())
-            .map(WindowingHelpers.<KV<K, WindowedValue<V>>>unwindowFunction())
-            .mapToPair(TranslationUtils.<K, WindowedValue<V>>toPairFunction())
+            .map(WindowingHelpers.unwindowFunction())
+            .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
     // use a default parallelism HashPartitioner.
     Partitioner partitioner = new HashPartitioner(rdd.rdd().sparkContext().defaultParallelism());
@@ -70,10 +70,10 @@ public class GroupCombineFunctions {
                 CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
             true)
         .mapPartitions(
-            TranslationUtils.<K, Iterable<WindowedValue<V>>>fromPairFlatMapFunction(), true)
+            TranslationUtils.fromPairFlatMapFunction(), true)
         .mapPartitions(
             TranslationUtils.functionToFlatMapFunction(
-                WindowingHelpers.<KV<K, Iterable<WindowedValue<V>>>>windowFunction()),
+                WindowingHelpers.windowFunction()),
             true);
   }
 
@@ -174,7 +174,7 @@ public class GroupCombineFunctions {
     // we won't need to duplicate the keys anymore.
     // Key has to bw windowed in order to group by window as well.
     JavaPairRDD<K, WindowedValue<KV<K, InputT>>> inRddDuplicatedKeyPair =
-        rdd.mapToPair(TranslationUtils.<K, InputT>toPairByKeyInWindowedValue());
+        rdd.mapToPair(TranslationUtils.toPairByKeyInWindowedValue());
 
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
@@ -241,12 +241,12 @@ public class GroupCombineFunctions {
     // can be transferred over the network for the shuffle.
     return rdd
         .map(new ReifyTimestampsAndWindowsFunction<K, V>())
-        .map(WindowingHelpers.<KV<K, WindowedValue<V>>>unwindowFunction())
-        .mapToPair(TranslationUtils.<K, WindowedValue<V>>toPairFunction())
+        .map(WindowingHelpers.unwindowFunction())
+        .mapToPair(TranslationUtils.toPairFunction())
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))
         .repartition(rdd.getNumPartitions())
         .mapToPair(CoderHelpers.fromByteFunction(keyCoder, wvCoder))
-        .map(TranslationUtils.<K, WindowedValue<V>>fromPairFunction())
-        .map(TranslationUtils.<K, V>toKVByWindowInValue());
+        .map(TranslationUtils.fromPairFunction())
+        .map(TranslationUtils.toKVByWindowInValue());
   }
 }

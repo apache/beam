@@ -184,7 +184,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
     public Iterable<T> read() {
       try {
         Iterable<T> result = flinkStateBackend.getListState(descriptor).get();
-        return result != null ? result : Collections.<T>emptyList();
+        return result != null ? result : Collections.emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error updating state.", e);
       }

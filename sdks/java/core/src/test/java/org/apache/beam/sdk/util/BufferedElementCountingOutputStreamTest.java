@@ -49,7 +49,7 @@ public class BufferedElementCountingOutputStreamTest {
 
   @Test
   public void testEmptyValues() throws Exception {
-    testValues(Collections.<byte[]>emptyList());
+    testValues(Collections.emptyList());
   }
 
   @Test

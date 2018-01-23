@@ -106,7 +106,7 @@ public class MapElementsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testMapBasicWithSideInput() throws Exception {
     final PCollectionView<Integer> view =
-        pipeline.apply("Create base", Create.of(40)).apply(View.<Integer>asSingleton());
+        pipeline.apply("Create base", Create.of(40)).apply(View.asSingleton());
     PCollection<Integer> output =
         pipeline
             .apply(Create.of(0, 1, 2))
@@ -213,7 +213,7 @@ public class MapElementsTest implements Serializable {
   public void testVoidValues() throws Exception {
     pipeline
         .apply(Create.of("hello"))
-        .apply(WithKeys.<String, String>of("k"))
+        .apply(WithKeys.of("k"))
         .apply(new VoidValues<String, String>() {});
     // Make sure the pipeline runs
     pipeline.run();
@@ -275,7 +275,7 @@ public class MapElementsTest implements Serializable {
     MapElements<Integer, ?> map = MapElements.via(mapFn);
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    Set<DisplayData> displayData = evaluator.<Integer>displayDataForPrimitiveTransforms(map);
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(map);
     assertThat("MapElements should include the mapFn in its primitive display data",
         displayData, hasItem(hasDisplayItem("class", mapFn.getClass())));
   }

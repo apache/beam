@@ -199,7 +199,7 @@ public class SpannerIOReadTest implements Serializable {
         .thenReturn(mockTx);
 
     when(mockTx.executeQuery(Statement.of("SELECT 1"))).thenReturn(ResultSets.forRows(Type.struct(),
-        Collections.<Struct>emptyList()));
+        Collections.emptyList()));
 
     when(mockTx.executeQuery(Statement.of("SELECT * FROM users")))
         .thenReturn(ResultSets.forRows(FAKE_TYPE, FAKE_ROWS));
@@ -245,7 +245,7 @@ public class SpannerIOReadTest implements Serializable {
         .thenReturn(mockTx);
 
     when(mockTx.executeQuery(Statement.of("SELECT 1")))
-        .thenReturn(ResultSets.forRows(Type.struct(), Collections.<Struct>emptyList()));
+        .thenReturn(ResultSets.forRows(Type.struct(), Collections.emptyList()));
 
     when(mockTx.executeQuery(Statement.of("SELECT * FROM users")))
         .thenReturn(ResultSets.forRows(FAKE_TYPE, FAKE_ROWS.subList(0, 2)));

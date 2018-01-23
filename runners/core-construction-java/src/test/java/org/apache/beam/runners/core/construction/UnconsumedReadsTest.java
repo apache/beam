@@ -67,7 +67,7 @@ public class UnconsumedReadsTest {
   public void doesNotConsumeAlreadyConsumedRead() {
     Unbounded<Long> transform = Read.from(CountingSource.unbounded());
     final PCollection<Long> output = pipeline.apply(transform);
-    final Flatten.PCollections<Long> consumer = Flatten.<Long>pCollections();
+    final Flatten.PCollections<Long> consumer = Flatten.pCollections();
     PCollectionList.of(output).apply(consumer);
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
     pipeline.traverseTopologically(
@@ -76,7 +76,7 @@ public class UnconsumedReadsTest {
           public void visitPrimitiveTransform(Node node) {
             // The output should only be consumed by a single consumer
             if (node.getInputs().values().contains(output)) {
-              assertThat(node.getTransform(), Matchers.<PTransform<?, ?>>is(consumer));
+              assertThat(node.getTransform(), Matchers.is(consumer));
             }
           }
         });

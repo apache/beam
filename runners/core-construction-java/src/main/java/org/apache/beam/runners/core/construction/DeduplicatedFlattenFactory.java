@@ -99,7 +99,7 @@ public class DeduplicatedFlattenFactory<T>
           output = output.and(duplicated);
         }
       }
-      return output.apply(Flatten.<T>pCollections());
+      return output.apply(Flatten.pCollections());
     }
   }
 

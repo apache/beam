@@ -83,7 +83,7 @@ public class CassandraIOTest implements Serializable {
         .withEntity(Scientist.class)
     );
 
-    PAssert.thatSingleton(output.apply("Count", Count.<Scientist>globally()))
+    PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(10000L);
 
     PCollection<KV<String, Integer>> mapped =
@@ -94,7 +94,7 @@ public class CassandraIOTest implements Serializable {
                     return KV.of(scientist.name, scientist.id);
                   }
                 }));
-    PAssert.that(mapped.apply("Count occurrences per scientist", Count.<String, Integer>perKey()))
+    PAssert.that(mapped.apply("Count occurrences per scientist", Count.perKey()))
         .satisfies(
             input -> {
               for (KV<String, Long> element : input) {

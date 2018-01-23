@@ -106,7 +106,7 @@ public class WordCountTest {
     Pipeline p = Pipeline.create(options);
     p.apply("ReadLines", TextIO.read().from(options.getInputFile()))
       .apply(ParDo.of(new ExtractWordsFn()))
-      .apply(Count.<String>perElement())
+      .apply(Count.perElement())
       .apply(ParDo.of(new FormatAsStringFn()))
       .apply("WriteCounts", TextIO.write().to(options.getOutput()))
       ;
@@ -164,8 +164,8 @@ public class WordCountTest {
     PCollection<KV<String, Long>> wordCounts =
         p.apply(Read.from(new UnboundedTextSource()))
             .apply(ParDo.of(new ExtractWordsFn()))
-            .apply(Window.<String>into(FixedWindows.of(Duration.standardSeconds(10))))
-            .apply(Count.<String>perElement());
+            .apply(Window.into(FixedWindows.of(Duration.standardSeconds(10))))
+            .apply(Count.perElement());
 
     wordCounts.apply(ParDo.of(new CollectResultsFn()));
 

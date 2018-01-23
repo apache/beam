@@ -121,11 +121,11 @@ public class ParDoEvaluatorTest {
         result.getUnprocessedElements(),
         Matchers.<WindowedValue<?>>containsInAnyOrder(
             second, WindowedValue.of(1, new Instant(2468L), nonGlobalWindow, PaneInfo.NO_FIRING)));
-    assertThat(result.getOutputBundles(), Matchers.<UncommittedBundle<?>>contains(outputBundle));
+    assertThat(result.getOutputBundles(), Matchers.contains(outputBundle));
     assertThat(fn.processed, containsInAnyOrder(1, 3));
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()).commit(Instant.now()).getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             first.withValue(8),
             WindowedValue.timestampedValueInGlobalWindow(6, new Instant(2468L))));
   }
@@ -137,7 +137,7 @@ public class ParDoEvaluatorTest {
       PCollection<Integer> output) {
     when(
             evaluationContext.createSideInputReader(
-                ImmutableList.<PCollectionView<?>>of(singletonView)))
+                ImmutableList.of(singletonView)))
         .thenReturn(new ReadyInGlobalWindowReader());
     DirectExecutionContext executionContext = mock(DirectExecutionContext.class);
     DirectStepContext stepContext = mock(DirectStepContext.class);
@@ -162,11 +162,11 @@ public class ParDoEvaluatorTest {
         input.getWindowingStrategy(),
         fn,
         null /* key */,
-        ImmutableList.<PCollectionView<?>>of(singletonView),
+        ImmutableList.of(singletonView),
         mainOutputTag,
         additionalOutputTags,
-        ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, output),
-        ParDoEvaluator.<Integer, Integer>defaultRunnerFactory());
+        ImmutableMap.of(mainOutputTag, output),
+        ParDoEvaluator.defaultRunnerFactory());
   }
 
   private static class RecorderFn extends DoFn<Integer, Integer> {

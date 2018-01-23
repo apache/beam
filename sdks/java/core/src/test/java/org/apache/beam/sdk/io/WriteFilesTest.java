@@ -154,7 +154,7 @@ public class WriteFilesTest {
       return input
           .apply(window)
           .apply(ParDo.of(new AddArbitraryKey<T>()))
-          .apply(GroupByKey.<Integer, T>create())
+          .apply(GroupByKey.create())
           .apply(ParDo.of(new RemoveArbitraryKey<T>()));
     }
   }
@@ -182,13 +182,13 @@ public class WriteFilesTest {
   @Category(NeedsRunner.class)
   public void testEmptyWrite() throws IOException {
     runWrite(
-        Collections.<String>emptyList(),
+        Collections.emptyList(),
         IDENTITY_MAP,
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink()));
     checkFileContents(
         getBaseOutputFilename(),
-        Collections.<String>emptyList(),
+        Collections.emptyList(),
         Optional.of(1),
         true /* expectRemovedTempDirectory */);
   }
@@ -283,7 +283,7 @@ public class WriteFilesTest {
             "Frisky finch");
     runWrite(
         inputs,
-        new WindowAndReshuffle<>(Window.<String>into(FixedWindows.of(Duration.millis(2)))),
+        new WindowAndReshuffle<>(Window.into(FixedWindows.of(Duration.millis(2)))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink()));
   }
@@ -302,7 +302,7 @@ public class WriteFilesTest {
 
     runWrite(
         inputs,
-        new WindowAndReshuffle<>(Window.<String>into(Sessions.withGapDuration(Duration.millis(1)))),
+        new WindowAndReshuffle<>(Window.into(Sessions.withGapDuration(Duration.millis(1)))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink()));
   }
@@ -316,7 +316,7 @@ public class WriteFilesTest {
     }
     runWrite(
         inputs,
-        Window.<String>into(FixedWindows.of(Duration.millis(2))),
+        Window.into(FixedWindows.of(Duration.millis(2))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink())
             .withMaxNumWritersPerBundle(2)
@@ -484,7 +484,7 @@ public class WriteFilesTest {
     PCollection<String> input = p.apply(Create.timestamped(inputs, timestamps));
     if (!bounded) {
       input.setIsBoundedInternal(IsBounded.UNBOUNDED);
-      input = input.apply(Window.<String>into(FixedWindows.of(Duration.standardDays(1))));
+      input = input.apply(Window.into(FixedWindows.of(Duration.standardDays(1))));
       input.apply(writeFiles.withWindowedWrites());
     } else {
       input.apply(writeFiles);
@@ -672,7 +672,7 @@ public class WriteFilesTest {
     Optional<Integer> numShards =
         (write.getNumShardsProvider() != null && !write.getWindowedWrites())
             ? Optional.of(write.getNumShardsProvider().get())
-            : Optional.<Integer>absent();
+            : Optional.absent();
     checkFileContents(baseName, inputs, numShards, !write.getWindowedWrites());
   }
 
@@ -755,9 +755,9 @@ public class WriteFilesTest {
                       ctxt.output(Integer.valueOf(ctxt.element()));
                     }
                   }))
-          .apply(Top.<Integer>largest(1))
-          .apply(Flatten.<Integer>iterables())
-          .apply(View.<Integer>asSingleton());
+          .apply(Top.largest(1))
+          .apply(Flatten.iterables())
+          .apply(View.asSingleton());
     }
   }
 }

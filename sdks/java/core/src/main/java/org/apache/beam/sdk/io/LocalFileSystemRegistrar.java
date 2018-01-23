@@ -32,6 +32,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public class LocalFileSystemRegistrar implements FileSystemRegistrar {
   @Override
   public Iterable<FileSystem> fromOptions(@Nullable PipelineOptions options) {
-    return ImmutableList.<FileSystem>of(new LocalFileSystem());
+    return ImmutableList.of(new LocalFileSystem());
   }
 }

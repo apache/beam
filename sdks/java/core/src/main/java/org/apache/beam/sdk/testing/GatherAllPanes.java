@@ -58,7 +58,7 @@ class GatherAllPanes<T>
     WindowFn<?, ?> originalWindowFn = input.getWindowingStrategy().getWindowFn();
 
     return input
-        .apply(Reify.<T>windows())
+        .apply(Reify.windows())
         .apply(
             WithKeys.<Integer, ValueInSingleWindow<T>>of(0)
                 .withKeyType(new TypeDescriptor<Integer>() {}))
@@ -70,8 +70,8 @@ class GatherAllPanes<T>
                 .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
                 .discardingFiredPanes())
         // all values have the same key so they all appear as a single output element
-        .apply(GroupByKey.<Integer, ValueInSingleWindow<T>>create())
-        .apply(Values.<Iterable<ValueInSingleWindow<T>>>create())
+        .apply(GroupByKey.create())
+        .apply(Values.create())
         .setWindowingStrategyInternal(input.getWindowingStrategy());
   }
 

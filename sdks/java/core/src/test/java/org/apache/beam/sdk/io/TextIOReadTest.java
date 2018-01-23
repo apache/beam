@@ -851,7 +851,7 @@ public class TextIOReadTest {
                   .from(basePath.resolve("*").toString())
                   .watchForNewFiles(
                       Duration.millis(100),
-                      Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                      Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
 
       PAssert.that(lines).containsInAnyOrder("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
       p.run();

@@ -163,7 +163,7 @@ public class SolrIOTest extends SolrCloudTestCase {
                 .withConnectionConfiguration(connectionConfiguration)
                 .from(SOLR_COLLECTION)
                 .withBatchSize(101));
-    PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
+    PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(NUM_DOCS);
     pipeline.run();
   }
@@ -178,7 +178,7 @@ public class SolrIOTest extends SolrCloudTestCase {
                 .withConnectionConfiguration(connectionConfiguration)
                 .from(SOLR_COLLECTION)
                 .withQuery("scientist:Franklin"));
-    PAssert.thatSingleton(output.apply("Count", Count.<SolrDocument>globally()))
+    PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(NUM_DOCS / NUM_SCIENTISTS);
     pipeline.run();
   }

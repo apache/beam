@@ -77,7 +77,7 @@ public class FileSystems {
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
       new AtomicReference<Map<String, FileSystem>>(
-          ImmutableMap.<String, FileSystem>of(DEFAULT_SCHEME, new LocalFileSystem()));
+          ImmutableMap.of(DEFAULT_SCHEME, new LocalFileSystem()));
 
   /********************************** METHODS FOR CLIENT **********************************/
 
@@ -170,7 +170,7 @@ public class FileSystems {
             || (FileSystems.hasGlobWildcard(spec)
                 && emptyMatchTreatment == EmptyMatchTreatment.ALLOW_IF_WILDCARD);
     if (notFoundAllowed) {
-      return MatchResult.create(Status.OK, Collections.<Metadata>emptyList());
+      return MatchResult.create(Status.OK, Collections.emptyList());
     }
     return res;
   }
@@ -515,7 +515,7 @@ public class FileSystems {
                 .join(
                     FluentIterable.from(entry.getValue())
                         .transform(input -> input.getClass().getName())
-                        .toSortedList(Ordering.<String>natural()));
+                        .toSortedList(Ordering.natural()));
         throw new IllegalStateException(String.format(
             "Scheme: [%s] has conflicting filesystems: [%s]",
             entry.getKey(),

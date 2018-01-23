@@ -174,7 +174,7 @@ public class DataflowPipelineJobTest {
             DataflowClient.create(options),
             JOB_ID,
             options,
-            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
+            ImmutableMap.of());
 
     State state = job.waitUntilFinish(
         Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
@@ -199,7 +199,7 @@ public class DataflowPipelineJobTest {
             DataflowClient.create(options),
             JOB_ID,
             options,
-            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
+            ImmutableMap.of());
 
     return job.waitUntilFinish(Duration.standardMinutes(1), null, fastClock, fastClock);
   }
@@ -269,7 +269,7 @@ public class DataflowPipelineJobTest {
             DataflowClient.create(options),
             JOB_ID,
             options,
-            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
+            ImmutableMap.of());
 
     long startTime = fastClock.nanoTime();
     State state = job.waitUntilFinish(Duration.standardMinutes(5), null, fastClock, fastClock);
@@ -292,7 +292,7 @@ public class DataflowPipelineJobTest {
             DataflowClient.create(options),
             JOB_ID,
             options,
-            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
+            ImmutableMap.of());
     long startTime = fastClock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, fastClock, fastClock);
     assertEquals(null, state);
@@ -318,7 +318,7 @@ public class DataflowPipelineJobTest {
             DataflowClient.create(options),
             JOB_ID,
             options,
-            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
+            ImmutableMap.of());
     long startTime = clock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, clock, clock);
     assertEquals(null, state);
@@ -343,7 +343,7 @@ public class DataflowPipelineJobTest {
             DataflowClient.create(options),
             JOB_ID,
             options,
-            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
+            ImmutableMap.of());
 
     assertEquals(
         State.RUNNING,
@@ -366,7 +366,7 @@ public class DataflowPipelineJobTest {
             DataflowClient.create(options),
             JOB_ID,
             options,
-            ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of());
+            ImmutableMap.of());
 
     long startTime = fastClock.nanoTime();
     assertEquals(
@@ -386,8 +386,8 @@ public class DataflowPipelineJobTest {
     when(input.getPipeline()).thenReturn(p);
     return AppliedPTransform.of(
         fullName,
-        Collections.<TupleTag<?>, PValue>emptyMap(),
-        Collections.<TupleTag<?>, PValue>emptyMap(),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
         transform,
         p);
   }

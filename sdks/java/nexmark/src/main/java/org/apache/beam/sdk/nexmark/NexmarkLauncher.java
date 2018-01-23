@@ -992,7 +992,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       results.apply(queryName + ".Format", NexmarkUtils.format(queryName));
     if (options.getLogResults()) {
       formattedResults = formattedResults.apply(queryName + ".Results.Log",
-              NexmarkUtils.<String>log(queryName + ".Results"));
+              NexmarkUtils.log(queryName + ".Results"));
     }
 
     switch (configuration.sinkType) {
@@ -1092,7 +1092,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
       if (options.getLogEvents()) {
         source = source.apply(queryName + ".Events.Log",
-                NexmarkUtils.<Event>log(queryName + ".Events"));
+                NexmarkUtils.log(queryName + ".Events"));
       }
 
       // Source will be null if source type is PUBSUB and mode is PUBLISH_ONLY.
@@ -1198,7 +1198,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private List<NexmarkQuery> createSqlQueries() {
-    return Arrays.<NexmarkQuery> asList(
+    return Arrays.asList(
         new NexmarkSqlQuery(configuration, new SqlQuery0()),
         new NexmarkSqlQuery(configuration, new SqlQuery1()),
         new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)));

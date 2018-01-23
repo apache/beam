@@ -113,7 +113,7 @@ public class CoGroupByKeyTest implements Serializable {
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(tag1, collection1)
             .and(tag2, collection2)
-            .apply(CoGroupByKey.<Integer>create());
+            .apply(CoGroupByKey.create());
     return coGbkResults;
   }
 
@@ -196,7 +196,7 @@ public class CoGroupByKeyTest implements Serializable {
         KeyedPCollectionTuple.of(namesTag, nameTable)
             .and(addressesTag, addressTable)
             .and(purchasesTag, purchasesTable)
-            .apply(CoGroupByKey.<Integer>create());
+            .apply(CoGroupByKey.create());
     return coGbkResults;
   }
 
@@ -251,7 +251,7 @@ public class CoGroupByKeyTest implements Serializable {
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(clicksTag, clicksTable)
             .and(purchasesTag, purchasesTable)
-            .apply(CoGroupByKey.<Integer>create());
+            .apply(CoGroupByKey.create());
     return coGbkResults;
   }
 

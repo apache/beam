@@ -313,7 +313,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         initialShards.add(
             evaluationContext
                 .<UnboundedSourceShard<T, ?>>createRootBundle()
-                .add(WindowedValue.<UnboundedSourceShard<T, ?>>valueInGlobalWindow(shard))
+                .add(WindowedValue.valueInGlobalWindow(shard))
                 .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
       }
       return initialShards.build();

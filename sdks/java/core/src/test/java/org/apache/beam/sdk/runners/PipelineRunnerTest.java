@@ -86,7 +86,7 @@ public class PipelineRunnerTest {
           @Override
           public POutput expand(PBegin input) {
             PCollection<Double> output = input
-                .apply(Create.<Integer>of(1, 2, 3, 4))
+                .apply(Create.of(1, 2, 3, 4))
                 .apply("ScaleByTwo", MapElements.via(new ScaleFn<Integer>(2.0, counter)));
             PAssert.that(output).containsInAnyOrder(2.0, 4.0, 6.0, 8.0);
             return output;

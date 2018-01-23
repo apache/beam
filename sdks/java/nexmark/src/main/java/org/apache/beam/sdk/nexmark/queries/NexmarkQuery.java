@@ -231,13 +231,13 @@ public abstract class NexmarkQuery
     if (configuration.cpuDelayMs > 0) {
       // Slow down by pegging one core at 100%.
       events = events.apply(name + ".CpuDelay",
-              NexmarkUtils.<Event>cpuDelay(name, configuration.cpuDelayMs));
+              NexmarkUtils.cpuDelay(name, configuration.cpuDelayMs));
     }
 
     if (configuration.diskBusyBytes > 0) {
       // Slow down by forcing bytes to durable store.
       events = events.apply(name + ".DiskBusy",
-              NexmarkUtils.<Event>diskBusy(configuration.diskBusyBytes));
+              NexmarkUtils.diskBusy(configuration.diskBusyBytes));
     }
 
     // Run the query.
@@ -249,6 +249,6 @@ public abstract class NexmarkQuery
     }
 
     // Timestamp the query results.
-    return queryResults.apply(name + ".Stamp", NexmarkUtils.<KnownSize>stamp(name));
+    return queryResults.apply(name + ".Stamp", NexmarkUtils.stamp(name));
   }
 }

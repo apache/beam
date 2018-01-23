@@ -274,7 +274,7 @@ public final class ApproximateDistinct {
           .apply(
               "Compute HyperLogLog Structure",
               Combine.globally(
-                  ApproximateDistinctFn.<InputT>create(input.getCoder())
+                  ApproximateDistinctFn.create(input.getCoder())
                       .withPrecision(this.precision())
                       .withSparseRepresentation(this.sparsePrecision())))
           .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.globally()));
@@ -325,11 +325,11 @@ public final class ApproximateDistinct {
       KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
       return input
           .apply(
-              Combine.<K, V, HyperLogLogPlus>perKey(
-                  ApproximateDistinctFn.<V>create(inputCoder.getValueCoder())
+              Combine.perKey(
+                  ApproximateDistinctFn.create(inputCoder.getValueCoder())
                       .withPrecision(this.precision())
                       .withSparseRepresentation(this.sparsePrecision())))
-          .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.<K>perKey()));
+          .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.perKey()));
     }
   }
 

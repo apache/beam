@@ -1095,7 +1095,7 @@ public class DataflowRunnerTest implements Serializable {
     thrown.expectMessage(Matchers.containsString("no translator registered"));
     DataflowPipelineTranslator.fromOptions(options)
         .translate(
-            p, DataflowRunner.fromOptions(options), Collections.<DataflowPackage>emptyList());
+            p, DataflowRunner.fromOptions(options), Collections.emptyList());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -1128,7 +1128,7 @@ public class DataflowRunnerTest implements Serializable {
         });
 
     translator.translate(
-        p, DataflowRunner.fromOptions(options), Collections.<DataflowPackage>emptyList());
+        p, DataflowRunner.fromOptions(options), Collections.emptyList());
     assertTrue(transform.translated);
   }
 
@@ -1351,7 +1351,7 @@ public class DataflowRunnerTest implements Serializable {
     Pipeline p = Pipeline.create(options);
 
     p.apply(Create.of(KV.of(13, 42)))
-        .apply(Window.<KV<Integer, Integer>>into(Sessions.withGapDuration(Duration.millis(1))))
+        .apply(Window.into(Sessions.withGapDuration(Duration.millis(1))))
         .apply(ParDo.of(new DoFn<KV<Integer, Integer>, Void>() {
           @StateId("fizzle")
           private final StateSpec<ValueState<Void>> voidState = StateSpecs.value();
@@ -1391,7 +1391,7 @@ public class DataflowRunnerTest implements Serializable {
             AppliedPTransform.of(
                 "writefiles",
                 objs.expand(),
-                Collections.<TupleTag<?>, PValue>emptyMap(),
+                Collections.emptyMap(),
                 original,
                 p);
 

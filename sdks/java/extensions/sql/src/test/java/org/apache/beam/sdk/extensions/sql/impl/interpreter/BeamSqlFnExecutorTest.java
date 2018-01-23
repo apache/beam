@@ -398,7 +398,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
 
     // CURRENT_DATE
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.CURRENT_DATE,
-        Arrays.<RexNode>asList(
+        Arrays.asList(
         )
     );
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
@@ -406,7 +406,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
 
     // LOCALTIME
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.LOCALTIME,
-        Arrays.<RexNode>asList(
+        Arrays.asList(
         )
     );
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
@@ -414,7 +414,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
 
     // LOCALTIMESTAMP
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.LOCALTIMESTAMP,
-        Arrays.<RexNode>asList(
+        Arrays.asList(
         )
     );
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
@@ -448,7 +448,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     rexNode = rexBuilder.makeCall(
         TYPE_FACTORY.createSqlType(SqlTypeName.INTERVAL_DAY),
         SqlStdOperatorTable.MINUS,
-        Arrays.<RexNode>asList(
+        Arrays.asList(
             rexBuilder.makeTimestampLiteral(Calendar.getInstance(), 1000),
             rexBuilder.makeTimestampLiteral(Calendar.getInstance(), 1000)
         )

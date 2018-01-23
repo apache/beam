@@ -59,7 +59,7 @@ public class TestStreamTranslationTest {
   public static class TestStreamPayloadTranslation {
     @Parameters(name = "{index}: {0}")
     public static Iterable<TestStream<?>> data() {
-      return ImmutableList.<TestStream<?>>of(
+      return ImmutableList.of(
           TestStream.create(VarIntCoder.of()).advanceWatermarkToInfinity(),
           TestStream.create(VarIntCoder.of())
               .advanceWatermarkTo(new Instant(42))
@@ -92,7 +92,7 @@ public class TestStreamTranslationTest {
       PCollection<String> output = p.apply(testStream);
 
       AppliedPTransform<PBegin, PCollection<String>, TestStream<String>> appliedTestStream =
-          AppliedPTransform.<PBegin, PCollection<String>, TestStream<String>>of(
+          AppliedPTransform.of(
               "fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
 
       SdkComponents components = SdkComponents.create();
@@ -116,7 +116,7 @@ public class TestStreamTranslationTest {
       // This reverse direction is only valid for Java-based coders
       assertThat(
           protoComponents.getCoder(payload.getCoderId()),
-          Matchers.<Coder<?>>equalTo(testStream.getValueCoder()));
+          Matchers.equalTo(testStream.getValueCoder()));
 
       assertThat(payload.getEventsList().size(), equalTo(testStream.getEvents().size()));
 

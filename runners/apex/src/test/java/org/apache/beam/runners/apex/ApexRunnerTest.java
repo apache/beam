@@ -82,7 +82,7 @@ public class ApexRunnerTest {
     Pipeline p = Pipeline.create();
     long numElements = 1000;
     PCollection<Long> input = p.apply(GenerateSequence.from(0).to(numElements));
-    PAssert.thatSingleton(input.apply("Count", Count.<Long>globally())).isEqualTo(numElements);
+    PAssert.thatSingleton(input.apply("Count", Count.globally())).isEqualTo(numElements);
 
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
     DAG dag = TestApexRunner.translate(p, options);

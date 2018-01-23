@@ -68,7 +68,7 @@ public class ImmutableListBundleFactoryTest {
   @Before
   public void setup() {
     created = p.apply(Create.of(1, 2, 3));
-    downstream = created.apply(WithKeys.<String, Integer>of("foo"));
+    downstream = created.apply(WithKeys.of("foo"));
   }
 
   private <T> void createKeyedBundle(Coder<T> coder, T key) throws Exception {
@@ -78,7 +78,7 @@ public class ImmutableListBundleFactoryTest {
     UncommittedBundle<Integer> inFlightBundle = bundleFactory.createKeyedBundle(skey, pcollection);
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
-    assertThat(bundle.getKey(), Matchers.<StructuralKey<?>>equalTo(skey));
+    assertThat(bundle.getKey(), Matchers.equalTo(skey));
   }
 
   @Test
@@ -114,7 +114,7 @@ public class ImmutableListBundleFactoryTest {
       }
     }
     Matcher<Iterable<? extends WindowedValue<T>>> containsMatcher =
-        Matchers.<WindowedValue<T>>containsInAnyOrder(expectations);
+        Matchers.containsInAnyOrder(expectations);
     Instant commitTime = Instant.now();
     CommittedBundle<T> committed = bundle.commit(commitTime);
     assertThat(committed.getElements(), containsMatcher);
@@ -186,7 +186,7 @@ public class ImmutableListBundleFactoryTest {
 
     assertThat(withed.getElements(), containsInAnyOrder(firstReplacement, secondReplacement));
     assertThat(committed.getElements(), containsInAnyOrder(firstValue, secondValue));
-    assertThat(withed.getKey(), Matchers.<StructuralKey<?>>equalTo(committed.getKey()));
+    assertThat(withed.getKey(), Matchers.equalTo(committed.getKey()));
     assertThat(withed.getPCollection(), equalTo(committed.getPCollection()));
     assertThat(
         withed.getSynchronizedProcessingOutputWatermark(),
@@ -226,6 +226,6 @@ public class ImmutableListBundleFactoryTest {
     CommittedBundle<KV<String, Integer>> keyedBundle = bundleFactory.createKeyedBundle(
         StructuralKey.of("foo", StringUtf8Coder.of()),
         downstream).commit(Instant.now());
-    assertThat(keyedBundle.getKey().getKey(), Matchers.<Object>equalTo("foo"));
+    assertThat(keyedBundle.getKey().getKey(), Matchers.equalTo("foo"));
   }
 }
