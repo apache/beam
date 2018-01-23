@@ -66,8 +66,7 @@ class SideInputReadCounter(TransformIOCounter):
   """Tracks time and bytes consumed while reading from side inputs.
 
   This class is designed to track consumption of side inputs across fused steps.
-  We represent a side input as a declaring step, and an input index, which are
-  represented as an io_target.
+  We represent a side input as a declaring step, and an input index.
 
   The declaring step is the step that originally receives the side input for
   consumption, and the input index in which the declaring step receives the side
@@ -91,8 +90,8 @@ class SideInputReadCounter(TransformIOCounter):
 
     The side input is uniquely identified by (declaring_step, input_index);
     where declaring_step is the step that receives the PCollectionView as a
-    side input, and input_index is the index of the PCView within the list of
-    inputs.
+    side input, and input_index is the index of the PCollectionView within
+    the list of inputs.
     """
     self._counter_factory = counter_factory
     self._state_sampler = state_sampler
@@ -110,6 +109,9 @@ class SideInputReadCounter(TransformIOCounter):
     structure that holds side inputs (Iterable, Dict, or others). This call
     updates the current step, to attribute the data consumption to the step
     that is responsible for actual consumption.
+
+    CounterName uses the io_target field for information pertinent to the
+    consumption of side inputs.
     """
     current_state = self._state_sampler.current_state()
     operation_name = current_state.name.step_name

@@ -28,6 +28,8 @@ from collections import namedtuple
 
 from apache_beam.transforms import cy_combiners
 
+# Information identifying the IO being measured by a counter.
+#
 # A CounterName with IOTarget helps identify the IO being measured by a
 # counter.
 #
