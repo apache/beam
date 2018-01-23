@@ -382,13 +382,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   public List<OutputT> peekOutputElements() {
     return Lists.transform(
         peekOutputElementsWithTimestamp(),
-        new Function<TimestampedValue<OutputT>, OutputT>() {
-          @Override
-          @SuppressWarnings("unchecked")
-          public OutputT apply(TimestampedValue<OutputT> input) {
-            return input.getValue();
-          }
-        });
+        input -> input.getValue());
   }
 
   /**
@@ -403,13 +397,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(getImmutableOutput(mainOutputTag),
-        new Function<ValueInSingleWindow<OutputT>, TimestampedValue<OutputT>>() {
-          @Override
-          @SuppressWarnings("unchecked")
-          public TimestampedValue<OutputT> apply(ValueInSingleWindow<OutputT> input) {
-            return TimestampedValue.of(input.getValue(), input.getTimestamp());
-          }
-        });
+        input -> TimestampedValue.of(input.getValue(), input.getTimestamp()));
   }
 
   /**
@@ -484,12 +472,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   public <T> List<T> peekOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
     return Lists.transform(getImmutableOutput(tag),
-        new Function<ValueInSingleWindow<T>, T>() {
-          @SuppressWarnings("unchecked")
-          @Override
-          public T apply(ValueInSingleWindow<T> input) {
-            return input.getValue();
-          }});
+        input -> input.getValue());
   }
 
   /**
@@ -613,12 +596,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           Materializations.MULTIMAP_MATERIALIZATION_URN,
           view.getViewFn().getMaterialization().getUrn());
       return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn()).apply(
-          new Materializations.MultimapView<Object, Object>() {
-            @Override
-            public Iterable<Object> get(Object o) {
-              return Collections.emptyList();
-            }
-          });
+          o -> Collections.emptyList());
     }
 
     @Override

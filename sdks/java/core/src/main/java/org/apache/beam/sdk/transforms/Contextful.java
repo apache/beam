@@ -110,12 +110,7 @@ public final class Contextful<ClosureT> implements Serializable {
   public static <InputT, OutputT> Contextful<Fn<InputT, OutputT>> fn(
       final SerializableFunction<InputT, OutputT> fn) {
     return new Contextful<Fn<InputT, OutputT>>(
-        new Fn<InputT, OutputT>() {
-          @Override
-          public OutputT apply(InputT element, Context c) throws Exception {
-            return fn.apply(element);
-          }
-        },
+        (element, c) -> fn.apply(element),
         Requirements.empty());
   }
 

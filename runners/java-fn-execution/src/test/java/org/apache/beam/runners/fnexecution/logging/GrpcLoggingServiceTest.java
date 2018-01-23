@@ -48,11 +48,8 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GrpcLoggingService}. */
 @RunWith(JUnit4.class)
 public class GrpcLoggingServiceTest {
-  private Consumer<LogControl> messageDiscarder = new Consumer<LogControl>() {
-    @Override
-    public void accept(LogControl item) {
-      // Ignore
-    }
+  private Consumer<LogControl> messageDiscarder = item -> {
+    // Ignore
   };
 
   @Test
@@ -67,26 +64,23 @@ public class GrpcLoggingServiceTest {
       for (int i = 1; i <= 3; ++i) {
         final int instructionReference = i;
         tasks.add(
-            new Callable<Void>() {
-              @Override
-              public Void call() throws Exception {
-                CountDownLatch waitForServerHangup = new CountDownLatch(1);
-                String url = server.getApiServiceDescriptor().getUrl();
-                ManagedChannel channel =
-                    InProcessChannelBuilder.forName(url)
-                        .build();
-                StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
-                    BeamFnLoggingGrpc.newStub(channel)
-                        .logging(
-                            TestStreams.withOnNext(messageDiscarder)
-                                .withOnCompleted(new CountDown(waitForServerHangup))
-                                .build());
-                outboundObserver.onNext(
-                    createLogsWithIds(instructionReference, -instructionReference));
-                outboundObserver.onCompleted();
-                waitForServerHangup.await();
-                return null;
-              }
+            () -> {
+              CountDownLatch waitForServerHangup = new CountDownLatch(1);
+              String url = server.getApiServiceDescriptor().getUrl();
+              ManagedChannel channel =
+                  InProcessChannelBuilder.forName(url)
+                      .build();
+              StreamObserver<LogEntry.List> outboundObserver =
+                  BeamFnLoggingGrpc.newStub(channel)
+                      .logging(
+                          TestStreams.withOnNext(messageDiscarder)
+                              .withOnCompleted(new CountDown(waitForServerHangup))
+                              .build());
+              outboundObserver.onNext(
+                  createLogsWithIds(instructionReference, -instructionReference));
+              outboundObserver.onCompleted();
+              waitForServerHangup.await();
+              return null;
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
@@ -109,24 +103,22 @@ public class GrpcLoggingServiceTest {
       for (int i = 1; i <= 3; ++i) {
         final int instructionReference = i;
         tasks.add(
-            new Callable<Void>() {
-              public Void call() throws Exception {
-                CountDownLatch waitForTermination = new CountDownLatch(1);
-                ManagedChannel channel =
-                    InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
-                        .build();
-                StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
-                    BeamFnLoggingGrpc.newStub(channel)
-                        .logging(
-                            TestStreams.withOnNext(messageDiscarder)
-                                .withOnError(new CountDown(waitForTermination))
-                                .build());
-                outboundObserver.onNext(
-                    createLogsWithIds(instructionReference, -instructionReference));
-                outboundObserver.onError(new RuntimeException("Client " + instructionReference));
-                waitForTermination.await();
-                return null;
-              }
+            () -> {
+              CountDownLatch waitForTermination = new CountDownLatch(1);
+              ManagedChannel channel =
+                  InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
+                      .build();
+              StreamObserver<LogEntry.List> outboundObserver =
+                  BeamFnLoggingGrpc.newStub(channel)
+                      .logging(
+                          TestStreams.withOnNext(messageDiscarder)
+                              .withOnError(new CountDown(waitForTermination))
+                              .build());
+              outboundObserver.onNext(
+                  createLogsWithIds(instructionReference, -instructionReference));
+              outboundObserver.onError(new RuntimeException("Client " + instructionReference));
+              waitForTermination.await();
+              return null;
             });
       }
       ExecutorService executorService = Executors.newCachedThreadPool();
@@ -148,24 +140,22 @@ public class GrpcLoggingServiceTest {
         final long instructionReference = i;
         futures.add(
             executorService.submit(
-                new Callable<Void>() {
-                  public Void call() throws Exception {
-                    {
-                      CountDownLatch waitForServerHangup = new CountDownLatch(1);
-                      ManagedChannel channel =
-                          InProcessChannelBuilder.forName(
-                                  server.getApiServiceDescriptor().getUrl())
-                              .build();
-                      StreamObserver<BeamFnApi.LogEntry.List> outboundObserver =
-                          BeamFnLoggingGrpc.newStub(channel)
-                              .logging(
-                                  TestStreams.withOnNext(messageDiscarder)
-                                      .withOnCompleted(new CountDown(waitForServerHangup))
-                                      .build());
-                      outboundObserver.onNext(createLogsWithIds(instructionReference));
-                      waitForServerHangup.await();
-                      return null;
-                    }
+                () -> {
+                  {
+                    CountDownLatch waitForServerHangup = new CountDownLatch(1);
+                    ManagedChannel channel =
+                        InProcessChannelBuilder.forName(
+                                server.getApiServiceDescriptor().getUrl())
+                            .build();
+                    StreamObserver<LogEntry.List> outboundObserver =
+                        BeamFnLoggingGrpc.newStub(channel)
+                            .logging(
+                                TestStreams.withOnNext(messageDiscarder)
+                                    .withOnCompleted(new CountDown(waitForServerHangup))
+                                    .build());
+                    outboundObserver.onNext(createLogsWithIds(instructionReference));
+                    waitForServerHangup.await();
+                    return null;
                   }
                 }));
       }

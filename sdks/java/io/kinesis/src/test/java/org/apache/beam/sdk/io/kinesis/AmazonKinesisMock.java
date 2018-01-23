@@ -143,19 +143,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     @Override
     public AmazonKinesis getKinesisClient() {
       return new AmazonKinesisMock(transform(shardedData,
-          new Function<List<TestData>, List<Record>>() {
-
-            @Override
-            public List<Record> apply(@Nullable List<TestData> testDatas) {
-              return transform(testDatas, new Function<TestData, Record>() {
-
-                @Override
-                public Record apply(@Nullable TestData testData) {
-                  return testData.convertToRecord();
-                }
-              });
-            }
-          }), numberOfRecordsPerGet);
+          testDatas -> transform(testDatas, testData -> testData.convertToRecord())), numberOfRecordsPerGet);
 
     }
 

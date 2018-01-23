@@ -76,40 +76,30 @@ class SimplifiedKinesisClient {
       final String startingSequenceNumber, final Instant timestamp)
       throws TransientKinesisException {
     final Date date = timestamp != null ? timestamp.toDate() : null;
-    return wrapExceptions(new Callable<String>() {
-
-      @Override
-      public String call() throws Exception {
-        return kinesis.getShardIterator(new GetShardIteratorRequest()
-            .withStreamName(streamName)
-            .withShardId(shardId)
-            .withShardIteratorType(shardIteratorType)
-            .withStartingSequenceNumber(startingSequenceNumber)
-            .withTimestamp(date)
-        ).getShardIterator();
-      }
-    });
+    return wrapExceptions(() -> kinesis.getShardIterator(new GetShardIteratorRequest()
+        .withStreamName(streamName)
+        .withShardId(shardId)
+        .withShardIteratorType(shardIteratorType)
+        .withStartingSequenceNumber(startingSequenceNumber)
+        .withTimestamp(date)
+    ).getShardIterator());
   }
 
   public List<Shard> listShards(final String streamName) throws TransientKinesisException {
-    return wrapExceptions(new Callable<List<Shard>>() {
+    return wrapExceptions(() -> {
+      List<Shard> shards = Lists.newArrayList();
+      String lastShardId = null;
 
-      @Override
-      public List<Shard> call() throws Exception {
-        List<Shard> shards = Lists.newArrayList();
-        String lastShardId = null;
+      StreamDescription description;
+      do {
+        description = kinesis.describeStream(streamName, lastShardId)
+            .getStreamDescription();
 
-        StreamDescription description;
-        do {
-          description = kinesis.describeStream(streamName, lastShardId)
-              .getStreamDescription();
+        shards.addAll(description.getShards());
+        lastShardId = shards.get(shards.size() - 1).getShardId();
+      } while (description.getHasMoreShards());
 
-          shards.addAll(description.getShards());
-          lastShardId = shards.get(shards.size() - 1).getShardId();
-        } while (description.getHasMoreShards());
-
-        return shards;
-      }
+      return shards;
     });
   }
 
@@ -134,19 +124,15 @@ class SimplifiedKinesisClient {
       final String shardId, final Integer limit)
       throws
       TransientKinesisException {
-    return wrapExceptions(new Callable<GetKinesisRecordsResult>() {
-
-      @Override
-      public GetKinesisRecordsResult call() throws Exception {
-        GetRecordsResult response = kinesis.getRecords(new GetRecordsRequest()
-            .withShardIterator(shardIterator)
-            .withLimit(limit));
-        return new GetKinesisRecordsResult(
-            UserRecord.deaggregate(response.getRecords()),
-            response.getNextShardIterator(),
-            response.getMillisBehindLatest(),
-            streamName, shardId);
-      }
+    return wrapExceptions(() -> {
+      GetRecordsResult response = kinesis.getRecords(new GetRecordsRequest()
+          .withShardIterator(shardIterator)
+          .withLimit(limit));
+      return new GetKinesisRecordsResult(
+          UserRecord.deaggregate(response.getRecords()),
+          response.getNextShardIterator(),
+          response.getMillisBehindLatest(),
+          streamName, shardId);
     });
   }
 
@@ -168,27 +154,23 @@ class SimplifiedKinesisClient {
    */
   public long getBacklogBytes(final String streamName, final Instant countSince,
       final Instant countTo) throws TransientKinesisException {
-    return wrapExceptions(new Callable<Long>() {
-
-      @Override
-      public Long call() throws Exception {
-        Minutes period = Minutes.minutesBetween(countSince, countTo);
-        if (period.isLessThan(Minutes.ONE)) {
-          return 0L;
-        }
-
-        GetMetricStatisticsRequest request = createMetricStatisticsRequest(streamName,
-            countSince, countTo, period);
-
-        long totalSizeInBytes = 0;
-        GetMetricStatisticsResult result = cloudWatch.getMetricStatistics(request);
-        for (Datapoint point : result.getDatapoints()) {
-          totalSizeInBytes += point
-              .getSum()
-              .longValue();
-        }
-        return totalSizeInBytes;
+    return wrapExceptions(() -> {
+      Minutes period = Minutes.minutesBetween(countSince, countTo);
+      if (period.isLessThan(Minutes.ONE)) {
+        return 0L;
       }
+
+      GetMetricStatisticsRequest request = createMetricStatisticsRequest(streamName,
+          countSince, countTo, period);
+
+      long totalSizeInBytes = 0;
+      GetMetricStatisticsResult result = cloudWatch.getMetricStatistics(request);
+      for (Datapoint point : result.getDatapoints()) {
+        totalSizeInBytes += point
+            .getSum()
+            .longValue();
+      }
+      return totalSizeInBytes;
     });
   }
 

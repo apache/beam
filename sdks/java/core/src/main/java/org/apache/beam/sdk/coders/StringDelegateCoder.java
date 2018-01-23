@@ -65,22 +65,8 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
 
   protected StringDelegateCoder(final Class<T> clazz, TypeDescriptor<T> typeDescriptor) {
     delegateCoder = DelegateCoder.of(StringUtf8Coder.of(),
-      new CodingFunction<T, String>() {
-        @Override
-        public String apply(T input) {
-          return input.toString();
-        }
-      },
-      new CodingFunction<String, T>() {
-        @Override
-        public T apply(String input) throws
-            NoSuchMethodException,
-            InstantiationException,
-            IllegalAccessException,
-            InvocationTargetException {
-          return clazz.getConstructor(String.class).newInstance(input);
-        }
-      }, typeDescriptor);
+        input -> input.toString(),
+        input -> clazz.getConstructor(String.class).newInstance(input), typeDescriptor);
 
     this.clazz = clazz;
   }

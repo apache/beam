@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.common.TestRow.getNameForSeed;
 import static org.junit.Assert.assertTrue;
 
 import java.io.PrintWriter;
@@ -230,13 +231,7 @@ public class JdbcIOTest implements Serializable {
                      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
                      .withQuery(String.format("select name,id from %s where name = ?",
                          readTableName))
-                     .withStatementPreparator(new JdbcIO.StatementPreparator() {
-                       @Override
-                       public void setParameters(PreparedStatement preparedStatement)
-                           throws Exception {
-                         preparedStatement.setString(1, TestRow.getNameForSeed(1));
-                       }
-                     })
+                     .withStatementPreparator((preparedStatement) -> preparedStatement.setString(1, getNameForSeed(1)))
                      .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
                  .withCoder(SerializableCoder.of(TestRow.class)));
 
@@ -270,13 +265,10 @@ public class JdbcIOTest implements Serializable {
               .withStatement(String.format("insert into %s values(?, ?)", tableName))
               .withBatchSize(10L)
               .withPreparedStatementSetter(
-                  new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
-                public void setParameters(
-                    KV<Integer, String> element, PreparedStatement statement) throws Exception {
-                  statement.setInt(1, element.getKey());
-                  statement.setString(2, element.getValue());
-                }
-              }));
+                  (element, statement) -> {
+                    statement.setInt(1, element.getKey());
+                    statement.setString(2, element.getValue());
+                  }));
 
       pipeline.run();
 
@@ -305,12 +297,9 @@ public class JdbcIOTest implements Serializable {
                 "org.apache.derby.jdbc.ClientDriver",
                 "jdbc:derby://localhost:" + port + "/target/beam"))
             .withStatement("insert into BEAM values(?, ?)")
-            .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
-              public void setParameters(KV<Integer, String> element, PreparedStatement statement)
-                  throws Exception {
-                statement.setInt(1, element.getKey());
-                statement.setString(2, element.getValue());
-              }
+            .withPreparedStatementSetter((element, statement) -> {
+              statement.setInt(1, element.getKey());
+              statement.setString(2, element.getValue());
             }));
 
     pipeline.run();

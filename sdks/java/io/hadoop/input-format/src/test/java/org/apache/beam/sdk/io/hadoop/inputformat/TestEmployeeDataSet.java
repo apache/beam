@@ -63,12 +63,9 @@ public class TestEmployeeDataSet {
    */
   public static List<KV<Text, Employee>> getEmployeeData() {
     return Lists.transform((data.isEmpty() ? populateEmployeeData() : data),
-        new Function<KV<String, String>, KV<Text, Employee>>() {
-          @Override
-          public KV<Text, Employee> apply(KV<String, String> input) {
-            String[] empData = input.getValue().split("_");
-            return KV.of(new Text(input.getKey()), new Employee(empData[0], empData[1]));
-          }
+        input -> {
+          String[] empData = input.getValue().split("_");
+          return KV.of(new Text(input.getKey()), new Employee(empData[0], empData[1]));
         });
   }
 }

@@ -68,15 +68,12 @@ public class RegisterHandlerTest {
   public void testRegistration() throws Exception {
     RegisterHandler handler = new RegisterHandler();
     Future<BeamFnApi.InstructionResponse> responseFuture =
-        executor.submit(new Callable<BeamFnApi.InstructionResponse>() {
-          @Override
-          public BeamFnApi.InstructionResponse call() throws Exception {
-            // Purposefully wait a small amount of time making it likely that
-            // a downstream caller needs to block.
-            Thread.sleep(100);
-            return handler.register(REGISTER_REQUEST).build();
-          }
-    });
+        executor.submit(() -> {
+          // Purposefully wait a small amount of time making it likely that
+          // a downstream caller needs to block.
+          Thread.sleep(100);
+          return handler.register(REGISTER_REQUEST).build();
+        });
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0),
         handler.getById("1L"));
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1),

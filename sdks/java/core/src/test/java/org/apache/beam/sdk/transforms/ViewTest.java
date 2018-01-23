@@ -1252,12 +1252,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Void> view =
         pipeline.apply("CreateSideInput", Create.of((Void) null).withCoder(VoidCoder.of()))
-            .apply(Combine.globally(new SerializableFunction<Iterable<Void>, Void>() {
-              @Override
-              public Void apply(Iterable<Void> input) {
-                return null;
-              }
-            }).asSingletonView());
+            .apply(Combine.globally((Iterable<Void> input) -> null).asSingletonView());
 
     PCollection<String> output =
         pipeline.apply("CreateMainInput", Create.of(""))

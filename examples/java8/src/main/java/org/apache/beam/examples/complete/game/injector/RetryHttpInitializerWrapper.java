@@ -97,31 +97,25 @@ public class RetryHttpInitializerWrapper implements HttpRequestInitializer {
                         .setSleeper(sleeper);
         request.setInterceptor(wrappedCredential);
         request.setUnsuccessfulResponseHandler(
-                new HttpUnsuccessfulResponseHandler() {
-                    @Override
-                    public boolean handleResponse(
-                            final HttpRequest request,
-                            final HttpResponse response,
-                            final boolean supportsRetry) throws IOException {
-                        if (wrappedCredential.handleResponse(
-                                request, response, supportsRetry)) {
-                            // If credential decides it can handle it,
-                            // the return code or message indicated
-                            // something specific to authentication,
-                            // and no backoff is desired.
-                            return true;
-                        } else if (backoffHandler.handleResponse(
-                                request, response, supportsRetry)) {
-                            // Otherwise, we defer to the judgement of
-                            // our internal backoff handler.
-                            LOG.info("Retrying "
-                                    + request.getUrl().toString());
-                            return true;
-                        } else {
-                            return false;
-                        }
-                    }
-                });
+            (request1, response, supportsRetry) -> {
+                if (wrappedCredential.handleResponse(
+                    request1, response, supportsRetry)) {
+                    // If credential decides it can handle it,
+                    // the return code or message indicated
+                    // something specific to authentication,
+                    // and no backoff is desired.
+                    return true;
+                } else if (backoffHandler.handleResponse(
+                    request1, response, supportsRetry)) {
+                    // Otherwise, we defer to the judgement of
+                    // our internal backoff handler.
+                    LOG.info("Retrying "
+                            + request1.getUrl().toString());
+                    return true;
+                } else {
+                    return false;
+                }
+            });
         request.setIOExceptionHandler(
                 new HttpBackOffIOExceptionHandler(new ExponentialBackOff())
                         .setSleeper(sleeper));

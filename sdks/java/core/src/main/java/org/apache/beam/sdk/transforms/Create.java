@@ -572,12 +572,7 @@ public class Create<T> {
           Iterable<T> rawElements =
               Iterables.transform(
                   timestampedElements,
-                  new Function<TimestampedValue<T>, T>() {
-                    @Override
-                    public T apply(TimestampedValue<T> timestampedValue) {
-                      return timestampedValue.getValue();
-                    }
-                  });
+                  timestampedValue -> timestampedValue.getValue());
           coder = getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
         }
 

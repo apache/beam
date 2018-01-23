@@ -542,15 +542,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       final Collection<? extends BoundedWindow> windows) {
     return ImmutableSet.copyOf(
         FluentIterable.from(windows).transform(
-            new Function<BoundedWindow, W>() {
-              @Override
-              public W apply(BoundedWindow untypedWindow) {
-                @SuppressWarnings("unchecked")
-                W window = (W) untypedWindow;
-                W mergedWindow = windowToMergeResult.get(window);
-                // If the element is not present in the map, the window is unmerged.
-                return (mergedWindow == null) ? window : mergedWindow;
-              }
+            untypedWindow -> {
+              @SuppressWarnings("unchecked")
+              W window = (W) untypedWindow;
+              W mergedWindow = windowToMergeResult.get(window);
+              // If the element is not present in the map, the window is unmerged.
+              return (mergedWindow == null) ? window : mergedWindow;
             }
         ));
   }
@@ -1030,20 +1027,17 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       final List<W> windows = Collections.singletonList(directContext.window());
       ReduceFn<K, InputT, OutputT, W>.OnTriggerContext renamedTriggerContext =
           contextFactory.forTrigger(directContext.window(), pane, StateStyle.RENAMED,
-              new OnTriggerCallbacks<OutputT>() {
-                @Override
-                public void output(OutputT toOutput) {
-                  // We're going to output panes, so commit the (now used) PaneInfo.
-                  // This is unnecessary if the trigger isFinished since the saved
-                  // state will be immediately deleted.
-                  if (!isFinished) {
-                    paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
-                  }
-
-                  // Output the actual value.
-                  outputter.outputWindowedValue(
-                      KV.of(key, toOutput), outputTimestamp, windows, pane);
+              toOutput -> {
+                // We're going to output panes, so commit the (now used) PaneInfo.
+                // This is unnecessary if the trigger isFinished since the saved
+                // state will be immediately deleted.
+                if (!isFinished) {
+                  paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
                 }
+
+                // Output the actual value.
+                outputter.outputWindowedValue(
+                    KV.of(key, toOutput), outputTimestamp, windows, pane);
               });
 
       reduceFn.onTrigger(renamedTriggerContext);

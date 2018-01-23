@@ -99,13 +99,7 @@ public class Query3 extends NexmarkQuery {
             .apply(
                 name + ".InCategory",
                 Filter.by(
-                    new SerializableFunction<Auction, Boolean>() {
-
-                      @Override
-                      public Boolean apply(Auction auction) {
-                        return auction.category == 10;
-                      }
-                    }))
+                    auction -> auction.category == 10))
 
             // Key auctions by their seller id.
             .apply("AuctionBySeller", AUCTION_BY_SELLER);
@@ -119,15 +113,9 @@ public class Query3 extends NexmarkQuery {
             .apply(
                 name + ".InState",
                 Filter.by(
-                    new SerializableFunction<Person, Boolean>() {
-
-                      @Override
-                      public Boolean apply(Person person) {
-                        return person.state.equals("OR")
-                            || person.state.equals("ID")
-                            || person.state.equals("CA");
-                      }
-                    }))
+                    person -> person.state.equals("OR")
+                        || person.state.equals("ID")
+                        || person.state.equals("CA")))
 
             // Key people by their id.
             .apply("PersonById", PERSON_BY_ID);

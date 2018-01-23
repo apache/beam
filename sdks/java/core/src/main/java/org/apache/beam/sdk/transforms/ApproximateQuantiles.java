@@ -574,12 +574,7 @@ public class ApproximateQuantiles {
       // Each of the buffers is already sorted by element.
       Iterator<WeightedValue<T>> sorted = Iterators.mergeSorted(
           iterators,
-          new Comparator<WeightedValue<T>>() {
-            @Override
-            public int compare(WeightedValue<T> a, WeightedValue<T> b) {
-              return compareFn.compare(a.getValue(), b.getValue());
-            }
-          });
+          (a, b) -> compareFn.compare(a.getValue(), b.getValue()));
 
       List<T> newElements = Lists.newArrayListWithCapacity(count);
       WeightedValue<T> weightedElement = sorted.next();

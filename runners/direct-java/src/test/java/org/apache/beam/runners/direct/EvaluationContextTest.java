@@ -298,12 +298,7 @@ public class EvaluationContextTest {
   public void callAfterOutputMustHaveBeenProducedAfterEndOfWatermarkCallsback() throws Exception {
     final CountDownLatch callLatch = new CountDownLatch(1);
     Runnable callback =
-        new Runnable() {
-          @Override
-          public void run() {
-            callLatch.countDown();
-          }
-        };
+        () -> callLatch.countDown();
 
     // Should call back after the end of the global window
     context.scheduleAfterOutputWouldBeProduced(
@@ -335,12 +330,7 @@ public class EvaluationContextTest {
     final CountDownLatch callLatch = new CountDownLatch(1);
     context.extractFiredTimers();
     Runnable callback =
-        new Runnable() {
-          @Override
-          public void run() {
-            callLatch.countDown();
-          }
-        };
+        () -> callLatch.countDown();
     context.scheduleAfterOutputWouldBeProduced(
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
     assertThat(callLatch.await(1, TimeUnit.SECONDS), is(true));

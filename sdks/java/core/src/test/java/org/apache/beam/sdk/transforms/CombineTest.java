@@ -457,12 +457,9 @@ public class CombineTest implements Serializable {
 
     // The actual elements produced are nondeterministic. Could be one, could be two.
     // But it should certainly have a final element with the correct final sum.
-    PAssert.that(output).satisfies(new SerializableFunction<Iterable<String>, Void>() {
-      @Override
-      public Void apply(Iterable<String> input) {
-        assertThat(input, hasItem("2: true"));
-        return null;
-      }
+    PAssert.that(output).satisfies(input1 -> {
+      assertThat(input1, hasItem("2: true"));
+      return null;
     });
 
     pipeline.run();
@@ -593,20 +590,10 @@ public class CombineTest implements Serializable {
   }
 
   private static final SerializableFunction<String, Integer> hotKeyFanout =
-      new SerializableFunction<String, Integer>() {
-        @Override
-        public Integer apply(String input) {
-          return input.equals("a") ? 3 : 0;
-        }
-      };
+      input -> input.equals("a") ? 3 : 0;
 
   private static final SerializableFunction<String, Integer> splitHotKeyFanout =
-      new SerializableFunction<String, Integer>() {
-        @Override
-        public Integer apply(String input) {
-          return Math.random() < 0.5 ? 3 : 0;
-        }
-      };
+      input -> Math.random() < 0.5 ? 3 : 0;
 
   @Test
   @Category(ValidatesRunner.class)
@@ -660,12 +647,9 @@ public class CombineTest implements Serializable {
         .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
         .apply(ParDo.of(new GetLast()));
 
-    PAssert.that(output).satisfies(new SerializableFunction<Iterable<Integer>, Void>() {
-      @Override
-      public Void apply(Iterable<Integer> input) {
-        assertThat(input, hasItem(15));
-        return null;
-      }
+    PAssert.that(output).satisfies(input1 -> {
+      assertThat(input1, hasItem(15));
+      return null;
     });
 
     pipeline.run();

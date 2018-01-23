@@ -356,12 +356,7 @@ public class TestPipelineTest implements Serializable {
       ValueProvider<String> foobar =
           ValueProvider.NestedValueProvider.of(
               foo,
-              new SerializableFunction<String, String>() {
-                @Override
-                public String apply(String input) {
-                  return input + "bar";
-                }
-              });
+              input -> input + "bar");
 
       assertFalse(foo.isAccessible());
       assertFalse(foobar.isAccessible());

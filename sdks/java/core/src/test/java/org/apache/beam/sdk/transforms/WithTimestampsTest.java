@@ -53,12 +53,7 @@ public class WithTimestampsTest implements Serializable {
   public void withTimestampsShouldApplyTimestamps() {
 
     SerializableFunction<String, Instant> timestampFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input));
-          }
-        };
+        input -> new Instant(Long.valueOf(input));
 
     String yearTwoThousand = "946684800000";
     PCollection<String> timestamped =
@@ -91,19 +86,9 @@ public class WithTimestampsTest implements Serializable {
   public void withTimestampsBackwardsInTimeShouldThrow() {
 
     SerializableFunction<String, Instant> timestampFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input));
-          }
-        };
+        input -> new Instant(Long.valueOf(input));
     SerializableFunction<String, Instant> backInTimeFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input)).minus(Duration.millis(1000L));
-          }
-        };
+        input -> new Instant(Long.valueOf(input)).minus(Duration.millis(1000L));
 
 
     String yearTwoThousand = "946684800000";
@@ -124,21 +109,11 @@ public class WithTimestampsTest implements Serializable {
   public void withTimestampsBackwardsInTimeAndWithAllowedTimestampSkewShouldSucceed() {
 
     SerializableFunction<String, Instant> timestampFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input));
-          }
-        };
+        input -> new Instant(Long.valueOf(input));
 
     final Duration skew = Duration.millis(1000L);
     SerializableFunction<String, Instant> backInTimeFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input)).minus(skew);
-          }
-        };
+        input -> new Instant(Long.valueOf(input)).minus(skew);
 
     String yearTwoThousand = "946684800000";
     PCollection<String> timestampedWithSkew =
@@ -175,12 +150,7 @@ public class WithTimestampsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void withTimestampsWithNullTimestampShouldThrow() {
     SerializableFunction<String, Instant> timestampFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return null;
-          }
-        };
+        input -> null;
 
     String yearTwoThousand = "946684800000";
     p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))

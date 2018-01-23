@@ -124,86 +124,55 @@ public class WithMetricsSupport extends MetricRegistry {
   }
 
   private Function<Map.Entry<String, Metric>, Map<String, Gauge>> aggregatorMetricToGauges() {
-    return new Function<Map.Entry<String, Metric>, Map<String, Gauge>>() {
-      @Override
-      public Map<String, Gauge> apply(final Map.Entry<String, Metric> entry) {
-        final NamedAggregators agg = ((AggregatorMetric) entry.getValue()).getNamedAggregators();
-        final String parentName = entry.getKey();
-        final Map<String, Gauge> gaugeMap = Maps.transformEntries(agg.renderAll(), toGauge());
-        final Map<String, Gauge> fullNameGaugeMap = Maps.newLinkedHashMap();
-        for (Map.Entry<String, Gauge> gaugeEntry : gaugeMap.entrySet()) {
-          fullNameGaugeMap.put(parentName + "." + gaugeEntry.getKey(), gaugeEntry.getValue());
-        }
-        return Maps.filterValues(fullNameGaugeMap, Predicates.notNull());
+    return entry -> {
+      final NamedAggregators agg = ((AggregatorMetric) entry.getValue()).getNamedAggregators();
+      final String parentName = entry.getKey();
+      final Map<String, Gauge> gaugeMap = Maps.transformEntries(agg.renderAll(), toGauge());
+      final Map<String, Gauge> fullNameGaugeMap = Maps.newLinkedHashMap();
+      for (Map.Entry<String, Gauge> gaugeEntry : gaugeMap.entrySet()) {
+        fullNameGaugeMap.put(parentName + "." + gaugeEntry.getKey(), gaugeEntry.getValue());
       }
+      return Maps.filterValues(fullNameGaugeMap, Predicates.notNull());
     };
   }
 
   private Function<Map.Entry<String, Metric>, Map<String, Gauge>> beamMetricToGauges() {
-    return new Function<Map.Entry<String, Metric>, Map<String, Gauge>>() {
-      @Override
-      public Map<String, Gauge> apply(final Map.Entry<String, Metric> entry) {
-        final Map<String, ?> metrics = ((SparkBeamMetric) entry.getValue()).renderAll();
-        final String parentName = entry.getKey();
-        final Map<String, Gauge> gaugeMap = Maps.transformEntries(metrics, toGauge());
-        final Map<String, Gauge> fullNameGaugeMap = Maps.newLinkedHashMap();
-        for (Map.Entry<String, Gauge> gaugeEntry : gaugeMap.entrySet()) {
-          fullNameGaugeMap.put(parentName + "." + gaugeEntry.getKey(), gaugeEntry.getValue());
-        }
-        return Maps.filterValues(fullNameGaugeMap, Predicates.notNull());
+    return entry -> {
+      final Map<String, ?> metrics = ((SparkBeamMetric) entry.getValue()).renderAll();
+      final String parentName = entry.getKey();
+      final Map<String, Gauge> gaugeMap = Maps.transformEntries(metrics, toGauge());
+      final Map<String, Gauge> fullNameGaugeMap = Maps.newLinkedHashMap();
+      for (Map.Entry<String, Gauge> gaugeEntry : gaugeMap.entrySet()) {
+        fullNameGaugeMap.put(parentName + "." + gaugeEntry.getKey(), gaugeEntry.getValue());
       }
+      return Maps.filterValues(fullNameGaugeMap, Predicates.notNull());
     };
   }
 
   private Maps.EntryTransformer<String, Object, Gauge> toGauge() {
-    return new Maps.EntryTransformer<String, Object, Gauge>() {
-
-      @Override
-      public Gauge transformEntry(final String name, final Object rawValue) {
-        return new Gauge<Double>() {
-
-          @Override
-          public Double getValue() {
-            // at the moment the metric's type is assumed to be
-            // compatible with Double. While far from perfect, it seems reasonable at
-            // this point in time
-            try {
-              return Double.parseDouble(rawValue.toString());
-            } catch (final Exception e) {
-              LOG.warn("Failed reporting metric with name [{}], of type [{}], since it could not be"
-                  + " converted to double", name, rawValue.getClass().getSimpleName(), e);
-              return null;
-            }
-          }
-        };
+    return (name, rawValue) -> () -> {
+      // at the moment the metric's type is assumed to be
+      // compatible with Double. While far from perfect, it seems reasonable at
+      // this point in time
+      try {
+        return Double.parseDouble(rawValue.toString());
+      } catch (final Exception e) {
+        LOG.warn("Failed reporting metric with name [{}], of type [{}], since it could not be"
+            + " converted to double", name, rawValue.getClass().getSimpleName(), e);
+        return null;
       }
     };
   }
 
   private Predicate<Map.Entry<String, Gauge>> matches(final MetricFilter filter) {
-    return new Predicate<Map.Entry<String, Gauge>>() {
-      @Override
-      public boolean apply(final Map.Entry<String, Gauge> entry) {
-        return filter.matches(entry.getKey(), entry.getValue());
-      }
-    };
+    return entry -> filter.matches(entry.getKey(), entry.getValue());
   }
 
   private Predicate<Map.Entry<String, Metric>> isAggregatorMetric() {
-    return new Predicate<Map.Entry<String, Metric>>() {
-      @Override
-      public boolean apply(final Map.Entry<String, Metric> metricEntry) {
-        return (metricEntry.getValue() instanceof AggregatorMetric);
-      }
-    };
+    return metricEntry -> (metricEntry.getValue() instanceof AggregatorMetric);
   }
 
   private Predicate<Map.Entry<String, Metric>> isSparkBeamMetric() {
-    return new Predicate<Map.Entry<String, Metric>>() {
-      @Override
-      public boolean apply(final Map.Entry<String, Metric> metricEntry) {
-        return (metricEntry.getValue() instanceof SparkBeamMetric);
-      }
-    };
+    return metricEntry -> (metricEntry.getValue() instanceof SparkBeamMetric);
   }
 }

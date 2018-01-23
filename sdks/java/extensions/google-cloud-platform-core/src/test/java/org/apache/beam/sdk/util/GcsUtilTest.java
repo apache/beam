@@ -159,19 +159,16 @@ public class GcsUtilTest {
       final int currentLatch = i;
       countDownLatches[i] = new CountDownLatch(1);
       executorService.execute(
-          new Runnable() {
-            @Override
-            public void run() {
-              // Wait for latch N and then release latch N - 1
-              try {
-                countDownLatches[currentLatch].await();
-                if (currentLatch > 0) {
-                  countDownLatches[currentLatch - 1].countDown();
-                }
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
+          () -> {
+            // Wait for latch N and then release latch N - 1
+            try {
+              countDownLatches[currentLatch].await();
+              if (currentLatch > 0) {
+                countDownLatches[currentLatch - 1].countDown();
               }
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new RuntimeException(e);
             }
           });
     }

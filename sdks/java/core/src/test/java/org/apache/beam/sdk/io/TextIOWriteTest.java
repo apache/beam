@@ -491,13 +491,10 @@ public class TextIOWriteTest {
 
   private static Predicate<List<String>> haveProperHeaderAndFooter(
       final String header, final String footer) {
-    return new Predicate<List<String>>() {
-      @Override
-      public boolean apply(List<String> fileLines) {
-        int last = fileLines.size() - 1;
-        return (header == null || fileLines.get(0).equals(header))
-            && (footer == null || fileLines.get(last).equals(footer));
-      }
+    return fileLines -> {
+      int last = fileLines.size() - 1;
+      return (header == null || fileLines.get(0).equals(header))
+          && (footer == null || fileLines.get(last).equals(footer));
     };
   }
 

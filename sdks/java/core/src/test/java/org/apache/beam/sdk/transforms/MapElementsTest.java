@@ -111,12 +111,7 @@ public class MapElementsTest implements Serializable {
         pipeline
             .apply(Create.of(0, 1, 2))
             .apply(MapElements.into(integers())
-              .via(fn(new Fn<Integer, Integer>() {
-                        @Override
-                        public Integer apply(Integer element, Context c) {
-                          return element + c.sideInput(view);
-                        }
-                      },
+              .via(fn((element, c) -> element + c.sideInput(view),
                       requiresSideInputs(view))));
 
     PAssert.that(output).containsInAnyOrder(40, 41, 42);
@@ -187,12 +182,7 @@ public class MapElementsTest implements Serializable {
             .apply(
                 MapElements.into(integers())
                     .via(
-                        new SerializableFunction<Integer, Integer>() {
-                          @Override
-                          public Integer apply(Integer input) {
-                            return -input;
-                          }
-                        }));
+                        input -> -input));
 
     PAssert.that(output).containsInAnyOrder(-2, -1, -3);
     pipeline.run();
@@ -236,12 +226,7 @@ public class MapElementsTest implements Serializable {
   @Test
   public void testSerializableFunctionDisplayData() {
     SerializableFunction<Integer, Integer> serializableFn =
-        new SerializableFunction<Integer, Integer>() {
-          @Override
-          public Integer apply(Integer input) {
-            return input;
-          }
-        };
+        input -> input;
 
     MapElements<?, ?> serializableMap =
         MapElements.into(integers()).via(serializableFn);

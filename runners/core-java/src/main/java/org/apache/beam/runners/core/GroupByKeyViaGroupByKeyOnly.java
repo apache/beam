@@ -144,12 +144,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
                       }
                       Collections.sort(
                           sortedValues,
-                          new Comparator<WindowedValue<V>>() {
-                            @Override
-                            public int compare(WindowedValue<V> e1, WindowedValue<V> e2) {
-                              return e1.getTimestamp().compareTo(e2.getTimestamp());
-                            }
-                          });
+                          (e1, e2) -> e1.getTimestamp().compareTo(e2.getTimestamp()));
                       c.output(KV.<K, Iterable<WindowedValue<V>>>of(key, sortedValues));
                     }
                   }))

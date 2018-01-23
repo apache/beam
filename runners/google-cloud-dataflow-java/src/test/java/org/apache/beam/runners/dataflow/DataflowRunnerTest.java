@@ -67,7 +67,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.FileChannel;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
@@ -145,8 +144,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for the {@link DataflowRunner}.
@@ -189,36 +186,21 @@ public class DataflowRunnerTest implements Serializable {
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .then(
-            new Answer<SeekableByteChannel>() {
-              @Override
-              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
-                return FileChannel.open(
-                    Files.createTempFile("channel-", ".tmp"),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.DELETE_ON_CLOSE);
-              }
-            });
+            invocation -> FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.DELETE_ON_CLOSE));
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
         .then(
-            new Answer<SeekableByteChannel>() {
-              @Override
-              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
-                return FileChannel.open(
-                    Files.createTempFile("channel-", ".tmp"),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.DELETE_ON_CLOSE);
-              }
-            });
+            invocation -> FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.DELETE_ON_CLOSE));
 
-    when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
-      @Override
-      public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
-        return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
-      }
-    });
+    when(mockGcsUtil.expand(any(GcsPath.class))).then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET + "/staging/"))).
@@ -229,25 +211,21 @@ public class DataflowRunnerTest implements Serializable {
     // Let every valid path be matched
     when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
         .thenAnswer(
-            new Answer<List<GcsUtil.StorageObjectOrIOException>>() {
-              @Override
-              public List<GcsUtil.StorageObjectOrIOException> answer(
-                  InvocationOnMock invocationOnMock) throws Throwable {
+            invocationOnMock -> {
 
-                List<GcsPath> gcsPaths = (List<GcsPath>) invocationOnMock.getArguments()[0];
-                List<GcsUtil.StorageObjectOrIOException> results = new ArrayList<>();
+              List<GcsPath> gcsPaths = (List<GcsPath>) invocationOnMock.getArguments()[0];
+              List<GcsUtil.StorageObjectOrIOException> results = new ArrayList<>();
 
-                for (GcsPath gcsPath : gcsPaths) {
-                  if (gcsPath.getBucket().equals(VALID_BUCKET)) {
-                    StorageObject resultObject = new StorageObject();
-                    resultObject.setBucket(gcsPath.getBucket());
-                    resultObject.setName(gcsPath.getObject());
-                    results.add(GcsUtil.StorageObjectOrIOException.create(resultObject));
-                  }
+              for (GcsPath gcsPath : gcsPaths) {
+                if (gcsPath.getBucket().equals(VALID_BUCKET)) {
+                  StorageObject resultObject = new StorageObject();
+                  resultObject.setBucket(gcsPath.getBucket());
+                  resultObject.setName(gcsPath.getObject());
+                  results.add(GcsUtil.StorageObjectOrIOException.create(resultObject));
                 }
-
-                return results;
               }
+
+              return results;
             });
 
     // The dataflow pipeline attempts to output to this location.
@@ -304,20 +282,10 @@ public class DataflowRunnerTest implements Serializable {
   private GcsUtil buildMockGcsUtil() throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
-        .then(new Answer<SeekableByteChannel>() {
-          @Override
-          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
-            return FileChannel.open(
-                Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
-          }
-        });
-    when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
-      @Override
-      public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
-        return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
-      }
-    });
+        .then(invocation -> FileChannel.open(
+            Files.createTempFile("channel-", ".tmp"),
+            StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE));
+    when(mockGcsUtil.expand(any(GcsPath.class))).then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
     return mockGcsUtil;
   }
 
@@ -698,16 +666,11 @@ public class DataflowRunnerTest implements Serializable {
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
         .then(
-            new Answer<SeekableByteChannel>() {
-              @Override
-              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
-                return FileChannel.open(
-                    Files.createTempFile("channel-", ".tmp"),
-                    StandardOpenOption.CREATE,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.DELETE_ON_CLOSE);
-              }
-            });
+            invocation -> FileChannel.open(
+                Files.createTempFile("channel-", ".tmp"),
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
+                StandardOpenOption.DELETE_ON_CLOSE));
 
     Pipeline p = buildDataflowPipeline(options);
 
@@ -1147,17 +1110,13 @@ public class DataflowRunnerTest implements Serializable {
 
     DataflowPipelineTranslator.registerTransformTranslator(
         TestTransform.class,
-        new TransformTranslator<TestTransform>() {
-          @SuppressWarnings("unchecked")
-          @Override
-          public void translate(TestTransform transform, TranslationContext context) {
-            transform.translated = true;
+        (transform1, context) ->{
+            transform1.translated = true;
 
-            // Note: This is about the minimum needed to fake out a
-            // translation. This obviously isn't a real translation.
-            StepTranslationContext stepContext = context.addStep(transform, "TestTranslate");
-            stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
-          }
+          // Note: This is about the minimum needed to fake out a
+          // translation. This obviously isn't a real translation.
+          TransformTranslator.StepTranslationContext stepContext = context.addStep(transform1, "TestTranslate");
+          stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform1));
         });
 
     translator.translate(

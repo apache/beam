@@ -26,7 +26,6 @@ import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -34,7 +33,6 @@ import com.google.common.hash.Funnel;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
-import com.google.common.hash.PrimitiveSink;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -876,16 +874,13 @@ public class Watch {
         GrowthState<OutputT, KeyT, TerminationStateT> state,
         Growth.TerminationCondition<?, TerminationStateT> terminationCondition) {
       this.coderFunnel =
-          new Funnel<OutputT>() {
-            @Override
-            public void funnel(OutputT from, PrimitiveSink into) {
-              try {
-                // Rather than hashing the output itself, hash the output key.
-                KeyT outputKey = keyFn.apply(from);
-                outputKeyCoder.encode(outputKey, Funnels.asOutputStream(into));
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
+          (from, into) -> {
+            try {
+              // Rather than hashing the output itself, hash the output key.
+              KeyT outputKey = keyFn.apply(from);
+              outputKeyCoder.encode(outputKey, Funnels.asOutputStream(into));
+            } catch (IOException e) {
+              throw new RuntimeException(e);
             }
           };
       this.terminationCondition = terminationCondition;
@@ -1007,12 +1002,7 @@ public class Watch {
           Lists.newLinkedList(
               Ordering.natural()
                   .onResultOf(
-                      new Function<TimestampedValue<OutputT>, Instant>() {
-                        @Override
-                        public Instant apply(TimestampedValue<OutputT> output) {
-                          return output.getTimestamp();
-                        }
-                      })
+                      (TimestampedValue<OutputT> output) -> output.getTimestamp())
                   .sortedCopy(newPending.values()));
       // If poll result doesn't provide a watermark, assume that future new outputs may
       // arrive with about the same timestamps as the current new outputs.

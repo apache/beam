@@ -123,21 +123,10 @@ class SplittableProcessElementsEvaluatorFactory<
                 fnManager);
 
     processFn.setStateInternalsFactory(
-        new StateInternalsFactory<String>() {
-          @SuppressWarnings({"unchecked", "rawtypes"})
-          @Override
-          public StateInternals stateInternalsForKey(String key) {
-            return (StateInternals) stepContext.stateInternals();
-          }
-        });
+        key -> (StateInternals) stepContext.stateInternals());
 
     processFn.setTimerInternalsFactory(
-        new TimerInternalsFactory<String>() {
-          @Override
-          public TimerInternals timerInternalsForKey(String key) {
-            return stepContext.timerInternals();
-          }
-        });
+        key -> stepContext.timerInternals());
 
     OutputWindowedValue<OutputT> outputWindowedValue =
         new OutputWindowedValue<OutputT>() {
@@ -190,34 +179,19 @@ class SplittableProcessElementsEvaluatorFactory<
   private static <InputT, OutputT, RestrictionT>
       ParDoEvaluator.DoFnRunnerFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
           processFnRunnerFactory() {
-    return new ParDoEvaluator.DoFnRunnerFactory<
-        KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>() {
-      @Override
-      public PushbackSideInputDoFnRunner<
-          KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
-      createRunner(
-          PipelineOptions options,
-          DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> fn,
-          List<PCollectionView<?>> sideInputs,
-          ReadyCheckingSideInputReader sideInputReader,
-          OutputManager outputManager,
-          TupleTag<OutputT> mainOutputTag,
-          List<TupleTag<?>> additionalOutputTags,
-          DirectExecutionContext.DirectStepContext stepContext,
-          WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy) {
-        ProcessFn<InputT, OutputT, RestrictionT, ?> processFn =
-            (ProcessFn) fn;
-        return DoFnRunners.newProcessFnRunner(
-            processFn,
-            options,
-            sideInputs,
-            sideInputReader,
-            outputManager,
-            mainOutputTag,
-            additionalOutputTags,
-            stepContext,
-            windowingStrategy);
-      }
+    return (options, fn, sideInputs, sideInputReader, outputManager, mainOutputTag, additionalOutputTags, stepContext, windowingStrategy) -> {
+      ProcessFn<InputT, OutputT, RestrictionT, ?> processFn =
+          (ProcessFn) fn;
+      return DoFnRunners.newProcessFnRunner(
+          processFn,
+          options,
+          sideInputs,
+          sideInputReader,
+          outputManager,
+          mainOutputTag,
+          additionalOutputTags,
+          stepContext,
+          windowingStrategy);
     };
   }
 }

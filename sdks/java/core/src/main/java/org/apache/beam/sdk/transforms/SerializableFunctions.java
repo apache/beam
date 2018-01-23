@@ -26,12 +26,7 @@ import org.apache.beam.sdk.util.SerializableUtils;
 public class SerializableFunctions {
   public static <InT, OutT extends Serializable> SerializableFunction<InT, OutT> clonesOf(
       final OutT base) {
-    return new SerializableFunction<InT, OutT>() {
-      @Override
-      public OutT apply(InT input) {
-        return SerializableUtils.clone(base);
-      }
-    };
+    return input -> SerializableUtils.clone(base);
   }
 
   private static class Identity<T> implements SerializableFunction<T, T> {

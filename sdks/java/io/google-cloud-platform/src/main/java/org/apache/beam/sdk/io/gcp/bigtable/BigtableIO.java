@@ -474,19 +474,16 @@ public class BigtableIO {
     static SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
     enableBulkApiConfigurator(final @Nullable SerializableFunction<BigtableOptions.Builder,
         BigtableOptions.Builder> userConfigurator) {
-      return new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
-        @Override
-        public BigtableOptions.Builder apply(BigtableOptions.Builder optionsBuilder) {
-          if (userConfigurator != null) {
-            optionsBuilder = userConfigurator.apply(optionsBuilder);
-          }
-
-          return optionsBuilder
-            .setBulkOptions(
-              optionsBuilder.build().getBulkOptions().toBuilder()
-                .setUseBulkApi(true)
-                .build());
+      return optionsBuilder -> {
+        if (userConfigurator != null) {
+          optionsBuilder = userConfigurator.apply(optionsBuilder);
         }
+
+        return optionsBuilder
+          .setBulkOptions(
+            optionsBuilder.build().getBulkOptions().toBuilder()
+              .setUseBulkApi(true)
+              .build());
       };
     }
 

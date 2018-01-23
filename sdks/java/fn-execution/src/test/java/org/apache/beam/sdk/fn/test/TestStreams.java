@@ -73,12 +73,7 @@ public class TestStreams {
     public Builder<T> withOnError(final Runnable onError) {
       return new Builder<>(new ForwardingCallStreamObserver<>(
           observer.onNext,
-          new Consumer<Throwable>() {
-            @Override
-            public void accept(Throwable t) {
-              onError.run();
-            }
-          },
+          t -> onError.run(),
           observer.onCompleted,
           observer.isReady));
     }
@@ -98,11 +93,8 @@ public class TestStreams {
   }
 
   private static Consumer<Throwable> throwingErrorHandler() {
-    return new Consumer<Throwable>() {
-      @Override
-      public void accept(Throwable item) {
-        throw new RuntimeException(item);
-      }
+    return item -> {
+      throw new RuntimeException(item);
     };
   }
 
@@ -110,10 +102,7 @@ public class TestStreams {
   }
 
   private static Runnable noopRunnable() {
-    return new Runnable() {
-      @Override
-      public void run() {
-      }
+    return () -> {
     };
   }
 
@@ -121,10 +110,7 @@ public class TestStreams {
   }
 
   private static <T> Consumer<T> noopConsumer() {
-    return new Consumer<T>() {
-      @Override
-      public void accept(T item) {
-      }
+    return item -> {
     };
   }
 
@@ -133,12 +119,7 @@ public class TestStreams {
   }
 
   private static Supplier<Boolean> alwaysTrueSupplier() {
-    return new Supplier<Boolean>() {
-      @Override
-      public Boolean get() {
-        return true;
-      }
-    };
+    return () -> true;
   }
 
   /** A {@link CallStreamObserver} which executes the supplied callbacks. */

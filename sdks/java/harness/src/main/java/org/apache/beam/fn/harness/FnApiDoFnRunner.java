@@ -886,28 +886,23 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
       return (CombiningState<InputT, AccumT, OutputT>) stateObjectCache.computeIfAbsent(
           createOrUseCachedBagUserStateKey(id),
-          new Function<StateKey.BagUserState, Object>() {
-            @Override
-            public Object apply(StateKey.BagUserState s) {
-              return bindCombining(id, spec, accumCoder, CombineFnUtil.bindContext(combineFn,
-                  new StateContext<BoundedWindow>() {
-                    @Override
-                    public PipelineOptions getPipelineOptions() {
-                      return pipelineOptions;
-                    }
+          s -> bindCombining(id, spec, accumCoder, CombineFnUtil.bindContext(combineFn,
+              new StateContext<BoundedWindow>() {
+                @Override
+                public PipelineOptions getPipelineOptions() {
+                  return pipelineOptions;
+                }
 
-                    @Override
-                    public <T> T sideInput(PCollectionView<T> view) {
-                      return processBundleContext.sideInput(view);
-                    }
+                @Override
+                public <T> T sideInput(PCollectionView<T> view) {
+                  return processBundleContext.sideInput(view);
+                }
 
-                    @Override
-                    public BoundedWindow window() {
-                      return currentWindow;
-                    }
-                  }));
-            }
-          });
+                @Override
+                public BoundedWindow window() {
+                  return currentWindow;
+                }
+              })));
     }
 
     /**

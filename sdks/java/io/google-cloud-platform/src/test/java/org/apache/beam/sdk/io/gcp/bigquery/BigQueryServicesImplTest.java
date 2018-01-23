@@ -582,12 +582,7 @@ public class BigQueryServicesImplTest {
     // Return row 1 failing, then we retry row 1 as row 0, and row 0 persistently fails.
     when(response.getContent())
         .thenReturn(toStream(row1Failed))
-        .thenAnswer(new Answer<InputStream>() {
-          @Override
-          public InputStream answer(InvocationOnMock invocation) throws Throwable {
-            return toStream(row0Failed);
-          }
-        });
+        .thenAnswer(invocation -> toStream(row0Failed));
 
 
     DatasetServiceImpl dataService =

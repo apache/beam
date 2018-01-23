@@ -417,12 +417,7 @@ public class SolrIO {
             final Replica replica = slice.getLeader();
             Future<Long> future =
                 executor.submit(
-                    new Callable<Long>() {
-                      @Override
-                      public Long call() throws Exception {
-                        return getEstimatedSizeOfShard(ReplicaInfo.create(replica));
-                      }
-                    });
+                    () -> getEstimatedSizeOfShard(ReplicaInfo.create(replica)));
             futures.add(future);
           }
           for (Future<Long> future : futures) {

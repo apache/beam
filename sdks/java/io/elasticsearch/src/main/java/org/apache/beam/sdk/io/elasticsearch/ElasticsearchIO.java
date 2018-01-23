@@ -317,12 +317,7 @@ public class ElasticsearchIO {
         credentialsProvider.setCredentials(
             AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
         restClientBuilder.setHttpClientConfigCallback(
-            new RestClientBuilder.HttpClientConfigCallback() {
-              public HttpAsyncClientBuilder customizeHttpClient(
-                  HttpAsyncClientBuilder httpAsyncClientBuilder) {
-                return httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
-              }
-            });
+            httpAsyncClientBuilder -> httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
       }
       if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
         try {
@@ -335,13 +330,7 @@ public class ElasticsearchIO {
               .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy()).build();
           final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
           restClientBuilder.setHttpClientConfigCallback(
-              new RestClientBuilder.HttpClientConfigCallback() {
-            @Override
-            public HttpAsyncClientBuilder customizeHttpClient(
-                HttpAsyncClientBuilder httpClientBuilder) {
-              return httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy);
-            }
-          });
+              httpClientBuilder -> httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
         } catch (Exception e) {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }

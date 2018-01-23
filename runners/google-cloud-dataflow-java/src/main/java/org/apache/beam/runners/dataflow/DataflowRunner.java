@@ -1431,12 +1431,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PCollection<T> expand(PCollection<ValueWithRecordId<T>> input) {
       return input
-          .apply(WithKeys.of(new SerializableFunction<ValueWithRecordId<T>, Integer>() {
-            @Override
-            public Integer apply(ValueWithRecordId<T> value) {
-              return Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS;
-            }
-          }))
+          .apply(WithKeys.of(value -> Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS))
           // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
           .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())

@@ -443,14 +443,11 @@ public class HadoopInputFormatIO {
       LOG.info("Generated {} splits. Size of first split is {} ", inputSplits.size(), inputSplits
           .get(0).getSplit().getLength());
       return Lists.transform(inputSplits,
-          new Function<SerializableSplit, BoundedSource<KV<K, V>>>() {
-            @Override
-            public BoundedSource<KV<K, V>> apply(SerializableSplit serializableInputSplit) {
-              HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
-                  new HadoopInputFormatBoundedSource<K, V>(conf, keyCoder, valueCoder,
-                      keyTranslationFunction, valueTranslationFunction, serializableInputSplit);
-              return hifBoundedSource;
-            }
+          serializableInputSplit -> {
+            HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
+                new HadoopInputFormatBoundedSource<K, V>(conf, keyCoder, valueCoder,
+                    keyTranslationFunction, valueTranslationFunction, serializableInputSplit);
+            return hifBoundedSource;
           });
     }
 

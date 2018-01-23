@@ -179,10 +179,6 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   }
 
   private static Callable<Path> filesTempDirectory() {
-    return new Callable<Path>() {
-      public Path call() throws IOException {
-        return Files.createTempDirectory("reference-runner-staging");
-      }
-    };
+    return () -> Files.createTempDirectory("reference-runner-staging");
   }
 }

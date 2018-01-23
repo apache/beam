@@ -222,11 +222,7 @@ public class FileSystems {
   public static List<MatchResult> matchResources(List<ResourceId> resourceIds) throws IOException {
     return match(FluentIterable
         .from(resourceIds)
-        .transform(new Function<ResourceId, String>() {
-          @Override
-          public String apply(@Nonnull ResourceId resourceId) {
-            return resourceId.toString();
-          }})
+        .transform(resourceId -> resourceId.toString())
         .toList());
   }
 
@@ -368,11 +364,7 @@ public class FileSystems {
         MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES)) {
       resourceIdsToDelete = FluentIterable
           .from(matchResources(Lists.newArrayList(resourceIds)))
-          .filter(new Predicate<MatchResult>() {
-            @Override
-            public boolean apply(@Nonnull MatchResult matchResult) {
-              return !matchResult.status().equals(MatchResult.Status.NOT_FOUND);
-            }})
+          .filter(matchResult -> !matchResult.status().equals(Status.NOT_FOUND))
           .transformAndConcat(new Function<MatchResult, Iterable<Metadata>>() {
             @Nonnull
             @Override
@@ -438,11 +430,7 @@ public class FileSystems {
 
     Set<String> schemes = FluentIterable.from(srcResourceIds)
         .append(destResourceIds)
-        .transform(new Function<ResourceId, String>() {
-          @Override
-          public String apply(@Nonnull ResourceId resourceId) {
-            return resourceId.getScheme();
-          }})
+        .transform(resourceId -> resourceId.getScheme())
         .toSet();
     checkArgument(
         schemes.size() == 1,
@@ -454,11 +442,7 @@ public class FileSystems {
   private static String getOnlyScheme(List<String> specs) {
     checkArgument(!specs.isEmpty(), "Expect specs are not empty.");
     Set<String> schemes = FluentIterable.from(specs)
-        .transform(new Function<String, String>() {
-          @Override
-          public String apply(String spec) {
-            return parseScheme(spec);
-          }})
+        .transform(spec -> parseScheme(spec))
         .toSet();
     return Iterables.getOnlyElement(schemes);
   }
@@ -528,11 +512,7 @@ public class FileSystems {
       if (entry.getValue().size() > 1) {
         String conflictingFileSystems = Joiner.on(", ").join(
             FluentIterable.from(entry.getValue())
-                .transform(new Function<FileSystem, String>() {
-                  @Override
-                  public String apply(@Nonnull FileSystem input) {
-                    return input.getClass().getName();
-                  }})
+                .transform(input -> input.getClass().getName())
                 .toSortedList(Ordering.<String>natural()));
         throw new IllegalStateException(String.format(
             "Scheme: [%s] has conflicting filesystems: [%s]",

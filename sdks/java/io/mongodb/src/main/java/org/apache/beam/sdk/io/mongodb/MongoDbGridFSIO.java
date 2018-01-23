@@ -149,16 +149,12 @@ public class MongoDbGridFSIO {
    * split the input file into Strings. It uses the timestamp of the file
    * for the event timestamp.
    */
-  private static final Parser<String> TEXT_PARSER = new Parser<String>() {
-    @Override
-    public void parse(GridFSDBFile input, ParserCallback<String> callback)
-        throws IOException {
-      final Instant time = new Instant(input.getUploadDate().getTime());
-      try (BufferedReader reader =
-        new BufferedReader(new InputStreamReader(input.getInputStream()))) {
-        for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-          callback.output(line, time);
-        }
+  private static final Parser<String> TEXT_PARSER = (input, callback) -> {
+    final Instant time = new Instant(input.getUploadDate().getTime());
+    try (BufferedReader reader =
+      new BufferedReader(new InputStreamReader(input.getInputStream()))) {
+      for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+        callback.output(line, time);
       }
     }
   };
@@ -177,12 +173,9 @@ public class MongoDbGridFSIO {
   public static Write<String> write() {
     return new AutoValue_MongoDbGridFSIO_Write.Builder<String>()
         .setConnectionConfiguration(ConnectionConfiguration.create())
-        .setWriteFn(new WriteFn<String>() {
-          @Override
-          public void write(String output, OutputStream outStream) throws IOException {
-            outStream.write(output.getBytes("utf-8"));
-            outStream.write('\n');
-          }
+        .setWriteFn((output, outStream) -> {
+          outStream.write(output.getBytes("utf-8"));
+          outStream.write('\n');
         }).build();
   }
   public static <T> Write<T> write(WriteFn<T> fn) {

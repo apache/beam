@@ -140,11 +140,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
             boundedSource.split(desiredBundleSize, options);
         return Lists.transform(
             splits,
-            new Function<BoundedSource<T>, BoundedToUnboundedSourceAdapter<T>>() {
-              @Override
-              public BoundedToUnboundedSourceAdapter<T> apply(BoundedSource<T> input) {
-                return new BoundedToUnboundedSourceAdapter<>(input);
-              }});
+            input -> new BoundedToUnboundedSourceAdapter<>(input));
       } catch (Exception e) {
         LOG.warn("Exception while splitting {}, skips the initial splits.", boundedSource, e);
         return ImmutableList.of(this);

@@ -111,19 +111,10 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
         final K key, Iterable<WindowedValue<InputT>> elements) {
       Iterable<Iterable<WindowedValue<InputT>>> windowsExpandedElements = Iterables.transform(
           elements,
-          new Function<WindowedValue<InputT>, Iterable<WindowedValue<InputT>>>() {
-            @Override
-            public Iterable<WindowedValue<InputT>> apply(final WindowedValue<InputT> input) {
-              return Iterables.transform(
-                  input.getWindows(),
-                  new Function<BoundedWindow, WindowedValue<InputT>>() {
-                    @Override
-                    public WindowedValue<InputT> apply(BoundedWindow window) {
-                      return WindowedValue.of(
-                          input.getValue(), input.getTimestamp(), window, input.getPane());
-                    }
-                  });
-            }});
+          input -> Iterables.transform(
+              input.getWindows(),
+              window -> WindowedValue.of(
+                  input.getValue(), input.getTimestamp(), window, input.getPane())));
       Iterable<WindowedValue<InputT>> concatElements = Iterables.concat(windowsExpandedElements);
 
       // Bump the counter separately since we don't want multiple iterations to
@@ -148,12 +139,9 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
       Iterable<WindowedValue<InputT>> nonLateElements =
           Iterables.filter(
               concatElements,
-              new Predicate<WindowedValue<InputT>>() {
-                @Override
-                public boolean apply(WindowedValue<InputT> input) {
-                  BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
-                  return !canDropDueToExpiredWindow(window);
-                }
+              input -> {
+                BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
+                return !canDropDueToExpiredWindow(window);
               });
       return nonLateElements;
     }

@@ -144,12 +144,7 @@ public class BigtableIOTest {
 
   private static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
     PORT_CONFIGURATOR =
-    new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
-      @Override
-      public BigtableOptions.Builder apply(BigtableOptions.Builder input) {
-        return input.setPort(1234);
-      }
-    };
+      input -> input.setPort(1234);
 
   @Before
   public void setup() throws Exception {
@@ -410,17 +405,14 @@ public class BigtableIOTest {
   private static List<Row> filterToRanges(List<Row> rows, final List<ByteKeyRange> ranges) {
     return Lists.newArrayList(Iterables.filter(
         rows,
-        new Predicate<Row>() {
-          @Override
-          public boolean apply(@Nullable Row input) {
-            verifyNotNull(input, "input");
-            for (ByteKeyRange range : ranges) {
-              if (range.containsKey(makeByteKey(input.getKey()))) {
-                return true;
-              }
+        input -> {
+          verifyNotNull(input, "input");
+          for (ByteKeyRange range : ranges) {
+            if (range.containsKey(makeByteKey(input.getKey()))) {
+              return true;
             }
-            return false;
           }
+          return false;
         }));
   }
 
@@ -513,12 +505,9 @@ public class BigtableIOTest {
     Iterable<Row> filteredRows =
         Iterables.filter(
             testRows,
-            new Predicate<Row>() {
-              @Override
-              public boolean apply(@Nullable Row input) {
-                verifyNotNull(input, "input");
-                return keyPredicate.apply(input.getKey());
-              }
+            input -> {
+              verifyNotNull(input, "input");
+              return keyPredicate.apply(input.getKey());
             });
 
     RowFilter filter =

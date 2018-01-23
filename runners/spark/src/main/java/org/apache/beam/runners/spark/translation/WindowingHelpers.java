@@ -38,12 +38,7 @@ public final class WindowingHelpers {
    * @return A function that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> Function<T, WindowedValue<T>> windowFunction() {
-    return new Function<T, WindowedValue<T>>() {
-      @Override
-      public WindowedValue<T> call(T t) {
-        return WindowedValue.valueInGlobalWindow(t);
-      }
-    };
+    return t -> WindowedValue.valueInGlobalWindow(t);
   }
 
   /**
@@ -53,12 +48,7 @@ public final class WindowingHelpers {
    * @return A function that accepts a {@link WindowedValue} and returns its value.
    */
   public static <T> Function<WindowedValue<T>, T> unwindowFunction() {
-    return new Function<WindowedValue<T>, T>() {
-      @Override
-      public T call(WindowedValue<T> t) {
-        return t.getValue();
-      }
-    };
+    return t -> t.getValue();
   }
 
   /**
@@ -68,12 +58,7 @@ public final class WindowingHelpers {
    * @return A function that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> com.google.common.base.Function<T, WindowedValue<T>> windowValueFunction() {
-    return new com.google.common.base.Function<T, WindowedValue<T>>() {
-      @Override
-      public WindowedValue<T> apply(T t) {
-        return WindowedValue.valueInGlobalWindow(t);
-      }
-    };
+    return t -> WindowedValue.valueInGlobalWindow(t);
   }
 
   /**
@@ -83,11 +68,6 @@ public final class WindowingHelpers {
    * @return A function that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> com.google.common.base.Function<WindowedValue<T>, T> unwindowValueFunction() {
-    return new com.google.common.base.Function<WindowedValue<T>, T>() {
-      @Override
-      public T apply(@Nonnull WindowedValue<T> t) {
-        return t.getValue();
-      }
-    };
+    return t -> t.getValue();
   }
 }

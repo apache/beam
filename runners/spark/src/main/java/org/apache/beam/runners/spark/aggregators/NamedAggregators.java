@@ -63,13 +63,7 @@ public class NamedAggregators implements Serializable {
     return
         ImmutableMap.copyOf(
             Maps.transformValues(mNamedAggregators,
-                new Function<State<?, ?, ?>, Object>() {
-
-                  @Override
-                  public Object apply(State<?, ?, ?> state) {
-                    return state.render();
-                  }
-                }));
+                state -> state.render()));
   }
 
   /**

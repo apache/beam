@@ -501,11 +501,8 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    ValidationEventHandler validationEventHandler = new ValidationEventHandler() {
-      @Override
-      public boolean handleEvent(ValidationEvent event) {
-        throw new RuntimeException("MyCustomValidationEventHandler failure mesage");
-      }
+    ValidationEventHandler validationEventHandler = event -> {
+      throw new RuntimeException("MyCustomValidationEventHandler failure mesage");
     };
 
     BoundedSource<WrongTrainType> source =

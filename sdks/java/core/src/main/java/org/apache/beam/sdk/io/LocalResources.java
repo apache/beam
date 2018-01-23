@@ -47,12 +47,7 @@ public final class LocalResources {
 
   public static ValueProvider<ResourceId>
   fromString(ValueProvider<String> resourceProvider, final boolean isDirectory) {
-    return NestedValueProvider.of(resourceProvider, new SerializableFunction<String, ResourceId>() {
-      @Override
-      public ResourceId apply(String input) {
-        return fromString(input, isDirectory);
-      }
-    });
+    return NestedValueProvider.of(resourceProvider, input -> fromString(input, isDirectory));
   }
 
   private LocalResources() {} // prevent instantiation

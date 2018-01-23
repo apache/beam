@@ -172,12 +172,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   private static DataflowPipelineOptions buildPipelineOptions() throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
-    when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
-      @Override
-      public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
-        return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
-      }
-    });
+    when(mockGcsUtil.expand(any(GcsPath.class))).then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
     when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
 
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);

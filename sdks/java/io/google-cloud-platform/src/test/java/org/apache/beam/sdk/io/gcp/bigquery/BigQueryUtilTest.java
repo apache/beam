@@ -110,16 +110,13 @@ public class BigQueryUtilTest {
     }
 
     doAnswer(
-        new Answer<Bigquery.Tabledata.InsertAll>() {
-          @Override
-          public Bigquery.Tabledata.InsertAll answer(InvocationOnMock invocation) throws Throwable {
-            Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
-            when(mockInsertAll.execute())
-                .thenReturn(responses.get(0),
-                    responses.subList(1, responses.size()).toArray(
-                        new TableDataInsertAllResponse[responses.size() - 1]));
-            return mockInsertAll;
-          }
+        invocation -> {
+          Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
+          when(mockInsertAll.execute())
+              .thenReturn(responses.get(0),
+                  responses.subList(1, responses.size()).toArray(
+                      new TableDataInsertAllResponse[responses.size() - 1]));
+          return mockInsertAll;
         })
         .when(mockTabledata)
         .insertAll(anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class));
