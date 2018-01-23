@@ -74,7 +74,7 @@ public class ReadTranslationTest {
     assumeThat(source, instanceOf(BoundedSource.class));
     BoundedSource<?> boundedSource = (BoundedSource<?>) this.source;
     Read.Bounded<?> boundedRead = Read.from(boundedSource);
-    ReadPayload payload = ReadTranslation.toProto(boundedRead);
+    ReadPayload payload = ReadTranslation.toProto(boundedRead, SdkComponents.create());
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.BOUNDED));
     BoundedSource<?> deserializedSource = ReadTranslation.boundedSourceFromProto(payload);
     assertThat(deserializedSource, Matchers.<Source<?>>equalTo(source));
@@ -85,7 +85,7 @@ public class ReadTranslationTest {
     assumeThat(source, instanceOf(UnboundedSource.class));
     UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) this.source;
     Read.Unbounded<?> unboundedRead = Read.from(unboundedSource);
-    ReadPayload payload = ReadTranslation.toProto(unboundedRead);
+    ReadPayload payload = ReadTranslation.toProto(unboundedRead, SdkComponents.create());
     assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.UNBOUNDED));
     UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);
     assertThat(deserializedSource, Matchers.<Source<?>>equalTo(source));
