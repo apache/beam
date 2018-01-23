@@ -1227,7 +1227,7 @@ public class AvroIO {
     /** See {@link TypedWrite#to(ResourceId)} . */
     @Experimental(Kind.FILESYSTEM)
     public Write<T> to(ResourceId outputPrefix) {
-      return new Write<T>(
+      return new Write<>(
           inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 

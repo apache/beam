@@ -269,7 +269,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       input
-          .apply(ParDo.of(new WrapAsList<T>()))
+          .apply(ParDo.of(new WrapAsList<>()))
           .apply(CreateApexPCollectionView.of(transform.getView()));
       return input;
     }
@@ -327,7 +327,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
                   transform) {
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
-            new StreamingViewAsIterable<T>(transform.getTransform().getView()));
+            new StreamingViewAsIterable<>(transform.getTransform().getView()));
       }
     }
   }

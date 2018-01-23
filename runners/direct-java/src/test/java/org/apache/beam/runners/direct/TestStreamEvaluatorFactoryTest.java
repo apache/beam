@@ -77,7 +77,7 @@ public class TestStreamEvaluatorFactoryTest {
         .advanceProcessingTime(Duration.standardMinutes(10))
         .advanceWatermarkToInfinity();
     PCollection<Integer> streamVals =
-        p.apply(new DirectTestStream<Integer>(runner, testStream));
+        p.apply(new DirectTestStream<>(runner, testStream));
 
     TestClock clock = new TestClock();
     when(context.getClock()).thenReturn(clock);

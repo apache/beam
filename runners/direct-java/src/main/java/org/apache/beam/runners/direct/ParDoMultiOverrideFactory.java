@@ -158,7 +158,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       PCollection<KeyedWorkItem<K, KV<K, InputT>>> adjustedInput =
           input
               // Stash the original timestamps, etc, for when it is fed to the user's DoFn
-              .apply("Reify timestamps", ParDo.of(new ReifyWindowedValueFn<K, InputT>()))
+              .apply("Reify timestamps", ParDo.of(new ReifyWindowedValueFn<>()))
               .setCoder(KvCoder.of(keyCoder, WindowedValue.getFullCoder(kvCoder, windowCoder)))
 
               // We are going to GBK to gather keys and windows but otherwise do not want
@@ -178,7 +178,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               .apply("Group by key", GroupByKey.create())
 
               // Adapt to KeyedWorkItem; that is how this runner delivers timers
-              .apply("To KeyedWorkItem", ParDo.of(new ToKeyedWorkItem<K, InputT>()))
+              .apply("To KeyedWorkItem", ParDo.of(new ToKeyedWorkItem<>()))
               .setCoder(KeyedWorkItemCoder.of(keyCoder, kvCoder, windowCoder))
 
               // Because of the intervening GBK, we may have abused the windowing strategy

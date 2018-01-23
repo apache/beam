@@ -53,7 +53,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     String sql2 = "SELECT f_int2, squaresum2(f_int) AS `squaresum`"
         + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<BeamRecord> result2 =
-        PCollectionTuple.of(new TupleTag<BeamRecord>("PCOLLECTION"), boundedInput1)
+        PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
         .apply("testUdaf2",
             BeamSql.queryMulti(sql2).withUdaf("squaresum2", new SquareSum()));
     PAssert.that(result2).containsInAnyOrder(record);
@@ -79,7 +79,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
     String sql2 = "SELECT f_int, cubic2(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<BeamRecord> result2 =
-        PCollectionTuple.of(new TupleTag<BeamRecord>("PCOLLECTION"), boundedInput1)
+        PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
         .apply("testUdf2",
             BeamSql.queryMulti(sql2).withUdf("cubic2", new CubicIntegerFn()));
     PAssert.that(result2).containsInAnyOrder(record);

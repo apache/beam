@@ -53,7 +53,7 @@ public class StreamUtils {
     byte[] buffer = refBuffer == null ? null : refBuffer.get();
     if (buffer == null) {
       buffer = new byte[BUF_SIZE];
-      threadLocalBuffer.set(new SoftReference<byte[]>(buffer));
+      threadLocalBuffer.set(new SoftReference<>(buffer));
     }
     ByteArrayOutputStream outStream = new ByteArrayOutputStream();
     while (true) {

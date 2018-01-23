@@ -243,7 +243,7 @@ public class BeamSql {
     @Override
     public PCollection<BeamRecord> expand(PCollection<BeamRecord> input) {
       validateQuery();
-      return PCollectionTuple.of(new TupleTag<BeamRecord>(PCOLLECTION_TABLE_NAME), input)
+      return PCollectionTuple.of(new TupleTag<>(PCOLLECTION_TABLE_NAME), input)
           .apply(delegate);
     }
   }

@@ -52,7 +52,7 @@ public class MetricsEnvironment {
   private static final AtomicBoolean REPORTED_MISSING_CONTAINER = new AtomicBoolean(false);
 
   private static final ThreadLocal<MetricsContainer> CONTAINER_FOR_THREAD =
-      new ThreadLocal<MetricsContainer>();
+      new ThreadLocal<>();
 
   /**
    * Set the {@link MetricsContainer} for the current thread.

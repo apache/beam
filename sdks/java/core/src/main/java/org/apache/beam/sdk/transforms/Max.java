@@ -143,7 +143,7 @@ public class Max {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   BinaryCombineFn<T> of(final T identity, final ComparatorT comparator) {
-    return new MaxFn<T>(identity, comparator);
+    return new MaxFn<>(identity, comparator);
   }
 
   /**
@@ -155,15 +155,15 @@ public class Max {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   BinaryCombineFn<T> of(final ComparatorT comparator) {
-    return new MaxFn<T>(null, comparator);
+    return new MaxFn<>(null, comparator);
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
-    return new MaxFn<T>(identity, new Top.Natural<T>());
+    return new MaxFn<>(identity, new Top.Natural<>());
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
-    return new MaxFn<T>(null, new Top.Natural<T>());
+    return new MaxFn<>(null, new Top.Natural<>());
   }
 
   /**

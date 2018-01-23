@@ -153,9 +153,9 @@ public class WriteFilesTest {
     public PCollection<T> expand(PCollection<T> input) {
       return input
           .apply(window)
-          .apply(ParDo.of(new AddArbitraryKey<T>()))
+          .apply(ParDo.of(new AddArbitraryKey<>()))
           .apply(GroupByKey.create())
-          .apply(ParDo.of(new RemoveArbitraryKey<T>()));
+          .apply(ParDo.of(new RemoveArbitraryKey<>()));
     }
   }
 

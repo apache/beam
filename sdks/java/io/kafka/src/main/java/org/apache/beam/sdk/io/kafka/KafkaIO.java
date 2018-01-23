@@ -279,8 +279,8 @@ public class KafkaIO {
    */
   public static Read<byte[], byte[]> readBytes() {
     return new AutoValue_KafkaIO_Read.Builder<byte[], byte[]>()
-        .setTopics(new ArrayList<String>())
-        .setTopicPartitions(new ArrayList<TopicPartition>())
+        .setTopics(new ArrayList<>())
+        .setTopicPartitions(new ArrayList<>())
         .setKeyDeserializer(ByteArrayDeserializer.class)
         .setValueDeserializer(ByteArrayDeserializer.class)
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
@@ -297,8 +297,8 @@ public class KafkaIO {
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
-        .setTopics(new ArrayList<String>())
-        .setTopicPartitions(new ArrayList<TopicPartition>())
+        .setTopics(new ArrayList<>())
+        .setTopicPartitions(new ArrayList<>())
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
@@ -565,7 +565,7 @@ public class KafkaIO {
      * Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata.
      */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
-      return new TypedWithoutMetadata<K, V>(this);
+      return new TypedWithoutMetadata<>(this);
     }
 
     @Override
@@ -630,7 +630,7 @@ public class KafkaIO {
     @VisibleForTesting
     UnboundedSource<KafkaRecord<K, V>, KafkaCheckpointMark> makeSource() {
 
-      return new UnboundedKafkaSource<K, V>(this, -1);
+      return new UnboundedKafkaSource<>(this, -1);
     }
 
     // utility method to convert KafkRecord<K, V> to user KV<K, V> before applying user functions
@@ -819,7 +819,7 @@ public class KafkaIO {
       List<List<TopicPartition>> assignments = new ArrayList<>(numSplits);
 
       for (int i = 0; i < numSplits; i++) {
-        assignments.add(new ArrayList<TopicPartition>());
+        assignments.add(new ArrayList<>());
       }
       for (int i = 0; i < partitions.size(); i++) {
         assignments.get(i % numSplits).add(partitions.get(i));
@@ -851,13 +851,13 @@ public class KafkaIO {
       if (spec.getTopicPartitions().isEmpty()) {
         LOG.warn("Looks like generateSplits() is not called. Generate single split.");
         try {
-          return new UnboundedKafkaReader<K, V>(
+          return new UnboundedKafkaReader<>(
               split(1, options).get(0), checkpointMark);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
       }
-      return new UnboundedKafkaReader<K, V>(this, checkpointMark);
+      return new UnboundedKafkaReader<>(this, checkpointMark);
     }
 
     @Override
@@ -1658,7 +1658,7 @@ public class KafkaIO {
               return KV.of(null, element);
             }
           }))
-        .setCoder(KvCoder.of(new NullOnlyCoder<K>(), input.getCoder()))
+        .setCoder(KvCoder.of(new NullOnlyCoder<>(), input.getCoder()))
         .apply(kvWriteTransform);
     }
 
@@ -1690,7 +1690,7 @@ public class KafkaIO {
       if (spec.getProducerFactoryFn() != null) {
         producer = spec.getProducerFactoryFn().apply(producerConfig);
       } else {
-        producer = new KafkaProducer<K, V>(producerConfig);
+        producer = new KafkaProducer<>(producerConfig);
       }
     }
 
@@ -1700,7 +1700,7 @@ public class KafkaIO {
 
       KV<K, V> kv = ctx.element();
       producer.send(
-          new ProducerRecord<K, V>(spec.getTopic(), kv.getKey(), kv.getValue()),
+          new ProducerRecord<>(spec.getTopic(), kv.getKey(), kv.getValue()),
           new SendCallback());
 
       elementsWritten.inc();
@@ -1894,9 +1894,9 @@ public class KafkaIO {
                   .discardingFiredPanes())
           .apply(
               String.format("Shuffle across %d shards", numShards),
-              ParDo.of(new EOSReshard<K, V>(numShards)))
+              ParDo.of(new EOSReshard<>(numShards)))
           .apply("Persist sharding", GroupByKey.create())
-          .apply("Assign sequential ids", ParDo.of(new EOSSequencer<K, V>()))
+          .apply("Assign sequential ids", ParDo.of(new EOSSequencer<>()))
           .apply("Persist ids", GroupByKey.create())
           .apply(
               String.format("Write to Kafka topic '%s'", spec.getTopic()),
@@ -2075,7 +2075,7 @@ public class KafkaIO {
             // might be problematic in extreme cases. Might need to improve it in future.
 
             List<KV<Long, KV<K, V>>> buffered = Lists.newArrayList(oooBufferState.read());
-            Collections.sort(buffered, new KV.OrderByKey<Long, KV<K, V>>());
+            Collections.sort(buffered, new KV.OrderByKey<>());
 
             LOG.info("{} : merging {} buffered records (min buffered id is {}).",
                      shard, buffered.size(), minBufferedId);
@@ -2085,7 +2085,7 @@ public class KafkaIO {
             minBufferedId = Long.MAX_VALUE;
 
             iter = Iterators.mergeSorted(ImmutableList.of(iter, buffered.iterator()),
-                                         new KV.OrderByKey<Long, KV<K, V>>());
+                new KV.OrderByKey<>());
           }
         }
 
@@ -2368,7 +2368,7 @@ public class KafkaIO {
 
     Producer<K, V> producer = spec.getProducerFactoryFn() != null
       ? spec.getProducerFactoryFn().apply((producerConfig))
-      : new KafkaProducer<K, V>(producerConfig);
+      : new KafkaProducer<>(producerConfig);
 
     ProducerSpEL.initTransactions(producer);
     return producer;

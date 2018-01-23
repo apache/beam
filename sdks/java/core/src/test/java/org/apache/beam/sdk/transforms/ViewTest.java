@@ -322,7 +322,7 @@ public class ViewTest implements Serializable {
                     } catch (UnsupportedOperationException expected) {
                     }
                     try {
-                      c.sideInput(view).addAll(new ArrayList<Integer>());
+                      c.sideInput(view).addAll(new ArrayList<>());
                       fail("Expected UnsupportedOperationException on addAll()");
                     } catch (UnsupportedOperationException expected) {
                     }
@@ -813,7 +813,7 @@ public class ViewTest implements Serializable {
                     } catch (UnsupportedOperationException expected) {
                     }
                     try {
-                      c.sideInput(view).putAll(new HashMap<String, Iterable<Integer>>());
+                      c.sideInput(view).putAll(new HashMap<>());
                       fail("Expected UnsupportedOperationException on putAll()");
                     } catch (UnsupportedOperationException expected) {
                     }
@@ -1174,7 +1174,7 @@ public class ViewTest implements Serializable {
                     } catch (UnsupportedOperationException expected) {
                     }
                     try {
-                      c.sideInput(view).putAll(new HashMap<String, Integer>());
+                      c.sideInput(view).putAll(new HashMap<>());
                       fail("Expected UnsupportedOperationException on putAll()");
                     } catch (UnsupportedOperationException expected) {
                     }

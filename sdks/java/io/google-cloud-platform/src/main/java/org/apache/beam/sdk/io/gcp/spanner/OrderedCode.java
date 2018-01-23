@@ -142,7 +142,7 @@ class OrderedCode {
   // have more than one item (eg when used for decoding). While encoding,
   // one array will have exactly one item. While returning the encoded array
   // we will merge all the arrays in this list.
-  private final ArrayList<byte[]> encodedArrays = new ArrayList<byte[]>();
+  private final ArrayList<byte[]> encodedArrays = new ArrayList<>();
 
   // This is the current position on the first array. Will be non-zero
   // only if the ordered code was created using encoded byte array.

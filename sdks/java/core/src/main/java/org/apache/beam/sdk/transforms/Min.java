@@ -143,7 +143,7 @@ public class Min {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   BinaryCombineFn<T> of(T identity, ComparatorT comparator) {
-    return new MinFn<T>(identity, comparator);
+    return new MinFn<>(identity, comparator);
   }
 
   /**
@@ -155,15 +155,15 @@ public class Min {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   BinaryCombineFn<T> of(ComparatorT comparator) {
-    return new MinFn<T>(null, comparator);
+    return new MinFn<>(null, comparator);
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
-    return new MinFn<T>(identity, new Top.Natural<T>());
+    return new MinFn<>(identity, new Top.Natural<>());
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
-    return new MinFn<T>(null, new Top.Natural<T>());
+    return new MinFn<>(null, new Top.Natural<>());
   }
 
   /**

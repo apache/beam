@@ -195,7 +195,7 @@ public class FileBasedSinkTest {
     // Create temporary output bundles and output File objects.
     for (int i = 0; i < numFiles; i++) {
       fileResults.add(
-          new FileResult<Void>(
+          new FileResult<>(
               LocalResources.fromFile(temporaryFiles.get(i), false),
               UNKNOWN_SHARDNUM,
               GlobalWindow.INSTANCE,
@@ -293,7 +293,7 @@ public class FileBasedSinkTest {
           .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED);
       resultsToFinalFilenames.add(
           KV.of(
-              new FileResult<Void>(
+              new FileResult<>(
                   LocalResources.fromFile(inputTmpFile, false),
                   UNKNOWN_SHARDNUM,
                   GlobalWindow.INSTANCE,
@@ -363,7 +363,7 @@ public class FileBasedSinkTest {
     try {
       List<FileResult<Void>> results = Lists.newArrayList();
       for (int i = 0; i < 3; ++i) {
-        results.add(new FileResult<Void>(
+        results.add(new FileResult<>(
             root.resolve("temp" + i, StandardResolveOptions.RESOLVE_FILE),
             1 /* shard - should be different, but is the same */,
             GlobalWindow.INSTANCE,

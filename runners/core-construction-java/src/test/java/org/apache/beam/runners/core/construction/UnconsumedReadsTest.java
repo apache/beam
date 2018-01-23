@@ -82,8 +82,8 @@ public class UnconsumedReadsTest {
   }
 
   private void validateConsumed() {
-    final Set<PValue> consumedOutputs = new HashSet<PValue>();
-    final Set<PValue> allReadOutputs = new HashSet<PValue>();
+    final Set<PValue> consumedOutputs = new HashSet<>();
+    final Set<PValue> allReadOutputs = new HashSet<>();
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
           @Override

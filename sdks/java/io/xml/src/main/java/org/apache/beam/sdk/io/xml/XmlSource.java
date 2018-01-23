@@ -72,12 +72,12 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
   @Override
   protected FileBasedSource<T> createForSubrangeOfFile(Metadata metadata, long start, long end) {
-    return new XmlSource<T>(configuration, getMinBundleSize(), metadata, start, end);
+    return new XmlSource<>(configuration, getMinBundleSize(), metadata, start, end);
   }
 
   @Override
   protected FileBasedReader<T> createSingleFileReader(PipelineOptions options) {
-    return new XMLReader<T>(this);
+    return new XMLReader<>(this);
   }
 
   @Override

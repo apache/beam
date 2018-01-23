@@ -68,7 +68,7 @@ class WriteWithShardingFactory<InputT, DestinationT>
       WriteFiles<InputT, DestinationT, ?> replacement =
           WriteFiles.to(WriteFilesTranslation.getSink(transform))
               .withSideInputs(WriteFilesTranslation.getDynamicDestinationSideInputs(transform))
-              .withSharding(new LogElementShardsWithDrift<InputT>());
+              .withSharding(new LogElementShardsWithDrift<>());
       if (WriteFilesTranslation.isWindowedWrites(transform)) {
         replacement = replacement.withWindowedWrites();
       }

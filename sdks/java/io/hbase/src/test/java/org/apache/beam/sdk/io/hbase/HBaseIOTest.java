@@ -168,7 +168,7 @@ public class HBaseIOTest {
     // Exception will be thrown by read.expand() when read is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
-    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<Result>());
+    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<>());
   }
 
   /** Tests that when reading from an empty table, the read succeeds. */
@@ -176,7 +176,7 @@ public class HBaseIOTest {
   public void testReadingEmptyTable() throws Exception {
     final String table = "TEST-EMPTY-TABLE";
     createTable(table);
-    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<Result>());
+    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<>());
   }
 
   @Test

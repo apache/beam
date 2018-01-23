@@ -561,7 +561,7 @@ public class TextIOReadTest {
     @Test
     @Category(NeedsRunner.class)
     public void testZipCompressedReadWithNoEntries() throws Exception {
-      File file = createZipFile(new ArrayList<String>(), tempFolder, "empty zip file");
+      File file = createZipFile(new ArrayList<>(), tempFolder, "empty zip file");
       assertReadingCompressedFileMatchesExpected(file, ZIP, EMPTY, p);
       p.run();
     }
@@ -594,7 +594,7 @@ public class TextIOReadTest {
     public void testZipCompressedReadWithComplexEmptyAndPresentEntries() throws Exception {
       File file =
         createZipFile(
-          new ArrayList<String>(),
+            new ArrayList<>(),
           tempFolder,
           "complex empty and present entries",
           new String[] {"cat"},

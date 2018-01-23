@@ -84,14 +84,14 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
         // Combiner lifting will not happen regardless of the disallowCombinerLifting value.
         // There will be no combiners right after the GroupByKeyOnly because of the two ParDos
         // introduced in here.
-        .apply(new GroupByKeyOnly<K, V>())
+        .apply(new GroupByKeyOnly<>())
 
         // Sort each key's values by timestamp. GroupAlsoByWindow requires
         // its input to be sorted by timestamp.
-        .apply(new SortValuesByTimestamp<K, V>())
+        .apply(new SortValuesByTimestamp<>())
 
         // Group each key's values by window, merging windows as needed.
-        .apply(new GroupAlsoByWindow<K, V>(windowingStrategy))
+        .apply(new GroupAlsoByWindow<>(windowingStrategy))
 
         // And update the windowing strategy as appropriate.
         .setWindowingStrategyInternal(

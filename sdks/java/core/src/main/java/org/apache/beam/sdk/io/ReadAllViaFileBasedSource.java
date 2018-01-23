@@ -61,7 +61,7 @@ public class ReadAllViaFileBasedSource<T>
     return input
         .apply("Split into ranges", ParDo.of(new SplitIntoRangesFn(desiredBundleSizeBytes)))
         .apply("Reshuffle", Reshuffle.viaRandomKey())
-        .apply("Read ranges", ParDo.of(new ReadFileRangesFn<T>(createSource)))
+        .apply("Read ranges", ParDo.of(new ReadFileRangesFn<>(createSource)))
         .setCoder(coder);
   }
 

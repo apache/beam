@@ -156,7 +156,7 @@ public class Create<T> {
    * Instead, the {@code Coder} is provided via the {@code coder} argument.
    */
   public static <T> Values<T> empty(Coder<T> coder) {
-    return new Values<>(new ArrayList<T>(), Optional.of(coder), Optional.absent());
+    return new Values<>(new ArrayList<>(), Optional.of(coder), Optional.absent());
   }
 
   /**
@@ -173,7 +173,7 @@ public class Create<T> {
    * {@code TypeDescriptor<T>}.
    */
   public static <T> Values<T> empty(TypeDescriptor<T> type) {
-    return new Values<>(new ArrayList<T>(), Optional.absent(), Optional.of(type));
+    return new Values<>(new ArrayList<>(), Optional.absent(), Optional.of(type));
   }
 
   /**
@@ -573,7 +573,7 @@ public class Create<T> {
         PCollection<TimestampedValue<T>> intermediate = Pipeline.applyTransform(input,
             Create.of(timestampedElements).withCoder(TimestampedValueCoder.of(coder)));
 
-        PCollection<T> output = intermediate.apply(ParDo.of(new ConvertTimestamps<T>()));
+        PCollection<T> output = intermediate.apply(ParDo.of(new ConvertTimestamps<>()));
         output.setCoder(coder);
         return output;
       } catch (CannotProvideCoderException e) {

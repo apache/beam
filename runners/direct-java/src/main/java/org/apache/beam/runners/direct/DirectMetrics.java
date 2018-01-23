@@ -252,7 +252,7 @@ class DirectMetrics extends MetricResults {
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
         T committed, T attempted) {
-      return new AutoValue_DirectMetrics_DirectMetricResult<T>(
+      return new AutoValue_DirectMetrics_DirectMetricResult<>(
           name, scope, committed, attempted);
     }
   }

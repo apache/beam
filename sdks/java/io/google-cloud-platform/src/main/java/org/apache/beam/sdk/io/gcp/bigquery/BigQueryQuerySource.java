@@ -59,7 +59,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn) {
-    return new BigQueryQuerySource<T>(
+    return new BigQueryQuerySource<>(
         stepUuid,
         query,
         flattenResults,

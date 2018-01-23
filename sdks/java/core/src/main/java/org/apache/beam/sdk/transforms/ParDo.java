@@ -430,7 +430,7 @@ public class ParDo {
    */
   public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new SingleOutput<InputT, OutputT>(fn, Collections.emptyList(), displayDataForFn(fn));
+    return new SingleOutput<>(fn, Collections.emptyList(), displayDataForFn(fn));
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {

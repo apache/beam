@@ -59,7 +59,7 @@ public class MonitoringUtilTest {
     DataflowClient dataflowClient = mock(DataflowClient.class);
 
     ListJobMessagesResponse firstResponse = new ListJobMessagesResponse();
-    firstResponse.setJobMessages(new ArrayList<JobMessage>());
+    firstResponse.setJobMessages(new ArrayList<>());
     for (int i = 0; i < 100; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);
@@ -70,7 +70,7 @@ public class MonitoringUtilTest {
     firstResponse.setNextPageToken(pageToken);
 
     ListJobMessagesResponse secondResponse = new ListJobMessagesResponse();
-    secondResponse.setJobMessages(new ArrayList<JobMessage>());
+    secondResponse.setJobMessages(new ArrayList<>());
     for (int i = 100; i < 150; ++i) {
       JobMessage message = new JobMessage();
       message.setId("message_" + i);

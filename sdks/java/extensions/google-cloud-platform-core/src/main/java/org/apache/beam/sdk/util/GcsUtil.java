@@ -409,7 +409,7 @@ public class GcsUtil {
       throws IOException {
     return new GoogleCloudStorageReadChannel(storageClient, path.getBucket(),
             path.getObject(), errorExtractor,
-            new ClientRequestHelper<StorageObject>());
+        new ClientRequestHelper<>());
   }
 
   /**
@@ -436,7 +436,7 @@ public class GcsUtil {
         new GoogleCloudStorageWriteChannel(
             executorService,
             storageClient,
-            new ClientRequestHelper<StorageObject>(),
+            new ClientRequestHelper<>(),
             path.getBucket(),
             path.getObject(),
             AsyncWriteChannelOptions.newBuilder().build(),
@@ -579,7 +579,7 @@ public class GcsUtil {
         MoreExecutors.getExitingExecutorService(
             new ThreadPoolExecutor(MAX_CONCURRENT_BATCHES, MAX_CONCURRENT_BATCHES,
                 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<Runnable>())));
+                new LinkedBlockingQueue<>())));
 
     List<ListenableFuture<Void>> futures = new LinkedList<>();
     for (final BatchRequest batch : batches) {

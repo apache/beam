@@ -1360,10 +1360,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       if (source.requiresDeduping()) {
         return Pipeline.applyTransform(input, new ReadWithIds<>(source))
-            .apply(new Deduplicate<T>());
+            .apply(new Deduplicate<>());
       } else {
         return Pipeline.applyTransform(input, new ReadWithIds<>(source))
-            .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
+            .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<>()));
       }
     }
 

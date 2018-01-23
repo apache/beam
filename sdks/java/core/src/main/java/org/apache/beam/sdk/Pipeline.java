@@ -575,7 +575,7 @@ public class Pipeline {
     this.traverseTopologically(new ValidateVisitor(options));
     final Collection<Map.Entry<String, Collection<PTransform<?, ?>>>> errors =
             Collections2.filter(instancePerName.asMap().entrySet(),
-                    Predicates.not(new IsUnique<String, PTransform<?, ?>>()));
+                    Predicates.not(new IsUnique<>()));
     if (!errors.isEmpty()) {
       switch (options.getStableUniqueNames()) {
         case OFF:
