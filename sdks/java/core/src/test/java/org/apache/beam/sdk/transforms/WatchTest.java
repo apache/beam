@@ -209,7 +209,7 @@ public class WatchTest implements Serializable {
                                 standardSeconds(3) /* timeToDeclareOutputFinal */,
                                 standardSeconds(30) /* timeToFail */),
                             Requirements.empty()),
-                    input -> input.getKey())
+                        input -> input.getKey())
                     .withTerminationPerInput(Watch.Growth.<String>afterTotalOf(standardSeconds(5)))
                     .withPollInterval(Duration.millis(100))
                     .withOutputCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))

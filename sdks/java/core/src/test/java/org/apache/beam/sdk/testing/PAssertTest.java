@@ -201,10 +201,11 @@ public class PAssertTest implements Serializable {
           new NotSerializableObject())
             .withCoder(NotSerializableObjectCoder.of()));
 
-    PAssert.that(pcollection).satisfies(
-        contents -> {
-          return null; // no problem!
-        });
+    PAssert.that(pcollection)
+        .satisfies(
+            contents -> {
+              return null; // no problem!
+            });
 
     pipeline.run();
   }
@@ -226,16 +227,18 @@ public class PAssertTest implements Serializable {
 
     PAssert.that(pcollection)
         .inWindow(new IntervalWindow(new Instant(0L), new Instant(300L)))
-        .satisfies(contents -> {
-          assertThat(Iterables.isEmpty(contents), is(false));
-          return null; // no problem!
-        });
+        .satisfies(
+            contents -> {
+              assertThat(Iterables.isEmpty(contents), is(false));
+              return null; // no problem!
+            });
     PAssert.that(pcollection)
         .inWindow(new IntervalWindow(new Instant(300L), new Instant(600L)))
-        .satisfies(contents -> {
-          assertThat(Iterables.isEmpty(contents), is(false));
-          return null; // no problem!
-        });
+        .satisfies(
+            contents -> {
+              assertThat(Iterables.isEmpty(contents), is(false));
+              return null; // no problem!
+            });
 
     pipeline.run();
   }

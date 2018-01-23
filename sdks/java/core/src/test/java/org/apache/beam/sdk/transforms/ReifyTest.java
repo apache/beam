@@ -21,7 +21,6 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import java.io.Serializable;
-
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -44,8 +43,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReifyTest implements Serializable {
   public static final WithTimestamps<KV<String, Integer>> TIMESTAMP_FROM_V =
-      WithTimestamps.of(
-          input -> new Instant(input.getValue().longValue()));
+      WithTimestamps.of(input -> new Instant(input.getValue().longValue()));
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test

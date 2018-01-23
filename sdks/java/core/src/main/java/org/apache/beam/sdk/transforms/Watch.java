@@ -1001,8 +1001,7 @@ public class Watch {
       this.pending =
           Lists.newLinkedList(
               Ordering.natural()
-                  .onResultOf(
-                      (TimestampedValue<OutputT> output) -> output.getTimestamp())
+                  .onResultOf((TimestampedValue<OutputT> output) -> output.getTimestamp())
                   .sortedCopy(newPending.values()));
       // If poll result doesn't provide a watermark, assume that future new outputs may
       // arrive with about the same timestamps as the current new outputs.

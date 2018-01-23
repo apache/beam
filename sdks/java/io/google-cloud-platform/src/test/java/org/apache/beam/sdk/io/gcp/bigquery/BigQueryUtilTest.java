@@ -58,8 +58,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for util classes related to BigQuery.
@@ -110,14 +108,16 @@ public class BigQueryUtilTest {
     }
 
     doAnswer(
-        invocation -> {
-          Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
-          when(mockInsertAll.execute())
-              .thenReturn(responses.get(0),
-                  responses.subList(1, responses.size()).toArray(
-                      new TableDataInsertAllResponse[responses.size() - 1]));
-          return mockInsertAll;
-        })
+            invocation -> {
+              Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
+              when(mockInsertAll.execute())
+                  .thenReturn(
+                      responses.get(0),
+                      responses
+                          .subList(1, responses.size())
+                          .toArray(new TableDataInsertAllResponse[responses.size() - 1]));
+              return mockInsertAll;
+            })
         .when(mockTabledata)
         .insertAll(anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class));
   }

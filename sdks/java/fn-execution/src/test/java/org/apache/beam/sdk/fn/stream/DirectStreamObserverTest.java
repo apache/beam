@@ -53,15 +53,16 @@ public class DirectStreamObserverTest {
         new DirectStreamObserver<>(
             phaser,
             TestStreams.withOnNext(
-                (String t) -> {
-                  // Use the atomic boolean to detect if multiple threads are in this
-                  // critical section. Any thread that enters purposefully blocks by sleeping
-                  // to increase the contention between threads artificially.
-                  assertFalse(isCriticalSectionShared.getAndSet(true));
-                  Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
-                  onNextValues.add(t);
-                  assertTrue(isCriticalSectionShared.getAndSet(false));
-                }).build());
+                    (String t) -> {
+                      // Use the atomic boolean to detect if multiple threads are in this
+                      // critical section. Any thread that enters purposefully blocks by sleeping
+                      // to increase the contention between threads artificially.
+                      assertFalse(isCriticalSectionShared.getAndSet(true));
+                      Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
+                      onNextValues.add(t);
+                      assertTrue(isCriticalSectionShared.getAndSet(false));
+                    })
+                .build());
 
     List<String> prefixes = ImmutableList.of("0", "1", "2", "3", "4");
     List<Callable<String>> tasks = new ArrayList<>();

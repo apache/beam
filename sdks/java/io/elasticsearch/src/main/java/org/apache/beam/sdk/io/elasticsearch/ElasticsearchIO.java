@@ -63,7 +63,6 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.ssl.SSLContexts;
@@ -317,7 +316,8 @@ public class ElasticsearchIO {
         credentialsProvider.setCredentials(
             AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
         restClientBuilder.setHttpClientConfigCallback(
-            httpAsyncClientBuilder -> httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
+            httpAsyncClientBuilder ->
+                httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
       }
       if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
         try {
@@ -330,7 +330,8 @@ public class ElasticsearchIO {
               .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy()).build();
           final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
           restClientBuilder.setHttpClientConfigCallback(
-              httpClientBuilder -> httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
+              httpClientBuilder ->
+                  httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
         } catch (Exception e) {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }

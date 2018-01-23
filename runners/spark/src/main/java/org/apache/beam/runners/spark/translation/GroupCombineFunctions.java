@@ -36,7 +36,6 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
 
-
 /**
  * A set of group/combine functions to apply to Spark {@link org.apache.spark.rdd.RDD}s.
  */
@@ -110,22 +109,33 @@ public class GroupCombineFunctions {
       return Optional.absent();
     }
 
-    /*Itr<WV<A>>*/ /*Itr<WV<A>>>*//*Itr<WV<A>>>*//*Itr<WV<A>>>*//*Itr<WV<A>>>*//*Itr<WV<A>>>*//*Itr<WV<A>>>*/
-    /*A*//*I*//*A*//*Itr<WV<A>>*//*Itr<WV<A>>*//*WV<I>*/
-    byte[] accumulatedBytes = inputRDDBytes.aggregate(
-        CoderHelpers.toByteArray(sparkCombineFn.zeroValue(), iterAccumCoder),
-        (ab, ib) -> {
-          Iterable<WindowedValue<AccumT>> a = CoderHelpers.fromByteArray(ab, iterAccumCoder);
-          WindowedValue<InputT> i = CoderHelpers.fromByteArray(ib, wviCoder);
-          return CoderHelpers.toByteArray(sparkCombineFn.seqOp(a, i), iterAccumCoder);
-        },
-        (a1b, a2b) -> {
-          Iterable<WindowedValue<AccumT>> a1 = CoderHelpers.fromByteArray(a1b, iterAccumCoder);
-          Iterable<WindowedValue<AccumT>> a2 = CoderHelpers.fromByteArray(a2b, iterAccumCoder);
-          Iterable<WindowedValue<AccumT>> merged = sparkCombineFn.combOp(a1, a2);
-          return CoderHelpers.toByteArray(merged, iterAccumCoder);
-        }
-    );
+    /*Itr<WV<A>>*/
+    /*Itr<WV<A>>>*/
+    /*Itr<WV<A>>>*/
+    /*Itr<WV<A>>>*/
+    /*Itr<WV<A>>>*/
+    /*Itr<WV<A>>>*/
+    /*Itr<WV<A>>>*/
+    /*A*/
+    /*I*/
+    /*A*/
+    /*Itr<WV<A>>*/
+    /*Itr<WV<A>>*/
+    /*WV<I>*/
+    byte[] accumulatedBytes =
+        inputRDDBytes.aggregate(
+            CoderHelpers.toByteArray(sparkCombineFn.zeroValue(), iterAccumCoder),
+            (ab, ib) -> {
+              Iterable<WindowedValue<AccumT>> a = CoderHelpers.fromByteArray(ab, iterAccumCoder);
+              WindowedValue<InputT> i = CoderHelpers.fromByteArray(ib, wviCoder);
+              return CoderHelpers.toByteArray(sparkCombineFn.seqOp(a, i), iterAccumCoder);
+            },
+            (a1b, a2b) -> {
+              Iterable<WindowedValue<AccumT>> a1 = CoderHelpers.fromByteArray(a1b, iterAccumCoder);
+              Iterable<WindowedValue<AccumT>> a2 = CoderHelpers.fromByteArray(a2b, iterAccumCoder);
+              Iterable<WindowedValue<AccumT>> merged = sparkCombineFn.combOp(a1, a2);
+              return CoderHelpers.toByteArray(merged, iterAccumCoder);
+            });
 
     return Optional.of(CoderHelpers.fromByteArray(accumulatedBytes, iterAccumCoder));
   }
@@ -177,9 +187,22 @@ public class GroupCombineFunctions {
     JavaPairRDD<ByteArray, byte[]> inRddDuplicatedKeyPairBytes = inRddDuplicatedKeyPair
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wkviCoder));
 
-    /*Itr<WV<KV<K, A>>>*//*Itr<WV<KV<K, A>>>*//*Itr<WV<KV<K, A>>>*//*Itr<WV<KV<K, A>>>*//*Itr<WV<KV<K, A>>>*//*Itr<WV<KV<K, A>>>*/
-    /*Itr<WV<KV<K, A>>>*//*WV<KV<K, I>>*//*Itr<WV<KV<K, A>>>*//*Itr<WV<KV<K, A>>>*//*Itr<WV<KV<K, A>>>*//*WV<KV<K, I>>*/
-    /*WV<KV<K, I>>*//*Itr<WV<KV<K, A>>>*//*Itr<WV<KV<K, A>>>*//*WV<KV<K, I>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*WV<KV<K, I>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*WV<KV<K, I>>*/
+    /*WV<KV<K, I>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*Itr<WV<KV<K, A>>>*/
+    /*WV<KV<K, I>>*/
     JavaPairRDD</*K*/ ByteArray, /*Itr<WV<KV<K, A>>>*/ byte[]> accumulatedBytes =
         inRddDuplicatedKeyPairBytes.combineByKey(
             input -> {
@@ -190,15 +213,16 @@ public class GroupCombineFunctions {
               Iterable<WindowedValue<KV<K, AccumT>>> wkvas =
                   CoderHelpers.fromByteArray(acc, iterAccumCoder);
               WindowedValue<KV<K, InputT>> wkvi = CoderHelpers.fromByteArray(input, wkviCoder);
-              return CoderHelpers.toByteArray(sparkCombineFn.mergeValue(wkvi, wkvas), iterAccumCoder);
+              return CoderHelpers.toByteArray(
+                  sparkCombineFn.mergeValue(wkvi, wkvas), iterAccumCoder);
             },
             (acc1, acc2) -> {
               Iterable<WindowedValue<KV<K, AccumT>>> wkvas1 =
                   CoderHelpers.fromByteArray(acc1, iterAccumCoder);
               Iterable<WindowedValue<KV<K, AccumT>>> wkvas2 =
                   CoderHelpers.fromByteArray(acc2, iterAccumCoder);
-              return CoderHelpers.toByteArray(sparkCombineFn.mergeCombiners(wkvas1, wkvas2),
-                  iterAccumCoder);
+              return CoderHelpers.toByteArray(
+                  sparkCombineFn.mergeCombiners(wkvas1, wkvas2), iterAccumCoder);
             });
 
     return accumulatedBytes.mapToPair(CoderHelpers.fromByteFunction(keyCoder, iterAccumCoder));

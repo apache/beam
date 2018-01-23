@@ -186,21 +186,24 @@ public class DataflowRunnerTest implements Serializable {
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
         .then(
-            invocation -> FileChannel.open(
-                Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.WRITE,
-                StandardOpenOption.DELETE_ON_CLOSE));
+            invocation ->
+                FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE));
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
         .then(
-            invocation -> FileChannel.open(
-                Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.WRITE,
-                StandardOpenOption.DELETE_ON_CLOSE));
+            invocation ->
+                FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE));
 
-    when(mockGcsUtil.expand(any(GcsPath.class))).then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
+    when(mockGcsUtil.expand(any(GcsPath.class)))
+        .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET + "/staging/"))).
@@ -212,7 +215,6 @@ public class DataflowRunnerTest implements Serializable {
     when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
         .thenAnswer(
             invocationOnMock -> {
-
               List<GcsPath> gcsPaths = (List<GcsPath>) invocationOnMock.getArguments()[0];
               List<GcsUtil.StorageObjectOrIOException> results = new ArrayList<>();
 
@@ -282,10 +284,14 @@ public class DataflowRunnerTest implements Serializable {
   private GcsUtil buildMockGcsUtil() throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
-        .then(invocation -> FileChannel.open(
-            Files.createTempFile("channel-", ".tmp"),
-            StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE));
-    when(mockGcsUtil.expand(any(GcsPath.class))).then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
+        .then(
+            invocation ->
+                FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.DELETE_ON_CLOSE));
+    when(mockGcsUtil.expand(any(GcsPath.class)))
+        .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
     return mockGcsUtil;
   }
 
@@ -666,11 +672,12 @@ public class DataflowRunnerTest implements Serializable {
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
         .then(
-            invocation -> FileChannel.open(
-                Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE,
-                StandardOpenOption.WRITE,
-                StandardOpenOption.DELETE_ON_CLOSE));
+            invocation ->
+                FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE));
 
     Pipeline p = buildDataflowPipeline(options);
 
@@ -1115,7 +1122,8 @@ public class DataflowRunnerTest implements Serializable {
 
           // Note: This is about the minimum needed to fake out a
           // translation. This obviously isn't a real translation.
-          TransformTranslator.StepTranslationContext stepContext = context.addStep(transform1, "TestTranslate");
+          TransformTranslator.StepTranslationContext stepContext =
+              context.addStep(transform1, "TestTranslate");
           stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform1));
         });
 

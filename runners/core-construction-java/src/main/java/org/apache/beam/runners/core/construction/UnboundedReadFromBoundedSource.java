@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -138,9 +137,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
         }
         List<? extends BoundedSource<T>> splits =
             boundedSource.split(desiredBundleSize, options);
-        return Lists.transform(
-            splits,
-            input -> new BoundedToUnboundedSourceAdapter<>(input));
+        return Lists.transform(splits, input -> new BoundedToUnboundedSourceAdapter<>(input));
       } catch (Exception e) {
         LOG.warn("Exception while splitting {}, skips the initial splits.", boundedSource, e);
         return ImmutableList.of(this);

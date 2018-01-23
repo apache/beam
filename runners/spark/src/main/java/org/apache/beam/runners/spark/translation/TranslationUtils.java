@@ -126,8 +126,7 @@ public final class TranslationUtils {
 
   /** Transform a pair stream into a value stream. */
   public static <T1, T2> JavaDStream<T2> dStreamValues(JavaPairDStream<T1, T2> pairDStream) {
-    return pairDStream.map(
-        v1 -> v1._2());
+    return pairDStream.map(v1 -> v1._2());
   }
 
   /** {@link KV} to pair function. */
@@ -139,9 +138,7 @@ public final class TranslationUtils {
   public static <K, V> PairFlatMapFunction<Iterator<KV<K, V>>, K, V> toPairFlatMapFunction() {
     return itr -> {
       final Iterator<Tuple2<K, V>> outputItr =
-          Iterators.transform(
-              itr,
-              kv -> new Tuple2<>(kv.getKey(), kv.getValue()));
+          Iterators.transform(itr, kv -> new Tuple2<>(kv.getKey(), kv.getValue()));
       return outputItr;
     };
   }
@@ -154,10 +151,7 @@ public final class TranslationUtils {
   /** A pair to {@link KV} flatmap function . */
   static <K, V> FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>> fromPairFlatMapFunction() {
     return itr -> {
-      final Iterator<KV<K, V>> outputItr =
-          Iterators.transform(
-              itr,
-              t2 -> KV.of(t2._1(), t2._2()));
+      final Iterator<KV<K, V>> outputItr = Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
       return outputItr;
     };
   }
@@ -370,8 +364,8 @@ public final class TranslationUtils {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
       WindowedValue<?> windowedValue = tuple2._2;
-      return new Tuple2<TupleTag<?>, byte[]>
-          (tupleTag, CoderHelpers.toByteArray(windowedValue, coderMap.get(tupleTag)));
+      return new Tuple2<TupleTag<?>, byte[]>(
+          tupleTag, CoderHelpers.toByteArray(windowedValue, coderMap.get(tupleTag)));
     };
   }
 
@@ -385,8 +379,8 @@ public final class TranslationUtils {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
       byte[] windowedByteValue = tuple2._2;
-      return new Tuple2<TupleTag<?>, WindowedValue<?>>
-          (tupleTag, CoderHelpers.fromByteArray(windowedByteValue, coderMap.get(tupleTag)));
+      return new Tuple2<TupleTag<?>, WindowedValue<?>>(
+          tupleTag, CoderHelpers.fromByteArray(windowedByteValue, coderMap.get(tupleTag)));
     };
   }
 

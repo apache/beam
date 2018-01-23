@@ -145,19 +145,19 @@ public class MongoDbGridFSIO {
   }
 
   /**
-   * For the default {@code Read<String>} case, this is the parser that is used to
-   * split the input file into Strings. It uses the timestamp of the file
-   * for the event timestamp.
+   * For the default {@code Read<String>} case, this is the parser that is used to split the input
+   * file into Strings. It uses the timestamp of the file for the event timestamp.
    */
-  private static final Parser<String> TEXT_PARSER = (input, callback) -> {
-    final Instant time = new Instant(input.getUploadDate().getTime());
-    try (BufferedReader reader =
-      new BufferedReader(new InputStreamReader(input.getInputStream()))) {
-      for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-        callback.output(line, time);
-      }
-    }
-  };
+  private static final Parser<String> TEXT_PARSER =
+      (input, callback) -> {
+        final Instant time = new Instant(input.getUploadDate().getTime());
+        try (BufferedReader reader =
+            new BufferedReader(new InputStreamReader(input.getInputStream()))) {
+          for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+            callback.output(line, time);
+          }
+        }
+      };
 
   /** Read data from GridFS. Default behavior with String. */
   public static Read<String> read() {
@@ -173,10 +173,12 @@ public class MongoDbGridFSIO {
   public static Write<String> write() {
     return new AutoValue_MongoDbGridFSIO_Write.Builder<String>()
         .setConnectionConfiguration(ConnectionConfiguration.create())
-        .setWriteFn((output, outStream) -> {
-          outStream.write(output.getBytes("utf-8"));
-          outStream.write('\n');
-        }).build();
+        .setWriteFn(
+            (output, outStream) -> {
+              outStream.write(output.getBytes("utf-8"));
+              outStream.write('\n');
+            })
+        .build();
   }
   public static <T> Write<T> write(WriteFn<T> fn) {
     return new AutoValue_MongoDbGridFSIO_Write.Builder<T>()

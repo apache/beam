@@ -18,8 +18,6 @@
 package org.apache.beam.runners.core;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -109,12 +107,15 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
      */
     public <K, InputT> Iterable<WindowedValue<InputT>> filter(
         final K key, Iterable<WindowedValue<InputT>> elements) {
-      Iterable<Iterable<WindowedValue<InputT>>> windowsExpandedElements = Iterables.transform(
-          elements,
-          input -> Iterables.transform(
-              input.getWindows(),
-              window -> WindowedValue.of(
-                  input.getValue(), input.getTimestamp(), window, input.getPane())));
+      Iterable<Iterable<WindowedValue<InputT>>> windowsExpandedElements =
+          Iterables.transform(
+              elements,
+              input ->
+                  Iterables.transform(
+                      input.getWindows(),
+                      window ->
+                          WindowedValue.of(
+                              input.getValue(), input.getTimestamp(), window, input.getPane())));
       Iterable<WindowedValue<InputT>> concatElements = Iterables.concat(windowsExpandedElements);
 
       // Bump the counter separately since we don't want multiple iterations to

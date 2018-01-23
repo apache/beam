@@ -14,12 +14,12 @@
  */
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.values.KV;
 import org.apache.hadoop.io.Text;
+
 /**
  * Test Utils used in {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat} for
  * computing splits.
@@ -62,7 +62,8 @@ public class TestEmployeeDataSet {
    * {@link EmployeeInputFormat} and {@link ReuseObjectsEmployeeInputFormat}.
    */
   public static List<KV<Text, Employee>> getEmployeeData() {
-    return Lists.transform((data.isEmpty() ? populateEmployeeData() : data),
+    return Lists.transform(
+        (data.isEmpty() ? populateEmployeeData() : data),
         input -> {
           String[] empData = input.getValue().split("_");
           return KV.of(new Text(input.getKey()), new Employee(empData[0], empData[1]));

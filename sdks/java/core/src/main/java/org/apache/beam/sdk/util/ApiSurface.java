@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.anyOf;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
-import com.google.common.base.Supplier;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -52,7 +51,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
-import javax.annotation.Nonnull;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
@@ -183,9 +181,9 @@ public class ApiSurface {
             };
 
         final Predicate<Matcher<Class<?>>> matchedByExposedClasses =
-            classMatcher -> FluentIterable.from(checkedApiSurface.getExposedClasses())
-                .anyMatch(
-                    aClass -> classMatcher.matches(aClass));
+            classMatcher ->
+                FluentIterable.from(checkedApiSurface.getExposedClasses())
+                    .anyMatch(aClass -> classMatcher.matches(aClass));
 
         // </helper_lambdas>
 
@@ -221,10 +219,10 @@ public class ApiSurface {
             aClass -> checkedApiSurface.getAnyExposurePath(aClass);
 
         final Maps.EntryTransformer<Class<?>, List<Class<?>>, String> toMessage =
-            (aClass, exposure) -> aClass + " exposed via:\n\t\t" + Joiner.on("\n\t\t").join(exposure);
+            (aClass, exposure) ->
+                aClass + " exposed via:\n\t\t" + Joiner.on("\n\t\t").join(exposure);
 
-        final Predicate<Class<?>> disallowed =
-            aClass -> !classIsAllowed(aClass, allowedClasses);
+        final Predicate<Class<?>> disallowed = aClass -> !classIsAllowed(aClass, allowedClasses);
 
         /* </helper_lambdas> */
 
@@ -483,8 +481,7 @@ public class ApiSurface {
     visited = Sets.newHashSet();
     exposedToExposers =
         Multimaps.newSetMultimap(
-            Maps.<Class<?>, Collection<Class<?>>>newHashMap(),
-            () -> Sets.newHashSet());
+            Maps.<Class<?>, Collection<Class<?>>>newHashMap(), () -> Sets.newHashSet());
 
     for (Class<?> clazz : rootClasses) {
       addExposedTypes(clazz, null);

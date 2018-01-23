@@ -174,9 +174,7 @@ public class MetricsContainerStepMap implements Serializable {
       return input -> {
         MetricKey key = input.getKey();
         return new AttemptedAndCommitted<>(
-            key,
-            input,
-            MetricUpdate.create(key, DistributionData.EMPTY));
+            key, input, MetricUpdate.create(key, DistributionData.EMPTY));
       };
     }
 
@@ -185,9 +183,7 @@ public class MetricsContainerStepMap implements Serializable {
       return input -> {
         MetricKey key = input.getKey();
         return new AttemptedAndCommitted<>(
-            key,
-            MetricUpdate.create(key, DistributionData.EMPTY),
-            input);
+            key, MetricUpdate.create(key, DistributionData.EMPTY), input);
       };
     }
 
@@ -195,10 +191,7 @@ public class MetricsContainerStepMap implements Serializable {
     attemptedGaugeUpdateFn() {
       return input -> {
         MetricKey key = input.getKey();
-        return new AttemptedAndCommitted<>(
-            key,
-            input,
-            MetricUpdate.create(key, GaugeData.empty()));
+        return new AttemptedAndCommitted<>(key, input, MetricUpdate.create(key, GaugeData.empty()));
       };
     }
 
@@ -206,30 +199,21 @@ public class MetricsContainerStepMap implements Serializable {
     committedGaugeUpdateFn() {
       return input -> {
         MetricKey key = input.getKey();
-        return new AttemptedAndCommitted<>(
-            key,
-            MetricUpdate.create(key, GaugeData.empty()),
-            input);
+        return new AttemptedAndCommitted<>(key, MetricUpdate.create(key, GaugeData.empty()), input);
       };
     }
 
     private Function<MetricUpdate<Long>, AttemptedAndCommitted<Long>> attemptedCounterUpdateFn() {
       return input -> {
         MetricKey key = input.getKey();
-        return new AttemptedAndCommitted<>(
-            key,
-            input,
-            MetricUpdate.create(key, 0L));
+        return new AttemptedAndCommitted<>(key, input, MetricUpdate.create(key, 0L));
       };
     }
 
     private Function<MetricUpdate<Long>, AttemptedAndCommitted<Long>> committedCounterUpdateFn() {
       return input -> {
         MetricKey key = input.getKey();
-        return new AttemptedAndCommitted<>(
-            key,
-            MetricUpdate.create(key, 0L),
-            input);
+        return new AttemptedAndCommitted<>(key, MetricUpdate.create(key, 0L), input);
       };
     }
 
@@ -276,7 +260,8 @@ public class MetricsContainerStepMap implements Serializable {
       }
 
       private Predicate<AttemptedAndCommitted<?>> matchesFilter(final MetricsFilter filter) {
-        return attemptedAndCommitted -> MetricFiltering.matches(filter, attemptedAndCommitted.getKey());
+        return attemptedAndCommitted ->
+            MetricFiltering.matches(filter, attemptedAndCommitted.getKey());
       }
     }
 
@@ -287,9 +272,7 @@ public class MetricsContainerStepMap implements Serializable {
             key.metricName(),
             key.stepName(),
             metricResult.getAttempted().getUpdate(),
-            isCommittedSupported
-                ? metricResult.getCommitted().getUpdate()
-                : null,
+            isCommittedSupported ? metricResult.getCommitted().getUpdate() : null,
             isCommittedSupported);
       };
     }
@@ -302,9 +285,7 @@ public class MetricsContainerStepMap implements Serializable {
             key.metricName(),
             key.stepName(),
             metricResult.getAttempted().getUpdate().extractResult(),
-            isCommittedSupported
-                ? metricResult.getCommitted().getUpdate().extractResult()
-                : null,
+            isCommittedSupported ? metricResult.getCommitted().getUpdate().extractResult() : null,
             isCommittedSupported);
       };
     }
@@ -317,9 +298,7 @@ public class MetricsContainerStepMap implements Serializable {
             key.metricName(),
             key.stepName(),
             metricResult.getAttempted().getUpdate().extractResult(),
-            isCommittedSupported
-                ? metricResult.getCommitted().getUpdate().extractResult()
-                : null,
+            isCommittedSupported ? metricResult.getCommitted().getUpdate().extractResult() : null,
             isCommittedSupported);
       };
     }

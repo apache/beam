@@ -352,15 +352,16 @@ public class PipelineOptionsFactory {
         printHelp(printStream, (Class<? extends PipelineOptions>) klass);
       } catch (ClassNotFoundException e) {
         // If we didn't find an exact match, look for any that match the class name.
-        Iterable<Class<? extends PipelineOptions>> matches = Iterables.filter(
-            getRegisteredOptions(),
-            input -> {
-              if (helpOption.contains(".")) {
-                return input.getName().endsWith(helpOption);
-              } else {
-                return input.getSimpleName().equals(helpOption);
-              }
-            });
+        Iterable<Class<? extends PipelineOptions>> matches =
+            Iterables.filter(
+                getRegisteredOptions(),
+                input -> {
+                  if (helpOption.contains(".")) {
+                    return input.getName().endsWith(helpOption);
+                  } else {
+                    return input.getSimpleName().equals(helpOption);
+                  }
+                });
         try {
           printHelp(printStream, Iterables.getOnlyElement(matches));
         } catch (NoSuchElementException exception) {
@@ -466,8 +467,7 @@ public class PipelineOptionsFactory {
   private static final Set<Method> IGNORED_METHODS;
 
   /** A predicate that checks if a method is synthetic via {@link Method#isSynthetic()}. */
-  private static final Predicate<Method> NOT_SYNTHETIC_PREDICATE =
-      input -> !input.isSynthetic();
+  private static final Predicate<Method> NOT_SYNTHETIC_PREDICATE = input -> !input.isSynthetic();
 
   /** The set of options that have been registered and visible to the user. */
   private static final Set<Class<? extends PipelineOptions>> REGISTERED_OPTIONS =
@@ -1248,8 +1248,8 @@ public class PipelineOptionsFactory {
     unknownMethods.addAll(
         Sets.filter(
             Sets.difference(Sets.newHashSet(iface.getMethods()), knownMethods),
-            Predicates.and(NOT_SYNTHETIC_PREDICATE,
-                input -> !knownMethodsNames.contains(input.getName()))));
+            Predicates.and(
+                NOT_SYNTHETIC_PREDICATE, input -> !knownMethodsNames.contains(input.getName()))));
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
@@ -1455,26 +1455,29 @@ public class PipelineOptionsFactory {
    * A {@link Predicate} that returns true if the method is annotated with {@code annotationClass}.
    */
   static class AnnotationPredicates {
-    static final AnnotationPredicates JSON_IGNORE = new AnnotationPredicates(
-        JsonIgnore.class,
-        input -> JsonIgnore.class.equals(input.annotationType()),
-        input -> input.isAnnotationPresent(JsonIgnore.class));
+    static final AnnotationPredicates JSON_IGNORE =
+        new AnnotationPredicates(
+            JsonIgnore.class,
+            input -> JsonIgnore.class.equals(input.annotationType()),
+            input -> input.isAnnotationPresent(JsonIgnore.class));
 
-    private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES = Sets.newHashSet(
-        FluentIterable.from(Default.class.getDeclaredClasses())
-        .filter(klass -> klass.isAnnotation()));
+    private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES =
+        Sets.newHashSet(
+            FluentIterable.from(Default.class.getDeclaredClasses())
+                .filter(klass -> klass.isAnnotation()));
 
-    static final AnnotationPredicates DEFAULT_VALUE = new AnnotationPredicates(
-        Default.class,
-        input -> DEFAULT_ANNOTATION_CLASSES.contains(input.annotationType()),
-        input -> {
-          for (Annotation annotation : input.getAnnotations()) {
-            if (DEFAULT_ANNOTATION_CLASSES.contains(annotation.annotationType())) {
-              return true;
-            }
-          }
-          return false;
-        });
+    static final AnnotationPredicates DEFAULT_VALUE =
+        new AnnotationPredicates(
+            Default.class,
+            input -> DEFAULT_ANNOTATION_CLASSES.contains(input.annotationType()),
+            input -> {
+              for (Annotation annotation : input.getAnnotations()) {
+                if (DEFAULT_ANNOTATION_CLASSES.contains(annotation.annotationType())) {
+                  return true;
+                }
+              }
+              return false;
+            });
 
     final Class<? extends Annotation> annotationClass;
     final Predicate<Annotation> forAnnotation;
@@ -1582,8 +1585,11 @@ public class PipelineOptionsFactory {
         // Search for close matches for missing properties.
         // Either off by one or off by two character errors.
         if (!propertyNamesToGetters.containsKey(entry.getKey())) {
-          SortedSet<String> closestMatches = new TreeSet<>(
-              Sets.filter(propertyNamesToGetters.keySet(), input -> StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2));
+          SortedSet<String> closestMatches =
+              new TreeSet<>(
+                  Sets.filter(
+                      propertyNamesToGetters.keySet(),
+                      input -> StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2));
           switch (closestMatches.size()) {
             case 0:
               throw new IllegalArgumentException(
@@ -1628,8 +1634,10 @@ public class PipelineOptionsFactory {
           }
         } else if (isCollectionOrArrayOfAllowedTypes(returnType, type)) {
           // Split any strings with ","
-          List<String> values = FluentIterable.from(entry.getValue())
-              .transformAndConcat(input -> Arrays.asList(input.split(","))).toList();
+          List<String> values =
+              FluentIterable.from(entry.getValue())
+                  .transformAndConcat(input -> Arrays.asList(input.split(",")))
+                  .toList();
 
           if (values.contains("")) {
             checkEmptyStringAllowed(returnType, type, method.getGenericReturnType().toString());

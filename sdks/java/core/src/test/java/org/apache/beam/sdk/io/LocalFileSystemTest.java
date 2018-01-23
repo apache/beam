@@ -25,7 +25,6 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -43,7 +42,6 @@ import java.nio.file.Paths;
 import java.util.List;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -388,22 +386,21 @@ public class LocalFileSystemTest {
   }
 
   private List<LocalResourceId> toLocalResourceIds(List<Path> paths, final boolean isDirectory) {
-    return FluentIterable
-        .from(paths)
+    return FluentIterable.from(paths)
         .transform(path -> LocalResourceId.fromPath(path, isDirectory))
         .toList();
   }
 
   private List<String> toFilenames(List<MatchResult> matchResults) {
-    return FluentIterable
-        .from(matchResults)
-        .transformAndConcat(matchResult -> {
-          try {
-            return matchResult.metadata();
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        })
+    return FluentIterable.from(matchResults)
+        .transformAndConcat(
+            matchResult -> {
+              try {
+                return matchResult.metadata();
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            })
         .transform(metadata -> ((LocalResourceId) metadata.resourceId()).getPath().toString())
         .toList();
   }

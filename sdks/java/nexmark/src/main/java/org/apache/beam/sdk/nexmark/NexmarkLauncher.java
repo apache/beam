@@ -925,23 +925,26 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             break;
           case PUBLISH_ONLY:
             // Send synthesized events to Pubsub in this job.
-            sinkEventsToPubsub(sourceEventsFromSynthetic(p).apply(queryName + ".Snoop",
-                    NexmarkUtils.snoop(queryName)), now);
+            sinkEventsToPubsub(
+                sourceEventsFromSynthetic(p)
+                    .apply(queryName + ".Snoop", NexmarkUtils.snoop(queryName)),
+                now);
             break;
           case COMBINED:
             // Send synthesized events to Pubsub in separate publisher job.
             // We won't start the main pipeline until the publisher has sent the pre-load events.
             // We'll shutdown the publisher job when we notice the main job has finished.
-            invokeBuilderForPublishOnlyPipeline(publishOnlyOptions -> {
-              Pipeline sp = Pipeline.create(options);
-              NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
-              publisherMonitor = new Monitor<>(queryName, "publisher");
-              sinkEventsToPubsub(
-                  sourceEventsFromSynthetic(sp)
+            invokeBuilderForPublishOnlyPipeline(
+                publishOnlyOptions -> {
+                  Pipeline sp = Pipeline.create(options);
+                  NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
+                  publisherMonitor = new Monitor<>(queryName, "publisher");
+                  sinkEventsToPubsub(
+                      sourceEventsFromSynthetic(sp)
                           .apply(queryName + ".Monitor", publisherMonitor.getTransform()),
-                  now);
-              publisherResult = sp.run();
-            });
+                      now);
+                  publisherResult = sp.run();
+                });
             break;
         }
 

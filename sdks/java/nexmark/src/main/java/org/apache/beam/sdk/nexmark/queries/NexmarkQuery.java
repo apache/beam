@@ -36,7 +36,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
-
 import org.joda.time.Instant;
 
 /**
@@ -74,8 +73,7 @@ public abstract class NexmarkQuery
   };
 
   /** Predicate to detect a new bid event. */
-  public static final SerializableFunction<Event, Boolean> IS_BID =
-      event -> event.bid != null;
+  public static final SerializableFunction<Event, Boolean> IS_BID = event -> event.bid != null;
 
   /** DoFn to convert a bid event to a bid. */
   private static final DoFn<Event, Bid> AS_BID = new DoFn<Event, Bid>() {

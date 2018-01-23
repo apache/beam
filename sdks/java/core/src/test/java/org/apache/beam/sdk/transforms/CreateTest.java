@@ -368,9 +368,7 @@ public class CreateTest {
             p.apply(
                 "Static nested",
                 Create.ofProvider(
-                    NestedValueProvider.of(
-                        StaticValueProvider.of("foo"),
-                        input -> input + "bar"),
+                    NestedValueProvider.of(StaticValueProvider.of("foo"), input -> input + "bar"),
                     StringUtf8Coder.of())))
         .containsInAnyOrder("foobar");
     PAssert.that(

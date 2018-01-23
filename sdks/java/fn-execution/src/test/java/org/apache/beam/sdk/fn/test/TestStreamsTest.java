@@ -43,10 +43,11 @@ public class TestStreamsTest {
   @Test
   public void testIsReadyIsCalled() {
     final AtomicBoolean isReadyWasCalled = new AtomicBoolean();
-    assertFalse(TestStreams.withOnNext(null)
-        .withIsReady(() -> isReadyWasCalled.getAndSet(true))
-        .build()
-        .isReady());
+    assertFalse(
+        TestStreams.withOnNext(null)
+            .withIsReady(() -> isReadyWasCalled.getAndSet(true))
+            .build()
+            .isReady());
     assertTrue(isReadyWasCalled.get());
   }
 

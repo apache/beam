@@ -254,11 +254,11 @@ public class BeamFnDataGrpcClientTest {
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
     CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
         TestStreams.withOnNext(
-            (BeamFnApi.Elements t) -> {
-              inboundServerValues.add(t);
-              waitForInboundServerValuesCompletion.countDown();
-            }
-        ).build();
+                (BeamFnApi.Elements t) -> {
+                  inboundServerValues.add(t);
+                  waitForInboundServerValuesCompletion.countDown();
+                })
+            .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()

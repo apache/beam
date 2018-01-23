@@ -225,9 +225,9 @@ public class BigQueryIOWriteTest implements Serializable {
         userList.add(nickname + i);
       }
     }
-    PCollection<String> users = p.apply("CreateUsers", Create.of(userList))
-        .apply(Window.into(new PartitionedGlobalWindows<>(
-            arg -> arg)));
+    PCollection<String> users =
+        p.apply("CreateUsers", Create.of(userList))
+            .apply(Window.into(new PartitionedGlobalWindows<>(arg -> arg)));
 
     if (streaming) {
       users = users.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
@@ -681,8 +681,8 @@ public class BigQueryIOWriteTest implements Serializable {
         input -> {
           PartitionedGlobalWindow window = (PartitionedGlobalWindow) input.getWindow();
           // Check that we can access the element as well here and that it matches the window.
-          checkArgument(window.value.equals(Integer.toString(input.getValue() % 5)),
-              "Incorrect element");
+          checkArgument(
+              window.value.equals(Integer.toString(input.getValue() % 5)), "Incorrect element");
           return targetTables.get(input.getValue() % 5);
         };
 
@@ -695,14 +695,16 @@ public class BigQueryIOWriteTest implements Serializable {
         p.apply("CreateSchemaMap", Create.of(schemas))
             .apply("ViewSchemaAsMap", View.<String, String>asMap());
 
-    input.apply(Window.into(windowFn))
-        .apply(BigQueryIO.<Integer>write()
-            .to(tableFunction)
-            .withFormatFunction(i -> new TableRow().set("name", "number" + i).set("number", i))
-            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-            .withSchemaFromView(schemasView)
-            .withTestServices(fakeBqServices)
-            .withoutValidation());
+    input
+        .apply(Window.into(windowFn))
+        .apply(
+            BigQueryIO.<Integer>write()
+                .to(tableFunction)
+                .withFormatFunction(i -> new TableRow().set("name", "number" + i).set("number", i))
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withSchemaFromView(schemasView)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
     p.run();
 
     for (int i = 0; i < 5; ++i) {
@@ -788,8 +790,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(Create.<TableRow>of(new TableRow().set("foo", "bar")))
         .apply(
             BigQueryIO.writeTableRows()
-                .to(
-                    input -> null)
+                .to(input -> null)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
                 .withTestServices(fakeBqServices)
                 .withoutValidation());
@@ -1189,8 +1190,8 @@ public class BigQueryIOWriteTest implements Serializable {
               assertEquals(input.keySet(), expectedTempTables.keySet());
               for (Map.Entry<TableDestination, Iterable<String>> entry : input.entrySet()) {
                 @SuppressWarnings("unchecked")
-                String[] expectedValues = Iterables.toArray(
-                    expectedTempTables.get(entry.getKey()), String.class);
+                String[] expectedValues =
+                    Iterables.toArray(expectedTempTables.get(entry.getKey()), String.class);
                 assertThat(entry.getValue(), containsInAnyOrder(expectedValues));
               }
               return null;

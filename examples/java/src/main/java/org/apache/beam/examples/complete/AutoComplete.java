@@ -222,19 +222,17 @@ public class AutoComplete {
           // First, compute the top candidate for prefixes of size at least minPrefix + 1.
           PCollectionList<KV<String, List<CompletionCandidate>>> larger = input
             .apply(new ComputeTopRecursive(candidatesPerPrefix, minPrefix + 1));
-          // Consider the top candidates for each prefix of length minPrefix + 1...
-          PCollection<KV<String, List<CompletionCandidate>>> small =
-            PCollectionList
-            .of(larger.get(1).apply(ParDo.of(new FlattenTops())))
-            // ...together with those (previously excluded) candidates of length
-            // exactly minPrefix...
-            .and(input.apply(Filter.by(
-                c -> c.getValue().length() == minPrefix)))
-            .apply("FlattenSmall", Flatten.<CompletionCandidate>pCollections())
-            // ...set the key to be the minPrefix-length prefix...
-            .apply(ParDo.of(new AllPrefixes(minPrefix, minPrefix)))
-            // ...and (re)apply the Top operator to all of them together.
-            .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix));
+        // Consider the top candidates for each prefix of length minPrefix + 1...
+        PCollection<KV<String, List<CompletionCandidate>>> small =
+            PCollectionList.of(larger.get(1).apply(ParDo.of(new FlattenTops())))
+                // ...together with those (previously excluded) candidates of length
+                // exactly minPrefix...
+                .and(input.apply(Filter.by(c -> c.getValue().length() == minPrefix)))
+                .apply("FlattenSmall", Flatten.<CompletionCandidate>pCollections())
+                // ...set the key to be the minPrefix-length prefix...
+                .apply(ParDo.of(new AllPrefixes(minPrefix, minPrefix)))
+                // ...and (re)apply the Top operator to all of them together.
+                .apply(Top.<String, CompletionCandidate>largestPerKey(candidatesPerPrefix));
 
           PCollection<KV<String, List<CompletionCandidate>>> flattenLarger = larger
               .apply("FlattenLarge", Flatten.<KV<String, List<CompletionCandidate>>>pCollections());

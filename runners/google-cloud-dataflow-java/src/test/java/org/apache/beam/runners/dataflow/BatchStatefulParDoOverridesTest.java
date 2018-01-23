@@ -30,7 +30,6 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.LinkedList;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides.StatefulMultiOutputParDo;
 import org.apache.beam.runners.dataflow.BatchStatefulParDoOverrides.StatefulSingleOutputParDo;
@@ -56,8 +55,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /** Tests for {@link BatchStatefulParDoOverrides}. */
 @RunWith(JUnit4.class)
@@ -186,7 +183,8 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
 
   private static DataflowPipelineOptions buildPipelineOptions(String ... args) throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
-    when(mockGcsUtil.expand(any(GcsPath.class))).then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
+    when(mockGcsUtil.expand(any(GcsPath.class)))
+        .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
     when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
 
     DataflowPipelineOptions options =

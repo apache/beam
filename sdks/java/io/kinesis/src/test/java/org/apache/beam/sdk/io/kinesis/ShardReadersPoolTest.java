@@ -25,21 +25,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.base.Stopwatch;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests {@link ShardReadersPool}.
@@ -135,10 +131,12 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldInterruptKinesisReadingAndStopShortly() throws TransientKinesisException {
-    when(firstIterator.readNextBatch()).thenAnswer(invocation -> {
-      Thread.sleep(TimeUnit.MINUTES.toMillis(1));
-      return Collections.emptyList();
-    });
+    when(firstIterator.readNextBatch())
+        .thenAnswer(
+            invocation -> {
+              Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+              return Collections.emptyList();
+            });
     shardReadersPool.start();
 
     Stopwatch stopwatch = Stopwatch.createStarted();

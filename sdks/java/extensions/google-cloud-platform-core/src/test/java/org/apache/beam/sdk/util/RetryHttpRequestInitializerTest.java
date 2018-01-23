@@ -41,7 +41,6 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.util.NanoClock;
-import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.Storage.Objects.Get;
 import java.io.IOException;
@@ -106,8 +105,12 @@ public class RetryHttpRequestInitializerTest {
     // Retry initializer will pass through to credential, since we can have
     // only a single HttpRequestInitializer, and we use multiple Credential
     // types in the SDK, not all of which allow for retry configuration.
-    RetryHttpRequestInitializer initializer = new RetryHttpRequestInitializer(
-        new MockNanoClock(), millis -> {}, Arrays.asList(418 /* I'm a teapot */), mockHttpResponseInterceptor);
+    RetryHttpRequestInitializer initializer =
+        new RetryHttpRequestInitializer(
+            new MockNanoClock(),
+            millis -> {},
+            Arrays.asList(418 /* I'm a teapot */),
+            mockHttpResponseInterceptor);
     storage = new Storage.Builder(lowLevelTransport, jsonFactory, initializer)
         .setApplicationName("test").build();
   }

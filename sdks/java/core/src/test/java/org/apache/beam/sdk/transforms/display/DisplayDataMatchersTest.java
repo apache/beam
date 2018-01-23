@@ -104,7 +104,8 @@ public class DisplayDataMatchersTest {
   public void testHasPath() {
     Matcher<DisplayData> matcher = hasDisplayItem(hasPath("a", "b"));
 
-    final HasDisplayData subComponent = builder -> builder.include("b", builder1 -> builder1.add(DisplayData.item("foo", "bar")));
+    final HasDisplayData subComponent =
+        builder -> builder.include("b", builder1 -> builder1.add(DisplayData.item("foo", "bar")));
 
     assertFalse(matcher.matches(DisplayData.from(subComponent)));
 
@@ -132,9 +133,11 @@ public class DisplayDataMatchersTest {
 
     HasDisplayData wrongPath = builder -> builder.include("q", subComponent);
 
-    HasDisplayData deeplyNested = builder -> builder.include("p", builder1 -> builder1.include("p", subComponent));
+    HasDisplayData deeplyNested =
+        builder -> builder.include("p", builder1 -> builder1.include("p", subComponent));
 
-    HasDisplayData sameDisplayItemDifferentComponent = builder -> builder.add(DisplayData.item("foo", "bar"));
+    HasDisplayData sameDisplayItemDifferentComponent =
+        builder -> builder.add(DisplayData.item("foo", "bar"));
 
     Matcher<DisplayData> matcher = includesDisplayDataFor("p", subComponent);
 

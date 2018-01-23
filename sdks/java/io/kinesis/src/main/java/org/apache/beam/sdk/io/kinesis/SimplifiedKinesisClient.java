@@ -38,12 +38,10 @@ import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.StreamDescription;
 import com.google.common.collect.Lists;
-
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
-
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
 
@@ -76,31 +74,35 @@ class SimplifiedKinesisClient {
       final String startingSequenceNumber, final Instant timestamp)
       throws TransientKinesisException {
     final Date date = timestamp != null ? timestamp.toDate() : null;
-    return wrapExceptions(() -> kinesis.getShardIterator(new GetShardIteratorRequest()
-        .withStreamName(streamName)
-        .withShardId(shardId)
-        .withShardIteratorType(shardIteratorType)
-        .withStartingSequenceNumber(startingSequenceNumber)
-        .withTimestamp(date)
-    ).getShardIterator());
+    return wrapExceptions(
+        () ->
+            kinesis
+                .getShardIterator(
+                    new GetShardIteratorRequest()
+                        .withStreamName(streamName)
+                        .withShardId(shardId)
+                        .withShardIteratorType(shardIteratorType)
+                        .withStartingSequenceNumber(startingSequenceNumber)
+                        .withTimestamp(date))
+                .getShardIterator());
   }
 
   public List<Shard> listShards(final String streamName) throws TransientKinesisException {
-    return wrapExceptions(() -> {
-      List<Shard> shards = Lists.newArrayList();
-      String lastShardId = null;
+    return wrapExceptions(
+        () -> {
+          List<Shard> shards = Lists.newArrayList();
+          String lastShardId = null;
 
-      StreamDescription description;
-      do {
-        description = kinesis.describeStream(streamName, lastShardId)
-            .getStreamDescription();
+          StreamDescription description;
+          do {
+            description = kinesis.describeStream(streamName, lastShardId).getStreamDescription();
 
-        shards.addAll(description.getShards());
-        lastShardId = shards.get(shards.size() - 1).getShardId();
-      } while (description.getHasMoreShards());
+            shards.addAll(description.getShards());
+            lastShardId = shards.get(shards.size() - 1).getShardId();
+          } while (description.getHasMoreShards());
 
-      return shards;
-    });
+          return shards;
+        });
   }
 
   /**
@@ -124,16 +126,18 @@ class SimplifiedKinesisClient {
       final String shardId, final Integer limit)
       throws
       TransientKinesisException {
-    return wrapExceptions(() -> {
-      GetRecordsResult response = kinesis.getRecords(new GetRecordsRequest()
-          .withShardIterator(shardIterator)
-          .withLimit(limit));
-      return new GetKinesisRecordsResult(
-          UserRecord.deaggregate(response.getRecords()),
-          response.getNextShardIterator(),
-          response.getMillisBehindLatest(),
-          streamName, shardId);
-    });
+    return wrapExceptions(
+        () -> {
+          GetRecordsResult response =
+              kinesis.getRecords(
+                  new GetRecordsRequest().withShardIterator(shardIterator).withLimit(limit));
+          return new GetKinesisRecordsResult(
+              UserRecord.deaggregate(response.getRecords()),
+              response.getNextShardIterator(),
+              response.getMillisBehindLatest(),
+              streamName,
+              shardId);
+        });
   }
 
   /**
@@ -154,24 +158,23 @@ class SimplifiedKinesisClient {
    */
   public long getBacklogBytes(final String streamName, final Instant countSince,
       final Instant countTo) throws TransientKinesisException {
-    return wrapExceptions(() -> {
-      Minutes period = Minutes.minutesBetween(countSince, countTo);
-      if (period.isLessThan(Minutes.ONE)) {
-        return 0L;
-      }
+    return wrapExceptions(
+        () -> {
+          Minutes period = Minutes.minutesBetween(countSince, countTo);
+          if (period.isLessThan(Minutes.ONE)) {
+            return 0L;
+          }
 
-      GetMetricStatisticsRequest request = createMetricStatisticsRequest(streamName,
-          countSince, countTo, period);
+          GetMetricStatisticsRequest request =
+              createMetricStatisticsRequest(streamName, countSince, countTo, period);
 
-      long totalSizeInBytes = 0;
-      GetMetricStatisticsResult result = cloudWatch.getMetricStatistics(request);
-      for (Datapoint point : result.getDatapoints()) {
-        totalSizeInBytes += point
-            .getSum()
-            .longValue();
-      }
-      return totalSizeInBytes;
-    });
+          long totalSizeInBytes = 0;
+          GetMetricStatisticsResult result = cloudWatch.getMetricStatistics(request);
+          for (Datapoint point : result.getDatapoints()) {
+            totalSizeInBytes += point.getSum().longValue();
+          }
+          return totalSizeInBytes;
+        });
   }
 
   GetMetricStatisticsRequest createMetricStatisticsRequest(String streamName, Instant countSince,

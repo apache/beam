@@ -36,7 +36,6 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1246,35 +1245,37 @@ public class KafkaIOTest {
     }
 
     ProducerSendCompletionThread start() {
-      injectorThread.submit(() -> {
-        int errorsInjected = 0;
+      injectorThread.submit(
+          () -> {
+            int errorsInjected = 0;
 
-        while (!done.get()) {
-          boolean successful;
+            while (!done.get()) {
+              boolean successful;
 
-          if (errorsInjected < maxErrors && ((numCompletions + 1) % errorFrequency) == 0) {
-            successful = mockProducer.errorNext(
-                new InjectedErrorException("Injected Error #" + (errorsInjected + 1)));
+              if (errorsInjected < maxErrors && ((numCompletions + 1) % errorFrequency) == 0) {
+                successful =
+                    mockProducer.errorNext(
+                        new InjectedErrorException("Injected Error #" + (errorsInjected + 1)));
 
-            if (successful) {
-              errorsInjected++;
+                if (successful) {
+                  errorsInjected++;
+                }
+              } else {
+                successful = mockProducer.completeNext();
+              }
+
+              if (successful) {
+                numCompletions++;
+              } else {
+                // wait a bit since there are no unsent records
+                try {
+                  Thread.sleep(1);
+                } catch (InterruptedException e) {
+                  // ok to retry.
+                }
+              }
             }
-          } else {
-            successful = mockProducer.completeNext();
-          }
-
-          if (successful) {
-            numCompletions++;
-          } else {
-            // wait a bit since there are no unsent records
-            try {
-              Thread.sleep(1);
-            } catch (InterruptedException e) {
-              // ok to retry.
-            }
-          }
-        }
-      });
+          });
 
       return this;
     }

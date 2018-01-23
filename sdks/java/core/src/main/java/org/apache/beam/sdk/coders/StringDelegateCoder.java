@@ -20,8 +20,6 @@ package org.apache.beam.sdk.coders;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
-import org.apache.beam.sdk.coders.DelegateCoder.CodingFunction;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -64,9 +62,12 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   private final Class<T> clazz;
 
   protected StringDelegateCoder(final Class<T> clazz, TypeDescriptor<T> typeDescriptor) {
-    delegateCoder = DelegateCoder.of(StringUtf8Coder.of(),
-        input -> input.toString(),
-        input -> clazz.getConstructor(String.class).newInstance(input), typeDescriptor);
+    delegateCoder =
+        DelegateCoder.of(
+            StringUtf8Coder.of(),
+            input -> input.toString(),
+            input -> clazz.getConstructor(String.class).newInstance(input),
+            typeDescriptor);
 
     this.clazz = clazz;
   }

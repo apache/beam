@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
@@ -583,13 +582,15 @@ public class GroupByKeyTest implements Serializable {
               }
           }));
 
-    PAssert.that(result).satisfies(
-        values -> {
-          assertThat(values,
-              containsInAnyOrder(
-                  KV.of(bigString('a', keySize), 2), KV.of(bigString('b', keySize), 1)));
-          return null;
-        });
+    PAssert.that(result)
+        .satisfies(
+            values -> {
+              assertThat(
+                  values,
+                  containsInAnyOrder(
+                      KV.of(bigString('a', keySize), 2), KV.of(bigString('b', keySize), 1)));
+              return null;
+            });
 
     p.run();
   }
@@ -743,7 +744,6 @@ public class GroupByKeyTest implements Serializable {
               throw new RuntimeException(); // to satisfy the compiler...
             }
           });
-
     }
     @Override
     public Void apply(Iterable<BadEqualityKey> input) {

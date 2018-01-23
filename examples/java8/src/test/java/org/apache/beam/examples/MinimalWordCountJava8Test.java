@@ -21,11 +21,9 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.channels.FileChannel;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
-import java.util.List;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -42,8 +40,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * To keep {@link MinimalWordCountJava8} simple, it is not factored or testable. This test
@@ -78,16 +74,17 @@ public class MinimalWordCountJava8Test implements Serializable {
     GcsUtil mockGcsUtil = Mockito.mock(GcsUtil.class);
 
     // Any request to open gets a new bogus channel
-    Mockito
-        .when(mockGcsUtil.open(Mockito.any(GcsPath.class)))
-        .then(invocation -> FileChannel.open(
-            Files.createTempFile("channel-", ".tmp"),
-            StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE));
+    Mockito.when(mockGcsUtil.open(Mockito.any(GcsPath.class)))
+        .then(
+            invocation ->
+                FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.DELETE_ON_CLOSE));
 
     // Any request for expansion returns a list containing the original GcsPath
     // This is required to pass validation that occurs in TextIO during apply()
-    Mockito
-        .when(mockGcsUtil.expand(Mockito.any(GcsPath.class)))
+    Mockito.when(mockGcsUtil.expand(Mockito.any(GcsPath.class)))
         .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
 
     return mockGcsUtil;

@@ -185,8 +185,7 @@ public class FileSystemsTest {
   }
 
   private List<ResourceId> toResourceIds(List<Path> paths, final boolean isDirectory) {
-    return FluentIterable
-        .from(paths)
+    return FluentIterable.from(paths)
         .transform(path -> (ResourceId) LocalResourceId.fromPath(path, isDirectory))
         .toList();
   }

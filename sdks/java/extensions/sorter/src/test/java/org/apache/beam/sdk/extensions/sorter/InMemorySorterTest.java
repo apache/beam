@@ -21,7 +21,6 @@ package org.apache.beam.sdk.extensions.sorter;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.fail;
 
-import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -58,9 +57,7 @@ public class InMemorySorterTest {
   @Test
   public void testManySorters() throws Exception {
     SorterTestUtils.testRandom(
-        () -> InMemorySorter.create(new InMemorySorter.Options()),
-        1000000,
-        10);
+        () -> InMemorySorter.create(new InMemorySorter.Options()), 1000000, 10);
   }
 
   @Test

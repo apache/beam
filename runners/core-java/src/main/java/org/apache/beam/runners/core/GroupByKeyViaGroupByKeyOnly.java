@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -131,8 +130,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
       return input
           .apply(
               ParDo.of(
-                  new DoFn<KV<K, Iterable<WindowedValue<V>>>,
-                           KV<K, Iterable<WindowedValue<V>>>>() {
+                  new DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<WindowedValue<V>>>>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) {
                       KV<K, Iterable<WindowedValue<V>>> kvs = c.element();
@@ -143,8 +141,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
                         sortedValues.add(value);
                       }
                       Collections.sort(
-                          sortedValues,
-                          (e1, e2) -> e1.getTimestamp().compareTo(e2.getTimestamp()));
+                          sortedValues, (e1, e2) -> e1.getTimestamp().compareTo(e2.getTimestamp()));
                       c.output(KV.<K, Iterable<WindowedValue<V>>>of(key, sortedValues));
                     }
                   }))

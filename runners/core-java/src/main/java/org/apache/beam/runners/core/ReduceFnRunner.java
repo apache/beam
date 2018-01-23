@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
@@ -34,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
-import org.apache.beam.runners.core.ReduceFnContextFactory.OnTriggerCallbacks;
 import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -541,15 +539,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private ImmutableSet<W> toMergedWindows(final Map<W, W> windowToMergeResult,
       final Collection<? extends BoundedWindow> windows) {
     return ImmutableSet.copyOf(
-        FluentIterable.from(windows).transform(
-            untypedWindow -> {
-              @SuppressWarnings("unchecked")
-              W window = (W) untypedWindow;
-              W mergedWindow = windowToMergeResult.get(window);
-              // If the element is not present in the map, the window is unmerged.
-              return (mergedWindow == null) ? window : mergedWindow;
-            }
-        ));
+        FluentIterable.from(windows)
+            .transform(
+                untypedWindow -> {
+                  @SuppressWarnings("unchecked")
+                  W window = (W) untypedWindow;
+                  W mergedWindow = windowToMergeResult.get(window);
+                  // If the element is not present in the map, the window is unmerged.
+                  return (mergedWindow == null) ? window : mergedWindow;
+                }));
   }
 
   private void prefetchWindowsForValues(Collection<W> windows) {
@@ -1026,7 +1024,10 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // Run reduceFn.onTrigger method.
       final List<W> windows = Collections.singletonList(directContext.window());
       ReduceFn<K, InputT, OutputT, W>.OnTriggerContext renamedTriggerContext =
-          contextFactory.forTrigger(directContext.window(), pane, StateStyle.RENAMED,
+          contextFactory.forTrigger(
+              directContext.window(),
+              pane,
+              StateStyle.RENAMED,
               toOutput -> {
                 // We're going to output panes, so commit the (now used) PaneInfo.
                 // This is unnecessary if the trigger isFinished since the saved
@@ -1036,8 +1037,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
                 }
 
                 // Output the actual value.
-                outputter.outputWindowedValue(
-                    KV.of(key, toOutput), outputTimestamp, windows, pane);
+                outputter.outputWindowedValue(KV.of(key, toOutput), outputTimestamp, windows, pane);
               });
 
       reduceFn.onTrigger(renamedTriggerContext);

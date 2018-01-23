@@ -32,7 +32,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -42,7 +41,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-
 
 /**
  * {@link PTransform} that reads a bounded amount of data from an {@link UnboundedSource},
@@ -107,8 +105,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     PCollection<ValueWithRecordId<T>> read = Pipeline.applyTransform(input,
         Read.from(getAdaptedSource()));
     if (source.requiresDeduping()) {
-      read = read.apply(Distinct.withRepresentativeValueFn(
-          input1 -> input1.getId()));
+      read = read.apply(Distinct.withRepresentativeValueFn(input1 -> input1.getId()));
     }
     return read.apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()))
         .setCoder(source.getOutputCoder());

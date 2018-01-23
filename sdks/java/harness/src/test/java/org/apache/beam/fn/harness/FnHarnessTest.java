@@ -78,21 +78,29 @@ public class FnHarnessTest {
 
     BeamFnControlGrpc.BeamFnControlImplBase controlService =
         new BeamFnControlGrpc.BeamFnControlImplBase() {
-      @Override
-      public StreamObserver<InstructionResponse> control(
-          StreamObserver<InstructionRequest> responseObserver) {
-        CountDownLatch waitForResponses = new CountDownLatch(1 /* number of responses expected */);
-        options.as(GcsOptions.class).getExecutorService().submit(() -> {
-          responseObserver.onNext(INSTRUCTION_REQUEST);
-          Uninterruptibles.awaitUninterruptibly(waitForResponses);
-          responseObserver.onCompleted();
-        });
-        return TestStreams.withOnNext((InstructionResponse t) -> {
-          instructionResponses.add(t);
-          waitForResponses.countDown();
-        }).withOnCompleted(waitForResponses::countDown).build();
-      }
-    };
+          @Override
+          public StreamObserver<InstructionResponse> control(
+              StreamObserver<InstructionRequest> responseObserver) {
+            CountDownLatch waitForResponses =
+                new CountDownLatch(1 /* number of responses expected */);
+            options
+                .as(GcsOptions.class)
+                .getExecutorService()
+                .submit(
+                    () -> {
+                      responseObserver.onNext(INSTRUCTION_REQUEST);
+                      Uninterruptibles.awaitUninterruptibly(waitForResponses);
+                      responseObserver.onCompleted();
+                    });
+            return TestStreams.withOnNext(
+                    (InstructionResponse t) -> {
+                      instructionResponses.add(t);
+                      waitForResponses.countDown();
+                    })
+                .withOnCompleted(waitForResponses::countDown)
+                .build();
+          }
+        };
 
     Server loggingServer = ServerBuilder.forPort(0).addService(loggingService).build();
     loggingServer.start();

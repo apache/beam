@@ -39,8 +39,7 @@ public class ForwardingClientResponseObserverTest {
     @SuppressWarnings("unchecked")
     ClientCallStreamObserver<Object> callStreamObserver =
         mock(ClientCallStreamObserver.class);
-    Runnable onReadyHandler = () -> {
-    };
+    Runnable onReadyHandler = () -> {};
     ClientResponseObserver<Object, Object> observer =
         new ForwardingClientResponseObserver<>(delegateObserver, onReadyHandler);
     observer.onNext("A");

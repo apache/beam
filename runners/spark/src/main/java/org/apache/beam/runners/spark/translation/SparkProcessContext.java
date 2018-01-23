@@ -35,7 +35,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 
-
 /**
  * Spark runner process context processes Spark partitions using Beam's {@link DoFnRunner}.
  */
