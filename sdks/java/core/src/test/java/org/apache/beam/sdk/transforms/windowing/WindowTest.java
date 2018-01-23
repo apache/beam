@@ -609,7 +609,7 @@ public class WindowTest implements Serializable {
                 // This one will be outside of bigWindow thus not merged
                 TimestampedValue.of("small2", startInstant.plus(Duration.standardSeconds(39)))));
     PCollection<String> windowedCollection =
-        inputCollection.apply(Window.into(new CustomWindowFn<String>()));
+        inputCollection.apply(Window.into(new CustomWindowFn<>()));
     PCollection<Long> count =
         windowedCollection.apply(Combine.globally(Count.<String>combineFn()).withoutDefaults());
     // "small1" and "big" elements merged into bigWindow "small2" not merged
@@ -635,7 +635,7 @@ public class WindowTest implements Serializable {
                 TimestampedValue.of(
                     KV.of(2, "small2"), startInstant.plus(Duration.standardSeconds(39)))));
     PCollection<KV<Integer, String>> windowedCollection =
-        inputCollection.apply(Window.into(new CustomWindowFn<KV<Integer, String>>()));
+        inputCollection.apply(Window.into(new CustomWindowFn<>()));
     PCollection<Long> count =
         windowedCollection.apply(
             Combine.globally(Count.<KV<Integer, String>>combineFn()).withoutDefaults());

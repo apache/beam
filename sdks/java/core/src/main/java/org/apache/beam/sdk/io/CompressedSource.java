@@ -261,7 +261,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     if (isSplittable()) {
       return sourceDelegate.createSingleFileReader(options);
     }
-    return new CompressedReader<T>(
+    return new CompressedReader<>(
         this, sourceDelegate.createSingleFileReader(options));
   }
 

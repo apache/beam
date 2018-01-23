@@ -210,7 +210,7 @@ public class ParDoTranslatorTest {
         new ApexParDoOperator<>(
             options,
             new Add(singletonView),
-            new TupleTag<Integer>(),
+            new TupleTag<>(),
             TupleTagList.empty().getAll(),
             WindowingStrategy.globalDefault(),
             Collections.singletonList(singletonView),

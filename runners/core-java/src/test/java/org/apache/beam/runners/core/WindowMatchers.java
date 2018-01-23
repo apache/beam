@@ -134,7 +134,7 @@ public class WindowMatchers {
       Matcher<? super T> valueMatcher,
       Matcher<? super Instant> timestampMatcher,
       Matcher<? super BoundedWindow> windowMatcher) {
-    return new WindowedValueMatcher<T>(
+    return new WindowedValueMatcher<>(
         valueMatcher, timestampMatcher, Matchers.contains(windowMatcher), Matchers.anything());
   }
 
@@ -143,7 +143,7 @@ public class WindowMatchers {
       Matcher<? super Instant> timestampMatcher,
       Matcher<? super BoundedWindow> windowMatcher,
       Matcher<? super PaneInfo> paneInfoMatcher) {
-    return new WindowedValueMatcher<T>(
+    return new WindowedValueMatcher<>(
         valueMatcher, timestampMatcher, Matchers.contains(windowMatcher), paneInfoMatcher);
   }
 

@@ -248,8 +248,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   private ActiveWindowSet<W> createActiveWindowSet() {
     return windowingStrategy.getWindowFn().isNonMerging()
-        ? new NonMergingActiveWindowSet<W>()
-        : new MergingActiveWindowSet<W>(windowingStrategy.getWindowFn(), stateInternals);
+        ? new NonMergingActiveWindowSet<>()
+        : new MergingActiveWindowSet<>(windowingStrategy.getWindowFn(), stateInternals);
   }
 
   @VisibleForTesting

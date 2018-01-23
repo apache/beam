@@ -141,8 +141,7 @@ class SplittableProcessElementsEvaluatorFactory<
           }
         };
     processFn.setProcessElementInvoker(
-        new OutputAndTimeBoundedSplittableProcessElementInvoker<
-            InputT, OutputT, RestrictionT, TrackerT>(
+        new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             transform.getFn(),
             evaluationContext.getPipelineOptions(),
             outputWindowedValue,

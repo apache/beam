@@ -58,7 +58,7 @@ public class ParDoLifecycleTest implements Serializable {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
         .apply(Flatten.pCollections())
-        .apply(ParDo.of(new CallSequenceEnforcingDoFn<Integer>()));
+        .apply(ParDo.of(new CallSequenceEnforcingDoFn<>()));
 
     p.run();
   }
@@ -138,7 +138,7 @@ public class ParDoLifecycleTest implements Serializable {
     PCollectionList.of(p.apply("Impolite", Create.of(1, 2, 4)))
         .and(p.apply("Polite", Create.of(3, 5, 6, 7)))
         .apply(Flatten.pCollections())
-        .apply(ParDo.of(new CallSequenceEnforcingFn<Integer>()));
+        .apply(ParDo.of(new CallSequenceEnforcingFn<>()));
 
     p.run();
   }

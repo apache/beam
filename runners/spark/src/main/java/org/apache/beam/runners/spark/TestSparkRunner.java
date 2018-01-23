@@ -211,7 +211,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
           AppliedPTransform<PBegin, PCollection<T>, BoundedReadFromUnboundedSource<T>> transform) {
         return PTransformReplacement.of(
             transform.getPipeline().begin(),
-            new AdaptedBoundedAsUnbounded<T>(transform.getTransform()));
+            new AdaptedBoundedAsUnbounded<>(transform.getTransform()));
       }
 
       @Override

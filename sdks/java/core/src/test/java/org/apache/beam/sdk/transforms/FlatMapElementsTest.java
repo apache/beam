@@ -152,7 +152,7 @@ public class FlatMapElementsTest implements Serializable {
         .apply(Create.of(1, 2, 3))
 
         // This is the function that needs to propagate the input T to output T
-        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<Integer>()))
+        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<>()))
 
         // This is a consumer to ensure that all coder inference logic is executed.
         .apply("Test Consumer", MapElements.via(new SimpleFunction<Iterable<Integer>, Integer>() {

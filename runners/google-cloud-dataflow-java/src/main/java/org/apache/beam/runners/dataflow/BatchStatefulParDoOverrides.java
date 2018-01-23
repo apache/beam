@@ -174,7 +174,7 @@ public class BatchStatefulParDoOverrides {
       if (isFnApi) {
         return input
             .apply(GroupByKey.create())
-            .apply(ParDo.of(new ExpandGbkFn<K, InputT>()))
+            .apply(ParDo.of(new ExpandGbkFn<>()))
             .apply(originalParDo);
       }
 
@@ -184,7 +184,7 @@ public class BatchStatefulParDoOverrides {
           statefulParDo =
               ParDo.of(new BatchStatefulDoFn<>(fn)).withSideInputs(originalParDo.getSideInputs());
 
-      return input.apply(new GbkBeforeStatefulParDo<K, InputT>()).apply(statefulParDo);
+      return input.apply(new GbkBeforeStatefulParDo<>()).apply(statefulParDo);
     }
   }
 
@@ -210,7 +210,7 @@ public class BatchStatefulParDoOverrides {
       if (isFnApi) {
         return input
             .apply(GroupByKey.create())
-            .apply(ParDo.of(new ExpandGbkFn<K, InputT>()))
+            .apply(ParDo.of(new ExpandGbkFn<>()))
             .apply(originalParDo);
       }
 
@@ -218,12 +218,12 @@ public class BatchStatefulParDoOverrides {
               PCollection<? extends KV<K, Iterable<KV<Instant, WindowedValue<KV<K, InputT>>>>>>,
               PCollectionTuple>
           statefulParDo =
-              ParDo.of(new BatchStatefulDoFn<K, InputT, OutputT>(fn))
+              ParDo.of(new BatchStatefulDoFn<>(fn))
                   .withSideInputs(originalParDo.getSideInputs())
                   .withOutputTags(
                       originalParDo.getMainOutputTag(), originalParDo.getAdditionalOutputTags());
 
-      return input.apply(new GbkBeforeStatefulParDo<K, InputT>()).apply(statefulParDo);
+      return input.apply(new GbkBeforeStatefulParDo<>()).apply(statefulParDo);
     }
 
     public ParDo.MultiOutput<KV<K, InputT>, OutputT> getOriginalParDo() {
@@ -257,7 +257,7 @@ public class BatchStatefulParDoOverrides {
 
       return input
           // Stash the original timestamps, etc, for when it is fed to the user's DoFn
-          .apply("ReifyWindows", ParDo.of(new ReifyWindowedValueFn<K, V>()))
+          .apply("ReifyWindows", ParDo.of(new ReifyWindowedValueFn<>()))
           .setCoder(
               KvCoder.of(
                   keyCoder,
@@ -266,7 +266,7 @@ public class BatchStatefulParDoOverrides {
           // Group by key and sort by timestamp, dropping windows as they are reified
           .apply(
               "PartitionKeys",
-              new GroupByKeyAndSortValuesOnly<K, Instant, WindowedValue<KV<K, V>>>())
+              new GroupByKeyAndSortValuesOnly<>())
 
           // The GBKO sets the windowing strategy to the global default
           .setWindowingStrategyInternal(inputWindowingStrategy);

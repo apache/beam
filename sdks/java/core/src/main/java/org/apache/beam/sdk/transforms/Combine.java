@@ -1274,7 +1274,7 @@ public class Combine {
       PCollection<OutputT> combined =
           input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
       PCollection<KV<Void, OutputT>> materializationInput =
-          combined.apply(new VoidKeyToMultimapMaterialization<OutputT>());
+          combined.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<OutputT> view = PCollectionViews.singletonView(
           materializationInput,
               input.getWindowingStrategy(),
@@ -1646,7 +1646,7 @@ public class Combine {
         throw new IllegalStateException("Unable to determine accumulator coder.", e);
       }
       Coder<InputOrAccum<InputT, AccumT>> inputOrAccumCoder =
-          new InputOrAccum.InputOrAccumCoder<InputT, AccumT>(
+          new InputOrAccum.InputOrAccumCoder<>(
               inputCoder.getValueCoder(), accumCoder);
 
       // A CombineFn's mergeAccumulator can be applied in a tree-like fashion.

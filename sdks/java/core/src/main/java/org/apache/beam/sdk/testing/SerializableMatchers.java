@@ -555,7 +555,7 @@ class SerializableMatchers implements Serializable {
    */
   public static <K extends Serializable, V> SerializableMatcher<KV<? extends K, ? extends V>>
   kvWithKey(K key) {
-    return new KvKeyMatcher<K, V>(equalTo(key));
+    return new KvKeyMatcher<>(equalTo(key));
   }
 
   /**
@@ -566,7 +566,7 @@ class SerializableMatchers implements Serializable {
    */
   public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>>
   kvWithKey(Coder<K> coder, K key) {
-    return new KvKeyMatcher<K, V>(equalTo(coder, key));
+    return new KvKeyMatcher<>(equalTo(coder, key));
   }
 
   /**
@@ -574,7 +574,7 @@ class SerializableMatchers implements Serializable {
    */
   public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>> kvWithKey(
       final SerializableMatcher<? super K> keyMatcher) {
-    return new KvKeyMatcher<K, V>(keyMatcher);
+    return new KvKeyMatcher<>(keyMatcher);
   }
 
   /**
@@ -582,7 +582,7 @@ class SerializableMatchers implements Serializable {
    */
   public static <K, V extends Serializable> SerializableMatcher<KV<? extends K, ? extends V>>
   kvWithValue(V value) {
-    return new KvValueMatcher<K, V>(equalTo(value));
+    return new KvValueMatcher<>(equalTo(value));
   }
 
   /**
@@ -593,7 +593,7 @@ class SerializableMatchers implements Serializable {
    */
   public static <K, V> SerializableMatcher<KV<? extends K, ? extends V>>
   kvWithValue(Coder<V> coder, V value) {
-    return new KvValueMatcher<K, V>(equalTo(coder, value));
+    return new KvValueMatcher<>(equalTo(coder, value));
   }
 
   /**

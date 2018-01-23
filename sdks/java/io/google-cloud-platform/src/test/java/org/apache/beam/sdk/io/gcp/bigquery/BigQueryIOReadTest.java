@@ -708,7 +708,7 @@ public class BigQueryIOReadTest implements Serializable {
     PCollection<Integer> output =
         p.apply(Create.of(1, 2, 3))
             .apply(
-                new PassThroughThenCleanup<Integer>(
+                new PassThroughThenCleanup<>(
                     new PassThroughThenCleanup.CleanupOperation() {
                       @Override
                       void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {
@@ -727,7 +727,7 @@ public class BigQueryIOReadTest implements Serializable {
 
     p.apply(Create.empty(VarIntCoder.of()))
         .apply(
-            new PassThroughThenCleanup<Integer>(
+            new PassThroughThenCleanup<>(
                 new PassThroughThenCleanup.CleanupOperation() {
                   @Override
                   void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {

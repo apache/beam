@@ -229,7 +229,7 @@ public class TopTest {
 
   @Test
   public void testDisplayData() {
-    Top.Natural<Integer> comparer = new Top.Natural<Integer>();
+    Top.Natural<Integer> comparer = new Top.Natural<>();
     Combine.Globally<Integer, List<Integer>> top = Top.of(1234, comparer);
     DisplayData displayData = DisplayData.from(top);
 

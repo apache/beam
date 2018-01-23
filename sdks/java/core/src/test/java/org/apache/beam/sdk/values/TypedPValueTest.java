@@ -73,7 +73,7 @@ public class TypedPValueTest {
   public void testUntypedOutputTupleTagGivesActionableMessage() {
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
     // untypedOutputTag did not use anonymous subclass.
-    TupleTag<Integer> untypedOutputTag = new TupleTag<Integer>();
+    TupleTag<Integer> untypedOutputTag = new TupleTag<>();
     PCollectionTuple tuple = buildPCollectionTupleWithTags(mainOutputTag, untypedOutputTag);
 
     thrown.expect(IllegalStateException.class);

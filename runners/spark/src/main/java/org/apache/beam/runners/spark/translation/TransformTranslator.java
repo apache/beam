@@ -143,7 +143,7 @@ public final class TransformTranslator {
             groupedByKey.flatMap(
                 new SparkGroupAlsoByWindowViaOutputBufferFn<>(
                     windowingStrategy,
-                    new TranslationUtils.InMemoryStateInternalsFactory<K>(),
+                    new TranslationUtils.InMemoryStateInternalsFactory<>(),
                     SystemReduceFn.buffering(coder.getValueCoder()),
                     context.getSerializableOptions(),
                     accum));

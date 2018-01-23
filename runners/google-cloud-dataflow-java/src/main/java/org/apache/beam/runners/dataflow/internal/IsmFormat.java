@@ -280,7 +280,7 @@ public class IsmFormat {
      * metadata keys and normal keys do not overlap.
      */
     public <V, T> int hash(List<?> keyComponents) {
-      return encodeAndHash(keyComponents, new RandomAccessData(), new ArrayList<Integer>());
+      return encodeAndHash(keyComponents, new RandomAccessData(), new ArrayList<>());
     }
 
     /**
@@ -290,7 +290,7 @@ public class IsmFormat {
      * version of the key components.
      */
     public <V, T> int encodeAndHash(List<?> keyComponents, RandomAccessData keyBytesToMutate) {
-      return encodeAndHash(keyComponents, keyBytesToMutate, new ArrayList<Integer>());
+      return encodeAndHash(keyComponents, keyBytesToMutate, new ArrayList<>());
     }
 
     /**

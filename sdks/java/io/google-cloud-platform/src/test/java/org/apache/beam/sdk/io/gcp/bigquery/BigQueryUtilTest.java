@@ -197,7 +197,7 @@ public class BigQueryUtilTest {
     errorsIndices.add(Arrays.asList(0L, 5L, 10L, 15L, 20L));
     errorsIndices.add(Arrays.asList(0L, 2L, 4L));
     errorsIndices.add(Arrays.asList(0L, 2L));
-    errorsIndices.add(new ArrayList<Long>());
+    errorsIndices.add(new ArrayList<>());
     onInsertAll(errorsIndices);
 
     TableReference ref = BigQueryHelpers

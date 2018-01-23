@@ -271,7 +271,7 @@ public class HadoopInputFormatIO {
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       Coder<K> keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
       Coder<V> valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
-      HadoopInputFormatBoundedSource<K, V> source = new HadoopInputFormatBoundedSource<K, V>(
+      HadoopInputFormatBoundedSource<K, V> source = new HadoopInputFormatBoundedSource<>(
           getConfiguration(),
           keyCoder,
           valueCoder,
@@ -359,7 +359,7 @@ public class HadoopInputFormatIO {
     private long boundedSourceEstimatedSize = 0;
     private transient InputFormat<?, ?> inputFormatObj;
     private transient TaskAttemptContext taskAttemptContext;
-    private static final Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
+    private static final Set<Class<?>> immutableTypes = new HashSet<>(
         Arrays.asList(
             String.class,
             Byte.class,
@@ -445,7 +445,7 @@ public class HadoopInputFormatIO {
           inputSplits,
           serializableInputSplit -> {
             HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
-                new HadoopInputFormatBoundedSource<K, V>(
+                new HadoopInputFormatBoundedSource<>(
                     conf,
                     keyCoder,
                     valueCoder,
@@ -487,7 +487,7 @@ public class HadoopInputFormatIO {
         throw new IOException("Error in computing splits, getSplits() returns a empty list");
       }
       boundedSourceEstimatedSize = 0;
-      inputSplits = new ArrayList<SerializableSplit>();
+      inputSplits = new ArrayList<>();
       for (InputSplit inputSplit : splits) {
         if (inputSplit == null) {
           throw new IOException("Error in computing splits, split is null in InputSplits list "

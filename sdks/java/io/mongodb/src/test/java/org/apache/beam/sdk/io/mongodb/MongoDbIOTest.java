@@ -278,6 +278,6 @@ public class MongoDbIOTest implements Serializable {
             .withDatabase("test")
             .withCollection("empty");
     DoFnTester<Document, Void> fnTester = DoFnTester.of(new MongoDbIO.Write.WriteFn(write));
-    fnTester.processBundle(new ArrayList<Document>());
+    fnTester.processBundle(new ArrayList<>());
   }
 }

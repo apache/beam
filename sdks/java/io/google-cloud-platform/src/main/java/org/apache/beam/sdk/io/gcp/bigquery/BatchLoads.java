@@ -241,9 +241,9 @@ class BatchLoads<DestinationT>
                 .discardingFiredPanes());
 
     TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag =
-        new TupleTag<KV<ShardedKey<DestinationT>, List<String>>>("multiPartitionsTag");
+        new TupleTag<>("multiPartitionsTag");
     TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag =
-        new TupleTag<KV<ShardedKey<DestinationT>, List<String>>>("singlePartitionTag");
+        new TupleTag<>("singlePartitionTag");
 
     // If we have non-default triggered output, we can't use the side-input technique used in
     // expandUntriggered . Instead make the result list a main input. Apply a GroupByKey first for
@@ -315,7 +315,7 @@ class BatchLoads<DestinationT>
     // loading.
     PCollectionTuple partitions =
         results
-            .apply("ReifyResults", new ReifyAsIterable<WriteBundlesToFiles.Result<DestinationT>>())
+            .apply("ReifyResults", new ReifyAsIterable<>())
             .setCoder(IterableCoder.of(WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
             .apply(
                 "WritePartitionUntriggered",
@@ -332,7 +332,7 @@ class BatchLoads<DestinationT>
         writeTempTables(partitions.get(multiPartitionsTag), jobIdTokenView);
 
     tempTables
-        .apply("ReifyRenameInput", new ReifyAsIterable<KV<TableDestination, String>>())
+        .apply("ReifyRenameInput", new ReifyAsIterable<>())
         .setCoder(IterableCoder.of(KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
         .apply(
             "WriteRenameUntriggered",
@@ -538,7 +538,7 @@ class BatchLoads<DestinationT>
   private WriteResult writeResult(Pipeline p) {
     PCollection<TableRow> empty =
         p.apply("CreateEmptyFailedInserts", Create.empty(TypeDescriptor.of(TableRow.class)));
-    return WriteResult.in(p, new TupleTag<TableRow>("failedInserts"), empty);
+    return WriteResult.in(p, new TupleTag<>("failedInserts"), empty);
   }
 
   @Override

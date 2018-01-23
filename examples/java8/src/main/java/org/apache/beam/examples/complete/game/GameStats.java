@@ -184,18 +184,18 @@ public class GameStats extends LeaderBoard {
   protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
       configureWindowedWrite() {
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-        new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
+        new HashMap<>();
     tableConfigure.put(
         "team",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+        new WriteWindowedToBigQuery.FieldInfo<>(
             "STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
         "total_score",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+        new WriteWindowedToBigQuery.FieldInfo<>(
             "INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
         "window_start",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+        new WriteWindowedToBigQuery.FieldInfo<>(
             "STRING",
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
@@ -203,7 +203,7 @@ public class GameStats extends LeaderBoard {
             }));
     tableConfigure.put(
         "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+        new WriteWindowedToBigQuery.FieldInfo<>(
             "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
@@ -216,10 +216,10 @@ public class GameStats extends LeaderBoard {
       configureSessionWindowWrite() {
 
     Map<String, WriteWindowedToBigQuery.FieldInfo<Double>> tableConfigure =
-        new HashMap<String, WriteWindowedToBigQuery.FieldInfo<Double>>();
+        new HashMap<>();
     tableConfigure.put(
         "window_start",
-        new WriteWindowedToBigQuery.FieldInfo<Double>(
+        new WriteWindowedToBigQuery.FieldInfo<>(
             "STRING",
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
@@ -227,7 +227,7 @@ public class GameStats extends LeaderBoard {
             }));
     tableConfigure.put(
         "mean_duration",
-        new WriteWindowedToBigQuery.FieldInfo<Double>("FLOAT", (c, w) -> c.element()));
+        new WriteWindowedToBigQuery.FieldInfo<>("FLOAT", (c, w) -> c.element()));
     return tableConfigure;
   }
 
@@ -301,7 +301,7 @@ public class GameStats extends LeaderBoard {
         // Write the result to BigQuery
         .apply(
             "WriteTeamSums",
-            new WriteWindowedToBigQuery<KV<String, Integer>>(
+            new WriteWindowedToBigQuery<>(
                 options.as(GcpOptions.class).getProject(),
                 options.getDataset(),
                 options.getGameStatsTablePrefix() + "_team",
@@ -335,7 +335,7 @@ public class GameStats extends LeaderBoard {
         // Write this info to a BigQuery table.
         .apply(
             "WriteAvgSessionLength",
-            new WriteWindowedToBigQuery<Double>(
+            new WriteWindowedToBigQuery<>(
                 options.as(GcpOptions.class).getProject(),
                 options.getDataset(),
                 options.getGameStatsTablePrefix() + "_sessions",

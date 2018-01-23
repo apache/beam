@@ -79,7 +79,7 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
     return input
         .apply(
             ParDo.of(
-                new SortValuesDoFn<PrimaryKeyT, SecondaryKeyT, ValueT>(
+                new SortValuesDoFn<>(
                     sorterOptions,
                     getSecondaryKeyCoder(input.getCoder()),
                     getValueCoder(input.getCoder()))))

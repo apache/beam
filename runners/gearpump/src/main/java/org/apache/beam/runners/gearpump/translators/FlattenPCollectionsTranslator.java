@@ -54,7 +54,7 @@ public class FlattenPCollectionsTranslator<T> implements
         // duplicate edges are not allowed in Gearpump graph
         // so we route through a dummy node
         if (unique.contains(collection)) {
-          inputStream = inputStream.map(new DummyFunction<T>(), "dummy");
+          inputStream = inputStream.map(new DummyFunction<>(), "dummy");
         }
 
         merged = merged.merge(inputStream, 1, transform.getName());

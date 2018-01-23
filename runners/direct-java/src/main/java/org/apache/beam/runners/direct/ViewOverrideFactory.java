@@ -66,7 +66,7 @@ class ViewOverrideFactory<ElemT, ViewT>
 
       return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new GroupAndWriteView<ElemT, ViewT>(view));
+          new GroupAndWriteView<>(view));
   }
 
   @Override
@@ -91,7 +91,7 @@ class ViewOverrideFactory<ElemT, ViewT>
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
           .apply(GroupByKey.create())
           .apply(Values.create())
-          .apply(new WriteView<ElemT, ViewT>(view));
+          .apply(new WriteView<>(view));
       return input;
     }
   }

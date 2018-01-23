@@ -62,7 +62,7 @@ public class UnconsumedReads {
   private static <T> void consume(PCollection<T> unconsumedPCollection, int uniq) {
     // Multiple applications should never break due to stable unique names.
     String uniqueName = "DropInputs" + (uniq == 0 ? "" : uniq);
-    unconsumedPCollection.apply(uniqueName, ParDo.of(new NoOpDoFn<T>()));
+    unconsumedPCollection.apply(uniqueName, ParDo.of(new NoOpDoFn<>()));
   }
 
   private static class NoOpDoFn<T> extends DoFn<T, T> {

@@ -67,7 +67,7 @@ class CreateStreamingFlinkView<ElemT, ViewT>
   private static class Concatenate<T> extends Combine.CombineFn<T, List<T>, List<T>> {
     @Override
     public List<T> createAccumulator() {
-      return new ArrayList<T>();
+      return new ArrayList<>();
     }
 
     @Override
@@ -155,7 +155,7 @@ class CreateStreamingFlinkView<ElemT, ViewT>
         throw new RuntimeException(e);
       }
       CreateStreamingFlinkView<ElemT, ViewT> createFlinkView =
-          new CreateStreamingFlinkView<ElemT, ViewT>(view);
+          new CreateStreamingFlinkView<>(view);
       return PTransformReplacement.of(collection, createFlinkView);
     }
 

@@ -128,7 +128,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
               .addAll(events)
               .add(ElementEvent.add(element, elements))
               .build();
-      return new Builder<T>(coder, newEvents, currentWatermark);
+      return new Builder<>(coder, newEvents, currentWatermark);
     }
 
     /**
@@ -153,7 +153,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
               .addAll(events)
               .add(WatermarkEvent.advanceTo(newWatermark))
               .build();
-      return new Builder<T>(coder, newEvents, newWatermark);
+      return new Builder<>(coder, newEvents, newWatermark);
     }
 
     /**
@@ -172,7 +172,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
               .addAll(events)
               .add(ProcessingTimeEvent.advanceBy(amount))
               .build();
-      return new Builder<T>(coder, newEvents, currentWatermark);
+      return new Builder<>(coder, newEvents, currentWatermark);
     }
 
     /**

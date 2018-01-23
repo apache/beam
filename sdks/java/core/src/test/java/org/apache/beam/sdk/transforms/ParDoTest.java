@@ -1097,8 +1097,8 @@ public class ParDoTest implements Serializable {
 
     public static HasExpectedOutput forInput(List<Integer> inputs) {
       return new HasExpectedOutput(
-          new ArrayList<Integer>(inputs),
-          new ArrayList<Integer>(),
+          new ArrayList<>(inputs),
+          new ArrayList<>(),
           "");
     }
 
@@ -1172,8 +1172,8 @@ public class ParDoTest implements Serializable {
     PCollection<Integer> input = pipeline
         .apply(Create.of(Arrays.asList(1, 2, 3)));
 
-    final TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main");
-    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<TestDummy>("unknownSide");
+    final TupleTag<Integer> mainOutputTag = new TupleTag<>("main");
+    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<>("unknownSide");
     input.apply(ParDo.of(new TaggedOutputDummyFn(additionalOutputTag))
         .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
@@ -1189,8 +1189,8 @@ public class ParDoTest implements Serializable {
     PCollection<Integer> input = pipeline
         .apply(Create.of(Arrays.asList(1, 2, 3)));
 
-    final TupleTag<Integer> mainOutputTag = new TupleTag<Integer>("main");
-    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<TestDummy>("unregisteredSide");
+    final TupleTag<Integer> mainOutputTag = new TupleTag<>("main");
+    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<>("unregisteredSide");
     ParDo.MultiOutput<Integer, Integer> pardo =
         ParDo.of(new TaggedOutputDummyFn(additionalOutputTag))
             .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag));
@@ -1215,7 +1215,7 @@ public class ParDoTest implements Serializable {
     PCollection<Integer> input = pipeline
         .apply(Create.of(Arrays.asList(1, 2, 3)));
 
-    final TupleTag<TestDummy> mainOutputTag = new TupleTag<TestDummy>("unregisteredMain");
+    final TupleTag<TestDummy> mainOutputTag = new TupleTag<>("unregisteredMain");
     final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("additionalOutput") {};
     PCollectionTuple outputTuple =
         input.apply(
@@ -1234,8 +1234,8 @@ public class ParDoTest implements Serializable {
     // should not cause a crash based on lack of a coder for the
     // additional output.
 
-    final TupleTag<TestDummy> mainOutputTag = new TupleTag<TestDummy>("main");
-    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<TestDummy>("additionalOutput");
+    final TupleTag<TestDummy> mainOutputTag = new TupleTag<>("main");
+    final TupleTag<TestDummy> additionalOutputTag = new TupleTag<>("additionalOutput");
     PCollectionTuple tuple = pipeline
         .apply(Create.of(new TestDummy())
             .withCoder(TestDummyCoder.of()))
@@ -1278,9 +1278,9 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.ZERO)))
-        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
+        .apply(ParDo.of(new TestOutputTimestampDoFn<>()))
+        .apply(ParDo.of(new TestShiftTimestampDoFn<>(Duration.ZERO, Duration.ZERO)))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: 3",
@@ -1311,8 +1311,8 @@ public class ParDoTest implements Serializable {
               }
             }).withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)))
         .get(additionalOutputTag)
-        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.ZERO)))
-        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
+        .apply(ParDo.of(new TestShiftTimestampDoFn<>(Duration.ZERO, Duration.ZERO)))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: 3",
@@ -1331,12 +1331,12 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-            .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+            .apply(ParDo.of(new TestOutputTimestampDoFn<>()))
             .apply(
                 ParDo.of(
-                    new TestShiftTimestampDoFn<Integer>(
+                    new TestShiftTimestampDoFn<>(
                         Duration.millis(1000), Duration.millis(-1000))))
-            .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
+            .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: -997",
@@ -1352,13 +1352,13 @@ public class ParDoTest implements Serializable {
 
     pipeline
         .apply(Create.of(Arrays.asList(3, 42, 6)))
-        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
+        .apply(ParDo.of(new TestOutputTimestampDoFn<>()))
         .apply(
             ParDo.of(
-                new TestShiftTimestampDoFn<Integer>(
+                new TestShiftTimestampDoFn<>(
                     Duration.millis(1000), // allowed skew = 1 second
                     Duration.millis(-1001))))
-        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
+        .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Cannot output with timestamp");
@@ -1373,9 +1373,9 @@ public class ParDoTest implements Serializable {
   public void testParDoShiftTimestampInvalidZeroAllowed() {
     pipeline
         .apply(Create.of(Arrays.asList(3, 42, 6)))
-        .apply(ParDo.of(new TestOutputTimestampDoFn<Integer>()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn<Integer>(Duration.ZERO, Duration.millis(-1001))))
-        .apply(ParDo.of(new TestFormatTimestampDoFn<Integer>()));
+        .apply(ParDo.of(new TestOutputTimestampDoFn<>()))
+        .apply(ParDo.of(new TestShiftTimestampDoFn<>(Duration.ZERO, Duration.millis(-1001))))
+        .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Cannot output with timestamp");
@@ -1396,7 +1396,7 @@ public class ParDoTest implements Serializable {
                         0L,
                         BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis(),
                         GlobalWindow.INSTANCE.maxTimestamp().getMillis())))
-            .apply("AssignTimestampToValue", ParDo.of(new TestOutputTimestampDoFn<Long>()))
+            .apply("AssignTimestampToValue", ParDo.of(new TestOutputTimestampDoFn<>()))
             .apply("ReassignToMinimumTimestamp",
                 ParDo.of(
                     new DoFn<Long, Long>() {
@@ -3186,7 +3186,7 @@ public class ParDoTest implements Serializable {
 
     ParDo.MultiOutput<String, String> parDo = ParDo
             .of(fn)
-            .withOutputTags(new TupleTag<String>(), TupleTagList.empty());
+            .withOutputTags(new TupleTag<>(), TupleTagList.empty());
 
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, includesDisplayDataFor("fn", fn));

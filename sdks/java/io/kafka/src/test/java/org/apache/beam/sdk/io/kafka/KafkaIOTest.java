@@ -155,7 +155,7 @@ public class KafkaIOTest {
         TopicPartition tp = new TopicPartition(topic, i);
         partitions.add(tp);
         partIds.add(new PartitionInfo(topic, i, null, null, null));
-        records.put(tp, new ArrayList<ConsumerRecord<byte[], byte[]>>());
+        records.put(tp, new ArrayList<>());
       }
       partitionMap.put(topic, partIds);
     }
@@ -502,7 +502,7 @@ public class KafkaIOTest {
       pcollections =
           pcollections.and(
               p.apply("split" + i, Read.from(splits.get(i)).withMaxNumRecords(elementsPerSplit))
-                  .apply("Remove Metadata " + i, ParDo.of(new RemoveKafkaMetadata<Integer, Long>()))
+                  .apply("Remove Metadata " + i, ParDo.of(new RemoveKafkaMetadata<>()))
                   .apply("collection " + i, Values.create()));
     }
     PCollection<Long> input = pcollections.apply(Flatten.pCollections());

@@ -339,7 +339,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
         StateNamespace namespace,
         Coder<T> coder) {
       super(address.getId(), namespace.stringKey(), ListCoder.of(coder),
-          new KeyGroupBagCombiner<T>());
+          new KeyGroupBagCombiner<>());
       this.namespace = namespace;
       this.address = address;
     }

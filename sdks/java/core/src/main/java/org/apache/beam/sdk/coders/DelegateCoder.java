@@ -62,7 +62,7 @@ public final class DelegateCoder<T, IntermediateT> extends CustomCoder<T> {
       CodingFunction<T, IntermediateT> toFn,
       CodingFunction<IntermediateT, T> fromFn,
       @Nullable TypeDescriptor<T> typeDescriptor) {
-    return new DelegateCoder<T, IntermediateT>(coder, toFn, fromFn, typeDescriptor);
+    return new DelegateCoder<>(coder, toFn, fromFn, typeDescriptor);
   }
 
   @Override

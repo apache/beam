@@ -436,7 +436,7 @@ public class JdbcIO {
                       getParameterSetter(),
                       getRowMapper())))
           .setCoder(getCoder())
-          .apply(new Reparallelize<OutputT>());
+          .apply(new Reparallelize<>());
     }
 
     @Override
@@ -555,7 +555,7 @@ public class JdbcIO {
       checkArgument(
           getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
 
-      input.apply(ParDo.of(new WriteFn<T>(this)));
+      input.apply(ParDo.of(new WriteFn<>(this)));
       return PDone.in(input.getPipeline());
     }
 

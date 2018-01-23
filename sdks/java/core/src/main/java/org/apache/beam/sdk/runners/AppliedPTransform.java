@@ -57,7 +57,7 @@ public abstract class AppliedPTransform<
           Map<TupleTag<?>, PValue> output,
           TransformT transform,
           Pipeline p) {
-    return new AutoValue_AppliedPTransform<InputT, OutputT, TransformT>(
+    return new AutoValue_AppliedPTransform<>(
         fullName, input, output, transform, p);
   }
 

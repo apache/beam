@@ -89,7 +89,7 @@ public class ForwardingPTransformTest {
   @Test
   public void getAdditionalInputsDelegates() {
     Map<TupleTag<?>, PValue> additionalInputs =
-        ImmutableMap.of(new TupleTag<Object>("test_tag"), Pipeline.create().apply(Create.of("1")));
+        ImmutableMap.of(new TupleTag<>("test_tag"), Pipeline.create().apply(Create.of("1")));
     when(delegate.getAdditionalInputs()).thenReturn(additionalInputs);
     assertThat(forwarding.getAdditionalInputs(), equalTo(additionalInputs));
   }

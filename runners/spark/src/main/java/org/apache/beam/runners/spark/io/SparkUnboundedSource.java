@@ -240,7 +240,7 @@ public class SparkUnboundedSource {
     private void report(Time batchTime, long count, SparkWatermarks sparkWatermark) {
       // metadata - #records read and a description.
       scala.collection.immutable.Map<String, Object> metadata =
-          new scala.collection.immutable.Map.Map1<String, Object>(
+          new scala.collection.immutable.Map.Map1<>(
               StreamInputInfo.METADATA_KEY_DESCRIPTION(),
               String.format(
                   "Read %d records with observed watermarks %s, from %s for batch time: %s",

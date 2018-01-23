@@ -377,7 +377,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
             .apply("Add void key", WithKeys.of((Void) null))
             .apply("Reshuffle", Reshuffle.of())
             .apply("Drop key", Values.create())
-            .apply("Gather bundles", ParDo.of(new GatherBundlesPerWindowFn<ResultT>()))
+            .apply("Gather bundles", ParDo.of(new GatherBundlesPerWindowFn<>()))
             .setCoder(ListCoder.of(resultCoder))
             // Reshuffle one more time to stabilize the contents of the bundle lists to finalize.
             .apply(Reshuffle.viaRandomKey());

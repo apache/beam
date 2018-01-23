@@ -287,7 +287,7 @@ public class CreateTest {
     thrown.expectMessage("Create.empty(TypeDescriptor)");
     thrown.expectMessage("withCoder(Coder)");
     thrown.expectMessage("withType(TypeDescriptor)");
-    p.apply(Create.timestamped(new ArrayList<TimestampedValue<Object>>()));
+    p.apply(Create.timestamped(new ArrayList<>()));
   }
 
   @Test

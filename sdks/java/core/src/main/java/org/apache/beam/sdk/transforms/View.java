@@ -217,7 +217,7 @@ public class View {
    * <p>Currently, the resulting map is required to fit into memory.
    */
   public static <K, V> AsMap<K, V> asMap() {
-    return new AsMap<K, V>();
+    return new AsMap<>();
   }
 
   /**
@@ -238,7 +238,7 @@ public class View {
    * <p>Currently, the resulting map is required to fit into memory.
    */
   public static <K, V> AsMultimap<K, V> asMultimap() {
-    return new AsMultimap<K, V>();
+    return new AsMultimap<>();
   }
 
   /**
@@ -261,7 +261,7 @@ public class View {
       }
 
       PCollection<KV<Void, T>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<T>());
+          input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<List<T>> view = PCollectionViews.listView(
           materializationInput,
           materializationInput.getWindowingStrategy());
@@ -291,7 +291,7 @@ public class View {
       }
 
       PCollection<KV<Void, T>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<T>());
+          input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(
           materializationInput,
           materializationInput.getWindowingStrategy());
@@ -437,7 +437,7 @@ public class View {
       }
 
       PCollection<KV<Void, KV<K, V>>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<KV<K, V>>());
+          input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<Map<K, Iterable<V>>> view = PCollectionViews.multimapView(
           materializationInput,
           materializationInput.getWindowingStrategy());
@@ -475,7 +475,7 @@ public class View {
       }
 
       PCollection<KV<Void, KV<K, V>>> materializationInput =
-          input.apply(new VoidKeyToMultimapMaterialization<KV<K, V>>());
+          input.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<Map<K, V>> view = PCollectionViews.mapView(
           materializationInput,
           materializationInput.getWindowingStrategy());

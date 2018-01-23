@@ -273,8 +273,8 @@ public class TfIdf {
       // a tuple tag. Each input must have the same key type, URI
       // in this case. The type parameter of the tuple tag matches
       // the types of the values for each collection.
-      final TupleTag<Long> wordTotalsTag = new TupleTag<Long>();
-      final TupleTag<KV<String, Long>> wordCountsTag = new TupleTag<KV<String, Long>>();
+      final TupleTag<Long> wordTotalsTag = new TupleTag<>();
+      final TupleTag<KV<String, Long>> wordCountsTag = new TupleTag<>();
       KeyedPCollectionTuple<URI> coGbkInput = KeyedPCollectionTuple
           .of(wordTotalsTag, uriToWordTotal)
           .and(wordCountsTag, uriToWordAndCount);
@@ -335,8 +335,8 @@ public class TfIdf {
 
       // Join the term frequency and document frequency
       // collections, each keyed on the word.
-      final TupleTag<KV<URI, Double>> tfTag = new TupleTag<KV<URI, Double>>();
-      final TupleTag<Double> dfTag = new TupleTag<Double>();
+      final TupleTag<KV<URI, Double>> tfTag = new TupleTag<>();
+      final TupleTag<Double> dfTag = new TupleTag<>();
       PCollection<KV<String, CoGbkResult>> wordToUriAndTfAndDf =
           KeyedPCollectionTuple.of(tfTag, wordToUriAndTf)
               .and(dfTag, wordToDf)

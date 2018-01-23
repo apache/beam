@@ -74,9 +74,9 @@ public class KeyedPValueTrackingVisitorTest {
     PCollection<KV<String, Iterable<Integer>>> keyed =
         p
             .apply(Create.of(KV.of("foo", 3)))
-            .apply(new DirectGroupByKeyOnly<String, Integer>())
+            .apply(new DirectGroupByKeyOnly<>())
             .apply(
-                new DirectGroupAlsoByWindow<String, Integer>(
+                new DirectGroupAlsoByWindow<>(
                     WindowingStrategy.globalDefault(), WindowingStrategy.globalDefault()));
 
     p.traverseTopologically(visitor);
@@ -99,7 +99,7 @@ public class KeyedPValueTrackingVisitorTest {
     PCollection<KV<String, Iterable<Integer>>> onceKeyed =
         p.apply(Create.of(KV.of("hello", 42)))
             .apply(GroupByKey.create())
-            .apply(ParDo.of(new IdentityFn<KV<String, Iterable<Integer>>>()));
+            .apply(ParDo.of(new IdentityFn<>()));
 
     p.traverseTopologically(visitor);
     assertThat(visitor.getKeyedPValues(), not(hasItem(onceKeyed)));
@@ -124,7 +124,7 @@ public class KeyedPValueTrackingVisitorTest {
 
     PCollection<KeyedWorkItem<String, KV<String, Integer>>> unkeyed =
         input
-            .apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>()))
+            .apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<>()))
             .setCoder(
                 KeyedWorkItemCoder.of(
                     StringUtf8Coder.of(),
@@ -157,9 +157,9 @@ public class KeyedPValueTrackingVisitorTest {
     TupleTag<KeyedWorkItem<String, KV<String, Integer>>> keyedTag = new TupleTag<>();
     PCollection<KeyedWorkItem<String, KV<String, Integer>>> keyed =
         input
-            .apply(new DirectGroupByKeyOnly<String, WindowedValue<KV<String, Integer>>>())
+            .apply(new DirectGroupByKeyOnly<>())
             .apply(
-                new DirectGroupAlsoByWindow<String, WindowedValue<KV<String, Integer>>>(
+                new DirectGroupAlsoByWindow<>(
                     WindowingStrategy.globalDefault(), WindowingStrategy.globalDefault()))
             .apply(
                 ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>())

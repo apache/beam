@@ -536,7 +536,7 @@ public class PAssert {
      */
     @Override
     public PCollectionContentsAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
-      return satisfies(new AssertContainsInAnyOrderRelation<T>(), expectedElements);
+      return satisfies(new AssertContainsInAnyOrderRelation<>(), expectedElements);
     }
 
     @Override
@@ -719,7 +719,7 @@ public class PAssert {
 
     @Override
     public PCollectionSingletonIterableAssert<T> containsInAnyOrder(Iterable<T> expectedElements) {
-      return satisfies(new AssertContainsInAnyOrderRelation<T>(), expectedElements);
+      return satisfies(new AssertContainsInAnyOrderRelation<>(), expectedElements);
     }
 
     @Override
@@ -806,12 +806,12 @@ public class PAssert {
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> isEqualTo(ViewT expectedValue) {
-      return satisfies(new AssertIsEqualToRelation<ViewT>(), expectedValue);
+      return satisfies(new AssertIsEqualToRelation<>(), expectedValue);
     }
 
     @Override
     public PCollectionViewAssert<ElemT, ViewT> notEqualTo(ViewT expectedValue) {
-      return satisfies(new AssertNotEqualToRelation<ViewT>(), expectedValue);
+      return satisfies(new AssertNotEqualToRelation<>(), expectedValue);
     }
 
     @Override
@@ -1021,7 +1021,7 @@ public class PAssert {
 
       return dummyAndContents
           .apply(Values.create())
-          .apply(ParDo.of(new ConcatFn<ValueInSingleWindow<T>>()));
+          .apply(ParDo.of(new ConcatFn<>()));
     }
   }
 
@@ -1057,7 +1057,7 @@ public class PAssert {
     @Override
     public PDone expand(PCollection<T> input) {
       input
-          .apply("GroupGlobally", new GroupGlobally<T>(rewindowingStrategy))
+          .apply("GroupGlobally", new GroupGlobally<>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new GroupedValuesCheckerDoFn<>(checkerFn, site)))
@@ -1094,7 +1094,7 @@ public class PAssert {
     @Override
     public PDone expand(PCollection<Iterable<T>> input) {
       input
-          .apply("GroupGlobally", new GroupGlobally<Iterable<T>>(rewindowingStrategy))
+          .apply("GroupGlobally", new GroupGlobally<>(rewindowingStrategy))
           .apply("GetPane", MapElements.via(paneExtractor))
           .setCoder(IterableCoder.of(input.getCoder()))
           .apply("RunChecks", ParDo.of(new SingletonCheckerDoFn<>(checkerFn, site)))

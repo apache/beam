@@ -66,7 +66,7 @@ public class GroupByKeyEvaluatorFactoryTest {
     PCollection<KV<String, Integer>> values =
         p.apply(Create.of(firstFoo, firstBar, secondFoo, firstBaz, secondBar, thirdFoo));
     PCollection<KeyedWorkItem<String, Integer>> groupedKvs =
-        values.apply(new DirectGroupByKeyOnly<String, Integer>());
+        values.apply(new DirectGroupByKeyOnly<>());
 
     CommittedBundle<KV<String, Integer>> inputBundle =
         bundleFactory.createBundle(values).commit(Instant.now());

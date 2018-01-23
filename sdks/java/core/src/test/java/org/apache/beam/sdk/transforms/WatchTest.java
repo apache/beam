@@ -484,7 +484,7 @@ public class WatchTest implements Serializable {
 
   private static GrowthTracker<String, String, Integer> newTracker() {
     return newTracker(
-        new GrowthState<String, String, Integer>(never().forNewInput(Instant.now(), null)));
+        new GrowthState<>(never().forNewInput(Instant.now(), null)));
   }
 
   @Test

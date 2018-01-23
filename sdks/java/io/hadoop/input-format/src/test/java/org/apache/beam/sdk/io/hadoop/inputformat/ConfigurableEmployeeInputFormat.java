@@ -68,7 +68,7 @@ public class ConfigurableEmployeeInputFormat extends InputFormat<Text, Employee>
     if (!isConfSet) {
       throw new IOException("Configuration is not set.");
     }
-    List<InputSplit> splits = new ArrayList<InputSplit>();
+    List<InputSplit> splits = new ArrayList<>();
     splits.add(new ConfigurableEmployeeInputSplit());
     return splits;
   }

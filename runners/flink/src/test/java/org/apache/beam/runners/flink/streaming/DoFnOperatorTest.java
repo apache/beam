@@ -112,14 +112,14 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String> doFnOperator =
         new DoFnOperator<>(
-            new IdentityDoFn<String>(),
+            new IdentityDoFn<>(),
             "stepName",
             coder,
             outputTag,
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
             WindowingStrategy.globalDefault(),
-            new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
+            new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             null);
@@ -176,7 +176,7 @@ public class DoFnOperatorTest {
             new DoFnOperator.MultiOutputOutputManagerFactory(
                 mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds),
             WindowingStrategy.globalDefault(),
-            new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
+            new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             null);
@@ -270,7 +270,7 @@ public class DoFnOperatorTest {
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
             windowingStrategy,
-            new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
+            new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             VarIntCoder.of() /* key coder */);
@@ -353,7 +353,7 @@ public class DoFnOperatorTest {
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
             windowingStrategy,
-            new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
+            new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             VarIntCoder.of() /* key coder */);
@@ -461,7 +461,7 @@ public class DoFnOperatorTest {
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
             windowingStrategy,
-            new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
+            new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             StringUtf8Coder.of() /* key coder */);
@@ -545,7 +545,7 @@ public class DoFnOperatorTest {
 
     DoFnOperator<String, String> doFnOperator =
         new DoFnOperator<>(
-            new IdentityDoFn<String>(),
+            new IdentityDoFn<>(),
             "stepName",
             coder,
             outputTag,
@@ -662,7 +662,7 @@ public class DoFnOperatorTest {
             Collections.emptyList(),
             outputManagerFactory,
             WindowingStrategy.globalDefault(),
-            new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
+            new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             options,
             null);
@@ -700,7 +700,7 @@ public class DoFnOperatorTest {
             Collections.emptyList(),
             outputManagerFactory,
             WindowingStrategy.globalDefault(),
-            new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
+            new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             options,
             null);

@@ -34,7 +34,7 @@ public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
         String sql = "SELECT * FROM TABLE_A WHERE f_string = '第四行'";
 
         PCollection<BeamRecord> result =
-                PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), boundedInput1)
+                PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
                         .apply("testCompositeFilter", BeamSql.queryMulti(sql));
 
         PAssert.that(result).containsInAnyOrder(recordsInTableA.get(3));
@@ -47,7 +47,7 @@ public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
         String sql = "SELECT * FROM TABLE_A WHERE f_string = N'第四行'";
 
         PCollection<BeamRecord> result =
-                PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), boundedInput1)
+                PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
                         .apply("testCompositeFilter", BeamSql.queryMulti(sql));
 
         PAssert.that(result).containsInAnyOrder(recordsInTableA.get(3));

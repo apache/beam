@@ -237,7 +237,7 @@ class FlinkBatchTransformTranslators {
 
 
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
-          inputDataSet.groupBy(new KvKeySelector<InputT, K>(inputCoder.getKeyCoder()));
+          inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
       @SuppressWarnings("unchecked")
       WindowingStrategy<Object, BoundedWindow> boundedStrategy =
@@ -262,7 +262,7 @@ class FlinkBatchTransformTranslators {
               "GroupCombine: " + transform.getName());
 
       Grouping<WindowedValue<KV<K, List<InputT>>>> intermediateGrouping =
-          groupCombine.groupBy(new KvKeySelector<List<InputT>, K>(inputCoder.getKeyCoder()));
+          groupCombine.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
       // Fully reduce the values and create output format VO
       GroupReduceOperator<
@@ -384,7 +384,7 @@ class FlinkBatchTransformTranslators {
               windowingStrategy);
 
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
-          inputDataSet.groupBy(new KvKeySelector<InputT, K>(inputCoder.getKeyCoder()));
+          inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
       // construct a map from side input to WindowingStrategy so that
       // the DoFn runner can map main-input windows to side input windows
@@ -434,7 +434,7 @@ class FlinkBatchTransformTranslators {
             context.getTypeInfo(context.getOutput(transform));
 
         Grouping<WindowedValue<KV<K, AccumT>>> intermediateGrouping =
-            groupCombine.groupBy(new KvKeySelector<AccumT, K>(inputCoder.getKeyCoder()));
+            groupCombine.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
         // Fully reduce the values and create output format OutputT
         GroupReduceOperator<
@@ -459,7 +459,7 @@ class FlinkBatchTransformTranslators {
             context.getTypeInfo(context.getOutput(transform));
 
         Grouping<WindowedValue<KV<K, InputT>>> grouping =
-            inputDataSet.groupBy(new KvKeySelector<InputT, K>(inputCoder.getKeyCoder()));
+            inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
         // Fully reduce the values and create output format OutputT
         GroupReduceOperator<
