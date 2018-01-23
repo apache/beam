@@ -100,7 +100,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   }
 
   private final TestInMemoryStateInternals<?> stateInternals =
-      new TestInMemoryStateInternals<Object>(null /* key */);
+      new TestInMemoryStateInternals<>(null /* key */);
   private final InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
   private final TriggerStateMachineContextFactory<W> contextFactory;
   protected final WindowFn<Object, W> windowFn;
@@ -163,8 +163,8 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
 
     this.activeWindows =
         windowFn.isNonMerging()
-            ? new NonMergingActiveWindowSet<W>()
-            : new MergingActiveWindowSet<W>(windowFn, stateInternals);
+            ? new NonMergingActiveWindowSet<>()
+            : new MergingActiveWindowSet<>(windowFn, stateInternals);
     this.windowToMergeResult = new HashMap<>();
 
     this.contextFactory =
@@ -264,7 +264,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
       try {
         InputT value = input.getValue();
         Instant timestamp = input.getTimestamp();
-        Collection<W> assignedWindows = windowFn.assignWindows(new TestAssignContext<W>(
+        Collection<W> assignedWindows = windowFn.assignWindows(new TestAssignContext<>(
             windowFn, value, timestamp, GlobalWindow.INSTANCE));
 
         for (W window : assignedWindows) {
@@ -337,7 +337,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
 
       @Override
       public void onMerge(Collection<W> toBeMerged, W mergeResult) throws Exception {
-        List<W> activeToBeMerged = new ArrayList<W>();
+        List<W> activeToBeMerged = new ArrayList<>();
         for (W window : toBeMerged) {
           windowToMergeResult.put(window, mergeResult);
           if (activeWindows.isActive(window)) {
@@ -364,7 +364,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
   private FinishedTriggers getFinishedSet(W window) {
     FinishedTriggers finishedSet = finishedSets.get(window);
     if (finishedSet == null) {
-      finishedSet = FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerStateMachine>());
+      finishedSet = FinishedTriggersSet.fromSet(new HashSet<>());
       finishedSets.put(window, finishedSet);
     }
     return finishedSet;

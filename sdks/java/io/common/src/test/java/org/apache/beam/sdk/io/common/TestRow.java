@@ -63,7 +63,7 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
    * rangeStart (inclusive) and rangeEnd (exclusive).
    */
   public static Iterable<TestRow> getExpectedValues(int rangeStart, int rangeEnd) {
-    List<TestRow> ret = new ArrayList<TestRow>(rangeEnd - rangeStart + 1);
+    List<TestRow> ret = new ArrayList<>(rangeEnd - rangeStart + 1);
     for (int i = rangeStart; i < rangeEnd; i++) {
       ret.add(fromSeed(i));
     }

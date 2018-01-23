@@ -786,7 +786,7 @@ public class BigQueryIO {
               }
             }
           };
-      return rows.apply(new PassThroughThenCleanup<T>(cleanupOperation, jobIdTokenView));
+      return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
     }
 
     @Override

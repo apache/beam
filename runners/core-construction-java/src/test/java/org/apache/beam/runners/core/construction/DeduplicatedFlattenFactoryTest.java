@@ -89,7 +89,7 @@ public class DeduplicatedFlattenFactoryTest {
     final PCollectionList<String> inputList =
         PCollectionList.of(first).and(second).and(first).and(first);
     PCollection<String> original = inputList.apply(Flatten.pCollections());
-    PCollection<String> replacement = inputList.apply(new FlattenWithoutDuplicateInputs<String>());
+    PCollection<String> replacement = inputList.apply(new FlattenWithoutDuplicateInputs<>());
 
     assertThat(
         factory.mapOutputs(original.expand(), replacement),

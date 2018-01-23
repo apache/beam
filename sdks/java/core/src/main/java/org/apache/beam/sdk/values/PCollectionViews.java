@@ -403,7 +403,7 @@ public class PCollectionViews {
         WindowingStrategy<?, W> windowingStrategy) {
       this(
           pCollection,
-          new TupleTag<PrimitiveViewT>(),
+          new TupleTag<>(),
           viewFn,
           windowMappingFn,
           windowingStrategy);

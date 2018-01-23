@@ -178,7 +178,7 @@ public class Sample {
 
     @Override
     public PCollection<Iterable<T>> expand(PCollection<T> input) {
-      return input.apply(Combine.globally(new FixedSizedSampleFn<T>(sampleSize)));
+      return input.apply(Combine.globally(new FixedSizedSampleFn<>(sampleSize)));
     }
 
     @Override
@@ -200,7 +200,7 @@ public class Sample {
 
     @Override
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
-      return input.apply(Combine.perKey(new FixedSizedSampleFn<V>(sampleSize)));
+      return input.apply(Combine.perKey(new FixedSizedSampleFn<>(sampleSize)));
     }
 
     @Override
@@ -223,7 +223,7 @@ public class Sample {
 
     @Override
     public List<T> createAccumulator() {
-      return new ArrayList<T>((int) limit);
+      return new ArrayList<>((int) limit);
     }
 
     @Override
@@ -279,8 +279,8 @@ public class Sample {
       }
 
       this.sampleSize = sampleSize;
-      topCombineFn = new Top.TopCombineFn<KV<Integer, T>, SerializableComparator<KV<Integer, T>>>(
-          sampleSize, new KV.OrderByKey<Integer, T>());
+      topCombineFn = new Top.TopCombineFn<>(
+          sampleSize, new KV.OrderByKey<>());
     }
 
     @Override

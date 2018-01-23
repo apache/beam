@@ -148,7 +148,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
           rawStream
               .apply(
                   "stripLeadingOffset",
-                  ParDo.of(new SubListFn<BeamRecord>(startIndex, startIndex + count)))
+                  ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
               .setCoder(ListCoder.of(upstream.getCoder()));
     }
 

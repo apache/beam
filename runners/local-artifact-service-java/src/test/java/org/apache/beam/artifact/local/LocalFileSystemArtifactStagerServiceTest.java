@@ -242,7 +242,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
   private ArtifactApi.ArtifactMetadata stageBytes(String name, byte[] bytes) {
     StreamObserver<ArtifactApi.PutArtifactRequest> requests =
-        stub.putArtifact(new RecordingStreamObserver<ArtifactApi.PutArtifactResponse>());
+        stub.putArtifact(new RecordingStreamObserver<>());
     requests.onNext(
         ArtifactApi.PutArtifactRequest.newBuilder()
             .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())

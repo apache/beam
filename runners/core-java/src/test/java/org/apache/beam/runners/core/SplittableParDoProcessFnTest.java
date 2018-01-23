@@ -141,8 +141,7 @@ public class SplittableParDoProcessFnTest {
       processFn.setStateInternalsFactory(key -> stateInternals);
       processFn.setTimerInternalsFactory(key -> timerInternals);
       processFn.setProcessElementInvoker(
-          new OutputAndTimeBoundedSplittableProcessElementInvoker<
-              InputT, OutputT, RestrictionT, TrackerT>(
+          new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               fn,
               tester.getPipelineOptions(),
               new OutputWindowedValueToDoFnTester<>(tester),

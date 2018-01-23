@@ -50,7 +50,7 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   }
 
   public static <T> StringDelegateCoder<T> of(Class<T> clazz, TypeDescriptor<T> typeDescriptor) {
-    return new StringDelegateCoder<T>(clazz, typeDescriptor);
+    return new StringDelegateCoder<>(clazz, typeDescriptor);
   }
 
   @Override

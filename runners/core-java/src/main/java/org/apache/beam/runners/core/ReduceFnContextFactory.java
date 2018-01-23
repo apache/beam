@@ -84,7 +84,7 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   private StateAccessorImpl<K, W> stateAccessor(W window, StateStyle style) {
-    return new StateAccessorImpl<K, W>(
+    return new StateAccessorImpl<>(
         activeWindows,
         windowingStrategy.getWindowFn().windowCoder(),
         stateInternals,
@@ -109,13 +109,13 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   public ReduceFn<K, InputT, OutputT, W>.OnMergeContext forMerge(
       Collection<W> activeToBeMerged, W mergeResult, StateStyle style) {
     return new OnMergeContextImpl(
-        new MergingStateAccessorImpl<K, W>(activeWindows,
+        new MergingStateAccessorImpl<>(activeWindows,
             windowingStrategy.getWindowFn().windowCoder(),
             stateInternals, style, activeToBeMerged, mergeResult));
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnMergeContext forPremerge(W window) {
-    return new OnPremergeContextImpl(new PremergingStateAccessorImpl<K, W>(
+    return new OnPremergeContextImpl(new PremergingStateAccessorImpl<>(
         activeWindows, windowingStrategy.getWindowFn().windowCoder(), stateInternals, window));
   }
 

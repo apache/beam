@@ -113,7 +113,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
    */
   public static <W extends BoundedWindow> ReduceFnTester<Integer, Iterable<Integer>, W>
       nonCombining(WindowingStrategy<?, W> windowingStrategy) throws Exception {
-    return new ReduceFnTester<Integer, Iterable<Integer>, W>(
+    return new ReduceFnTester<>(
         windowingStrategy,
         TriggerStateMachines.stateMachineForTrigger(
             TriggerTranslation.toProto(windowingStrategy.getTrigger())),
@@ -204,7 +204,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         AppliedCombineFn.withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
-    return new ReduceFnTester<Integer, OutputT, W>(
+    return new ReduceFnTester<>(
         strategy,
         triggerStateMachine,
         SystemReduceFn.combining(StringUtf8Coder.of(), fn),
@@ -250,7 +250,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         AppliedCombineFn.withInputCoder(
             combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
-    return new ReduceFnTester<Integer, OutputT, W>(
+    return new ReduceFnTester<>(
         strategy,
         triggerStateMachine,
         SystemReduceFn.combining(StringUtf8Coder.of(), fn),
@@ -546,7 +546,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
                 Instant timestamp = input.getTimestamp();
                 Collection<W> windows =
                     windowFn.assignWindows(
-                        new TestAssignContext<W>(
+                        new TestAssignContext<>(
                             windowFn, value, timestamp, GlobalWindow.INSTANCE));
                 return WindowedValue.of(value, timestamp, windows, PaneInfo.NO_FIRING);
               } catch (Exception e) {

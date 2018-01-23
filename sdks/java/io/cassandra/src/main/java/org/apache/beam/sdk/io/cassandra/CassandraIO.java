@@ -223,7 +223,7 @@ public class CassandraIO {
       checkArgument(coder() != null, "withCoder() is required");
 
       return input.apply(org.apache.beam.sdk.io.Read.from(
-          new CassandraSource<T>(this, null)));
+          new CassandraSource<>(this, null)));
     }
 
     @AutoValue.Builder
@@ -422,7 +422,7 @@ public class CassandraIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      input.apply(ParDo.of(new WriteFn<T>(this)));
+      input.apply(ParDo.of(new WriteFn<>(this)));
       return PDone.in(input.getPipeline());
     }
 

@@ -58,7 +58,7 @@ public class ReuseObjectsEmployeeInputFormat extends InputFormat<Text, Employee>
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
+    List<InputSplit> inputSplitList = new ArrayList<>();
     for (int i = 1; i <= TestEmployeeDataSet.NUMBER_OF_SPLITS; i++) {
       InputSplit inputSplitObj = new ReuseEmployeeInputSplit(
           ((i - 1) * TestEmployeeDataSet.NUMBER_OF_RECORDS_IN_EACH_SPLIT),

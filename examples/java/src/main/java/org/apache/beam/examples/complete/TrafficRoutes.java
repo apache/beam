@@ -417,7 +417,7 @@ public class TrafficRoutes {
    * Define some small hard-wired San Diego 'routes' to track based on sensor station ID.
    */
   private static Map<String, String> buildStationInfo() {
-    Map<String, String> stations = new Hashtable<String, String>();
+    Map<String, String> stations = new Hashtable<>();
       stations.put("1108413", "SDRoute1"); // from freeway 805 S
       stations.put("1108699", "SDRoute2"); // from freeway 78 E
       stations.put("1108702", "SDRoute2");

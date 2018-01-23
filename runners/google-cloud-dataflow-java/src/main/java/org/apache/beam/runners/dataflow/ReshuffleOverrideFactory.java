@@ -51,7 +51,7 @@ class ReshuffleOverrideFactory<K, V>
               transform) {
     return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new ReshuffleWithOnlyTrigger<K, V>());
+        new ReshuffleWithOnlyTrigger<>());
   }
 
   private static class ReshuffleWithOnlyTrigger<K, V>

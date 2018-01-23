@@ -1286,7 +1286,7 @@ public class FileIO {
             ValueProvider.NestedValueProvider.of(
                 spec.getTempDirectory(),
                 input -> FileSystems.matchNewResource(input, true /* isDirectory */)),
-            new DynamicDestinationsAdapter<UserT, DestinationT, OutputT>(spec),
+            new DynamicDestinationsAdapter<>(spec),
             spec.getCompression());
         this.spec = spec;
       }

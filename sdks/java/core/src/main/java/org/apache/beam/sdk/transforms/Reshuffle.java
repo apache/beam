@@ -54,7 +54,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
   }
 
   public static <K, V> Reshuffle<K, V> of() {
-    return new Reshuffle<K, V>();
+    return new Reshuffle<>();
   }
 
   /**
@@ -63,7 +63,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
    */
   @Experimental
   public static <T> ViaRandomKey<T> viaRandomKey() {
-    return new ViaRandomKey<T>();
+    return new ViaRandomKey<>();
   }
 
   @Override
@@ -111,7 +111,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       return input
-          .apply("Pair with random key", ParDo.of(new AssignShardFn<T>()))
+          .apply("Pair with random key", ParDo.of(new AssignShardFn<>()))
           .apply(Reshuffle.of())
           .apply(Values.create());
     }

@@ -241,7 +241,7 @@ class BatchViewOverrides {
                   FullWindowedValueCoder.of(inputCoder.getValueCoder(), windowCoder)));
 
       return BatchViewAsSingleton.applyForSingleton(
-          runner, input, new ToMapDoFn<K, V, W>(windowCoder), finalValueCoder, view);
+          runner, input, new ToMapDoFn<>(windowCoder), finalValueCoder, view);
     }
   }
 
@@ -339,7 +339,7 @@ class BatchViewOverrides {
                     FullWindowedValueCoder.of(inputCoder.getValueCoder(), windowCoder))));
 
         return keyedByHash.apply(
-            new GroupByKeyAndSortValuesOnly<Integer, KV<K, W>, WindowedValue<V>>());
+            new GroupByKeyAndSortValuesOnly<>());
       }
     }
 
@@ -719,7 +719,7 @@ class BatchViewOverrides {
               ImmutableMap.<K, Iterable<WindowedValue<V>>>of());
 
       return BatchViewAsSingleton.applyForSingleton(
-          runner, input, new ToMultimapDoFn<K, V, W>(windowCoder), finalValueCoder, view);
+          runner, input, new ToMultimapDoFn<>(windowCoder), finalValueCoder, view);
     }
 
     private static <K, V, W extends BoundedWindow, ViewT> PCollection<?> applyForMapLike(
@@ -780,7 +780,7 @@ class BatchViewOverrides {
           KvCoder.of(VarIntCoder.of(),
               KvCoder.of(windowCoder, VarLongCoder.of())));
       PCollection<IsmRecord<WindowedValue<V>>> windowMapSizeMetadata = outputForSize
-          .apply("GBKaSVForSize", new GroupByKeyAndSortValuesOnly<Integer, W, Long>())
+          .apply("GBKaSVForSize", new GroupByKeyAndSortValuesOnly<>())
           .apply(ParDo.of(new ToIsmMetadataRecordForSizeDoFn<K, V, W>(windowCoder)));
       windowMapSizeMetadata.setCoder(ismCoder);
 
@@ -792,7 +792,7 @@ class BatchViewOverrides {
           KvCoder.of(VarIntCoder.of(),
               KvCoder.of(windowCoder, inputCoder.getKeyCoder())));
       PCollection<IsmRecord<WindowedValue<V>>> windowMapKeysMetadata = outputForEntrySet
-          .apply("GBKaSVForKeys", new GroupByKeyAndSortValuesOnly<Integer, W, K>())
+          .apply("GBKaSVForKeys", new GroupByKeyAndSortValuesOnly<>())
           .apply(ParDo.of(
               new ToIsmMetadataRecordForKeyDoFn<K, V, W>(inputCoder.getKeyCoder(), windowCoder)));
       windowMapKeysMetadata.setCoder(ismCoder);
@@ -919,7 +919,7 @@ class BatchViewOverrides {
       return BatchViewAsSingleton.applyForSingleton(
           runner,
           input,
-          new IsmRecordForSingularValuePerWindowDoFn<T, BoundedWindow>(windowCoder),
+          new IsmRecordForSingularValuePerWindowDoFn<>(windowCoder),
           input.getCoder(),
           view);
     }
@@ -1086,7 +1086,7 @@ class BatchViewOverrides {
       // maps to one file exactly.
       if (input.getWindowingStrategy().getWindowFn() instanceof GlobalWindows) {
         PCollection<IsmRecord<WindowedValue<T>>> reifiedPerWindowAndSorted =
-            input.apply(ParDo.of(new ToIsmRecordForGlobalWindowDoFn<T>()));
+            input.apply(ParDo.of(new ToIsmRecordForGlobalWindowDoFn<>()));
         reifiedPerWindowAndSorted.setCoder(ismCoder);
 
         runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
@@ -1096,7 +1096,7 @@ class BatchViewOverrides {
 
       PCollection<IsmRecord<WindowedValue<T>>> reifiedPerWindowAndSorted = input
           .apply(new GroupByWindowHashAsKeyAndWindowAsSortKey<T, W>(ismCoder))
-          .apply(ParDo.of(new ToIsmRecordForNonGlobalWindowDoFn<T, W>(windowCoder)));
+          .apply(ParDo.of(new ToIsmRecordForNonGlobalWindowDoFn<>(windowCoder)));
       reifiedPerWindowAndSorted.setCoder(ismCoder);
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
@@ -1246,7 +1246,7 @@ class BatchViewOverrides {
               VarIntCoder.of(),
               KvCoder.of(windowCoder,
                   FullWindowedValueCoder.of(input.getCoder(), windowCoder))));
-      return rval.apply(new GroupByKeyAndSortValuesOnly<Integer, W, WindowedValue<T>>());
+      return rval.apply(new GroupByKeyAndSortValuesOnly<>());
     }
   }
 

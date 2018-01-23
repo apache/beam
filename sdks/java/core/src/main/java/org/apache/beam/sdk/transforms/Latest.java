@@ -169,7 +169,7 @@ public class Latest {
                 c.output(TimestampedValue.of(c.element(), c.timestamp()));
               }
             })).setCoder(TimestampedValue.TimestampedValueCoder.of(inputCoder))
-          .apply("Latest Value", Combine.globally(new LatestFn<T>()))
+          .apply("Latest Value", Combine.globally(new LatestFn<>()))
             .setCoder(NullableCoder.of(inputCoder));
     }
   }
@@ -202,7 +202,7 @@ public class Latest {
               KvCoder.of(
                   inputCoder.getKeyCoder(),
                   TimestampedValue.TimestampedValueCoder.of(inputCoder.getValueCoder())))
-          .apply("Latest Value", Combine.perKey(new LatestFn<V>()))
+          .apply("Latest Value", Combine.perKey(new LatestFn<>()))
           .setCoder(inputCoder);
     }
   }

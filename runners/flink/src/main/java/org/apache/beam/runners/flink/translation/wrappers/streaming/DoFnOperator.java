@@ -947,7 +947,7 @@ public class DoFnOperator<InputT, OutputT>
     public MultiOutputOutputManagerFactory(
         TupleTag<OutputT> mainTag, Coder<WindowedValue<OutputT>> mainCoder) {
       this(mainTag,
-          new HashMap<TupleTag<?>, OutputTag<WindowedValue<?>>>(),
+          new HashMap<>(),
           ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
               .put(mainTag, (Coder) mainCoder).build(),
           ImmutableMap.<TupleTag<?>, Integer>builder()

@@ -45,7 +45,7 @@ public class Reinterpreter {
 
       for (SqlTypeName fromType : fromTypes) {
         if (!conversions.containsKey(fromType)) {
-          conversions.put(fromType, new HashMap<SqlTypeName, ReinterpretConversion>());
+          conversions.put(fromType, new HashMap<>());
         }
 
         conversions.get(fromType).put(toType, conversion);

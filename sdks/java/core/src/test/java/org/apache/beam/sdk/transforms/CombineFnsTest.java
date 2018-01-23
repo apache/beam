@@ -68,7 +68,7 @@ public class  CombineFnsTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("it is already present in the composition");
 
-    TupleTag<Integer> tag = new TupleTag<Integer>();
+    TupleTag<Integer> tag = new TupleTag<>();
     CombineFns.compose()
       .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
       .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
@@ -79,7 +79,7 @@ public class  CombineFnsTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("it is already present in the composition");
 
-    TupleTag<Integer> tag = new TupleTag<Integer>();
+    TupleTag<Integer> tag = new TupleTag<>();
     CombineFns.compose()
       .with(new GetIntegerFunction(), Max.ofIntegers(), tag)
       .with(new GetIntegerFunction(), Min.ofIntegers(), tag);
@@ -90,7 +90,7 @@ public class  CombineFnsTest {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("it is already present in the composition");
 
-    TupleTag<UserString> tag = new TupleTag<UserString>();
+    TupleTag<UserString> tag = new TupleTag<>();
     CombineFns.compose()
       .with(
           new GetUserStringFunction(),
@@ -120,8 +120,8 @@ public class  CombineFnsTest {
             StringUtf8Coder.of(),
             KvCoder.of(BigEndianIntegerCoder.of(), UserStringCoder.of()))));
 
-    TupleTag<Integer> maxIntTag = new TupleTag<Integer>();
-    TupleTag<UserString> concatStringTag = new TupleTag<UserString>();
+    TupleTag<Integer> maxIntTag = new TupleTag<>();
+    TupleTag<UserString> concatStringTag = new TupleTag<>();
     PCollection<KV<String, KV<Integer, String>>> combineGlobally =
         perKeyInput
             .apply(Values.create())
@@ -172,8 +172,8 @@ public class  CombineFnsTest {
             StringUtf8Coder.of(),
             KvCoder.of(BigEndianIntegerCoder.of(), UserStringCoder.of()))));
 
-    TupleTag<Integer> maxIntTag = new TupleTag<Integer>();
-    TupleTag<UserString> concatStringTag = new TupleTag<UserString>();
+    TupleTag<Integer> maxIntTag = new TupleTag<>();
+    TupleTag<UserString> concatStringTag = new TupleTag<>();
     PCollection<KV<String, KV<Integer, String>>> combineGlobally =
         perKeyInput
             .apply(Values.create())
@@ -235,8 +235,8 @@ public class  CombineFnsTest {
             KvCoder.of(
                 BigEndianIntegerCoder.of(), NullableCoder.of(UserStringCoder.of())))));
 
-    TupleTag<Integer> maxIntTag = new TupleTag<Integer>();
-    TupleTag<UserString> concatStringTag = new TupleTag<UserString>();
+    TupleTag<Integer> maxIntTag = new TupleTag<>();
+    TupleTag<UserString> concatStringTag = new TupleTag<>();
 
     PCollection<KV<String, KV<Integer, String>>> combinePerKey =
         perKeyInput
@@ -267,8 +267,8 @@ public class  CombineFnsTest {
     DisplayDataCombineFn combineFn2 = new DisplayDataCombineFn("value2");
 
     CombineFns.ComposedCombineFn<String> composedCombine = CombineFns.compose()
-        .with(extractFn, combineFn1, new TupleTag<String>())
-        .with(extractFn, combineFn2, new TupleTag<String>());
+        .with(extractFn, combineFn1, new TupleTag<>())
+        .with(extractFn, combineFn2, new TupleTag<>());
 
     DisplayData displayData = DisplayData.from(composedCombine);
     assertThat(displayData, hasDisplayItem("combineFn1", combineFn1.getClass()));

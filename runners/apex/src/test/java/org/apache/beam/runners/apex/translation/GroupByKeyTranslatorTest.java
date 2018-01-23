@@ -87,7 +87,7 @@ public class GroupByKeyTranslatorTest {
             Window.<String>into(FixedWindows.of(Duration.standardSeconds(1)))
                 .withTimestampCombiner(TimestampCombiner.LATEST))
         .apply(Count.perElement())
-        .apply(ParDo.of(new KeyedByTimestamp<KV<String, Long>>()))
+        .apply(ParDo.of(new KeyedByTimestamp<>()))
         .apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult) p.run();

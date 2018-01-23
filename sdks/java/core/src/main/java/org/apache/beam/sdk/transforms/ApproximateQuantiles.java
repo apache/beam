@@ -342,7 +342,7 @@ public class ApproximateQuantiles {
       }
       b--;
       int k = Math.max(2, (int) Math.ceil(maxNumElements / (float) (1 << (b - 1))));
-      return new ApproximateQuantilesCombineFn<T, ComparatorT>(
+      return new ApproximateQuantilesCombineFn<>(
           numQuantiles, compareFn, k, b, maxNumElements);
     }
 
@@ -431,7 +431,7 @@ public class ApproximateQuantiles {
     public static <T, ComparatorT extends Comparator<T> & Serializable>
         QuantileState<T, ComparatorT> empty(
             ComparatorT compareFn, int numQuantiles, int numBuffers, int bufferSize) {
-      return new QuantileState<T, ComparatorT>(
+      return new QuantileState<>(
           compareFn,
           numQuantiles,
           null, /* min */
@@ -445,7 +445,7 @@ public class ApproximateQuantiles {
     public static <T, ComparatorT extends Comparator<T> & Serializable>
         QuantileState<T, ComparatorT> singleton(
             ComparatorT compareFn, int numQuantiles, T elem, int numBuffers, int bufferSize) {
-      return new QuantileState<T, ComparatorT>(
+      return new QuantileState<>(
           compareFn,
           numQuantiles,
           elem, /* min */
@@ -479,7 +479,7 @@ public class ApproximateQuantiles {
       unbufferedElements.add(elem);
       if (unbufferedElements.size() == bufferSize) {
         Collections.sort(unbufferedElements, compareFn);
-        buffers.add(new QuantileBuffer<T>(unbufferedElements));
+        buffers.add(new QuantileBuffer<>(unbufferedElements));
         unbufferedElements = Lists.newArrayListWithCapacity(bufferSize);
         collapseIfNeeded();
       }
@@ -711,7 +711,7 @@ public class ApproximateQuantiles {
       for (int i = 0; i < numBuffers; i++) {
         buffers.add(decodeBuffer(inStream));
       }
-      return new QuantileState<T, ComparatorT>(
+      return new QuantileState<>(
           compareFn, numQuantiles, min, max, numBuffers, bufferSize, unbufferedElements, buffers);
     }
 

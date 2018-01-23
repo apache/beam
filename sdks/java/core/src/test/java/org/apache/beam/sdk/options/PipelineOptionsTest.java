@@ -101,7 +101,7 @@ public class PipelineOptionsTest {
 
   @Test
   public void testPipelineOptionsIdIsUniquePerInstance() {
-    Set<Long> ids = new HashSet<Long>();
+    Set<Long> ids = new HashSet<>();
     for (int i = 0; i < 1000; ++i) {
       long id = PipelineOptionsFactory.create().getOptionsId();
       if (!ids.add(id)) {

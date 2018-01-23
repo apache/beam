@@ -796,7 +796,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
               public void processElement(ProcessContext c) {
                 try {
                   byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-                  c.output(new PubsubMessage(payload, new HashMap<String, String>()));
+                  c.output(new PubsubMessage(payload, new HashMap<>()));
                 } catch (CoderException e1) {
                   LOG.error("Error while sending Event {} to pusbSub: serialization error",
                       c.element().toString());

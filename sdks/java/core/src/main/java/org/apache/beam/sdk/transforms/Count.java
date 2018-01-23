@@ -51,7 +51,7 @@ public class Count {
 
   /** Returns a {@link CombineFn} that counts the number of its inputs. */
   public static <T> CombineFn<T, ?, Long> combineFn() {
-    return new CountFn<T>();
+    return new CountFn<>();
   }
 
   /**

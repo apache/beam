@@ -198,7 +198,7 @@ public class UserScore {
   protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
       configureOutput() {
     Map<String, WriteToText.FieldFn<KV<String, Integer>>> config =
-        new HashMap<String, WriteToText.FieldFn<KV<String, Integer>>>();
+        new HashMap<>();
     config.put("user", (c, w) -> c.element().getKey());
     config.put("total_score", (c, w) -> c.element().getValue());
     return config;
@@ -221,7 +221,7 @@ public class UserScore {
         .apply("ExtractUserScore", new ExtractAndSumScore("user"))
         .apply(
             "WriteUserScoreSums",
-            new WriteToText<KV<String, Integer>>(
+            new WriteToText<>(
                 options.getOutput(),
                 configureOutput(),
                 false));

@@ -66,7 +66,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
    * records.
    */
   public BoundedReadFromUnboundedSource<T> withMaxNumRecords(long maxNumRecords) {
-    return new BoundedReadFromUnboundedSource<T>(source, maxNumRecords, maxReadTime);
+    return new BoundedReadFromUnboundedSource<>(source, maxNumRecords, maxReadTime);
   }
 
   /**
@@ -75,7 +75,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
    * of time to read for.  Each split of the source will read for this much time.
    */
   public BoundedReadFromUnboundedSource<T> withMaxReadTime(Duration maxReadTime) {
-    return new BoundedReadFromUnboundedSource<T>(source, maxNumRecords, maxReadTime);
+    return new BoundedReadFromUnboundedSource<>(source, maxNumRecords, maxReadTime);
   }
 
   BoundedReadFromUnboundedSource(
@@ -107,7 +107,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     if (source.requiresDeduping()) {
       read = read.apply(Distinct.withRepresentativeValueFn(input1 -> input1.getId()));
     }
-    return read.apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()))
+    return read.apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<>()))
         .setCoder(source.getOutputCoder());
   }
 

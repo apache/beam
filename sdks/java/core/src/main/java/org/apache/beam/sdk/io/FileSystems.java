@@ -76,7 +76,7 @@ public class FileSystems {
       Pattern.compile("[*?{}]");
 
   private static final AtomicReference<Map<String, FileSystem>> SCHEME_TO_FILESYSTEM =
-      new AtomicReference<Map<String, FileSystem>>(
+      new AtomicReference<>(
           ImmutableMap.of(DEFAULT_SCHEME, new LocalFileSystem()));
 
   /********************************** METHODS FOR CLIENT **********************************/

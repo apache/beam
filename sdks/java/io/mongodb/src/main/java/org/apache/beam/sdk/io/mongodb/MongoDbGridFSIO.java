@@ -603,7 +603,7 @@ public class MongoDbGridFSIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      input.apply(ParDo.of(new GridFsWriteFn<T>(this)));
+      input.apply(ParDo.of(new GridFsWriteFn<>(this)));
       return PDone.in(input.getPipeline());
     }
   }

@@ -72,7 +72,7 @@ public class PipelineOptionsTest {
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
             WindowingStrategy.globalDefault(),
-            new HashMap<Integer, PCollectionView<?>>(),
+            new HashMap<>(),
             Collections.emptyList(),
             null,
             null);
@@ -96,7 +96,7 @@ public class PipelineOptionsTest {
             Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(mainTag, coder),
             WindowingStrategy.globalDefault(),
-            new HashMap<Integer, PCollectionView<?>>(),
+            new HashMap<>(),
             Collections.emptyList(),
             options,
             null);

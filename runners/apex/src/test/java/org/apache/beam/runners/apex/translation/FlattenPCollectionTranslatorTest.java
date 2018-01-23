@@ -61,7 +61,7 @@ public class FlattenPCollectionTranslatorTest {
     };
 
     Set<String> expected = Sets.newHashSet();
-    List<PCollection<String>> pcList = new ArrayList<PCollection<String>>();
+    List<PCollection<String>> pcList = new ArrayList<>();
     for (String[] collection : collections) {
       pcList.add(
           p.apply(Create.of(ImmutableList.copyOf(collection)).withCoder(StringUtf8Coder.of())));

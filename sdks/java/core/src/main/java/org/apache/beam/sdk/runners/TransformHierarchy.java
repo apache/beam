@@ -242,7 +242,7 @@ public class TransformHierarchy {
   public Set<PValue> visit(PipelineVisitor visitor) {
     finishSpecifying();
     Set<PValue> visitedValues = new HashSet<>();
-    root.visit(visitor, visitedValues, new HashSet<Node>(), new HashSet<Node>());
+    root.visit(visitor, visitedValues, new HashSet<>(), new HashSet<>());
     return visitedValues;
   }
 

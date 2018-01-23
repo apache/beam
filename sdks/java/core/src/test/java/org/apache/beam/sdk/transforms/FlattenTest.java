@@ -119,7 +119,7 @@ public class FlattenTest implements Serializable {
     PCollection<String> output =
         makePCollectionListOfStrings(p, inputs)
             .apply(Flatten.pCollections())
-            .apply(ParDo.of(new IdentityFn<String>()));
+            .apply(ParDo.of(new IdentityFn<>()));
 
     PAssert.that(output).containsInAnyOrder(flattenLists(inputs));
     p.run();
@@ -222,7 +222,7 @@ public class FlattenTest implements Serializable {
         PCollectionList.<String>empty(p)
             .apply(Flatten.pCollections())
             .setCoder(StringUtf8Coder.of())
-            .apply(ParDo.of(new IdentityFn<String>()));
+            .apply(ParDo.of(new IdentityFn<>()));
 
     PAssert.that(output).empty();
     p.run();

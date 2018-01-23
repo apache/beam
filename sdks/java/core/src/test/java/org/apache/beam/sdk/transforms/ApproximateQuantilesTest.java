@@ -230,7 +230,7 @@ public class ApproximateQuantilesTest {
 
     @Test
     public void testDisplayData() {
-      Top.Natural<Integer> comparer = new Top.Natural<Integer>();
+      Top.Natural<Integer> comparer = new Top.Natural<>();
       PTransform<?, ?> approxQuanitiles = ApproximateQuantiles.globally(20, comparer);
       DisplayData displayData = DisplayData.from(approxQuanitiles);
 

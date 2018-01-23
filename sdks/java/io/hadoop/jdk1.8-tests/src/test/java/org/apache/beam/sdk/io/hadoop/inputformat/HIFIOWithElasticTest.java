@@ -192,7 +192,7 @@ public class HIFIOWithElasticTest implements Serializable {
  }
 
   private static Map<String, String> createElasticRow(String id, String name) {
-    Map<String, String> data = new HashMap<String, String>();
+    Map<String, String> data = new HashMap<>();
     data.put("id", id);
     data.put("scientist", name);
     return data;
@@ -270,7 +270,7 @@ public class HIFIOWithElasticTest implements Serializable {
   static class PluginNode extends Node implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    static Collection<Class<? extends Plugin>> list = new ArrayList<Class<? extends Plugin>>();
+    static Collection<Class<? extends Plugin>> list = new ArrayList<>();
     static {
       list.add(Netty4Plugin.class);
     }

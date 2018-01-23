@@ -92,20 +92,20 @@ class Injector {
 
   // Lists used to generate random team names.
   private static final ArrayList<String> COLORS =
-      new ArrayList<String>(Arrays.asList(
-         "Magenta", "AliceBlue", "Almond", "Amaranth", "Amber",
-         "Amethyst", "AndroidGreen", "AntiqueBrass", "Fuchsia", "Ruby", "AppleGreen",
-         "Apricot", "Aqua", "ArmyGreen", "Asparagus", "Auburn", "Azure", "Banana",
-         "Beige", "Bisque", "BarnRed", "BattleshipGrey"));
+      new ArrayList<>(Arrays.asList(
+          "Magenta", "AliceBlue", "Almond", "Amaranth", "Amber",
+          "Amethyst", "AndroidGreen", "AntiqueBrass", "Fuchsia", "Ruby", "AppleGreen",
+          "Apricot", "Aqua", "ArmyGreen", "Asparagus", "Auburn", "Azure", "Banana",
+          "Beige", "Bisque", "BarnRed", "BattleshipGrey"));
 
   private static final ArrayList<String> ANIMALS =
-      new ArrayList<String>(Arrays.asList(
-         "Echidna", "Koala", "Wombat", "Marmot", "Quokka", "Kangaroo", "Dingo", "Numbat", "Emu",
-         "Wallaby", "CaneToad", "Bilby", "Possum", "Cassowary", "Kookaburra", "Platypus",
-         "Bandicoot", "Cockatoo", "Antechinus"));
+      new ArrayList<>(Arrays.asList(
+          "Echidna", "Koala", "Wombat", "Marmot", "Quokka", "Kangaroo", "Dingo", "Numbat", "Emu",
+          "Wallaby", "CaneToad", "Bilby", "Possum", "Cassowary", "Kookaburra", "Platypus",
+          "Bandicoot", "Cockatoo", "Antechinus"));
 
   // The list of live teams.
-  private static ArrayList<TeamInfo> liveTeams = new ArrayList<TeamInfo>();
+  private static ArrayList<TeamInfo> liveTeams = new ArrayList<>();
 
   // The total number of robots in the system.
   private static final int NUM_ROBOTS = 20;

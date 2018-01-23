@@ -96,21 +96,21 @@ public class ParDoTranslationTest {
     @Parameters(name = "{index}: {0}")
     public static Iterable<ParDo.MultiOutput<?, ?>> data() {
       return ImmutableList.of(
-          ParDo.of(new DropElementsFn()).withOutputTags(new TupleTag<Void>(), TupleTagList.empty()),
+          ParDo.of(new DropElementsFn()).withOutputTags(new TupleTag<>(), TupleTagList.empty()),
           ParDo.of(new DropElementsFn())
-              .withOutputTags(new TupleTag<Void>(), TupleTagList.empty())
+              .withOutputTags(new TupleTag<>(), TupleTagList.empty())
               .withSideInputs(singletonSideInput, multimapSideInput),
           ParDo.of(new DropElementsFn())
               .withOutputTags(
-                  new TupleTag<Void>(),
+                  new TupleTag<>(),
                   TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {}))
               .withSideInputs(singletonSideInput, multimapSideInput),
           ParDo.of(new DropElementsFn())
               .withOutputTags(
-                  new TupleTag<Void>(),
+                  new TupleTag<>(),
                   TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {})),
           ParDo.of(new SplittableDropElementsFn())
-              .withOutputTags(new TupleTag<Void>(), TupleTagList.empty()));
+              .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     }
 
     @Parameter(0)

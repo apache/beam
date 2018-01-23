@@ -73,10 +73,10 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
         .window(Windows.apply(
             new GearpumpWindowFn(windowFn.isNonMerging()),
             EventTimeTrigger$.MODULE$, Discarding$.MODULE$, windowFn.toString()))
-        .groupBy(new GroupByFn<K, V>(inputKeyCoder), parallelism, "group_by_Key_and_Window")
-        .map(new KeyedByTimestamp<K, V>(windowFn, timestampCombiner), "keyed_by_timestamp")
+        .groupBy(new GroupByFn<>(inputKeyCoder), parallelism, "group_by_Key_and_Window")
+        .map(new KeyedByTimestamp<>(windowFn, timestampCombiner), "keyed_by_timestamp")
         .fold(new Merge<>(windowFn, timestampCombiner), "merge")
-        .map(new Values<K, V>(), "values");
+        .map(new Values<>(), "values");
 
     context.setOutputStream(context.getOutput(), outputStream);
   }

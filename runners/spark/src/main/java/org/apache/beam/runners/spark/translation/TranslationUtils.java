@@ -362,7 +362,7 @@ public final class TranslationUtils {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
       WindowedValue<?> windowedValue = tuple2._2;
-      return new Tuple2<TupleTag<?>, byte[]>(
+      return new Tuple2<>(
           tupleTag, CoderHelpers.toByteArray(windowedValue, coderMap.get(tupleTag)));
     };
   }
@@ -377,7 +377,7 @@ public final class TranslationUtils {
     return tuple2 -> {
       TupleTag<?> tupleTag = tuple2._1;
       byte[] windowedByteValue = tuple2._2;
-      return new Tuple2<TupleTag<?>, WindowedValue<?>>(
+      return new Tuple2<>(
           tupleTag, CoderHelpers.fromByteArray(windowedByteValue, coderMap.get(tupleTag)));
     };
   }

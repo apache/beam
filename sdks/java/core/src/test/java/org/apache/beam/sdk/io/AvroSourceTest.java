@@ -100,8 +100,8 @@ public class AvroSourceTest {
 
     FileOutputStream os = new FileOutputStream(tmpFile);
     DatumWriter<T> datumWriter = coder.getType().equals(GenericRecord.class)
-        ? new GenericDatumWriter<T>(coder.getSchema())
-        : new ReflectDatumWriter<T>(coder.getSchema());
+        ? new GenericDatumWriter<>(coder.getSchema())
+        : new ReflectDatumWriter<>(coder.getSchema());
     try (DataFileWriter<T> writer = new DataFileWriter<>(datumWriter)) {
       writer.setCodec(CodecFactory.fromString(codec));
       writer.create(coder.getSchema(), os);

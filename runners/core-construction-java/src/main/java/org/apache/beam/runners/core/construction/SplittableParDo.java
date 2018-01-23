@@ -144,15 +144,15 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 ParDo.of(new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(doFn)))
             .setCoder(splitCoder)
             .apply(
-                "Split restriction", ParDo.of(new SplitRestrictionFn<InputT, RestrictionT>(doFn)))
+                "Split restriction", ParDo.of(new SplitRestrictionFn<>(doFn)))
             .setCoder(splitCoder)
             // ProcessFn requires all input elements to be in a single window and have a single
             // element per work item. This must precede the unique keying so each key has a single
             // associated element.
-            .apply("Explode windows", ParDo.of(new ExplodeWindowsFn<KV<InputT, RestrictionT>>()))
+            .apply("Explode windows", ParDo.of(new ExplodeWindowsFn<>()))
             .apply(
                 "Assign unique key",
-                WithKeys.of(new RandomUniqueKeyFn<KV<InputT, RestrictionT>>()));
+                WithKeys.of(new RandomUniqueKeyFn<>()));
 
     return keyedRestrictions.apply(
         "ProcessKeyedElements",

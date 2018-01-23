@@ -68,8 +68,8 @@ public class JoinExamples {
   static PCollection<String> joinEvents(PCollection<TableRow> eventsTable,
       PCollection<TableRow> countryCodes) throws Exception {
 
-    final TupleTag<String> eventInfoTag = new TupleTag<String>();
-    final TupleTag<String> countryInfoTag = new TupleTag<String>();
+    final TupleTag<String> eventInfoTag = new TupleTag<>();
+    final TupleTag<String> countryInfoTag = new TupleTag<>();
 
     // transform both input collections to tuple collections, where the keys are country
     // codes in both cases.

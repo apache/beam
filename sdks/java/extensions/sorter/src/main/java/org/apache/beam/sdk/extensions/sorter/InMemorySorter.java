@@ -78,7 +78,7 @@ class InMemorySorter implements Sorter {
   private boolean sortCalled;
 
   /** The stored records to be sorted. */
-  private ArrayList<KV<byte[], byte[]>> records = new ArrayList<KV<byte[], byte[]>>();
+  private ArrayList<KV<byte[], byte[]>> records = new ArrayList<>();
 
   /** Private constructor. */
   private InMemorySorter(Options options) {

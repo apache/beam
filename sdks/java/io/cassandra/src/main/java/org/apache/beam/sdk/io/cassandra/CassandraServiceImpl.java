@@ -173,7 +173,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
             + "the read");
         String splitQuery = QueryBuilder.select().from(spec.keyspace(), spec.table()).toString();
         List<BoundedSource<T>> sources = new ArrayList<>();
-        sources.add(new CassandraIO.CassandraSource<T>(spec, splitQuery));
+        sources.add(new CassandraIO.CassandraSource<>(spec, splitQuery));
         return sources;
       }
     }
@@ -209,7 +209,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     if (numSplits == 1) {
       // we have an unique split
       splitQuery = QueryBuilder.select().from(spec.keyspace(), spec.table()).toString();
-      sourceList.add(new CassandraIO.CassandraSource<T>(spec, splitQuery));
+      sourceList.add(new CassandraIO.CassandraSource<>(spec, splitQuery));
     } else {
       // we have more than one split
       for (int i = 0; i < numSplits; i++) {

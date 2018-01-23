@@ -63,7 +63,7 @@ public class CoGroupByKeyTest implements Serializable {
    */
   private PCollection<KV<Integer, String>> createInput(String name,
       Pipeline p, List<KV<Integer, String>> list) {
-    return createInput(name, p, list,  new ArrayList<Long>());
+    return createInput(name, p, list, new ArrayList<>());
   }
 
   /**
@@ -377,7 +377,7 @@ public class CoGroupByKeyTest implements Serializable {
       // Buffer the addresses so we can accredit all of them with
       // corresponding purchases. All addresses are for the same id, so
       // if there are multiple, we apply the same purchase count to all.
-      ArrayList<String> addressList = new ArrayList<String>();
+      ArrayList<String> addressList = new ArrayList<>();
       for (String address : addresses) {
         addressList.add(address);
       }
@@ -412,17 +412,17 @@ public class CoGroupByKeyTest implements Serializable {
     CoGbkResult result2 = CoGbkResult
         .of(purchasesTag, Arrays.asList("5a", "5b"))
         .and(addressesTag, Arrays.asList("4a"))
-        .and(namesTag, new ArrayList<String>());
+        .and(namesTag, new ArrayList<>());
     // result 3 should not be counted because it has no addresses.
     CoGbkResult result3 = CoGbkResult
         .of(purchasesTag, Arrays.asList("7a", "7b"))
-        .and(addressesTag, new ArrayList<String>())
-        .and(namesTag, new ArrayList<String>());
+        .and(addressesTag, new ArrayList<>())
+        .and(namesTag, new ArrayList<>());
     // result 4 should be counted as 0, because it has no purchases.
     CoGbkResult result4 = CoGbkResult
-        .of(purchasesTag, new ArrayList<String>())
+        .of(purchasesTag, new ArrayList<>())
         .and(addressesTag, Arrays.asList("8a"))
-        .and(namesTag, new ArrayList<String>());
+        .and(namesTag, new ArrayList<>());
 
     List<KV<String, Integer>> results =
         DoFnTester.of(

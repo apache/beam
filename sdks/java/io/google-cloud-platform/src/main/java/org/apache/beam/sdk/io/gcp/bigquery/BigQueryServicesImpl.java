@@ -680,7 +680,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       List<String> idsToPublish = insertIdList;
       while (true) {
         List<ValueInSingleWindow<TableRow>> retryRows = new ArrayList<>();
-        List<String> retryIds = (idsToPublish != null) ? new ArrayList<String>() : null;
+        List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
 
         int strideIndex = 0;
         // Upload in batches.
