@@ -22,10 +22,11 @@ from apache_beam.utils.counters cimport Counter
 
 
 cdef class TransformIOCounter(object):
+  cpdef update_current_step(self)
   cpdef add_bytes_read(self, libc.stdint.int64_t n)
   cpdef __enter__(self)
   cpdef __exit__(self, exc_type, exc_value, traceback)
-  
+
 
 cdef class SideInputReadCounter(TransformIOCounter):
   cdef readonly object _counter_factory
