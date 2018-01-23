@@ -536,7 +536,8 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(inputs))
         .apply(
             ParDo.of(new TestDoFn(Arrays.asList(), Arrays.asList(notOutputTag)))
-            /* No call to .withOutputTags - should cause error */ );
+            // No call to .withOutputTags - should cause error
+            );
 
     thrown.expectMessage("additional");
     pipeline.run();

@@ -173,7 +173,7 @@ public class Min {
    */
   public static <T extends Comparable<? super T>>
   Combine.Globally<T, T> globally() {
-    return Combine.globally(Min.naturalOrder());
+    return Combine.globally(Min.<T>naturalOrder());
   }
 
   /**
@@ -186,7 +186,7 @@ public class Min {
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
-    return Combine.perKey(Min.naturalOrder());
+    return Combine.perKey(Min.<T>naturalOrder());
   }
 
   /**
