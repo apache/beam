@@ -209,12 +209,12 @@ public class WindowingStrategyTranslation implements Serializable {
    * RunnerApi.MessageWithComponents#getFunctionSpec()} is a {@link RunnerApi.FunctionSpec} for the
    * input {@link WindowFn}.
    */
-  public static SdkFunctionSpec toProto(
-      WindowFn<?, ?> windowFn, @SuppressWarnings("unused") SdkComponents components) {
-    // TODO: Set environment IDs
+  public static SdkFunctionSpec toProto(WindowFn<?, ?> windowFn, SdkComponents components) {
     ByteString serializedFn = ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowFn));
     if (windowFn instanceof GlobalWindows) {
       return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(FunctionSpec.newBuilder().setUrn(GLOBAL_WINDOWS_FN))
           .build();
     } else if (windowFn instanceof FixedWindows) {
@@ -224,6 +224,8 @@ public class WindowingStrategyTranslation implements Serializable {
               .setOffset(Timestamps.fromMillis(((FixedWindows) windowFn).getOffset().getMillis()))
               .build();
       return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(FIXED_WINDOWS_FN)
@@ -236,6 +238,8 @@ public class WindowingStrategyTranslation implements Serializable {
           .setPeriod(Durations.fromMillis(((SlidingWindows) windowFn).getPeriod().getMillis()))
           .build();
       return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SLIDING_WINDOWS_FN)
@@ -247,6 +251,8 @@ public class WindowingStrategyTranslation implements Serializable {
               .setGapSize(Durations.fromMillis(((Sessions) windowFn).getGapDuration().getMillis()))
               .build();
       return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SESSION_WINDOWS_FN)
