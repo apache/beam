@@ -142,7 +142,7 @@ public class CombineTranslation {
               PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>,
               Combine.PerKey<K, InputT, OutputT>>
           combine,
-      SdkComponents components)
+      final SdkComponents components)
       throws IOException {
 
     return payloadForCombineLike(
@@ -150,7 +150,8 @@ public class CombineTranslation {
           @Override
           public SdkFunctionSpec getCombineFn() {
             return SdkFunctionSpec.newBuilder()
-                // TODO: Set Java SDK Environment
+                .setEnvironmentId(
+                    components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
                 .setSpec(
                     FunctionSpec.newBuilder()
                         .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
@@ -310,7 +311,7 @@ public class CombineTranslation {
       return RunnerApi.CombinePayload.newBuilder()
           .setAccumulatorCoderId(sdkComponents.registerCoder(accumulatorCoder))
           .putAllSideInputs(sideInputs)
-          .setCombineFn(toProto(combineFn))
+          .setCombineFn(toProto(combineFn, sdkComponents))
           .build();
     } catch (CannotProvideCoderException e) {
       throw new IllegalStateException(e);
@@ -336,9 +337,10 @@ public class CombineTranslation {
         .getAccumulatorCoder();
   }
 
-  public static SdkFunctionSpec toProto(GlobalCombineFn<?, ?, ?> combineFn) {
+  public static SdkFunctionSpec toProto(
+      GlobalCombineFn<?, ?, ?> combineFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
-        // TODO: Set Java SDK Environment URN
+        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)

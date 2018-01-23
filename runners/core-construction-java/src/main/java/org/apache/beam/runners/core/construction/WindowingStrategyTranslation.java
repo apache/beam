@@ -255,6 +255,8 @@ public class WindowingStrategyTranslation implements Serializable {
           .build();
     } else {
       return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SERIALIZED_JAVA_WINDOWFN_URN)
