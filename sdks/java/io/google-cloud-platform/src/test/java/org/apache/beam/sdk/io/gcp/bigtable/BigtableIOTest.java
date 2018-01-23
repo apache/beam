@@ -628,14 +628,12 @@ public class BigtableIOTest {
         tableRange.withStartKey(splitKey2));
     // Generate source and split it.
     BigtableSource source =
-        new BigtableSource(serviceFactory,
-            table,
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
             null /*filter*/,
             keyRanges,
             null /*size*/);
     BigtableSource referenceSource =
-        new BigtableSource(serviceFactory,
-            table,
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
             null /*filter*/,
             ImmutableList.of(service.getTableRange(table)),
             null /*size*/);
@@ -703,14 +701,12 @@ public class BigtableIOTest {
         tableRange.withStartKey(splitKey2));
     // Generate source and split it.
     BigtableSource source =
-        new BigtableSource(serviceFactory,
-            table,
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
             null /*filter*/,
             keyRanges,
             null /*size*/);
     BigtableSource referenceSource =
-        new BigtableSource(serviceFactory,
-            table,
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
             null /*filter*/,
             ImmutableList.of(service.getTableRange(table)),
             null /*size*/);
