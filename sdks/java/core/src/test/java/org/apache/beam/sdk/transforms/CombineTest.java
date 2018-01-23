@@ -457,10 +457,12 @@ public class CombineTest implements Serializable {
 
     // The actual elements produced are nondeterministic. Could be one, could be two.
     // But it should certainly have a final element with the correct final sum.
-    PAssert.that(output).satisfies(input1 -> {
-      assertThat(input1, hasItem("2: true"));
-      return null;
-    });
+    PAssert.that(output)
+        .satisfies(
+            input1 -> {
+              assertThat(input1, hasItem("2: true"));
+              return null;
+            });
 
     pipeline.run();
   }
@@ -647,10 +649,12 @@ public class CombineTest implements Serializable {
         .apply(Sum.integersGlobally().withoutDefaults().withFanout(2))
         .apply(ParDo.of(new GetLast()));
 
-    PAssert.that(output).satisfies(input1 -> {
-      assertThat(input1, hasItem(15));
-      return null;
-    });
+    PAssert.that(output)
+        .satisfies(
+            input1 -> {
+              assertThat(input1, hasItem(15));
+              return null;
+            });
 
     pipeline.run();
   }

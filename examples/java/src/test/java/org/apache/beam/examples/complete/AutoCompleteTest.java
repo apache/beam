@@ -28,7 +28,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -80,9 +79,9 @@ public class AutoCompleteTest implements Serializable {
     PCollection<String> input = p.apply(Create.of(words));
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
-      input.apply(new ComputeTopCompletions(2, recursive))
-           .apply(Filter.by(
-               element -> element.getKey().length() <= 2));
+        input
+            .apply(new ComputeTopCompletions(2, recursive))
+            .apply(Filter.by(element -> element.getKey().length() <= 2));
 
     PAssert.that(output).containsInAnyOrder(
         KV.of("a", parseList("apple:2", "apricot:1")),

@@ -41,7 +41,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
@@ -354,9 +353,7 @@ public class TestPipelineTest implements Serializable {
     public void testNewProvider() {
       ValueProvider<String> foo = pipeline.newProvider("foo");
       ValueProvider<String> foobar =
-          ValueProvider.NestedValueProvider.of(
-              foo,
-              input -> input + "bar");
+          ValueProvider.NestedValueProvider.of(foo, input -> input + "bar");
 
       assertFalse(foo.isAccessible());
       assertFalse(foobar.isAccessible());

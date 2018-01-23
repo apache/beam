@@ -70,7 +70,8 @@ public class ApexYarnLauncherTest {
     // use the embedded launcher to build the DAG only
     EmbeddedAppLauncher<?> embeddedLauncher = Launcher.getLauncher(LaunchMode.EMBEDDED);
 
-    StreamingApplication app = (dag, conf) -> dag.setAttribute(DAGContext.APPLICATION_NAME, "DummyApp");
+    StreamingApplication app =
+        (dag, conf) -> dag.setAttribute(DAGContext.APPLICATION_NAME, "DummyApp");
 
     Configuration conf = new Configuration(false);
     DAG dag = embeddedLauncher.prepareDAG(app, conf);

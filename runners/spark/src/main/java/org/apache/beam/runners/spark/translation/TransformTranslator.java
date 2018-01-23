@@ -28,7 +28,6 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
@@ -70,7 +69,6 @@ import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.storage.StorageLevel;
 
 /**
@@ -161,39 +159,41 @@ public final class TransformTranslator {
 
   private static <K, InputT, OutputT> TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>
       combineGrouped() {
-          return new TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>() {
-            @Override
-            public void evaluate(
-                Combine.GroupedValues<K, InputT, OutputT> transform,
-                EvaluationContext context) {
-              @SuppressWarnings("unchecked")
-              CombineWithContext.CombineFnWithContext<InputT, ?, OutputT> combineFn =
-                  (CombineWithContext.CombineFnWithContext<InputT, ?, OutputT>)
-                      CombineFnUtil.toFnWithContext(transform.getFn());
-              final SparkKeyedCombineFn<K, InputT, ?, OutputT> sparkCombineFn =
-                  new SparkKeyedCombineFn<>(combineFn, context.getSerializableOptions(),
-                      TranslationUtils.getSideInputs(transform.getSideInputs(), context),
-                          context.getInput(transform).getWindowingStrategy());
+    return new TransformEvaluator<Combine.GroupedValues<K, InputT, OutputT>>() {
+      @Override
+      public void evaluate(
+          Combine.GroupedValues<K, InputT, OutputT> transform, EvaluationContext context) {
+        @SuppressWarnings("unchecked")
+        CombineWithContext.CombineFnWithContext<InputT, ?, OutputT> combineFn =
+            (CombineWithContext.CombineFnWithContext<InputT, ?, OutputT>)
+                CombineFnUtil.toFnWithContext(transform.getFn());
+        final SparkKeyedCombineFn<K, InputT, ?, OutputT> sparkCombineFn =
+            new SparkKeyedCombineFn<>(
+                combineFn,
+                context.getSerializableOptions(),
+                TranslationUtils.getSideInputs(transform.getSideInputs(), context),
+                context.getInput(transform).getWindowingStrategy());
 
-              @SuppressWarnings("unchecked")
-              JavaRDD<WindowedValue<KV<K, Iterable<InputT>>>> inRDD =
-                  ((BoundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform))
-                      .getRDD();
+        @SuppressWarnings("unchecked")
+        JavaRDD<WindowedValue<KV<K, Iterable<InputT>>>> inRDD =
+            ((BoundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform)).getRDD();
 
-              JavaRDD<WindowedValue<KV<K, OutputT>>> outRDD = inRDD.map(
-                  in -> WindowedValue.of(
-                      KV.of(in.getValue().getKey(), sparkCombineFn.apply(in)),
-                      in.getTimestamp(),
-                      in.getWindows(),
-                      in.getPane()));
-               context.putDataset(transform, new BoundedDataset<>(outRDD));
-            }
+        JavaRDD<WindowedValue<KV<K, OutputT>>> outRDD =
+            inRDD.map(
+                in ->
+                    WindowedValue.of(
+                        KV.of(in.getValue().getKey(), sparkCombineFn.apply(in)),
+                        in.getTimestamp(),
+                        in.getWindows(),
+                        in.getPane()));
+        context.putDataset(transform, new BoundedDataset<>(outRDD));
+      }
 
-            @Override
-            public String toNativeString() {
-              return "map(new <fn>())";
-            }
-          };
+      @Override
+      public String toNativeString() {
+        return "map(new <fn>())";
+      }
+    };
   }
 
   private static <InputT, AccumT, OutputT> TransformEvaluator<Combine.Globally<InputT, OutputT>>
@@ -317,8 +317,7 @@ public final class TransformTranslator {
 
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey
-                .flatMapValues(
-                    iter -> sparkCombineFn.extractOutput(iter))
+                .flatMapValues(iter -> sparkCombineFn.extractOutput(iter))
                 .map(TranslationUtils.<K, WindowedValue<OutputT>>fromPairFunction())
                 .map(TranslationUtils.<K, OutputT>toKVByWindowInValue());
 
@@ -423,12 +422,18 @@ public final class TransformTranslator {
     JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
         GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder);
 
-    return groupRDD.map(input -> {
-      final K key = input.getValue().getKey();
-      Iterable<WindowedValue<V>> value = input.getValue().getValue();
-      return FluentIterable.from(value).transform(
-          windowedValue -> windowedValue.withValue(KV.of(key, windowedValue.getValue()))).iterator();
-    }).flatMapToPair(doFnFunction);
+    return groupRDD
+        .map(
+            input -> {
+              final K key = input.getValue().getKey();
+              Iterable<WindowedValue<V>> value = input.getValue().getValue();
+              return FluentIterable.from(value)
+                  .transform(
+                      windowedValue ->
+                          windowedValue.withValue(KV.of(key, windowedValue.getValue())))
+                  .iterator();
+            })
+        .flatMapToPair(doFnFunction);
   }
 
   private static <T> TransformEvaluator<Read.Bounded<T>> readBounded() {

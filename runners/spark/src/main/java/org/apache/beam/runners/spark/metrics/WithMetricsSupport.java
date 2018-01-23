@@ -41,7 +41,6 @@ import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * A {@link MetricRegistry} decorator-like that supports {@link AggregatorMetric} and
  * {@link SparkBeamMetric} as {@link Gauge Gauges}.
@@ -150,18 +149,23 @@ public class WithMetricsSupport extends MetricRegistry {
   }
 
   private Maps.EntryTransformer<String, Object, Gauge> toGauge() {
-    return (name, rawValue) -> () -> {
-      // at the moment the metric's type is assumed to be
-      // compatible with Double. While far from perfect, it seems reasonable at
-      // this point in time
-      try {
-        return Double.parseDouble(rawValue.toString());
-      } catch (final Exception e) {
-        LOG.warn("Failed reporting metric with name [{}], of type [{}], since it could not be"
-            + " converted to double", name, rawValue.getClass().getSimpleName(), e);
-        return null;
-      }
-    };
+    return (name, rawValue) ->
+        () -> {
+          // at the moment the metric's type is assumed to be
+          // compatible with Double. While far from perfect, it seems reasonable at
+          // this point in time
+          try {
+            return Double.parseDouble(rawValue.toString());
+          } catch (final Exception e) {
+            LOG.warn(
+                "Failed reporting metric with name [{}], of type [{}], since it could not be"
+                    + " converted to double",
+                name,
+                rawValue.getClass().getSimpleName(),
+                e);
+            return null;
+          }
+        };
   }
 
   private Predicate<Map.Entry<String, Gauge>> matches(final MetricFilter filter) {

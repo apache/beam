@@ -686,8 +686,9 @@ public class TextIO {
 
     /** Like {@link #to(String)}. */
     public TypedWrite<UserT, DestinationT> to(ValueProvider<String> outputPrefix) {
-      return toResource(NestedValueProvider.of(outputPrefix,
-          input -> FileBasedSink.convertToFileResourceIfPossible(input)));
+      return toResource(
+          NestedValueProvider.of(
+              outputPrefix, input -> FileBasedSink.convertToFileResourceIfPossible(input)));
     }
 
     /**

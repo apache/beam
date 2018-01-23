@@ -146,9 +146,10 @@ public class TestPipeline extends Pipeline implements TestRule {
     @Nullable private List<TransformHierarchy.Node> runVisitedNodes;
 
     private final Predicate<TransformHierarchy.Node> isPAssertNode =
-        node -> node.getTransform() instanceof PAssert.GroupThenAssert
-            || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton
-            || node.getTransform() instanceof PAssert.OneSideInputAssert;
+        node ->
+            node.getTransform() instanceof PAssert.GroupThenAssert
+                || node.getTransform() instanceof PAssert.GroupThenAssertForSingleton
+                || node.getTransform() instanceof PAssert.OneSideInputAssert;
 
     private static class NodeRecorder extends PipelineVisitor.Defaults {
 

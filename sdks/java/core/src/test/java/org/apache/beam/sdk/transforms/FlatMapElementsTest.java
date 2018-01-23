@@ -93,10 +93,13 @@ public class FlatMapElementsTest implements Serializable {
         pipeline
             .apply(Create.of(0, 1, 2))
             .apply(
-                FlatMapElements.into(integers()).via(fn(
-                    (input, c) -> ImmutableList.of(
-                        c.sideInput(view) - input, c.sideInput(view) + input),
-                    requiresSideInputs(view))));
+                FlatMapElements.into(integers())
+                    .via(
+                        fn(
+                            (input, c) ->
+                                ImmutableList.of(
+                                    c.sideInput(view) - input, c.sideInput(view) + input),
+                            requiresSideInputs(view))));
 
     PAssert.that(output).containsInAnyOrder(38, 39, 40, 40, 41, 42);
     pipeline.run();

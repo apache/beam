@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import javax.annotation.Nonnull;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.function.Function;
 

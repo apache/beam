@@ -64,7 +64,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Max;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.bson.types.ObjectId;
@@ -187,14 +186,14 @@ public class MongoDBGridFSIOTest implements Serializable {
         output.apply("Count All", Count.<String>globally()))
         .isEqualTo(5000L);
 
-    PAssert.that(
-      output.apply("Count PerElement", Count.<String>perElement()))
-      .satisfies(input -> {
-        for (KV<String, Long> element : input) {
-          assertEquals(500L, element.getValue().longValue());
-        }
-        return null;
-      });
+    PAssert.that(output.apply("Count PerElement", Count.<String>perElement()))
+        .satisfies(
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(500L, element.getValue().longValue());
+              }
+              return null;
+            });
 
     pipeline.run();
   }
@@ -203,40 +202,43 @@ public class MongoDBGridFSIOTest implements Serializable {
   @Test
   public void testReadWithParser() throws Exception {
 
-    PCollection<KV<String, Integer>> output = pipeline.apply(
-        MongoDbGridFSIO.<KV<String, Integer>>read()
-            .withUri("mongodb://localhost:" + port)
-            .withDatabase(DATABASE)
-            .withBucket("mapBucket")
-            .<KV<String, Integer>>withParser((input, callback) -> {
-              try (final BufferedReader reader =
-                  new BufferedReader(new InputStreamReader(input.getInputStream()))) {
-                String line = reader.readLine();
-                while (line != null) {
-                  try (Scanner scanner = new Scanner(line.trim())) {
-                    scanner.useDelimiter("\\t");
-                    long timestamp = scanner.nextLong();
-                    String name = scanner.next();
-                    int score = scanner.nextInt();
-                    callback.output(KV.of(name, score), new Instant(timestamp));
-                  }
-                  line = reader.readLine();
-                }
-              }
-            })
-            .withSkew(new Duration(3610000L))
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
+    PCollection<KV<String, Integer>> output =
+        pipeline.apply(
+            MongoDbGridFSIO.<KV<String, Integer>>read()
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withBucket("mapBucket")
+                .<KV<String, Integer>>withParser(
+                    (input, callback) -> {
+                      try (final BufferedReader reader =
+                          new BufferedReader(new InputStreamReader(input.getInputStream()))) {
+                        String line = reader.readLine();
+                        while (line != null) {
+                          try (Scanner scanner = new Scanner(line.trim())) {
+                            scanner.useDelimiter("\\t");
+                            long timestamp = scanner.nextLong();
+                            String name = scanner.next();
+                            int score = scanner.nextInt();
+                            callback.output(KV.of(name, score), new Instant(timestamp));
+                          }
+                          line = reader.readLine();
+                        }
+                      }
+                    })
+                .withSkew(new Duration(3610000L))
+                .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
     PAssert.thatSingleton(output.apply("Count All", Count.<KV<String, Integer>>globally()))
         .isEqualTo(50100L);
 
     PAssert.that(output.apply("Max PerElement", Max.<String>integersPerKey()))
-      .satisfies(input -> {
-        for (KV<String, Integer> element : input) {
-          assertEquals(101, element.getValue().longValue());
-        }
-        return null;
-      });
+        .satisfies(
+            input -> {
+              for (KV<String, Integer> element : input) {
+                assertEquals(101, element.getValue().longValue());
+              }
+              return null;
+            });
 
     pipeline.run();
   }
@@ -294,15 +296,19 @@ public class MongoDBGridFSIOTest implements Serializable {
             .withBucket("WriteTest")
             .withFilename("WriteTestData"));
 
-    pipeline.apply("WithWriteFn", Create.of(intData))
-      .apply("WithWriteFnInternal", MongoDbGridFSIO.<Integer>write((output, outStream) -> {
-        //one byte per output
-        outStream.write(output.byteValue());
-      })
-        .withUri("mongodb://localhost:" + port)
-        .withDatabase(DATABASE)
-        .withBucket("WriteTest")
-        .withFilename("WriteTestIntData"));
+    pipeline
+        .apply("WithWriteFn", Create.of(intData))
+        .apply(
+            "WithWriteFnInternal",
+            MongoDbGridFSIO.<Integer>write(
+                    (output, outStream) -> {
+                      // one byte per output
+                      outStream.write(output.byteValue());
+                    })
+                .withUri("mongodb://localhost:" + port)
+                .withDatabase(DATABASE)
+                .withBucket("WriteTest")
+                .withFilename("WriteTestIntData"));
 
     pipeline.run();
 

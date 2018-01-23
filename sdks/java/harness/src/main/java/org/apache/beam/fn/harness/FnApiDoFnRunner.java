@@ -884,25 +884,32 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-      return (CombiningState<InputT, AccumT, OutputT>) stateObjectCache.computeIfAbsent(
-          createOrUseCachedBagUserStateKey(id),
-          s -> bindCombining(id, spec, accumCoder, CombineFnUtil.bindContext(combineFn,
-              new StateContext<BoundedWindow>() {
-                @Override
-                public PipelineOptions getPipelineOptions() {
-                  return pipelineOptions;
-                }
+      return (CombiningState<InputT, AccumT, OutputT>)
+          stateObjectCache.computeIfAbsent(
+              createOrUseCachedBagUserStateKey(id),
+              s ->
+                  bindCombining(
+                      id,
+                      spec,
+                      accumCoder,
+                      CombineFnUtil.bindContext(
+                          combineFn,
+                          new StateContext<BoundedWindow>() {
+                            @Override
+                            public PipelineOptions getPipelineOptions() {
+                              return pipelineOptions;
+                            }
 
-                @Override
-                public <T> T sideInput(PCollectionView<T> view) {
-                  return processBundleContext.sideInput(view);
-                }
+                            @Override
+                            public <T> T sideInput(PCollectionView<T> view) {
+                              return processBundleContext.sideInput(view);
+                            }
 
-                @Override
-                public BoundedWindow window() {
-                  return currentWindow;
-                }
-              })));
+                            @Override
+                            public BoundedWindow window() {
+                              return currentWindow;
+                            }
+                          })));
     }
 
     /**

@@ -66,8 +66,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link BoundedReadEvaluatorFactory}.
@@ -230,9 +228,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
   @Test
   public void getInitialInputsSplitsIntoBundles() throws Exception {
-    when(context.createRootBundle())
-        .thenAnswer(
-            invocation -> bundleFactory.createRootBundle());
+    when(context.createRootBundle()).thenAnswer(invocation -> bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context)
             .getInitialInputs(longsProducer, 3);

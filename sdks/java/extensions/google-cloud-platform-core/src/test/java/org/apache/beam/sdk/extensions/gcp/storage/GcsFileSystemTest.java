@@ -27,7 +27,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import java.io.FileNotFoundException;
@@ -38,7 +37,6 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.GcsUtil;
@@ -262,8 +260,7 @@ public class GcsFileSystemTest {
   }
 
   private List<String> toFilenames(MatchResult matchResult) throws IOException {
-    return FluentIterable
-        .from(matchResult.metadata())
+    return FluentIterable.from(matchResult.metadata())
         .transform(metadata -> ((GcsResourceId) metadata.resourceId()).getGcsPath().toString())
         .toList();
   }

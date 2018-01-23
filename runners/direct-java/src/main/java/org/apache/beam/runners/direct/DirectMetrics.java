@@ -115,12 +115,13 @@ class DirectMetrics extends MetricResults {
       // 2. We submit a runnable that will commit the update and remove the tentative value in
       //    a synchronized block.
       inflightAttempted.put(bundle, finalCumulative);
-      COUNTER_COMMITTER.submit(() -> {
-        synchronized (attemptedLock) {
-          finishedAttempted = aggregation.combine(asList(finishedAttempted, finalCumulative));
-          inflightAttempted.remove(bundle);
-        }
-      });
+      COUNTER_COMMITTER.submit(
+          () -> {
+            synchronized (attemptedLock) {
+              finishedAttempted = aggregation.combine(asList(finishedAttempted, finalCumulative));
+              inflightAttempted.remove(bundle);
+            }
+          });
     }
 
     /** Extract the latest values from all attempted and in-progress bundles. */
@@ -224,12 +225,11 @@ class DirectMetrics extends MetricResults {
   /** The current values of counters in memory. */
   private MetricsMap<MetricKey, DirectMetric<Long, Long>> counters =
       new MetricsMap<>(unusedKey -> new DirectMetric<>(COUNTER));
+
   private MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>> distributions =
-      new MetricsMap<>(
-          unusedKey -> new DirectMetric<>(DISTRIBUTION));
+      new MetricsMap<>(unusedKey -> new DirectMetric<>(DISTRIBUTION));
   private MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges =
-      new MetricsMap<>(
-          unusedKey -> new DirectMetric<>(GAUGE));
+      new MetricsMap<>(unusedKey -> new DirectMetric<>(GAUGE));
 
   @AutoValue
   abstract static class DirectMetricQueryResults implements MetricQueryResults {

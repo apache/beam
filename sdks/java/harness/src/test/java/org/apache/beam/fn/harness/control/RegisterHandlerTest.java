@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness.control;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -68,12 +67,13 @@ public class RegisterHandlerTest {
   public void testRegistration() throws Exception {
     RegisterHandler handler = new RegisterHandler();
     Future<BeamFnApi.InstructionResponse> responseFuture =
-        executor.submit(() -> {
-          // Purposefully wait a small amount of time making it likely that
-          // a downstream caller needs to block.
-          Thread.sleep(100);
-          return handler.register(REGISTER_REQUEST).build();
-        });
+        executor.submit(
+            () -> {
+              // Purposefully wait a small amount of time making it likely that
+              // a downstream caller needs to block.
+              Thread.sleep(100);
+              return handler.register(REGISTER_REQUEST).build();
+            });
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0),
         handler.getById("1L"));
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1),

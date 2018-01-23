@@ -138,10 +138,8 @@ public class SplittableParDoProcessFnTest {
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
-      processFn.setStateInternalsFactory(
-          key -> stateInternals);
-      processFn.setTimerInternalsFactory(
-          key -> timerInternals);
+      processFn.setStateInternalsFactory(key -> stateInternals);
+      processFn.setTimerInternalsFactory(key -> timerInternals);
       processFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<
               InputT, OutputT, RestrictionT, TrackerT>(

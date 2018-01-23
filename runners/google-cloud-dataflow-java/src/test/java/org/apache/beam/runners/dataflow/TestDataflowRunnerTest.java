@@ -44,7 +44,6 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.sdk.Pipeline;
@@ -73,8 +72,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /** Tests for {@link TestDataflowRunner}. */
 @RunWith(JUnit4.class)
@@ -163,15 +160,15 @@ public class TestDataflowRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
-        .thenAnswer(invocation -> {
-          JobMessage message = new JobMessage();
-          message.setMessageText("FooException");
-          message.setTime(TimeUtil.toCloudTime(Instant.now()));
-          message.setMessageImportance("JOB_MESSAGE_ERROR");
-          ((JobMessagesHandler) invocation.getArguments()[1])
-              .process(Arrays.asList(message));
-          return State.CANCELLED;
-        });
+        .thenAnswer(
+            invocation -> {
+              JobMessage message = new JobMessage();
+              message.setMessageText("FooException");
+              message.setTime(TimeUtil.toCloudTime(Instant.now()));
+              message.setMessageImportance("JOB_MESSAGE_ERROR");
+              ((JobMessagesHandler) invocation.getArguments()[1]).process(Arrays.asList(message));
+              return State.CANCELLED;
+            });
 
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);
@@ -373,15 +370,15 @@ public class TestDataflowRunnerTest {
     when(mockJob.getProjectId()).thenReturn("test-project");
     when(mockJob.getJobId()).thenReturn("test-job");
     when(mockJob.waitUntilFinish(any(Duration.class), any(JobMessagesHandler.class)))
-        .thenAnswer(invocation -> {
-          JobMessage message = new JobMessage();
-          message.setMessageText("FooException");
-          message.setTime(TimeUtil.toCloudTime(Instant.now()));
-          message.setMessageImportance("JOB_MESSAGE_ERROR");
-          ((JobMessagesHandler) invocation.getArguments()[1])
-              .process(Arrays.asList(message));
-          return State.CANCELLED;
-        });
+        .thenAnswer(
+            invocation -> {
+              JobMessage message = new JobMessage();
+              message.setMessageText("FooException");
+              message.setTime(TimeUtil.toCloudTime(Instant.now()));
+              message.setMessageImportance("JOB_MESSAGE_ERROR");
+              ((JobMessagesHandler) invocation.getArguments()[1]).process(Arrays.asList(message));
+              return State.CANCELLED;
+            });
 
     DataflowRunner mockRunner = Mockito.mock(DataflowRunner.class);
     when(mockRunner.run(any(Pipeline.class))).thenReturn(mockJob);

@@ -18,7 +18,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -442,11 +441,17 @@ public class HadoopInputFormatIO {
       computeSplitsIfNecessary();
       LOG.info("Generated {} splits. Size of first split is {} ", inputSplits.size(), inputSplits
           .get(0).getSplit().getLength());
-      return Lists.transform(inputSplits,
+      return Lists.transform(
+          inputSplits,
           serializableInputSplit -> {
             HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
-                new HadoopInputFormatBoundedSource<K, V>(conf, keyCoder, valueCoder,
-                    keyTranslationFunction, valueTranslationFunction, serializableInputSplit);
+                new HadoopInputFormatBoundedSource<K, V>(
+                    conf,
+                    keyCoder,
+                    valueCoder,
+                    keyTranslationFunction,
+                    valueTranslationFunction,
+                    serializableInputSplit);
             return hifBoundedSource;
           });
     }

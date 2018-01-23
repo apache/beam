@@ -63,7 +63,6 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.channels.Channels;
 import java.nio.channels.Pipe;
-import java.nio.channels.Pipe.SinkChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -96,8 +95,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /** Tests for {@link PackageUtil}. */
 @RunWith(JUnit4.class)

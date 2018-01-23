@@ -88,8 +88,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link ReduceFnRunner}. These tests instantiate a full "stack" of
@@ -132,14 +130,16 @@ public class ReduceFnRunnerTest {
   }
 
   private void triggerShouldFinish(TriggerStateMachine mockTrigger) throws Exception {
-    doAnswer(invocation -> {
-      @SuppressWarnings("unchecked")
-      TriggerStateMachine.TriggerContext context =
-          (TriggerStateMachine.TriggerContext) invocation.getArguments()[0];
-      context.trigger().setFinished(true);
-      return null;
-    })
-    .when(mockTrigger).onFire(anyTriggerContext());
+    doAnswer(
+            invocation -> {
+              @SuppressWarnings("unchecked")
+              TriggerStateMachine.TriggerContext context =
+                  (TriggerStateMachine.TriggerContext) invocation.getArguments()[0];
+              context.trigger().setFinished(true);
+              return null;
+            })
+        .when(mockTrigger)
+        .onFire(anyTriggerContext());
   }
 
   /**

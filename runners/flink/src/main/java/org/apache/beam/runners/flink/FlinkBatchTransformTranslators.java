@@ -76,7 +76,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -673,13 +672,16 @@ class FlinkBatchTransformTranslators {
         // add the flatMap that simply never forwards the single element
         DataSource<String> dummySource =
             context.getExecutionEnvironment().fromElements("dummy");
-        result = dummySource.<WindowedValue<T>>flatMap((s, collector) -> {
-          // never return anything
-        }).returns(
-            new CoderTypeInformation<>(
-                WindowedValue.getFullCoder(
-                    (Coder<T>) VoidCoder.of(),
-                    GlobalWindow.Coder.INSTANCE)));
+        result =
+            dummySource
+                .<WindowedValue<T>>flatMap(
+                    (s, collector) -> {
+                      // never return anything
+                    })
+                .returns(
+                    new CoderTypeInformation<>(
+                        WindowedValue.getFullCoder(
+                            (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE)));
       } else {
         for (PValue taggedPc : allInputs.values()) {
           checkArgument(

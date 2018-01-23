@@ -59,8 +59,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link SideInputContainer}.
@@ -452,12 +450,12 @@ public class SideInputContainerTest {
    */
   private void immediatelyInvokeCallback(PCollectionView<?> view, BoundedWindow window) {
     doAnswer(
-        invocation -> {
-          Object callback = invocation.getArguments()[3];
-          Runnable callbackRunnable = (Runnable) callback;
-          callbackRunnable.run();
-          return null;
-        })
+            invocation -> {
+              Object callback = invocation.getArguments()[3];
+              Runnable callbackRunnable = (Runnable) callback;
+              callbackRunnable.run();
+              return null;
+            })
         .when(context)
         .scheduleAfterOutputWouldBeProduced(
             Mockito.eq(view),
@@ -475,22 +473,26 @@ public class SideInputContainerTest {
       PCollectionView<?> view, BoundedWindow window, final CountDownLatch onComplete) {
     final CountDownLatch runLatch = new CountDownLatch(1);
     doAnswer(
-        invocation -> {
-          Object callback = invocation.getArguments()[3];
-          final Runnable callbackRunnable = (Runnable) callback;
-          Executors.newSingleThreadExecutor().submit(() -> {
-            try {
-              if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
-                fail("Run latch didn't count down within timeout");
-              }
-              callbackRunnable.run();
-              onComplete.countDown();
-            } catch (InterruptedException e) {
-              fail("Unexpectedly interrupted while waiting for latch to be counted down");
-            }
-          });
-          return null;
-        })
+            invocation -> {
+              Object callback = invocation.getArguments()[3];
+              final Runnable callbackRunnable = (Runnable) callback;
+              Executors.newSingleThreadExecutor()
+                  .submit(
+                      () -> {
+                        try {
+                          if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
+                            fail("Run latch didn't count down within timeout");
+                          }
+                          callbackRunnable.run();
+                          onComplete.countDown();
+                        } catch (InterruptedException e) {
+                          fail(
+                              "Unexpectedly interrupted while waiting for latch "
+                                  + "to be counted down");
+                        }
+                      });
+              return null;
+            })
         .when(context)
         .scheduleAfterOutputWouldBeProduced(
             Mockito.eq(view),

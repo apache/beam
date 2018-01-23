@@ -85,8 +85,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link BigQueryServicesImpl}.
@@ -583,7 +581,6 @@ public class BigQueryServicesImplTest {
     when(response.getContent())
         .thenReturn(toStream(row1Failed))
         .thenAnswer(invocation -> toStream(row0Failed));
-
 
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());

@@ -34,7 +34,6 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Defaults;
-import com.google.common.base.Function;
 import com.google.common.collect.ClassToInstanceMap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
@@ -680,10 +679,11 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
     private void removeIgnoredOptions(
         Set<Class<? extends PipelineOptions>> interfaces, Map<String, ?> options) {
       // Find all the method names that are annotated with JSON ignore.
-      Set<String> jsonIgnoreMethodNames = FluentIterable.from(
-          ReflectHelpers.getClosureOfMethodsOnInterfaces(interfaces))
-          .filter(AnnotationPredicates.JSON_IGNORE.forMethod)
-          .transform(input -> input.getName()).toSet();
+      Set<String> jsonIgnoreMethodNames =
+          FluentIterable.from(ReflectHelpers.getClosureOfMethodsOnInterfaces(interfaces))
+              .filter(AnnotationPredicates.JSON_IGNORE.forMethod)
+              .transform(input -> input.getName())
+              .toSet();
 
       // Remove all options that have the same method name as the descriptor.
       for (PropertyDescriptor descriptor

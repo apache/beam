@@ -71,11 +71,9 @@ public class TestStreams {
      * {@link StreamObserver#onError} callback.
      */
     public Builder<T> withOnError(final Runnable onError) {
-      return new Builder<>(new ForwardingCallStreamObserver<>(
-          observer.onNext,
-          t -> onError.run(),
-          observer.onCompleted,
-          observer.isReady));
+      return new Builder<>(
+          new ForwardingCallStreamObserver<>(
+              observer.onNext, t -> onError.run(), observer.onCompleted, observer.isReady));
     }
 
     /**
@@ -102,16 +100,14 @@ public class TestStreams {
   }
 
   private static Runnable noopRunnable() {
-    return () -> {
-    };
+    return () -> {};
   }
 
   private static void noop(Throwable t) {
   }
 
   private static <T> Consumer<T> noopConsumer() {
-    return item -> {
-    };
+    return item -> {};
   }
 
   private static boolean returnTrue() {

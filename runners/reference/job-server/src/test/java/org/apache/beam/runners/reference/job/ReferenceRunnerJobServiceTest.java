@@ -29,12 +29,10 @@ import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Callable;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc;
@@ -72,8 +70,7 @@ public class ReferenceRunnerJobServiceTest {
   public void setup() throws Exception {
     service =
         ReferenceRunnerJobService.create(serverFactory)
-            .withStagingPathSupplier(
-                () -> runnerTemp.getRoot().toPath());
+            .withStagingPathSupplier(() -> runnerTemp.getRoot().toPath());
     server = GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
     stub =
         JobServiceGrpc.newBlockingStub(

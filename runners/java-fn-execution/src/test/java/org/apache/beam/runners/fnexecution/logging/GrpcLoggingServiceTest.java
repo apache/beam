@@ -48,9 +48,10 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link GrpcLoggingService}. */
 @RunWith(JUnit4.class)
 public class GrpcLoggingServiceTest {
-  private Consumer<LogControl> messageDiscarder = item -> {
-    // Ignore
-  };
+  private Consumer<LogControl> messageDiscarder =
+      item -> {
+        // Ignore
+      };
 
   @Test
   public void testMultipleClientsSuccessfullyProcessed() throws Exception {
@@ -67,9 +68,7 @@ public class GrpcLoggingServiceTest {
             () -> {
               CountDownLatch waitForServerHangup = new CountDownLatch(1);
               String url = server.getApiServiceDescriptor().getUrl();
-              ManagedChannel channel =
-                  InProcessChannelBuilder.forName(url)
-                      .build();
+              ManagedChannel channel = InProcessChannelBuilder.forName(url).build();
               StreamObserver<LogEntry.List> outboundObserver =
                   BeamFnLoggingGrpc.newStub(channel)
                       .logging(
@@ -144,8 +143,7 @@ public class GrpcLoggingServiceTest {
                   {
                     CountDownLatch waitForServerHangup = new CountDownLatch(1);
                     ManagedChannel channel =
-                        InProcessChannelBuilder.forName(
-                                server.getApiServiceDescriptor().getUrl())
+                        InProcessChannelBuilder.forName(server.getApiServiceDescriptor().getUrl())
                             .build();
                     StreamObserver<LogEntry.List> outboundObserver =
                         BeamFnLoggingGrpc.newStub(channel)

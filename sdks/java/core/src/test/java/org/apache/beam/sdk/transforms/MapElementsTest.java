@@ -110,9 +110,10 @@ public class MapElementsTest implements Serializable {
     PCollection<Integer> output =
         pipeline
             .apply(Create.of(0, 1, 2))
-            .apply(MapElements.into(integers())
-              .via(fn((element, c) -> element + c.sideInput(view),
-                      requiresSideInputs(view))));
+            .apply(
+                MapElements.into(integers())
+                    .via(
+                        fn((element, c) -> element + c.sideInput(view), requiresSideInputs(view))));
 
     PAssert.that(output).containsInAnyOrder(40, 41, 42);
     pipeline.run();
@@ -177,12 +178,7 @@ public class MapElementsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testMapBasicSerializableFunction() throws Exception {
     PCollection<Integer> output =
-        pipeline
-            .apply(Create.of(1, 2, 3))
-            .apply(
-                MapElements.into(integers())
-                    .via(
-                        input -> -input));
+        pipeline.apply(Create.of(1, 2, 3)).apply(MapElements.into(integers()).via(input -> -input));
 
     PAssert.that(output).containsInAnyOrder(-2, -1, -3);
     pipeline.run();
@@ -225,8 +221,7 @@ public class MapElementsTest implements Serializable {
 
   @Test
   public void testSerializableFunctionDisplayData() {
-    SerializableFunction<Integer, Integer> serializableFn =
-        input -> input;
+    SerializableFunction<Integer, Integer> serializableFn = input -> input;
 
     MapElements<?, ?> serializableMap =
         MapElements.into(integers()).via(serializableFn);

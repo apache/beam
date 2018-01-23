@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.Callable;
 import java.util.concurrent.CompletionService;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
@@ -126,13 +125,17 @@ public class ExpectedLogsTest {
     for (int i = 0; i < 100; i++) {
       final String expected = generateRandomString();
       expectedStrings.add(expected);
-      completionService.submit(() -> {
-        // Have all threads started and waiting to log at about the same moment.
-        sleepMillis(Math.max(1, scheduledLogTime
-            - TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS)));
-        LOG.trace(expected);
-        return null;
-      });
+      completionService.submit(
+          () -> {
+            // Have all threads started and waiting to log at about the same moment.
+            sleepMillis(
+                Math.max(
+                    1,
+                    scheduledLogTime
+                        - TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS)));
+            LOG.trace(expected);
+            return null;
+          });
     }
 
     // Wait for all the threads to complete.

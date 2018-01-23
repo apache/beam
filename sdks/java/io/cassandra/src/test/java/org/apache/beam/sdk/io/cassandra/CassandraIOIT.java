@@ -26,12 +26,10 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
@@ -42,7 +40,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -119,8 +116,7 @@ public class CassandraIOIT implements Serializable {
                 assertEquals(element.getKey(), 1000 / 10, element.getValue().longValue());
               }
               return null;
-            }
-        );
+            });
 
     pipeline.run().waitUntilFinish();
   }

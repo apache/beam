@@ -81,9 +81,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
    */
   @SuppressWarnings("unchecked")
   public static <K, V> WithKeys<K, V> of(@Nullable final K key) {
-    return new WithKeys<>(
-        value -> key,
-        (Class<K>) (key == null ? Void.class : key.getClass()));
+    return new WithKeys<>(value -> key, (Class<K>) (key == null ? Void.class : key.getClass()));
   }
 
 

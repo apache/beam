@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;

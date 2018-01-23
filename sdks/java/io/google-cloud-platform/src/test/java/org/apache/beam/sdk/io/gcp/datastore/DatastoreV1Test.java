@@ -107,8 +107,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link DatastoreV1}.
@@ -720,12 +718,12 @@ public class DatastoreV1Test {
 
     // Use mockResponseForQuery to generate results.
     when(mockDatastore.runQuery(any(RunQueryRequest.class)))
-        .thenThrow(
-            new DatastoreException("RunQuery", Code.DEADLINE_EXCEEDED, "", null))
-        .thenAnswer(invocationOnMock -> {
-          Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
-          return mockResponseForQuery(q);
-        });
+        .thenThrow(new DatastoreException("RunQuery", Code.DEADLINE_EXCEEDED, "", null))
+        .thenAnswer(
+            invocationOnMock -> {
+              Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
+              return mockResponseForQuery(q);
+            });
 
     ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);
     DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
@@ -912,10 +910,11 @@ public class DatastoreV1Test {
 
     // Use mockResponseForQuery to generate results.
     when(mockDatastore.runQuery(any(RunQueryRequest.class)))
-        .thenAnswer(invocationOnMock -> {
-          Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
-          return mockResponseForQuery(q);
-        });
+        .thenAnswer(
+            invocationOnMock -> {
+              Query q = ((RunQueryRequest) invocationOnMock.getArguments()[0]).getQuery();
+              return mockResponseForQuery(q);
+            });
 
     ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);
     DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);

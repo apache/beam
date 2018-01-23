@@ -24,7 +24,6 @@ import java.io.Serializable;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
@@ -55,9 +54,7 @@ public class GatherAllPanesTest implements Serializable {
   public void singlePaneSingleReifiedPane() {
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
         p.apply(GenerateSequence.from(0).to(20000))
-            .apply(
-                WithTimestamps.of(
-                    input -> new Instant(input * 10)))
+            .apply(WithTimestamps.of(input -> new Instant(input * 10)))
             .apply(
                 Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1)))
                     .triggering(AfterWatermark.pastEndOfWindow())
@@ -92,9 +89,7 @@ public class GatherAllPanesTest implements Serializable {
         PCollectionList.of(someElems)
             .and(otherElems)
             .apply(Flatten.<Long>pCollections())
-            .apply(
-                WithTimestamps.of(
-                    input -> new Instant(input * 10)))
+            .apply(WithTimestamps.of(input -> new Instant(input * 10)))
             .apply(
                 Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1)))
                     .triggering(

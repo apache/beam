@@ -186,9 +186,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
               StateTag<?> tag;
               try {
-                tag =
-                    StateTags.tagForSpec(
-                        stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
+                tag = StateTags.tagForSpec(stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
               } catch (IllegalAccessException e) {
                 throw new RuntimeException(
                     String.format(
