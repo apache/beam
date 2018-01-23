@@ -178,7 +178,8 @@ public class CombineTranslation {
             Map<String, SideInput> sideInputs = new HashMap<>();
             for (PCollectionView<?> sideInput : combine.getTransform().getSideInputs()) {
               sideInputs.put(
-                  sideInput.getTagInternal().getId(), ParDoTranslation.translateView(sideInput));
+                  sideInput.getTagInternal().getId(),
+                  ParDoTranslation.translateView(sideInput, components));
             }
             return sideInputs;
           }
