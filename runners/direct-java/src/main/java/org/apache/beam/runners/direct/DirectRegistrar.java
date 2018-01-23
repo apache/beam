@@ -37,8 +37,7 @@ public class DirectRegistrar {
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.of(
-          DirectRunner.class);
+      return ImmutableList.of(DirectRunner.class);
     }
   }
 
@@ -49,8 +48,7 @@ public class DirectRegistrar {
   public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.of(
-          DirectOptions.class, DirectTestOptions.class);
+      return ImmutableList.of(DirectOptions.class, DirectTestOptions.class);
     }
   }
 }

@@ -31,12 +31,10 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -108,13 +106,12 @@ public class EmptyFlattenAsCreateFactoryTest {
         empty.apply(
             factory
                 .getReplacementTransform(
-                    AppliedPTransform
-                        .of(
-                            "nonEmptyInput",
-                            Collections.emptyMap(),
-                            Collections.emptyMap(),
-                            Flatten.pCollections(),
-                            pipeline))
+                    AppliedPTransform.of(
+                        "nonEmptyInput",
+                        Collections.emptyMap(),
+                        Collections.emptyMap(),
+                        Flatten.pCollections(),
+                        pipeline))
                 .getTransform());
     PAssert.that(emptyFlattened).empty();
     pipeline.run();

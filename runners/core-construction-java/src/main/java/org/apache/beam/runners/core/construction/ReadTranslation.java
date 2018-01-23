@@ -114,10 +114,7 @@ public class ReadTranslation {
       AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>> transform)
       throws IOException {
     return ReadPayload.parseFrom(
-        PTransformTranslation.toProto(
-                transform,
-                Collections.emptyList(),
-                SdkComponents.create())
+        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create())
             .getSpec()
             .getPayload());
   }
@@ -146,9 +143,7 @@ public class ReadTranslation {
       return PCollectionTranslation.fromProto(
           ReadPayload.parseFrom(
                   PTransformTranslation.toProto(
-                          transform,
-                          Collections.emptyList(),
-                          SdkComponents.create())
+                          transform, Collections.emptyList(), SdkComponents.create())
                       .getSpec()
                       .getPayload())
               .getIsBounded());

@@ -158,8 +158,7 @@ public class CoderProperties {
       Coder<IterableT> coder, IterableT value)
       throws Exception {
     for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.coderDecodeEncodeContentsInSameOrderInContext(
-          coder, context, value);
+      CoderProperties.coderDecodeEncodeContentsInSameOrderInContext(coder, context, value);
     }
   }
 
@@ -227,8 +226,7 @@ public class CoderProperties {
       Coder<T> coder, T value1, T value2)
       throws Exception {
     for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.structuralValueConsistentWithEqualsInContext(
-          coder, context, value1, value2);
+      CoderProperties.structuralValueConsistentWithEqualsInContext(coder, context, value1, value2);
     }
   }
 
@@ -258,8 +256,7 @@ public class CoderProperties {
           Coder<T> coder, T value)
           throws Exception {
     for (Coder.Context context : ALL_CONTEXTS) {
-      CoderProperties.structuralValueDecodeEncodeEqualInContext(
-              coder, context, value);
+      CoderProperties.structuralValueDecodeEncodeEqualInContext(coder, context, value);
     }
   }
 

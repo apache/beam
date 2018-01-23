@@ -219,8 +219,8 @@ public class ParDoTranslatorTest {
     operator.setup(null);
     operator.beginWindow(0);
     WindowedValue<Integer> wv1 = WindowedValue.valueInGlobalWindow(1);
-    WindowedValue<Iterable<?>> sideInput = WindowedValue.valueInGlobalWindow(
-        materializeValuesFor(View.asSingleton(), 22));
+    WindowedValue<Iterable<?>> sideInput =
+        WindowedValue.valueInGlobalWindow(materializeValuesFor(View.asSingleton(), 22));
     operator.input.process(ApexStreamTuple.DataTuple.of(wv1)); // pushed back input
 
     final List<Object> results = Lists.newArrayList();
@@ -268,26 +268,30 @@ public class ParDoTranslatorTest {
     final TupleTag<String> mainOutputTag = new TupleTag<>("main");
     final TupleTag<Void> additionalOutputTag = new TupleTag<>("output");
 
-    PCollectionView<Integer> sideInput1 = pipeline
-        .apply("CreateSideInput1", Create.of(11))
-        .apply("ViewSideInput1", View.asSingleton());
-    PCollectionView<Integer> sideInputUnread = pipeline
-        .apply("CreateSideInputUnread", Create.of(-3333))
-        .apply("ViewSideInputUnread", View.asSingleton());
-    PCollectionView<Integer> sideInput2 = pipeline
-        .apply("CreateSideInput2", Create.of(222))
-        .apply("ViewSideInput2", View.asSingleton());
+    PCollectionView<Integer> sideInput1 =
+        pipeline
+            .apply("CreateSideInput1", Create.of(11))
+            .apply("ViewSideInput1", View.asSingleton());
+    PCollectionView<Integer> sideInputUnread =
+        pipeline
+            .apply("CreateSideInputUnread", Create.of(-3333))
+            .apply("ViewSideInputUnread", View.asSingleton());
+    PCollectionView<Integer> sideInput2 =
+        pipeline
+            .apply("CreateSideInput2", Create.of(222))
+            .apply("ViewSideInput2", View.asSingleton());
 
-    PCollectionTuple outputs = pipeline
-        .apply(Create.of(inputs))
-        .apply(ParDo
-            .of(new TestMultiOutputWithSideInputsFn(
-                Arrays.asList(sideInput1, sideInput2),
-                Arrays.asList()))
-            .withSideInputs(sideInput1)
-            .withSideInputs(sideInputUnread)
-            .withSideInputs(sideInput2)
-            .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
+    PCollectionTuple outputs =
+        pipeline
+            .apply(Create.of(inputs))
+            .apply(
+                ParDo.of(
+                        new TestMultiOutputWithSideInputsFn(
+                            Arrays.asList(sideInput1, sideInput2), Arrays.asList()))
+                    .withSideInputs(sideInput1)
+                    .withSideInputs(sideInputUnread)
+                    .withSideInputs(sideInput2)
+                    .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     outputs.get(mainOutputTag).apply(ParDo.of(new EmbeddedCollector()));
     outputs.get(additionalOutputTag).setCoder(VoidCoder.of());

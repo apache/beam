@@ -25,7 +25,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsRegistrar;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 
-
 /**
  * AutoService registrar - will register FlinkRunner and FlinkOptions
  * as possible pipeline runner services.
@@ -43,9 +42,7 @@ public class FlinkRunnerRegistrar {
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.of(
-          FlinkRunner.class,
-          TestFlinkRunner.class);
+      return ImmutableList.of(FlinkRunner.class, TestFlinkRunner.class);
     }
   }
 

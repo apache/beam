@@ -43,10 +43,11 @@ public class SetCoderTest {
 
   private static final Coder<Set<Integer>> TEST_CODER = SetCoder.of(VarIntCoder.of());
 
-  private static final List<Set<Integer>> TEST_VALUES = Arrays.asList(
-      Collections.emptySet(),
-      Collections.singleton(13),
-      new TreeSet<>(Arrays.asList(31, -5, 83)));
+  private static final List<Set<Integer>> TEST_VALUES =
+      Arrays.asList(
+          Collections.emptySet(),
+          Collections.singleton(13),
+          new TreeSet<>(Arrays.asList(31, -5, 83)));
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {

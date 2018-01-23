@@ -172,8 +172,8 @@ public class EvaluationContext {
     PValue output = getOutput(transform);
     if (shouldCache(output)) {
       // eagerly create the RDD, as it will be reused.
-      Iterable<WindowedValue<T>> elems = Iterables.transform(values,
-          WindowingHelpers.windowValueFunction());
+      Iterable<WindowedValue<T>> elems =
+          Iterables.transform(values, WindowingHelpers.windowValueFunction());
       WindowedValue.ValueOnlyWindowedValueCoder<T> windowCoder =
           WindowedValue.getValueOnlyCoder(coder);
       JavaRDD<WindowedValue<T>> rdd =

@@ -270,9 +270,7 @@ class QuiescenceDriver implements ExecutionDriver {
         } else {
           pendingWork.offer(
               WorkUpdate.fromBundle(
-                  unprocessedInputs.get(),
-                  Collections.singleton(
-                      committedResult.getTransform())));
+                  unprocessedInputs.get(), Collections.singleton(committedResult.getTransform())));
         }
       }
       if (!committedResult.getProducedOutputTypes().isEmpty()) {
@@ -314,9 +312,7 @@ class QuiescenceDriver implements ExecutionDriver {
 
     private static WorkUpdate fromException(Exception e) {
       return new AutoValue_QuiescenceDriver_WorkUpdate(
-          Optional.absent(),
-          Collections.emptyList(),
-          Optional.of(e));
+          Optional.absent(), Collections.emptyList(), Optional.of(e));
     }
 
     /** Returns the bundle that produced this update. */

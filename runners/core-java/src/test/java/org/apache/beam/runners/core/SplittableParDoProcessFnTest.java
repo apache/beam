@@ -210,8 +210,7 @@ public class SplittableParDoProcessFnTest {
       if (timers.isEmpty()) {
         return false;
       }
-      tester.processElement(
-          KeyedWorkItems.timersWorkItem("key", timers));
+      tester.processElement(KeyedWorkItems.timersWorkItem("key", timers));
       return true;
     }
 

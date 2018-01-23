@@ -62,8 +62,6 @@ import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
-import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -170,11 +168,7 @@ public class DataflowPipelineJobTest {
     when(listRequest.execute()).thenThrow(SocketTimeoutException.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(
-            DataflowClient.create(options),
-            JOB_ID,
-            options,
-            ImmutableMap.of());
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
     State state = job.waitUntilFinish(
         Duration.standardMinutes(5), jobHandler, fastClock, fastClock);
@@ -195,11 +189,7 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenReturn(statusResponse);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(
-            DataflowClient.create(options),
-            JOB_ID,
-            options,
-            ImmutableMap.of());
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
     return job.waitUntilFinish(Duration.standardMinutes(1), null, fastClock, fastClock);
   }
@@ -265,11 +255,7 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenThrow(IOException.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(
-            DataflowClient.create(options),
-            JOB_ID,
-            options,
-            ImmutableMap.of());
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
     long startTime = fastClock.nanoTime();
     State state = job.waitUntilFinish(Duration.standardMinutes(5), null, fastClock, fastClock);
@@ -288,11 +274,7 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenThrow(IOException.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(
-            DataflowClient.create(options),
-            JOB_ID,
-            options,
-            ImmutableMap.of());
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
     long startTime = fastClock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, fastClock, fastClock);
     assertEquals(null, state);
@@ -314,11 +296,7 @@ public class DataflowPipelineJobTest {
     FastNanoClockAndFuzzySleeper clock = new FastNanoClockAndFuzzySleeper();
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(
-            DataflowClient.create(options),
-            JOB_ID,
-            options,
-            ImmutableMap.of());
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
     long startTime = clock.nanoTime();
     State state = job.waitUntilFinish(Duration.millis(4), null, clock, clock);
     assertEquals(null, state);
@@ -339,11 +317,7 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenReturn(statusResponse);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(
-            DataflowClient.create(options),
-            JOB_ID,
-            options,
-            ImmutableMap.of());
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
     assertEquals(
         State.RUNNING,
@@ -362,11 +336,7 @@ public class DataflowPipelineJobTest {
     when(statusRequest.execute()).thenThrow(IOException.class);
 
     DataflowPipelineJob job =
-        new DataflowPipelineJob(
-            DataflowClient.create(options),
-            JOB_ID,
-            options,
-            ImmutableMap.of());
+        new DataflowPipelineJob(DataflowClient.create(options), JOB_ID, options, ImmutableMap.of());
 
     long startTime = fastClock.nanoTime();
     assertEquals(
@@ -385,11 +355,7 @@ public class DataflowPipelineJobTest {
     PInput input = mock(PInput.class);
     when(input.getPipeline()).thenReturn(p);
     return AppliedPTransform.of(
-        fullName,
-        Collections.emptyMap(),
-        Collections.emptyMap(),
-        transform,
-        p);
+        fullName, Collections.emptyMap(), Collections.emptyMap(), transform, p);
   }
 
   private static class FastNanoClockAndFuzzySleeper implements NanoClock, Sleeper {

@@ -93,8 +93,7 @@ public class CommittedResultTest implements Serializable {
             Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(result.getUnprocessedInputs().get(),
-        Matchers.equalTo(bundle));
+    assertThat(result.getUnprocessedInputs().get(), Matchers.equalTo(bundle));
   }
 
   @Test
@@ -106,10 +105,7 @@ public class CommittedResultTest implements Serializable {
             Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(
-        result.getUnprocessedInputs(),
-        Matchers.equalTo(
-            Optional.absent()));
+    assertThat(result.getUnprocessedInputs(), Matchers.equalTo(Optional.absent()));
   }
 
   @Test

@@ -67,7 +67,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -106,8 +105,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     when((StateInternals) mockStepContext.stateInternals()).thenReturn(stateInternals);
     when(mockEvaluationContext.createSideInputReader(anyList()))
         .thenReturn(
-            SideInputContainer.create(
-                    mockEvaluationContext, Collections.emptyList())
+            SideInputContainer.create(mockEvaluationContext, Collections.emptyList())
                 .createReaderForViews(Collections.emptyList()));
   }
 
@@ -192,10 +190,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
     ArgumentCaptor<Runnable> argumentCaptor = ArgumentCaptor.forClass(Runnable.class);
     verify(mockEvaluationContext)
         .scheduleAfterWindowExpiration(
-            eq(producingTransform),
-            eq(firstWindow),
-            Mockito.any(),
-            argumentCaptor.capture());
+            eq(producingTransform), eq(firstWindow), Mockito.any(), argumentCaptor.capture());
 
     // Should actually clear the state for the first window
     argumentCaptor.getValue().run();
@@ -204,10 +199,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
 
     verify(mockEvaluationContext)
         .scheduleAfterWindowExpiration(
-            eq(producingTransform),
-            eq(secondWindow),
-            Mockito.any(),
-            argumentCaptor.capture());
+            eq(producingTransform), eq(secondWindow), Mockito.any(), argumentCaptor.capture());
 
     // Should actually clear the state for the second window
     argumentCaptor.getValue().run();
@@ -276,9 +268,7 @@ public class StatefulParDoEvaluatorFactoryTest implements Serializable {
 
     // And digging to check whether the window is ready
     when(mockEvaluationContext.createSideInputReader(anyList())).thenReturn(mockSideInputReader);
-    when(mockSideInputReader.isReady(
-            Matchers.any(), Matchers.any()))
-        .thenReturn(false);
+    when(mockSideInputReader.isReady(Matchers.any(), Matchers.any())).thenReturn(false);
 
     IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(9));
 

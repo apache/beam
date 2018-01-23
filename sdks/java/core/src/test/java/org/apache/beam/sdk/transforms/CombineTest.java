@@ -111,13 +111,10 @@ public class CombineTest implements Serializable {
                                     List<KV<String, String>> perKeyCombines) {
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
-    PCollection<Integer> sum = input
-        .apply(Values.create())
-        .apply(Combine.globally(new SumInts()));
+    PCollection<Integer> sum = input.apply(Values.create()).apply(Combine.globally(new SumInts()));
 
     // Java 8 will infer.
-    PCollection<KV<String, String>> sumPerKey = input
-        .apply(Combine.perKey(new TestCombineFn()));
+    PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
 
     PAssert.that(sum).containsInAnyOrder(globalSum);
     PAssert.that(sumPerKey).containsInAnyOrder(perKeyCombines);
@@ -185,8 +182,7 @@ public class CombineTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testSimpleCombineWithContextEmpty() {
-    runTestSimpleCombineWithContext(
-        EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
+    runTestSimpleCombineWithContext(EMPTY_TABLE, 0, Collections.emptyList(), new String[] {});
   }
 
   @Test
@@ -201,13 +197,12 @@ public class CombineTest implements Serializable {
                                    List<KV<String, Set<Integer>>> perKeyUnique) {
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
-    PCollection<Set<Integer>> unique = input
-        .apply(Values.create())
-        .apply(Combine.globally(new UniqueInts()));
+    PCollection<Set<Integer>> unique =
+        input.apply(Values.create()).apply(Combine.globally(new UniqueInts()));
 
     // Java 8 will infer.
-    PCollection<KV<String, Set<Integer>>> uniquePerKey = input
-        .apply(Combine.perKey(new UniqueInts()));
+    PCollection<KV<String, Set<Integer>>> uniquePerKey =
+        input.apply(Combine.perKey(new UniqueInts()));
 
     PAssert.that(unique).containsInAnyOrder(globalUnique);
     PAssert.that(uniquePerKey).containsInAnyOrder(perKeyUnique);
@@ -232,8 +227,7 @@ public class CombineTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testBasicCombineEmpty() {
-    runTestBasicCombine(
-        EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
+    runTestBasicCombine(EMPTY_TABLE, ImmutableSet.of(), Collections.emptyList());
   }
 
   private void runTestAccumulatingCombine(List<KV<String, Integer>> table,
@@ -241,13 +235,10 @@ public class CombineTest implements Serializable {
                                           List<KV<String, Double>> perKeyMeans) {
     PCollection<KV<String, Integer>> input = createInput(pipeline, table);
 
-    PCollection<Double> mean = input
-        .apply(Values.create())
-        .apply(Combine.globally(new MeanInts()));
+    PCollection<Double> mean = input.apply(Values.create()).apply(Combine.globally(new MeanInts()));
 
     // Java 8 will infer.
-    PCollection<KV<String, Double>> meanPerKey = input.apply(
-        Combine.perKey(new MeanInts()));
+    PCollection<KV<String, Double>> meanPerKey = input.apply(Combine.perKey(new MeanInts()));
 
     PAssert.that(mean).containsInAnyOrder(globalMean);
     PAssert.that(meanPerKey).containsInAnyOrder(perKeyMeans);
@@ -270,12 +261,10 @@ public class CombineTest implements Serializable {
                     .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
             .apply(Window.into(FixedWindows.of(Duration.millis(2))));
 
-    PCollection<Integer> sum = input
-        .apply(Values.create())
-        .apply(Combine.globally(new SumInts()).withoutDefaults());
+    PCollection<Integer> sum =
+        input.apply(Values.create()).apply(Combine.globally(new SumInts()).withoutDefaults());
 
-    PCollection<KV<String, String>> sumPerKey = input
-        .apply(Combine.perKey(new TestCombineFn()));
+    PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
 
     PAssert.that(sum).containsInAnyOrder(2, 5, 13);
     PAssert.that(sumPerKey)
@@ -335,9 +324,7 @@ public class CombineTest implements Serializable {
                     TimestampedValue.of("a", new Instant(1L)),
                     TimestampedValue.of("b", new Instant(2L)),
                     TimestampedValue.of("c", new Instant(3L))))
-            .apply(
-                Window.into(
-                    SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1L))));
+            .apply(Window.into(SlidingWindows.of(Duration.millis(3)).every(Duration.millis(1L))));
     PCollection<List<String>> combined =
         input.apply(
             Combine.globally(
@@ -482,12 +469,10 @@ public class CombineTest implements Serializable {
                     .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
             .apply(Window.into(Sessions.withGapDuration(Duration.millis(5))));
 
-    PCollection<Integer> sum = input
-        .apply(Values.create())
-        .apply(Combine.globally(new SumInts()).withoutDefaults());
+    PCollection<Integer> sum =
+        input.apply(Values.create()).apply(Combine.globally(new SumInts()).withoutDefaults());
 
-    PCollection<KV<String, String>> sumPerKey = input
-        .apply(Combine.perKey(new TestCombineFn()));
+    PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
 
     PAssert.that(sum).containsInAnyOrder(7, 13);
     PAssert.that(sumPerKey)
@@ -510,10 +495,10 @@ public class CombineTest implements Serializable {
 
     PCollection<Integer> globallyInput = perKeyInput.apply(Values.create());
 
-    PCollection<Integer> fixedWindowsSum = globallyInput
-        .apply("FixedWindows",
-            Window.into(FixedWindows.of(Duration.millis(5))))
-        .apply("Sum", Combine.globally(new SumInts()).withoutDefaults());
+    PCollection<Integer> fixedWindowsSum =
+        globallyInput
+            .apply("FixedWindows", Window.into(FixedWindows.of(Duration.millis(5))))
+            .apply("Sum", Combine.globally(new SumInts()).withoutDefaults());
 
     PCollectionView<Integer> globallyFixedWindowsView =
         fixedWindowsSum.apply(View.<Integer>asSingleton().withDefaultValue(0));
@@ -521,8 +506,7 @@ public class CombineTest implements Serializable {
     PCollection<KV<String, String>> sessionsCombinePerKey =
         perKeyInput
             .apply(
-                "PerKey Input Sessions",
-                Window.into(Sessions.withGapDuration(Duration.millis(5))))
+                "PerKey Input Sessions", Window.into(Sessions.withGapDuration(Duration.millis(5))))
             .apply(
                 Combine.<String, Integer, String>perKey(
                         new TestCombineFnWithContext(globallyFixedWindowsView))
@@ -549,10 +533,11 @@ public class CombineTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testWindowedCombineEmpty() {
-    PCollection<Double> mean = pipeline
-        .apply(Create.empty(BigEndianIntegerCoder.of()))
-        .apply(Window.into(FixedWindows.of(Duration.millis(1))))
-        .apply(Combine.globally(new MeanInts()).withoutDefaults());
+    PCollection<Double> mean =
+        pipeline
+            .apply(Create.empty(BigEndianIntegerCoder.of()))
+            .apply(Window.into(FixedWindows.of(Duration.millis(1))))
+            .apply(Combine.globally(new MeanInts()).withoutDefaults());
 
     PAssert.that(mean).empty();
 
@@ -669,10 +654,10 @@ public class CombineTest implements Serializable {
       KV.of("b", 1),
       KV.of("b", 13)
     )), 2);
-    PCollection<KV<String, Integer>> intProduct = input
-        .apply("IntProduct", Combine.perKey(new TestProdInt()));
-    PCollection<KV<String, Integer>> objProduct = input
-        .apply("ObjProduct", Combine.perKey(new TestProdObj()));
+    PCollection<KV<String, Integer>> intProduct =
+        input.apply("IntProduct", Combine.perKey(new TestProdInt()));
+    PCollection<KV<String, Integer>> objProduct =
+        input.apply("ObjProduct", Combine.perKey(new TestProdObj()));
 
     List<KV<String, Integer>> expected = Arrays.asList(KV.of("a", 16), KV.of("b", 169));
     PAssert.that(intProduct).containsInAnyOrder(expected);

@@ -87,8 +87,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
   @Test
   public void startFinishBundleDelegates() {
-    PushbackSideInputDoFnRunner runner =
-        createRunner(ImmutableList.of(singletonView));
+    PushbackSideInputDoFnRunner runner = createRunner(ImmutableList.of(singletonView));
 
     assertThat(underlying.started, is(true));
     assertThat(underlying.finished, is(false));
@@ -201,8 +200,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
 
   @Test
   public void processElementNoSideInputs() {
-    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner =
-        createRunner(ImmutableList.of());
+    SimplePushbackSideInputDoFnRunner<Integer, Integer> runner = createRunner(ImmutableList.of());
 
     WindowedValue<Integer> multiWindow =
         WindowedValue.of(
@@ -223,8 +221,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
   /** Tests that a call to onTimer gets delegated. */
   @Test
   public void testOnTimerCalled() {
-    PushbackSideInputDoFnRunner<Integer, Integer> runner =
-        createRunner(ImmutableList.of());
+    PushbackSideInputDoFnRunner<Integer, Integer> runner = createRunner(ImmutableList.of());
 
     String timerId = "fooTimer";
     IntervalWindow window = new IntervalWindow(new Instant(4), new Instant(16));

@@ -991,8 +991,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     PCollection<String> formattedResults =
       results.apply(queryName + ".Format", NexmarkUtils.format(queryName));
     if (options.getLogResults()) {
-      formattedResults = formattedResults.apply(queryName + ".Results.Log",
-              NexmarkUtils.log(queryName + ".Results"));
+      formattedResults =
+          formattedResults.apply(
+              queryName + ".Results.Log", NexmarkUtils.log(queryName + ".Results"));
     }
 
     switch (configuration.sinkType) {
@@ -1091,8 +1092,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       PCollection<Event> source = createSource(p, now);
 
       if (options.getLogEvents()) {
-        source = source.apply(queryName + ".Events.Log",
-                NexmarkUtils.log(queryName + ".Events"));
+        source = source.apply(queryName + ".Events.Log", NexmarkUtils.log(queryName + ".Events"));
       }
 
       // Source will be null if source type is PUBSUB and mode is PUBLISH_ONLY.

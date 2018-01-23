@@ -46,12 +46,14 @@ public class TriggerStateMachineTest {
   @Test
   public void testIsCompatible() throws Exception {
     assertTrue(new Trigger1(null).isCompatible(new Trigger1(null)));
-    assertTrue(new Trigger1(Arrays.asList(new Trigger2(null)))
-        .isCompatible(new Trigger1(Arrays.asList(new Trigger2(null)))));
+    assertTrue(
+        new Trigger1(Arrays.asList(new Trigger2(null)))
+            .isCompatible(new Trigger1(Arrays.asList(new Trigger2(null)))));
 
     assertFalse(new Trigger1(null).isCompatible(new Trigger2(null)));
-    assertFalse(new Trigger1(Arrays.asList(new Trigger1(null)))
-        .isCompatible(new Trigger1(Arrays.asList(new Trigger2(null)))));
+    assertFalse(
+        new Trigger1(Arrays.asList(new Trigger1(null)))
+            .isCompatible(new Trigger1(Arrays.asList(new Trigger2(null)))));
   }
 
   private static class Trigger1 extends TriggerStateMachine {

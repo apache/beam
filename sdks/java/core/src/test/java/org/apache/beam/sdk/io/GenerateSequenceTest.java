@@ -50,8 +50,7 @@ public class GenerateSequenceTest {
     // Count == numElements
     PAssert.thatSingleton(input.apply("Count", Count.globally())).isEqualTo(end - start);
     // Unique count == numElements
-    PAssert.thatSingleton(
-            input.apply(Distinct.create()).apply("UniqueCount", Count.globally()))
+    PAssert.thatSingleton(input.apply(Distinct.create()).apply("UniqueCount", Count.globally()))
         .isEqualTo(end - start);
     // Min == start
     PAssert.thatSingleton(input.apply("Min", Min.globally())).isEqualTo(start);

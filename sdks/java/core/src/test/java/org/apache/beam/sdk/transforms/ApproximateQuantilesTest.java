@@ -85,8 +85,7 @@ public class ApproximateQuantilesTest {
     @Category(NeedsRunner.class)
     public void testQuantilesGlobally() {
       PCollection<Integer> input = intRangeCollection(p, 101);
-      PCollection<List<Integer>> quantiles =
-          input.apply(ApproximateQuantiles.globally(5));
+      PCollection<List<Integer>> quantiles = input.apply(ApproximateQuantiles.globally(5));
 
       PAssert.that(quantiles)
           .containsInAnyOrder(Arrays.asList(0, 25, 50, 75, 100));
@@ -110,8 +109,8 @@ public class ApproximateQuantilesTest {
     @Category(NeedsRunner.class)
     public void testQuantilesPerKey() {
       PCollection<KV<String, Integer>> input = createInputTable(p);
-      PCollection<KV<String, List<Integer>>> quantiles = input.apply(
-          ApproximateQuantiles.perKey(2));
+      PCollection<KV<String, List<Integer>>> quantiles =
+          input.apply(ApproximateQuantiles.perKey(2));
 
       PAssert.that(quantiles)
           .containsInAnyOrder(
@@ -125,9 +124,8 @@ public class ApproximateQuantilesTest {
     @Category(NeedsRunner.class)
     public void testQuantilesPerKey_reversed() {
       PCollection<KV<String, Integer>> input = createInputTable(p);
-      PCollection<KV<String, List<Integer>>> quantiles = input.apply(
-          ApproximateQuantiles.perKey(
-              2, new DescendingIntComparator()));
+      PCollection<KV<String, List<Integer>>> quantiles =
+          input.apply(ApproximateQuantiles.perKey(2, new DescendingIntComparator()));
 
       PAssert.that(quantiles)
           .containsInAnyOrder(
@@ -184,9 +182,7 @@ public class ApproximateQuantilesTest {
         all.addAll(intRange(size));
       }
       testCombineFn(
-          ApproximateQuantilesCombineFn.create(5),
-          all,
-          Arrays.asList(0, 25, 50, 75, 100));
+          ApproximateQuantilesCombineFn.create(5), all, Arrays.asList(0, 25, 50, 75, 100));
     }
 
     @Test
@@ -199,10 +195,7 @@ public class ApproximateQuantilesTest {
       for (int i = 300; i < 1000; i++) {
         all.add(3);
       }
-      testCombineFn(
-          ApproximateQuantilesCombineFn.create(5),
-          all,
-          Arrays.asList(1, 2, 3, 3, 3));
+      testCombineFn(ApproximateQuantilesCombineFn.create(5), all, Arrays.asList(1, 2, 3, 3, 3));
     }
 
     @Test
@@ -211,10 +204,7 @@ public class ApproximateQuantilesTest {
       for (int i = 1; i < 1000; i++) {
         all.add((int) Math.log(i));
       }
-      testCombineFn(
-          ApproximateQuantilesCombineFn.create(5),
-          all,
-          Arrays.asList(0, 5, 6, 6, 6));
+      testCombineFn(ApproximateQuantilesCombineFn.create(5), all, Arrays.asList(0, 5, 6, 6, 6));
     }
 
     @Test
@@ -223,10 +213,7 @@ public class ApproximateQuantilesTest {
       for (int i = 1; i < 1000; i++) {
         all.add(1000 / i);
       }
-      testCombineFn(
-          ApproximateQuantilesCombineFn.create(5),
-          all,
-          Arrays.asList(1, 1, 2, 4, 1000));
+      testCombineFn(ApproximateQuantilesCombineFn.create(5), all, Arrays.asList(1, 1, 2, 4, 1000));
     }
 
     @Test
@@ -234,9 +221,7 @@ public class ApproximateQuantilesTest {
       List<String> inputs = Arrays.asList(
           "aa", "aaa", "aaaa", "b", "ccccc", "dddd", "zz");
       testCombineFn(
-          ApproximateQuantilesCombineFn.create(3),
-          inputs,
-          Arrays.asList("aa", "b", "zz"));
+          ApproximateQuantilesCombineFn.create(3), inputs, Arrays.asList("aa", "b", "zz"));
       testCombineFn(
           ApproximateQuantilesCombineFn.create(3, new OrderByLength()),
           inputs,

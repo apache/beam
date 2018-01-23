@@ -60,20 +60,21 @@ public class BeamRecordSizeTest {
       .withVarcharField("f_varchar")
       .build();
 
-  private static final List<Object> VALUES = ImmutableList.of(
-      (byte) 1,
-      (short) 2,
-      (int) 3,
-      (long) 4,
-      (float) 5.12,
-      (double) 6.32,
-      new BigDecimal(7),
-      false,
-      new GregorianCalendar(2019, 03, 02),
-      new Date(10L),
-      new Date(11L),
-      "12",
-      "13");
+  private static final List<Object> VALUES =
+      ImmutableList.of(
+          (byte) 1,
+          (short) 2,
+          (int) 3,
+          (long) 4,
+          (float) 5.12,
+          (double) 6.32,
+          new BigDecimal(7),
+          false,
+          new GregorianCalendar(2019, 03, 02),
+          new Date(10L),
+          new Date(11L),
+          "12",
+          "13");
 
   private static final long RECORD_SIZE = 91L;
 

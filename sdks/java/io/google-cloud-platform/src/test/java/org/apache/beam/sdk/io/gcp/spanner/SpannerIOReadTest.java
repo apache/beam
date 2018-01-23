@@ -198,8 +198,8 @@ public class SpannerIOReadTest implements Serializable {
     when(serviceFactory.mockDatabaseClient().readOnlyTransaction(any(TimestampBound.class)))
         .thenReturn(mockTx);
 
-    when(mockTx.executeQuery(Statement.of("SELECT 1"))).thenReturn(ResultSets.forRows(Type.struct(),
-        Collections.emptyList()));
+    when(mockTx.executeQuery(Statement.of("SELECT 1")))
+        .thenReturn(ResultSets.forRows(Type.struct(), Collections.emptyList()));
 
     when(mockTx.executeQuery(Statement.of("SELECT * FROM users")))
         .thenReturn(ResultSets.forRows(FAKE_TYPE, FAKE_ROWS));

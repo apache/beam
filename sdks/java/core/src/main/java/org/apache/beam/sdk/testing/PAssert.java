@@ -395,8 +395,7 @@ public class PAssert {
    */
   public static <T> SingletonAssert<T> thatSingleton(String reason, PCollection<T> actual) {
     return new PCollectionViewAssert<>(
-        actual, View.asSingleton(), actual.getCoder(), PAssertionSite.capture(reason)
-    );
+        actual, View.asSingleton(), actual.getCoder(), PAssertionSite.capture(reason));
   }
 
   /**
@@ -651,11 +650,7 @@ public class PAssert {
 
     public PCollectionSingletonIterableAssert(
         PCollection<Iterable<T>> actual, PAssertionSite site) {
-      this(
-          actual,
-          IntoGlobalWindow.of(),
-          PaneExtractors.allPanes(),
-          site);
+      this(actual, IntoGlobalWindow.of(), PaneExtractors.allPanes(), site);
     }
 
     public PCollectionSingletonIterableAssert(
@@ -763,13 +758,7 @@ public class PAssert {
         PTransform<PCollection<ElemT>, PCollectionView<ViewT>> view,
         Coder<ViewT> coder,
         PAssertionSite site) {
-      this(
-          actual,
-          view,
-          IntoGlobalWindow.of(),
-          PaneExtractors.allPanes(),
-          coder,
-          site);
+      this(actual, view, IntoGlobalWindow.of(), PaneExtractors.allPanes(), coder, site);
     }
 
     private PCollectionViewAssert(
@@ -999,12 +988,8 @@ public class PAssert {
           input
               .apply(rewindowingStrategy.prepareActuals())
               .apply("GatherAllOutputs", GatherAllPanes.globally())
-              .apply(
-                  "RewindowActuals",
-                  rewindowingStrategy.windowActuals())
-              .apply(
-                  "KeyForDummy",
-                  WithKeys.of(combinedKey))
+              .apply("RewindowActuals", rewindowingStrategy.windowActuals())
+              .apply("KeyForDummy", WithKeys.of(combinedKey))
               .apply("RemoveActualsTriggering", removeTriggering);
 
       // Create another non-empty PCollection that is keyed with a distinct dummy key
@@ -1018,27 +1003,21 @@ public class PAssert {
                               (Iterable<ValueInSingleWindow<T>>)
                                   Collections.<ValueInSingleWindow<T>>emptyList()))
                       .withCoder(groupedContents.getCoder()))
-              .apply(
-                  "WindowIntoDummy",
-                  rewindowingStrategy.windowDummy())
+              .apply("WindowIntoDummy", rewindowingStrategy.windowDummy())
               .apply("RemoveDummyTriggering", removeTriggering);
 
       // Flatten them together and group by the combined key to get a single element
       PCollection<KV<Integer, Iterable<Iterable<ValueInSingleWindow<T>>>>> dummyAndContents =
           PCollectionList.of(groupedContents)
               .and(keyedDummy)
-              .apply(
-                  "FlattenDummyAndContents",
-                  Flatten.pCollections())
+              .apply("FlattenDummyAndContents", Flatten.pCollections())
               .apply(
                   "NeverTrigger",
                   Window.<KV<Integer, Iterable<ValueInSingleWindow<T>>>>configure()
                       .triggering(Never.ever())
                       .withAllowedLateness(input.getWindowingStrategy().getAllowedLateness())
                       .discardingFiredPanes())
-              .apply(
-                  "GroupDummyAndContents",
-                  GroupByKey.create());
+              .apply("GroupDummyAndContents", GroupByKey.create());
 
       return dummyAndContents
           .apply(Values.create())

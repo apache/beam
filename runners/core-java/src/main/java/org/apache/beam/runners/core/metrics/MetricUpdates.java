@@ -33,10 +33,9 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @AutoValue
 public abstract class MetricUpdates {
 
-  public static final MetricUpdates EMPTY = MetricUpdates.create(
-      Collections.emptyList(),
-      Collections.emptyList(),
-      Collections.emptyList());
+  public static final MetricUpdates EMPTY =
+      MetricUpdates.create(
+          Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
 
   /**
    * Representation of a single metric update.

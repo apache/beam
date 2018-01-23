@@ -1000,17 +1000,14 @@ public class TextIO {
 
     /** See {@link TypedWrite#to(ValueProvider)}. */
     public Write to(ValueProvider<String> outputPrefix) {
-      return new Write(
-          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
+      return new Write(inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#toResource(ValueProvider)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> filenamePrefix) {
       return new Write(
-          inner
-              .toResource(filenamePrefix)
-              .withFormatFunction(SerializableFunctions.identity()));
+          inner.toResource(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(FilenamePolicy)}. */

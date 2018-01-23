@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -89,8 +88,7 @@ public class DeduplicatedFlattenFactoryTest {
   public void outputMapping() {
     final PCollectionList<String> inputList =
         PCollectionList.of(first).and(second).and(first).and(first);
-    PCollection<String> original =
-        inputList.apply(Flatten.pCollections());
+    PCollection<String> original = inputList.apply(Flatten.pCollections());
     PCollection<String> replacement = inputList.apply(new FlattenWithoutDuplicateInputs<String>());
 
     assertThat(

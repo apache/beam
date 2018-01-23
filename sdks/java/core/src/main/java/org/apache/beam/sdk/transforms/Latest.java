@@ -186,18 +186,24 @@ public class Latest {
       @SuppressWarnings("unchecked")
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
       return input
-          .apply("Reify Timestamps", ParDo.of(
-            new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                c.output(KV.of(c.element().getKey(), TimestampedValue.of(c.element().getValue(),
-                    c.timestamp())));
-              }
-            })).setCoder(KvCoder.of(
-                inputCoder.getKeyCoder(),
-                TimestampedValue.TimestampedValueCoder.of(inputCoder.getValueCoder())))
+          .apply(
+              "Reify Timestamps",
+              ParDo.of(
+                  new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      c.output(
+                          KV.of(
+                              c.element().getKey(),
+                              TimestampedValue.of(c.element().getValue(), c.timestamp())));
+                    }
+                  }))
+          .setCoder(
+              KvCoder.of(
+                  inputCoder.getKeyCoder(),
+                  TimestampedValue.TimestampedValueCoder.of(inputCoder.getValueCoder())))
           .apply("Latest Value", Combine.perKey(new LatestFn<V>()))
-            .setCoder(inputCoder);
+          .setCoder(inputCoder);
     }
   }
 }

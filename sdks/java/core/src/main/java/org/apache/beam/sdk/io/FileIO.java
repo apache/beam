@@ -591,8 +591,7 @@ public class FileIO {
                 .apply(
                     "Continuously match filepatterns",
                     Watch.growthOf(
-                            Contextful.of(
-                                new MatchPollFn(), Requirements.empty()),
+                            Contextful.of(new MatchPollFn(), Requirements.empty()),
                             new ExtractFilenameFn())
                         .withPollInterval(getConfiguration().getWatchInterval())
                         .withTerminationPerInput(getConfiguration().getWatchTerminationCondition()))
@@ -956,9 +955,7 @@ public class FileIO {
         Contextful<Fn<UserT, OutputT>> outputFn, final Sink<OutputT> sink) {
       checkArgument(sink != null, "sink can not be null");
       checkArgument(outputFn != null, "outputFn can not be null");
-      return via(
-          outputFn,
-          fn(SerializableFunctions.clonesOf(sink)));
+      return via(outputFn, fn(SerializableFunctions.clonesOf(sink)));
     }
 
     /**
@@ -1171,8 +1168,7 @@ public class FileIO {
         checkArgument(getDestinationFn() == null, ".by() requires writeDynamic()");
         checkArgument(
             getDestinationCoder() == null, ".withDestinationCoder() requires writeDynamic()");
-        resolvedSpec.setDestinationFn(
-            fn(SerializableFunctions.constant(null)));
+        resolvedSpec.setDestinationFn(fn(SerializableFunctions.constant(null)));
         resolvedSpec.setDestinationCoder((Coder) VoidCoder.of());
       }
 

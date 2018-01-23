@@ -221,9 +221,7 @@ public final class TranslationUtils {
       for (PCollectionView<?> view : views) {
         SideInputBroadcast helper = pviews.getPCollectionView(view, context);
         WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
-        sideInputs.put(
-            view.getTagInternal(),
-            KV.of(windowingStrategy, helper));
+        sideInputs.put(view.getTagInternal(), KV.of(windowingStrategy, helper));
       }
       return sideInputs;
     }

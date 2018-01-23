@@ -143,8 +143,7 @@ public class JdbcIOIT {
         .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
         .withCoder(SerializableCoder.of(TestRow.class)));
 
-    PAssert.thatSingleton(
-        namesAndIds.apply("Count All", Count.globally()))
+    PAssert.thatSingleton(namesAndIds.apply("Count All", Count.globally()))
         .isEqualTo((long) numberOfRows);
 
     PCollection<String> consolidatedHashcode = namesAndIds
@@ -153,13 +152,11 @@ public class JdbcIOIT {
     PAssert.that(consolidatedHashcode)
         .containsInAnyOrder(TestRow.getExpectedHashForRowCount(numberOfRows));
 
-    PCollection<List<TestRow>> frontOfList =
-        namesAndIds.apply(Top.smallest(500));
+    PCollection<List<TestRow>> frontOfList = namesAndIds.apply(Top.smallest(500));
     Iterable<TestRow> expectedFrontOfList = TestRow.getExpectedValues(0, 500);
     PAssert.thatSingletonIterable(frontOfList).containsInAnyOrder(expectedFrontOfList);
 
-    PCollection<List<TestRow>> backOfList =
-        namesAndIds.apply(Top.largest(500));
+    PCollection<List<TestRow>> backOfList = namesAndIds.apply(Top.largest(500));
     Iterable<TestRow> expectedBackOfList =
         TestRow.getExpectedValues(numberOfRows - 500, numberOfRows);
     PAssert.thatSingletonIterable(backOfList).containsInAnyOrder(expectedBackOfList);

@@ -556,13 +556,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                 (rdd, time) ->
                     rdd.mapPartitions(
                             TranslationUtils.functionToFlatMapFunction(
-                                WindowingHelpers
-                                    .unwindowFunction()),
+                                WindowingHelpers.unwindowFunction()),
                             true)
-                        .mapPartitionsToPair(
-                            TranslationUtils
-                                .toPairFlatMapFunction(),
-                            true)
+                        .mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
                         .mapValues(
                             values -> {
                               // add the batch timestamp for visibility (e.g., debugging)

@@ -65,8 +65,7 @@ public class SortValuesTest {
 
     // For every Key, sort the iterable of <SecondaryKey, Value> pairs by SecondaryKey.
     PCollection<KV<String, Iterable<KV<String, Integer>>>> groupedAndSorted =
-        grouped.apply(
-            SortValues.create(BufferedExternalSorter.options()));
+        grouped.apply(SortValues.create(BufferedExternalSorter.options()));
 
     PAssert.that(groupedAndSorted)
         .satisfies(new AssertThatHasExpectedContentsForTestSecondaryKeySorting());

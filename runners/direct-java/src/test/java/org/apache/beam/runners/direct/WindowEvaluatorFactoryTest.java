@@ -123,9 +123,7 @@ public class WindowEvaluatorFactoryTest {
 
     TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
-    assertThat(
-        Iterables.getOnlyElement(result.getOutputBundles()),
-        Matchers.equalTo(outputBundle));
+    assertThat(Iterables.getOnlyElement(result.getOutputBundles()), Matchers.equalTo(outputBundle));
     CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
 
     assertThat(
@@ -158,9 +156,7 @@ public class WindowEvaluatorFactoryTest {
 
     TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
-    assertThat(
-        Iterables.getOnlyElement(result.getOutputBundles()),
-        Matchers.equalTo(outputBundle));
+    assertThat(Iterables.getOnlyElement(result.getOutputBundles()), Matchers.equalTo(outputBundle));
     CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
 
     BoundedWindow w1 = new IntervalWindow(EPOCH, EPOCH.plus(windowDuration));
@@ -215,9 +211,7 @@ public class WindowEvaluatorFactoryTest {
 
     TransformResult<Long> result = runEvaluator(windowed, inputBundle);
 
-    assertThat(
-        Iterables.getOnlyElement(result.getOutputBundles()),
-        Matchers.equalTo(outputBundle));
+    assertThat(Iterables.getOnlyElement(result.getOutputBundles()), Matchers.equalTo(outputBundle));
     CommittedBundle<Long> committed = outputBundle.commit(Instant.now());
 
     assertThat(
@@ -293,8 +287,7 @@ public class WindowEvaluatorFactoryTest {
     @Override
     public Collection<BoundedWindow> assignWindows(AssignContext c) throws Exception {
       if (c.window().equals(GlobalWindow.INSTANCE)) {
-        return Collections.singleton(new IntervalWindow(c.timestamp(),
-            c.timestamp().plus(1L)));
+        return Collections.singleton(new IntervalWindow(c.timestamp(), c.timestamp().plus(1L)));
       }
       return Collections.singleton(c.window());
     }

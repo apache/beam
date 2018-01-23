@@ -162,10 +162,11 @@ public class UserScore {
         PCollection<GameActionInfo> gameInfo) {
 
       return gameInfo
-        .apply(MapElements
-            .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
-            .via((GameActionInfo gInfo) -> KV.of(gInfo.getKey(field), gInfo.getScore())))
-        .apply(Sum.integersPerKey());
+          .apply(
+              MapElements.into(
+                      TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.integers()))
+                  .via((GameActionInfo gInfo) -> KV.of(gInfo.getKey(field), gInfo.getScore())))
+          .apply(Sum.integersPerKey());
     }
   }
   // [END DocInclude_USExtractXform]

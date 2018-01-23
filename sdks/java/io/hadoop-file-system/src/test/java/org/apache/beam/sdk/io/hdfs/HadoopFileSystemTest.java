@@ -197,18 +197,25 @@ public class HadoopFileSystemTest {
 
     assertThat(matchResults, hasSize(3));
 
-    final List<MatchResult> expected = ImmutableList.of(
-        MatchResult.create(Status.OK, ImmutableList.of(Metadata.builder()
-            .setResourceId(testPath("testFileAA"))
-            .setIsReadSeekEfficient(true)
-            .setSizeBytes("testDataAA".getBytes().length)
-            .build())),
-        MatchResult.create(Status.NOT_FOUND, ImmutableList.of()),
-        MatchResult.create(Status.OK, ImmutableList.of(Metadata.builder()
-            .setResourceId(testPath("testFileBB"))
-            .setIsReadSeekEfficient(true)
-            .setSizeBytes("testDataBB".getBytes().length)
-            .build())));
+    final List<MatchResult> expected =
+        ImmutableList.of(
+            MatchResult.create(
+                Status.OK,
+                ImmutableList.of(
+                    Metadata.builder()
+                        .setResourceId(testPath("testFileAA"))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes("testDataAA".getBytes().length)
+                        .build())),
+            MatchResult.create(Status.NOT_FOUND, ImmutableList.of()),
+            MatchResult.create(
+                Status.OK,
+                ImmutableList.of(
+                    Metadata.builder()
+                        .setResourceId(testPath("testFileBB"))
+                        .setIsReadSeekEfficient(true)
+                        .setSizeBytes("testDataBB".getBytes().length)
+                        .build())));
     assertThat(matchResults, equalTo(expected));
   }
 

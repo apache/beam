@@ -655,10 +655,7 @@ public class ElasticsearchIO {
         HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
         Response response =
             restClient.performRequest(
-                "GET",
-                "/_search/scroll",
-                Collections.emptyMap(),
-                scrollEntity);
+                "GET", "/_search/scroll", Collections.emptyMap(), scrollEntity);
         JsonNode searchResult = parseResponse(response);
         updateScrollId(searchResult);
         return readNextBatchAndReturnFirstDocument(searchResult);
@@ -698,11 +695,7 @@ public class ElasticsearchIO {
       String requestBody = String.format("{\"scroll_id\" : [\"%s\"]}", scrollId);
       HttpEntity entity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
       try {
-        restClient.performRequest(
-            "DELETE",
-            "/_search/scroll",
-            Collections.emptyMap(),
-            entity);
+        restClient.performRequest("DELETE", "/_search/scroll", Collections.emptyMap(), entity);
       } finally {
         if (restClient != null) {
           restClient.close();
@@ -856,12 +849,7 @@ public class ElasticsearchIO {
                 spec.getConnectionConfiguration().getType());
         HttpEntity requestBody =
             new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
-        response =
-            restClient.performRequest(
-                "POST",
-                endPoint,
-                Collections.emptyMap(),
-                requestBody);
+        response = restClient.performRequest("POST", endPoint, Collections.emptyMap(), requestBody);
         checkForErrors(response, backendVersion);
       }
 

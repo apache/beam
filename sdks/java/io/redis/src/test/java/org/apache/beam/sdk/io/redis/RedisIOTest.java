@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.redis;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.ArrayList;
-
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -31,7 +30,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-
 import redis.embedded.RedisServer;
 
 /**

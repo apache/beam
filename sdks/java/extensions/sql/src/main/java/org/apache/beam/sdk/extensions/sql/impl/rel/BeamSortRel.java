@@ -136,19 +136,23 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         nullsFirst);
     // first find the top (offset + count)
     PCollection<List<BeamRecord>> rawStream =
-        upstream.apply("extractTopOffsetAndFetch",
-            Top.of(startIndex + count, comparator).withoutDefaults())
-        .setCoder(ListCoder.of(upstream.getCoder()));
+        upstream
+            .apply(
+                "extractTopOffsetAndFetch",
+                Top.of(startIndex + count, comparator).withoutDefaults())
+            .setCoder(ListCoder.of(upstream.getCoder()));
 
     // strip the `leading offset`
     if (startIndex > 0) {
-      rawStream = rawStream.apply("stripLeadingOffset", ParDo.of(
-          new SubListFn<BeamRecord>(startIndex, startIndex + count)))
-          .setCoder(ListCoder.of(upstream.getCoder()));
+      rawStream =
+          rawStream
+              .apply(
+                  "stripLeadingOffset",
+                  ParDo.of(new SubListFn<BeamRecord>(startIndex, startIndex + count)))
+              .setCoder(ListCoder.of(upstream.getCoder()));
     }
 
-    PCollection<BeamRecord> orderedStream = rawStream.apply(
-        "flatten", Flatten.iterables());
+    PCollection<BeamRecord> orderedStream = rawStream.apply("flatten", Flatten.iterables());
     orderedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
 
     return orderedStream;

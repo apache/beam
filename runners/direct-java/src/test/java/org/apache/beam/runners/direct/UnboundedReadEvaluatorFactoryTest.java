@@ -70,7 +70,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
-import org.joda.time.ReadableInstant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -162,13 +161,10 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     WindowedValue<? super UnboundedSourceShard<Long, ?>> residual =
         Iterables.getOnlyElement(result.getUnprocessedElements());
-    assertThat(
-        residual.getTimestamp(), Matchers.lessThan(DateTime.now().toInstant()));
+    assertThat(residual.getTimestamp(), Matchers.lessThan(DateTime.now().toInstant()));
     UnboundedSourceShard<Long, ?> residualShard =
         (UnboundedSourceShard<Long, ?>) residual.getValue();
-    assertThat(
-        residualShard.getSource(),
-        Matchers.equalTo(inputShard.getSource()));
+    assertThat(residualShard.getSource(), Matchers.equalTo(inputShard.getSource()));
     assertThat(residualShard.getCheckpoint(), not(nullValue()));
     assertThat(
         output.commit(Instant.now()).getElements(),
@@ -220,9 +216,7 @@ public class UnboundedReadEvaluatorFactoryTest {
             Iterables.getOnlyElement(result.getUnprocessedElements());
     secondEvaluator.processElement(residual);
     secondEvaluator.finishBundle();
-    assertThat(
-        secondOutput.commit(Instant.now()).getElements(),
-        Matchers.emptyIterable());
+    assertThat(secondOutput.commit(Instant.now()).getElements(), Matchers.emptyIterable());
   }
 
   @Test
@@ -266,17 +260,14 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     // Sanity check that nothing was output (The test would have to run for more than a day to do
     // so correctly.)
-    assertThat(
-        secondOutput.commit(Instant.now()).getElements(),
-        Matchers.emptyIterable());
+    assertThat(secondOutput.commit(Instant.now()).getElements(), Matchers.emptyIterable());
 
     // Test that even though the reader produced no outputs, there is still a residual shard with
     // the updated watermark.
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> unprocessed =
         (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>)
             Iterables.getOnlyElement(secondResult.getUnprocessedElements());
-    assertThat(
-        unprocessed.getTimestamp(), Matchers.greaterThan(residual.getTimestamp()));
+    assertThat(unprocessed.getTimestamp(), Matchers.greaterThan(residual.getTimestamp()));
     assertThat(unprocessed.getValue().getExistingReader(), not(nullValue()));
   }
 

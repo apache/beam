@@ -33,7 +33,6 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-
 /**
  * {@link PTransform PTransforms} to count the elements in a {@link PCollection}.
  *
@@ -116,14 +115,16 @@ public class Count {
 
     @Override
     public PCollection<KV<T, Long>> expand(PCollection<T> input) {
-      return
-          input
-          .apply("Init", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {
-            @Override
-            public KV<T, Void> apply(T element) {
-              return KV.of(element, (Void) null);
-            }
-          }))
+      return input
+          .apply(
+              "Init",
+              MapElements.via(
+                  new SimpleFunction<T, KV<T, Void>>() {
+                    @Override
+                    public KV<T, Void> apply(T element) {
+                      return KV.of(element, (Void) null);
+                    }
+                  }))
           .apply(Count.perKey());
     }
   }

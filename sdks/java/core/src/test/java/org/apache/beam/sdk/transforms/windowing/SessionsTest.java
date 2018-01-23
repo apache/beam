@@ -163,9 +163,9 @@ public class SessionsTest {
     WindowFnTestUtils.validateGetOutputTimestamps(
         Sessions.withGapDuration(Duration.millis(10)),
         TimestampCombiner.END_OF_WINDOW,
-          ImmutableList.of(
-              (List<Long>) ImmutableList.of(1L, 3L),
-              (List<Long>) ImmutableList.of(0L, 5L, 10L, 15L, 20L)));
+        ImmutableList.of(
+            (List<Long>) ImmutableList.of(1L, 3L),
+            (List<Long>) ImmutableList.of(0L, 5L, 10L, 15L, 20L)));
   }
 
   @Test

@@ -66,13 +66,13 @@ class BeamSqlExample {
     PCollection<BeamRecord> outputStream = inputTable.apply(
         BeamSql.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
 
-    //print the output record of case 1;
+    // print the output record of case 1;
     outputStream.apply(
         "log_result",
         MapElements.via(
             new SimpleFunction<BeamRecord, Void>() {
               public @Nullable Void apply(BeamRecord input) {
-                //expect output:
+                // expect output:
                 //  PCOLLECTION: [3, row, 3.0]
                 //  PCOLLECTION: [2, row, 2.0]
                 System.out.println("PCOLLECTION: " + input.getDataValues());
@@ -85,14 +85,14 @@ class BeamSqlExample {
         PCollectionTuple.of(new TupleTag<BeamRecord>("CASE1_RESULT"), outputStream)
         .apply(BeamSql.queryMulti("select c2, sum(c3) from CASE1_RESULT group by c2"));
 
-    //print the output record of case 2;
+    // print the output record of case 2;
     outputStream2.apply(
         "log_result",
         MapElements.via(
             new SimpleFunction<BeamRecord, Void>() {
               @Override
               public @Nullable Void apply(BeamRecord input) {
-                //expect output:
+                // expect output:
                 //  CASE1_RESULT: [row, 5.0]
                 System.out.println("CASE1_RESULT: " + input.getDataValues());
                 return null;

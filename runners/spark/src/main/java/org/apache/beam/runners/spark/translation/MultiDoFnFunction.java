@@ -148,10 +148,12 @@ public class MultiDoFnFunction<InputT, OutputT>
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
     return new SparkProcessContext<>(
-        doFn, doFnRunnerWithMetrics, outputManager,
-        stateful ? new TimerDataIterator(timerInternals) :
-            Collections.emptyIterator()).processPartition(iter)
-              .iterator();
+            doFn,
+            doFnRunnerWithMetrics,
+            outputManager,
+            stateful ? new TimerDataIterator(timerInternals) : Collections.emptyIterator())
+        .processPartition(iter)
+        .iterator();
   }
 
   private static class TimerDataIterator implements Iterator<TimerInternals.TimerData> {

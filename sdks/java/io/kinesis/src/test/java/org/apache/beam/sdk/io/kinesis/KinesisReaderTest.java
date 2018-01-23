@@ -28,7 +28,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -97,23 +96,23 @@ public class KinesisReaderTest {
   @Test
   public void startReturnsTrueIfSomeDataAvailable() throws IOException,
       TransientKinesisException {
-    when(shardReadersPool.nextRecord()).
-        thenReturn(CustomOptional.of(a)).
-        thenReturn(CustomOptional.absent());
+    when(shardReadersPool.nextRecord())
+        .thenReturn(CustomOptional.of(a))
+        .thenReturn(CustomOptional.absent());
 
     assertThat(reader.start()).isTrue();
   }
 
   @Test
   public void readsThroughAllDataAvailable() throws IOException, TransientKinesisException {
-    when(shardReadersPool.nextRecord()).
-        thenReturn(CustomOptional.of(c)).
-        thenReturn(CustomOptional.absent()).
-        thenReturn(CustomOptional.of(a)).
-        thenReturn(CustomOptional.absent()).
-        thenReturn(CustomOptional.of(d)).
-        thenReturn(CustomOptional.of(b)).
-        thenReturn(CustomOptional.absent());
+    when(shardReadersPool.nextRecord())
+        .thenReturn(CustomOptional.of(c))
+        .thenReturn(CustomOptional.absent())
+        .thenReturn(CustomOptional.of(a))
+        .thenReturn(CustomOptional.absent())
+        .thenReturn(CustomOptional.of(d))
+        .thenReturn(CustomOptional.of(b))
+        .thenReturn(CustomOptional.absent());
 
     assertThat(reader.start()).isTrue();
     assertThat(reader.getCurrent()).isEqualTo(c);

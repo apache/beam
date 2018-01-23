@@ -79,8 +79,7 @@ public class ReplacementOutputsTest {
 
     ReplacementOutput replacement = replacements.get(replacementInts);
     Map.Entry<TupleTag<?>, PValue> taggedInts = Iterables.getOnlyElement(ints.expand().entrySet());
-    assertThat(
-        replacement.getOriginal().getTag(), Matchers.equalTo(taggedInts.getKey()));
+    assertThat(replacement.getOriginal().getTag(), Matchers.equalTo(taggedInts.getKey()));
     assertThat(replacement.getOriginal().getValue(), equalTo(taggedInts.getValue()));
     assertThat(replacement.getReplacement().getValue(), Matchers.equalTo(replacementInts));
   }

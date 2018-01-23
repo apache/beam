@@ -19,17 +19,14 @@ package org.apache.beam.runners.gearpump;
 
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
-
 import org.apache.gearpump.cluster.ApplicationStatus;
 import org.apache.gearpump.cluster.MasterToAppMaster.AppMasterData;
 import org.apache.gearpump.cluster.client.ClientContext;
 import org.apache.gearpump.cluster.client.RunningApplication;
 import org.joda.time.Duration;
-
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 
@@ -90,8 +87,8 @@ public class GearpumpPipelineResult implements PipelineResult {
   private State getGearpumpState() {
     ApplicationStatus status = null;
     List<AppMasterData> apps =
-        JavaConverters.seqAsJavaListConverter(
-            (Seq<AppMasterData>) client.listApps().appMasters()).asJava();
+        JavaConverters.seqAsJavaListConverter((Seq<AppMasterData>) client.listApps().appMasters())
+            .asJava();
     for (AppMasterData appData: apps) {
       if (appData.appId() == app.appId()) {
         status = appData.status();

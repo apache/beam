@@ -135,9 +135,7 @@ public class ParDoEvaluatorTest {
       RecorderFn fn,
       PCollection<Integer> input,
       PCollection<Integer> output) {
-    when(
-            evaluationContext.createSideInputReader(
-                ImmutableList.of(singletonView)))
+    when(evaluationContext.createSideInputReader(ImmutableList.of(singletonView)))
         .thenReturn(new ReadyInGlobalWindowReader());
     DirectExecutionContext executionContext = mock(DirectExecutionContext.class);
     DirectStepContext stepContext = mock(DirectStepContext.class);

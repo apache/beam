@@ -343,8 +343,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   }
 
   public final void assertHasOnlyGlobalState() {
-    assertHasOnlyGlobalAndAllowedTags(
-        Collections.emptySet(), Collections.emptySet());
+    assertHasOnlyGlobalAndAllowedTags(Collections.emptySet(), Collections.emptySet());
   }
 
   @SafeVarargs
@@ -600,8 +599,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
       // Copy the output value (using coders) before capturing it.
-      KV<String, OutputT> copy = SerializableUtils.ensureSerializableByCoder(
-          KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
+      KV<String, OutputT> copy =
+          SerializableUtils.ensureSerializableByCoder(
+              KvCoder.of(StringUtf8Coder.of(), outputCoder), output, "outputForWindow");
       WindowedValue<KV<String, OutputT>> value = WindowedValue.of(copy, timestamp, windows, pane);
       outputs.add(value);
     }

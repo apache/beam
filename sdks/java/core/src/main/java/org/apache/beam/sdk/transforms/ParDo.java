@@ -430,8 +430,7 @@ public class ParDo {
    */
   public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new SingleOutput<InputT, OutputT>(
-        fn, Collections.emptyList(), displayDataForFn(fn));
+    return new SingleOutput<InputT, OutputT>(fn, Collections.emptyList(), displayDataForFn(fn));
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
@@ -775,13 +774,14 @@ public class ParDo {
         validateStateApplicableForInput(fn, input);
       }
 
-      PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
-          input.getPipeline(),
-          TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
-          // TODO
-          Collections.emptyMap(),
-          input.getWindowingStrategy(),
-          input.isBounded());
+      PCollectionTuple outputs =
+          PCollectionTuple.ofPrimitiveOutputsInternal(
+              input.getPipeline(),
+              TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
+              // TODO
+              Collections.emptyMap(),
+              input.getWindowingStrategy(),
+              input.isBounded());
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       for (PCollection<?> out : outputs.getAll().values()) {

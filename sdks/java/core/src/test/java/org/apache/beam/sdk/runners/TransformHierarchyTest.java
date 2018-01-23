@@ -232,20 +232,15 @@ public class TransformHierarchyTest implements Serializable {
     Map<PValue, ReplacementOutput> replacementOutputs =
         Collections.singletonMap(
             replacementOutput,
-            ReplacementOutput.of(
-                TaggedPValue.ofExpandedValue(originalOutput),
-                taggedReplacement));
+            ReplacementOutput.of(TaggedPValue.ofExpandedValue(originalOutput), taggedReplacement));
     hierarchy.replaceOutputs(replacementOutputs);
 
     assertThat(replacement.getInputs(), equalTo(original.getInputs()));
     assertThat(replacement.getEnclosingNode(), equalTo(original.getEnclosingNode()));
     assertThat(replacement.getEnclosingNode(), equalTo(enclosing));
-    assertThat(
-        replacement.getTransform(), Matchers.equalTo(replacementTransform));
+    assertThat(replacement.getTransform(), Matchers.equalTo(replacementTransform));
     // THe tags of the replacement transform are matched to the appropriate PValues of the original
-    assertThat(
-        replacement.getOutputs().keySet(),
-        Matchers.contains(taggedReplacement.getTag()));
+    assertThat(replacement.getOutputs().keySet(), Matchers.contains(taggedReplacement.getTag()));
     assertThat(replacement.getOutputs().values(), Matchers.contains(originalOutput));
     hierarchy.popNode();
   }
@@ -311,8 +306,7 @@ public class TransformHierarchyTest implements Serializable {
                 TaggedPValue.of(replacementLongs.getKey(), replacementLongs.getValue()))));
 
     assertThat(
-        replacementParNode.getOutputs().keySet(),
-        Matchers.contains(replacementLongs.getKey()));
+        replacementParNode.getOutputs().keySet(), Matchers.contains(replacementLongs.getKey()));
     assertThat(replacementParNode.getOutputs().values(), Matchers.contains(output));
     assertThat(
         compositeNode.getOutputs().keySet(),

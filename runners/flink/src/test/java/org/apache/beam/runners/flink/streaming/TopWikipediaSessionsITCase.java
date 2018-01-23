@@ -36,7 +36,6 @@ import org.apache.flink.streaming.util.StreamingProgramTestBase;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-
 /**
  * Session window test.
  */
@@ -73,49 +72,84 @@ public class TopWikipediaSessionsITCase extends StreamingProgramTestBase impleme
     Long now = (System.currentTimeMillis() + 10000) / 1000;
 
     PCollection<KV<String, Long>> output =
-      p.apply(Create.of(Arrays.asList(new TableRow().set("timestamp", now).set
-          ("contributor_username", "user1"), new TableRow().set("timestamp", now + 10).set
-          ("contributor_username", "user3"), new TableRow().set("timestamp", now).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now).set
-          ("contributor_username", "user1"), new TableRow().set("timestamp", now + 2).set
-          ("contributor_username", "user1"), new TableRow().set("timestamp", now).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now + 1).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now + 5).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now + 7).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now + 8).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now + 200).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now + 230).set
-          ("contributor_username", "user1"), new TableRow().set("timestamp", now + 230).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now + 240).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now + 245).set
-          ("contributor_username", "user3"), new TableRow().set("timestamp", now + 235).set
-          ("contributor_username", "user3"), new TableRow().set("timestamp", now + 236).set
-          ("contributor_username", "user3"), new TableRow().set("timestamp", now + 237).set
-          ("contributor_username", "user3"), new TableRow().set("timestamp", now + 238).set
-          ("contributor_username", "user3"), new TableRow().set("timestamp", now + 239).set
-          ("contributor_username", "user3"), new TableRow().set("timestamp", now + 240).set
-          ("contributor_username", "user3"), new TableRow().set("timestamp", now + 241).set
-          ("contributor_username", "user2"), new TableRow().set("timestamp", now)
-          .set("contributor_username", "user3"))))
-
-
-
-      .apply(ParDo.of(new DoFn<TableRow, String>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) throws Exception {
-          TableRow row = c.element();
-          long timestamp = (Integer) row.get("timestamp");
-          String userName = (String) row.get("contributor_username");
-          if (userName != null) {
-            // Sets the timestamp field to be used in windowing.
-            c.outputWithTimestamp(userName, new Instant(timestamp * 1000L));
-          }
-        }
-      }))
-
-      .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))))
-
-      .apply(Count.perElement());
+        p.apply(
+                Create.of(
+                    Arrays.asList(
+                        new TableRow().set("timestamp", now).set("contributor_username", "user1"),
+                        new TableRow()
+                            .set("timestamp", now + 10)
+                            .set("contributor_username", "user3"),
+                        new TableRow().set("timestamp", now).set("contributor_username", "user2"),
+                        new TableRow().set("timestamp", now).set("contributor_username", "user1"),
+                        new TableRow()
+                            .set("timestamp", now + 2)
+                            .set("contributor_username", "user1"),
+                        new TableRow().set("timestamp", now).set("contributor_username", "user2"),
+                        new TableRow()
+                            .set("timestamp", now + 1)
+                            .set("contributor_username", "user2"),
+                        new TableRow()
+                            .set("timestamp", now + 5)
+                            .set("contributor_username", "user2"),
+                        new TableRow()
+                            .set("timestamp", now + 7)
+                            .set("contributor_username", "user2"),
+                        new TableRow()
+                            .set("timestamp", now + 8)
+                            .set("contributor_username", "user2"),
+                        new TableRow()
+                            .set("timestamp", now + 200)
+                            .set("contributor_username", "user2"),
+                        new TableRow()
+                            .set("timestamp", now + 230)
+                            .set("contributor_username", "user1"),
+                        new TableRow()
+                            .set("timestamp", now + 230)
+                            .set("contributor_username", "user2"),
+                        new TableRow()
+                            .set("timestamp", now + 240)
+                            .set("contributor_username", "user2"),
+                        new TableRow()
+                            .set("timestamp", now + 245)
+                            .set("contributor_username", "user3"),
+                        new TableRow()
+                            .set("timestamp", now + 235)
+                            .set("contributor_username", "user3"),
+                        new TableRow()
+                            .set("timestamp", now + 236)
+                            .set("contributor_username", "user3"),
+                        new TableRow()
+                            .set("timestamp", now + 237)
+                            .set("contributor_username", "user3"),
+                        new TableRow()
+                            .set("timestamp", now + 238)
+                            .set("contributor_username", "user3"),
+                        new TableRow()
+                            .set("timestamp", now + 239)
+                            .set("contributor_username", "user3"),
+                        new TableRow()
+                            .set("timestamp", now + 240)
+                            .set("contributor_username", "user3"),
+                        new TableRow()
+                            .set("timestamp", now + 241)
+                            .set("contributor_username", "user2"),
+                        new TableRow().set("timestamp", now).set("contributor_username", "user3"))))
+            .apply(
+                ParDo.of(
+                    new DoFn<TableRow, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        TableRow row = c.element();
+                        long timestamp = (Integer) row.get("timestamp");
+                        String userName = (String) row.get("contributor_username");
+                        if (userName != null) {
+                          // Sets the timestamp field to be used in windowing.
+                          c.outputWithTimestamp(userName, new Instant(timestamp * 1000L));
+                        }
+                      }
+                    }))
+            .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))))
+            .apply(Count.perElement());
 
     PCollection<String> format = output.apply(ParDo.of(new DoFn<KV<String, Long>, String>() {
       @ProcessElement

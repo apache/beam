@@ -98,8 +98,7 @@ public class WithKeysTest {
         p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(
             StringUtf8Coder.of()));
 
-    PCollection<KV<Integer, String>> output =
-        input.apply(WithKeys.of(100));
+    PCollection<KV<Integer, String>> output = input.apply(WithKeys.of(100));
     PAssert.that(output)
         .containsInAnyOrder(WITH_CONST_KEYS);
 
@@ -114,8 +113,7 @@ public class WithKeysTest {
         p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(
             StringUtf8Coder.of()));
 
-    PCollection<KV<Void, String>> output =
-        input.apply(WithKeys.of((Void) null));
+    PCollection<KV<Void, String>> output = input.apply(WithKeys.of((Void) null));
     PAssert.that(output)
         .containsInAnyOrder(WITH_CONST_NULL_KEYS);
 

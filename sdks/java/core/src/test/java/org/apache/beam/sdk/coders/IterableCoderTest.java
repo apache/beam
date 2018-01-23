@@ -40,11 +40,12 @@ public class IterableCoderTest {
 
   private static final Coder<Iterable<Integer>> TEST_CODER = IterableCoder.of(VarIntCoder.of());
 
-  private static final List<Iterable<Integer>> TEST_VALUES = Arrays.asList(
-      Collections.emptyList(),
-      Collections.singletonList(13),
-      Arrays.asList(1, 2, 3, 4),
-      new LinkedList<>(Arrays.asList(7, 6, 5)));
+  private static final List<Iterable<Integer>> TEST_VALUES =
+      Arrays.asList(
+          Collections.emptyList(),
+          Collections.singletonList(13),
+          Arrays.asList(1, 2, 3, 4),
+          new LinkedList<>(Arrays.asList(7, 6, 5)));
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() throws Exception {
@@ -54,8 +55,7 @@ public class IterableCoderTest {
   @Test
   public void testDecodeEncodeContentsInSameOrder() throws Exception {
     for (Iterable<Integer> value : TEST_VALUES) {
-      CoderProperties.coderDecodeEncodeContentsInSameOrder(
-          TEST_CODER, value);
+      CoderProperties.coderDecodeEncodeContentsInSameOrder(TEST_CODER, value);
     }
   }
 

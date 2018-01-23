@@ -389,8 +389,7 @@ public class TextIOWriteTest {
     }
 
     WriteFilesResult<Void> result = input.apply(write);
-    PAssert.that(result.getPerDestinationOutputFilenames()
-        .apply("GetFilenames", Values.create()))
+    PAssert.that(result.getPerDestinationOutputFilenames().apply("GetFilenames", Values.create()))
         .satisfies(new MatchesFilesystem(baseFilename));
     p.run();
 
