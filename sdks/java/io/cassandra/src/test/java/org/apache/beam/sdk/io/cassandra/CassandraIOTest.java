@@ -83,8 +83,7 @@ public class CassandraIOTest implements Serializable {
         .withEntity(Scientist.class)
     );
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally()))
-        .isEqualTo(10000L);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(10000L);
 
     PCollection<KV<String, Integer>> mapped =
         output.apply(

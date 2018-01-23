@@ -142,10 +142,11 @@ public class SplittableDoFnOperator<
 
   @Override
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
-    doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
-        KeyedWorkItems.timersWorkItem(
-            (String) keyedStateInternals.getKey(),
-            Collections.singletonList(timer.getNamespace()))));
+    doFnRunner.processElement(
+        WindowedValue.valueInGlobalWindow(
+            KeyedWorkItems.timersWorkItem(
+                (String) keyedStateInternals.getKey(),
+                Collections.singletonList(timer.getNamespace()))));
   }
 
   @Override

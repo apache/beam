@@ -245,15 +245,11 @@ class FlinkBatchTransformTranslators {
 
       FlinkPartialReduceFunction<K, InputT, List<InputT>, ?> partialReduceFunction =
           new FlinkPartialReduceFunction<>(
-              combineFn, boundedStrategy,
-              Collections.emptyMap(),
-              context.getPipelineOptions());
+              combineFn, boundedStrategy, Collections.emptyMap(), context.getPipelineOptions());
 
       FlinkReduceFunction<K, List<InputT>, List<InputT>, ?> reduceFunction =
           new FlinkReduceFunction<>(
-              combineFn, boundedStrategy,
-              Collections.emptyMap(),
-              context.getPipelineOptions());
+              combineFn, boundedStrategy, Collections.emptyMap(), context.getPipelineOptions());
 
       // Partially GroupReduce the values into the intermediate format AccumT (combine)
       GroupCombineOperator<

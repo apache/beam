@@ -1362,10 +1362,7 @@ class WatermarkManager {
      */
     public static TimerUpdate empty() {
       return new TimerUpdate(
-          null,
-          Collections.emptyList(),
-          Collections.emptyList(),
-          Collections.emptyList());
+          null, Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
     }
 
     /**

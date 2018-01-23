@@ -1136,9 +1136,10 @@ public class Combine {
 
     @Override
     public PCollection<OutputT> expand(PCollection<InputT> input) {
-      PCollection<KV<Void, InputT>> withKeys = input
-          .apply(WithKeys.of((Void) null))
-          .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
+      PCollection<KV<Void, InputT>> withKeys =
+          input
+              .apply(WithKeys.of((Void) null))
+              .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
 
       Combine.PerKey<Void, InputT, OutputT> combine = Combine.fewKeys(fn, fnDisplayData);
       if (!sideInputs.isEmpty()) {
@@ -1173,9 +1174,7 @@ public class Combine {
     }
 
     private PCollection<OutputT> insertDefaultValueIfEmpty(PCollection<OutputT> maybeEmpty) {
-      final PCollectionView<Iterable<OutputT>> maybeEmptyView = maybeEmpty.apply(
-          View.asIterable());
-
+      final PCollectionView<Iterable<OutputT>> maybeEmptyView = maybeEmpty.apply(View.asIterable());
 
       final OutputT defaultValue = fn.defaultValue();
       PCollection<OutputT> defaultIfEmpty = maybeEmpty.getPipeline()
@@ -1193,8 +1192,7 @@ public class Combine {
           .setCoder(maybeEmpty.getCoder())
           .setWindowingStrategyInternal(maybeEmpty.getWindowingStrategy());
 
-      return PCollectionList.of(maybeEmpty).and(defaultIfEmpty)
-          .apply(Flatten.pCollections());
+      return PCollectionList.of(maybeEmpty).and(defaultIfEmpty).apply(Flatten.pCollections());
     }
   }
 
@@ -1283,8 +1281,7 @@ public class Combine {
               insertDefault,
               insertDefault ? fn.defaultValue() : null,
           combined.getCoder());
-      materializationInput.apply(
-          CreatePCollectionView.of(view));
+      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
 
@@ -1583,8 +1580,7 @@ public class Combine {
     @Override
     public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
       return input
-          .apply(
-              fewKeys ? GroupByKey.createWithFewKeys() : GroupByKey.create())
+          .apply(fewKeys ? GroupByKey.createWithFewKeys() : GroupByKey.create())
           .apply(
               Combine.<K, InputT, OutputT>groupedValues(fn, fnDisplayData)
                   .withSideInputs(sideInputs));
@@ -1892,9 +1888,7 @@ public class Combine {
                       KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                       inputCoder.getValueCoder()))
               .setWindowingStrategyInternal(preCombineStrategy)
-              .apply(
-                  "PreCombineHot",
-                  Combine.perKey(hotPreCombine, fnDisplayData))
+              .apply("PreCombineHot", Combine.perKey(hotPreCombine, fnDisplayData))
               .apply(
                   "StripNonce",
                   MapElements.via(
@@ -1928,9 +1922,7 @@ public class Combine {
       return PCollectionList.of(precombinedHot)
           .and(preprocessedCold)
           .apply(Flatten.pCollections())
-          .apply(
-              "PostCombine",
-              Combine.perKey(postCombine, fnDisplayData));
+          .apply("PostCombine", Combine.perKey(postCombine, fnDisplayData));
     }
 
     @Override

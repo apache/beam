@@ -612,8 +612,7 @@ class SerializableMatchers implements Serializable {
       final SerializableMatcher<? super V> valueMatcher) {
 
     return SerializableMatchers.allOf(
-        SerializableMatchers.kvWithKey(keyMatcher),
-        SerializableMatchers.kvWithValue(valueMatcher));
+        SerializableMatchers.kvWithKey(keyMatcher), SerializableMatchers.kvWithValue(valueMatcher));
   }
 
   /**

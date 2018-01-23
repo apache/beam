@@ -63,10 +63,9 @@ public class Snippets {
 
     // [START CoGroupByKeyTuple]
     PCollection<KV<String, CoGbkResult>> results =
-        KeyedPCollectionTuple
-        .of(emailsTag, emails)
-        .and(phonesTag, phones)
-        .apply(CoGroupByKey.create());
+        KeyedPCollectionTuple.of(emailsTag, emails)
+            .and(phonesTag, phones)
+            .apply(CoGroupByKey.create());
 
     PCollection<String> contactLines = results.apply(ParDo.of(
       new DoFn<KV<String, CoGbkResult>, String>() {

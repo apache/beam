@@ -115,8 +115,7 @@ public class StructsTest {
     Assert.assertThat(getStrings(o, "noStringsKey", null), Matchers.emptyIterable());
     Assert.assertThat(getObject(o, "noStringsKey").keySet(), Matchers.emptyIterable());
     Assert.assertThat(getDictionary(o, "noStringsKey").keySet(), Matchers.emptyIterable());
-    Assert.assertThat(getDictionary(o, "noStringsKey", null).keySet(),
-        Matchers.emptyIterable());
+    Assert.assertThat(getDictionary(o, "noStringsKey", null).keySet(), Matchers.emptyIterable());
 
     try {
       getString(o, "multipleStringsKey");

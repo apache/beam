@@ -106,14 +106,15 @@ public class HIFIOElasticIT implements Serializable {
   }
 
   MapElements<LinkedMapWritable, String> transformFunc =
-      MapElements.via(new SimpleFunction<LinkedMapWritable, String>() {
-        @Override
-        public String apply(LinkedMapWritable mapw) {
-          String rowValue = "";
-          rowValue = convertMapWRowToString(mapw);
-          return rowValue;
-        }
-      });
+      MapElements.via(
+          new SimpleFunction<LinkedMapWritable, String>() {
+            @Override
+            public String apply(LinkedMapWritable mapw) {
+              String rowValue = "";
+              rowValue = convertMapWRowToString(mapw);
+              return rowValue;
+            }
+          });
   /*
    * Function to create a toString implementation of a MapWritable row by writing all field values
    * in a string row.

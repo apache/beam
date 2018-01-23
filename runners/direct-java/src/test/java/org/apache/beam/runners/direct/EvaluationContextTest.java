@@ -156,8 +156,7 @@ public class EvaluationContextTest {
     }
     viewWriter.add((Iterable) valuesBuilder.build());
 
-    SideInputReader reader =
-        context.createSideInputReader(ImmutableList.of(view));
+    SideInputReader reader = context.createSideInputReader(ImmutableList.of(view));
     assertThat(reader.get(view, window), containsInAnyOrder(1));
     assertThat(reader.get(view, second), containsInAnyOrder(2));
 
@@ -366,9 +365,7 @@ public class EvaluationContextTest {
     context.handleResult(null, ImmutableList.of(), advanceResult);
 
     Collection<FiredTimers> fired = context.extractFiredTimers();
-    assertThat(
-        Iterables.getOnlyElement(fired).getKey(),
-        Matchers.equalTo(key));
+    assertThat(Iterables.getOnlyElement(fired).getKey(), Matchers.equalTo(key));
 
     FiredTimers firedForKey = Iterables.getOnlyElement(fired);
     // Contains exclusively the fired timer
@@ -385,8 +382,7 @@ public class EvaluationContextTest {
         context.createKeyedBundle(
             key,
             downstream).commit(Instant.now());
-    assertThat(keyedBundle.getKey(),
-        Matchers.equalTo(key));
+    assertThat(keyedBundle.getKey(), Matchers.equalTo(key));
   }
 
   @Test
@@ -394,9 +390,7 @@ public class EvaluationContextTest {
     assertThat(context.isDone(unboundedProducer), is(false));
 
     context.handleResult(
-        null,
-        ImmutableList.of(),
-        StepTransformResult.withoutHold(unboundedProducer).build());
+        null, ImmutableList.of(), StepTransformResult.withoutHold(unboundedProducer).build());
     context.extractFiredTimers();
     assertThat(context.isDone(unboundedProducer), is(true));
   }
@@ -418,16 +412,12 @@ public class EvaluationContextTest {
     CommittedBundle<Integer> committedBundle =
         (CommittedBundle<Integer>) Iterables.getOnlyElement(handleResult.getOutputs());
     context.handleResult(
-        null,
-        ImmutableList.of(),
-        StepTransformResult.withoutHold(unboundedProducer).build());
+        null, ImmutableList.of(), StepTransformResult.withoutHold(unboundedProducer).build());
     assertThat(context.isDone(), is(false));
 
     for (AppliedPTransform<?, ?, ?> consumers : graph.getPerElementConsumers(created)) {
       context.handleResult(
-          committedBundle,
-          ImmutableList.of(),
-          StepTransformResult.withoutHold(consumers).build());
+          committedBundle, ImmutableList.of(), StepTransformResult.withoutHold(consumers).build());
     }
     context.extractFiredTimers();
     assertThat(context.isDone(), is(true));

@@ -50,7 +50,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.postgresql.ds.PGSimpleDataSource;
 
-
 /**
  * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO}
  * on an independent postgres instance.
@@ -121,23 +120,28 @@ public class HadoopInputFormatIOIT {
 
   @Test
   public void readUsingHadoopInputFormat() {
-    writePipeline.apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
+    writePipeline
+        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
         .apply("Produce db rows", ParDo.of(new DeterministicallyConstructTestRowFn()))
         .apply("Prevent fusion before writing", Reshuffle.viaRandomKey())
-        .apply("Write using JDBCIO", JdbcIO.<TestRow>write()
-            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-            .withStatement(String.format("insert into %s values(?, ?)", tableName))
-            .withPreparedStatementSetter(new PrepareStatementFromTestRow()));
+        .apply(
+            "Write using JDBCIO",
+            JdbcIO.<TestRow>write()
+                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+                .withStatement(String.format("insert into %s values(?, ?)", tableName))
+                .withPreparedStatementSetter(new PrepareStatementFromTestRow()));
 
     writePipeline.run().waitUntilFinish();
 
-    PCollection<String> consolidatedHashcode = readPipeline
-        .apply("Read using HadoopInputFormat", HadoopInputFormatIO
-            .<LongWritable, TestRowDBWritable>read()
-            .withConfiguration(hadoopConfiguration.get()))
-        .apply("Get values only", Values.create())
-        .apply("Values as string", ParDo.of(new SelectNameFn()))
-        .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+    PCollection<String> consolidatedHashcode =
+        readPipeline
+            .apply(
+                "Read using HadoopInputFormat",
+                HadoopInputFormatIO.<LongWritable, TestRowDBWritable>read()
+                    .withConfiguration(hadoopConfiguration.get()))
+            .apply("Get values only", Values.create())
+            .apply("Values as string", ParDo.of(new SelectNameFn()))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     PAssert.thatSingleton(consolidatedHashcode)
         .isEqualTo(getExpectedHashForRowCount(numberOfRows));

@@ -52,8 +52,7 @@ public class BoundedDataset<T> implements Dataset {
   }
 
   BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
-    this.windowedValues =
-        Iterables.transform(values, WindowingHelpers.windowValueFunction());
+    this.windowedValues = Iterables.transform(values, WindowingHelpers.windowValueFunction());
     this.jsc = jsc;
     this.coder = coder;
   }

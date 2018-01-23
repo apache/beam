@@ -899,9 +899,7 @@ public class AvroIOTest implements Serializable {
           prefix, createRecord(element, prefix, new Schema.Parser().parse(jsonSchema)));
     }
     final PCollectionView<Map<String, String>> schemaView =
-        writePipeline
-            .apply("createSchemaView", Create.of(schemaMap))
-            .apply(View.asMap());
+        writePipeline.apply("createSchemaView", Create.of(schemaMap)).apply(View.asMap());
 
     PCollection<String> input =
         writePipeline.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
@@ -1105,7 +1103,8 @@ public class AvroIOTest implements Serializable {
         ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
-    writePipeline.apply(Create.of(values))
+    writePipeline
+        .apply(Create.of(values))
         .apply(
             AvroIO.write(GenericClass.class)
                 .to(outputFile.getAbsolutePath())

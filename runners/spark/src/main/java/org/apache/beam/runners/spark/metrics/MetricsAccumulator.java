@@ -34,7 +34,6 @@ import org.apache.spark.streaming.api.java.JavaStreamingListenerBatchCompleted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * For resilience, {@link Accumulator Accumulators} are required to be wrapped in a Singleton.
  * @see <a href="https://spark.apache.org/docs/1.6.3/streaming-programming-guide.html#accumulators-and-broadcast-variables">accumulators</a>
@@ -57,7 +56,8 @@ public class MetricsAccumulator {
       synchronized (MetricsAccumulator.class) {
         if (instance == null) {
           Optional<CheckpointDir> maybeCheckpointDir =
-              opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
+              opts.isStreaming()
+                  ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
                   : Optional.absent();
           Accumulator<MetricsContainerStepMap> accumulator =
               jsc.sc().accumulator(

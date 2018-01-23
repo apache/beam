@@ -103,10 +103,8 @@ public class TopTest {
     PCollection<List<String>> top3 = input.apply(Top.smallest(3));
 
     PCollection<KV<String, Integer>> inputTable = createInputTable(p);
-    PCollection<KV<String, List<Integer>>> largestPerKey = inputTable
-        .apply(Top.largestPerKey(2));
-    PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable
-        .apply(Top.smallestPerKey(2));
+    PCollection<KV<String, List<Integer>>> largestPerKey = inputTable.apply(Top.largestPerKey(2));
+    PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable.apply(Top.smallestPerKey(2));
 
     PAssert.thatSingletonIterable(top1).containsInAnyOrder(Arrays.asList("bb"));
     PAssert.thatSingletonIterable(top2).containsInAnyOrder("z", "c");
@@ -134,10 +132,8 @@ public class TopTest {
     PCollection<List<String>> top3 = input.apply(Top.smallest(3));
 
     PCollection<KV<String, Integer>> inputTable = createEmptyInputTable(p);
-    PCollection<KV<String, List<Integer>>> largestPerKey = inputTable
-        .apply(Top.largestPerKey(2));
-    PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable
-        .apply(Top.smallestPerKey(2));
+    PCollection<KV<String, List<Integer>>> largestPerKey = inputTable.apply(Top.largestPerKey(2));
+    PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable.apply(Top.smallestPerKey(2));
 
     PAssert.thatSingletonIterable(top1).empty();
     PAssert.thatSingletonIterable(top2).empty();
@@ -177,21 +173,17 @@ public class TopTest {
     PCollection<List<String>> top3 = input.apply(Top.smallest(0));
 
     PCollection<KV<String, Integer>> inputTable = createInputTable(p);
-    PCollection<KV<String, List<Integer>>> largestPerKey = inputTable
-        .apply(Top.largestPerKey(0));
+    PCollection<KV<String, List<Integer>>> largestPerKey = inputTable.apply(Top.largestPerKey(0));
 
-    PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable
-        .apply(Top.smallestPerKey(0));
+    PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable.apply(Top.smallestPerKey(0));
 
     PAssert.thatSingletonIterable(top1).empty();
     PAssert.thatSingletonIterable(top2).empty();
     PAssert.thatSingletonIterable(top3).empty();
-    PAssert.that(largestPerKey).containsInAnyOrder(
-        KV.of("a", Arrays.asList()),
-        KV.of("b", Arrays.asList()));
-    PAssert.that(smallestPerKey).containsInAnyOrder(
-        KV.of("a", Arrays.asList()),
-        KV.of("b", Arrays.asList()));
+    PAssert.that(largestPerKey)
+        .containsInAnyOrder(KV.of("a", Arrays.asList()), KV.of("b", Arrays.asList()));
+    PAssert.that(smallestPerKey)
+        .containsInAnyOrder(KV.of("a", Arrays.asList()), KV.of("b", Arrays.asList()));
 
     p.run();
   }
@@ -205,13 +197,9 @@ public class TopTest {
         .withCoder(StringUtf8Coder.of()));
 
     PCollection<KV<String, Integer>> inputTable = createInputTable(p);
-    inputTable
-        .apply(Top.perKey(1,
-            new IntegerComparator()));
+    inputTable.apply(Top.perKey(1, new IntegerComparator()));
 
-    inputTable
-        .apply("PerKey2", Top.perKey(1,
-            new IntegerComparator2()));
+    inputTable.apply("PerKey2", Top.perKey(1, new IntegerComparator2()));
   }
 
   @Test

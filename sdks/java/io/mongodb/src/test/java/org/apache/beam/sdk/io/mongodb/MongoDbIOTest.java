@@ -165,8 +165,7 @@ public class MongoDbIOTest implements Serializable {
           .withDatabase(DATABASE)
           .withCollection(COLLECTION));
 
-    PAssert.thatSingleton(output.apply("Count All", Count.globally()))
-        .isEqualTo(1000L);
+    PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo(1000L);
 
     PAssert.that(
             output
@@ -203,8 +202,7 @@ public class MongoDbIOTest implements Serializable {
 
     PCollection<Document> documents = pipeline.apply(read);
 
-    PAssert.thatSingleton(documents.apply("Count All", Count.globally()))
-        .isEqualTo(1000L);
+    PAssert.thatSingleton(documents.apply("Count All", Count.globally())).isEqualTo(1000L);
 
     PAssert.that(
             documents
@@ -238,8 +236,7 @@ public class MongoDbIOTest implements Serializable {
         .withCollection(COLLECTION)
         .withFilter("{\"scientist\":\"Einstein\"}"));
 
-    PAssert.thatSingleton(output.apply("Count", Count.globally()))
-        .isEqualTo(100L);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(100L);
 
     pipeline.run();
   }

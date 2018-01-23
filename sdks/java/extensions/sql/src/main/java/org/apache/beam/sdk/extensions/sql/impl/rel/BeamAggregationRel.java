@@ -102,12 +102,14 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     BeamRecordCoder aggCoder = exAggFieldsSchema().getRecordCoder();
 
-    PCollection<KV<BeamRecord, BeamRecord>> aggregatedStream = exCombineByStream.apply(
-        stageName + "combineBy",
-        Combine.perKey(
-            new BeamAggregationTransforms.AggregationAdaptor(getAggCallList(),
-                CalciteUtils.toBeamRowType(input.getRowType()))))
-        .setCoder(KvCoder.of(keyCoder, aggCoder));
+    PCollection<KV<BeamRecord, BeamRecord>> aggregatedStream =
+        exCombineByStream
+            .apply(
+                stageName + "combineBy",
+                Combine.perKey(
+                    new BeamAggregationTransforms.AggregationAdaptor(
+                        getAggCallList(), CalciteUtils.toBeamRowType(input.getRowType()))))
+            .setCoder(KvCoder.of(keyCoder, aggCoder));
 
     PCollection<BeamRecord> mergedStream = aggregatedStream.apply(stageName + "mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(

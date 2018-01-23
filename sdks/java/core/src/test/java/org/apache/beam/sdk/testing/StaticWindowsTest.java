@@ -48,22 +48,21 @@ public class StaticWindowsTest {
   @Test
   public void singleWindowSucceeds() throws Exception {
     WindowFn<Object, BoundedWindow> fn = StaticWindows.of(IntervalWindow.getCoder(), first);
-    assertThat(WindowFnTestUtils.assignedWindows(fn, 100L),
-        Matchers.contains(first));
-    assertThat(WindowFnTestUtils.assignedWindows(fn, -100L),
-        Matchers.contains(first));
+    assertThat(WindowFnTestUtils.assignedWindows(fn, 100L), Matchers.contains(first));
+    assertThat(WindowFnTestUtils.assignedWindows(fn, -100L), Matchers.contains(first));
   }
 
   @Test
   public void multipleWindowsSucceeds() throws Exception {
     WindowFn<Object, BoundedWindow> fn =
         StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(first, second));
-    assertThat(WindowFnTestUtils.assignedWindows(fn, 100L),
+    assertThat(
+        WindowFnTestUtils.assignedWindows(fn, 100L), Matchers.containsInAnyOrder(first, second));
+    assertThat(
+        WindowFnTestUtils.assignedWindows(fn, 1_000_000_000L),
         Matchers.containsInAnyOrder(first, second));
-    assertThat(WindowFnTestUtils.assignedWindows(fn, 1_000_000_000L),
-        Matchers.containsInAnyOrder(first, second));
-    assertThat(WindowFnTestUtils.assignedWindows(fn, -100L),
-        Matchers.containsInAnyOrder(first, second));
+    assertThat(
+        WindowFnTestUtils.assignedWindows(fn, -100L), Matchers.containsInAnyOrder(first, second));
   }
 
   @Test
@@ -71,12 +70,8 @@ public class StaticWindowsTest {
     WindowFn<Object, BoundedWindow> fn =
         StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(first, second));
 
-    assertThat(
-        fn.getDefaultWindowMappingFn().getSideInputWindow(first),
-        Matchers.equalTo(first));
-    assertThat(
-        fn.getDefaultWindowMappingFn().getSideInputWindow(second),
-        Matchers.equalTo(second));
+    assertThat(fn.getDefaultWindowMappingFn().getSideInputWindow(first), Matchers.equalTo(first));
+    assertThat(fn.getDefaultWindowMappingFn().getSideInputWindow(second), Matchers.equalTo(second));
   }
 
   @Test

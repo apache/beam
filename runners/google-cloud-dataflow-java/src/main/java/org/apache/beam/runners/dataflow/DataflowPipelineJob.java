@@ -144,8 +144,7 @@ public class DataflowPipelineJob implements PipelineResult {
     this.dataflowClient = dataflowClient;
     this.jobId = jobId;
     this.dataflowOptions = dataflowOptions;
-    this.transformStepNames = HashBiMap.create(
-        firstNonNull(transformStepNames, ImmutableMap.of()));
+    this.transformStepNames = HashBiMap.create(firstNonNull(transformStepNames, ImmutableMap.of()));
     this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
   }
 

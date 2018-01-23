@@ -61,22 +61,14 @@ public class CountingSourceTest {
 
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
     // Count == numElements
-    PAssert
-      .thatSingleton(input.apply("Count", Count.globally()))
-      .isEqualTo(numElements);
+    PAssert.thatSingleton(input.apply("Count", Count.globally())).isEqualTo(numElements);
     // Unique count == numElements
-    PAssert
-      .thatSingleton(input.apply(Distinct.create())
-                          .apply("UniqueCount", Count.globally()))
-      .isEqualTo(numElements);
+    PAssert.thatSingleton(input.apply(Distinct.create()).apply("UniqueCount", Count.globally()))
+        .isEqualTo(numElements);
     // Min == 0
-    PAssert
-      .thatSingleton(input.apply("Min", Min.globally()))
-      .isEqualTo(0L);
+    PAssert.thatSingleton(input.apply("Min", Min.globally())).isEqualTo(0L);
     // Max == numElements-1
-    PAssert
-      .thatSingleton(input.apply("Max", Max.globally()))
-      .isEqualTo(numElements - 1);
+    PAssert.thatSingleton(input.apply("Max", Max.globally())).isEqualTo(numElements - 1);
   }
 
   @Rule
@@ -183,9 +175,10 @@ public class CountingSourceTest {
             .withMaxNumRecords(numElements));
     addCountingAsserts(input, numElements);
 
-    PCollection<Long> diffs = input
-        .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-        .apply("DistinctTimestamps", Distinct.create());
+    PCollection<Long> diffs =
+        input
+            .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
+            .apply("DistinctTimestamps", Distinct.create());
     // This assert also confirms that diffs only has one unique value.
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 

@@ -18,11 +18,9 @@
 package org.apache.beam.runners.gearpump.translators;
 
 import com.google.common.collect.Iterables;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;

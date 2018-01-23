@@ -109,12 +109,14 @@ public class DirectRunnerTest implements Serializable {
 
     PCollection<KV<String, Long>> counts =
         p.apply(Create.of("foo", "bar", "foo", "baz", "bar", "foo"))
-            .apply(MapElements.via(new SimpleFunction<String, String>() {
-              @Override
-              public String apply(String input) {
-                return input;
-              }
-            }))
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<String, String>() {
+                      @Override
+                      public String apply(String input) {
+                        return input;
+                      }
+                    }))
             .apply(Count.perElement());
     PCollection<String> countStrs =
         counts.apply(MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
@@ -139,12 +141,14 @@ public class DirectRunnerTest implements Serializable {
     changed = new AtomicInteger(0);
     PCollection<KV<String, Long>> counts =
         p.apply(Create.of("foo", "bar", "foo", "baz", "bar", "foo"))
-            .apply(MapElements.via(new SimpleFunction<String, String>() {
-              @Override
-              public String apply(String input) {
-                return input;
-              }
-            }))
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<String, String>() {
+                      @Override
+                      public String apply(String input) {
+                        return input;
+                      }
+                    }))
             .apply(Count.perElement());
     PCollection<String> countStrs =
         counts.apply(MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
@@ -194,8 +198,7 @@ public class DirectRunnerTest implements Serializable {
             .apply(MapElements.into(td).via(getBytes));
     PCollection<byte[]> msync =
         p.apply(Create.of(1, -2, -8, -16)).apply(MapElements.into(td).via(getBytes));
-    PCollection<byte[]> bytes =
-        PCollectionList.of(foos).and(msync).apply(Flatten.pCollections());
+    PCollection<byte[]> bytes = PCollectionList.of(foos).and(msync).apply(Flatten.pCollections());
     PCollection<KV<byte[], Long>> counts = bytes.apply(Count.perElement());
     PCollection<KV<Integer, Long>> countsBackToString =
         counts.apply(MapElements.via(new SimpleFunction<KV<byte[], Long>, KV<Integer, Long>>() {

@@ -155,8 +155,7 @@ public class Sample {
 
     @Override
     public PCollection<T> expand(PCollection<T> in) {
-      return in
-          .apply(Combine.globally(new SampleAnyCombineFn<T>(limit)).withoutDefaults())
+      return in.apply(Combine.globally(new SampleAnyCombineFn<T>(limit)).withoutDefaults())
           .apply(Flatten.iterables());
     }
 

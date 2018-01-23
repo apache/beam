@@ -432,16 +432,17 @@ public class GcsUtil {
    */
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
-    GoogleCloudStorageWriteChannel channel = new GoogleCloudStorageWriteChannel(
-        executorService,
-        storageClient,
-        new ClientRequestHelper<StorageObject>(),
-        path.getBucket(),
-        path.getObject(),
-        AsyncWriteChannelOptions.newBuilder().build(),
-        new ObjectWriteConditions(),
-        Collections.emptyMap(),
-        type);
+    GoogleCloudStorageWriteChannel channel =
+        new GoogleCloudStorageWriteChannel(
+            executorService,
+            storageClient,
+            new ClientRequestHelper<StorageObject>(),
+            path.getBucket(),
+            path.getObject(),
+            AsyncWriteChannelOptions.newBuilder().build(),
+            new ObjectWriteConditions(),
+            Collections.emptyMap(),
+            type);
     if (uploadBufferSizeBytes != null) {
       channel.setUploadBufferSize(uploadBufferSizeBytes);
     }

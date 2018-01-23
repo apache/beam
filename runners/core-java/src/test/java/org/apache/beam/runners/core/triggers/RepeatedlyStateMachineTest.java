@@ -77,8 +77,7 @@ public class RepeatedlyStateMachineTest {
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
     assertTrue(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
 
-    when(mockTrigger.shouldFire(Mockito.any()))
-        .thenReturn(false);
+    when(mockTrigger.shouldFire(Mockito.any())).thenReturn(false);
     assertFalse(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
   }
 

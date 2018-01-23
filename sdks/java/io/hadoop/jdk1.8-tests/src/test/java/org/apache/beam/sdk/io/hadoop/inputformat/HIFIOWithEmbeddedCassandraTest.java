@@ -115,8 +115,7 @@ public class HIFIOWithEmbeddedCassandraTest implements Serializable {
         p.apply(HadoopInputFormatIO.<Long, String>read().withConfiguration(conf)
             .withValueTranslation(myValueTranslate));
     // Verify the count of data retrieved from Cassandra matches expected count.
-    PAssert.thatSingleton(cassandraData.apply("Count", Count.globally()))
-        .isEqualTo(expectedCount);
+    PAssert.thatSingleton(cassandraData.apply("Count", Count.globally())).isEqualTo(expectedCount);
     PCollection<String> textValues = cassandraData.apply(Values.create());
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =

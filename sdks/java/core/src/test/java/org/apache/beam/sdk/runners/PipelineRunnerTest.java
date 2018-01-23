@@ -81,18 +81,21 @@ public class PipelineRunnerTest {
   public void testRunPTransform() {
     final String namespace = PipelineRunnerTest.class.getName();
     final Counter counter = Metrics.counter(namespace, "count");
-    final PipelineResult result = PipelineRunner.create().run(
-        new PTransform<PBegin, POutput>() {
-          @Override
-          public POutput expand(PBegin input) {
-            PCollection<Double> output = input
-                .apply(Create.of(1, 2, 3, 4))
-                .apply("ScaleByTwo", MapElements.via(new ScaleFn<Integer>(2.0, counter)));
-            PAssert.that(output).containsInAnyOrder(2.0, 4.0, 6.0, 8.0);
-            return output;
-          }
-        }
-    );
+    final PipelineResult result =
+        PipelineRunner.create()
+            .run(
+                new PTransform<PBegin, POutput>() {
+                  @Override
+                  public POutput expand(PBegin input) {
+                    PCollection<Double> output =
+                        input
+                            .apply(Create.of(1, 2, 3, 4))
+                            .apply(
+                                "ScaleByTwo", MapElements.via(new ScaleFn<Integer>(2.0, counter)));
+                    PAssert.that(output).containsInAnyOrder(2.0, 4.0, 6.0, 8.0);
+                    return output;
+                  }
+                });
 
     // Checking counters to verify the pipeline actually ran.
     assertThat(

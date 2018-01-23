@@ -110,8 +110,7 @@ public class GroupByKeyTest implements Serializable {
         p.apply(Create.of(ungroupedPairs)
             .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-    PCollection<KV<String, Iterable<Integer>>> output =
-        input.apply(GroupByKey.create());
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
 
     SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void> checker =
         containsKvs(
@@ -141,8 +140,7 @@ public class GroupByKeyTest implements Serializable {
         p.apply(Create.timestamped(ungroupedPairs, Arrays.asList(1L, 2L, 3L, 4L, 5L, 6L, 7L))
             .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
     PCollection<KV<String, Iterable<Integer>>> output =
-        input.apply(Window.into(FixedWindows.of(new Duration(5))))
-             .apply(GroupByKey.create());
+        input.apply(Window.into(FixedWindows.of(new Duration(5)))).apply(GroupByKey.create());
 
     PAssert.that(output)
         .satisfies(
@@ -173,12 +171,9 @@ public class GroupByKeyTest implements Serializable {
                     TimestampedValue.of(KV.of("foo", 1), new Instant(1)),
                     TimestampedValue.of(KV.of("foo", 4), new Instant(4)),
                     TimestampedValue.of(KV.of("bar", 3), new Instant(3))))
-            .apply(
-                Window.into(
-                    SlidingWindows.of(Duration.millis(5L)).every(Duration.millis(3L))));
+            .apply(Window.into(SlidingWindows.of(Duration.millis(5L)).every(Duration.millis(3L))));
 
-    PCollection<KV<String, Iterable<Integer>>> output =
-        windowedInput.apply(GroupByKey.create());
+    PCollection<KV<String, Iterable<Integer>>> output = windowedInput.apply(GroupByKey.create());
 
     PAssert.that(output)
         .satisfies(
@@ -208,8 +203,7 @@ public class GroupByKeyTest implements Serializable {
                     TimestampedValue.of(KV.of("foo", 9), new Instant(9))))
             .apply(Window.into(Sessions.withGapDuration(Duration.millis(4L))));
 
-    PCollection<KV<String, Iterable<Integer>>> output =
-        windowedInput.apply(GroupByKey.create());
+    PCollection<KV<String, Iterable<Integer>>> output = windowedInput.apply(GroupByKey.create());
 
     PAssert.that(output).satisfies(containsKvs(kv("foo", 1, 4), kv("foo", 9), kv("bar", 3)));
     PAssert.that(output)
@@ -267,8 +261,7 @@ public class GroupByKeyTest implements Serializable {
         p.apply(Create.of(ungroupedPairs)
             .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-    PCollection<KV<String, Iterable<Integer>>> output =
-        input.apply(GroupByKey.create());
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
 
     PAssert.that(output).empty();
 
@@ -332,12 +325,12 @@ public class GroupByKeyTest implements Serializable {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(ungroupedPairs)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-        .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+        p.apply(
+                Create.of(ungroupedPairs)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
 
-    PCollection<KV<String, Iterable<Integer>>> output =
-        input.apply(GroupByKey.create());
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
 
     p.run();
 
@@ -352,13 +345,12 @@ public class GroupByKeyTest implements Serializable {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(ungroupedPairs)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-        .apply(Window.into(
-            Sessions.withGapDuration(Duration.standardMinutes(1))));
+        p.apply(
+                Create.of(ungroupedPairs)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
+            .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))));
 
-    PCollection<KV<String, Iterable<Integer>>> output =
-        input.apply(GroupByKey.create());
+    PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
 
     p.run();
 
@@ -376,16 +368,14 @@ public class GroupByKeyTest implements Serializable {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(ungroupedPairs)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-        .apply(Window.into(
-            Sessions.withGapDuration(Duration.standardMinutes(1))));
+        p.apply(
+                Create.of(ungroupedPairs)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
+            .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))));
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("GroupByKey must have a valid Window merge function");
-    input
-        .apply("GroupByKey", GroupByKey.create())
-        .apply("GroupByKeyAgain", GroupByKey.create());
+    input.apply("GroupByKey", GroupByKey.create()).apply("GroupByKeyAgain", GroupByKey.create());
   }
 
   @Test
@@ -395,16 +385,17 @@ public class GroupByKeyTest implements Serializable {
     List<KV<String, Integer>> ungroupedPairs = Arrays.asList();
 
     PCollection<KV<String, Integer>> input =
-        p.apply(Create.of(ungroupedPairs)
-            .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
-        .apply(Window.into(
-            Sessions.withGapDuration(Duration.standardMinutes(1))));
+        p.apply(
+                Create.of(ungroupedPairs)
+                    .withCoder(KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())))
+            .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(1))));
 
-    PCollection<KV<String, Iterable<Iterable<Integer>>>> middle = input
-        .apply("GroupByKey", GroupByKey.create())
-        .apply("Remerge", Window.remerge())
-        .apply("GroupByKeyAgain", GroupByKey.create())
-        .apply("RemergeAgain", Window.remerge());
+    PCollection<KV<String, Iterable<Iterable<Integer>>>> middle =
+        input
+            .apply("GroupByKey", GroupByKey.create())
+            .apply("Remerge", Window.remerge())
+            .apply("GroupByKeyAgain", GroupByKey.create())
+            .apply("RemergeAgain", Window.remerge());
 
     p.run();
 
@@ -447,11 +438,12 @@ public class GroupByKeyTest implements Serializable {
   public void testTimestampCombinerEarliest() {
 
     p.apply(
-        Create.timestamped(
-            TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
-            TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
-        .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
-            .withTimestampCombiner(TimestampCombiner.EARLIEST))
+            Create.timestamped(
+                TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
+                TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
+        .apply(
+            Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
+                .withTimestampCombiner(TimestampCombiner.EARLIEST))
         .apply(GroupByKey.create())
         .apply(ParDo.of(new AssertTimestamp(new Instant(0))));
 
@@ -467,11 +459,12 @@ public class GroupByKeyTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testTimestampCombinerLatest() {
     p.apply(
-        Create.timestamped(
-            TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
-            TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
-        .apply(Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
-            .withTimestampCombiner(TimestampCombiner.LATEST))
+            Create.timestamped(
+                TimestampedValue.of(KV.of(0, "hello"), new Instant(0)),
+                TimestampedValue.of(KV.of(0, "goodbye"), new Instant(10))))
+        .apply(
+            Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(10)))
+                .withTimestampCombiner(TimestampCombiner.LATEST))
         .apply(GroupByKey.create())
         .apply(ParDo.of(new AssertTimestamp(new Instant(10))));
 
@@ -533,22 +526,20 @@ public class GroupByKeyTest implements Serializable {
     // We first ensure that the values are randomly partitioned in the beginning.
     // Some runners might otherwise keep all values on the machine where
     // they are initially created.
-    PCollection<KV<BadEqualityKey, Long>> dataset1 = p
-        .apply(Create.of(input))
-        .apply(ParDo.of(new AssignRandomKey()))
-        .apply(Reshuffle.of())
-        .apply(Values.create());
+    PCollection<KV<BadEqualityKey, Long>> dataset1 =
+        p.apply(Create.of(input))
+            .apply(ParDo.of(new AssignRandomKey()))
+            .apply(Reshuffle.of())
+            .apply(Values.create());
 
     // Make the GroupByKey and Count implicit, in real-world code
     // this would be a Count.perKey()
-    PCollection<KV<BadEqualityKey, Long>> result = dataset1
-        .apply(GroupByKey.create())
-        .apply(Combine.groupedValues(new CountFn()));
+    PCollection<KV<BadEqualityKey, Long>> result =
+        dataset1.apply(GroupByKey.create()).apply(Combine.groupedValues(new CountFn()));
 
     PAssert.that(result).satisfies(new AssertThatCountPerKeyCorrect(numValues));
 
-    PAssert.that(result.apply(Keys.create()))
-        .satisfies(new AssertThatAllKeysExist(numKeys));
+    PAssert.that(result.apply(Keys.create())).satisfies(new AssertThatAllKeysExist(numKeys));
 
     p.run();
   }
@@ -562,25 +553,31 @@ public class GroupByKeyTest implements Serializable {
   }
 
   private static void runLargeKeysTest(TestPipeline p, final int keySize) throws Exception {
-    PCollection<KV<String, Integer>> result = p
-        .apply(Create.of("a", "a", "b"))
-        .apply("Expand", ParDo.of(new DoFn<String, KV<String, String>>() {
-              @ProcessElement
-              public void process(ProcessContext c) {
-                c.output(KV.of(bigString(c.element().charAt(0), keySize), c.element()));
-              }
-          }))
-        .apply(GroupByKey.create())
-        .apply("Count", ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, Integer>>() {
-              @ProcessElement
-              public void process(ProcessContext c) {
-                int size = 0;
-                for (String value : c.element().getValue()) {
-                  size++;
-                }
-                c.output(KV.of(c.element().getKey(), size));
-              }
-          }));
+    PCollection<KV<String, Integer>> result =
+        p.apply(Create.of("a", "a", "b"))
+            .apply(
+                "Expand",
+                ParDo.of(
+                    new DoFn<String, KV<String, String>>() {
+                      @ProcessElement
+                      public void process(ProcessContext c) {
+                        c.output(KV.of(bigString(c.element().charAt(0), keySize), c.element()));
+                      }
+                    }))
+            .apply(GroupByKey.create())
+            .apply(
+                "Count",
+                ParDo.of(
+                    new DoFn<KV<String, Iterable<String>>, KV<String, Integer>>() {
+                      @ProcessElement
+                      public void process(ProcessContext c) {
+                        int size = 0;
+                        for (String value : c.element().getValue()) {
+                          size++;
+                        }
+                        c.output(KV.of(c.element().getKey(), size));
+                      }
+                    }));
 
     PAssert.that(result)
         .satisfies(

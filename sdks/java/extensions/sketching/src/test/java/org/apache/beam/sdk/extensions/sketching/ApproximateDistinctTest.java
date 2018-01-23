@@ -21,12 +21,10 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
@@ -168,8 +166,7 @@ public class ApproximateDistinctTest implements Serializable {
     for (int i = 0; i < 10; i++) {
       hllp.offer(i);
     }
-    CoderProperties.coderDecodeEncodeEqual(
-        ApproximateDistinct.HyperLogLogPlusCoder.of(), hllp);
+    CoderProperties.coderDecodeEncodeEqual(ApproximateDistinct.HyperLogLogPlusCoder.of(), hllp);
   }
 
   @Test

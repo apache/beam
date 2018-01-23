@@ -79,8 +79,10 @@ public class Query4 extends NexmarkQuery {
 
     return winningBids
         // Key the winning bid price by the auction category.
-        .apply(name + ".Rekey",
-            ParDo.of(new DoFn<AuctionBid, KV<Long, Long>>() {
+        .apply(
+            name + ".Rekey",
+            ParDo.of(
+                new DoFn<AuctionBid, KV<Long, Long>>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     Auction auction = c.element().auction;
@@ -90,21 +92,27 @@ public class Query4 extends NexmarkQuery {
                 }))
 
         // Re-window so we can calculate a sliding average
-        .apply(Window.into(
-            SlidingWindows.of(Duration.standardSeconds(configuration.windowSizeSec))
-                .every(Duration.standardSeconds(configuration.windowPeriodSec))))
+        .apply(
+            Window.into(
+                SlidingWindows.of(Duration.standardSeconds(configuration.windowSizeSec))
+                    .every(Duration.standardSeconds(configuration.windowPeriodSec))))
 
         // Find the average of the winning bids for each category.
         // Make sure we share the work for each category between workers.
         .apply(Mean.<Long, Long>perKey().withHotKeyFanout(configuration.fanout))
 
         // For testing against Query4Model, capture which results are 'final'.
-        .apply(name + ".Project",
-            ParDo.of(new DoFn<KV<Long, Double>, CategoryPrice>() {
+        .apply(
+            name + ".Project",
+            ParDo.of(
+                new DoFn<KV<Long, Double>, CategoryPrice>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    c.output(new CategoryPrice(c.element().getKey(),
-                        Math.round(c.element().getValue()), c.pane().isLast()));
+                    c.output(
+                        new CategoryPrice(
+                            c.element().getKey(),
+                            Math.round(c.element().getValue()),
+                            c.pane().isLast()));
                   }
                 }));
   }

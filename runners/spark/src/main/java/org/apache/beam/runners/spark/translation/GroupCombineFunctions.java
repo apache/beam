@@ -53,8 +53,7 @@ public class GroupCombineFunctions {
     // we use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     JavaPairRDD<ByteArray, byte[]> pairRDD =
-        rdd
-            .map(new ReifyTimestampsAndWindowsFunction<K, V>())
+        rdd.map(new ReifyTimestampsAndWindowsFunction<K, V>())
             .map(WindowingHelpers.unwindowFunction())
             .mapToPair(TranslationUtils.toPairFunction())
             .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder));
@@ -69,12 +68,9 @@ public class GroupCombineFunctions {
             TranslationUtils.pairFunctionToPairFlatMapFunction(
                 CoderHelpers.fromByteFunctionIterable(keyCoder, wvCoder)),
             true)
+        .mapPartitions(TranslationUtils.fromPairFlatMapFunction(), true)
         .mapPartitions(
-            TranslationUtils.fromPairFlatMapFunction(), true)
-        .mapPartitions(
-            TranslationUtils.functionToFlatMapFunction(
-                WindowingHelpers.windowFunction()),
-            true);
+            TranslationUtils.functionToFlatMapFunction(WindowingHelpers.windowFunction()), true);
   }
 
   /**
@@ -239,8 +235,7 @@ public class GroupCombineFunctions {
 
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
-    return rdd
-        .map(new ReifyTimestampsAndWindowsFunction<K, V>())
+    return rdd.map(new ReifyTimestampsAndWindowsFunction<K, V>())
         .map(WindowingHelpers.unwindowFunction())
         .mapToPair(TranslationUtils.toPairFunction())
         .mapToPair(CoderHelpers.toByteFunction(keyCoder, wvCoder))

@@ -514,7 +514,8 @@ public class SpannerIO {
     public PCollectionView<Transaction> expand(PBegin input) {
       getSpannerConfig().validate();
 
-      return input.apply(Create.of(1))
+      return input
+          .apply(Create.of(1))
           .apply("Create transaction", ParDo.of(new CreateTransactionFn(this)))
           .apply("As PCollectionView", View.asSingleton());
     }
@@ -740,11 +741,14 @@ public class SpannerIO {
         sampler = createDefaultSampler();
       }
       // First, read the Cloud Spanner schema.
-      final PCollectionView<SpannerSchema> schemaView = input.getPipeline()
-          .apply(Create.of((Void) null))
-          .apply("Read information schema",
-              ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
-          .apply("Schema View", View.asSingleton());
+      final PCollectionView<SpannerSchema> schemaView =
+          input
+              .getPipeline()
+              .apply(Create.of((Void) null))
+              .apply(
+                  "Read information schema",
+                  ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
+              .apply("Schema View", View.asSingleton());
 
       // Serialize mutations, we don't need to encode/decode them while reshuffling.
       // The primary key is encoded via OrderedCode so we can calculate quantiles.
@@ -754,10 +758,11 @@ public class SpannerIO {
           .setCoder(SerializedMutationCoder.of());
 
       // Sample primary keys using ApproximateQuantiles.
-      PCollectionView<Map<String, List<byte[]>>> keySample = serialized
-          .apply("Extract keys", ParDo.of(new ExtractKeys()))
-          .apply("Sample keys", sampler)
-          .apply("Keys sample as view", View.asMap());
+      PCollectionView<Map<String, List<byte[]>>> keySample =
+          serialized
+              .apply("Extract keys", ParDo.of(new ExtractKeys()))
+              .apply("Sample keys", sampler)
+              .apply("Keys sample as view", View.asMap());
 
       // Assign partition based on the closest element in the sample and group mutations.
       AssignPartitionFn assignPartitionFn = new AssignPartitionFn(keySample);
@@ -765,11 +770,13 @@ public class SpannerIO {
           .apply("Partition input", ParDo.of(assignPartitionFn).withSideInputs(keySample))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializedMutationCoder.of()))
           .apply("Group by partition", GroupByKey.create())
-          .apply("Batch mutations together",
+          .apply(
+              "Batch mutations together",
               ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getSpannerConfig(), schemaView))
                   .withSideInputs(schemaView))
-          .apply("Write mutations to Spanner",
-          ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig())));
+          .apply(
+              "Write mutations to Spanner",
+              ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig())));
       return PDone.in(input.getPipeline());
 
     }

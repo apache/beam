@@ -265,8 +265,7 @@ public class View {
       PCollectionView<List<T>> view = PCollectionViews.listView(
           materializationInput,
           materializationInput.getWindowingStrategy());
-      materializationInput.apply(
-          CreatePCollectionView.of(view));
+      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -296,8 +295,7 @@ public class View {
       PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(
           materializationInput,
           materializationInput.getWindowingStrategy());
-      materializationInput.apply(
-          CreatePCollectionView.of(view));
+      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -443,8 +441,7 @@ public class View {
       PCollectionView<Map<K, Iterable<V>>> view = PCollectionViews.multimapView(
           materializationInput,
           materializationInput.getWindowingStrategy());
-      materializationInput.apply(
-          CreatePCollectionView.of(view));
+      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
   }
@@ -482,8 +479,7 @@ public class View {
       PCollectionView<Map<K, V>> view = PCollectionViews.mapView(
           materializationInput,
           materializationInput.getWindowingStrategy());
-      materializationInput.apply(
-          CreatePCollectionView.of(view));
+      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
   }

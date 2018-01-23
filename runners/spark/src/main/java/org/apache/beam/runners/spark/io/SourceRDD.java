@@ -305,8 +305,7 @@ public class SourceRDD {
         SerializablePipelineOptions options,
         MicrobatchSource<T, CheckpointMarkT> microbatchSource,
         int initialNumPartitions) {
-      super(sc, NIL,
-          JavaSparkContext$.MODULE$.fakeClassTag());
+      super(sc, NIL, JavaSparkContext$.MODULE$.fakeClassTag());
       this.options = options;
       this.microbatchSource = microbatchSource;
       this.partitioner = new HashPartitioner(initialNumPartitions);

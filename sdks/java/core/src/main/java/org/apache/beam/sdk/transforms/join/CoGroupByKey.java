@@ -120,8 +120,7 @@ public class CoGroupByKey<K> extends
       unionTables = unionTables.and(unionTable);
     }
 
-    PCollection<KV<K, RawUnionValue>> flattenedTable =
-        unionTables.apply(Flatten.pCollections());
+    PCollection<KV<K, RawUnionValue>> flattenedTable = unionTables.apply(Flatten.pCollections());
 
     PCollection<KV<K, Iterable<RawUnionValue>>> groupedTable =
         flattenedTable.apply(GroupByKey.create());

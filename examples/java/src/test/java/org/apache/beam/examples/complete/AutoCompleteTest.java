@@ -122,8 +122,9 @@ public class AutoCompleteTest implements Serializable {
     PCollection<String> input = p.apply(Create.timestamped(words));
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
-      input.apply(Window.into(SlidingWindows.of(new Duration(2))))
-           .apply(new ComputeTopCompletions(2, recursive));
+        input
+            .apply(Window.into(SlidingWindows.of(new Duration(2))))
+            .apply(new ComputeTopCompletions(2, recursive));
 
     PAssert.that(output).containsInAnyOrder(
         // Window [0, 2)

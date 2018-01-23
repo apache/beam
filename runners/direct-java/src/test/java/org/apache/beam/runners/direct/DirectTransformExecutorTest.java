@@ -310,12 +310,8 @@ public class DirectTransformExecutorTest {
 
     executor.run();
     TestEnforcement<?> testEnforcement = enforcement.instance;
-    assertThat(
-        testEnforcement.beforeElements,
-        Matchers.containsInAnyOrder(barElem, fooElem));
-    assertThat(
-        testEnforcement.afterElements,
-        Matchers.containsInAnyOrder(barElem, fooElem));
+    assertThat(testEnforcement.beforeElements, Matchers.containsInAnyOrder(barElem, fooElem));
+    assertThat(testEnforcement.afterElements, Matchers.containsInAnyOrder(barElem, fooElem));
     assertThat(testEnforcement.finishedBundles, Matchers.contains(result));
   }
 
@@ -425,10 +421,7 @@ public class DirectTransformExecutorTest {
             Optional.<CommittedBundle<?>>of(inputBundle.withElements(unprocessedElements));
       }
       return CommittedResult.create(
-          result,
-          unprocessedBundle,
-          Collections.emptyList(),
-          EnumSet.noneOf(OutputType.class));
+          result, unprocessedBundle, Collections.emptyList(), EnumSet.noneOf(OutputType.class));
     }
 
     @Override

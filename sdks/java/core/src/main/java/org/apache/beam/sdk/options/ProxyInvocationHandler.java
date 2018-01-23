@@ -647,8 +647,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         // Now we create the map of serializable options by taking the original
         // set of serialized options (if any) and updating them with any properties
         // instances that have been modified since the previous serialization.
-        Map<String, Object> serializableOptions =
-            Maps.newHashMap(handler.jsonOptions);
+        Map<String, Object> serializableOptions = Maps.newHashMap(handler.jsonOptions);
         for (Map.Entry<String, BoundValue> entry : filteredOptions.entrySet()) {
           serializableOptions.put(entry.getKey(), entry.getValue().getValue());
         }
@@ -741,8 +740,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
         fields.put(field.getKey(), field.getValue());
       }
       PipelineOptions options =
-          new ProxyInvocationHandler(Maps.newHashMap(), fields)
-              .as(PipelineOptions.class);
+          new ProxyInvocationHandler(Maps.newHashMap(), fields).as(PipelineOptions.class);
       ValueProvider.RuntimeValueProvider.setRuntimeOptions(options);
       return options;
     }

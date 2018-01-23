@@ -112,22 +112,14 @@ public class UnboundedReadFromBoundedSourceTest {
         p.apply(Read.from(unboundedSource).withMaxNumRecords(numElements));
 
     // Count == numElements
-    PAssert
-      .thatSingleton(output.apply("Count", Count.globally()))
-      .isEqualTo(numElements);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numElements);
     // Unique count == numElements
-    PAssert
-      .thatSingleton(output.apply(Distinct.create())
-                          .apply("UniqueCount", Count.globally()))
-      .isEqualTo(numElements);
+    PAssert.thatSingleton(output.apply(Distinct.create()).apply("UniqueCount", Count.globally()))
+        .isEqualTo(numElements);
     // Min == 0
-    PAssert
-      .thatSingleton(output.apply("Min", Min.globally()))
-      .isEqualTo(0L);
+    PAssert.thatSingleton(output.apply("Min", Min.globally())).isEqualTo(0L);
     // Max == numElements-1
-    PAssert
-      .thatSingleton(output.apply("Max", Max.globally()))
-      .isEqualTo(numElements - 1);
+    PAssert.thatSingleton(output.apply("Max", Max.globally())).isEqualTo(numElements - 1);
     p.run();
   }
 

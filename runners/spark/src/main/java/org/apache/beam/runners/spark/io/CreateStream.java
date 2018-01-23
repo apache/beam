@@ -37,7 +37,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-
 /**
  * Create an input stream from Queue. For SparkRunner tests only.
  *

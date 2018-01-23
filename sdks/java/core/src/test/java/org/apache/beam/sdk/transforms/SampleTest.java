@@ -164,9 +164,7 @@ public class SampleTest {
       PCollection<String> input = p.apply(Create.of(lines)
                                                 .withCoder(StringUtf8Coder.of()));
 
-      PCollection<String> output =
-          input.apply(Sample.any(limit));
-
+      PCollection<String> output = input.apply(Sample.any(limit));
 
       PAssert.that(output)
              .satisfies(new VerifyAnySample(lines, limit));
@@ -185,9 +183,7 @@ public class SampleTest {
       CombineFnTester.testCombineFn(
           Sample.combineFn(limit),
           lines,
-          allOf(
-              Matchers.iterableWithSize(Math.min(lines.size(), limit)),
-              everyItem(isIn(lines))));
+          allOf(Matchers.iterableWithSize(Math.min(lines.size(), limit)), everyItem(isIn(lines))));
     }
   }
 
@@ -284,9 +280,10 @@ public class SampleTest {
     @Category(ValidatesRunner.class)
     public void testSampleAnyEmpty() {
       PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
-      PCollection<Integer> output = input
-          .apply(Window.into(FixedWindows.of(Duration.standardSeconds(3))))
-          .apply(Sample.any(2));
+      PCollection<Integer> output =
+          input
+              .apply(Window.into(FixedWindows.of(Duration.standardSeconds(3))))
+              .apply(Sample.any(2));
 
       PAssert.that(output).satisfies(new VerifyCorrectSample<>(0, EMPTY));
       pipeline.run();
@@ -299,9 +296,10 @@ public class SampleTest {
           pipeline.apply(
               Create.timestamped(ImmutableList.of(tv(0), tv(1), tv(2), tv(3), tv(4), tv(5)))
                   .withCoder(BigEndianIntegerCoder.of()));
-      PCollection<Integer> output = input
-          .apply(Window.into(FixedWindows.of(Duration.standardSeconds(3))))
-          .apply(Sample.any(0));
+      PCollection<Integer> output =
+          input
+              .apply(Window.into(FixedWindows.of(Duration.standardSeconds(3))))
+              .apply(Sample.any(0));
 
       PAssert.that(output)
           .inWindow(new IntervalWindow(new Instant(0), Duration.standardSeconds(3)))
@@ -316,9 +314,10 @@ public class SampleTest {
     @Category(ValidatesRunner.class)
     public void testSampleAnyInsufficientElements() {
       PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
-      PCollection<Integer> output = input
-          .apply(Window.into(FixedWindows.of(Duration.standardSeconds(3))))
-          .apply(Sample.any(10));
+      PCollection<Integer> output =
+          input
+              .apply(Window.into(FixedWindows.of(Duration.standardSeconds(3))))
+              .apply(Sample.any(10));
 
       PAssert.that(output)
           .inWindow(new IntervalWindow(new Instant(0), Duration.standardSeconds(3)))
@@ -351,8 +350,7 @@ public class SampleTest {
     public void testSampleEmpty() {
 
       PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
-      PCollection<Iterable<Integer>> output = input.apply(
-          Sample.fixedSizeGlobally(3));
+      PCollection<Iterable<Integer>> output = input.apply(Sample.fixedSizeGlobally(3));
 
       PAssert.thatSingletonIterable(output)
              .satisfies(new VerifyCorrectSample<>(0, EMPTY));
@@ -365,8 +363,7 @@ public class SampleTest {
 
       PCollection<Integer> input = pipeline.apply(Create.of(ImmutableList.copyOf(DATA))
                                                         .withCoder(BigEndianIntegerCoder.of()));
-      PCollection<Iterable<Integer>> output = input.apply(
-          Sample.fixedSizeGlobally(0));
+      PCollection<Iterable<Integer>> output = input.apply(Sample.fixedSizeGlobally(0));
 
       PAssert.thatSingletonIterable(output)
              .satisfies(new VerifyCorrectSample<>(0, DATA));
@@ -380,8 +377,7 @@ public class SampleTest {
       PCollection<Integer> input =
           pipeline.apply(
               Create.of(ImmutableList.copyOf(DATA)).withCoder(BigEndianIntegerCoder.of()));
-      PCollection<Iterable<Integer>> output = input.apply(
-          Sample.fixedSizeGlobally(10));
+      PCollection<Iterable<Integer>> output = input.apply(Sample.fixedSizeGlobally(10));
 
       PAssert.thatSingletonIterable(output)
              .satisfies(new VerifyCorrectSample<>(5, DATA));
@@ -406,8 +402,7 @@ public class SampleTest {
           pipeline.apply(
               Create.of(ImmutableList.copyOf(REPEATED_DATA)).withCoder(BigEndianIntegerCoder.of()));
       // At least one value must be selected with multiplicity.
-      PCollection<Iterable<Integer>> output = input.apply(
-          Sample.fixedSizeGlobally(6));
+      PCollection<Iterable<Integer>> output = input.apply(Sample.fixedSizeGlobally(6));
 
       PAssert.thatSingletonIterable(output)
              .satisfies(new VerifyCorrectSample<>(6, REPEATED_DATA));

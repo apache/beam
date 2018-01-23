@@ -126,12 +126,13 @@ public class HIFIOWithElasticTest implements Serializable {
   }
 
   MapElements<LinkedMapWritable, String> transformFunc =
-      MapElements.via(new SimpleFunction<LinkedMapWritable, String>() {
-        @Override
-        public String apply(LinkedMapWritable mapw) {
-          return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
-        }
-      });
+      MapElements.via(
+          new SimpleFunction<LinkedMapWritable, String>() {
+            @Override
+            public String apply(LinkedMapWritable mapw) {
+              return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
+            }
+          });
   /**
    * Test to read data from embedded Elasticsearch instance based on query and verify whether data
    * is read successfully.

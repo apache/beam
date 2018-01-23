@@ -42,8 +42,7 @@ public final class SparkRunnerRegistrar {
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList
-          .of(SparkRunner.class, TestSparkRunner.class);
+      return ImmutableList.of(SparkRunner.class, TestSparkRunner.class);
     }
   }
 

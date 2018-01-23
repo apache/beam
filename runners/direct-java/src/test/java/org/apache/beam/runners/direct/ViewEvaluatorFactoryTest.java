@@ -58,7 +58,8 @@ public class ViewEvaluatorFactoryTest {
     PCollection<String> input = p.apply(Create.of("foo", "bar"));
     PCollectionView<Iterable<String>> pCollectionView = input.apply(View.asIterable());
     PCollection<Iterable<String>> concat =
-        input.apply(WithKeys.of((Void) null))
+        input
+            .apply(WithKeys.of((Void) null))
             .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
             .apply(GroupByKey.create())
             .apply(Values.create());
@@ -76,8 +77,7 @@ public class ViewEvaluatorFactoryTest {
         new ViewEvaluatorFactory(context)
             .forApplication(producer, inputBundle);
 
-    evaluator.processElement(
-        WindowedValue.valueInGlobalWindow(ImmutableList.of("foo", "bar")));
+    evaluator.processElement(WindowedValue.valueInGlobalWindow(ImmutableList.of("foo", "bar")));
     assertThat(viewWriter.latest, nullValue());
 
     evaluator.finishBundle();

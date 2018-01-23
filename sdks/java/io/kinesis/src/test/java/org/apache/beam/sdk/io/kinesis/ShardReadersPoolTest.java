@@ -93,10 +93,8 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldReturnAbsentOptionalWhenNoRecords() throws TransientKinesisException {
-    when(firstIterator.readNextBatch())
-        .thenReturn(Collections.emptyList());
-    when(secondIterator.readNextBatch())
-        .thenReturn(Collections.emptyList());
+    when(firstIterator.readNextBatch()).thenReturn(Collections.emptyList());
+    when(secondIterator.readNextBatch()).thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
     CustomOptional<KinesisRecord> nextRecord = shardReadersPool.nextRecord();

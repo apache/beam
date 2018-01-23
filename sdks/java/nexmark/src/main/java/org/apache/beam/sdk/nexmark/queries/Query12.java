@@ -48,29 +48,32 @@ public class Query12 extends NexmarkQuery {
   private PCollection<BidsPerSession> applyTyped(PCollection<Event> events) {
     return events
         .apply(JUST_BIDS)
-        .apply(ParDo.of(new DoFn<Bid, Long>() {
-          @ProcessElement
-          public void processElement(ProcessContext c){
-            c.output(c.element().bidder);
-          }
-        }))
-        .apply(Window.<Long>into(new GlobalWindows())
-            .triggering(
-                Repeatedly.forever(
-                    AfterProcessingTime.pastFirstElementInPane()
-                                       .plusDelayOf(
-                                           Duration.standardSeconds(configuration.windowSizeSec))))
-            .discardingFiredPanes()
-            .withAllowedLateness(Duration.ZERO))
+        .apply(
+            ParDo.of(
+                new DoFn<Bid, Long>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(c.element().bidder);
+                  }
+                }))
+        .apply(
+            Window.<Long>into(new GlobalWindows())
+                .triggering(
+                    Repeatedly.forever(
+                        AfterProcessingTime.pastFirstElementInPane()
+                            .plusDelayOf(Duration.standardSeconds(configuration.windowSizeSec))))
+                .discardingFiredPanes()
+                .withAllowedLateness(Duration.ZERO))
         .apply(Count.perElement())
-        .apply(name + ".ToResult",
-            ParDo.of(new DoFn<KV<Long, Long>, BidsPerSession>() {
-                   @ProcessElement
-                   public void processElement(ProcessContext c) {
-                     c.output(
-                         new BidsPerSession(c.element().getKey(), c.element().getValue()));
-                   }
-                 }));
+        .apply(
+            name + ".ToResult",
+            ParDo.of(
+                new DoFn<KV<Long, Long>, BidsPerSession>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    c.output(new BidsPerSession(c.element().getKey(), c.element().getValue()));
+                  }
+                }));
   }
 
   @Override

@@ -230,14 +230,13 @@ public abstract class NexmarkQuery
 
     if (configuration.cpuDelayMs > 0) {
       // Slow down by pegging one core at 100%.
-      events = events.apply(name + ".CpuDelay",
-              NexmarkUtils.cpuDelay(name, configuration.cpuDelayMs));
+      events =
+          events.apply(name + ".CpuDelay", NexmarkUtils.cpuDelay(name, configuration.cpuDelayMs));
     }
 
     if (configuration.diskBusyBytes > 0) {
       // Slow down by forcing bytes to durable store.
-      events = events.apply(name + ".DiskBusy",
-              NexmarkUtils.diskBusy(configuration.diskBusyBytes));
+      events = events.apply(name + ".DiskBusy", NexmarkUtils.diskBusy(configuration.diskBusyBytes));
     }
 
     // Run the query.

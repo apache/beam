@@ -37,7 +37,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import com.google.common.hash.HashCode;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
@@ -776,14 +775,12 @@ public class WatchTest implements Serializable {
     // Empty poll result with no watermark
     {
       GrowthTracker<String, String, Integer> tracker = newTracker();
-      tracker.addNewAsPending(
-          PollResult.incomplete(Collections.emptyList()));
+      tracker.addNewAsPending(PollResult.incomplete(Collections.emptyList()));
       assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, tracker.getWatermark());
 
       // Simulate resuming from the checkpoint but there are still no new elements.
       GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
-      tracker.addNewAsPending(
-          PollResult.incomplete(Collections.emptyList()));
+      tracker.addNewAsPending(PollResult.incomplete(Collections.emptyList()));
       // No new elements and no explicit watermark supplied - still no watermark.
       assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, residualTracker.getWatermark());
     }
@@ -798,8 +795,7 @@ public class WatchTest implements Serializable {
 
       // Simulate resuming from the checkpoint but there are still no new elements.
       GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
-      tracker.addNewAsPending(
-          PollResult.incomplete(Collections.emptyList()));
+      tracker.addNewAsPending(PollResult.incomplete(Collections.emptyList()));
       // No new elements and no explicit watermark supplied - should keep old watermark.
       assertEquals(now, residualTracker.getWatermark());
     }

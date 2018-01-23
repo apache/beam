@@ -93,7 +93,8 @@ public class SparkTimerInternals implements TimerInternals {
 
   /** Build a global {@link TimerInternals} for all feeding streams.*/
   public static SparkTimerInternals global(Map<Integer, SparkWatermarks> watermarks) {
-    return watermarks == null ? forStreamFromSources(Collections.emptyList(), null)
+    return watermarks == null
+        ? forStreamFromSources(Collections.emptyList(), null)
         : forStreamFromSources(Lists.newArrayList(watermarks.keySet()), watermarks);
   }
 

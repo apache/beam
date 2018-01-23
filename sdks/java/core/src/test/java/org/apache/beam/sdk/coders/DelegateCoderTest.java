@@ -40,10 +40,11 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DelegateCoderTest implements Serializable {
 
-  private static final List<Set<Integer>> TEST_VALUES = Arrays.asList(
-      Collections.emptySet(),
-      Collections.singleton(13),
-      new HashSet<>(Arrays.asList(31, -5, 83)));
+  private static final List<Set<Integer>> TEST_VALUES =
+      Arrays.asList(
+          Collections.emptySet(),
+          Collections.singleton(13),
+          new HashSet<>(Arrays.asList(31, -5, 83)));
 
   private static final TypeDescriptor<Set<Integer>> SET_INTEGER_TYPE_DESCRIPTOR =
       new TypeDescriptor<Set<Integer>>() {};

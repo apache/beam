@@ -49,7 +49,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-
 /**
  * A test suite that tests tracking of the streaming sources created an
  * {@link org.apache.beam.runners.spark.translation.streaming.UnboundedDataset}.

@@ -692,8 +692,7 @@ public class BigQueryIOWriteTest implements Serializable {
     }
 
     PCollectionView<Map<String, String>> schemasView =
-        p.apply("CreateSchemaMap", Create.of(schemas))
-            .apply("ViewSchemaAsMap", View.asMap());
+        p.apply("CreateSchemaMap", Create.of(schemas)).apply("ViewSchemaAsMap", View.asMap());
 
     input
         .apply(Window.into(windowFn))
@@ -1166,9 +1165,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
     PCollection<KV<ShardedKey<String>, List<String>>> writeTablesInput =
         p.apply(Create.of(partitions));
-    PCollectionView<String> jobIdTokenView = p
-        .apply("CreateJobId", Create.of("jobId"))
-        .apply(View.asSingleton());
+    PCollectionView<String> jobIdTokenView =
+        p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
     List<PCollectionView<?>> sideInputs = ImmutableList.of(jobIdTokenView);
 
     WriteTables<String> writeTables =
@@ -1252,10 +1250,8 @@ public class BigQueryIOWriteTest implements Serializable {
       }
     }
 
-
-    PCollectionView<String> jobIdTokenView = p
-        .apply("CreateJobId", Create.of("jobId"))
-        .apply(View.asSingleton());
+    PCollectionView<String> jobIdTokenView =
+        p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
 
     WriteRename writeRename =
         new WriteRename(
