@@ -18,13 +18,14 @@
 import logging
 import math
 import random
+import time
 import unittest
-from time import sleep
 
 from nose.plugins.skip import SkipTest
 
 from apache_beam import coders
 from apache_beam.runners.worker import opcounters
+from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.opcounters import OperationCounters
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import counters
@@ -49,11 +50,7 @@ class ObjectThatDoesNotImplementLen(object):
 class TransformIoCounterTest(unittest.TestCase):
 
   def setUp(self):
-    try:
-      # pylint: disable=global-variable-not-assigned
-      global statesampler
-      from apache_beam.runners.worker import statesampler
-    except ImportError:
+    if not statesampler.FAST_SAMPLER:
       raise SkipTest('State sampler not compiled.')
     super(TransformIoCounterTest, self).setUp()
 
@@ -69,9 +66,9 @@ class TransformIoCounterTest(unittest.TestCase):
     with sampler.scoped_state('step2', 'stateB'):
       with counter:
         counter.add_bytes_read(10)
-        sleep(0.3)
+        time.sleep(0.1)  # An arbitrary short interval.
 
-      counter.check_step()
+      counter.update_current_step()
 
     sampler.stop()
     sampler.commit_counters()

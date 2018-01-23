@@ -41,13 +41,16 @@ class TransformIOCounter(object):
   Some examples of IO can be side inputs, shuffle, or streaming state.
   """
 
-  def check_step(self):
-    """Check the current step within a stage as it may have changed.
+  def update_current_step(self):
+    """Update the current step within a stage as it may have changed.
 
     If the state changed, it would mean that an initial step passed a
     data-accessor (such as a side input / shuffle Iterable) down to the
     next step in a stage.
     """
+    pass
+
+  def add_bytes_read(self, count):
     pass
 
   def __exit__(self, exc_type, exc_value, traceback):
@@ -56,9 +59,6 @@ class TransformIOCounter(object):
 
   def __enter__(self):
     """Enter the IO state. This should track time spent blocked on IO."""
-    pass
-
-  def add_bytes_read(self, count):
     pass
 
 
@@ -100,11 +100,10 @@ class SideInputReadCounter(TransformIOCounter):
     self.input_index = input_index
 
     # Side inputs are set up within the start state of the first receiving
-    # state.
-    # We check the current state to create the internal counters.
-    self.check_step()
+    # step. We check the current state to create the internal counters.
+    self.update_current_step()
 
-  def check_step(self):
+  def update_current_step(self):
     """Update the current running step.
 
     Due to the fusion optimization, user code may choose to emit the data
