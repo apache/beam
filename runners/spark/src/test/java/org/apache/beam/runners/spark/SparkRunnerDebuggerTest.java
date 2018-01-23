@@ -71,14 +71,14 @@ public class SparkRunnerDebuggerTest {
         .apply(new WordCount.CountWords());
 
     wordCounts
-        .apply(GroupByKey.<String, Long>create())
-        .apply(Combine.<String, Long, Long>groupedValues(Sum.ofLongs()));
+        .apply(GroupByKey.create())
+        .apply(Combine.groupedValues(Sum.ofLongs()));
 
     PCollection<KV<String, Long>> wordCountsPlusOne = wordCounts
         .apply(MapElements.via(new PlusOne()));
 
     PCollectionList.of(wordCounts).and(wordCountsPlusOne)
-        .apply(Flatten.<KV<String, Long>>pCollections());
+        .apply(Flatten.pCollections());
 
     wordCounts
         .apply(MapElements.via(new WordCount.FormatAsTextFn()))
@@ -130,9 +130,9 @@ public class SparkRunnerDebuggerTest {
 
     pipeline
         .apply(read.withoutMetadata()).setCoder(stringKvCoder)
-        .apply(Window.<KV<String, String>>into(FixedWindows.of(Duration.standardSeconds(5))))
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5))))
         .apply(ParDo.of(new SparkRunnerDebuggerTest.FormatKVFn()))
-        .apply(Distinct.<String>create())
+        .apply(Distinct.create())
         .apply(WithKeys.of(new SparkRunnerDebuggerTest.ArbitraryKeyFunction()))
         .apply(write);
 

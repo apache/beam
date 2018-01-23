@@ -252,11 +252,11 @@ class BatchLoads<DestinationT>
         results
             .apply(
                 "AttachSingletonKey",
-                WithKeys.<Void, WriteBundlesToFiles.Result<DestinationT>>of((Void) null))
+                WithKeys.of((Void) null))
             .setCoder(
                 KvCoder.of(VoidCoder.of(), WriteBundlesToFiles.ResultCoder.of(destinationCoder)))
-            .apply("GroupOntoSingleton", GroupByKey.<Void, Result<DestinationT>>create())
-            .apply("ExtractResultValues", Values.<Iterable<Result<DestinationT>>>create())
+            .apply("GroupOntoSingleton", GroupByKey.create())
+            .apply("ExtractResultValues", Values.create())
             .apply(
                 "WritePartitionTriggered",
                 ParDo.of(
@@ -275,12 +275,12 @@ class BatchLoads<DestinationT>
         .apply(
             Window.<KV<TableDestination, String>>into(new GlobalWindows())
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
-        .apply(WithKeys.<Void, KV<TableDestination, String>>of((Void) null))
+        .apply(WithKeys.of((Void) null))
         .setCoder(
             KvCoder.of(
                 VoidCoder.of(), KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
-        .apply(GroupByKey.<Void, KV<TableDestination, String>>create())
-        .apply(Values.<Iterable<KV<TableDestination, String>>>create())
+        .apply(GroupByKey.create())
+        .apply(Values.create())
         .apply(
             "WriteRenameTriggered",
             ParDo.of(
@@ -360,7 +360,7 @@ class BatchLoads<DestinationT>
                     return BigQueryHelpers.randomUUIDString();
                   }
                 }))
-        .apply(View.<String>asSingleton());
+        .apply(View.asSingleton());
   }
 
   // Generate the temporary-file prefix.
@@ -391,7 +391,7 @@ class BatchLoads<DestinationT>
                     c.output(tempLocation);
                   }
                 }).withSideInputs(jobIdView))
-        .apply("TempFilePrefixView", View.<String>asSingleton());
+        .apply("TempFilePrefixView", View.asSingleton());
   }
 
   // Writes input data to dynamically-sharded, per-bundle files. Returns a PCollection of filename,
@@ -429,7 +429,7 @@ class BatchLoads<DestinationT>
     // PCollection of filename, file byte size, and table destination.
     return PCollectionList.of(writtenFiles)
         .and(writtenFilesGrouped)
-        .apply("FlattenFiles", Flatten.<Result<DestinationT>>pCollections())
+        .apply("FlattenFiles", Flatten.pCollections())
         .setCoder(WriteBundlesToFiles.ResultCoder.of(destinationCoder));
   }
 
@@ -470,7 +470,7 @@ class BatchLoads<DestinationT>
       PCollection<KV<ShardedKey<DestinationT>, TableRow>> shardedRecords,
       PCollectionView<String> tempFilePrefix) {
     return shardedRecords
-        .apply("GroupByDestination", GroupByKey.<ShardedKey<DestinationT>, TableRow>create())
+        .apply("GroupByDestination", GroupByKey.create())
         .apply(
             "WriteGroupedRecords",
             ParDo.of(new WriteGroupedRecordsToFiles<DestinationT>(tempFilePrefix, maxFileSize))
@@ -482,7 +482,7 @@ class BatchLoads<DestinationT>
   private PCollection<KV<TableDestination, String>> writeTempTables(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input,
       PCollectionView<String> jobIdTokenView) {
-    List<PCollectionView<?>> sideInputs = Lists.<PCollectionView<?>>newArrayList(jobIdTokenView);
+    List<PCollectionView<?>> sideInputs = Lists.newArrayList(jobIdTokenView);
     sideInputs.addAll(dynamicDestinations.getSideInputs());
 
     Coder<KV<ShardedKey<DestinationT>, List<String>>> partitionsCoder =
@@ -497,7 +497,7 @@ class BatchLoads<DestinationT>
         .setCoder(partitionsCoder)
         // Reshuffle will distribute this among multiple workers, and also guard against
         // reexecution of the WritePartitions step once WriteTables has begun.
-        .apply("MultiPartitionsReshuffle", Reshuffle.<ShardedKey<DestinationT>, List<String>>of())
+        .apply("MultiPartitionsReshuffle", Reshuffle.of())
         .apply(
             "MultiPartitionsWriteTables",
             new WriteTables<>(
@@ -515,7 +515,7 @@ class BatchLoads<DestinationT>
   void writeSinglePartition(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input,
       PCollectionView<String> jobIdTokenView) {
-    List<PCollectionView<?>> sideInputs = Lists.<PCollectionView<?>>newArrayList(jobIdTokenView);
+    List<PCollectionView<?>> sideInputs = Lists.newArrayList(jobIdTokenView);
     sideInputs.addAll(dynamicDestinations.getSideInputs());
     Coder<KV<ShardedKey<DestinationT>, List<String>>> partitionsCoder =
         KvCoder.of(
@@ -526,7 +526,7 @@ class BatchLoads<DestinationT>
         .setCoder(partitionsCoder)
         // Reshuffle will distribute this among multiple workers, and also guard against
         // reexecution of the WritePartitions step once WriteTables has begun.
-        .apply("SinglePartitionsReshuffle", Reshuffle.<ShardedKey<DestinationT>, List<String>>of())
+        .apply("SinglePartitionsReshuffle", Reshuffle.of())
         .apply(
             "SinglePartitionWriteTables",
             new WriteTables<>(

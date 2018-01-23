@@ -53,7 +53,7 @@ import org.joda.time.format.ISODateTimeFormat;
  * interface.
  */
 public class DisplayData implements Serializable {
-  private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item>newHashMap());
+  private static final DisplayData EMPTY = new DisplayData(Maps.newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();
 
   private final ImmutableMap<Identifier, Item> entries;
@@ -522,7 +522,7 @@ public class DisplayData implements Serializable {
      * Path for display data registered by a top-level component.
      */
     public static Path root() {
-      return new Path(ImmutableList.<String>of());
+      return new Path(ImmutableList.of());
     }
 
     /**

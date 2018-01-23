@@ -175,7 +175,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
                       .withTimestampCombiner(TimestampCombiner.EARLIEST))
 
               // A full GBK to group by key _and_ window
-              .apply("Group by key", GroupByKey.<K, WindowedValue<KV<K, InputT>>>create())
+              .apply("Group by key", GroupByKey.create())
 
               // Adapt to KeyedWorkItem; that is how this runner delivers timers
               .apply("To KeyedWorkItem", ParDo.of(new ToKeyedWorkItem<K, InputT>()))
@@ -248,7 +248,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               input.getPipeline(),
               TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
               // TODO
-              Collections.<TupleTag<?>, Coder<?>>emptyMap(),
+              Collections.emptyMap(),
               input.getWindowingStrategy(),
               input.isBounded());
 

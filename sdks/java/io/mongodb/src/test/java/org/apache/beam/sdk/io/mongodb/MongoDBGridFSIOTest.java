@@ -183,10 +183,10 @@ public class MongoDBGridFSIOTest implements Serializable {
             .withDatabase(DATABASE));
 
     PAssert.thatSingleton(
-        output.apply("Count All", Count.<String>globally()))
+        output.apply("Count All", Count.globally()))
         .isEqualTo(5000L);
 
-    PAssert.that(output.apply("Count PerElement", Count.<String>perElement()))
+    PAssert.that(output.apply("Count PerElement", Count.perElement()))
         .satisfies(
             input -> {
               for (KV<String, Long> element : input) {
@@ -228,10 +228,10 @@ public class MongoDBGridFSIOTest implements Serializable {
                 .withSkew(new Duration(3610000L))
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
-    PAssert.thatSingleton(output.apply("Count All", Count.<KV<String, Integer>>globally()))
+    PAssert.thatSingleton(output.apply("Count All", Count.globally()))
         .isEqualTo(50100L);
 
-    PAssert.that(output.apply("Max PerElement", Max.<String>integersPerKey()))
+    PAssert.that(output.apply("Max PerElement", Max.integersPerKey()))
         .satisfies(
             input -> {
               for (KV<String, Integer> element : input) {

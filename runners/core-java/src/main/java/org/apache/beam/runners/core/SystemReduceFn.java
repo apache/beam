@@ -74,13 +74,13 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
     final StateTag<CombiningState<InputT, AccumT, OutputT>> bufferTag;
     if (combineFn.getFn() instanceof CombineFnWithContext) {
       bufferTag = StateTags.makeSystemTagInternal(
-          StateTags.<InputT, AccumT, OutputT>combiningValueWithContext(
+          StateTags.combiningValueWithContext(
               BUFFER_NAME, combineFn.getAccumulatorCoder(),
               (CombineFnWithContext<InputT, AccumT, OutputT>) combineFn.getFn()));
 
     } else {
       bufferTag = StateTags.makeSystemTagInternal(
-            StateTags.<InputT, AccumT, OutputT>combiningValue(
+            StateTags.combiningValue(
                 BUFFER_NAME, combineFn.getAccumulatorCoder(),
                 (CombineFn<InputT, AccumT, OutputT>) combineFn.getFn()));
     }

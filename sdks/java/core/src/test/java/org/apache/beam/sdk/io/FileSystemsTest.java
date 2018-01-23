@@ -76,7 +76,7 @@ public class FileSystemsTest {
     thrown.expectMessage("Scheme: [file] has conflicting filesystems");
     FileSystems.verifySchemesAreUnique(
         PipelineOptionsFactory.create(),
-        Sets.<FileSystemRegistrar>newHashSet(
+        Sets.newHashSet(
             new LocalFileSystemRegistrar(),
             new LocalFileSystemRegistrar()));
   }

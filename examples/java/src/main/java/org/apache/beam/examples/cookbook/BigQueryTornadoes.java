@@ -116,7 +116,7 @@ public class BigQueryTornadoes {
 
       // month... => <month,count>...
       PCollection<KV<Integer, Long>> tornadoCounts =
-          tornadoes.apply(Count.<Integer>perElement());
+          tornadoes.apply(Count.perElement());
 
       // <month,count>... => row...
       PCollection<TableRow> results = tornadoCounts.apply(

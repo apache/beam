@@ -59,17 +59,16 @@ public class ViewOverrideFactoryTest implements Serializable {
   @Test
   public void replacementGetViewReturnsOriginal() {
     final PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
-    final PCollectionView<List<Integer>> view = ints.apply(View.<Integer>asList());
+    final PCollectionView<List<Integer>> view = ints.apply(View.asList());
     PTransformReplacement<PCollection<Integer>, PCollection<Integer>> replacement =
         factory.getReplacementTransform(
             AppliedPTransform
-                .<PCollection<Integer>, PCollection<Integer>,
-                    PTransform<PCollection<Integer>, PCollection<Integer>>>
+                .
                     of(
                         "foo",
                         ints.expand(),
                         view.expand(),
-                        CreatePCollectionView.<Integer, List<Integer>>of(view),
+                        CreatePCollectionView.of(view),
                         p));
     ints.apply(replacement.getTransform());
     final AtomicBoolean writeViewVisited = new AtomicBoolean();
@@ -91,10 +90,10 @@ public class ViewOverrideFactoryTest implements Serializable {
                   equalTo((TupleTag) view.getTagInternal()));
               assertThat(
                   replacementView.getViewFn(),
-                  Matchers.<ViewFn<?, ?>>equalTo(view.getViewFn()));
+                  Matchers.equalTo(view.getViewFn()));
               assertThat(
                   replacementView.getWindowMappingFn(),
-                  Matchers.<WindowMappingFn<?>>equalTo(view.getWindowMappingFn()));
+                  Matchers.equalTo(view.getWindowMappingFn()));
               assertThat(node.getInputs().entrySet(), hasSize(1));
             }
           }

@@ -79,7 +79,7 @@ public class SdkComponentsTest {
         KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
     Coder<?> otherCoder =
         KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(SetCoder.of(ByteArrayCoder.of())));
-    assertThat(coder, Matchers.<Coder<?>>equalTo(otherCoder));
+    assertThat(coder, Matchers.equalTo(otherCoder));
     String id = components.registerCoder(coder);
     String otherId = components.registerCoder(otherCoder);
     assertThat(otherId, not(equalTo(id)));
@@ -94,11 +94,11 @@ public class SdkComponentsTest {
     PCollection<Integer> pt = pipeline.apply(create);
     String userName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.<PBegin, PCollection<Integer>, Create.Values<Integer>>of(
+        AppliedPTransform.of(
             userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
     String componentName =
         components.registerPTransform(
-            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+            transform, Collections.emptyList());
     assertThat(componentName, equalTo(userName));
     assertThat(components.getExistingPTransformId(transform), equalTo(componentName));
   }
@@ -112,16 +112,16 @@ public class SdkComponentsTest {
     String userName = "my_transform";
     String childUserName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.<PBegin, PCollection<Long>, Create.Values<Long>>of(
+        AppliedPTransform.of(
             userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
-        AppliedPTransform.<PBegin, PCollection<Long>, GenerateSequence>of(
+        AppliedPTransform.of(
             childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
 
     String childId = components.registerPTransform(childTransform,
-        Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+        Collections.emptyList());
     String parentId = components.registerPTransform(transform,
-        Collections.<AppliedPTransform<?, ?, ?>>singletonList(childTransform));
+        Collections.singletonList(childTransform));
     Components components = this.components.toComponents();
     assertThat(components.getTransformsOrThrow(parentId).getSubtransforms(0), equalTo(childId));
     assertThat(components.getTransformsOrThrow(childId).getSubtransformsCount(), equalTo(0));
@@ -132,7 +132,7 @@ public class SdkComponentsTest {
     Create.Values<Integer> create = Create.of(1, 2, 3);
     PCollection<Integer> pt = pipeline.apply(create);
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.<PBegin, PCollection<Integer>, Create.Values<Integer>>of(
+        AppliedPTransform.of(
             "", pipeline.begin().expand(), pt.expand(), create, pipeline);
 
     thrown.expect(IllegalArgumentException.class);
@@ -146,7 +146,7 @@ public class SdkComponentsTest {
     PCollection<Integer> pt = pipeline.apply(create);
     String userName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.<PBegin, PCollection<Integer>, Create.Values<Integer>>of(
+        AppliedPTransform.of(
             userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("child nodes may not be null");
@@ -165,16 +165,16 @@ public class SdkComponentsTest {
     String userName = "my_transform";
     String childUserName = "my_transform/my_nesting";
     AppliedPTransform<?, ?, ?> transform =
-        AppliedPTransform.<PBegin, PCollection<Long>, Create.Values<Long>>of(
+        AppliedPTransform.of(
             userName, pipeline.begin().expand(), pt.expand(), create, pipeline);
     AppliedPTransform<?, ?, ?> childTransform =
-        AppliedPTransform.<PBegin, PCollection<Long>, GenerateSequence>of(
+        AppliedPTransform.of(
             childUserName, pipeline.begin().expand(), pt.expand(), createChild, pipeline);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(childTransform.toString());
     components.registerPTransform(
-        transform, Collections.<AppliedPTransform<?, ?, ?>>singletonList(childTransform));
+        transform, Collections.singletonList(childTransform));
   }
 
   @Test

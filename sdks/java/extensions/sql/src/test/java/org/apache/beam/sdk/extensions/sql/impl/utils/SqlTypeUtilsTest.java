@@ -41,7 +41,7 @@ public class SqlTypeUtilsTest {
   private static final BigDecimal DECIMAL_THREE = new BigDecimal(3);
   private static final BigDecimal DECIMAL_FOUR = new BigDecimal(4);
 
-  private static final List<BeamSqlExpression> EXPRESSIONS = Arrays.<BeamSqlExpression> asList(
+  private static final List<BeamSqlExpression> EXPRESSIONS = Arrays.asList(
       BeamSqlPrimitive.of(SqlTypeName.INTERVAL_DAY, DECIMAL_THREE),
       BeamSqlPrimitive.of(SqlTypeName.INTERVAL_MONTH, DECIMAL_FOUR),
       BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4),

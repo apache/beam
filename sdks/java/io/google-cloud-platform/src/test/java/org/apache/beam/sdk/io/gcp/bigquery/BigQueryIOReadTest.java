@@ -715,7 +715,7 @@ public class BigQueryIOReadTest implements Serializable {
                         // no-op
                       }
                     },
-                    p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
+                    p.apply("Create1", Create.of("")).apply(View.asSingleton())));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3);
 
@@ -734,7 +734,7 @@ public class BigQueryIOReadTest implements Serializable {
                     throw new RuntimeException("cleanup executed");
                   }
                 },
-                p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
+                p.apply("Create1", Create.of("")).apply(View.asSingleton())));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("cleanup executed");

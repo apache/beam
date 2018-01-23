@@ -116,7 +116,7 @@ public class ReadTranslation {
     return ReadPayload.parseFrom(
         PTransformTranslation.toProto(
                 transform,
-                Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+                Collections.emptyList(),
                 SdkComponents.create())
             .getSpec()
             .getPayload());
@@ -147,7 +147,7 @@ public class ReadTranslation {
           ReadPayload.parseFrom(
                   PTransformTranslation.toProto(
                           transform,
-                          Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+                          Collections.emptyList(),
                           SdkComponents.create())
                       .getSpec()
                       .getPayload())

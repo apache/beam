@@ -45,12 +45,12 @@ public class CoGbkResultCoderTest {
             new TupleTag<Integer>()));
 
   private static final UnionCoder TEST_UNION_CODER =
-      UnionCoder.of(ImmutableList.<Coder<?>>of(
+      UnionCoder.of(ImmutableList.of(
           StringUtf8Coder.of(),
           VarIntCoder.of()));
 
   private static final UnionCoder COMPATIBLE_UNION_CODER =
-      UnionCoder.of(ImmutableList.<Coder<?>>of(
+      UnionCoder.of(ImmutableList.of(
           StringUtf8Coder.of(),
           BigEndianIntegerCoder.of()));
 
@@ -59,7 +59,7 @@ public class CoGbkResultCoderTest {
             new TupleTag<Double>()));
 
   private static final UnionCoder INCOMPATIBLE_UNION_CODER =
-      UnionCoder.of(ImmutableList.<Coder<?>>of(
+      UnionCoder.of(ImmutableList.of(
           StringUtf8Coder.of(),
           DoubleCoder.of()));
 
@@ -87,7 +87,7 @@ public class CoGbkResultCoderTest {
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
     CoderProperties.coderSerializable(CoGbkResultCoder.of(
-        CoGbkResultSchema.of(ImmutableList.<TupleTag<?>>of(new TupleTag<GlobalWindow>())),
-        UnionCoder.of(ImmutableList.<Coder<?>>of(GlobalWindow.Coder.INSTANCE))));
+        CoGbkResultSchema.of(ImmutableList.of(new TupleTag<GlobalWindow>())),
+        UnionCoder.of(ImmutableList.of(GlobalWindow.Coder.INSTANCE))));
   }
 }

@@ -50,7 +50,7 @@ class CreateStreamingGearpumpView<ElemT, ViewT>
   public PCollection<ElemT> expand(PCollection<ElemT> input) {
     input
         .apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults())
-        .apply(CreateGearpumpPCollectionView.<ElemT, ViewT>of(view));
+        .apply(CreateGearpumpPCollectionView.of(view));
     return input;
   }
 
@@ -123,7 +123,7 @@ class CreateStreamingGearpumpView<ElemT, ViewT>
 
     @Override
     public PCollection<List<ElemT>> expand(PCollection<List<ElemT>> input) {
-      return PCollection.<List<ElemT>>createPrimitiveOutputInternal(
+      return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), input.getCoder());
     }
 

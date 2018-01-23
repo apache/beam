@@ -132,7 +132,7 @@ public class DisplayDataTest implements Serializable {
             allOf(
                 hasKey(not(isEmptyOrNullString())),
                 hasNamespace(
-                    Matchers.<Class<?>>isOneOf(
+                    Matchers.isOneOf(
                         transform.getClass(), subComponent1.getClass(), subComponent2.getClass())),
                 hasType(notNullValue(DisplayData.Type.class)),
                 hasValue(not(isEmptyOrNullString())))));

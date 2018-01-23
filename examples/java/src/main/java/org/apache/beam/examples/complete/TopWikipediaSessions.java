@@ -95,9 +95,9 @@ public class TopWikipediaSessions {
     @Override
     public PCollection<KV<String, Long>> expand(PCollection<String> actions) {
       return actions
-          .apply(Window.<String>into(Sessions.withGapDuration(Duration.standardHours(1))))
+          .apply(Window.into(Sessions.withGapDuration(Duration.standardHours(1))))
 
-          .apply(Count.<String>perElement());
+          .apply(Count.perElement());
     }
   }
 
@@ -109,7 +109,7 @@ public class TopWikipediaSessions {
     @Override
     public PCollection<List<KV<String, Long>>> expand(PCollection<KV<String, Long>> sessions) {
       return sessions
-          .apply(Window.<KV<String, Long>>into(CalendarWindows.months(1)))
+          .apply(Window.into(CalendarWindows.months(1)))
           .apply(
               Top.of(
                       1,

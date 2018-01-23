@@ -165,7 +165,7 @@ public class MongoDbIOTest implements Serializable {
           .withDatabase(DATABASE)
           .withCollection(COLLECTION));
 
-    PAssert.thatSingleton(output.apply("Count All", Count.<Document>globally()))
+    PAssert.thatSingleton(output.apply("Count All", Count.globally()))
         .isEqualTo(1000L);
 
     PAssert.that(
@@ -178,7 +178,7 @@ public class MongoDbIOTest implements Serializable {
                             return KV.of(input.getString("scientist"), null);
                           }
                         }))
-                .apply("Count Scientist", Count.<String, Void>perKey()))
+                .apply("Count Scientist", Count.perKey()))
         .satisfies(
             input -> {
               for (KV<String, Long> element : input) {
@@ -203,7 +203,7 @@ public class MongoDbIOTest implements Serializable {
 
     PCollection<Document> documents = pipeline.apply(read);
 
-    PAssert.thatSingleton(documents.apply("Count All", Count.<Document>globally()))
+    PAssert.thatSingleton(documents.apply("Count All", Count.globally()))
         .isEqualTo(1000L);
 
     PAssert.that(
@@ -216,7 +216,7 @@ public class MongoDbIOTest implements Serializable {
                             return KV.of(input.getString("scientist"), null);
                           }
                         }))
-                .apply("Count Scientist", Count.<String, Void>perKey()))
+                .apply("Count Scientist", Count.perKey()))
         .satisfies(
             input -> {
               for (KV<String, Long> element : input) {
@@ -238,7 +238,7 @@ public class MongoDbIOTest implements Serializable {
         .withCollection(COLLECTION)
         .withFilter("{\"scientist\":\"Einstein\"}"));
 
-    PAssert.thatSingleton(output.apply("Count", Count.<Document>globally()))
+    PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(100L);
 
     pipeline.run();

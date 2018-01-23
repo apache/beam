@@ -57,7 +57,7 @@ public class AggregatorsAccumulator {
         if (instance == null) {
           Optional<CheckpointDir> maybeCheckpointDir =
               opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
-                  : Optional.<CheckpointDir>absent();
+                  : Optional.absent();
           Accumulator<NamedAggregators> accumulator =
               jsc.sc().accumulator(new NamedAggregators(), ACCUMULATOR_NAME, new AggAccumParam());
           if (maybeCheckpointDir.isPresent()) {

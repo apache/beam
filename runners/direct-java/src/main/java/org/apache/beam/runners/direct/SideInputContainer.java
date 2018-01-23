@@ -211,7 +211,7 @@ class SideInputContainer {
     public void run() {
       // The requested window has closed without producing elements, so reflect that in
       // the PCollectionView. If set has already been called, will do nothing.
-      contents.compareAndSet(null, Collections.<WindowedValue<?>>emptyList());
+      contents.compareAndSet(null, Collections.emptyList());
     }
 
     @Override

@@ -113,20 +113,20 @@ public class UnboundedReadFromBoundedSourceTest {
 
     // Count == numElements
     PAssert
-      .thatSingleton(output.apply("Count", Count.<Long>globally()))
+      .thatSingleton(output.apply("Count", Count.globally()))
       .isEqualTo(numElements);
     // Unique count == numElements
     PAssert
-      .thatSingleton(output.apply(Distinct.<Long>create())
-                          .apply("UniqueCount", Count.<Long>globally()))
+      .thatSingleton(output.apply(Distinct.create())
+                          .apply("UniqueCount", Count.globally()))
       .isEqualTo(numElements);
     // Min == 0
     PAssert
-      .thatSingleton(output.apply("Min", Min.<Long>globally()))
+      .thatSingleton(output.apply("Min", Min.globally()))
       .isEqualTo(0L);
     // Max == numElements-1
     PAssert
-      .thatSingleton(output.apply("Max", Max.<Long>globally()))
+      .thatSingleton(output.apply("Max", Max.globally()))
       .isEqualTo(numElements - 1);
     p.run();
   }

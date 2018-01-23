@@ -49,7 +49,7 @@ public class PTransformReplacementsTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   private PCollection<Long> mainInput = pipeline.apply(GenerateSequence.from(0));
   private PCollectionView<String> sideInput =
-      pipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
+      pipeline.apply(Create.of("foo")).apply(View.asSingleton());
 
   private PCollection<Long> output = mainInput.apply(ParDo.of(new TestDoFn()));
 
@@ -58,8 +58,8 @@ public class PTransformReplacementsTest {
     AppliedPTransform<PCollection<Long>, ?, ?> application =
         AppliedPTransform.of(
             "application",
-            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), mainInput),
-            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), output),
+            Collections.singletonMap(new TupleTag<Long>(), mainInput),
+            Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()),
             pipeline);
     PCollection<Long> input = PTransformReplacements.getSingletonMainInput(application);
@@ -75,7 +75,7 @@ public class PTransformReplacementsTest {
                 .put(new TupleTag<Long>(), mainInput)
                 .put(sideInput.getTagInternal(), sideInput.getPCollection())
                 .build(),
-            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), output),
+            Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()).withSideInputs(sideInput),
             pipeline);
     PCollection<Long> input = PTransformReplacements.getSingletonMainInput(application);
@@ -96,7 +96,7 @@ public class PTransformReplacementsTest {
         AppliedPTransform.of(
             "application",
             inputs,
-            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), output),
+            Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()).withSideInputs(sideInput),
             pipeline);
     thrown.expect(IllegalArgumentException.class);
@@ -117,7 +117,7 @@ public class PTransformReplacementsTest {
         AppliedPTransform.of(
             "application",
             inputs,
-            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>(), output),
+            Collections.singletonMap(new TupleTag<Long>(), output),
             ParDo.of(new TestDoFn()).withSideInputs(sideInput),
             pipeline);
     thrown.expect(IllegalArgumentException.class);

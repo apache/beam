@@ -71,7 +71,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
   public WatermarkSyncedDStream(final Queue<JavaRDD<WindowedValue<T>>> rdds,
                                 final Long batchDuration,
                                 final StreamingContext ssc) {
-    super(ssc, JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
+    super(ssc, JavaSparkContext$.MODULE$.fakeClassTag());
     this.rdds = rdds;
     this.batchDuration = batchDuration;
   }

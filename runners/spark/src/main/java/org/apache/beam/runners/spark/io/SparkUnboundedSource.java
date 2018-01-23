@@ -93,8 +93,8 @@ public class SparkUnboundedSource {
 
     JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream =
         JavaPairInputDStream$.MODULE$.fromInputDStream(sourceDStream,
-            JavaSparkContext$.MODULE$.<Source<T>>fakeClassTag(),
-                JavaSparkContext$.MODULE$.<CheckpointMarkT>fakeClassTag());
+            JavaSparkContext$.MODULE$.fakeClassTag(),
+                JavaSparkContext$.MODULE$.fakeClassTag());
 
     // call mapWithState to read from a checkpointable sources.
     JavaMapWithStateDStream<Source<T>, CheckpointMarkT, Tuple2<byte[], Instant>,
@@ -170,7 +170,7 @@ public class SparkUnboundedSource {
         int inputDStreamId,
         String sourceName,
         String stepName) {
-      super(parent.ssc(), JavaSparkContext$.MODULE$.<BoxedUnit>fakeClassTag());
+      super(parent.ssc(), JavaSparkContext$.MODULE$.fakeClassTag());
       this.parent = parent;
       this.inputDStreamId = inputDStreamId;
       this.sourceName = sourceName;

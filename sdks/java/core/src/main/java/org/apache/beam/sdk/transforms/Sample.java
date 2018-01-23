@@ -157,7 +157,7 @@ public class Sample {
     public PCollection<T> expand(PCollection<T> in) {
       return in
           .apply(Combine.globally(new SampleAnyCombineFn<T>(limit)).withoutDefaults())
-          .apply(Flatten.<T>iterables());
+          .apply(Flatten.iterables());
     }
 
     @Override
@@ -201,7 +201,7 @@ public class Sample {
 
     @Override
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
-      return input.apply(Combine.<K, V, Iterable<V>>perKey(new FixedSizedSampleFn<V>(sampleSize)));
+      return input.apply(Combine.perKey(new FixedSizedSampleFn<V>(sampleSize)));
     }
 
     @Override

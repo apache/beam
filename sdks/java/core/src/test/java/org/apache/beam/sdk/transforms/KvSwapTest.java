@@ -63,7 +63,7 @@ public class KvSwapTest {
             KvCoder.of(StringUtf8Coder.of(), NullableCoder.of(BigEndianIntegerCoder.of()))));
 
     PCollection<KV<Integer, String>> output = input.apply(
-        KvSwap.<String, Integer>create());
+        KvSwap.create());
 
     PAssert.that(output).containsInAnyOrder(
         KV.of(1, "one"),
@@ -84,7 +84,7 @@ public class KvSwapTest {
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
     PCollection<KV<Integer, String>> output = input.apply(
-        KvSwap.<String, Integer>create());
+        KvSwap.create());
 
     PAssert.that(output).empty();
     p.run();

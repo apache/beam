@@ -227,7 +227,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
       @Override
       public List<Coder<?>> getCoderArguments() {
-        return Arrays.<Coder<?>>asList(elemCoder);
+        return Arrays.asList(elemCoder);
       }
 
       @Override
@@ -267,7 +267,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
           @Nullable BoundedSource<T> residualSource,
           PipelineOptions options) {
         this.residualElements = residualElementsList == null
-            ? new ResidualElements(Collections.<TimestampedValue<T>>emptyList())
+            ? new ResidualElements(Collections.emptyList())
                 : new ResidualElements(residualElementsList);
         this.residualSource =
             residualSource == null ? null : new ResidualSource(residualSource, options);

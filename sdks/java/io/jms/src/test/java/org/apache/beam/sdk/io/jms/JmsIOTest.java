@@ -168,7 +168,7 @@ public class JmsIOTest {
             .withMaxNumRecords(5));
 
     PAssert
-        .thatSingleton(output.apply("Count", Count.<JmsRecord>globally()))
+        .thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(new Long(5));
     pipeline.run();
 

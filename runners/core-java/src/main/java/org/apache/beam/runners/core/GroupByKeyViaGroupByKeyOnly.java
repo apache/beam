@@ -142,7 +142,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
                       }
                       Collections.sort(
                           sortedValues, (e1, e2) -> e1.getTimestamp().compareTo(e2.getTimestamp()));
-                      c.output(KV.<K, Iterable<WindowedValue<V>>>of(key, sortedValues));
+                      c.output(KV.of(key, sortedValues));
                     }
                   }))
           .setCoder(input.getCoder());

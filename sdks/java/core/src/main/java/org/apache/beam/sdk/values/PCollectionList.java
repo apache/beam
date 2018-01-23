@@ -206,7 +206,7 @@ public class PCollectionList<T> implements PInput, POutput {
   final List<TaggedPValue> pcollections;
 
   PCollectionList(Pipeline pipeline) {
-    this(pipeline, ImmutableList.<TaggedPValue>of());
+    this(pipeline, ImmutableList.of());
   }
 
   PCollectionList(Pipeline pipeline, List<TaggedPValue> values) {

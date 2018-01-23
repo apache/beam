@@ -89,7 +89,7 @@ public class SerializableMatchersTest implements Serializable {
   public void testKvMatcherBasicSuccess() throws Exception {
     assertThat(
         KV.of(1, 2),
-        SerializableMatchers.<Integer, Integer>kv(anything(), anything()));
+        SerializableMatchers.kv(anything(), anything()));
   }
 
   @Test
@@ -97,7 +97,7 @@ public class SerializableMatchersTest implements Serializable {
     try {
       assertThat(
           KV.of(1, 2),
-          SerializableMatchers.<Integer, Integer>kv(not(anything()), anything()));
+          SerializableMatchers.kv(not(anything()), anything()));
     } catch (AssertionError exc) {
       assertThat(exc.getMessage(), Matchers.containsString("key did not match"));
       return;
@@ -110,7 +110,7 @@ public class SerializableMatchersTest implements Serializable {
     try {
       assertThat(
           KV.of(1, 2),
-          SerializableMatchers.<Integer, Integer>kv(anything(), not(anything())));
+          SerializableMatchers.kv(anything(), not(anything())));
     } catch (AssertionError exc) {
       assertThat(exc.getMessage(), Matchers.containsString("value did not match"));
       return;

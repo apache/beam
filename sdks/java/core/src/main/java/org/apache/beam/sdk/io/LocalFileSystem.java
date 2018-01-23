@@ -222,7 +222,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
 
     File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
-      return MatchResult.create(Status.NOT_FOUND, Collections.<Metadata>emptyList());
+      return MatchResult.create(Status.NOT_FOUND, Collections.emptyList());
     }
 
     // Method getAbsolutePath() on Windows platform may return something like

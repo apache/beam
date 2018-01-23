@@ -431,7 +431,7 @@ public class ParDo {
   public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
     return new SingleOutput<InputT, OutputT>(
-        fn, Collections.<PCollectionView<?>>emptyList(), displayDataForFn(fn));
+        fn, Collections.emptyList(), displayDataForFn(fn));
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
@@ -779,7 +779,7 @@ public class ParDo {
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
           // TODO
-          Collections.<TupleTag<?>, Coder<?>>emptyMap(),
+          Collections.emptyMap(),
           input.getWindowingStrategy(),
           input.isBounded());
       @SuppressWarnings("unchecked")

@@ -108,7 +108,7 @@ public class MaxPerKeyExamples {
 
       // month, mean_temp... => <month, max mean temp>...
       PCollection<KV<Integer, Double>> tempMaxes =
-          temps.apply(Max.<Integer>doublesPerKey());
+          temps.apply(Max.doublesPerKey());
 
       // <month, max>... => row...
       PCollection<TableRow> results = tempMaxes.apply(

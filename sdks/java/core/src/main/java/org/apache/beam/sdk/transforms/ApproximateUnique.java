@@ -281,7 +281,7 @@ public class ApproximateUnique {
       final Coder<V> coder = ((KvCoder<K, V>) inputCoder).getValueCoder();
 
       return input.apply(
-          Combine.<K, V, Long>perKey(new ApproximateUniqueCombineFn<>(sampleSize, coder)));
+          Combine.perKey(new ApproximateUniqueCombineFn<>(sampleSize, coder)));
     }
 
     @Override

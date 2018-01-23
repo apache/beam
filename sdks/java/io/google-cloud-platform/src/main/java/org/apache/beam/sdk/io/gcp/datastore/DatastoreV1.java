@@ -631,7 +631,7 @@ public class DatastoreV1 {
 
       return inputQuery
           .apply("Split", ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())))
-          .apply("Reshuffle", Reshuffle.<Query>viaRandomKey())
+          .apply("Reshuffle", Reshuffle.viaRandomKey())
           .apply("Read", ParDo.of(new ReadFn(v1Options)));
     }
 

@@ -93,7 +93,7 @@ public class ViewTest implements Serializable {
   public void testSingletonSideInput() {
 
     final PCollectionView<Integer> view =
-        pipeline.apply("Create47", Create.of(47)).apply(View.<Integer>asSingleton());
+        pipeline.apply("Create47", Create.of(47)).apply(View.asSingleton());
 
     PCollection<Integer> output =
         pipeline.apply("Create123", Create.of(1, 2, 3))
@@ -118,15 +118,15 @@ public class ViewTest implements Serializable {
         pipeline.apply("Create47", Create.timestamped(
                                        TimestampedValue.of(47, new Instant(1)),
                                        TimestampedValue.of(48, new Instant(11))))
-            .apply("SideWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.<Integer>asSingleton());
+            .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(View.asSingleton());
 
     PCollection<Integer> output =
         pipeline.apply("Create123", Create.timestamped(
             TimestampedValue.of(1, new Instant(4)),
             TimestampedValue.of(2, new Instant(8)),
             TimestampedValue.of(3, new Instant(12))))
-            .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs",
                 ParDo.of(new DoFn<Integer, Integer>() {
                   @ProcessElement
@@ -146,7 +146,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Integer> view =
         pipeline.apply("CreateEmptyIntegers", Create.empty(VarIntCoder.of()))
-            .apply(View.<Integer>asSingleton());
+            .apply(View.asSingleton());
 
     pipeline.apply("Create123", Create.of(1, 2, 3))
         .apply("OutputSideInputs", ParDo.of(new DoFn<Integer, Integer>() {
@@ -169,8 +169,8 @@ public class ViewTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testNonSingletonSideInput() throws Exception {
 
-    PCollection<Integer> oneTwoThree = pipeline.apply(Create.<Integer>of(1, 2, 3));
-    final PCollectionView<Integer> view = oneTwoThree.apply(View.<Integer>asSingleton());
+    PCollection<Integer> oneTwoThree = pipeline.apply(Create.of(1, 2, 3));
+    final PCollectionView<Integer> view = oneTwoThree.apply(View.asSingleton());
 
     oneTwoThree.apply(
         "OutputSideInputs", ParDo.of(new DoFn<Integer, Integer>() {
@@ -194,7 +194,7 @@ public class ViewTest implements Serializable {
   public void testListSideInput() {
 
     final PCollectionView<List<Integer>> view =
-        pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.<Integer>asList());
+        pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23)).apply(View.asList());
 
     PCollection<Integer> output =
         pipeline.apply("CreateMainInput", Create.of(29, 31))
@@ -229,14 +229,14 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of(33, new Instant(11)),
                                               TimestampedValue.of(37, new Instant(11)),
                                               TimestampedValue.of(43, new Instant(11))))
-            .apply("SideWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.<Integer>asList());
+            .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(View.asList());
 
     PCollection<Integer> output =
         pipeline.apply("CreateMainInput", Create.timestamped(
             TimestampedValue.of(29, new Instant(1)),
             TimestampedValue.of(35, new Instant(11))))
-            .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(
                 "OutputSideInputs",
                 ParDo.of(new DoFn<Integer, Integer>() {
@@ -261,7 +261,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<List<Integer>> view =
         pipeline.apply("CreateEmptyView", Create.empty(VarIntCoder.of()))
-            .apply(View.<Integer>asList());
+            .apply(View.asList());
 
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
@@ -286,7 +286,7 @@ public class ViewTest implements Serializable {
   public void testListSideInputIsImmutable() {
 
     final PCollectionView<List<Integer>> view =
-        pipeline.apply("CreateSideInput", Create.of(11)).apply(View.<Integer>asList());
+        pipeline.apply("CreateSideInput", Create.of(11)).apply(View.asList());
 
     PCollection<Integer> output =
         pipeline.apply("CreateMainInput", Create.of(29))
@@ -332,7 +332,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Iterable<Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(11, 13, 17, 23))
-            .apply(View.<Integer>asIterable());
+            .apply(View.asIterable());
 
     PCollection<Integer> output =
         pipeline.apply("CreateMainInput", Create.of(29, 31))
@@ -365,8 +365,8 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of(33, new Instant(11)),
                                               TimestampedValue.of(37, new Instant(11)),
                                               TimestampedValue.of(43, new Instant(11))))
-            .apply("SideWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.<Integer>asIterable());
+            .apply("SideWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(View.asIterable());
 
     PCollection<Integer> output =
         pipeline
@@ -374,7 +374,7 @@ public class ViewTest implements Serializable {
                 Create.timestamped(
                     TimestampedValue.of(29, new Instant(1)),
                     TimestampedValue.of(35, new Instant(11))))
-            .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs",
                 ParDo.of(new DoFn<Integer, Integer>() {
                   @ProcessElement
@@ -396,7 +396,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Iterable<Integer>> view =
         pipeline.apply("CreateEmptyView", Create.empty(VarIntCoder.of()))
-            .apply(View.<Integer>asIterable());
+            .apply(View.asIterable());
 
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
@@ -420,7 +420,7 @@ public class ViewTest implements Serializable {
   public void testIterableSideInputIsImmutable() {
 
     final PCollectionView<Iterable<Integer>> view =
-        pipeline.apply("CreateSideInput", Create.of(11)).apply(View.<Integer>asIterable());
+        pipeline.apply("CreateSideInput", Create.of(11)).apply(View.asIterable());
 
     PCollection<Integer> output =
         pipeline.apply("CreateMainInput", Create.of(29))
@@ -452,7 +452,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
-            .apply(View.<String, Integer>asMultimap());
+            .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
@@ -479,7 +479,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)))
-            .apply(View.<String, Integer>asMultimap());
+            .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of(2 /* size */))
@@ -543,7 +543,7 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateSideInput",
                 Create.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
-            .apply(View.<String, Integer>asMultimap());
+            .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
@@ -575,15 +575,15 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of(KV.of("b", 3), new Instant(14))))
             .apply(
                 "SideWindowInto",
-                Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.<String, Integer>asMultimap());
+                Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.timestamped(
                                               TimestampedValue.of("apple", new Instant(5)),
                                               TimestampedValue.of("banana", new Instant(13)),
                                               TimestampedValue.of("blackberry", new Instant(16))))
-            .apply("MainWindowInto", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.of(
                                            new DoFn<String, KV<String, Integer>>() {
                                              @ProcessElement
@@ -613,14 +613,14 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of(KV.of("b", 3), new Instant(14))))
             .apply(
                 "SideWindowInto",
-                Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.<String, Integer>asMultimap());
+                Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.timestamped(
                                               TimestampedValue.of(1 /* size */, new Instant(5)),
                                               TimestampedValue.of(1 /* size */, new Instant(16))))
-            .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.of(
                                            new DoFn<Integer, KV<String, Integer>>() {
                                              @ProcessElement
@@ -656,15 +656,15 @@ public class ViewTest implements Serializable {
                     TimestampedValue.of(KV.of("b", 3), new Instant(14)))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply("SideWindowInto",
-                Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.<String, Integer>asMultimap());
+                Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.timestamped(
                                               TimestampedValue.of("apple", new Instant(5)),
                                               TimestampedValue.of("banana", new Instant(13)),
                                               TimestampedValue.of("blackberry", new Instant(16))))
-            .apply("MainWindowInto", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.of(
                                            new DoFn<String, KV<String, Integer>>() {
                                              @ProcessElement
@@ -690,7 +690,7 @@ public class ViewTest implements Serializable {
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateEmptyView", Create.empty(
                                               KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-            .apply(View.<String, Integer>asMultimap());
+            .apply(View.asMultimap());
 
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
@@ -720,7 +720,7 @@ public class ViewTest implements Serializable {
             .apply(
                 "CreateEmptyView",
                 Create.empty(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
-            .apply(View.<String, Integer>asMultimap());
+            .apply(View.asMultimap());
 
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
@@ -747,7 +747,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Iterable<Integer>>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1)))
-            .apply(View.<String, Integer>asMultimap());
+            .apply(View.asMultimap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of("apple"))
@@ -794,7 +794,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
-            .apply(View.<String, Integer>asMap());
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
@@ -820,7 +820,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
-            .apply(View.<String, Integer>asMap());
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of(2 /* size */))
@@ -851,7 +851,7 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateSideInput",
                 Create.of(KV.of("a", 1), KV.of("b", 3))
                     .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
-            .apply(View.<String, Integer>asMap());
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
@@ -882,15 +882,15 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of(KV.of("b", 3), new Instant(18))))
             .apply(
                 "SideWindowInto",
-                Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.<String, Integer>asMap());
+                Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.timestamped(
                                               TimestampedValue.of("apple", new Instant(5)),
                                               TimestampedValue.of("banana", new Instant(4)),
                                               TimestampedValue.of("blackberry", new Instant(16))))
-            .apply("MainWindowInto", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.of(
                                            new DoFn<String, KV<String, Integer>>() {
                                              @ProcessElement
@@ -919,14 +919,14 @@ public class ViewTest implements Serializable {
                                               TimestampedValue.of(KV.of("b", 3), new Instant(18))))
             .apply(
                 "SideWindowInto",
-                Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.<String, Integer>asMap());
+                Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.timestamped(
                                               TimestampedValue.of(2 /* size */, new Instant(5)),
                                               TimestampedValue.of(1 /* size */, new Instant(16))))
-            .apply("MainWindowInto", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.of(
                                            new DoFn<Integer, KV<String, Integer>>() {
                                              @ProcessElement
@@ -962,15 +962,15 @@ public class ViewTest implements Serializable {
                 .withCoder(KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
             .apply(
                 "SideWindowInto",
-                Window.<KV<String, Integer>>into(FixedWindows.of(Duration.millis(10))))
-            .apply(View.<String, Integer>asMap());
+                Window.into(FixedWindows.of(Duration.millis(10))))
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.timestamped(
                                               TimestampedValue.of("apple", new Instant(5)),
                                               TimestampedValue.of("banana", new Instant(4)),
                                               TimestampedValue.of("blackberry", new Instant(16))))
-            .apply("MainWindowInto", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+            .apply("MainWindowInto", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputSideInputs", ParDo.of(
                                            new DoFn<String, KV<String, Integer>>() {
                                              @ProcessElement
@@ -996,7 +996,7 @@ public class ViewTest implements Serializable {
         pipeline
             .apply(
                 "CreateEmptyView", Create.empty(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())))
-            .apply(View.<String, Integer>asMap());
+            .apply(View.asMap());
 
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
@@ -1024,7 +1024,7 @@ public class ViewTest implements Serializable {
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateEmptyView", Create.empty(
                 KvCoder.of(new NonDeterministicStringCoder(), VarIntCoder.of())))
-            .apply(View.<String, Integer>asMap());
+            .apply(View.asMap());
 
     PCollection<Integer> results =
         pipeline.apply("Create1", Create.of(1))
@@ -1056,7 +1056,7 @@ public class ViewTest implements Serializable {
                 Create.of(KV.of("a", (Integer) null), KV.of("a", (Integer) null))
                     .withCoder(
                         KvCoder.of(StringUtf8Coder.of(), NullableCoder.of(VarIntCoder.of()))))
-            .apply(View.<String, Integer>asMap());
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
@@ -1086,7 +1086,7 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1)))
-            .apply(View.<String, Integer>asMap());
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of("apple"))
@@ -1132,8 +1132,8 @@ public class ViewTest implements Serializable {
 
     final PCollectionView<Map<String, Integer>> view =
         pipeline.apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("a", 20), KV.of("b", 3)))
-            .apply("SumIntegers", Combine.<String, Integer, Integer>perKey(Sum.ofIntegers()))
-            .apply(View.<String, Integer>asMap());
+            .apply("SumIntegers", Combine.perKey(Sum.ofIntegers()))
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline.apply("CreateMainInput", Create.of("apple", "banana", "blackberry"))
@@ -1161,16 +1161,16 @@ public class ViewTest implements Serializable {
              "CreateSideInput",
              Create.timestamped(TimestampedValue.of(1, new Instant(1)),
                  TimestampedValue.of(2, new Instant(11)), TimestampedValue.of(3, new Instant(13))))
-            .apply("WindowSideInput", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+            .apply("WindowSideInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(Sum.integersGlobally().withoutDefaults())
-            .apply(View.<Integer>asSingleton());
+            .apply(View.asSingleton());
 
     PCollection<String> output =
         pipeline.apply("CreateMainInput", Create.timestamped(
                                        TimestampedValue.of("A", new Instant(4)),
                                        TimestampedValue.of("B", new Instant(15)),
                                        TimestampedValue.of("C", new Instant(7))))
-            .apply("WindowMainInput", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+            .apply("WindowMainInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputMainAndSideInputs", ParDo.of(
                                                   new DoFn<String, String>() {
                                                     @ProcessElement
@@ -1193,16 +1193,16 @@ public class ViewTest implements Serializable {
              "CreateSideInput",
              Create.timestamped(TimestampedValue.of(1, new Instant(1)),
                  TimestampedValue.of(2, new Instant(11)), TimestampedValue.of(3, new Instant(13))))
-            .apply("WindowSideInput", Window.<Integer>into(new GlobalWindows()))
+            .apply("WindowSideInput", Window.into(new GlobalWindows()))
             .apply(Sum.integersGlobally())
-            .apply(View.<Integer>asSingleton());
+            .apply(View.asSingleton());
 
     PCollection<String> output =
         pipeline.apply("CreateMainInput", Create.timestamped(
                                        TimestampedValue.of("A", new Instant(4)),
                                        TimestampedValue.of("B", new Instant(15)),
                                        TimestampedValue.of("C", new Instant(7))))
-            .apply("WindowMainInput", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+            .apply("WindowMainInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputMainAndSideInputs", ParDo.of(
                                                   new DoFn<String, String>() {
                                                     @ProcessElement
@@ -1224,7 +1224,7 @@ public class ViewTest implements Serializable {
         pipeline.apply("CreateSideInput", Create.timestamped(
                                        TimestampedValue.of(2, new Instant(11)),
                                        TimestampedValue.of(3, new Instant(13))))
-            .apply("WindowSideInput", Window.<Integer>into(FixedWindows.of(Duration.millis(10))))
+            .apply("WindowSideInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply(Sum.integersGlobally().asSingletonView());
 
     PCollection<String> output =
@@ -1232,7 +1232,7 @@ public class ViewTest implements Serializable {
                                        TimestampedValue.of("A", new Instant(4)),
                                        TimestampedValue.of("B", new Instant(15)),
                                        TimestampedValue.of("C", new Instant(7))))
-            .apply("WindowMainInput", Window.<String>into(FixedWindows.of(Duration.millis(10))))
+            .apply("WindowMainInput", Window.into(FixedWindows.of(Duration.millis(10))))
             .apply("OutputMainAndSideInputs", ParDo.of(
                                                   new DoFn<String, String>() {
                                                     @ProcessElement
@@ -1282,7 +1282,7 @@ public class ViewTest implements Serializable {
                 c.output(17);
               }
             }))
-            .apply("View1", View.<Integer>asIterable());
+            .apply("View1", View.asIterable());
 
     final PCollectionView<Iterable<Iterable<Integer>>> view2 =
         pipeline.apply("CreateVoid2", Create.of((Void) null).withCoder(VoidCoder.of()))
@@ -1294,7 +1294,7 @@ public class ViewTest implements Serializable {
                     c.output(c.sideInput(view1));
                   }
                 }).withSideInputs(view1))
-            .apply("View2", View.<Iterable<Integer>>asIterable());
+            .apply("View2", View.asIterable());
 
     PCollection<Integer> output =
         pipeline.apply("CreateVoid3", Create.of((Void) null).withCoder(VoidCoder.of()))
@@ -1352,59 +1352,59 @@ public class ViewTest implements Serializable {
     thrown.expectMessage("Unable to create a side-input view from input");
     thrown.expectCause(
         ThrowableMessageMatcher.hasMessage(Matchers.containsString("Consumed by GroupByKey")));
-    pipeline.apply(Create.<KV<String, Integer>>of(KV.of("hello", 5)))
-        .apply(Window.<KV<String, Integer>>into(new InvalidWindows<>(
+    pipeline.apply(Create.of(KV.of("hello", 5)))
+        .apply(Window.into(new InvalidWindows<>(
             "Consumed by GroupByKey", FixedWindows.of(Duration.standardHours(1)))))
         .apply(view);
   }
 
   @Test
   public void testViewUnboundedAsSingletonDirect() {
-    testViewUnbounded(pipeline, View.<KV<String, Integer>>asSingleton());
+    testViewUnbounded(pipeline, View.asSingleton());
   }
 
   @Test
   public void testViewUnboundedAsIterableDirect() {
-    testViewUnbounded(pipeline, View.<KV<String, Integer>>asIterable());
+    testViewUnbounded(pipeline, View.asIterable());
   }
 
   @Test
   public void testViewUnboundedAsListDirect() {
-    testViewUnbounded(pipeline, View.<KV<String, Integer>>asList());
+    testViewUnbounded(pipeline, View.asList());
   }
 
   @Test
   public void testViewUnboundedAsMapDirect() {
-    testViewUnbounded(pipeline, View.<String, Integer>asMap());
+    testViewUnbounded(pipeline, View.asMap());
   }
 
   @Test
   public void testViewUnboundedAsMultimapDirect() {
-    testViewUnbounded(pipeline, View.<String, Integer>asMultimap());
+    testViewUnbounded(pipeline, View.asMultimap());
   }
 
   @Test
   public void testViewNonmergingAsSingletonDirect() {
-    testViewNonmerging(pipeline, View.<KV<String, Integer>>asSingleton());
+    testViewNonmerging(pipeline, View.asSingleton());
   }
 
   @Test
   public void testViewNonmergingAsIterableDirect() {
-    testViewNonmerging(pipeline, View.<KV<String, Integer>>asIterable());
+    testViewNonmerging(pipeline, View.asIterable());
   }
 
   @Test
   public void testViewNonmergingAsListDirect() {
-    testViewNonmerging(pipeline, View.<KV<String, Integer>>asList());
+    testViewNonmerging(pipeline, View.asList());
   }
 
   @Test
   public void testViewNonmergingAsMapDirect() {
-    testViewNonmerging(pipeline, View.<String, Integer>asMap());
+    testViewNonmerging(pipeline, View.asMap());
   }
 
   @Test
   public void testViewNonmergingAsMultimapDirect() {
-    testViewNonmerging(pipeline, View.<String, Integer>asMultimap());
+    testViewNonmerging(pipeline, View.asMultimap());
   }
 }

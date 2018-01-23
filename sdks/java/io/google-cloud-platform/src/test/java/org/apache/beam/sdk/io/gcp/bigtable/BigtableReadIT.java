@@ -54,7 +54,7 @@ public class BigtableReadIT {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> count = p
         .apply(BigtableIO.read().withBigtableOptions(bigtableOptionsBuilder).withTableId(tableId))
-        .apply(Count.<Row>globally());
+        .apply(Count.globally());
     PAssert.thatSingleton(count).isEqualTo(numRows);
     p.run();
   }

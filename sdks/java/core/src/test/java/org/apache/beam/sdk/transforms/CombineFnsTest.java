@@ -123,7 +123,7 @@ public class  CombineFnsTest {
     TupleTag<Integer> maxIntTag = new TupleTag<Integer>();
     TupleTag<UserString> concatStringTag = new TupleTag<UserString>();
     PCollection<KV<String, KV<Integer, String>>> combineGlobally = perKeyInput
-        .apply(Values.<KV<Integer, UserString>>create())
+        .apply(Values.create())
         .apply(Combine.globally(CombineFns.compose()
             .with(
                 new GetIntegerFunction(),
@@ -133,14 +133,14 @@ public class  CombineFnsTest {
                 new GetUserStringFunction(),
                 new ConcatString(),
                 concatStringTag)))
-        .apply(WithKeys.<String, CoCombineResult>of("global"))
+        .apply(WithKeys.of("global"))
         .apply(
             "ExtractGloballyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
 
     PCollection<KV<String, KV<Integer, String>>> combinePerKey =
         perKeyInput
             .apply(
-                Combine.<String, KV<Integer, UserString>, CoCombineResult>perKey(
+                Combine.perKey(
                     CombineFns.compose()
                         .with(new GetIntegerFunction(), Max.ofIntegers(), maxIntTag)
                         .with(new GetUserStringFunction(), new ConcatString(), concatStringTag)))
@@ -161,7 +161,7 @@ public class  CombineFnsTest {
 
     PCollectionView<String> view = p
         .apply(Create.of("I"))
-        .apply(View.<String>asSingleton());
+        .apply(View.asSingleton());
 
     PCollection<KV<String, KV<Integer, UserString>>> perKeyInput = p.apply(
         Create.timestamped(
@@ -179,7 +179,7 @@ public class  CombineFnsTest {
     TupleTag<Integer> maxIntTag = new TupleTag<Integer>();
     TupleTag<UserString> concatStringTag = new TupleTag<UserString>();
     PCollection<KV<String, KV<Integer, String>>> combineGlobally = perKeyInput
-        .apply(Values.<KV<Integer, UserString>>create())
+        .apply(Values.create())
         .apply(Combine.globally(CombineFns.compose()
             .with(
                 new GetIntegerFunction(),
@@ -191,7 +191,7 @@ public class  CombineFnsTest {
                 concatStringTag))
             .withoutDefaults()
             .withSideInputs(ImmutableList.of(view)))
-        .apply(WithKeys.<String, CoCombineResult>of("global"))
+        .apply(WithKeys.of("global"))
         .apply(
             "ExtractGloballyResult", ParDo.of(new ExtractResultDoFn(maxIntTag, concatStringTag)));
 
@@ -244,7 +244,7 @@ public class  CombineFnsTest {
     PCollection<KV<String, KV<Integer, String>>> combinePerKey =
         perKeyInput
             .apply(
-                Combine.<String, KV<Integer, UserString>, CoCombineResult>perKey(
+                Combine.perKey(
                     CombineFns.compose()
                         .with(new GetIntegerFunction(), Max.ofIntegers(), maxIntTag)
                         .with(

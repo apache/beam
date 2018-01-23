@@ -103,8 +103,8 @@ public class AvroIOIT {
             "Write Avro records to files",
             AvroIO.writeGenericRecords(AVRO_SCHEMA).to(filenamePrefix)
                 .withOutputFilenames().withSuffix(".avro"))
-        .getPerDestinationOutputFilenames().apply(Values.<String>create())
-        .apply(Reshuffle.<String>viaRandomKey());
+        .getPerDestinationOutputFilenames().apply(Values.create())
+        .apply(Reshuffle.viaRandomKey());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
@@ -115,7 +115,7 @@ public class AvroIOIT {
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     testFilenames.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-        .withSideInputs(consolidatedHashcode.apply(View.<String>asSingleton())));
+        .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }

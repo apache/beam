@@ -40,8 +40,8 @@ public class ListCoderTest {
 
   private static final Coder<List<Integer>> TEST_CODER = ListCoder.of(VarIntCoder.of());
 
-  private static final List<List<Integer>> TEST_VALUES = Arrays.<List<Integer>>asList(
-      Collections.<Integer>emptyList(),
+  private static final List<List<Integer>> TEST_VALUES = Arrays.asList(
+      Collections.emptyList(),
       Collections.singletonList(43),
       Arrays.asList(1, 2, 3, 4),
       new LinkedList<>(Arrays.asList(7, 6, 5)));
@@ -54,7 +54,7 @@ public class ListCoderTest {
   @Test
   public void testDecodeEncodeContentsInSameOrder() throws Exception {
     for (List<Integer> value : TEST_VALUES) {
-      CoderProperties.<Integer, List<Integer>>coderDecodeEncodeContentsInSameOrder(
+      CoderProperties.coderDecodeEncodeContentsInSameOrder(
           TEST_CODER, value);
     }
   }
@@ -63,7 +63,7 @@ public class ListCoderTest {
   public void testEmptyList() throws Exception {
     List<Integer> list = Collections.emptyList();
     Coder<List<Integer>> coder = ListCoder.of(VarIntCoder.of());
-    CoderProperties.<List<Integer>>coderDecodeEncodeEqual(coder, list);
+    CoderProperties.coderDecodeEncodeEqual(coder, list);
   }
 
   @Test
@@ -104,14 +104,14 @@ public class ListCoderTest {
 
     List<Integer> list = Arrays.asList(1, 2, 3, null, 4);
     Coder<List<Integer>> coder = ListCoder.of(VarIntCoder.of());
-    CoderProperties.<List<Integer>>coderDecodeEncodeEqual(coder, list);
+    CoderProperties.coderDecodeEncodeEqual(coder, list);
   }
 
   @Test
   public void testListWithNullsAndSerializableCoder() throws Exception {
     List<Integer> list = Arrays.asList(1, 2, 3, null, 4);
     Coder<List<Integer>> coder = ListCoder.of(SerializableCoder.of(Integer.class));
-    CoderProperties.<List<Integer>>coderDecodeEncodeEqual(coder, list);
+    CoderProperties.coderDecodeEncodeEqual(coder, list);
   }
 
   @Test

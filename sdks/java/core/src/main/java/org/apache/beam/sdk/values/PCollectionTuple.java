@@ -236,7 +236,7 @@ public class PCollectionTuple implements PInput, POutput {
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return ImmutableMap.<TupleTag<?>, PValue>copyOf(pcollectionMap);
+    return ImmutableMap.copyOf(pcollectionMap);
   }
 
   @Override

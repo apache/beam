@@ -223,7 +223,7 @@ public final class TranslationUtils {
         WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
         sideInputs.put(
             view.getTagInternal(),
-            KV.<WindowingStrategy<?, ?>, SideInputBroadcast<?>>of(windowingStrategy, helper));
+            KV.of(windowingStrategy, helper));
       }
       return sideInputs;
     }

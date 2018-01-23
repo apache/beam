@@ -209,7 +209,7 @@ public class Query10 extends NexmarkQuery {
           // Use a 1 day allowed lateness so that any forgotten hold will stall the
           // pipeline for that period and be very noticeable.
           .withAllowedLateness(Duration.standardDays(1)))
-      .apply(name + ".GroupByKey", GroupByKey.<String, Event>create())
+      .apply(name + ".GroupByKey", GroupByKey.create())
       .apply(name + ".CheckForLateEvents",
         ParDo.of(new DoFn<KV<String, Iterable<Event>>,
                  KV<String, Iterable<Event>>>() {
@@ -297,7 +297,7 @@ public class Query10 extends NexmarkQuery {
                 LOG.info("Written all %d records to '%s'", n, outputFile.filename);
               }
               savedFileCounter.inc();
-              c.output(KV.<Void, OutputFile>of(null, outputFile));
+              c.output(KV.of(null, outputFile));
             }
           }))
       // Clear fancy triggering from above.
@@ -308,7 +308,7 @@ public class Query10 extends NexmarkQuery {
         .withAllowedLateness(Duration.standardDays(1))
         .discardingFiredPanes())
       // this GroupByKey allows to have one file per window
-      .apply(name + ".GroupByKey2", GroupByKey.<Void, OutputFile>create())
+      .apply(name + ".GroupByKey2", GroupByKey.create())
       .apply(name + ".Index",
         ParDo.of(new DoFn<KV<Void, Iterable<OutputFile>>, Done>() {
           private final Counter unexpectedLateCounter =

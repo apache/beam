@@ -58,24 +58,24 @@ public class SideInputHandlerTest {
   public void setUp() {
     PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
     view1 = pc
-        .apply(Window.<String>into(FixedWindows.of(new Duration(WINDOW_MSECS_1))))
-        .apply(View.<String>asIterable());
+        .apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_1))))
+        .apply(View.asIterable());
     view2 = pc
-        .apply(Window.<String>into(FixedWindows.of(new Duration(WINDOW_MSECS_2))))
-        .apply(View.<String>asIterable());
+        .apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_2))))
+        .apply(View.asIterable());
   }
 
   @Test
   public void testIsEmpty() {
     SideInputHandler sideInputHandler = new SideInputHandler(
-        ImmutableList.<PCollectionView<?>>of(view1),
+        ImmutableList.of(view1),
         InMemoryStateInternals.<Void>forKey(null));
 
     assertFalse(sideInputHandler.isEmpty());
 
     // create an empty handler
     SideInputHandler emptySideInputHandler = new SideInputHandler(
-        ImmutableList.<PCollectionView<?>>of(),
+        ImmutableList.of(),
         InMemoryStateInternals.<Void>forKey(null));
 
     assertTrue(emptySideInputHandler.isEmpty());
@@ -84,7 +84,7 @@ public class SideInputHandlerTest {
   @Test
   public void testContains() {
     SideInputHandler sideInputHandler = new SideInputHandler(
-        ImmutableList.<PCollectionView<?>>of(view1),
+        ImmutableList.of(view1),
         InMemoryStateInternals.<Void>forKey(null));
 
     assertTrue(sideInputHandler.contains(view1));
@@ -94,7 +94,7 @@ public class SideInputHandlerTest {
   @Test
   public void testIsReady() {
     SideInputHandler sideInputHandler = new SideInputHandler(
-        ImmutableList.<PCollectionView<?>>of(view1, view2),
+        ImmutableList.of(view1, view2),
         InMemoryStateInternals.<Void>forKey(null));
 
     IntervalWindow firstWindow =
@@ -129,7 +129,7 @@ public class SideInputHandlerTest {
     // accumulation/discarding is decided.
 
     SideInputHandler sideInputHandler = new SideInputHandler(
-        ImmutableList.<PCollectionView<?>>of(view1),
+        ImmutableList.of(view1),
         InMemoryStateInternals.<Void>forKey(null));
 
     IntervalWindow window =
@@ -157,7 +157,7 @@ public class SideInputHandlerTest {
   @Test
   public void testMultipleWindows() {
     SideInputHandler sideInputHandler = new SideInputHandler(
-        ImmutableList.<PCollectionView<?>>of(view1),
+        ImmutableList.of(view1),
         InMemoryStateInternals.<Void>forKey(null));
 
     // two windows that we'll later use for adding elements/retrieving side input
@@ -189,7 +189,7 @@ public class SideInputHandlerTest {
   @Test
   public void testMultipleSideInputs() {
     SideInputHandler sideInputHandler = new SideInputHandler(
-        ImmutableList.<PCollectionView<?>>of(view1, view2),
+        ImmutableList.of(view1, view2),
         InMemoryStateInternals.<Void>forKey(null));
 
     // two windows that we'll later use for adding elements/retrieving side input

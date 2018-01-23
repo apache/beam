@@ -71,7 +71,7 @@ public class Count {
    * associated with each key of its input {@link PCollection}.
    */
   public static <K, V> PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> perKey() {
-    return Combine.<K, V, Long>perKey(new CountFn<V>());
+    return Combine.perKey(new CountFn<V>());
   }
 
   /**
@@ -124,7 +124,7 @@ public class Count {
               return KV.of(element, (Void) null);
             }
           }))
-          .apply(Count.<T, Void>perKey());
+          .apply(Count.perKey());
     }
   }
 

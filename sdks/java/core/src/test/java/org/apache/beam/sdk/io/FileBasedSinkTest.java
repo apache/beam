@@ -253,7 +253,7 @@ public class FileBasedSinkTest {
       outputFiles.add(outputFile);
     }
 
-    writeOp.removeTemporaryFiles(Collections.<ResourceId>emptySet(), true);
+    writeOp.removeTemporaryFiles(Collections.emptySet(), true);
 
     for (int i = 0; i < numFiles; i++) {
       File temporaryFile = temporaryFiles.get(i);

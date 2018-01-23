@@ -62,7 +62,7 @@ public class Query12 extends NexmarkQuery {
                                            Duration.standardSeconds(configuration.windowSizeSec))))
             .discardingFiredPanes()
             .withAllowedLateness(Duration.ZERO))
-        .apply(Count.<Long>perElement())
+        .apply(Count.perElement())
         .apply(name + ".ToResult",
             ParDo.of(new DoFn<KV<Long, Long>, BidsPerSession>() {
                    @ProcessElement

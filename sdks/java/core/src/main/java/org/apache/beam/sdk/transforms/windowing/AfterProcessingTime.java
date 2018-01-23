@@ -50,7 +50,7 @@ public class AfterProcessingTime extends OnceTrigger {
    * which this trigger saw the first element in a pane.
    */
   public static AfterProcessingTime pastFirstElementInPane() {
-    return new AfterProcessingTime(Collections.<TimestampTransform>emptyList());
+    return new AfterProcessingTime(Collections.emptyList());
   }
 
   /**

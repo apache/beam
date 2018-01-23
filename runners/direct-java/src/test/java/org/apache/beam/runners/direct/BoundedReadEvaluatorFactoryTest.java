@@ -126,7 +126,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     assertThat(
         outputs,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
@@ -222,7 +222,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     assertThat(
         outputs,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
@@ -240,7 +240,7 @@ public class BoundedReadEvaluatorFactoryTest {
       Iterable<WindowedValue<BoundedSourceShard<Long>>> shards =
           (Iterable) initialInput.getElements();
       WindowedValue<BoundedSourceShard<Long>> shard = Iterables.getOnlyElement(shards);
-      assertThat(shard.getWindows(), Matchers.<BoundedWindow>contains(GlobalWindow.INSTANCE));
+      assertThat(shard.getWindows(), Matchers.contains(GlobalWindow.INSTANCE));
       assertThat(shard.getTimestamp(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
       sources.add(shard.getValue().getSource());
     }
@@ -282,7 +282,7 @@ public class BoundedReadEvaluatorFactoryTest {
     }
     assertThat(
         outputElems,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 

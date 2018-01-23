@@ -57,7 +57,7 @@ public class FlattenEvaluatorFactoryTest {
     PCollection<Integer> right = p.apply("right", Create.of(-1, 2, -4));
     PCollectionList<Integer> list = PCollectionList.of(left).and(right);
 
-    PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
+    PCollection<Integer> flattened = list.apply(Flatten.pCollections());
 
     CommittedBundle<Integer> leftBundle =
         bundleFactory.createBundle(left).commit(Instant.now());
@@ -93,13 +93,13 @@ public class FlattenEvaluatorFactoryTest {
 
     assertThat(
         rightSideResult.getOutputBundles(),
-        Matchers.<UncommittedBundle<?>>contains(flattenedRightBundle));
+        Matchers.contains(flattenedRightBundle));
     assertThat(
         rightSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattenedProducer));
     assertThat(
         leftSideResult.getOutputBundles(),
-        Matchers.<UncommittedBundle<?>>contains(flattenedLeftBundle));
+        Matchers.contains(flattenedLeftBundle));
     assertThat(
         leftSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattenedProducer));
@@ -122,7 +122,7 @@ public class FlattenEvaluatorFactoryTest {
   public void testFlattenInMemoryEvaluatorWithEmptyPCollectionList() throws Exception {
     PCollectionList<Integer> list = PCollectionList.empty(p);
 
-    PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
+    PCollection<Integer> flattened = list.apply(Flatten.pCollections());
     flattened.setCoder(VarIntCoder.of());
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);

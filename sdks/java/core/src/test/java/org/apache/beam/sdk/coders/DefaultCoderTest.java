@@ -138,7 +138,7 @@ public class DefaultCoderTest {
     assertThat(avroRecordCoder, instanceOf(ListCoder.class));
     assertThat(((ListCoder) avroRecordCoder).getElemCoder(), instanceOf(AvroCoder.class));
     assertThat(registry.getCoder(new TypeDescriptor<List<SerializableRecord>>(){}),
-        Matchers.<Coder<List<SerializableRecord>>>equalTo(
+        Matchers.equalTo(
             ListCoder.of(SerializableCoder.of(SerializableRecord.class))));
   }
 
@@ -146,6 +146,6 @@ public class DefaultCoderTest {
   public void testUnknown() throws Exception {
     thrown.expect(CannotProvideCoderException.class);
     new DefaultCoderProvider().coderFor(
-        TypeDescriptor.of(Unknown.class), Collections.<Coder<?>>emptyList());
+        TypeDescriptor.of(Unknown.class), Collections.emptyList());
   }
 }

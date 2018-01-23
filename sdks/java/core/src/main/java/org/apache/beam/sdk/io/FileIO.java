@@ -591,14 +591,14 @@ public class FileIO {
                 .apply(
                     "Continuously match filepatterns",
                     Watch.growthOf(
-                            Contextful.<PollFn<String, MatchResult.Metadata>>of(
+                            Contextful.of(
                                 new MatchPollFn(), Requirements.empty()),
                             new ExtractFilenameFn())
                         .withPollInterval(getConfiguration().getWatchInterval())
                         .withTerminationPerInput(getConfiguration().getWatchTerminationCondition()))
-                .apply(Values.<MatchResult.Metadata>create());
+                .apply(Values.create());
       }
-      return res.apply(Reshuffle.<MatchResult.Metadata>viaRandomKey());
+      return res.apply(Reshuffle.viaRandomKey());
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {
@@ -958,7 +958,7 @@ public class FileIO {
       checkArgument(outputFn != null, "outputFn can not be null");
       return via(
           outputFn,
-          fn(SerializableFunctions.<DestinationT, Sink<OutputT>>clonesOf(sink)));
+          fn(SerializableFunctions.clonesOf(sink)));
     }
 
     /**
@@ -979,7 +979,7 @@ public class FileIO {
      */
     public Write<DestinationT, UserT> via(Sink<UserT> sink) {
       checkArgument(sink != null, "sink can not be null");
-      return via(fn(SerializableFunctions.<DestinationT, Sink<UserT>>clonesOf(sink)));
+      return via(fn(SerializableFunctions.clonesOf(sink)));
     }
 
     /**
@@ -1172,7 +1172,7 @@ public class FileIO {
         checkArgument(
             getDestinationCoder() == null, ".withDestinationCoder() requires writeDynamic()");
         resolvedSpec.setDestinationFn(
-            fn(SerializableFunctions.<UserT, DestinationT>constant(null)));
+            fn(SerializableFunctions.constant(null)));
         resolvedSpec.setDestinationCoder((Coder) VoidCoder.of());
       }
 

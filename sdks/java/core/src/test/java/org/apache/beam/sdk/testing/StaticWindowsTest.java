@@ -49,9 +49,9 @@ public class StaticWindowsTest {
   public void singleWindowSucceeds() throws Exception {
     WindowFn<Object, BoundedWindow> fn = StaticWindows.of(IntervalWindow.getCoder(), first);
     assertThat(WindowFnTestUtils.assignedWindows(fn, 100L),
-        Matchers.<BoundedWindow>contains(first));
+        Matchers.contains(first));
     assertThat(WindowFnTestUtils.assignedWindows(fn, -100L),
-        Matchers.<BoundedWindow>contains(first));
+        Matchers.contains(first));
   }
 
   @Test
@@ -59,11 +59,11 @@ public class StaticWindowsTest {
     WindowFn<Object, BoundedWindow> fn =
         StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(first, second));
     assertThat(WindowFnTestUtils.assignedWindows(fn, 100L),
-        Matchers.<BoundedWindow>containsInAnyOrder(first, second));
+        Matchers.containsInAnyOrder(first, second));
     assertThat(WindowFnTestUtils.assignedWindows(fn, 1_000_000_000L),
-        Matchers.<BoundedWindow>containsInAnyOrder(first, second));
+        Matchers.containsInAnyOrder(first, second));
     assertThat(WindowFnTestUtils.assignedWindows(fn, -100L),
-        Matchers.<BoundedWindow>containsInAnyOrder(first, second));
+        Matchers.containsInAnyOrder(first, second));
   }
 
   @Test
@@ -73,10 +73,10 @@ public class StaticWindowsTest {
 
     assertThat(
         fn.getDefaultWindowMappingFn().getSideInputWindow(first),
-        Matchers.<BoundedWindow>equalTo(first));
+        Matchers.equalTo(first));
     assertThat(
         fn.getDefaultWindowMappingFn().getSideInputWindow(second),
-        Matchers.<BoundedWindow>equalTo(second));
+        Matchers.equalTo(second));
   }
 
   @Test
@@ -92,7 +92,7 @@ public class StaticWindowsTest {
   public void emptyIterableThrows() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("may not be empty");
-    StaticWindows.of(GlobalWindow.Coder.INSTANCE, ImmutableList.<GlobalWindow>of());
+    StaticWindows.of(GlobalWindow.Coder.INSTANCE, ImmutableList.of());
   }
 
   @Test

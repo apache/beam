@@ -105,19 +105,19 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
     PCollection<KV<BeamRecord, BeamRecord>> exGroupByStream = input.apply("exGroupBy",
         WithKeys
             .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(-1, ImmutableBitSet.of(0))))
-        .setCoder(KvCoder.<BeamRecord, BeamRecord>of(keyCoder, inRecordCoder));
+        .setCoder(KvCoder.of(keyCoder, inRecordCoder));
 
     //2. apply a GroupByKey.
     PCollection<KV<BeamRecord, Iterable<BeamRecord>>> groupedStream = exGroupByStream
-        .apply("groupBy", GroupByKey.<BeamRecord, BeamRecord>create())
-        .setCoder(KvCoder.<BeamRecord, Iterable<BeamRecord>>of(keyCoder,
-            IterableCoder.<BeamRecord>of(inRecordCoder)));
+        .apply("groupBy", GroupByKey.create())
+        .setCoder(KvCoder.of(keyCoder,
+            IterableCoder.of(inRecordCoder)));
 
     //3. run aggregation functions
     PCollection<KV<BeamRecord, BeamRecord>> aggregatedStream = groupedStream.apply("aggregation",
-        Combine.<BeamRecord, BeamRecord, BeamRecord>groupedValues(
+        Combine.groupedValues(
             new BeamAggregationTransforms.AggregationAdaptor(aggCalls, inputRowType)))
-        .setCoder(KvCoder.<BeamRecord, BeamRecord>of(keyCoder, aggCoder));
+        .setCoder(KvCoder.of(keyCoder, aggCoder));
 
     //4. flat KV to a single record
     PCollection<BeamRecord> mergedStream = aggregatedStream.apply("mergeRecord",
@@ -150,32 +150,32 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
     aggCalls = new ArrayList<>();
     aggCalls.add(
         new AggregateCall(new SqlCountAggFunction(), false,
-            Arrays.<Integer>asList(),
+            Arrays.asList(),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.BIGINT),
             "count")
         );
     aggCalls.add(
         new AggregateCall(new SqlSumAggFunction(
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.BIGINT)), false,
-            Arrays.<Integer>asList(1),
+            Arrays.asList(1),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.BIGINT),
             "sum1")
         );
     aggCalls.add(
         new AggregateCall(new SqlAvgAggFunction(SqlKind.AVG), false,
-            Arrays.<Integer>asList(1),
+            Arrays.asList(1),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.BIGINT),
             "avg1")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MAX), false,
-            Arrays.<Integer>asList(1),
+            Arrays.asList(1),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.BIGINT),
             "max1")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MIN), false,
-            Arrays.<Integer>asList(1),
+            Arrays.asList(1),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.BIGINT),
             "min1")
         );
@@ -183,25 +183,25 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
     aggCalls.add(
         new AggregateCall(new SqlSumAggFunction(
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.SMALLINT)), false,
-            Arrays.<Integer>asList(2),
+            Arrays.asList(2),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.SMALLINT),
             "sum2")
         );
     aggCalls.add(
         new AggregateCall(new SqlAvgAggFunction(SqlKind.AVG), false,
-            Arrays.<Integer>asList(2),
+            Arrays.asList(2),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.SMALLINT),
             "avg2")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MAX), false,
-            Arrays.<Integer>asList(2),
+            Arrays.asList(2),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.SMALLINT),
             "max2")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MIN), false,
-            Arrays.<Integer>asList(2),
+            Arrays.asList(2),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.SMALLINT),
             "min2")
         );
@@ -210,25 +210,25 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
         new AggregateCall(
             new SqlSumAggFunction(new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.TINYINT)),
             false,
-            Arrays.<Integer>asList(3),
+            Arrays.asList(3),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.TINYINT),
             "sum3")
         );
     aggCalls.add(
         new AggregateCall(new SqlAvgAggFunction(SqlKind.AVG), false,
-            Arrays.<Integer>asList(3),
+            Arrays.asList(3),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.TINYINT),
             "avg3")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MAX), false,
-            Arrays.<Integer>asList(3),
+            Arrays.asList(3),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.TINYINT),
             "max3")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MIN), false,
-            Arrays.<Integer>asList(3),
+            Arrays.asList(3),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.TINYINT),
             "min3")
         );
@@ -237,25 +237,25 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
         new AggregateCall(
             new SqlSumAggFunction(new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.FLOAT)),
             false,
-            Arrays.<Integer>asList(4),
+            Arrays.asList(4),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.FLOAT),
             "sum4")
         );
     aggCalls.add(
         new AggregateCall(new SqlAvgAggFunction(SqlKind.AVG), false,
-            Arrays.<Integer>asList(4),
+            Arrays.asList(4),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.FLOAT),
             "avg4")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MAX), false,
-            Arrays.<Integer>asList(4),
+            Arrays.asList(4),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.FLOAT),
             "max4")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MIN), false,
-            Arrays.<Integer>asList(4),
+            Arrays.asList(4),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.FLOAT),
             "min4")
         );
@@ -264,38 +264,38 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
         new AggregateCall(
             new SqlSumAggFunction(new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.DOUBLE)),
             false,
-            Arrays.<Integer>asList(5),
+            Arrays.asList(5),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.DOUBLE),
             "sum5")
         );
     aggCalls.add(
         new AggregateCall(new SqlAvgAggFunction(SqlKind.AVG), false,
-            Arrays.<Integer>asList(5),
+            Arrays.asList(5),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.DOUBLE),
             "avg5")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MAX), false,
-            Arrays.<Integer>asList(5),
+            Arrays.asList(5),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.DOUBLE),
             "max5")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MIN), false,
-            Arrays.<Integer>asList(5),
+            Arrays.asList(5),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.DOUBLE),
             "min5")
         );
 
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MAX), false,
-            Arrays.<Integer>asList(7),
+            Arrays.asList(7),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.TIMESTAMP),
             "max7")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MIN), false,
-            Arrays.<Integer>asList(7),
+            Arrays.asList(7),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.TIMESTAMP),
             "min7")
         );
@@ -304,25 +304,25 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
         new AggregateCall(
             new SqlSumAggFunction(new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.INTEGER)),
             false,
-            Arrays.<Integer>asList(8),
+            Arrays.asList(8),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.INTEGER),
             "sum8")
         );
     aggCalls.add(
         new AggregateCall(new SqlAvgAggFunction(SqlKind.AVG), false,
-            Arrays.<Integer>asList(8),
+            Arrays.asList(8),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.INTEGER),
             "avg8")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MAX), false,
-            Arrays.<Integer>asList(8),
+            Arrays.asList(8),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.INTEGER),
             "max8")
         );
     aggCalls.add(
         new AggregateCall(new SqlMinMaxAggFunction(SqlKind.MIN), false,
-            Arrays.<Integer>asList(8),
+            Arrays.asList(8),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.INTEGER),
             "min8")
         );
@@ -371,13 +371,13 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
    */
   private List<KV<BeamRecord, BeamRecord>> prepareResultOfAggregationGroupByKeyFn() {
     return Arrays.asList(
-        KV.of(new BeamRecord(keyType, Arrays.<Object>asList(inputRows.get(0).getInteger(0))),
+        KV.of(new BeamRecord(keyType, Arrays.asList(inputRows.get(0).getInteger(0))),
             inputRows.get(0)),
-        KV.of(new BeamRecord(keyType, Arrays.<Object>asList(inputRows.get(1).getInteger(0))),
+        KV.of(new BeamRecord(keyType, Arrays.asList(inputRows.get(1).getInteger(0))),
             inputRows.get(1)),
-        KV.of(new BeamRecord(keyType, Arrays.<Object>asList(inputRows.get(2).getInteger(0))),
+        KV.of(new BeamRecord(keyType, Arrays.asList(inputRows.get(2).getInteger(0))),
             inputRows.get(2)),
-        KV.of(new BeamRecord(keyType, Arrays.<Object>asList(inputRows.get(3).getInteger(0))),
+        KV.of(new BeamRecord(keyType, Arrays.asList(inputRows.get(3).getInteger(0))),
             inputRows.get(3)));
   }
 
@@ -387,8 +387,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   private List<KV<BeamRecord, BeamRecord>> prepareResultOfAggregationCombineFn()
       throws ParseException {
     return Arrays.asList(
-            KV.of(new BeamRecord(keyType, Arrays.<Object>asList(inputRows.get(0).getInteger(0))),
-                new BeamRecord(aggPartType, Arrays.<Object>asList(
+            KV.of(new BeamRecord(keyType, Arrays.asList(inputRows.get(0).getInteger(0))),
+                new BeamRecord(aggPartType, Arrays.asList(
                     4L,
                     10000L, 2500L, 4000L, 1000L,
                     (short) 10, (short) 2, (short) 4, (short) 1,
@@ -439,7 +439,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
    * expected results after {@link BeamAggregationTransforms.MergeAggregationRecord}.
    */
   private BeamRecord prepareResultOfMergeAggregationRecord() throws ParseException {
-    return new BeamRecord(outputType, Arrays.<Object>asList(
+    return new BeamRecord(outputType, Arrays.asList(
         1, 4L,
         10000L, 2500L, 4000L, 1000L,
         (short) 10, (short) 2, (short) 4, (short) 1,

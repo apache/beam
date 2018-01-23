@@ -69,7 +69,7 @@ class BeamSqlExample {
     //print the output record of case 1;
     outputStream.apply(
         "log_result",
-        MapElements.<BeamRecord, Void>via(
+        MapElements.via(
             new SimpleFunction<BeamRecord, Void>() {
               public @Nullable Void apply(BeamRecord input) {
                 //expect output:
@@ -88,7 +88,7 @@ class BeamSqlExample {
     //print the output record of case 2;
     outputStream2.apply(
         "log_result",
-        MapElements.<BeamRecord, Void>via(
+        MapElements.via(
             new SimpleFunction<BeamRecord, Void>() {
               @Override
               public @Nullable Void apply(BeamRecord input) {

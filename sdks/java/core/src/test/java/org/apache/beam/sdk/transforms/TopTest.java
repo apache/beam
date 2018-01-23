@@ -99,14 +99,14 @@ public class TopTest {
                  .withCoder(StringUtf8Coder.of()));
 
     PCollection<List<String>> top1 = input.apply(Top.of(1, new OrderByLength()));
-    PCollection<List<String>> top2 = input.apply(Top.<String>largest(2));
-    PCollection<List<String>> top3 = input.apply(Top.<String>smallest(3));
+    PCollection<List<String>> top2 = input.apply(Top.largest(2));
+    PCollection<List<String>> top3 = input.apply(Top.smallest(3));
 
     PCollection<KV<String, Integer>> inputTable = createInputTable(p);
     PCollection<KV<String, List<Integer>>> largestPerKey = inputTable
-        .apply(Top.<String, Integer>largestPerKey(2));
+        .apply(Top.largestPerKey(2));
     PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable
-        .apply(Top.<String, Integer>smallestPerKey(2));
+        .apply(Top.smallestPerKey(2));
 
     PAssert.thatSingletonIterable(top1).containsInAnyOrder(Arrays.asList("bb"));
     PAssert.thatSingletonIterable(top2).containsInAnyOrder("z", "c");
@@ -130,14 +130,14 @@ public class TopTest {
                  .withCoder(StringUtf8Coder.of()));
 
     PCollection<List<String>> top1 = input.apply(Top.of(1, new OrderByLength()));
-    PCollection<List<String>> top2 = input.apply(Top.<String>largest(2));
-    PCollection<List<String>> top3 = input.apply(Top.<String>smallest(3));
+    PCollection<List<String>> top2 = input.apply(Top.largest(2));
+    PCollection<List<String>> top3 = input.apply(Top.smallest(3));
 
     PCollection<KV<String, Integer>> inputTable = createEmptyInputTable(p);
     PCollection<KV<String, List<Integer>>> largestPerKey = inputTable
-        .apply(Top.<String, Integer>largestPerKey(2));
+        .apply(Top.largestPerKey(2));
     PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable
-        .apply(Top.<String, Integer>smallestPerKey(2));
+        .apply(Top.smallestPerKey(2));
 
     PAssert.thatSingletonIterable(top1).empty();
     PAssert.thatSingletonIterable(top2).empty();
@@ -152,7 +152,7 @@ public class TopTest {
   public void testTopEmptyWithIncompatibleWindows() {
     p.enableAbandonedNodeEnforcement(false);
 
-    Window<String> windowingFn = Window.<String>into(FixedWindows.of(Duration.standardDays(10L)));
+    Window<String> windowingFn = Window.into(FixedWindows.of(Duration.standardDays(10L)));
     PCollection<String> input = p.apply(Create.empty(StringUtf8Coder.of())).apply(windowingFn);
 
     expectedEx.expect(IllegalStateException.class);
@@ -173,25 +173,25 @@ public class TopTest {
                  .withCoder(StringUtf8Coder.of()));
 
     PCollection<List<String>> top1 = input.apply(Top.of(0, new OrderByLength()));
-    PCollection<List<String>> top2 = input.apply(Top.<String>largest(0));
-    PCollection<List<String>> top3 = input.apply(Top.<String>smallest(0));
+    PCollection<List<String>> top2 = input.apply(Top.largest(0));
+    PCollection<List<String>> top3 = input.apply(Top.smallest(0));
 
     PCollection<KV<String, Integer>> inputTable = createInputTable(p);
     PCollection<KV<String, List<Integer>>> largestPerKey = inputTable
-        .apply(Top.<String, Integer>largestPerKey(0));
+        .apply(Top.largestPerKey(0));
 
     PCollection<KV<String, List<Integer>>> smallestPerKey = inputTable
-        .apply(Top.<String, Integer>smallestPerKey(0));
+        .apply(Top.smallestPerKey(0));
 
     PAssert.thatSingletonIterable(top1).empty();
     PAssert.thatSingletonIterable(top2).empty();
     PAssert.thatSingletonIterable(top3).empty();
     PAssert.that(largestPerKey).containsInAnyOrder(
-        KV.of("a", Arrays.<Integer>asList()),
-        KV.of("b", Arrays.<Integer>asList()));
+        KV.of("a", Arrays.asList()),
+        KV.of("b", Arrays.asList()));
     PAssert.that(smallestPerKey).containsInAnyOrder(
-        KV.of("a", Arrays.<Integer>asList()),
-        KV.of("b", Arrays.<Integer>asList()));
+        KV.of("a", Arrays.asList()),
+        KV.of("b", Arrays.asList()));
 
     p.run();
   }
@@ -206,11 +206,11 @@ public class TopTest {
 
     PCollection<KV<String, Integer>> inputTable = createInputTable(p);
     inputTable
-        .apply(Top.<String, Integer, IntegerComparator>perKey(1,
+        .apply(Top.perKey(1,
             new IntegerComparator()));
 
     inputTable
-        .apply("PerKey2", Top.<String, Integer, IntegerComparator2>perKey(1,
+        .apply("PerKey2", Top.perKey(1,
             new IntegerComparator2()));
   }
 

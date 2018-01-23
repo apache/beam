@@ -113,7 +113,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
               }
             }))
             .apply("DropValues",
-                Combine.<T, Void>perKey(
+                Combine.perKey(
                     new SerializableFunction<Iterable<Void>, Void>() {
                       @Override
                       @Nullable
@@ -162,7 +162,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
       }
       PCollection<KV<IdT, T>> combined = in
           .apply("KeyByRepresentativeValue", withKeys)
-          .apply("OneValuePerKey", Combine.<IdT, T, T>perKey(
+          .apply("OneValuePerKey", Combine.perKey(
               new Combine.BinaryCombineFn<T>() {
                 @Override
                 public T apply(T left, T right) {

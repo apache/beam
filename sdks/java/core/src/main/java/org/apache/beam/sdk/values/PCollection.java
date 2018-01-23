@@ -232,7 +232,7 @@ public class PCollection<T> extends PValueBase implements PValue {
 
   @Override
   public final Map<TupleTag<?>, PValue> expand() {
-    return Collections.<TupleTag<?>, PValue>singletonMap(tag, this);
+    return Collections.singletonMap(tag, this);
   }
 
   /**

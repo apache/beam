@@ -256,10 +256,10 @@ public class IsmFormat {
         keyComponents.add(keyCoder.decode(inStream));
       }
       if (isMetadataKey(keyComponents)) {
-        return IsmRecord.<V>meta(
+        return IsmRecord.meta(
             keyComponents, ByteArrayCoder.of().decode(inStream));
       } else {
-        return IsmRecord.<V>of(keyComponents, valueCoder.decode(inStream));
+        return IsmRecord.of(keyComponents, valueCoder.decode(inStream));
       }
     }
 
@@ -518,7 +518,7 @@ public class IsmFormat {
 
     @Override
     public List<Coder<?>> getCoderArguments() {
-      return ImmutableList.<Coder<?>>of(keyCoder);
+      return ImmutableList.of(keyCoder);
     }
 
     @Override

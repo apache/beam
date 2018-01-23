@@ -108,7 +108,7 @@ public class TrackStreamingSourcesTest {
     PCollection<Integer> pcol1 = p.apply(queueStream1);
     PCollection<Integer> pcol2 = p.apply(queueStream2);
     PCollection<Integer> flattened =
-        PCollectionList.of(pcol1).and(pcol2).apply(Flatten.<Integer>pCollections());
+        PCollectionList.of(pcol1).and(pcol2).apply(Flatten.pCollections());
     flattened.apply(ParDo.of(new PassthroughFn<>()));
 
     p.traverseTopologically(new StreamingSourceTracker(jssc, p, ParDo.MultiOutput.class, 0, 1));

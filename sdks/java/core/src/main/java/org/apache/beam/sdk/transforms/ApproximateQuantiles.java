@@ -438,8 +438,8 @@ public class ApproximateQuantiles {
           null, /* max */
           numBuffers,
           bufferSize,
-          Collections.<T>emptyList(),
-          Collections.<QuantileBuffer<T>>emptyList());
+          Collections.emptyList(),
+          Collections.emptyList());
     }
 
     public static <T, ComparatorT extends Comparator<T> & Serializable>
@@ -453,7 +453,7 @@ public class ApproximateQuantiles {
           numBuffers,
           bufferSize,
           Collections.singletonList(elem),
-          Collections.<QuantileBuffer<T>>emptyList());
+          Collections.emptyList());
     }
 
     /**

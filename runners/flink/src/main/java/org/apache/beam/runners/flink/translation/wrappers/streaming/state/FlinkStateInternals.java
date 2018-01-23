@@ -313,7 +313,7 @@ public class FlinkStateInternals<K> implements StateInternals {
             StringSerializer.INSTANCE,
             flinkStateDescriptor).get();
 
-        return result != null ? ImmutableList.copyOf(result) : Collections.<T>emptyList();
+        return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -944,7 +944,7 @@ public class FlinkStateInternals<K> implements StateInternals {
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).keys();
-            return result != null ? ImmutableList.copyOf(result) : Collections.<KeyT>emptyList();
+            return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state keys.", e);
           }
@@ -967,7 +967,7 @@ public class FlinkStateInternals<K> implements StateInternals {
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).values();
-            return result != null ? ImmutableList.copyOf(result) : Collections.<ValueT>emptyList();
+            return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state values.", e);
           }
@@ -992,7 +992,7 @@ public class FlinkStateInternals<K> implements StateInternals {
                 flinkStateDescriptor).entries();
             return result != null
                 ? ImmutableList.copyOf(result)
-                : Collections.<Map.Entry<KeyT, ValueT>>emptyList();
+                : Collections.emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state entries.", e);
           }
@@ -1149,7 +1149,7 @@ public class FlinkStateInternals<K> implements StateInternals {
             namespace.stringKey(),
             StringSerializer.INSTANCE,
             flinkStateDescriptor).keys();
-        return result != null ? ImmutableList.copyOf(result) : Collections.<T>emptyList();
+        return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error read from state.", e);
       }

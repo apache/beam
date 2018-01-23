@@ -226,7 +226,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
   private SparkPipelineResult runAgain(int expectedAssertions) {
     // sleep before next run.
     Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
-    return run(Optional.<Instant>absent(), expectedAssertions);
+    return run(Optional.absent(), expectedAssertions);
   }
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -240,7 +240,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
             .withKeyDeserializer(StringDeserializer.class)
             .withValueDeserializer(InstantDeserializer.class)
             .updateConsumerProperties(
-                ImmutableMap.<String, Object>of("auto.offset.reset", "earliest"))
+                ImmutableMap.of("auto.offset.reset", "earliest"))
             .withTimestampFn(kv -> kv.getValue())
             .withWatermarkFn(
                 kv -> {
@@ -268,20 +268,20 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
     PCollection<String> expectedCol =
         p.apply(Create.of(ImmutableList.of("side1", "side2")).withCoder(StringUtf8Coder.of()));
-    PCollectionView<List<String>> view = expectedCol.apply(View.<String>asList());
+    PCollectionView<List<String>> view = expectedCol.apply(View.asList());
 
     PCollection<KV<String, Instant>> kafkaStream = p.apply(read.withoutMetadata());
 
     PCollection<Iterable<String>> grouped = kafkaStream
-        .apply(Keys.<String>create())
+        .apply(Keys.create())
         .apply("EOFShallNotPassFn", ParDo.of(new EOFShallNotPassFn(view)).withSideInputs(view))
         .apply(Window.<String>into(FixedWindows.of(Duration.millis(500)))
             .triggering(AfterWatermark.pastEndOfWindow())
                 .accumulatingFiredPanes()
                 .withAllowedLateness(Duration.ZERO))
-        .apply(WithKeys.<Integer, String>of(1))
-        .apply(GroupByKey.<Integer, String>create())
-        .apply(Values.<Iterable<String>>create());
+        .apply(WithKeys.of(1))
+        .apply(GroupByKey.create())
+        .apply(Values.create());
 
     grouped.apply(new PAssertWithoutFlatten<>("k1", "k2", "k3", "k4", "k5"));
 

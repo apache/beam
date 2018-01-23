@@ -161,7 +161,7 @@ public class HourlyTeamScore extends UserScore {
       // Add an element timestamp based on the event log, and apply fixed windowing.
       .apply("AddEventTimestamps",
              WithTimestamps.of((GameActionInfo i) -> new Instant(i.getTimestamp())))
-      .apply("FixedWindowsTeam", Window.<GameActionInfo>into(
+      .apply("FixedWindowsTeam", Window.into(
           FixedWindows.of(Duration.standardMinutes(options.getWindowDuration()))))
       // [END DocInclude_HTSAddTsAndWindow]
 

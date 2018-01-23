@@ -71,7 +71,7 @@ class ReshuffleOverrideFactory<K, V>
               .withAllowedLateness(Duration.millis(BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()));
 
       return input.apply(rewindow)
-          .apply(GroupByKey.<K, V>create())
+          .apply(GroupByKey.create())
           // Set the windowing strategy directly, so that it doesn't get counted as the user having
           // set allowed lateness.
           .setWindowingStrategyInternal(originalStrategy)

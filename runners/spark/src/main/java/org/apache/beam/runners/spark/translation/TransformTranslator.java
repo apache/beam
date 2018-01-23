@@ -143,7 +143,7 @@ public final class TransformTranslator {
             new SparkGroupAlsoByWindowViaOutputBufferFn<>(
                 windowingStrategy,
                 new TranslationUtils.InMemoryStateInternalsFactory<K>(),
-                SystemReduceFn.<K, V, W>buffering(coder.getValueCoder()),
+                SystemReduceFn.buffering(coder.getValueCoder()),
                 context.getSerializableOptions(),
                 accum));
 
@@ -256,7 +256,7 @@ public final class TransformTranslator {
                 outRdd = jsc
                     .parallelize(Lists.newArrayList(CoderHelpers.toByteArray(defaultValue, oCoder)))
                     .map(CoderHelpers.fromByteFunction(oCoder))
-                    .map(WindowingHelpers.<OutputT>windowFunction());
+                    .map(WindowingHelpers.windowFunction());
               } else {
                 outRdd = jsc.emptyRDD();
               }
@@ -318,8 +318,8 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey
                 .flatMapValues(iter -> sparkCombineFn.extractOutput(iter))
-                .map(TranslationUtils.<K, WindowedValue<OutputT>>fromPairFunction())
-                .map(TranslationUtils.<K, OutputT>toKVByWindowInValue());
+                .map(TranslationUtils.fromPairFunction())
+                .map(TranslationUtils.toKVByWindowInValue());
 
         context.putDataset(transform, new BoundedDataset<>(outRdd));
       }

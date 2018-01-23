@@ -61,9 +61,9 @@ public class GatherAllPanesTest implements Serializable {
                     .withAllowedLateness(Duration.ZERO)
                     .discardingFiredPanes())
             .apply(WithKeys.<Void, Long>of((Void) null).withKeyType(new TypeDescriptor<Void>() {}))
-            .apply(GroupByKey.<Void, Long>create())
-            .apply(Values.<Iterable<Long>>create())
-            .apply(GatherAllPanes.<Iterable<Long>>globally());
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(GatherAllPanes.globally());
 
     PAssert.that(accumulatedPanes)
         .satisfies(
@@ -88,7 +88,7 @@ public class GatherAllPanesTest implements Serializable {
     PCollection<Iterable<ValueInSingleWindow<Iterable<Long>>>> accumulatedPanes =
         PCollectionList.of(someElems)
             .and(otherElems)
-            .apply(Flatten.<Long>pCollections())
+            .apply(Flatten.pCollections())
             .apply(WithTimestamps.of(input -> new Instant(input * 10)))
             .apply(
                 Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1)))
@@ -98,9 +98,9 @@ public class GatherAllPanesTest implements Serializable {
                     .withAllowedLateness(Duration.ZERO)
                     .discardingFiredPanes())
             .apply(WithKeys.<Void, Long>of((Void) null).withKeyType(new TypeDescriptor<Void>() {}))
-            .apply(GroupByKey.<Void, Long>create())
-            .apply(Values.<Iterable<Long>>create())
-            .apply(GatherAllPanes.<Iterable<Long>>globally());
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(GatherAllPanes.globally());
 
     PAssert.that(accumulatedPanes)
         .satisfies(

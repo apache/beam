@@ -92,7 +92,7 @@ public class StreamingWriteTables extends PTransform<
     TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
     TupleTag<TableRow> failedInsertsTag = new TupleTag<>("failedInserts");
     PCollectionTuple tuple = tagged
-        .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
+        .apply(Reshuffle.of())
         // Put in the global window to ensure that DynamicDestinations side inputs are accessed
         // correctly.
         .apply("GlobalWindow",

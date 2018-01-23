@@ -83,7 +83,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       UnboundedSource<T, CheckpointMarkT> unboundedSource,
       SerializablePipelineOptions options,
       Long boundMaxRecords) {
-    super(ssc, JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
+    super(ssc, JavaSparkContext$.MODULE$.fakeClassTag());
     this.unboundedSource = unboundedSource;
     this.options = options;
 

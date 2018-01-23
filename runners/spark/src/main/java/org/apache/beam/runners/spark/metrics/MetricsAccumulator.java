@@ -58,7 +58,7 @@ public class MetricsAccumulator {
         if (instance == null) {
           Optional<CheckpointDir> maybeCheckpointDir =
               opts.isStreaming() ? Optional.of(new CheckpointDir(opts.getCheckpointDir()))
-                  : Optional.<CheckpointDir>absent();
+                  : Optional.absent();
           Accumulator<MetricsContainerStepMap> accumulator =
               jsc.sc().accumulator(
                   new MetricsContainerStepMap(),

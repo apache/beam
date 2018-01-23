@@ -366,7 +366,7 @@ public class DoFnInvokersTest {
                 }))
         .when(fn)
         .splitRestriction(
-            eq("blah"), same(restriction), Mockito.<DoFn.OutputReceiver<SomeRestriction>>any());
+            eq("blah"), same(restriction), Mockito.any());
     when(fn.newTracker(restriction)).thenReturn(tracker);
     when(fn.processElement(mockProcessContext, tracker)).thenReturn(resume());
 

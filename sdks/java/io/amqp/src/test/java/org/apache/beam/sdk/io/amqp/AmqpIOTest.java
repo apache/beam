@@ -57,7 +57,7 @@ public class AmqpIOTest {
     PCollection<Message> output = pipeline.apply(AmqpIO.read()
         .withMaxNumRecords(100)
         .withAddresses(Collections.singletonList(broker.getQueueUri("testRead"))));
-    PAssert.thatSingleton(output.apply(Count.<Message>globally())).isEqualTo(100L);
+    PAssert.thatSingleton(output.apply(Count.globally())).isEqualTo(100L);
 
     Messenger sender = Messenger.Factory.create();
     sender.start();

@@ -95,11 +95,11 @@ public class DoFnOperatorTest {
   public void setUp() {
     PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
     view1 = pc
-        .apply(Window.<String>into(FixedWindows.of(new Duration(WINDOW_MSECS_1))))
-        .apply(View.<String>asIterable());
+        .apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_1))))
+        .apply(View.asIterable());
     view2 = pc
-        .apply(Window.<String>into(FixedWindows.of(new Duration(WINDOW_MSECS_2))))
-        .apply(View.<String>asIterable());
+        .apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_2))))
+        .apply(View.asIterable());
   }
 
   @Test
@@ -115,11 +115,11 @@ public class DoFnOperatorTest {
         "stepName",
         coder,
         outputTag,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+        Collections.emptyList(), /* side inputs */
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         null);
 
@@ -170,12 +170,12 @@ public class DoFnOperatorTest {
         "stepName",
         coder,
         mainOutput,
-        ImmutableList.<TupleTag<?>>of(additionalOutput1, additionalOutput2),
+        ImmutableList.of(additionalOutput1, additionalOutput2),
         new DoFnOperator.MultiOutputOutputManagerFactory(
             mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds),
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+        Collections.emptyList(), /* side inputs */
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         null);
 
@@ -264,11 +264,11 @@ public class DoFnOperatorTest {
         "stepName",
         inputCoder,
         outputTag,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
         windowingStrategy,
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+        Collections.emptyList(), /* side inputs */
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         VarIntCoder.of() /* key coder */);
 
@@ -346,11 +346,11 @@ public class DoFnOperatorTest {
         "stepName",
         inputCoder,
         outputTag,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
         windowingStrategy,
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+        Collections.emptyList(), /* side inputs */
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         VarIntCoder.of() /* key coder */);
 
@@ -454,11 +454,11 @@ public class DoFnOperatorTest {
             "stepName",
             coder,
             outputTag,
-            Collections.<TupleTag<?>>emptyList(),
+            Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
             windowingStrategy,
             new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-            Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+            Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             StringUtf8Coder.of() /* key coder */);
 
@@ -544,11 +544,11 @@ public class DoFnOperatorTest {
         "stepName",
         coder,
         outputTag,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
         WindowingStrategy.globalDefault(),
         sideInputMapping, /* side-input mapping */
-        ImmutableList.<PCollectionView<?>>of(view1, view2), /* side inputs */
+        ImmutableList.of(view1, view2), /* side inputs */
         PipelineOptionsFactory.as(FlinkPipelineOptions.class),
         keyCoder);
 
@@ -653,11 +653,11 @@ public class DoFnOperatorTest {
         "stepName",
         windowedValueCoder,
         outputTag,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         outputManagerFactory,
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+        Collections.emptyList(), /* side inputs */
         options,
         null);
 
@@ -690,11 +690,11 @@ public class DoFnOperatorTest {
         "stepName",
         windowedValueCoder,
         outputTag,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         outputManagerFactory,
         WindowingStrategy.globalDefault(),
         new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+        Collections.emptyList(), /* side inputs */
         options,
         null);
 

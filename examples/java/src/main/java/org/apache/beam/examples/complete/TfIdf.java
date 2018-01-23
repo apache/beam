@@ -176,13 +176,13 @@ public class TfIdf {
         PCollection<KV<URI, String>> oneUriToLines =
             pipeline
                 .apply("TextIO.Read(" + uriString + ")", TextIO.read().from(uriString))
-                .apply("WithKeys(" + uriString + ")", WithKeys.<URI, String>of(uri))
+                .apply("WithKeys(" + uriString + ")", WithKeys.of(uri))
                 .setCoder(KvCoder.of(StringDelegateCoder.of(URI.class), StringUtf8Coder.of()));
 
         urisToLines = urisToLines.and(oneUriToLines);
       }
 
-      return urisToLines.apply(Flatten.<KV<URI, String>>pCollections());
+      return urisToLines.apply(Flatten.pCollections());
     }
   }
 
@@ -205,10 +205,10 @@ public class TfIdf {
       // use as a side input.
       final PCollectionView<Long> totalDocuments =
           uriToContent
-          .apply("GetURIs", Keys.<URI>create())
-          .apply("DistinctDocs", Distinct.<URI>create())
-          .apply(Count.<URI>globally())
-          .apply(View.<Long>asSingleton());
+          .apply("GetURIs", Keys.create())
+          .apply("DistinctDocs", Distinct.create())
+          .apply(Count.globally())
+          .apply(View.asSingleton());
 
       // Create a collection of pairs mapping a URI to each
       // of the words in the document associated with that that URI.
@@ -235,21 +235,21 @@ public class TfIdf {
       // Compute a mapping from each word to the total
       // number of documents in which it appears.
       PCollection<KV<String, Long>> wordToDocCount = uriToWords
-          .apply("DistinctWords", Distinct.<KV<URI, String>>create())
-          .apply(Values.<String>create())
-          .apply("CountDocs", Count.<String>perElement());
+          .apply("DistinctWords", Distinct.create())
+          .apply(Values.create())
+          .apply("CountDocs", Count.perElement());
 
       // Compute a mapping from each URI to the total
       // number of words in the document associated with that URI.
       PCollection<KV<URI, Long>> uriToWordTotal = uriToWords
-          .apply("GetURIs2", Keys.<URI>create())
-          .apply("CountWords", Count.<URI>perElement());
+          .apply("GetURIs2", Keys.create())
+          .apply("CountWords", Count.perElement());
 
       // Count, for each (URI, word) pair, the number of
       // occurrences of that word in the document associated
       // with the URI.
       PCollection<KV<KV<URI, String>, Long>> uriAndWordToCount = uriToWords
-          .apply("CountWordDocPairs", Count.<KV<URI, String>>perElement());
+          .apply("CountWordDocPairs", Count.perElement());
 
       // Adjust the above collection to a mapping from
       // (URI, word) pairs to counts into an isomorphic mapping
@@ -288,7 +288,7 @@ public class TfIdf {
       // words in that document as well as all the (word, count)
       // pairs for particular words.
       PCollection<KV<URI, CoGbkResult>> uriToWordAndCountAndTotal = coGbkInput
-          .apply("CoGroupByUri", CoGroupByKey.<URI>create());
+          .apply("CoGroupByUri", CoGroupByKey.create());
 
       // Compute a mapping from each word to a (URI, term frequency)
       // pair for each URI. A word's term frequency for a document
@@ -340,7 +340,7 @@ public class TfIdf {
       PCollection<KV<String, CoGbkResult>> wordToUriAndTfAndDf = KeyedPCollectionTuple
           .of(tfTag, wordToUriAndTf)
           .and(dfTag, wordToDf)
-          .apply(CoGroupByKey.<String>create());
+          .apply(CoGroupByKey.create());
 
       // Compute a mapping from each word to a (URI, TF-IDF) score
       // for each URI. There are a variety of definitions of TF-IDF

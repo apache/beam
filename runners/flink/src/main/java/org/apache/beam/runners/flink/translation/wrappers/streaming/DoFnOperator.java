@@ -858,7 +858,7 @@ public class DoFnOperator<InputT, OutputT>
       if (!openBuffer) {
         emit(tag, value);
       } else {
-        bufferState.add(KV.<Integer, WindowedValue<?>>of(tagsToIds.get(tag), value));
+        bufferState.add(KV.of(tagsToIds.get(tag), value));
       }
     }
 
@@ -913,7 +913,7 @@ public class DoFnOperator<InputT, OutputT>
       Integer id = VarIntCoder.of().decode(in);
       Coder<WindowedValue<?>> coder = idsToCoders.get(id);
       WindowedValue<?> value = coder.decode(in);
-      return KV.<Integer, WindowedValue<?>>of(id, value);
+      return KV.of(id, value);
     }
 
     @Override

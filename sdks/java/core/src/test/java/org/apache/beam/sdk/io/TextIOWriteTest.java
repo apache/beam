@@ -390,7 +390,7 @@ public class TextIOWriteTest {
 
     WriteFilesResult<Void> result = input.apply(write);
     PAssert.that(result.getPerDestinationOutputFilenames()
-        .apply("GetFilenames", Values.<String>create()))
+        .apply("GetFilenames", Values.create()))
         .satisfies(new MatchesFilesystem(baseFilename));
     p.run();
 
@@ -667,7 +667,7 @@ public class TextIOWriteTest {
                     .withWindowedWrites()
                     .<Void>withOutputFilenames())
             .getPerDestinationOutputFilenames()
-            .apply(Values.<String>create());
+            .apply(Values.create());
 
     PAssert.that(filenames.apply(TextIO.readAll())).containsInAnyOrder("0", "1", "2");
 
@@ -687,7 +687,7 @@ public class TextIOWriteTest {
                         .via(TextIO.sink())
                         .withIgnoreWindowing())
                 .getPerDestinationOutputFilenames()
-                .apply(Values.<String>create())
+                .apply(Values.create())
                 .apply(TextIO.readAll()))
         .containsInAnyOrder(data);
 

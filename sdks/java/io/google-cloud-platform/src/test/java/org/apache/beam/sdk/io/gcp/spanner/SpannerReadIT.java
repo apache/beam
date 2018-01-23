@@ -148,7 +148,7 @@ public class SpannerReadIT {
                 .withSpannerConfig(spannerConfig)
                 .withQuery("SELECT * FROM " + options.getTable())
                 .withTransaction(tx));
-    PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
+    PAssert.thatSingleton(output.apply("Count rows", Count.globally())).isEqualTo(5L);
     p.run();
   }
 

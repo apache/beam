@@ -46,7 +46,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public final class StringDelegateCoder<T> extends CustomCoder<T> {
   public static <T> StringDelegateCoder<T> of(Class<T> clazz) {
-    return StringDelegateCoder.<T>of(clazz, TypeDescriptor.of(clazz));
+    return StringDelegateCoder.of(clazz, TypeDescriptor.of(clazz));
   }
 
   public static <T> StringDelegateCoder<T> of(Class<T> clazz, TypeDescriptor<T> typeDescriptor) {

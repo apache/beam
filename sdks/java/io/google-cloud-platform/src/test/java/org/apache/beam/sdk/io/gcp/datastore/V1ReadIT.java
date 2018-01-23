@@ -90,7 +90,7 @@ public class V1ReadIT {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> count = p
         .apply(read)
-        .apply(Count.<Entity>globally());
+        .apply(Count.globally());
 
     PAssert.thatSingleton(count).isEqualTo(numEntities);
     p.run();
@@ -133,7 +133,7 @@ public class V1ReadIT {
     Pipeline p = Pipeline.create(options);
     PCollection<Long> count = p
         .apply(read)
-        .apply(Count.<Entity>globally());
+        .apply(Count.globally());
 
     PAssert.thatSingleton(count).isEqualTo(expectedNumEntities);
     p.run();

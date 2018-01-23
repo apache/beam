@@ -385,7 +385,7 @@ public class CombineTranslation {
       AppliedPTransform<?, ?, ?> transform, SdkComponents components) throws IOException {
     return CombinePayload.parseFrom(
         PTransformTranslation.toProto(
-                transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), components)
+                transform, Collections.emptyList(), components)
             .getSpec()
             .getPayload());
   }

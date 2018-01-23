@@ -440,7 +440,7 @@ public class GcsUtil {
         path.getObject(),
         AsyncWriteChannelOptions.newBuilder().build(),
         new ObjectWriteConditions(),
-        Collections.<String, String>emptyMap(),
+        Collections.emptyMap(),
         type);
     if (uploadBufferSizeBytes != null) {
       channel.setUploadBufferSize(uploadBufferSizeBytes);

@@ -1137,7 +1137,7 @@ public class Combine {
     @Override
     public PCollection<OutputT> expand(PCollection<InputT> input) {
       PCollection<KV<Void, InputT>> withKeys = input
-          .apply(WithKeys.<Void, InputT>of((Void) null))
+          .apply(WithKeys.of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
 
       Combine.PerKey<Void, InputT, OutputT> combine = Combine.fewKeys(fn, fnDisplayData);
@@ -1152,7 +1152,7 @@ public class Combine {
         combined = withKeys.apply(combine);
       }
 
-      PCollection<OutputT> output = combined.apply(Values.<OutputT>create());
+      PCollection<OutputT> output = combined.apply(Values.create());
 
       if (insertDefault) {
         if (!output.getWindowingStrategy().getWindowFn().isCompatible(new GlobalWindows())) {
@@ -1174,7 +1174,7 @@ public class Combine {
 
     private PCollection<OutputT> insertDefaultValueIfEmpty(PCollection<OutputT> maybeEmpty) {
       final PCollectionView<Iterable<OutputT>> maybeEmptyView = maybeEmpty.apply(
-          View.<OutputT>asIterable());
+          View.asIterable());
 
 
       final OutputT defaultValue = fn.defaultValue();
@@ -1194,7 +1194,7 @@ public class Combine {
           .setWindowingStrategyInternal(maybeEmpty.getWindowingStrategy());
 
       return PCollectionList.of(maybeEmpty).and(defaultIfEmpty)
-          .apply(Flatten.<OutputT>pCollections());
+          .apply(Flatten.pCollections());
     }
   }
 
@@ -1284,7 +1284,7 @@ public class Combine {
               insertDefault ? fn.defaultValue() : null,
           combined.getCoder());
       materializationInput.apply(
-          CreatePCollectionView.<KV<Void, OutputT>, OutputT>of(view));
+          CreatePCollectionView.of(view));
       return view;
     }
 
@@ -1584,7 +1584,7 @@ public class Combine {
     public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
       return input
           .apply(
-              fewKeys ? GroupByKey.<K, InputT>createWithFewKeys() : GroupByKey.<K, InputT>create())
+              fewKeys ? GroupByKey.createWithFewKeys() : GroupByKey.create())
           .apply(
               Combine.<K, InputT, OutputT>groupedValues(fn, fnDisplayData)
                   .withSideInputs(sideInputs));
@@ -1894,7 +1894,7 @@ public class Combine {
               .setWindowingStrategyInternal(preCombineStrategy)
               .apply(
                   "PreCombineHot",
-                  Combine.<KV<K, Integer>, InputT, AccumT>perKey(hotPreCombine, fnDisplayData))
+                  Combine.perKey(hotPreCombine, fnDisplayData))
               .apply(
                   "StripNonce",
                   MapElements.via(
@@ -1909,7 +1909,7 @@ public class Combine {
                         }
                       }))
               .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder))
-              .apply(Window.<KV<K, InputOrAccum<InputT, AccumT>>>remerge())
+              .apply(Window.remerge())
               .setWindowingStrategyInternal(input.getWindowingStrategy());
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> preprocessedCold = split
           .get(cold)
@@ -1927,10 +1927,10 @@ public class Combine {
       // Combine the union of the pre-processed hot and cold key results.
       return PCollectionList.of(precombinedHot)
           .and(preprocessedCold)
-          .apply(Flatten.<KV<K, InputOrAccum<InputT, AccumT>>>pCollections())
+          .apply(Flatten.pCollections())
           .apply(
               "PostCombine",
-              Combine.<K, InputOrAccum<InputT, AccumT>, OutputT>perKey(postCombine, fnDisplayData));
+              Combine.perKey(postCombine, fnDisplayData));
     }
 
     @Override
@@ -2006,9 +2006,9 @@ public class Combine {
         public InputOrAccum<InputT, AccumT> decode(InputStream inStream, Coder.Context context)
             throws CoderException, IOException {
           if (inStream.read() == 0) {
-            return InputOrAccum.<InputT, AccumT>input(inputCoder.decode(inStream, context));
+            return InputOrAccum.input(inputCoder.decode(inStream, context));
           } else {
-            return InputOrAccum.<InputT, AccumT>accum(accumCoder.decode(inStream, context));
+            return InputOrAccum.accum(accumCoder.decode(inStream, context));
           }
         }
 

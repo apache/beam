@@ -62,7 +62,7 @@ public @interface DefaultCoder {
 
     @Override
     public List<CoderProvider> getCoderProviders() {
-      return ImmutableList.<CoderProvider>of(new DefaultCoderProvider());
+      return ImmutableList.of(new DefaultCoderProvider());
     }
 
     /**

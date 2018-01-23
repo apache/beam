@@ -62,7 +62,7 @@ public class CreatePCollectionViewTranslation {
     RunnerApi.PTransform transformProto =
         PTransformTranslation.toProto(
             application,
-            Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
+            Collections.emptyList(),
             SdkComponents.create());
 
     checkArgument(

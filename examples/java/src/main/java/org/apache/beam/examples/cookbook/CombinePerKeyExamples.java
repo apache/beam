@@ -128,7 +128,7 @@ public class CombinePerKeyExamples {
 
       // word, play_name => word, all_plays ...
       PCollection<KV<String, String>> wordAllPlays =
-          words.apply(Combine.<String, String>perKey(
+          words.apply(Combine.perKey(
               new ConcatWords()));
 
       // <word, all_plays>... => row...

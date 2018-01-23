@@ -68,7 +68,7 @@ class CloudObjectTranslators {
         Structs.getListOfMaps(
             target,
             PropertyNames.COMPONENT_ENCODINGS,
-            Collections.<Map<String, Object>>emptyList());
+            Collections.emptyList());
     List<Coder<?>> components = new ArrayList<>();
     for (Map<String, Object> cloudComponent : cloudComponents) {
       components.add(CloudObjects.coderFromCloudObject(CloudObject.fromSpec(cloudComponent)));
@@ -184,7 +184,7 @@ class CloudObjectTranslators {
       public CloudObject toCloudObject(GlobalWindow.Coder target) {
         return addComponents(
             CloudObject.forClassName(CloudObjectKinds.KIND_GLOBAL_WINDOW),
-            Collections.<Coder<?>>emptyList());
+            Collections.emptyList());
       }
 
       @Override
@@ -214,7 +214,7 @@ class CloudObjectTranslators {
       public CloudObject toCloudObject(IntervalWindowCoder target) {
         return addComponents(
             CloudObject.forClassName(CloudObjectKinds.KIND_INTERVAL_WINDOW),
-            Collections.<Coder<?>>emptyList());
+            Collections.emptyList());
       }
 
       @Override
@@ -280,7 +280,7 @@ class CloudObjectTranslators {
       public CloudObject toCloudObject(ByteArrayCoder target) {
         return addComponents(
             CloudObject.forClassName(CloudObjectKinds.KIND_BYTES),
-            Collections.<Coder<?>>emptyList());
+            Collections.emptyList());
       }
 
       @Override
@@ -310,7 +310,7 @@ class CloudObjectTranslators {
       @Override
       public CloudObject toCloudObject(VarLongCoder target) {
         return addComponents(
-            CloudObject.forClass(target.getClass()), Collections.<Coder<?>>emptyList());
+            CloudObject.forClass(target.getClass()), Collections.emptyList());
       }
 
       @Override
@@ -568,7 +568,7 @@ class CloudObjectTranslators {
             Structs.getListOfMaps(
                 cloudObject,
                 PropertyNames.TUPLE_TAGS,
-                Collections.<Map<String, Object>>emptyList());
+                Collections.emptyList());
         for (Map<String, Object> serializedTag : serializedTags) {
           TupleTag<?> tag = new TupleTag<>(Structs.getString(serializedTag, PropertyNames.VALUE));
           tags.add(tag);
