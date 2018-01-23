@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -47,7 +48,8 @@ public class SdkComponents {
 
   /** A map of Coder to IDs. Coders are stored here with identity equivalence. */
   private final BiMap<Equivalence.Wrapper<? extends Coder<?>>, String> coderIds;
-  // TODO: Specify environments
+
+  private final BiMap<Environment, String> environmentIds;
 
   /** Create a new {@link SdkComponents} with no components. */
   public static SdkComponents create() {
@@ -60,6 +62,7 @@ public class SdkComponents {
     this.pCollectionIds = HashBiMap.create();
     this.windowingStrategyIds = HashBiMap.create();
     this.coderIds = HashBiMap.create();
+    this.environmentIds = HashBiMap.create();
   }
 
   /**
@@ -179,6 +182,23 @@ public class SdkComponents {
     coderIds.put(Equivalence.identity().wrap(coder), name);
     RunnerApi.Coder coderProto = CoderTranslation.toProto(coder, this);
     componentsBuilder.putCoders(name, coderProto);
+    return name;
+  }
+
+  /**
+   * Registers the provided {@link Environment} into this {@link SdkComponents}, returning a unique
+   * ID for the {@link Environment}. Multiple registrations of the same {@link Environment} will
+   * return the same unique ID.
+   */
+  public String registerEnvironment(Environment env) {
+    String existing = environmentIds.get(env);
+    if (existing != null) {
+      return existing;
+    }
+    String url = env.getUrl();
+    String name = uniqify(url, environmentIds.values());
+    environmentIds.put(env, name);
+    componentsBuilder.putEnvironments(name, env);
     return name;
   }
 

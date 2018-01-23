@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollection;
@@ -163,5 +164,12 @@ public class RehydratedComponents {
     } catch (ExecutionException exc) {
       throw new RuntimeException(exc);
     }
+  }
+
+  /**
+   * Returns the {@link Environment} associated with the given ID.
+   */
+  public Environment getEnvironment(String environmentId) {
+    return components.getEnvironmentsOrThrow(environmentId);
   }
 }

@@ -33,6 +33,8 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DisplayData;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
@@ -170,6 +172,11 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             @Override
             public RunnerApi.SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
               return ParDoTranslation.translateDoFn(parDo.getFn(), parDo.getMainOutputTag());
+            }
+
+            @Override
+            public Environment getEnvironment() {
+              return Environments.JAVA_SDK_HARNESS_ENVIRONMENT;
             }
 
             @Override
