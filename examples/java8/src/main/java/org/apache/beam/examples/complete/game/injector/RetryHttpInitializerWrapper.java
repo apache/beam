@@ -97,14 +97,11 @@ public class RetryHttpInitializerWrapper implements HttpRequestInitializer {
     request.setUnsuccessfulResponseHandler(
         (request1, response, supportsRetry) -> {
           if (wrappedCredential.handleResponse(request1, response, supportsRetry)) {
-            // If credential decides it can handle it,
-            // the return code or message indicated
-            // something specific to authentication,
-            // and no backoff is desired.
+            // If credential decides it can handle it, the return code or message indicated
+            // something specific to authentication, and no backoff is desired.
             return true;
           } else if (backoffHandler.handleResponse(request1, response, supportsRetry)) {
-            // Otherwise, we defer to the judgement of
-            // our internal backoff handler.
+            // Otherwise, we defer to the judgement of our internal backoff handler.
             LOG.info("Retrying " + request1.getUrl().toString());
             return true;
           } else {
