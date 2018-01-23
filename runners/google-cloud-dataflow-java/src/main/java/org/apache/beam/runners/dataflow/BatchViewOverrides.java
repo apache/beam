@@ -338,8 +338,7 @@ class BatchViewOverrides {
                 KvCoder.of(KvCoder.of(inputCoder.getKeyCoder(), windowCoder),
                     FullWindowedValueCoder.of(inputCoder.getValueCoder(), windowCoder))));
 
-        return keyedByHash.apply(
-            new GroupByKeyAndSortValuesOnly<>());
+        return keyedByHash.apply(new GroupByKeyAndSortValuesOnly<>());
       }
     }
 
@@ -779,9 +778,10 @@ class BatchViewOverrides {
       outputForSize.setCoder(
           KvCoder.of(VarIntCoder.of(),
               KvCoder.of(windowCoder, VarLongCoder.of())));
-      PCollection<IsmRecord<WindowedValue<V>>> windowMapSizeMetadata = outputForSize
-          .apply("GBKaSVForSize", new GroupByKeyAndSortValuesOnly<>())
-          .apply(ParDo.of(new ToIsmMetadataRecordForSizeDoFn<K, V, W>(windowCoder)));
+      PCollection<IsmRecord<WindowedValue<V>>> windowMapSizeMetadata =
+          outputForSize
+              .apply("GBKaSVForSize", new GroupByKeyAndSortValuesOnly<>())
+              .apply(ParDo.of(new ToIsmMetadataRecordForSizeDoFn<K, V, W>(windowCoder)));
       windowMapSizeMetadata.setCoder(ismCoder);
 
       // Set the coder on the metadata output destined to build the entry set and process the
@@ -791,10 +791,13 @@ class BatchViewOverrides {
       outputForEntrySet.setCoder(
           KvCoder.of(VarIntCoder.of(),
               KvCoder.of(windowCoder, inputCoder.getKeyCoder())));
-      PCollection<IsmRecord<WindowedValue<V>>> windowMapKeysMetadata = outputForEntrySet
-          .apply("GBKaSVForKeys", new GroupByKeyAndSortValuesOnly<>())
-          .apply(ParDo.of(
-              new ToIsmMetadataRecordForKeyDoFn<K, V, W>(inputCoder.getKeyCoder(), windowCoder)));
+      PCollection<IsmRecord<WindowedValue<V>>> windowMapKeysMetadata =
+          outputForEntrySet
+              .apply("GBKaSVForKeys", new GroupByKeyAndSortValuesOnly<>())
+              .apply(
+                  ParDo.of(
+                      new ToIsmMetadataRecordForKeyDoFn<K, V, W>(
+                          inputCoder.getKeyCoder(), windowCoder)));
       windowMapKeysMetadata.setCoder(ismCoder);
 
       // Set that all these outputs should be materialized using an indexed format.
@@ -1094,9 +1097,10 @@ class BatchViewOverrides {
         return reifiedPerWindowAndSorted;
       }
 
-      PCollection<IsmRecord<WindowedValue<T>>> reifiedPerWindowAndSorted = input
-          .apply(new GroupByWindowHashAsKeyAndWindowAsSortKey<T, W>(ismCoder))
-          .apply(ParDo.of(new ToIsmRecordForNonGlobalWindowDoFn<>(windowCoder)));
+      PCollection<IsmRecord<WindowedValue<T>>> reifiedPerWindowAndSorted =
+          input
+              .apply(new GroupByWindowHashAsKeyAndWindowAsSortKey<T, W>(ismCoder))
+              .apply(ParDo.of(new ToIsmRecordForNonGlobalWindowDoFn<>(windowCoder)));
       reifiedPerWindowAndSorted.setCoder(ismCoder);
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);

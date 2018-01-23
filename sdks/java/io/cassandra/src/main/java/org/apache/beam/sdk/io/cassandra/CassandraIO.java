@@ -22,11 +22,8 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.util.List;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -222,8 +219,7 @@ public class CassandraIO {
       checkArgument(entity() != null, "withEntity() is required");
       checkArgument(coder() != null, "withCoder() is required");
 
-      return input.apply(org.apache.beam.sdk.io.Read.from(
-          new CassandraSource<>(this, null)));
+      return input.apply(org.apache.beam.sdk.io.Read.from(new CassandraSource<>(this, null)));
     }
 
     @AutoValue.Builder

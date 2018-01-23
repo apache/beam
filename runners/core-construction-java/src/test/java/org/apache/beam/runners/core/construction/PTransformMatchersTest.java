@@ -257,8 +257,7 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void parDoMulti() {
     AppliedPTransform<?, ?, ?> parDoApplication =
-        getAppliedTransform(
-            ParDo.of(doFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+        getAppliedTransform(ParDo.of(doFn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     assertThat(PTransformMatchers.splittableParDoMulti().matches(parDoApplication), is(false));
     assertThat(PTransformMatchers.stateOrTimerParDoMulti().matches(parDoApplication), is(false));
@@ -336,8 +335,7 @@ public class PTransformMatchersTest implements Serializable {
     };
     AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
     AppliedPTransform<?, ?, ?> parDoMulti =
-        getAppliedTransform(
-            ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+        getAppliedTransform(ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(fn.getClass());
     assertThat(matcher.matches(parDoSingle), is(true));
@@ -353,8 +351,7 @@ public class PTransformMatchersTest implements Serializable {
     };
     AppliedPTransform<?, ?, ?> parDoSingle = getAppliedTransform(ParDo.of(fn));
     AppliedPTransform<?, ?, ?> parDoMulti =
-        getAppliedTransform(
-            ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
+        getAppliedTransform(ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     PTransformMatcher matcher = PTransformMatchers.parDoWithFnType(doFnWithState.getClass());
     assertThat(matcher.matches(parDoSingle), is(false));

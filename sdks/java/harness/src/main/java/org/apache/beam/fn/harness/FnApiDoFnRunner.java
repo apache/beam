@@ -924,25 +924,23 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     private <T> BagUserState<T> createBagUserState(String id, Coder<T> coder) {
-      BagUserState rval = new BagUserState<>(
-          beamFnStateClient,
-          id,
-          coder,
-          new Supplier<StateRequest.Builder>() {
-            /**
-             * Memoizes the partial state key for the lifetime of the {@link BagUserState}.
-             */
-            private final Supplier<StateKey.BagUserState> memoizingSupplier =
-                Suppliers.memoize(() -> createOrUseCachedBagUserStateKey(id))::get;
+      BagUserState rval =
+          new BagUserState<>(
+              beamFnStateClient,
+              id,
+              coder,
+              new Supplier<StateRequest.Builder>() {
+                /** Memoizes the partial state key for the lifetime of the {@link BagUserState}. */
+                private final Supplier<StateKey.BagUserState> memoizingSupplier =
+                    Suppliers.memoize(() -> createOrUseCachedBagUserStateKey(id))::get;
 
-            @Override
-            public Builder get() {
-              return StateRequest.newBuilder()
-                  .setInstructionReference(processBundleInstructionId.get())
-                  .setStateKey(StateKey.newBuilder()
-                      .setBagUserState(memoizingSupplier.get()));
-            }
-          });
+                @Override
+                public Builder get() {
+                  return StateRequest.newBuilder()
+                      .setInstructionReference(processBundleInstructionId.get())
+                      .setStateKey(StateKey.newBuilder().setBagUserState(memoizingSupplier.get()));
+                }
+              });
       stateFinalizers.add(rval::asyncClose);
       return rval;
     }

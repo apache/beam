@@ -290,9 +290,7 @@ public class PipelineTest {
   public void testIdentityTransform() throws Exception {
 
     PCollection<Integer> output =
-        pipeline
-            .apply(Create.of(1, 2, 3, 4))
-            .apply("IdentityTransform", new IdentityTransform<>());
+        pipeline.apply(Create.of(1, 2, 3, 4)).apply("IdentityTransform", new IdentityTransform<>());
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
@@ -317,8 +315,7 @@ public class PipelineTest {
     TupleTag<Integer> tag = new TupleTag<>();
     PCollectionTuple tuple = PCollectionTuple.of(tag, input);
 
-    PCollection<Integer> output = tuple
-        .apply("ProjectTag", new TupleProjectionTransform<>(tag));
+    PCollection<Integer> output = tuple.apply("ProjectTag", new TupleProjectionTransform<>(tag));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
@@ -348,8 +345,7 @@ public class PipelineTest {
 
     TupleTag<Integer> tag = new TupleTag<>();
 
-    PCollectionTuple output = input
-        .apply("ProjectTag", new TupleInjectionTransform<>(tag));
+    PCollectionTuple output = input.apply("ProjectTag", new TupleInjectionTransform<>(tag));
 
     PAssert.that(output.get(tag)).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();

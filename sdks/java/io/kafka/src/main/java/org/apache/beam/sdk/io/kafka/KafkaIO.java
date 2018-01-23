@@ -851,8 +851,7 @@ public class KafkaIO {
       if (spec.getTopicPartitions().isEmpty()) {
         LOG.warn("Looks like generateSplits() is not called. Generate single split.");
         try {
-          return new UnboundedKafkaReader<>(
-              split(1, options).get(0), checkpointMark);
+          return new UnboundedKafkaReader<>(split(1, options).get(0), checkpointMark);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
@@ -1651,15 +1650,17 @@ public class KafkaIO {
     @Override
     public PDone expand(PCollection<V> input) {
       return input
-        .apply("Kafka values with default key",
-          MapElements.via(new SimpleFunction<V, KV<K, V>>() {
-            @Override
-            public KV<K, V> apply(V element) {
-              return KV.of(null, element);
-            }
-          }))
-        .setCoder(KvCoder.of(new NullOnlyCoder<>(), input.getCoder()))
-        .apply(kvWriteTransform);
+          .apply(
+              "Kafka values with default key",
+              MapElements.via(
+                  new SimpleFunction<V, KV<K, V>>() {
+                    @Override
+                    public KV<K, V> apply(V element) {
+                      return KV.of(null, element);
+                    }
+                  }))
+          .setCoder(KvCoder.of(new NullOnlyCoder<>(), input.getCoder()))
+          .apply(kvWriteTransform);
     }
 
     @Override
@@ -1700,8 +1701,7 @@ public class KafkaIO {
 
       KV<K, V> kv = ctx.element();
       producer.send(
-          new ProducerRecord<>(spec.getTopic(), kv.getKey(), kv.getValue()),
-          new SendCallback());
+          new ProducerRecord<>(spec.getTopic(), kv.getKey(), kv.getValue()), new SendCallback());
 
       elementsWritten.inc();
     }
@@ -2084,8 +2084,9 @@ public class KafkaIO {
             minBufferedIdState.clear();
             minBufferedId = Long.MAX_VALUE;
 
-            iter = Iterators.mergeSorted(ImmutableList.of(iter, buffered.iterator()),
-                new KV.OrderByKey<>());
+            iter =
+                Iterators.mergeSorted(
+                    ImmutableList.of(iter, buffered.iterator()), new KV.OrderByKey<>());
           }
         }
 
@@ -2366,9 +2367,10 @@ public class KafkaIO {
         ProducerSpEL.ENABLE_IDEMPOTENCE_CONFIG, true,
         ProducerSpEL.TRANSACTIONAL_ID_CONFIG, producerName));
 
-    Producer<K, V> producer = spec.getProducerFactoryFn() != null
-      ? spec.getProducerFactoryFn().apply((producerConfig))
-      : new KafkaProducer<>(producerConfig);
+    Producer<K, V> producer =
+        spec.getProducerFactoryFn() != null
+            ? spec.getProducerFactoryFn().apply((producerConfig))
+            : new KafkaProducer<>(producerConfig);
 
     ProducerSpEL.initTransactions(producer);
     return producer;

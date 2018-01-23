@@ -946,12 +946,13 @@ public class DoFnOperator<InputT, OutputT>
     @SuppressWarnings("unchecked")
     public MultiOutputOutputManagerFactory(
         TupleTag<OutputT> mainTag, Coder<WindowedValue<OutputT>> mainCoder) {
-      this(mainTag,
+      this(
+          mainTag,
           new HashMap<>(),
           ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
-              .put(mainTag, (Coder) mainCoder).build(),
-          ImmutableMap.<TupleTag<?>, Integer>builder()
-              .put(mainTag, 0).build());
+              .put(mainTag, (Coder) mainCoder)
+              .build(),
+          ImmutableMap.<TupleTag<?>, Integer>builder().put(mainTag, 0).build());
     }
 
     public MultiOutputOutputManagerFactory(

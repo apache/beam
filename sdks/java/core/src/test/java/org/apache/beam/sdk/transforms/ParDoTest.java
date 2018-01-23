@@ -1096,10 +1096,7 @@ public class ParDoTest implements Serializable {
     private final String additionalOutput;
 
     public static HasExpectedOutput forInput(List<Integer> inputs) {
-      return new HasExpectedOutput(
-          new ArrayList<>(inputs),
-          new ArrayList<>(),
-          "");
+      return new HasExpectedOutput(new ArrayList<>(inputs), new ArrayList<>(), "");
     }
 
     private HasExpectedOutput(List<Integer> inputs,
@@ -1278,9 +1275,9 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.of(new TestOutputTimestampDoFn<>()))
-        .apply(ParDo.of(new TestShiftTimestampDoFn<>(Duration.ZERO, Duration.ZERO)))
-        .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
+            .apply(ParDo.of(new TestOutputTimestampDoFn<>()))
+            .apply(ParDo.of(new TestShiftTimestampDoFn<>(Duration.ZERO, Duration.ZERO)))
+            .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: 3",
@@ -1302,17 +1299,21 @@ public class ParDoTest implements Serializable {
 
     PCollection<String> output =
         input
-        .apply(ParDo.of(
-            new DoFn<Integer, Integer>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                c.outputWithTimestamp(
-                    additionalOutputTag, c.element(), new Instant(c.element().longValue()));
-              }
-            }).withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)))
-        .get(additionalOutputTag)
-        .apply(ParDo.of(new TestShiftTimestampDoFn<>(Duration.ZERO, Duration.ZERO)))
-        .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
+            .apply(
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            c.outputWithTimestamp(
+                                additionalOutputTag,
+                                c.element(),
+                                new Instant(c.element().longValue()));
+                          }
+                        })
+                    .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)))
+            .get(additionalOutputTag)
+            .apply(ParDo.of(new TestShiftTimestampDoFn<>(Duration.ZERO, Duration.ZERO)))
+            .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
 
     PAssert.that(output).containsInAnyOrder(
                    "processing: 3, timestamp: 3",
@@ -1334,8 +1335,7 @@ public class ParDoTest implements Serializable {
             .apply(ParDo.of(new TestOutputTimestampDoFn<>()))
             .apply(
                 ParDo.of(
-                    new TestShiftTimestampDoFn<>(
-                        Duration.millis(1000), Duration.millis(-1000))))
+                    new TestShiftTimestampDoFn<>(Duration.millis(1000), Duration.millis(-1000))))
             .apply(ParDo.of(new TestFormatTimestampDoFn<>()));
 
     PAssert.that(output).containsInAnyOrder(
@@ -1397,7 +1397,8 @@ public class ParDoTest implements Serializable {
                         BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis(),
                         GlobalWindow.INSTANCE.maxTimestamp().getMillis())))
             .apply("AssignTimestampToValue", ParDo.of(new TestOutputTimestampDoFn<>()))
-            .apply("ReassignToMinimumTimestamp",
+            .apply(
+                "ReassignToMinimumTimestamp",
                 ParDo.of(
                     new DoFn<Long, Long>() {
                       @ProcessElement
@@ -3184,9 +3185,8 @@ public class ParDoTest implements Serializable {
       }
     };
 
-    ParDo.MultiOutput<String, String> parDo = ParDo
-            .of(fn)
-            .withOutputTags(new TupleTag<>(), TupleTagList.empty());
+    ParDo.MultiOutput<String, String> parDo =
+        ParDo.of(fn).withOutputTags(new TupleTag<>(), TupleTagList.empty());
 
     DisplayData displayData = DisplayData.from(parDo);
     assertThat(displayData, includesDisplayDataFor("fn", fn));

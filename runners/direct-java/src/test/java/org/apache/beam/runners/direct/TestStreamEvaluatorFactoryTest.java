@@ -76,8 +76,7 @@ public class TestStreamEvaluatorFactoryTest {
             TimestampedValue.atMinimumTimestamp(6))
         .advanceProcessingTime(Duration.standardMinutes(10))
         .advanceWatermarkToInfinity();
-    PCollection<Integer> streamVals =
-        p.apply(new DirectTestStream<>(runner, testStream));
+    PCollection<Integer> streamVals = p.apply(new DirectTestStream<>(runner, testStream));
 
     TestClock clock = new TestClock();
     when(context.getClock()).thenReturn(clock);

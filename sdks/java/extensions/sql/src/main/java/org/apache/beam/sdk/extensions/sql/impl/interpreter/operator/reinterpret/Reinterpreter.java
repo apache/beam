@@ -19,11 +19,9 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret;
 
 import com.google.common.base.Optional;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 

@@ -78,7 +78,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-        .apply("testPartialFields", BeamSql.queryMulti(sql));
+            .apply("testPartialFields", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
@@ -112,7 +112,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-        .apply("testPartialFieldsInMultipleRow", BeamSql.queryMulti(sql));
+            .apply("testPartialFieldsInMultipleRow", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
@@ -155,7 +155,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-        .apply("testPartialFieldsInRows", BeamSql.queryMulti(sql));
+            .apply("testPartialFieldsInRows", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
@@ -198,7 +198,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-        .apply("testLiteralField", BeamSql.queryMulti(sql));
+            .apply("testLiteralField", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("literal_field"),
         Arrays.asList(Types.INTEGER));
@@ -220,7 +220,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-        .apply("testProjectUnknownField", BeamSql.queryMulti(sql));
+            .apply("testProjectUnknownField", BeamSql.queryMulti(sql));
 
     pipeline.run().waitUntilFinish();
   }

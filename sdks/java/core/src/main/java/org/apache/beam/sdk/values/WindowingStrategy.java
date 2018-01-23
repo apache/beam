@@ -157,10 +157,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public WindowingStrategy<T, W> withTrigger(Trigger trigger) {
     return new WindowingStrategy<>(
         windowFn,
-        trigger, true,
-        mode, modeSpecified,
-        allowedLateness, allowedLatenessSpecified,
-        timestampCombiner, timestampCombinerSpecified,
+        trigger,
+        true,
+        mode,
+        modeSpecified,
+        allowedLateness,
+        allowedLatenessSpecified,
+        timestampCombiner,
+        timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior);
   }
@@ -172,10 +176,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public WindowingStrategy<T, W> withMode(AccumulationMode mode) {
     return new WindowingStrategy<>(
         windowFn,
-        trigger, triggerSpecified,
-        mode, true,
-        allowedLateness, allowedLatenessSpecified,
-        timestampCombiner, timestampCombinerSpecified,
+        trigger,
+        triggerSpecified,
+        mode,
+        true,
+        allowedLateness,
+        allowedLatenessSpecified,
+        timestampCombiner,
+        timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior);
   }
@@ -190,10 +198,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
     return new WindowingStrategy<>(
         typedWindowFn,
-        trigger, triggerSpecified,
-        mode, modeSpecified,
-        allowedLateness, allowedLatenessSpecified,
-        timestampCombiner, timestampCombinerSpecified,
+        trigger,
+        triggerSpecified,
+        mode,
+        modeSpecified,
+        allowedLateness,
+        allowedLatenessSpecified,
+        timestampCombiner,
+        timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior);
   }
@@ -205,10 +217,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public WindowingStrategy<T, W> withAllowedLateness(Duration allowedLateness) {
     return new WindowingStrategy<>(
         windowFn,
-        trigger, triggerSpecified,
-        mode, modeSpecified,
-        allowedLateness, true,
-        timestampCombiner, timestampCombinerSpecified,
+        trigger,
+        triggerSpecified,
+        mode,
+        modeSpecified,
+        allowedLateness,
+        true,
+        timestampCombiner,
+        timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior);
   }
@@ -216,10 +232,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public WindowingStrategy<T, W> withClosingBehavior(ClosingBehavior closingBehavior) {
     return new WindowingStrategy<>(
         windowFn,
-        trigger, triggerSpecified,
-        mode, modeSpecified,
-        allowedLateness, allowedLatenessSpecified,
-        timestampCombiner, timestampCombinerSpecified,
+        trigger,
+        triggerSpecified,
+        mode,
+        modeSpecified,
+        allowedLateness,
+        allowedLatenessSpecified,
+        timestampCombiner,
+        timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior);
   }
@@ -227,10 +247,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
   public WindowingStrategy<T, W> withOnTimeBehavior(OnTimeBehavior onTimeBehavior) {
     return new WindowingStrategy<>(
         windowFn,
-        trigger, triggerSpecified,
-        mode, modeSpecified,
-        allowedLateness, allowedLatenessSpecified,
-        timestampCombiner, timestampCombinerSpecified,
+        trigger,
+        triggerSpecified,
+        mode,
+        modeSpecified,
+        allowedLateness,
+        allowedLatenessSpecified,
+        timestampCombiner,
+        timestampCombinerSpecified,
         closingBehavior,
         onTimeBehavior);
   }
@@ -240,10 +264,14 @@ public class WindowingStrategy<T, W extends BoundedWindow> implements Serializab
 
     return new WindowingStrategy<>(
         windowFn,
-        trigger, triggerSpecified,
-        mode, modeSpecified,
-        allowedLateness, allowedLatenessSpecified,
-        timestampCombiner, true,
+        trigger,
+        triggerSpecified,
+        mode,
+        modeSpecified,
+        allowedLateness,
+        allowedLatenessSpecified,
+        timestampCombiner,
+        true,
         closingBehavior,
         onTimeBehavior);
   }

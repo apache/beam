@@ -158,8 +158,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
         FullWindowedValueCoder.of(
             linputCoder, this.windowingStrategy.getWindowFn().windowCoder());
     Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(wvCoder);
-    this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<>(),
-        listCoder);
+    this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<>(), listCoder);
     this.inputCoder = wvCoder;
 
     TimerInternals.TimerDataCoder timerCoder =

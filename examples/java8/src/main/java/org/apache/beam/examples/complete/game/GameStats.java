@@ -186,13 +186,10 @@ public class GameStats extends LeaderBoard {
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
         new HashMap<>();
     tableConfigure.put(
-        "team",
-        new WriteWindowedToBigQuery.FieldInfo<>(
-            "STRING", (c, w) -> c.element().getKey()));
+        "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
         "total_score",
-        new WriteWindowedToBigQuery.FieldInfo<>(
-            "INTEGER", (c, w) -> c.element().getValue()));
+        new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
         "window_start",
         new WriteWindowedToBigQuery.FieldInfo<>(
@@ -203,8 +200,7 @@ public class GameStats extends LeaderBoard {
             }));
     tableConfigure.put(
         "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<>(
-            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+        new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 
@@ -215,8 +211,7 @@ public class GameStats extends LeaderBoard {
   protected static Map<String, WriteWindowedToBigQuery.FieldInfo<Double>>
       configureSessionWindowWrite() {
 
-    Map<String, WriteWindowedToBigQuery.FieldInfo<Double>> tableConfigure =
-        new HashMap<>();
+    Map<String, WriteWindowedToBigQuery.FieldInfo<Double>> tableConfigure = new HashMap<>();
     tableConfigure.put(
         "window_start",
         new WriteWindowedToBigQuery.FieldInfo<>(
@@ -226,8 +221,7 @@ public class GameStats extends LeaderBoard {
               return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
-        "mean_duration",
-        new WriteWindowedToBigQuery.FieldInfo<>("FLOAT", (c, w) -> c.element()));
+        "mean_duration", new WriteWindowedToBigQuery.FieldInfo<>("FLOAT", (c, w) -> c.element()));
     return tableConfigure;
   }
 

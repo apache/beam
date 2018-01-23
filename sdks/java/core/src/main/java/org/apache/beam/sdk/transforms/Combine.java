@@ -1646,8 +1646,7 @@ public class Combine {
         throw new IllegalStateException("Unable to determine accumulator coder.", e);
       }
       Coder<InputOrAccum<InputT, AccumT>> inputOrAccumCoder =
-          new InputOrAccum.InputOrAccumCoder<>(
-              inputCoder.getValueCoder(), accumCoder);
+          new InputOrAccum.InputOrAccumCoder<>(inputCoder.getValueCoder(), accumCoder);
 
       // A CombineFn's mergeAccumulator can be applied in a tree-like fashion.
       // Here we shard the key using an integer nonce, combine on that partial
