@@ -1351,8 +1351,8 @@ public class AvroIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /** Formats an element of a user type into a record with the given schema. */
-  public abstract static class RecordFormatter<ElementT> implements Serializable {
-    public abstract GenericRecord formatRecord(ElementT element, Schema schema);
+  public interface RecordFormatter<ElementT> extends Serializable {
+    GenericRecord formatRecord(ElementT element, Schema schema);
   }
 
   /**

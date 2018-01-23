@@ -208,10 +208,11 @@ public class WatchTest implements Serializable {
                                 standardSeconds(3) /* timeToDeclareOutputFinal */,
                                 standardSeconds(30) /* timeToFail */),
                             Requirements.empty()),
-                        input -> input.getKey())
+                        KV::getKey)
                     .withTerminationPerInput(Watch.Growth.afterTotalOf(standardSeconds(5)))
                     .withPollInterval(Duration.millis(100))
-                    .withOutputCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
+                    .withOutputCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
+                    .withOutputKeyCoder(VarIntCoder.of()))
             .apply("Drop input", Values.create())
             .apply("Drop auxiliary string", Keys.create());
 

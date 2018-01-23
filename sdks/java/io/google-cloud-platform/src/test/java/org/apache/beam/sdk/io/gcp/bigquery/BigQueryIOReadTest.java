@@ -772,7 +772,14 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testCoderInference() {
-    SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>> parseFn = input -> null;
+    // Lambdas erase too much type information - use an anonymous class here.
+    SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>> parseFn =
+        new SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>>() {
+          @Override
+          public KV<ByteString, Mutation> apply(SchemaAndRecord input) {
+            return null;
+          }
+        };
 
     assertEquals(
         KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(Mutation.class)),

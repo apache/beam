@@ -931,42 +931,34 @@ public class AvroIOTest implements Serializable {
       case AVROIO_SINK:
         {
           final AvroIO.RecordFormatter<String> formatter =
-              new AvroIO.RecordFormatter<String>() {
-                @Override
-                public GenericRecord formatRecord(String element, Schema schema) {
-                  String prefix = element.substring(0, 1);
-                  GenericRecord record = new GenericData.Record(schema);
-                  record.put(prefix + "full", element);
-                  record.put(prefix + "suffix", element.substring(1));
-                  return record;
-                }
+              (element, schema) -> {
+                String prefix = element.substring(0, 1);
+                GenericRecord record = new GenericData.Record(schema);
+                record.put(prefix + "full", element);
+                record.put(prefix + "suffix", element.substring(1));
+                return record;
               };
           FileIO.Write<String, String> write =
               FileIO.<String, String>writeDynamic()
-                  .by(
-                      fn(
-                          (element, c) -> {
-                            c.sideInput(schemaView); // Ignore result
-                            return element.substring(0, 1);
-                          },
-                          requiresSideInputs(schemaView)))
-                  .via(
-                      fn(
-                          (dest, c) -> {
-                            Schema schema =
-                                new Schema.Parser().parse(c.sideInput(schemaView).get(dest));
-                            return AvroIO.sinkViaGenericRecords(schema, formatter);
-                          },
-                          requiresSideInputs(schemaView)))
+                  .by(fn((element, c) -> {
+                      c.sideInput(schemaView); // Ignore result
+                      return element.substring(0, 1);
+                    },
+                    requiresSideInputs(schemaView)))
+                  .via(fn((dest, c) -> {
+                      Schema schema =
+                          new Schema.Parser().parse(c.sideInput(schemaView).get(dest));
+                      return AvroIO.sinkViaGenericRecords(schema, formatter);
+                    },
+                    requiresSideInputs(schemaView)))
                   .to(baseDir.toString())
-                  .withNaming(
-                      fn(
-                          (dest, c) -> {
-                            c.sideInput(schemaView); // Ignore result
-                            return FileIO.Write.defaultNaming("file_" + dest, ".avro");
-                          },
-                          requiresSideInputs(schemaView)))
+                  .withNaming(fn((dest, c) -> {
+                      c.sideInput(schemaView); // Ignore result
+                      return FileIO.Write.defaultNaming("file_" + dest, ".avro");
+                    },
+                    requiresSideInputs(schemaView)))
                   .withTempDirectory(baseDir.toString())
+                  .withDestinationCoder(StringUtf8Coder.of())
                   .withIgnoreWindowing();
           switch (sharding) {
             case RUNNER_DETERMINED:

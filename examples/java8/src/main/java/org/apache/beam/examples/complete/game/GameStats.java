@@ -200,7 +200,8 @@ public class GameStats extends LeaderBoard {
             }));
     tableConfigure.put(
         "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+        new WriteWindowedToBigQuery.FieldInfo<>(
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 
