@@ -265,7 +265,7 @@ class GrpcStateHandler(object):
             state_key=state_key,
             get=beam_fn_api_pb2.StateGetRequest()))
     if response.get.continuation_token:
-      raise NotImplementedErrror
+      raise NotImplementedError
     return response.get.data
 
   def blocking_append(self, state_key, data, instruction_reference):
