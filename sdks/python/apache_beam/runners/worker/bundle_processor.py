@@ -592,7 +592,6 @@ def create(factory, transform_id, transform_proto, payload, consumers):
 
 def _create_combine_phase_operation(
     factory, transform_proto, payload, consumers, phase):
-  # This is where support for combine fn side inputs would go.
   serialized_combine_fn = pickler.dumps(
       (beam.CombineFn.from_runner_api(payload.combine_fn, factory.context),
        [], {}))
