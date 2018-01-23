@@ -145,11 +145,10 @@ public class HourlyTeamScore extends UserScore {
         // Filter out data before and after the given times so that it is not included
         // in the calculations. As we collect data in batches (say, by day), the batch for the day
         // that we want to analyze could potentially include some late-arriving data from the
-        // previous
-        // day. If so, we want to weed it out. Similarly, if we include data from the following day
+        // previous day.
+        // If so, we want to weed it out. Similarly, if we include data from the following day
         // (to scoop up late-arriving events from the day we're analyzing), we need to weed out
-        // events
-        // that fall after the time period we want to analyze.
+        // events that fall after the time period we want to analyze.
         // [START DocInclude_HTSFilters]
         .apply(
             "FilterStartTime",

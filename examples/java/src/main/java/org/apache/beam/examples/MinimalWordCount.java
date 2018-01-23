@@ -77,8 +77,7 @@ public class MinimalWordCount {
     p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
 
         // Concept #2: Apply a ParDo transform to our PCollection of text lines. This ParDo invokes
-        // a
-        // DoFn (defined in-line) on each element that tokenizes the text line into individual
+        // a DoFn (defined in-line) on each element that tokenizes the text line into individual
         // words.
         // The ParDo returns a PCollection<String>, where each element is an individual word in
         // Shakespeare's collected texts.
@@ -98,13 +97,11 @@ public class MinimalWordCount {
 
         // Concept #3: Apply the Count transform to our PCollection of individual words. The Count
         // transform returns a new PCollection of key/value pairs, where each key represents a
-        // unique
-        // word in the text. The associated value is the occurrence count for that word.
+        // unique word in the text. The associated value is the occurrence count for that word.
         .apply(Count.perElement())
 
         // Apply a MapElements transform that formats our PCollection of word counts into a
-        // printable
-        // string, suitable for writing to an output file.
+        // printable string, suitable for writing to an output file.
         .apply(
             "FormatResults",
             MapElements.via(
