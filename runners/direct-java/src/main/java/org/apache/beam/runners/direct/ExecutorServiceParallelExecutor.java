@@ -125,14 +125,10 @@ final class ExecutorServiceParallelExecutor
   }
 
   private RemovalListener<StepAndKey, TransformExecutorService> shutdownExecutorServiceListener() {
-    return new RemovalListener<StepAndKey, TransformExecutorService>() {
-      @Override
-      public void onRemoval(
-          RemovalNotification<StepAndKey, TransformExecutorService> notification) {
-        TransformExecutorService service = notification.getValue();
-        if (service != null) {
-          service.shutdown();
-        }
+    return notification -> {
+      TransformExecutorService service = notification.getValue();
+      if (service != null) {
+        service.shutdown();
       }
     };
   }

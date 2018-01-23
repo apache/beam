@@ -240,7 +240,7 @@ public class LeaderBoardTest implements Serializable {
     String redTeam = TestUser.RED_ONE.getTeam();
     PAssert.that(teamScores)
         .inWindow(window)
-        .satisfies((SerializableFunction<Iterable<KV<String, Integer>>, Void>) input -> {
+        .satisfies(input -> {
           // The final sums need not exist in the same pane, but must appear in the output
           // PCollection
           assertThat(input, hasItem(KV.of(blueTeam, 11)));

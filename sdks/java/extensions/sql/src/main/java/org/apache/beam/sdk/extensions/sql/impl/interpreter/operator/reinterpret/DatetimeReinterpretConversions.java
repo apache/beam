@@ -37,23 +37,17 @@ public abstract class DatetimeReinterpretConversions {
       ReinterpretConversion.builder()
           .from(SqlTypeName.TIME)
           .to(SqlTypeName.BIGINT)
-          .convert(new Function<BeamSqlPrimitive, BeamSqlPrimitive>() {
-            @Override
-            public BeamSqlPrimitive apply(@Nonnull BeamSqlPrimitive beamSqlPrimitive) {
-              GregorianCalendar date = (GregorianCalendar) beamSqlPrimitive.getValue();
-              return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTimeInMillis());
-            }
+          .convert(beamSqlPrimitive -> {
+            GregorianCalendar date = (GregorianCalendar) beamSqlPrimitive.getValue();
+            return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTimeInMillis());
           }).build();
 
   public static final ReinterpretConversion DATE_TYPES_TO_BIGINT =
       ReinterpretConversion.builder()
           .from(SqlTypeName.DATE, SqlTypeName.TIMESTAMP)
           .to(SqlTypeName.BIGINT)
-          .convert(new Function<BeamSqlPrimitive, BeamSqlPrimitive>() {
-            @Override
-            public BeamSqlPrimitive apply(@Nonnull BeamSqlPrimitive beamSqlPrimitive) {
-              Date date = (Date) beamSqlPrimitive.getValue();
-              return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTime());
-            }
+          .convert(beamSqlPrimitive -> {
+            Date date = (Date) beamSqlPrimitive.getValue();
+            return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTime());
           }).build();
 }

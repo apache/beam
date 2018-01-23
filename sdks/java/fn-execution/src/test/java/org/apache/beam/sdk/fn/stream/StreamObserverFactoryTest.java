@@ -69,12 +69,9 @@ public class StreamObserverFactoryTest {
   }
 
   private StreamObserverClientFactory<Integer, String> fakeFactory() {
-    return new StreamObserverClientFactory<Integer, String>() {
-      @Override
-      public StreamObserver<String> outboundObserverFor(StreamObserver<Integer> inboundObserver) {
-        assertThat(inboundObserver, instanceOf(ForwardingClientResponseObserver.class));
-        return mockResponseObserver;
-      }
+    return inboundObserver -> {
+      assertThat(inboundObserver, instanceOf(ForwardingClientResponseObserver.class));
+      return mockResponseObserver;
     };
   }
 }

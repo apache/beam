@@ -584,14 +584,11 @@ public class GroupByKeyTest implements Serializable {
           }));
 
     PAssert.that(result).satisfies(
-        new SerializableFunction<Iterable<KV<String, Integer>>, Void>() {
-          @Override
-          public Void apply(Iterable<KV<String, Integer>> values) {
-            assertThat(values,
-                containsInAnyOrder(
-                    KV.of(bigString('a', keySize), 2), KV.of(bigString('b', keySize), 1)));
-            return null;
-          }
+        values -> {
+          assertThat(values,
+              containsInAnyOrder(
+                  KV.of(bigString('a', keySize), 2), KV.of(bigString('b', keySize), 1)));
+          return null;
         });
 
     p.run();
@@ -738,15 +735,12 @@ public class GroupByKeyTest implements Serializable {
 
       return Iterables.transform(
           iterable,
-          new Function<T, Object>() {
-            @Override
-            public Object apply(T input) {
-              try {
-                return coder.structuralValue(input);
-              } catch (Exception e) {
-                Assert.fail("Could not structural values.");
-                throw new RuntimeException(); // to satisfy the compiler...
-              }
+          input -> {
+            try {
+              return coder.structuralValue(input);
+            } catch (Exception e) {
+              Assert.fail("Could not structural values.");
+              throw new RuntimeException(); // to satisfy the compiler...
             }
           });
 

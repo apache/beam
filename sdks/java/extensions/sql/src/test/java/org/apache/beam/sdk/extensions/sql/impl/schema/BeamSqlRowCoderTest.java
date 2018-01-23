@@ -41,24 +41,19 @@ public class BeamSqlRowCoderTest {
 
   @Test
   public void encodeAndDecode() throws Exception {
-    final RelProtoDataType protoRowType = new RelProtoDataType() {
-      @Override
-      public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder()
-            .add("col_tinyint", SqlTypeName.TINYINT)
-            .add("col_smallint", SqlTypeName.SMALLINT)
-            .add("col_integer", SqlTypeName.INTEGER)
-            .add("col_bigint", SqlTypeName.BIGINT)
-            .add("col_float", SqlTypeName.FLOAT)
-            .add("col_double", SqlTypeName.DOUBLE)
-            .add("col_decimal", SqlTypeName.DECIMAL)
-            .add("col_string_varchar", SqlTypeName.VARCHAR)
-            .add("col_time", SqlTypeName.TIME)
-            .add("col_timestamp", SqlTypeName.TIMESTAMP)
-            .add("col_boolean", SqlTypeName.BOOLEAN)
-            .build();
-      }
-    };
+    final RelProtoDataType protoRowType = a0 -> a0.builder()
+        .add("col_tinyint", SqlTypeName.TINYINT)
+        .add("col_smallint", SqlTypeName.SMALLINT)
+        .add("col_integer", SqlTypeName.INTEGER)
+        .add("col_bigint", SqlTypeName.BIGINT)
+        .add("col_float", SqlTypeName.FLOAT)
+        .add("col_double", SqlTypeName.DOUBLE)
+        .add("col_decimal", SqlTypeName.DECIMAL)
+        .add("col_string_varchar", SqlTypeName.VARCHAR)
+        .add("col_time", SqlTypeName.TIME)
+        .add("col_timestamp", SqlTypeName.TIMESTAMP)
+        .add("col_boolean", SqlTypeName.BOOLEAN)
+        .build();
 
     BeamRecordSqlType beamSQLRowType = CalciteUtils.toBeamRowType(
         protoRowType.apply(new JavaTypeFactoryImpl(

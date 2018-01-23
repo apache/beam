@@ -653,31 +653,25 @@ public class SourceTestUtils {
     final CountDownLatch unblockSplitter = new CountDownLatch(1);
     Future<List<T>> readerThread =
         executor.submit(
-            new Callable<List<T>>() {
-              @Override
-              public List<T> call() throws Exception {
-                try {
-                  List<T> items =
-                      readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplitting);
-                  unblockSplitter.countDown();
-                  items.addAll(readRemainingFromReader(reader, numItemsToReadBeforeSplitting > 0));
-                  return items;
-                } finally {
-                  reader.close();
-                }
+            () -> {
+              try {
+                List<T> items =
+                    readNItemsFromUnstartedReader(reader, numItemsToReadBeforeSplitting);
+                unblockSplitter.countDown();
+                items.addAll(readRemainingFromReader(reader, numItemsToReadBeforeSplitting > 0));
+                return items;
+              } finally {
+                reader.close();
               }
             });
     Future<KV<BoundedSource<T>, BoundedSource<T>>> splitterThread = executor.submit(
-        new Callable<KV<BoundedSource<T>, BoundedSource<T>>>() {
-          @Override
-          public KV<BoundedSource<T>, BoundedSource<T>> call() throws Exception {
-            unblockSplitter.await();
-            BoundedSource<T> residual = reader.splitAtFraction(fraction);
-            if (residual == null) {
-              return null;
-            }
-            return KV.of(reader.getCurrentSource(), residual);
+        () -> {
+          unblockSplitter.await();
+          BoundedSource<T> residual = reader.splitAtFraction(fraction);
+          if (residual == null) {
+            return null;
           }
+          return KV.of(reader.getCurrentSource(), residual);
         });
     List<T> currentItems = readerThread.get();
     KV<BoundedSource<T>, BoundedSource<T>> splitSources = splitterThread.get();

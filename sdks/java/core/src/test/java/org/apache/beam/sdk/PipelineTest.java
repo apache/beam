@@ -389,20 +389,10 @@ public class PipelineTest {
     pipeline.replaceAll(
         ImmutableList.of(
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof GenerateSequence;
-                  }
-                },
+                application -> application.getTransform() instanceof GenerateSequence,
                 new GenerateSequenceToCreateOverride()),
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof Create.Values;
-                  }
-                },
+                application -> application.getTransform() instanceof Create.Values,
                 new CreateValuesToEmptyFlattenOverride())));
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -437,20 +427,10 @@ public class PipelineTest {
     pipeline.replaceAll(
         ImmutableList.of(
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof Create.Values;
-                  }
-                },
+                application -> application.getTransform() instanceof Create.Values,
                 new CreateValuesToEmptyFlattenOverride()),
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof GenerateSequence;
-                  }
-                },
+                application -> application.getTransform() instanceof GenerateSequence,
                 new GenerateSequenceToCreateOverride())));
   }
 

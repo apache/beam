@@ -66,30 +66,26 @@ public class StateFetchingIteratorsTest {
     }
 
     private void testFetch(ByteString... expected) {
-      BeamFnStateClient fakeStateClient = new BeamFnStateClient() {
-        @Override
-        public void handle(
-            StateRequest.Builder requestBuilder, CompletableFuture<StateResponse> response) {
-          ByteString continuationToken = requestBuilder.getGet().getContinuationToken();
-          StateGetResponse.Builder builder = StateGetResponse.newBuilder();
+      BeamFnStateClient fakeStateClient = (requestBuilder, response) -> {
+        ByteString continuationToken = requestBuilder.getGet().getContinuationToken();
+        StateGetResponse.Builder builder = StateGetResponse.newBuilder();
 
-          int requestedPosition = 0; // Default position is 0
-          if (!ByteString.EMPTY.equals(continuationToken)) {
-            requestedPosition = Integer.parseInt(continuationToken.toStringUtf8());
-          }
-
-          // Compute the new continuation token
-          ByteString newContinuationToken = ByteString.EMPTY;
-          if (requestedPosition != expected.length - 1) {
-            newContinuationToken = ByteString.copyFromUtf8(Integer.toString(requestedPosition + 1));
-          }
-          response.complete(StateResponse.newBuilder()
-              .setId(requestBuilder.getId())
-              .setGet(StateGetResponse.newBuilder()
-                  .setData(expected[requestedPosition])
-                  .setContinuationToken(newContinuationToken))
-              .build());
+        int requestedPosition = 0; // Default position is 0
+        if (!ByteString.EMPTY.equals(continuationToken)) {
+          requestedPosition = Integer.parseInt(continuationToken.toStringUtf8());
         }
+
+        // Compute the new continuation token
+        ByteString newContinuationToken = ByteString.EMPTY;
+        if (requestedPosition != expected.length - 1) {
+          newContinuationToken = ByteString.copyFromUtf8(Integer.toString(requestedPosition + 1));
+        }
+        response.complete(StateResponse.newBuilder()
+            .setId(requestBuilder.getId())
+            .setGet(StateGetResponse.newBuilder()
+                .setData(expected[requestedPosition])
+                .setContinuationToken(newContinuationToken))
+            .build());
       };
       Iterator<ByteString> byteStrings =
           new LazyBlockingStateFetchingIterator(fakeStateClient, StateRequest::newBuilder);

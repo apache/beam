@@ -850,31 +850,25 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
-      return new ByteCodeAppender() {
-        @Override
-        public Size apply(
-            MethodVisitor methodVisitor,
-            Context implementationContext,
-            MethodDescription instrumentedMethod) {
-          StackManipulation.Size size =
-              new StackManipulation.Compound(
-                      // Load the this reference
-                      MethodVariableAccess.REFERENCE.loadFrom(0),
-                      // Load the delegate argument
-                      MethodVariableAccess.REFERENCE.loadFrom(1),
-                      // Invoke the super constructor (default constructor of Object)
-                      MethodInvocation.invoke(
-                          new TypeDescription.ForLoadedType(DoFnInvokerBase.class)
-                              .getDeclaredMethods()
-                              .filter(
-                                  ElementMatchers.isConstructor()
-                                      .and(ElementMatchers.takesArguments(DoFn.class)))
-                              .getOnly()),
-                      // Return void.
-                      MethodReturn.VOID)
-                  .apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
-        }
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        StackManipulation.Size size =
+            new StackManipulation.Compound(
+                    // Load the this reference
+                    MethodVariableAccess.REFERENCE.loadFrom(0),
+                    // Load the delegate argument
+                    MethodVariableAccess.REFERENCE.loadFrom(1),
+                    // Invoke the super constructor (default constructor of Object)
+                    MethodInvocation.invoke(
+                        new TypeDescription.ForLoadedType(DoFnInvokerBase.class)
+                            .getDeclaredMethods()
+                            .filter(
+                                ElementMatchers.isConstructor()
+                                    .and(ElementMatchers.takesArguments(DoFn.class)))
+                            .getOnly()),
+                    // Return void.
+                    MethodReturn.VOID)
+                .apply(methodVisitor, implementationContext);
+        return new ByteCodeAppender.Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
       };
     }
   }

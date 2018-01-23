@@ -87,12 +87,7 @@ public class BoundedDataset<T> implements Dataset {
           rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
       List<byte[]> clientBytes = bytesRDD.collect();
       windowedValues = Iterables.transform(clientBytes,
-          new Function<byte[], WindowedValue<T>>() {
-            @Override
-            public WindowedValue<T> apply(byte[] bytes) {
-              return CoderHelpers.fromByteArray(bytes, windowedValueCoder);
-            }
-          });
+          bytes -> CoderHelpers.fromByteArray(bytes, windowedValueCoder));
     }
     return windowedValues;
   }

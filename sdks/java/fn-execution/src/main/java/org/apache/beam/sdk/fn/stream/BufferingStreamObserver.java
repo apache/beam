@@ -61,12 +61,7 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
     this.outboundObserver = outboundObserver;
     this.queueDrainer =
         executor.submit(
-            new Runnable() {
-              @Override
-              public void run() {
-                drainQueue();
-              }
-            });
+            () -> drainQueue());
   }
 
   private void drainQueue() {

@@ -948,34 +948,25 @@ public class AvroIOTest implements Serializable {
               FileIO.<String, String>writeDynamic()
                   .by(
                       fn(
-                          new Contextful.Fn<String, String>() {
-                            @Override
-                            public String apply(String element, Context c) {
-                              c.sideInput(schemaView); // Ignore result
-                              return element.substring(0, 1);
-                            }
+                          (element, c) -> {
+                            c.sideInput(schemaView); // Ignore result
+                            return element.substring(0, 1);
                           },
                           requiresSideInputs(schemaView)))
                   .via(
                       fn(
-                          new Contextful.Fn<String, FileIO.Sink<String>>() {
-                            @Override
-                            public FileIO.Sink<String> apply(String dest, Context c) {
-                              Schema schema =
-                                  new Schema.Parser().parse(c.sideInput(schemaView).get(dest));
-                              return AvroIO.sinkViaGenericRecords(schema, formatter);
-                            }
+                          (dest, c) -> {
+                            Schema schema =
+                                new Schema.Parser().parse(c.sideInput(schemaView).get(dest));
+                            return AvroIO.sinkViaGenericRecords(schema, formatter);
                           },
                           requiresSideInputs(schemaView)))
                   .to(baseDir.toString())
                   .withNaming(
                       fn(
-                          new Contextful.Fn<String, FileIO.Write.FileNaming>() {
-                            @Override
-                            public FileIO.Write.FileNaming apply(String dest, Context c) {
-                              c.sideInput(schemaView); // Ignore result
-                              return FileIO.Write.defaultNaming("file_" + dest, ".avro");
-                            }
+                          (dest, c) -> {
+                            c.sideInput(schemaView); // Ignore result
+                            return FileIO.Write.defaultNaming("file_" + dest, ".avro");
                           },
                           requiresSideInputs(schemaView)))
                   .withTempDirectory(baseDir.toString())

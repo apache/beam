@@ -41,13 +41,7 @@ class DynamicCheckpointGenerator implements CheckpointGenerator {
   public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
       throws TransientKinesisException {
     return new KinesisReaderCheckpoint(
-        transform(kinesis.listShards(streamName), new Function<Shard, ShardCheckpoint>() {
-
-          @Override
-          public ShardCheckpoint apply(Shard shard) {
-            return new ShardCheckpoint(streamName, shard.getShardId(), startingPoint);
-          }
-        })
+        transform(kinesis.listShards(streamName), shard -> new ShardCheckpoint(streamName, shard.getShardId(), startingPoint))
     );
   }
 

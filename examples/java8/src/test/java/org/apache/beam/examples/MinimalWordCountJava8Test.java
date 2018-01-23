@@ -80,25 +80,15 @@ public class MinimalWordCountJava8Test implements Serializable {
     // Any request to open gets a new bogus channel
     Mockito
         .when(mockGcsUtil.open(Mockito.any(GcsPath.class)))
-        .then(new Answer<SeekableByteChannel>() {
-          @Override
-          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
-            return FileChannel.open(
-                Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
-          }
-        });
+        .then(invocation -> FileChannel.open(
+            Files.createTempFile("channel-", ".tmp"),
+            StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE));
 
     // Any request for expansion returns a list containing the original GcsPath
     // This is required to pass validation that occurs in TextIO during apply()
     Mockito
         .when(mockGcsUtil.expand(Mockito.any(GcsPath.class)))
-        .then(new Answer<List<GcsPath>>() {
-          @Override
-          public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
-            return ImmutableList.of((GcsPath) invocation.getArguments()[0]);
-          }
-        });
+        .then(invocation -> ImmutableList.of((GcsPath) invocation.getArguments()[0]));
 
     return mockGcsUtil;
   }

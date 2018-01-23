@@ -349,12 +349,7 @@ public class DoFnOperator<InputT, OutputT>
     // Schedule timer to check timeout of finish bundle.
     long bundleCheckPeriod = (maxBundleTimeMills + 1) / 2;
     checkFinishBundleTimer = getProcessingTimeService().scheduleAtFixedRate(
-        new ProcessingTimeCallback() {
-          @Override
-          public void onProcessingTime(long timestamp) throws Exception {
-            checkInvokeFinishBundleByTime();
-          }
-        },
+        timestamp -> checkInvokeFinishBundleByTime(),
         bundleCheckPeriod, bundleCheckPeriod);
 
     pushbackDoFnRunner =

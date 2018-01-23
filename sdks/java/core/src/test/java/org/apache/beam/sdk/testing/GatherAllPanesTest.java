@@ -57,12 +57,7 @@ public class GatherAllPanesTest implements Serializable {
         p.apply(GenerateSequence.from(0).to(20000))
             .apply(
                 WithTimestamps.of(
-                    new SerializableFunction<Long, Instant>() {
-                      @Override
-                      public Instant apply(Long input) {
-                        return new Instant(input * 10);
-                      }
-                    }))
+                    input -> new Instant(input * 10)))
             .apply(
                 Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1)))
                     .triggering(AfterWatermark.pastEndOfWindow())
@@ -75,18 +70,14 @@ public class GatherAllPanesTest implements Serializable {
 
     PAssert.that(accumulatedPanes)
         .satisfies(
-            new SerializableFunction<
-                Iterable<Iterable<ValueInSingleWindow<Iterable<Long>>>>, Void>() {
-              @Override
-              public Void apply(Iterable<Iterable<ValueInSingleWindow<Iterable<Long>>>> input) {
-                for (Iterable<ValueInSingleWindow<Iterable<Long>>> windowedInput : input) {
-                  if (Iterables.size(windowedInput) > 1) {
-                    fail("Expected all windows to have exactly one pane, got " + windowedInput);
-                    return null;
-                  }
+            input -> {
+              for (Iterable<ValueInSingleWindow<Iterable<Long>>> windowedInput : input) {
+                if (Iterables.size(windowedInput) > 1) {
+                  fail("Expected all windows to have exactly one pane, got " + windowedInput);
+                  return null;
                 }
-                return null;
               }
+              return null;
             });
 
     p.run();
@@ -103,12 +94,7 @@ public class GatherAllPanesTest implements Serializable {
             .apply(Flatten.<Long>pCollections())
             .apply(
                 WithTimestamps.of(
-                    new SerializableFunction<Long, Instant>() {
-                      @Override
-                      public Instant apply(Long input) {
-                        return new Instant(input * 10);
-                      }
-                    }))
+                    input -> new Instant(input * 10)))
             .apply(
                 Window.<Long>into(FixedWindows.of(Duration.standardMinutes(1)))
                     .triggering(
@@ -123,18 +109,14 @@ public class GatherAllPanesTest implements Serializable {
 
     PAssert.that(accumulatedPanes)
         .satisfies(
-            new SerializableFunction<
-                Iterable<Iterable<ValueInSingleWindow<Iterable<Long>>>>, Void>() {
-              @Override
-              public Void apply(Iterable<Iterable<ValueInSingleWindow<Iterable<Long>>>> input) {
-                for (Iterable<ValueInSingleWindow<Iterable<Long>>> windowedInput : input) {
-                  if (Iterables.size(windowedInput) > 1) {
-                    return null;
-                  }
+            input -> {
+              for (Iterable<ValueInSingleWindow<Iterable<Long>>> windowedInput : input) {
+                if (Iterables.size(windowedInput) > 1) {
+                  return null;
                 }
-                fail("Expected at least one window to have multiple panes");
-                return null;
               }
+              fail("Expected at least one window to have multiple panes");
+              return null;
             });
 
     p.run();

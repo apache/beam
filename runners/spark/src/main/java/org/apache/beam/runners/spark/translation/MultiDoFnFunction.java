@@ -222,12 +222,7 @@ public class MultiDoFnFunction<InputT, OutputT>
     }
 
     private <K, V> Function<Map.Entry<K, V>, Tuple2<K, V>> entryToTupleFn() {
-      return new Function<Map.Entry<K, V>, Tuple2<K, V>>() {
-        @Override
-        public Tuple2<K, V> apply(Map.Entry<K, V> en) {
-          return new Tuple2<>(en.getKey(), en.getValue());
-        }
-      };
+      return en -> new Tuple2<>(en.getKey(), en.getValue());
     }
 
     @Override

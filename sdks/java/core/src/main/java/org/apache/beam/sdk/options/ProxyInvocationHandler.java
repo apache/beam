@@ -683,12 +683,7 @@ class ProxyInvocationHandler implements InvocationHandler, Serializable {
       Set<String> jsonIgnoreMethodNames = FluentIterable.from(
           ReflectHelpers.getClosureOfMethodsOnInterfaces(interfaces))
           .filter(AnnotationPredicates.JSON_IGNORE.forMethod)
-          .transform(new Function<Method, String>() {
-            @Override
-            public String apply(Method input) {
-              return input.getName();
-            }
-          }).toSet();
+          .transform(input -> input.getName()).toSet();
 
       // Remove all options that have the same method name as the descriptor.
       for (PropertyDescriptor descriptor

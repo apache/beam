@@ -346,13 +346,9 @@ public class JdbcIO {
                   .withCoder(getCoder())
                   .withRowMapper(getRowMapper())
                   .withParameterSetter(
-                      new PreparedStatementSetter<Void>() {
-                        @Override
-                        public void setParameters(Void element, PreparedStatement preparedStatement)
-                            throws Exception {
-                          if (getStatementPreparator() != null) {
-                            getStatementPreparator().setParameters(preparedStatement);
-                          }
+                      (element, preparedStatement) -> {
+                        if (getStatementPreparator() != null) {
+                          getStatementPreparator().setParameters(preparedStatement);
                         }
                       }));
     }
@@ -546,7 +542,7 @@ public class JdbcIO {
      * @param batchSize maximum batch size in number of statements
      * @return the {@link Write} with connection batch size set
      */
-    public Write withBatchSize(long batchSize) {
+    public Write<T> withBatchSize(long batchSize) {
       checkArgument(batchSize > 0, "batchSize must be > 0, but was %d", batchSize);
       return toBuilder().setBatchSize(batchSize).build();
     }

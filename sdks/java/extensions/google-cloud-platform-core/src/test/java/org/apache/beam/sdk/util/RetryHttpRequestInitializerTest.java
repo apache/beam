@@ -107,10 +107,7 @@ public class RetryHttpRequestInitializerTest {
     // only a single HttpRequestInitializer, and we use multiple Credential
     // types in the SDK, not all of which allow for retry configuration.
     RetryHttpRequestInitializer initializer = new RetryHttpRequestInitializer(
-        new MockNanoClock(), new Sleeper() {
-          @Override
-          public void sleep(long millis) throws InterruptedException {}
-        }, Arrays.asList(418 /* I'm a teapot */), mockHttpResponseInterceptor);
+        new MockNanoClock(), millis -> {}, Arrays.asList(418 /* I'm a teapot */), mockHttpResponseInterceptor);
     storage = new Storage.Builder(lowLevelTransport, jsonFactory, initializer)
         .setApplicationName("test").build();
   }

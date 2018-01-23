@@ -128,14 +128,9 @@ public class CoGbkResult {
     final Iterable<T> head = (Iterable<T>) valueMap.get(unionTag);
     valueMap.set(
         unionTag,
-        new Iterable<T>() {
-          @Override
-          public Iterator<T> iterator() {
-            return Iterators.concat(
-                head.iterator(),
-                new UnionValueIterator<T>(unionTag, tail.copy(), containsTag));
-          }
-        });
+        () -> Iterators.concat(
+            head.iterator(),
+            new UnionValueIterator<T>(unionTag, tail.copy(), containsTag)));
   }
 
   public boolean isEmpty() {

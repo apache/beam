@@ -80,12 +80,7 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   }
 
   private boolean shouldDebug(final TransformHierarchy.Node node) {
-    return node == null || !Iterables.any(transforms, new Predicate<NativeTransform>() {
-      @Override
-      public boolean apply(NativeTransform debugTransform) {
-        return debugTransform.getNode().equals(node) && debugTransform.isComposite();
-      }
-    }) && shouldDebug(node.getEnclosingNode());
+    return node == null || !Iterables.any(transforms, debugTransform -> debugTransform.getNode().equals(node) && debugTransform.isComposite()) && shouldDebug(node.getEnclosingNode());
   }
 
   @Override

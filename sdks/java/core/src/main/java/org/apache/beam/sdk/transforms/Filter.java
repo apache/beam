@@ -75,14 +75,9 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> lessThan(final T value) {
-    return by(new SerializableFunction<T, Boolean>() {
-      @Override
-      public Boolean apply(T input) {
-        return input.compareTo(value) < 0;
-      }
-    }).described(String.format("x < %s", value));
+    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) < 0)
+        .described(String.format("x < %s", value));
   }
-
 
   /**
    * Returns a {@code PTransform} that takes an input
@@ -106,12 +101,8 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> greaterThan(final T value) {
-    return by(new SerializableFunction<T, Boolean>() {
-      @Override
-      public Boolean apply(T input) {
-        return input.compareTo(value) > 0;
-      }
-    }).described(String.format("x > %s", value));
+    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) > 0)
+        .described(String.format("x > %s", value));
   }
 
   /**
@@ -136,12 +127,8 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> lessThanEq(final T value) {
-    return by(new SerializableFunction<T, Boolean>() {
-      @Override
-      public Boolean apply(T input) {
-        return input.compareTo(value) <= 0;
-      }
-    }).described(String.format("x ≤ %s", value));
+    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) <= 0)
+        .described(String.format("x ≤ %s", value));
   }
 
   /**
@@ -166,12 +153,8 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> greaterThanEq(final T value) {
-    return by(new SerializableFunction<T, Boolean>() {
-      @Override
-      public Boolean apply(T input) {
-        return input.compareTo(value) >= 0;
-      }
-    }).described(String.format("x ≥ %s", value));
+    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) >= 0)
+        .described(String.format("x ≥ %s", value));
   }
 
   /**
@@ -193,12 +176,8 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
    * <p>See also {@link #by}, which returns elements that satisfy the given predicate.
    */
   public static <T extends Comparable<T>> Filter<T> equal(final T value) {
-    return by(new SerializableFunction<T, Boolean>() {
-      @Override
-      public Boolean apply(T input) {
-        return input.compareTo(value) == 0;
-      }
-    }).described(String.format("x == %s", value));
+    return by((SerializableFunction<T, Boolean>) input -> input.compareTo(value) == 0)
+        .described(String.format("x == %s", value));
   }
 
   ///////////////////////////////////////////////////////////////////////////////

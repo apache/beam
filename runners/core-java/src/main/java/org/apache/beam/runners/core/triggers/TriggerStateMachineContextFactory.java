@@ -134,12 +134,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     public Iterable<ExecutableTriggerStateMachine> unfinishedSubTriggers() {
       return FluentIterable
           .from(trigger.subTriggers())
-          .filter(new Predicate<ExecutableTriggerStateMachine>() {
-            @Override
-            public boolean apply(ExecutableTriggerStateMachine trigger) {
-              return !finishedSet.isFinished(trigger);
-            }
-          });
+          .filter(trigger -> !finishedSet.isFinished(trigger));
     }
 
     @Override

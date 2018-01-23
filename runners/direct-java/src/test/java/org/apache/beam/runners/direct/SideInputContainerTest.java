@@ -452,15 +452,12 @@ public class SideInputContainerTest {
    */
   private void immediatelyInvokeCallback(PCollectionView<?> view, BoundedWindow window) {
     doAnswer(
-            new Answer<Void>() {
-              @Override
-              public Void answer(InvocationOnMock invocation) throws Throwable {
-                Object callback = invocation.getArguments()[3];
-                Runnable callbackRunnable = (Runnable) callback;
-                callbackRunnable.run();
-                return null;
-              }
-            })
+        invocation -> {
+          Object callback = invocation.getArguments()[3];
+          Runnable callbackRunnable = (Runnable) callback;
+          callbackRunnable.run();
+          return null;
+        })
         .when(context)
         .scheduleAfterOutputWouldBeProduced(
             Mockito.eq(view),
@@ -478,27 +475,21 @@ public class SideInputContainerTest {
       PCollectionView<?> view, BoundedWindow window, final CountDownLatch onComplete) {
     final CountDownLatch runLatch = new CountDownLatch(1);
     doAnswer(
-        new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock invocation) throws Throwable {
-            Object callback = invocation.getArguments()[3];
-            final Runnable callbackRunnable = (Runnable) callback;
-            Executors.newSingleThreadExecutor().submit(new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
-                    fail("Run latch didn't count down within timeout");
-                  }
-                  callbackRunnable.run();
-                  onComplete.countDown();
-                } catch (InterruptedException e) {
-                  fail("Unexpectedly interrupted while waiting for latch to be counted down");
-                }
+        invocation -> {
+          Object callback = invocation.getArguments()[3];
+          final Runnable callbackRunnable = (Runnable) callback;
+          Executors.newSingleThreadExecutor().submit(() -> {
+            try {
+              if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
+                fail("Run latch didn't count down within timeout");
               }
-            });
-            return null;
-          }
+              callbackRunnable.run();
+              onComplete.countDown();
+            } catch (InterruptedException e) {
+              fail("Unexpectedly interrupted while waiting for latch to be counted down");
+            }
+          });
+          return null;
         })
         .when(context)
         .scheduleAfterOutputWouldBeProduced(
@@ -511,12 +502,7 @@ public class SideInputContainerTest {
 
   private <ValueT> Future<ValueT> getFutureOfView(final SideInputReader myReader,
       final PCollectionView<ValueT> view, final BoundedWindow window) {
-    Callable<ValueT> callable = new Callable<ValueT>() {
-      @Override
-      public ValueT call() throws Exception {
-        return myReader.get(view, window);
-      }
-    };
+    Callable<ValueT> callable = () -> myReader.get(view, window);
     return Executors.newSingleThreadExecutor().submit(callable);
   }
 }

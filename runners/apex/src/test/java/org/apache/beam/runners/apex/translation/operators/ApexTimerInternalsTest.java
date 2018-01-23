@@ -46,12 +46,7 @@ public class ApexTimerInternalsTest {
   public void testEventTimeTimers() {
 
     final Map<String, Collection<TimerData>> firedTimers = new HashMap<>();
-    TimerProcessor<String> timerProcessor = new TimerProcessor<String>() {
-      @Override
-      public void fireTimer(String key, Collection<TimerData> timerData) {
-        firedTimers.put(key, timerData);
-      }
-    };
+    TimerProcessor<String> timerProcessor = (key, timerData) -> firedTimers.put(key, timerData);
 
     TimerDataCoder timerDataCoder = TimerDataCoder.of(GlobalWindow.Coder.INSTANCE);
     String key1 = "key1";

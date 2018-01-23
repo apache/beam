@@ -67,7 +67,6 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 /** Tests for {@link ProcessBundleHandler}. */
@@ -105,31 +104,16 @@ public class ProcessBundleHandlerTest {
     List<RunnerApi.PTransform> transformsProcessed = new ArrayList<>();
     List<String> orderOfOperations = new ArrayList<>();
 
-    PTransformRunnerFactory<Object> startFinishRecorder = new PTransformRunnerFactory<Object>() {
-      @Override
-      public Object createRunnerForPTransform(
-          PipelineOptions pipelineOptions,
-          BeamFnDataClient beamFnDataClient,
-          BeamFnStateClient beamFnStateClient,
-          String pTransformId,
-          PTransform pTransform,
-          Supplier<String> processBundleInstructionId,
-          Map<String, PCollection> pCollections,
-          Map<String, Coder> coders,
-          Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-          Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-          Consumer<ThrowingRunnable> addStartFunction,
-          Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+    PTransformRunnerFactory<Object> startFinishRecorder = (pipelineOptions, beamFnDataClient, beamFnStateClient, pTransformId, pTransform, processBundleInstructionId, pCollections, coders, windowingStrategies, pCollectionIdsToConsumers, addStartFunction, addFinishFunction) -> {
 
-        assertThat(processBundleInstructionId.get(), equalTo("999L"));
+      assertThat(processBundleInstructionId.get(), equalTo("999L"));
 
-        transformsProcessed.add(pTransform);
-        addStartFunction.accept(
-            () -> orderOfOperations.add("Start" + pTransformId));
-        addFinishFunction.accept(
-            () -> orderOfOperations.add("Finish" + pTransformId));
-        return null;
-      }
+      transformsProcessed.add(pTransform);
+      addStartFunction.accept(
+          () -> orderOfOperations.add("Start" + pTransformId));
+      addFinishFunction.accept(
+          () -> orderOfOperations.add("Finish" + pTransformId));
+      return null;
     };
 
     ProcessBundleHandler handler = new ProcessBundleHandler(
@@ -170,25 +154,10 @@ public class ProcessBundleHandlerTest {
         fnApiRegistry::get,
         beamFnDataClient,
         null /* beamFnStateGrpcClientCache */,
-        ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
-          @Override
-          public Object createRunnerForPTransform(
-              PipelineOptions pipelineOptions,
-              BeamFnDataClient beamFnDataClient,
-              BeamFnStateClient beamFnStateClient,
-              String pTransformId,
-              PTransform pTransform,
-              Supplier<String> processBundleInstructionId,
-              Map<String, PCollection> pCollections,
-              Map<String, Coder> coders,
-              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-              Consumer<ThrowingRunnable> addStartFunction,
-              Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
-            thrown.expect(IllegalStateException.class);
-            thrown.expectMessage("TestException");
-            throw new IllegalStateException("TestException");
-          }
+        ImmutableMap.of(DATA_INPUT_URN, (pipelineOptions, beamFnDataClient, beamFnStateClient, pTransformId, pTransform, processBundleInstructionId, pCollections, coders, windowingStrategies, pCollectionIdsToConsumers, addStartFunction, addFinishFunction) -> {
+          thrown.expect(IllegalStateException.class);
+          thrown.expectMessage("TestException");
+          throw new IllegalStateException("TestException");
         }));
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
@@ -300,30 +269,27 @@ public class ProcessBundleHandlerTest {
     when(mockBeamFnStateGrpcClient.forApiServiceDescriptor(any()))
         .thenReturn(mockBeamFnStateClient);
 
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) throws Throwable {
-        StateRequest.Builder stateRequestBuilder =
-            (StateRequest.Builder) invocation.getArguments()[0];
-        CompletableFuture<StateResponse> completableFuture =
-            (CompletableFuture<StateResponse>) invocation.getArguments()[1];
-        new Thread() {
-          @Override
-          public void run() {
-            // Simulate sleeping which introduces a race which most of the time requires
-            // the ProcessBundleHandler to block.
-            Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
-            switch (stateRequestBuilder.getInstructionReference()) {
-              case "SUCCESS":
-                completableFuture.complete(StateResponse.getDefaultInstance());
-                break;
-              case "FAIL":
-                completableFuture.completeExceptionally(new RuntimeException("TEST ERROR"));
-            }
+    doAnswer(invocation -> {
+      StateRequest.Builder stateRequestBuilder =
+          (StateRequest.Builder) invocation.getArguments()[0];
+      CompletableFuture<StateResponse> completableFuture =
+          (CompletableFuture<StateResponse>) invocation.getArguments()[1];
+      new Thread() {
+        @Override
+        public void run() {
+          // Simulate sleeping which introduces a race which most of the time requires
+          // the ProcessBundleHandler to block.
+          Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
+          switch (stateRequestBuilder.getInstructionReference()) {
+            case "SUCCESS":
+              completableFuture.complete(StateResponse.getDefaultInstance());
+              break;
+            case "FAIL":
+              completableFuture.completeExceptionally(new RuntimeException("TEST ERROR"));
           }
-        }.start();
-        return null;
-      }
+        }
+      }.start();
+      return null;
     }).when(mockBeamFnStateClient).handle(any(), any());
 
     ProcessBundleHandler handler = new ProcessBundleHandler(

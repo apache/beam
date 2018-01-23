@@ -99,14 +99,11 @@ public class CassandraIOTest implements Serializable {
                 }));
     PAssert.that(mapped.apply("Count occurrences per scientist", Count.<String, Integer>perKey()))
         .satisfies(
-            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-              @Override
-              public Void apply(Iterable<KV<String, Long>> input) {
-                for (KV<String, Long> element : input) {
-                  assertEquals(element.getKey(), 1000, element.getValue().longValue());
-                }
-                return null;
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(element.getKey(), 1000, element.getValue().longValue());
               }
+              return null;
             });
 
     pipeline.run();

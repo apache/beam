@@ -454,16 +454,11 @@ public class AvroSourceTest {
     AvroSource<Bird> source =
         AvroSource.from(filename)
             .withParseFn(
-                new SerializableFunction<GenericRecord, Bird>() {
-                  @Override
-                  public Bird apply(GenericRecord input) {
-                    return new Bird(
-                        (long) input.get("number"),
-                        input.get("species").toString(),
-                        input.get("quality").toString(),
-                        (long) input.get("quantity"));
-                  }
-                },
+                input -> new Bird(
+                    (long) input.get("number"),
+                    input.get("species").toString(),
+                    input.get("quality").toString(),
+                    (long) input.get("quantity")),
                 AvroCoder.of(Bird.class));
     List<Bird> actual = SourceTestUtils.readFromSource(source, null);
     assertThat(actual, containsInAnyOrder(expected.toArray()));

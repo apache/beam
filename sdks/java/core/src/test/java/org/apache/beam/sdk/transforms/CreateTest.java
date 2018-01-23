@@ -370,12 +370,7 @@ public class CreateTest {
                 Create.ofProvider(
                     NestedValueProvider.of(
                         StaticValueProvider.of("foo"),
-                        new SerializableFunction<String, String>() {
-                          @Override
-                          public String apply(String input) {
-                            return input + "bar";
-                          }
-                        }),
+                        input -> input + "bar"),
                     StringUtf8Coder.of())))
         .containsInAnyOrder("foobar");
     PAssert.that(

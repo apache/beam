@@ -181,18 +181,11 @@ public final class TransformTranslator {
                       .getRDD();
 
               JavaRDD<WindowedValue<KV<K, OutputT>>> outRDD = inRDD.map(
-                   new Function<WindowedValue<KV<K, Iterable<InputT>>>,
-                       WindowedValue<KV<K, OutputT>>>() {
-                         @Override
-                         public WindowedValue<KV<K, OutputT>> call(
-                             WindowedValue<KV<K, Iterable<InputT>>> in) throws Exception {
-                               return WindowedValue.of(
-                                   KV.of(in.getValue().getKey(), sparkCombineFn.apply(in)),
-                                   in.getTimestamp(),
-                                   in.getWindows(),
-                                   in.getPane());
-                             }
-                       });
+                  in -> WindowedValue.of(
+                      KV.of(in.getValue().getKey(), sparkCombineFn.apply(in)),
+                      in.getTimestamp(),
+                      in.getWindows(),
+                      in.getPane()));
                context.putDataset(transform, new BoundedDataset<>(outRDD));
             }
 
@@ -325,15 +318,7 @@ public final class TransformTranslator {
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey
                 .flatMapValues(
-                    new Function<
-                        Iterable<WindowedValue<KV<K, AccumT>>>,
-                        Iterable<WindowedValue<OutputT>>>() {
-                      @Override
-                      public Iterable<WindowedValue<OutputT>> call(
-                          Iterable<WindowedValue<KV<K, AccumT>>> iter) throws Exception {
-                        return sparkCombineFn.extractOutput(iter);
-                      }
-                    })
+                    iter -> sparkCombineFn.extractOutput(iter))
                 .map(TranslationUtils.<K, WindowedValue<OutputT>>fromPairFunction())
                 .map(TranslationUtils.<K, OutputT>toKVByWindowInValue());
 
@@ -438,21 +423,11 @@ public final class TransformTranslator {
     JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<V>>>>> groupRDD =
         GroupCombineFunctions.groupByKeyOnly(kvInRDD, keyCoder, wvCoder);
 
-    return groupRDD.map(new Function<
-        WindowedValue<KV<K, Iterable<WindowedValue<V>>>>, Iterator<WindowedValue<KV<K, V>>>>() {
-      @Override
-      public Iterator<WindowedValue<KV<K, V>>> call(
-          WindowedValue<KV<K, Iterable<WindowedValue<V>>>> input) throws Exception {
-        final K key = input.getValue().getKey();
-        Iterable<WindowedValue<V>> value = input.getValue().getValue();
-        return FluentIterable.from(value).transform(
-            new com.google.common.base.Function<WindowedValue<V>, WindowedValue<KV<K, V>>>() {
-              @Override
-              public WindowedValue<KV<K, V>> apply(WindowedValue<V> windowedValue) {
-                return windowedValue.withValue(KV.of(key, windowedValue.getValue()));
-              }
-            }).iterator();
-      }
+    return groupRDD.map(input -> {
+      final K key = input.getValue().getKey();
+      Iterable<WindowedValue<V>> value = input.getValue().getValue();
+      return FluentIterable.from(value).transform(
+          windowedValue -> windowedValue.withValue(KV.of(key, windowedValue.getValue()))).iterator();
     }).flatMapToPair(doFnFunction);
   }
 

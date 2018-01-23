@@ -390,31 +390,21 @@ public class LocalFileSystemTest {
   private List<LocalResourceId> toLocalResourceIds(List<Path> paths, final boolean isDirectory) {
     return FluentIterable
         .from(paths)
-        .transform(new Function<Path, LocalResourceId>() {
-          @Override
-          public LocalResourceId apply(Path path) {
-            return LocalResourceId.fromPath(path, isDirectory);
-          }})
+        .transform(path -> LocalResourceId.fromPath(path, isDirectory))
         .toList();
   }
 
   private List<String> toFilenames(List<MatchResult> matchResults) {
     return FluentIterable
         .from(matchResults)
-        .transformAndConcat(new Function<MatchResult, Iterable<Metadata>>() {
-          @Override
-          public Iterable<Metadata> apply(MatchResult matchResult) {
-            try {
-              return matchResult.metadata();
-            } catch (IOException e) {
-              throw new RuntimeException(e);
-            }
-          }})
-        .transform(new Function<Metadata, String>() {
-          @Override
-          public String apply(Metadata metadata) {
-            return ((LocalResourceId) metadata.resourceId()).getPath().toString();
-          }})
+        .transformAndConcat(matchResult -> {
+          try {
+            return matchResult.metadata();
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        })
+        .transform(metadata -> ((LocalResourceId) metadata.resourceId()).getPath().toString())
         .toList();
   }
 }

@@ -1099,12 +1099,7 @@ public class KafkaIOTest {
     List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
 
     // sort by values
-    Collections.sort(sent, new Comparator<ProducerRecord<Integer, Long>>() {
-      @Override
-      public int compare(ProducerRecord<Integer, Long> o1, ProducerRecord<Integer, Long> o2) {
-        return Long.compare(o1.value(), o2.value());
-      }
-    });
+    Collections.sort(sent, (o1, o2) -> Long.compare(o1.value(), o2.value()));
 
     for (int i = 0; i < numElements; i++) {
       ProducerRecord<Integer, Long> record = sent.get(i);
@@ -1251,34 +1246,31 @@ public class KafkaIOTest {
     }
 
     ProducerSendCompletionThread start() {
-      injectorThread.submit(new Runnable() {
-        @Override
-        public void run() {
-          int errorsInjected = 0;
+      injectorThread.submit(() -> {
+        int errorsInjected = 0;
 
-          while (!done.get()) {
-            boolean successful;
+        while (!done.get()) {
+          boolean successful;
 
-            if (errorsInjected < maxErrors && ((numCompletions + 1) % errorFrequency) == 0) {
-              successful = mockProducer.errorNext(
-                  new InjectedErrorException("Injected Error #" + (errorsInjected + 1)));
-
-              if (successful) {
-                errorsInjected++;
-              }
-            } else {
-              successful = mockProducer.completeNext();
-            }
+          if (errorsInjected < maxErrors && ((numCompletions + 1) % errorFrequency) == 0) {
+            successful = mockProducer.errorNext(
+                new InjectedErrorException("Injected Error #" + (errorsInjected + 1)));
 
             if (successful) {
-              numCompletions++;
-            } else {
-              // wait a bit since there are no unsent records
-              try {
-                Thread.sleep(1);
-              } catch (InterruptedException e) {
-                // ok to retry.
-              }
+              errorsInjected++;
+            }
+          } else {
+            successful = mockProducer.completeNext();
+          }
+
+          if (successful) {
+            numCompletions++;
+          } else {
+            // wait a bit since there are no unsent records
+            try {
+              Thread.sleep(1);
+            } catch (InterruptedException e) {
+              // ok to retry.
             }
           }
         }

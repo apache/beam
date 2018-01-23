@@ -82,12 +82,7 @@ public class UnboundedDataset<T> implements Dataset {
   @Override
   public void action() {
     // Force computation of DStream.
-    dStream.foreachRDD(new VoidFunction<JavaRDD<WindowedValue<T>>>() {
-      @Override
-      public void call(JavaRDD<WindowedValue<T>> rdd) throws Exception {
-        rdd.foreach(TranslationUtils.<WindowedValue<T>>emptyVoidFunction());
-      }
-    });
+    dStream.foreachRDD(rdd -> rdd.foreach(TranslationUtils.<WindowedValue<T>>emptyVoidFunction()));
   }
 
   @Override

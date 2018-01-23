@@ -264,11 +264,7 @@ public class GcsFileSystemTest {
   private List<String> toFilenames(MatchResult matchResult) throws IOException {
     return FluentIterable
         .from(matchResult.metadata())
-        .transform(new Function<Metadata, String>() {
-          @Override
-          public String apply(Metadata metadata) {
-            return ((GcsResourceId) metadata.resourceId()).getGcsPath().toString();
-          }})
+        .transform(metadata -> ((GcsResourceId) metadata.resourceId()).getGcsPath().toString())
         .toList();
   }
 }

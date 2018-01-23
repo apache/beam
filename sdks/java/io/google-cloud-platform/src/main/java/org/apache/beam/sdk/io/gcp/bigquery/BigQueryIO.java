@@ -314,12 +314,7 @@ public class BigQueryIO {
    * {@code PCollection<TableRow>} directly to BigQueryIO.Write.
    */
   static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
-      new SerializableFunction<TableRow, TableRow>() {
-        @Override
-        public TableRow apply(TableRow input) {
-          return input;
-        }
-      };
+      input -> input;
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead.

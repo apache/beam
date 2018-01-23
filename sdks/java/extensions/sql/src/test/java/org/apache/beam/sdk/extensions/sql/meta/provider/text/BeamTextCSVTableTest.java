@@ -150,14 +150,9 @@ public class BeamTextCSVTableTest {
   }
 
   private RelProtoDataType buildRowType() {
-    return new RelProtoDataType() {
-
-      @Override public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder().add("id", SqlTypeName.INTEGER).add("order_id", SqlTypeName.BIGINT)
-            .add("price", SqlTypeName.FLOAT).add("amount", SqlTypeName.DOUBLE)
-            .add("user_name", SqlTypeName.VARCHAR).build();
-      }
-    };
+    return a0 -> a0.builder().add("id", SqlTypeName.INTEGER).add("order_id", SqlTypeName.BIGINT)
+        .add("price", SqlTypeName.FLOAT).add("amount", SqlTypeName.DOUBLE)
+        .add("user_name", SqlTypeName.VARCHAR).build();
   }
 
   private static RelDataType buildRelDataType() {

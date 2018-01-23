@@ -39,12 +39,7 @@ import org.apache.flink.api.common.functions.RuntimeContext;
  */
 public class FlinkSideInputReader implements SideInputReader {
   /** A {@link MultimapView} which always returns an empty iterable. */
-  private static final MultimapView EMPTY_MULTMAP_VIEW = new MultimapView() {
-    @Override
-    public Iterable get(Object o) {
-      return Collections.EMPTY_LIST;
-    }
-  };
+  private static final MultimapView EMPTY_MULTMAP_VIEW = o -> Collections.EMPTY_LIST;
 
   private final Map<TupleTag<?>, WindowingStrategy<?, ?>> sideInputs;
 

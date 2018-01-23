@@ -144,13 +144,10 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     final ApexPipelineTranslator translator = new ApexPipelineTranslator(options);
     final AtomicReference<DAG> apexDAG = new AtomicReference<>();
 
-    StreamingApplication apexApp = new StreamingApplication() {
-      @Override
-      public void populateDAG(DAG dag, Configuration conf) {
-        apexDAG.set(dag);
-        dag.setAttribute(DAGContext.APPLICATION_NAME, options.getApplicationName());
-        translator.translate(pipeline, dag);
-      }
+    StreamingApplication apexApp = (dag, conf) -> {
+      apexDAG.set(dag);
+      dag.setAttribute(DAGContext.APPLICATION_NAME, options.getApplicationName());
+      translator.translate(pipeline, dag);
     };
 
     Properties configProperties = new Properties();

@@ -89,22 +89,12 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testTypicalUsage() {
     final HasDisplayData subComponent1 =
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder.add(DisplayData.item("ExpectedAnswer", 42));
-          }
-        };
+        builder -> builder.add(DisplayData.item("ExpectedAnswer", 42));
 
     final HasDisplayData subComponent2 =
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder
-                .add(DisplayData.item("Location", "Seattle"))
-                .add(DisplayData.item("Forecast", "Rain"));
-          }
-        };
+        builder -> builder
+            .add(DisplayData.item("Location", "Seattle"))
+            .add(DisplayData.item("Forecast", "Rain"));
 
 
     PTransform<?, ?> transform =
@@ -157,12 +147,7 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testCanBuildDisplayData() {
     DisplayData data =
-        DisplayData.from(new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item("foo", "bar"));
-              }
-            });
+        DisplayData.from(builder -> builder.add(DisplayData.item("foo", "bar")));
 
     assertThat(data.items(), hasSize(1));
     assertThat(data, hasDisplayItem("foo", "bar"));
@@ -172,13 +157,8 @@ public class DisplayDataTest implements Serializable {
   public void testStaticValueProviderDate() {
     final Instant value = Instant.now();
     DisplayData data =
-        DisplayData.from(new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item(
-                    "foo", StaticValueProvider.of(value)));
-              }
-            });
+        DisplayData.from(builder -> builder.add(DisplayData.item(
+            "foo", StaticValueProvider.of(value))));
 
     @SuppressWarnings("unchecked")
     DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
@@ -195,13 +175,8 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testStaticValueProviderString() {
     DisplayData data =
-        DisplayData.from(new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item(
-                    "foo", StaticValueProvider.of("bar")));
-              }
-            });
+        DisplayData.from(builder -> builder.add(DisplayData.item(
+            "foo", StaticValueProvider.of("bar"))));
 
     assertThat(data.items(), hasSize(1));
     assertThat(data, hasDisplayItem("foo", "bar"));
@@ -210,13 +185,8 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testStaticValueProviderInt() {
     DisplayData data =
-        DisplayData.from(new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item(
-                    "foo", StaticValueProvider.of(1)));
-              }
-            });
+        DisplayData.from(builder -> builder.add(DisplayData.item(
+            "foo", StaticValueProvider.of(1))));
 
     assertThat(data.items(), hasSize(1));
     assertThat(data, hasDisplayItem("foo", 1));
@@ -225,28 +195,23 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testInaccessibleValueProvider() {
     DisplayData data =
-        DisplayData.from(new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item(
-                    "foo", new ValueProvider<String>() {
-                        @Override
-                        public boolean isAccessible() {
-                          return false;
-                        }
+        DisplayData.from(builder -> builder.add(DisplayData.item(
+            "foo", new ValueProvider<String>() {
+                @Override
+                public boolean isAccessible() {
+                  return false;
+                }
 
-                        @Override
-                        public String get() {
-                          return "bar";
-                        }
+                @Override
+                public String get() {
+                  return "bar";
+                }
 
-                        @Override
-                        public String toString() {
-                          return "toString";
-                        }
-                      }));
-              }
-            });
+                @Override
+                public String toString() {
+                  return "toString";
+                }
+              })));
 
     assertThat(data.items(), hasSize(1));
     assertThat(data, hasDisplayItem("foo", "toString"));
@@ -256,12 +221,7 @@ public class DisplayDataTest implements Serializable {
   public void testAsMap() {
     DisplayData data =
         DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item("foo", "bar"));
-              }
-            });
+            builder -> builder.add(DisplayData.item("foo", "bar")));
 
     Map<DisplayData.Identifier, DisplayData.Item> map = data.asMap();
     assertEquals(map.size(), 1);
@@ -272,15 +232,10 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testItemProperties() {
     final Instant value = Instant.now();
-    DisplayData data = DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("now", value)
-            .withLabel("the current instant")
-            .withLinkUrl("http://time.gov")
-            .withNamespace(DisplayDataTest.class));
-      }
-    });
+    DisplayData data = DisplayData.from(builder -> builder.add(DisplayData.item("now", value)
+        .withLabel("the current instant")
+        .withLinkUrl("http://time.gov")
+        .withNamespace(DisplayDataTest.class)));
 
     @SuppressWarnings("unchecked")
     DisplayData.Item item = (DisplayData.Item) data.items().toArray()[0];
@@ -302,12 +257,7 @@ public class DisplayDataTest implements Serializable {
   public void testUnspecifiedOptionalProperties() {
     DisplayData data =
         DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item("foo", "bar"));
-              }
-            });
+            builder -> builder.add(DisplayData.item("foo", "bar")));
 
     assertThat(
         data,
@@ -316,32 +266,27 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testAddIfNotDefault() {
-    DisplayData data = DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder
-            .addIfNotDefault(DisplayData.item("defaultString", "foo"), "foo")
-            .addIfNotDefault(DisplayData.item("notDefaultString", "foo"), "notFoo")
-            .addIfNotDefault(DisplayData.item("defaultInteger", 1), 1)
-            .addIfNotDefault(DisplayData.item("notDefaultInteger", 1), 2)
-            .addIfNotDefault(DisplayData.item("defaultDouble", 123.4), 123.4)
-            .addIfNotDefault(DisplayData.item("notDefaultDouble", 123.4), 234.5)
-            .addIfNotDefault(DisplayData.item("defaultBoolean", true), true)
-            .addIfNotDefault(DisplayData.item("notDefaultBoolean", true), false)
-            .addIfNotDefault(DisplayData.item("defaultInstant", new Instant(0)), new Instant(0))
-            .addIfNotDefault(DisplayData.item("notDefaultInstant", new Instant(0)), Instant.now())
-            .addIfNotDefault(DisplayData.item("defaultDuration", Duration.ZERO), Duration.ZERO)
-            .addIfNotDefault(
-                DisplayData.item("notDefaultDuration", Duration.millis(1234)),
-                Duration.ZERO)
-            .addIfNotDefault(
-                DisplayData.item("defaultClass", DisplayDataTest.class),
-                DisplayDataTest.class)
-            .addIfNotDefault(
-                DisplayData.item("notDefaultClass", DisplayDataTest.class),
-                null);
-      }
-    });
+    DisplayData data = DisplayData.from(builder -> builder
+        .addIfNotDefault(DisplayData.item("defaultString", "foo"), "foo")
+        .addIfNotDefault(DisplayData.item("notDefaultString", "foo"), "notFoo")
+        .addIfNotDefault(DisplayData.item("defaultInteger", 1), 1)
+        .addIfNotDefault(DisplayData.item("notDefaultInteger", 1), 2)
+        .addIfNotDefault(DisplayData.item("defaultDouble", 123.4), 123.4)
+        .addIfNotDefault(DisplayData.item("notDefaultDouble", 123.4), 234.5)
+        .addIfNotDefault(DisplayData.item("defaultBoolean", true), true)
+        .addIfNotDefault(DisplayData.item("notDefaultBoolean", true), false)
+        .addIfNotDefault(DisplayData.item("defaultInstant", new Instant(0)), new Instant(0))
+        .addIfNotDefault(DisplayData.item("notDefaultInstant", new Instant(0)), Instant.now())
+        .addIfNotDefault(DisplayData.item("defaultDuration", Duration.ZERO), Duration.ZERO)
+        .addIfNotDefault(
+            DisplayData.item("notDefaultDuration", Duration.millis(1234)),
+            Duration.ZERO)
+        .addIfNotDefault(
+            DisplayData.item("defaultClass", DisplayDataTest.class),
+            DisplayDataTest.class)
+        .addIfNotDefault(
+            DisplayData.item("notDefaultClass", DisplayDataTest.class),
+            null));
 
     assertThat(data.items(), hasSize(7));
     assertThat(data.items(), everyItem(hasKey(startsWith("notDefault"))));
@@ -350,54 +295,44 @@ public class DisplayDataTest implements Serializable {
   @Test
   @SuppressWarnings("UnnecessaryBoxing")
   public void testInterpolatedTypeDefaults() {
-    DisplayData data = DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder
-            .addIfNotDefault(DisplayData.item("integer", 123), 123)
-            .addIfNotDefault(DisplayData.item("Integer",
-                Integer.valueOf(123)),
-                Integer.valueOf(123))
-            .addIfNotDefault(DisplayData.item("long", 123L), 123L)
-            .addIfNotDefault(DisplayData.item("Long", Long.valueOf(123)), Long.valueOf(123))
-            .addIfNotDefault(DisplayData.item("float", 1.23f), 1.23f)
-            .addIfNotDefault(DisplayData.item("Float", Float.valueOf(1.23f)), Float.valueOf(1.23f))
-            .addIfNotDefault(DisplayData.item("double", 1.23), 1.23)
-            .addIfNotDefault(DisplayData.item("Double", Double.valueOf(1.23)), Double.valueOf(1.23))
-            .addIfNotDefault(DisplayData.item("boolean", true), true)
-            .addIfNotDefault(
-                DisplayData.item("Boolean", Boolean.valueOf(true)),
-                Boolean.valueOf(true));
-      }
-    });
+    DisplayData data = DisplayData.from(builder -> builder
+        .addIfNotDefault(DisplayData.item("integer", 123), 123)
+        .addIfNotDefault(DisplayData.item("Integer",
+            Integer.valueOf(123)),
+            Integer.valueOf(123))
+        .addIfNotDefault(DisplayData.item("long", 123L), 123L)
+        .addIfNotDefault(DisplayData.item("Long", Long.valueOf(123)), Long.valueOf(123))
+        .addIfNotDefault(DisplayData.item("float", 1.23f), 1.23f)
+        .addIfNotDefault(DisplayData.item("Float", Float.valueOf(1.23f)), Float.valueOf(1.23f))
+        .addIfNotDefault(DisplayData.item("double", 1.23), 1.23)
+        .addIfNotDefault(DisplayData.item("Double", Double.valueOf(1.23)), Double.valueOf(1.23))
+        .addIfNotDefault(DisplayData.item("boolean", true), true)
+        .addIfNotDefault(
+            DisplayData.item("Boolean", Boolean.valueOf(true)),
+            Boolean.valueOf(true)));
 
     assertThat(data.items(), empty());
   }
 
   @Test
   public void testAddIfNotNull() {
-    DisplayData data = DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder
-            .addIfNotNull(DisplayData.item("nullString", (String) null))
-            .addIfNotNull(DisplayData.item("nullVPString", (ValueProvider<String>) null))
-            .addIfNotNull(DisplayData.item("nullierVPString", StaticValueProvider.of(null)))
-            .addIfNotNull(DisplayData.item("notNullString", "foo"))
-            .addIfNotNull(DisplayData.item("nullLong", (Long) null))
-            .addIfNotNull(DisplayData.item("notNullLong", 1234L))
-            .addIfNotNull(DisplayData.item("nullDouble", (Double) null))
-            .addIfNotNull(DisplayData.item("notNullDouble", 123.4))
-            .addIfNotNull(DisplayData.item("nullBoolean", (Boolean) null))
-            .addIfNotNull(DisplayData.item("notNullBoolean", true))
-            .addIfNotNull(DisplayData.item("nullInstant", (Instant) null))
-            .addIfNotNull(DisplayData.item("notNullInstant", Instant.now()))
-            .addIfNotNull(DisplayData.item("nullDuration", (Duration) null))
-            .addIfNotNull(DisplayData.item("notNullDuration", Duration.ZERO))
-            .addIfNotNull(DisplayData.item("nullClass", (Class<?>) null))
-            .addIfNotNull(DisplayData.item("notNullClass", DisplayDataTest.class));
-      }
-    });
+    DisplayData data = DisplayData.from(builder -> builder
+        .addIfNotNull(DisplayData.item("nullString", (String) null))
+        .addIfNotNull(DisplayData.item("nullVPString", (ValueProvider<String>) null))
+        .addIfNotNull(DisplayData.item("nullierVPString", StaticValueProvider.of(null)))
+        .addIfNotNull(DisplayData.item("notNullString", "foo"))
+        .addIfNotNull(DisplayData.item("nullLong", (Long) null))
+        .addIfNotNull(DisplayData.item("notNullLong", 1234L))
+        .addIfNotNull(DisplayData.item("nullDouble", (Double) null))
+        .addIfNotNull(DisplayData.item("notNullDouble", 123.4))
+        .addIfNotNull(DisplayData.item("nullBoolean", (Boolean) null))
+        .addIfNotNull(DisplayData.item("notNullBoolean", true))
+        .addIfNotNull(DisplayData.item("nullInstant", (Instant) null))
+        .addIfNotNull(DisplayData.item("notNullInstant", Instant.now()))
+        .addIfNotNull(DisplayData.item("nullDuration", (Duration) null))
+        .addIfNotNull(DisplayData.item("notNullDuration", Duration.ZERO))
+        .addIfNotNull(DisplayData.item("nullClass", (Class<?>) null))
+        .addIfNotNull(DisplayData.item("notNullClass", DisplayDataTest.class)));
 
     assertThat(data.items(), hasSize(7));
     assertThat(data.items(), everyItem(hasKey(startsWith("notNull"))));
@@ -405,15 +340,10 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testModifyingConditionalItemIsSafe() {
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.addIfNotNull(DisplayData.item("nullItem", (Class<?>) null)
-            .withLinkUrl("http://abc")
-            .withNamespace(DisplayDataTest.class)
-            .withLabel("Null item should be safe"));
-      }
-    };
+    HasDisplayData component = builder -> builder.addIfNotNull(DisplayData.item("nullItem", (Class<?>) null)
+        .withLinkUrl("http://abc")
+        .withNamespace(DisplayDataTest.class)
+        .withLabel("Null item should be safe"));
 
     DisplayData.from(component); // should not throw
   }
@@ -498,49 +428,23 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testIncludes() {
     final HasDisplayData subComponent =
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder.add(DisplayData.item("foo", "bar"));
-          }
-        };
+        builder -> builder.add(DisplayData.item("foo", "bar"));
 
     DisplayData data =
         DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.include("p", subComponent);
-              }
-            });
+            builder -> builder.include("p", subComponent));
 
     assertThat(data, includesDisplayDataFor("p", subComponent));
   }
 
   @Test
   public void testIncludeSameComponentAtDifferentPaths() {
-    final HasDisplayData subComponent1 = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    final HasDisplayData subComponent2 = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo2", "bar2"));
-      }
-    };
+    final HasDisplayData subComponent1 = builder -> builder.add(DisplayData.item("foo", "bar"));
+    final HasDisplayData subComponent2 = builder -> builder.add(DisplayData.item("foo2", "bar2"));
 
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder
-            .include("p1", subComponent1)
-            .include("p2", subComponent2);
-
-      }
-    };
+    HasDisplayData component = builder -> builder
+        .include("p1", subComponent1)
+        .include("p2", subComponent2);
 
     DisplayData data = DisplayData.from(component);
     assertThat(data, includesDisplayDataFor("p1", subComponent1));
@@ -549,14 +453,9 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testIncludesComponentsAtSamePath() {
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder
-            .include("p", new NoopDisplayData())
-            .include("p", new NoopDisplayData());
-      }
-    };
+    HasDisplayData component = builder -> builder
+        .include("p", new NoopDisplayData())
+        .include("p", new NoopDisplayData());
 
     thrown.expectCause(isA(IllegalArgumentException.class));
     DisplayData.from(component);
@@ -566,13 +465,8 @@ public class DisplayDataTest implements Serializable {
   public void testNullNamespaceOverride() {
     thrown.expectCause(isA(NullPointerException.class));
 
-    DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar")
-            .withNamespace(null));
-      }
-    });
+    DisplayData.from(builder -> builder.add(DisplayData.item("foo", "bar")
+        .withNamespace(null)));
   }
 
   @Test
@@ -600,18 +494,8 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testDisplayDataEquality() {
-    HasDisplayData component1 = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
-    HasDisplayData component2 = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
+    HasDisplayData component1 = builder -> builder.add(DisplayData.item("foo", "bar"));
+    HasDisplayData component2 = builder -> builder.add(DisplayData.item("foo", "bar"));
 
     DisplayData component1DisplayData1 = DisplayData.from(component1);
     DisplayData component1DisplayData2 = DisplayData.from(component1);
@@ -627,20 +511,10 @@ public class DisplayDataTest implements Serializable {
   public void testAcceptsKeysWithDifferentNamespaces() {
     DisplayData data =
         DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder
-                    .add(DisplayData.item("foo", "bar"))
-                    .include("p",
-                        new HasDisplayData() {
-                          @Override
-                          public void populateDisplayData(DisplayData.Builder builder) {
-                            builder.add(DisplayData.item("foo", "bar"));
-                          }
-                        });
-              }
-            });
+            builder -> builder
+                .add(DisplayData.item("foo", "bar"))
+                .include("p",
+                    builder1 -> builder1.add(DisplayData.item("foo", "bar"))));
 
     assertThat(data.items(), hasSize(2));
   }
@@ -649,40 +523,25 @@ public class DisplayDataTest implements Serializable {
   public void testDuplicateKeyThrowsException() {
     thrown.expectCause(isA(IllegalArgumentException.class));
     DisplayData.from(
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder
-              .add(DisplayData.item("foo", "bar"))
-              .add(DisplayData.item("foo", "baz"));
-          }
-        });
+        builder -> builder
+          .add(DisplayData.item("foo", "bar"))
+          .add(DisplayData.item("foo", "baz")));
   }
 
   @Test
   public void testDuplicateKeyWithNamespaceOverrideDoesntThrow() {
     DisplayData displayData = DisplayData.from(
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder
-                .add(DisplayData.item("foo", "bar"))
-                .add(DisplayData.item("foo", "baz")
-                  .withNamespace(DisplayDataTest.class));
-          }
-        });
+        builder -> builder
+            .add(DisplayData.item("foo", "bar"))
+            .add(DisplayData.item("foo", "baz")
+              .withNamespace(DisplayDataTest.class)));
 
     assertThat(displayData.items(), hasSize(2));
   }
 
   @Test
   public void testToString() {
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
+    HasDisplayData component = builder -> builder.add(DisplayData.item("foo", "bar"));
 
     DisplayData data = DisplayData.from(component);
     assertEquals(String.format("[]%s:foo=bar", component.getClass().getName()), data.toString());
@@ -707,12 +566,7 @@ public class DisplayDataTest implements Serializable {
         };
 
     HasDisplayData component =
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(Builder builder) {
-            builder.include("p", componentA);
-          }
-        };
+        builder -> builder.include("p", componentA);
 
     componentA.subComponent = componentB;
     componentB.subComponent = componentA;
@@ -748,14 +602,9 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testIncludesSubcomponentsWithObjectEquality() {
-    DisplayData data = DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder
-          .include("p1", new EqualsEverything("foo1", "bar1"))
-          .include("p2", new EqualsEverything("foo2", "bar2"));
-      }
-    });
+    DisplayData data = DisplayData.from(builder -> builder
+      .include("p1", new EqualsEverything("foo1", "bar1"))
+      .include("p2", new EqualsEverything("foo2", "bar2")));
 
     assertThat(data.items(), hasSize(2));
   }
@@ -787,28 +636,13 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testDelegate() {
-    final HasDisplayData subcomponent = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("subCompKey", "foo"));
-      }
-    };
+    final HasDisplayData subcomponent = builder -> builder.add(DisplayData.item("subCompKey", "foo"));
 
-    final HasDisplayData wrapped = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder
-            .add(DisplayData.item("wrappedKey", "bar"))
-            .include("p", subcomponent);
-      }
-    };
+    final HasDisplayData wrapped = builder -> builder
+        .add(DisplayData.item("wrappedKey", "bar"))
+        .include("p", subcomponent);
 
-    HasDisplayData wrapper = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.delegate(wrapped);
-      }
-    };
+    HasDisplayData wrapper = builder -> builder.delegate(wrapped);
 
     DisplayData data = DisplayData.from(wrapper);
     assertThat(data, hasDisplayItem(allOf(
@@ -840,19 +674,14 @@ public class DisplayDataTest implements Serializable {
   public void testTypeMappings() {
     DisplayData data =
         DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder
-                    .add(DisplayData.item("string", "foobar"))
-                    .add(DisplayData.item("integer", 123))
-                    .add(DisplayData.item("float", 3.14))
-                    .add(DisplayData.item("boolean", true))
-                    .add(DisplayData.item("java_class", DisplayDataTest.class))
-                    .add(DisplayData.item("timestamp", Instant.now()))
-                    .add(DisplayData.item("duration", Duration.standardHours(1)));
-              }
-            });
+            builder -> builder
+                .add(DisplayData.item("string", "foobar"))
+                .add(DisplayData.item("integer", 123))
+                .add(DisplayData.item("float", 3.14))
+                .add(DisplayData.item("boolean", true))
+                .add(DisplayData.item("java_class", DisplayDataTest.class))
+                .add(DisplayData.item("timestamp", Instant.now()))
+                .add(DisplayData.item("duration", Duration.standardHours(1))));
 
     Collection<Item> items = data.items();
     assertThat(
@@ -873,14 +702,9 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testExplicitItemType() {
-    DisplayData data = DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder
-            .add(DisplayData.item("integer", DisplayData.Type.INTEGER, 1234L))
-            .add(DisplayData.item("string", DisplayData.Type.STRING, "foobar"));
-      }
-    });
+    DisplayData data = DisplayData.from(builder -> builder
+        .add(DisplayData.item("integer", DisplayData.Type.INTEGER, 1234L))
+        .add(DisplayData.item("string", DisplayData.Type.STRING, "foobar")));
 
     assertThat(data, hasDisplayItem("integer", 1234L));
     assertThat(data, hasDisplayItem("string", "foobar"));
@@ -939,12 +763,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testInvalidExplicitItemType() {
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("integer", DisplayData.Type.INTEGER, "foobar"));
-      }
-    };
+    HasDisplayData component = builder -> builder.add(DisplayData.item("integer", DisplayData.Type.INTEGER, "foobar"));
 
     thrown.expectCause(isA(ClassCastException.class));
     DisplayData.from(component);
@@ -971,19 +790,14 @@ public class DisplayDataTest implements Serializable {
     final Instant now = Instant.now();
     final Duration oneHour = Duration.standardHours(1);
 
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(DisplayData.Builder builder) {
-        builder
-          .add(DisplayData.item("string", "foobar"))
-          .add(DisplayData.item("integer", 123))
-          .add(DisplayData.item("float", 3.14))
-          .add(DisplayData.item("boolean", true))
-          .add(DisplayData.item("java_class", DisplayDataTest.class))
-          .add(DisplayData.item("timestamp", now))
-          .add(DisplayData.item("duration", oneHour));
-      }
-    };
+    HasDisplayData component = builder -> builder
+      .add(DisplayData.item("string", "foobar"))
+      .add(DisplayData.item("integer", 123))
+      .add(DisplayData.item("float", 3.14))
+      .add(DisplayData.item("boolean", true))
+      .add(DisplayData.item("java_class", DisplayDataTest.class))
+      .add(DisplayData.item("timestamp", now))
+      .add(DisplayData.item("duration", oneHour));
     DisplayData data = DisplayData.from(component);
 
     assertThat(data, hasDisplayItem("string", "foobar"));
@@ -998,22 +812,12 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testContextProperlyReset() {
     final HasDisplayData subComponent =
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder.add(DisplayData.item("foo", "bar"));
-          }
-        };
+        builder -> builder.add(DisplayData.item("foo", "bar"));
 
     HasDisplayData component =
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(DisplayData.Builder builder) {
-            builder
-              .include("p", subComponent)
-              .add(DisplayData.item("alpha", "bravo"));
-          }
-        };
+        builder -> builder
+          .include("p", subComponent)
+          .add(DisplayData.item("alpha", "bravo"));
 
     DisplayData data = DisplayData.from(component);
     assertThat(
@@ -1034,54 +838,32 @@ public class DisplayDataTest implements Serializable {
   public void testIncludeNull() {
     thrown.expectCause(isA(NullPointerException.class));
     DisplayData.from(
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(Builder builder) {
-            builder.include("p", null);
-          }
-        });
+        builder -> builder.include("p", null));
   }
 
   @Test
   public void testIncludeNullPath() {
     thrown.expectCause(isA(NullPointerException.class));
-    DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.include(null, new NoopDisplayData());
-      }
-    });
+    DisplayData.from(builder -> builder.include(null, new NoopDisplayData()));
   }
 
   @Test
   public void testIncludeEmptyPath() {
     thrown.expectCause(isA(IllegalArgumentException.class));
-    DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.include("", new NoopDisplayData());
-      }
-    });
+    DisplayData.from(builder -> builder.include("", new NoopDisplayData()));
   }
 
   @Test
   public void testNullKey() {
     thrown.expectCause(isA(NullPointerException.class));
     DisplayData.from(
-        new HasDisplayData() {
-          @Override
-          public void populateDisplayData(Builder builder) {
-            builder.add(DisplayData.item(null, "foo"));
-          }
-        });
+        builder -> builder.add(DisplayData.item(null, "foo")));
   }
 
   @Test
   public void testRejectsNullValues() {
     DisplayData.from(
-      new HasDisplayData() {
-        @Override
-        public void populateDisplayData(Builder builder) {
+        builder -> {
           try {
             builder.add(DisplayData.item("key", (String) null));
             throw new RuntimeException("Should throw on null string value");
@@ -1109,21 +891,15 @@ public class DisplayDataTest implements Serializable {
           } catch (NullPointerException ex) {
             // Expected
           }
-        }
-      });
+        });
   }
 
   @Test
   public void testAcceptsNullOptionalValues() {
     DisplayData.from(
-      new HasDisplayData() {
-        @Override
-        public void populateDisplayData(Builder builder) {
-          builder.add(DisplayData.item("key", "value")
-              .withLabel(null)
-              .withLinkUrl(null));
-        }
-      });
+        builder -> builder.add(DisplayData.item("key", "value")
+            .withLabel(null)
+            .withLinkUrl(null)));
 
     // Should not throw
   }
@@ -1136,21 +912,16 @@ public class DisplayDataTest implements Serializable {
     final boolean boolValue = true;
     final int durationMillis = 1234;
 
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder
-            .add(DisplayData.item("string", stringValue))
-            .add(DisplayData.item("long", intValue))
-            .add(DisplayData.item("double", floatValue))
-            .add(DisplayData.item("boolean", boolValue))
-            .add(DisplayData.item("instant", new Instant(0)))
-            .add(DisplayData.item("duration", Duration.millis(durationMillis)))
-            .add(DisplayData.item("class", DisplayDataTest.class)
-              .withLinkUrl("http://abc")
-              .withLabel("baz"));
-      }
-    };
+    HasDisplayData component = builder -> builder
+        .add(DisplayData.item("string", stringValue))
+        .add(DisplayData.item("long", intValue))
+        .add(DisplayData.item("double", floatValue))
+        .add(DisplayData.item("boolean", boolValue))
+        .add(DisplayData.item("instant", new Instant(0)))
+        .add(DisplayData.item("duration", Duration.millis(durationMillis)))
+        .add(DisplayData.item("class", DisplayDataTest.class)
+          .withLinkUrl("http://abc")
+          .withLabel("baz"));
     DisplayData data = DisplayData.from(component);
 
     JsonNode json = MAPPER.readTree(MAPPER.writeValueAsBytes(data));
@@ -1169,12 +940,7 @@ public class DisplayDataTest implements Serializable {
 
   @Test
   public void testJsonSerializationAnonymousClassNamespace() throws IOException {
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("foo", "bar"));
-      }
-    };
+    HasDisplayData component = builder -> builder.add(DisplayData.item("foo", "bar"));
     DisplayData data = DisplayData.from(component);
 
     JsonNode json = MAPPER.readTree(MAPPER.writeValueAsBytes(data));
@@ -1208,12 +974,7 @@ public class DisplayDataTest implements Serializable {
   public void testSerializable() {
     DisplayData data =
         DisplayData.from(
-            new HasDisplayData() {
-              @Override
-              public void populateDisplayData(DisplayData.Builder builder) {
-                builder.add(DisplayData.item("foo", "bar"));
-              }
-            });
+            builder -> builder.add(DisplayData.item("foo", "bar")));
 
     DisplayData serData = SerializableUtils.clone(data);
     assertEquals(data, serData);
@@ -1226,38 +987,27 @@ public class DisplayDataTest implements Serializable {
    */
   @Test
   public void testCanRecoverFromBuildException() {
-    final HasDisplayData safeComponent = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.add(DisplayData.item("a", "a"));
-      }
+    final HasDisplayData safeComponent = builder -> builder.add(DisplayData.item("a", "a"));
+
+    final HasDisplayData failingComponent = builder -> {
+      throw new RuntimeException("oh noes!");
     };
 
-    final HasDisplayData failingComponent = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        throw new RuntimeException("oh noes!");
+    DisplayData displayData = DisplayData.from(builder -> {
+      builder
+          .add(DisplayData.item("b", "b"))
+          .add(DisplayData.item("c", "c"));
+
+      try {
+        builder.include("p", failingComponent);
+        fail("Expected exception not thrown");
+      } catch (RuntimeException e) {
+        // Expected
       }
-    };
 
-    DisplayData displayData = DisplayData.from(new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder
-            .add(DisplayData.item("b", "b"))
-            .add(DisplayData.item("c", "c"));
-
-        try {
-          builder.include("p", failingComponent);
-          fail("Expected exception not thrown");
-        } catch (RuntimeException e) {
-          // Expected
-        }
-
-        builder
-            .include("p", safeComponent)
-            .add(DisplayData.item("d", "d"));
-      }
+      builder
+          .include("p", safeComponent)
+          .add(DisplayData.item("d", "d"));
     });
 
     assertThat(displayData, hasDisplayItem("a"));
@@ -1269,11 +1019,8 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testExceptionMessage() {
     final RuntimeException cause = new RuntimeException("oh noes!");
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        throw cause;
-      }
+    HasDisplayData component = builder -> {
+      throw cause;
     };
 
     thrown.expectMessage(component.getClass().getName());
@@ -1285,17 +1032,9 @@ public class DisplayDataTest implements Serializable {
   @Test
   public void testExceptionsNotWrappedRecursively() {
     final RuntimeException cause = new RuntimeException("oh noes!");
-    HasDisplayData component = new HasDisplayData() {
-      @Override
-      public void populateDisplayData(Builder builder) {
-        builder.include("p", new HasDisplayData() {
-          @Override
-          public void populateDisplayData(Builder builder) {
-            throw cause;
-          }
-        });
-      }
-    };
+    HasDisplayData component = builder -> builder.include("p", builder1 -> {
+      throw cause;
+    });
 
     thrown.expectCause(is(cause));
     DisplayData.from(component);

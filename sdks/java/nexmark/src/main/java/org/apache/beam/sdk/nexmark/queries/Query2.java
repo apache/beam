@@ -54,12 +54,7 @@ public class Query2 extends NexmarkQuery {
         .apply(JUST_BIDS)
 
         // Select just the bids for the auctions we care about.
-        .apply(Filter.by(new SerializableFunction<Bid, Boolean>() {
-          @Override
-          public Boolean apply(Bid bid) {
-            return bid.auction % configuration.auctionSkip == 0;
-          }
-        }))
+        .apply(Filter.by(bid -> bid.auction % configuration.auctionSkip == 0))
 
         // Project just auction id and price.
         .apply(name + ".Project",

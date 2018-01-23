@@ -368,12 +368,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       invoker.invokeSplitRestriction(
           element,
           c.element().getValue(),
-          new OutputReceiver<RestrictionT>() {
-            @Override
-            public void output(RestrictionT part) {
-              c.output(KV.of(element, part));
-            }
-          });
+          part -> c.output(KV.of(element, part)));
     }
   }
 }

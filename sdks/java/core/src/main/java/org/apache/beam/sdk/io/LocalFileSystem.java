@@ -244,12 +244,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     Iterable<File> matchedFiles = Iterables.filter(files,
         Predicates.and(
             com.google.common.io.Files.isFile(),
-            new Predicate<File>() {
-              @Override
-              public boolean apply(File input) {
-                return matcher.matches(input.toPath());
-              }
-            }));
+            input -> matcher.matches(input.toPath())));
 
     List<Metadata> result = Lists.newLinkedList();
     for (File match : matchedFiles) {

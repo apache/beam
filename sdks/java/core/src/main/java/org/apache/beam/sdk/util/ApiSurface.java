@@ -122,13 +122,7 @@ public class ApiSurface {
   public static Matcher<ApiSurface> containsOnlyPackages(final Set<String> packageNames) {
 
     final Function<String, Matcher<Class<?>>> packageNameToClassMatcher =
-        new Function<String, Matcher<Class<?>>>() {
-
-          @Override
-          public Matcher<Class<?>> apply(@Nonnull final String packageName) {
-            return classesInPackage(packageName);
-          }
-        };
+        packageName -> classesInPackage(packageName);
 
     final ImmutableSet<Matcher<Class<?>>> classesInPackages =
         FluentIterable.from(packageNames).transform(packageNameToClassMatcher).toSet();
@@ -181,33 +175,17 @@ public class ApiSurface {
         // <helper_lambdas>
 
         final Function<Matcher<Class<?>>, String> toMessage =
-            new Function<Matcher<Class<?>>, String>() {
-
-              @Override
-              public String apply(@Nonnull final Matcher<Class<?>> abandonedClassMacther) {
-                final StringDescription description = new StringDescription();
-                description.appendText("No ");
-                abandonedClassMacther.describeTo(description);
-                return description.toString();
-              }
+            abandonedClassMacther -> {
+              final StringDescription description = new StringDescription();
+              description.appendText("No ");
+              abandonedClassMacther.describeTo(description);
+              return description.toString();
             };
 
         final Predicate<Matcher<Class<?>>> matchedByExposedClasses =
-            new Predicate<Matcher<Class<?>>>() {
-
-              @Override
-              public boolean apply(@Nonnull final Matcher<Class<?>> classMatcher) {
-                return FluentIterable.from(checkedApiSurface.getExposedClasses())
-                    .anyMatch(
-                        new Predicate<Class<?>>() {
-
-                          @Override
-                          public boolean apply(@Nonnull final Class<?> aClass) {
-                            return classMatcher.matches(aClass);
-                          }
-                        });
-              }
-            };
+            classMatcher -> FluentIterable.from(checkedApiSurface.getExposedClasses())
+                .anyMatch(
+                    aClass -> classMatcher.matches(aClass));
 
         // </helper_lambdas>
 
@@ -240,32 +218,13 @@ public class ApiSurface {
         /* <helper_lambdas> */
 
         final Function<Class<?>, List<Class<?>>> toExposure =
-            new Function<Class<?>, List<Class<?>>>() {
-
-              @Override
-              public List<Class<?>> apply(@Nonnull final Class<?> aClass) {
-                return checkedApiSurface.getAnyExposurePath(aClass);
-              }
-            };
+            aClass -> checkedApiSurface.getAnyExposurePath(aClass);
 
         final Maps.EntryTransformer<Class<?>, List<Class<?>>, String> toMessage =
-            new Maps.EntryTransformer<Class<?>, List<Class<?>>, String>() {
-
-              @Override
-              public String transformEntry(
-                  @Nonnull final Class<?> aClass, @Nonnull final List<Class<?>> exposure) {
-                return aClass + " exposed via:\n\t\t" + Joiner.on("\n\t\t").join(exposure);
-              }
-            };
+            (aClass, exposure) -> aClass + " exposed via:\n\t\t" + Joiner.on("\n\t\t").join(exposure);
 
         final Predicate<Class<?>> disallowed =
-            new Predicate<Class<?>>() {
-
-              @Override
-              public boolean apply(@Nonnull final Class<?> aClass) {
-                return !classIsAllowed(aClass, allowedClasses);
-              }
-            };
+            aClass -> !classIsAllowed(aClass, allowedClasses);
 
         /* </helper_lambdas> */
 
@@ -525,12 +484,7 @@ public class ApiSurface {
     exposedToExposers =
         Multimaps.newSetMultimap(
             Maps.<Class<?>, Collection<Class<?>>>newHashMap(),
-            new Supplier<Set<Class<?>>>() {
-              @Override
-              public Set<Class<?>> get() {
-                return Sets.newHashSet();
-              }
-            });
+            () -> Sets.newHashSet());
 
     for (Class<?> clazz : rootClasses) {
       addExposedTypes(clazz, null);
