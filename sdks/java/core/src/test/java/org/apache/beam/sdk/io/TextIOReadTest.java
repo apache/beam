@@ -593,14 +593,14 @@ public class TextIOReadTest {
     @Category(NeedsRunner.class)
     public void testZipCompressedReadWithComplexEmptyAndPresentEntries() throws Exception {
       File file =
-        createZipFile(
-            new ArrayList<>(),
-          tempFolder,
-          "complex empty and present entries",
-          new String[] {"cat"},
-          new String[] {},
-          new String[] {},
-          new String[] {"dog"});
+          createZipFile(
+              new ArrayList<>(),
+              tempFolder,
+              "complex empty and present entries",
+              new String[] {"cat"},
+              new String[] {},
+              new String[] {},
+              new String[] {"dog"});
 
       assertReadingCompressedFileMatchesExpected(
         file, ZIP, Arrays.asList("cat", "dog"), p);

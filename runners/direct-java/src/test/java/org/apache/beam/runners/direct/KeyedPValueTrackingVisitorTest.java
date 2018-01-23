@@ -72,8 +72,7 @@ public class KeyedPValueTrackingVisitorTest {
   @Test
   public void groupByKeyProducesKeyedOutput() {
     PCollection<KV<String, Iterable<Integer>>> keyed =
-        p
-            .apply(Create.of(KV.of("foo", 3)))
+        p.apply(Create.of(KV.of("foo", 3)))
             .apply(new DirectGroupByKeyOnly<>())
             .apply(
                 new DirectGroupAlsoByWindow<>(

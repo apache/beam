@@ -224,10 +224,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
   public AvroSource<T> withEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment) {
     return new AvroSource<>(
-        getFileOrPatternSpecProvider(),
-        emptyMatchTreatment,
-        getMinBundleSize(),
-        mode);
+        getFileOrPatternSpecProvider(), emptyMatchTreatment, getMinBundleSize(), mode);
   }
 
   /** Reads files containing records that conform to the given schema. */

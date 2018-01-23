@@ -162,15 +162,18 @@ public class Latest {
       Coder<T> inputCoder = input.getCoder();
 
       return input
-          .apply("Reify Timestamps", ParDo.of(
-            new DoFn<T, TimestampedValue<T>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                c.output(TimestampedValue.of(c.element(), c.timestamp()));
-              }
-            })).setCoder(TimestampedValue.TimestampedValueCoder.of(inputCoder))
+          .apply(
+              "Reify Timestamps",
+              ParDo.of(
+                  new DoFn<T, TimestampedValue<T>>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      c.output(TimestampedValue.of(c.element(), c.timestamp()));
+                    }
+                  }))
+          .setCoder(TimestampedValue.TimestampedValueCoder.of(inputCoder))
           .apply("Latest Value", Combine.globally(new LatestFn<>()))
-            .setCoder(NullableCoder.of(inputCoder));
+          .setCoder(NullableCoder.of(inputCoder));
     }
   }
 

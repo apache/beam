@@ -271,12 +271,13 @@ public class HadoopInputFormatIO {
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       Coder<K> keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
       Coder<V> valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
-      HadoopInputFormatBoundedSource<K, V> source = new HadoopInputFormatBoundedSource<>(
-          getConfiguration(),
-          keyCoder,
-          valueCoder,
-          getKeyTranslationFunction(),
-          getValueTranslationFunction());
+      HadoopInputFormatBoundedSource<K, V> source =
+          new HadoopInputFormatBoundedSource<>(
+              getConfiguration(),
+              keyCoder,
+              valueCoder,
+              getKeyTranslationFunction(),
+              getValueTranslationFunction());
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -359,18 +360,19 @@ public class HadoopInputFormatIO {
     private long boundedSourceEstimatedSize = 0;
     private transient InputFormat<?, ?> inputFormatObj;
     private transient TaskAttemptContext taskAttemptContext;
-    private static final Set<Class<?>> immutableTypes = new HashSet<>(
-        Arrays.asList(
-            String.class,
-            Byte.class,
-            Short.class,
-            Integer.class,
-            Long.class,
-            Float.class,
-            Double.class,
-            Boolean.class,
-            BigInteger.class,
-            BigDecimal.class));
+    private static final Set<Class<?>> immutableTypes =
+        new HashSet<>(
+            Arrays.asList(
+                String.class,
+                Byte.class,
+                Short.class,
+                Integer.class,
+                Long.class,
+                Float.class,
+                Double.class,
+                Boolean.class,
+                BigInteger.class,
+                BigDecimal.class));
 
     HadoopInputFormatBoundedSource(
         SerializableConfiguration conf,

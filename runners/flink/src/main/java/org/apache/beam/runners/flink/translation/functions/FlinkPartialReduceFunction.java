@@ -89,6 +89,5 @@ public class FlinkPartialReduceFunction<K, InputT, AccumT, W extends BoundedWind
         options,
         elements,
         out);
-
   }
 }

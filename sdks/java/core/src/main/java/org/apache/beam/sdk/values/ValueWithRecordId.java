@@ -122,8 +122,7 @@ public class ValueWithRecordId<ValueT> {
     public ValueWithRecordId<ValueT> decode(InputStream inStream, Context context)
         throws IOException {
       return new ValueWithRecordId<>(
-          valueCoder.decode(inStream),
-          idCoder.decode(inStream, context));
+          valueCoder.decode(inStream), idCoder.decode(inStream, context));
     }
 
     @Override

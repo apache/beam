@@ -111,8 +111,7 @@ public class HourlyTeamScore extends UserScore {
    */
   protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
       configureOutput() {
-    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config =
-        new HashMap<>();
+    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config = new HashMap<>();
     config.put("team", (c, w) -> c.element().getKey());
     config.put("total_score", (c, w) -> c.element().getValue());
     config.put(
@@ -175,8 +174,7 @@ public class HourlyTeamScore extends UserScore {
         // Extract and sum teamname/score pairs from the event data.
         .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
         .apply(
-            "WriteTeamScoreSums",
-            new WriteToText<>(options.getOutput(), configureOutput(), true));
+            "WriteTeamScoreSums", new WriteToText<>(options.getOutput(), configureOutput(), true));
 
     pipeline.run().waitUntilFinish();
   }

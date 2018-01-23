@@ -109,14 +109,19 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   public ReduceFn<K, InputT, OutputT, W>.OnMergeContext forMerge(
       Collection<W> activeToBeMerged, W mergeResult, StateStyle style) {
     return new OnMergeContextImpl(
-        new MergingStateAccessorImpl<>(activeWindows,
+        new MergingStateAccessorImpl<>(
+            activeWindows,
             windowingStrategy.getWindowFn().windowCoder(),
-            stateInternals, style, activeToBeMerged, mergeResult));
+            stateInternals,
+            style,
+            activeToBeMerged,
+            mergeResult));
   }
 
   public ReduceFn<K, InputT, OutputT, W>.OnMergeContext forPremerge(W window) {
-    return new OnPremergeContextImpl(new PremergingStateAccessorImpl<>(
-        activeWindows, windowingStrategy.getWindowFn().windowCoder(), stateInternals, window));
+    return new OnPremergeContextImpl(
+        new PremergingStateAccessorImpl<>(
+            activeWindows, windowingStrategy.getWindowFn().windowCoder(), stateInternals, window));
   }
 
   private class TimersImpl implements Timers {

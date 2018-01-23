@@ -126,8 +126,9 @@ public class CoGroupByKey<K> extends
         flattenedTable.apply(GroupByKey.create());
 
     CoGbkResultSchema tupleTags = input.getCoGbkResultSchema();
-    PCollection<KV<K, CoGbkResult>> result = groupedTable.apply("ConstructCoGbkResultFn",
-        ParDo.of(new ConstructCoGbkResultFn<>(tupleTags)));
+    PCollection<KV<K, CoGbkResult>> result =
+        groupedTable.apply(
+            "ConstructCoGbkResultFn", ParDo.of(new ConstructCoGbkResultFn<>(tupleTags)));
     result.setCoder(KvCoder.of(keyCoder,
         CoGbkResultCoder.of(tupleTags, unionCoder)));
 
@@ -160,8 +161,9 @@ public class CoGroupByKey<K> extends
       PCollection<KV<K, V>> pCollection,
       KvCoder<K, RawUnionValue> unionTableEncoder) {
 
-    return pCollection.apply("MakeUnionTable" + index,
-        ParDo.of(new ConstructUnionTableFn<>(index))).setCoder(unionTableEncoder);
+    return pCollection
+        .apply("MakeUnionTable" + index, ParDo.of(new ConstructUnionTableFn<>(index)))
+        .setCoder(unionTableEncoder);
   }
 
   /**

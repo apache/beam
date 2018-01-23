@@ -666,8 +666,8 @@ public class HadoopInputFormatIOTest {
   public void testComputeSplitsIfGetSplitsReturnsEmptyList() throws Exception {
     InputFormat<?, ?> mockInputFormat = Mockito.mock(EmployeeInputFormat.class);
     SerializableSplit mockInputSplit = Mockito.mock(SerializableSplit.class);
-    Mockito.when(mockInputFormat.getSplits(Mockito.any(JobContext.class))).thenReturn(
-        new ArrayList<>());
+    Mockito.when(mockInputFormat.getSplits(Mockito.any(JobContext.class)))
+        .thenReturn(new ArrayList<>());
     HadoopInputFormatBoundedSource<Text, Employee> hifSource =
         new HadoopInputFormatBoundedSource<>(
             serConf,

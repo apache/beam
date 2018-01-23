@@ -275,7 +275,7 @@ public class AvroCoder<T> extends CustomCoder<T> {
             return myCoder.getType().equals(GenericRecord.class)
                 ? new GenericDatumReader<>(myCoder.getSchema())
                 : new ReflectDatumReader<>(
-                myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
+                    myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
           }
         };
 

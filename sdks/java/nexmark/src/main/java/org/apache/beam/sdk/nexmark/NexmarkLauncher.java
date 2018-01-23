@@ -790,20 +790,23 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
 
-    events.apply(queryName + ".EventToPubsubMessage",
-            ParDo.of(new DoFn<Event, PubsubMessage>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                try {
-                  byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-                  c.output(new PubsubMessage(payload, new HashMap<>()));
-                } catch (CoderException e1) {
-                  LOG.error("Error while sending Event {} to pusbSub: serialization error",
-                      c.element().toString());
-                }
-              }
-            })
-        )
+    events
+        .apply(
+            queryName + ".EventToPubsubMessage",
+            ParDo.of(
+                new DoFn<Event, PubsubMessage>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    try {
+                      byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+                      c.output(new PubsubMessage(payload, new HashMap<>()));
+                    } catch (CoderException e1) {
+                      LOG.error(
+                          "Error while sending Event {} to pusbSub: serialization error",
+                          c.element().toString());
+                    }
+                  }
+                }))
         .apply(queryName + ".WritePubsubEvents", io);
   }
 

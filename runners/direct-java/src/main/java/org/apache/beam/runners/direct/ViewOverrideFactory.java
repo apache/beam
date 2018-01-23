@@ -64,9 +64,8 @@ class ViewOverrideFactory<ElemT, ViewT>
           exc);
     }
 
-      return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
-          new GroupAndWriteView<>(view));
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform), new GroupAndWriteView<>(view));
   }
 
   @Override

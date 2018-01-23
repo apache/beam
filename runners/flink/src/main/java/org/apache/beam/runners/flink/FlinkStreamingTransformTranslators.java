@@ -196,9 +196,10 @@ class FlinkStreamingTransformTranslators {
             .addSource(sourceWrapper).name(transform.getName()).returns(withIdTypeInfo);
 
         if (rawSource.requiresDeduping()) {
-          source = nonDedupSource.keyBy(
-              new ValueWithRecordIdKeySelector<>())
-              .transform("deduping", outputTypeInfo, new DedupingOperator<>());
+          source =
+              nonDedupSource
+                  .keyBy(new ValueWithRecordIdKeySelector<>())
+                  .transform("deduping", outputTypeInfo, new DedupingOperator<>());
         } else {
           source = nonDedupSource.flatMap(new StripIdsMap<>()).returns(outputTypeInfo);
         }
@@ -778,12 +779,12 @@ class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
               .flatMap(new ToKeyedWorkItem<>())
-              .returns(workItemTypeInfo).name("ToKeyedWorkItem");
+              .returns(workItemTypeInfo)
+              .name("ToKeyedWorkItem");
 
-      KeyedStream<
-          WindowedValue<
-              SingletonKeyedWorkItem<K, InputT>>, ByteBuffer> keyedWorkItemStream = workItemStream
-          .keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
+      KeyedStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>, ByteBuffer>
+          keyedWorkItemStream =
+              workItemStream.keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
 
       SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, BoundedWindow> reduceFn =
           SystemReduceFn.buffering(inputKvCoder.getValueCoder());
@@ -884,12 +885,12 @@ class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
               .flatMap(new ToKeyedWorkItem<>())
-              .returns(workItemTypeInfo).name("ToKeyedWorkItem");
+              .returns(workItemTypeInfo)
+              .name("ToKeyedWorkItem");
 
-      KeyedStream<
-            WindowedValue<
-                SingletonKeyedWorkItem<K, InputT>>, ByteBuffer> keyedWorkItemStream = workItemStream
-          .keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
+      KeyedStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>, ByteBuffer>
+          keyedWorkItemStream =
+              workItemStream.keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
 
       GlobalCombineFn<? super InputT, ?, OutputT> combineFn;
       try {
@@ -1029,12 +1030,12 @@ class FlinkStreamingTransformTranslators {
       DataStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemStream =
           inputDataStream
               .flatMap(new ToKeyedWorkItem<>())
-              .returns(workItemTypeInfo).name("ToKeyedWorkItem");
+              .returns(workItemTypeInfo)
+              .name("ToKeyedWorkItem");
 
-      KeyedStream<
-          WindowedValue<
-              SingletonKeyedWorkItem<K, InputT>>, ByteBuffer> keyedWorkItemStream = workItemStream
-          .keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
+      KeyedStream<WindowedValue<SingletonKeyedWorkItem<K, InputT>>, ByteBuffer>
+          keyedWorkItemStream =
+              workItemStream.keyBy(new WorkItemKeySelector<>(inputKvCoder.getKeyCoder()));
 
       context.setOutputDataStream(context.getOutput(transform), keyedWorkItemStream);
     }

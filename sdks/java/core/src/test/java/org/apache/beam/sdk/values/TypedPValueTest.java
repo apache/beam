@@ -34,7 +34,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-
 /**
  * Tests for {@link TypedPValue}, primarily focusing on Coder inference.
  */

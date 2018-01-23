@@ -244,10 +244,7 @@ public class SparkUnboundedSource {
               StreamInputInfo.METADATA_KEY_DESCRIPTION(),
               String.format(
                   "Read %d records with observed watermarks %s, from %s for batch time: %s",
-                  count,
-                  sparkWatermark == null ? "N/A" : sparkWatermark,
-                  sourceName,
-                  batchTime));
+                  count, sparkWatermark == null ? "N/A" : sparkWatermark, sourceName, batchTime));
       StreamInputInfo streamInputInfo = new StreamInputInfo(inputDStreamId, count, metadata);
       ssc().scheduler().inputInfoTracker().reportInfo(batchTime, streamInputInfo);
     }

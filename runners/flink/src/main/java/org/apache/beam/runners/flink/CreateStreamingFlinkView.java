@@ -154,8 +154,7 @@ class CreateStreamingFlinkView<ElemT, ViewT>
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      CreateStreamingFlinkView<ElemT, ViewT> createFlinkView =
-          new CreateStreamingFlinkView<>(view);
+      CreateStreamingFlinkView<ElemT, ViewT> createFlinkView = new CreateStreamingFlinkView<>(view);
       return PTransformReplacement.of(collection, createFlinkView);
     }
 
