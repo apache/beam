@@ -55,7 +55,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       implements HasDefaultTracker<SomeRestriction, SomeRestrictionTracker> {}
 
   private abstract static class SomeRestrictionTracker
-      implements RestrictionTracker<SomeRestriction> {}
+      extends RestrictionTracker<SomeRestriction, Void> {}
 
   private abstract static class SomeRestrictionCoder extends StructuredCoder<SomeRestriction> {}
 
@@ -332,7 +332,9 @@ public class DoFnSignaturesSplittableDoFnTest {
     DoFnSignatures.getSignature(BadFn.class);
   }
 
-  abstract class SomeDefaultTracker implements RestrictionTracker<RestrictionWithDefaultTracker> {}
+  abstract class SomeDefaultTracker
+      extends RestrictionTracker<RestrictionWithDefaultTracker, Void> {}
+
   abstract class RestrictionWithDefaultTracker
       implements HasDefaultTracker<RestrictionWithDefaultTracker, SomeDefaultTracker> {}
 

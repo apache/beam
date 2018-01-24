@@ -50,7 +50,7 @@ import org.joda.time.Instant;
  * outputs), or runs for the given duration.
  */
 public class OutputAndTimeBoundedSplittableProcessElementInvoker<
-        InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+        InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
     extends SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT> {
   private final DoFn<InputT, OutputT> fn;
   private final PipelineOptions pipelineOptions;
@@ -107,7 +107,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
-          public RestrictionTracker<?> restrictionTracker() {
+          public RestrictionTracker<?, ?> restrictionTracker() {
             return tracker;
           }
 

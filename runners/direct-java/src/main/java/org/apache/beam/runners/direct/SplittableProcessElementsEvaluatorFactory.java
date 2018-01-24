@@ -42,7 +42,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 class SplittableProcessElementsEvaluatorFactory<
-        InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+        InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
     implements TransformEvaluatorFactory {
   private final ParDoEvaluatorFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;

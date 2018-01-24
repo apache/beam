@@ -78,7 +78,7 @@ public interface DoFnInvoker<InputT, OutputT> {
       DoFn.OutputReceiver<RestrictionT> restrictionReceiver);
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
-  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> TrackerT invokeNewTracker(
+  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> TrackerT invokeNewTracker(
       RestrictionT restriction);
 
   /** Get the bound {@link DoFn}. */
@@ -124,7 +124,7 @@ public interface DoFnInvoker<InputT, OutputT> {
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
      */
-    RestrictionTracker<?> restrictionTracker();
+    RestrictionTracker<?, ?> restrictionTracker();
 
     /** Returns the state cell for the given {@link StateId}. */
     State state(String stateId);
@@ -203,7 +203,7 @@ public interface DoFnInvoker<InputT, OutputT> {
               FakeArgumentProvider.class.getSimpleName()));
     }
 
-    public RestrictionTracker<?> restrictionTracker() {
+    public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

@@ -23,12 +23,39 @@ import org.apache.beam.sdk.transforms.DoFn;
  * Manages concurrent access to the restriction and keeps track of its claimed part for a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  */
-public interface RestrictionTracker<RestrictionT> {
+public abstract class RestrictionTracker<RestrictionT, PositionT> {
+  interface ClaimObserver<PositionT> {
+    void onClaimed(PositionT position);
+    void onClaimFailed(PositionT position);
+  }
+
+  private ClaimObserver<PositionT> claimObserver;
+
+  void setClaimObserver(ClaimObserver<PositionT> claimObserver) {
+    this.claimObserver = claimObserver;
+  }
+
+  public final boolean tryClaim(PositionT position) {
+    if (tryClaimImpl(position)) {
+      if (claimObserver != null) {
+        claimObserver.onClaimed(position);
+      }
+      return true;
+    } else {
+      if (claimObserver != null) {
+        claimObserver.onClaimFailed(position);
+      }
+      return false;
+    }
+  }
+
+  protected abstract boolean tryClaimImpl(PositionT position);
+
   /**
    * Returns a restriction accurately describing the full range of work the current {@link
    * DoFn.ProcessElement} call will do, including already completed work.
    */
-  RestrictionT currentRestriction();
+  public abstract RestrictionT currentRestriction();
 
   /**
    * Signals that the current {@link DoFn.ProcessElement} call should terminate as soon as possible:
@@ -39,7 +66,7 @@ public interface RestrictionTracker<RestrictionT> {
    * work: the old value of {@link #currentRestriction} is equivalent to the new value and the
    * return value of this method combined. Must be called at most once on a given object.
    */
-  RestrictionT checkpoint();
+  public abstract RestrictionT checkpoint();
 
   /**
    * Called by the runner after {@link DoFn.ProcessElement} returns.
@@ -47,7 +74,7 @@ public interface RestrictionTracker<RestrictionT> {
    * <p>Must throw an exception with an informative error message, if there is still any unclaimed
    * work remaining in the restriction.
    */
-  void checkDone() throws IllegalStateException;
+  public abstract void checkDone() throws IllegalStateException;
 
   // TODO: Add the more general splitRemainderAfterFraction() and other methods.
 }
