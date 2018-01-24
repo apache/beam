@@ -1092,11 +1092,11 @@ public class KafkaIO {
         try {
           if (records.isEmpty()) {
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          }
-          if (!records.isEmpty() && !closed.get()) {
+          } else {
             availableRecordsQueue.offer(records,
                                         RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(),
                                         TimeUnit.MILLISECONDS);
+            records = ConsumerRecords.empty();
           }
           commitFinalizedCheckpointMark(); // If any.
         } catch (InterruptedException e) {

@@ -36,18 +36,13 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private List<PartitionMark> partitions;
 
-  // Kafka reader is set only when option to commit offsets is enabled.
   @AvroIgnore
-  private KafkaIO.UnboundedKafkaReader<?, ?> reader;
+  private KafkaIO.UnboundedKafkaReader<?, ?> reader; // Non-null when offsets need to be committed.
 
   private KafkaCheckpointMark() {} // for Avro
 
-  public KafkaCheckpointMark(List<PartitionMark> partitions) {
-    this.partitions = partitions;
-    this.reader = null;
-  }
-
-  KafkaCheckpointMark(List<PartitionMark> partitions, KafkaIO.UnboundedKafkaReader<?, ?> reader) {
+  public KafkaCheckpointMark(List<PartitionMark> partitions,
+                             KafkaIO.UnboundedKafkaReader<?, ?> reader) {
     this.partitions = partitions;
     this.reader = reader;
   }
