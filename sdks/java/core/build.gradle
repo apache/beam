@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 applyAvroNature()
@@ -36,6 +38,14 @@ processResources {
     'pom.version': version,
     'timestamp': new Date().format("yyyy-MM-dd HH:mm")
   ]
+}
+
+configurations {
+    flinkValidatesRunner
+    sparkValidatesRunner {
+      // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+      exclude group: "org.slf4j", module: "slf4j-jdk14"
+    }
 }
 
 // Exclude tests that need a runner
@@ -71,6 +81,11 @@ dependencies {
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
+  flinkValidatesRunner project(path: project.path, configuration: "shadowTest")
+  flinkValidatesRunner project(path: ":runners:flink", configuration: "shadow")
+  sparkValidatesRunner project(path: project.path, configuration: "shadowTest")
+  sparkValidatesRunner project(path: ":runners:spark", configuration: "shadow")
+  sparkValidatesRunner project(path: ":runners:spark", configuration: "provided")
 }
 
 // Shade dependencies.
@@ -115,6 +130,110 @@ task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
 task packageTests(type: Jar) {
   from sourceSets.test.output
   classifier = "tests"
+}
+
+class ValidatesRunnerConfig {
+  // Runner name prefix
+  String runner
+  // List of test categories to exclude from this task. Optional.
+  List<String> excludes
+  // Pipeline options command line arguments.
+  Map<String, String> pipelineOptions
+  // Configuration to use for test runtime classpath.
+  FileCollection configuration
+  // Additional system properties to be set for tests. Optional.
+  Map<String, String> systemProperties
+}
+
+def createValidatesRunner(Map m) {
+  def config = m as ValidatesRunnerConfig
+  assert config.runner != null
+  assert config.pipelineOptions != null
+  assert config.configuration != null
+  tasks.create(name: "${config.runner}ValidatesRunner", type: Test) {
+    group = "Verification"
+    description = "Validate ${config.runner} runner"
+    def optionsList = config.pipelineOptions.collect {
+      def key = it.getKey()
+      def value = it.getValue()
+      "--${key}=${value}"
+    }
+    def pipelineOptions = JsonOutput.toJson(optionsList)
+
+    systemProperty "beamTestPipelineOptions", pipelineOptions
+    if (config.systemProperties) {
+      for (Map.Entry<String, String> property : config.systemProperties) {
+        systemProperty property.getKey(), property.getValue()
+      }
+    }
+    // TODO: Does Spark require a different forking strategy?
+    maxParallelForks 4
+    classpath = config.configuration
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      if (config.excludes) {
+        excludeCategories(*config.excludes)
+      }
+    }
+  }
+}
+
+def flinkExcludedCategories = [
+  'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders',
+  'org.apache.beam.sdk.testing.LargeKeys$Above100MB',
+  'org.apache.beam.sdk.testing.UsesSplittableParDo',
+  'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+  'org.apache.beam.sdk.testing.UsesTestStream',
+]
+
+def validatesRunnerConfigs = [
+  [
+    runner: "flinkBatch",
+    excludes: flinkExcludedCategories,
+    pipelineOptions: [
+      runner: "TestFlinkRunner",
+      streaming: false,
+    ],
+    configuration: configurations.flinkValidatesRunner,
+  ],
+  [
+    runner: "flinkStreaming",
+    excludes: flinkExcludedCategories,
+    pipelineOptions: [
+      runner: "TestFlinkRunner",
+      streaming: true,
+    ],
+    configuration: configurations.flinkValidatesRunner,
+  ],
+  [
+    runner: "sparkBatch",
+    excludes: [
+      'org.apache.beam.sdk.testing.UsesSplittableParDo',
+      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+      'org.apache.beam.sdk.testing.UsesTestStream',
+      'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
+    ],
+    pipelineOptions: [
+      runner: "TestSparkRunner",
+      streaming: "false",
+      enableSparkMetricSinks: "false",
+    ],
+    configuration: configurations.sparkValidatesRunner,
+    systemProperties: [
+      "beam.spark.test.reuseSparkContext": "true",
+      "spark.ui.enabled": "false",
+      "spark.ui.showConsoleProgress": "false",
+    ],
+  ],
+]
+
+task(validatesRunners) {
+  group = "Verification"
+  description = "Validates all runners"
+}
+for (Map config : validatesRunnerConfigs as List<Map>) {
+  def t = createValidatesRunner(config)
+  validatesRunners.dependsOn t
 }
 
 artifacts.archives packageTests
