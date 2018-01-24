@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -148,7 +149,7 @@ public class PipelineTranslationTest {
             pipelineProto.getComponents().getPcollectionsCount(),
             equalTo(pcollections.size()));
         assertThat(
-            "Unexpected number of Coders",
+            "Unexpected number of Coders ",
             pipelineProto.getComponents().getCodersCount(),
             equalTo(coders.size()));
         assertThat(
@@ -182,6 +183,9 @@ public class PipelineTranslationTest {
         PCollection pc = (PCollection) value;
         pcollections.add(pc);
         addCoders(pc.getCoder());
+        addCoders(WindowedValue.getFullCoder(
+            pc.getCoder(),
+            pc.getWindowingStrategy().getWindowFn().windowCoder()));
         windowingStrategies.add(pc.getWindowingStrategy());
         addCoders(pc.getWindowingStrategy().getWindowFn().windowCoder());
       }

@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -146,7 +147,9 @@ public class PCollectionTranslationTest {
         protoComponents.getWindowingStrategy(protoCollection.getWindowingStrategyId());
     IsBounded decodedIsBounded = PCollectionTranslation.isBounded(protoCollection);
 
-    assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(testCollection.getCoder()));
+    assertThat(decodedCoder, Matchers.<Coder<?>>equalTo(WindowedValue.getFullCoder(
+        testCollection.getCoder(),
+        testCollection.getWindowingStrategy().getWindowFn().windowCoder())));
     assertThat(
         decodedStrategy,
         Matchers.<WindowingStrategy<?, ?>>equalTo(
