@@ -30,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.BeamFnDataGrpcMultiplexer;
+import org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
@@ -53,7 +54,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   private final BiFunction<
           StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements>,
           StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
-      streamObserverFactory;
+      outboundStreamObserverFactory;
   private final PipelineOptions options;
 
   public BeamFnDataGrpcClient(
@@ -62,10 +63,10 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       BiFunction<
               StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements>,
               StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>
-          streamObserverFactory) {
+          outboundStreamObserverFactory) {
     this.options = options;
     this.channelFactory = channelFactory;
-    this.streamObserverFactory = streamObserverFactory;
+    this.outboundStreamObserverFactory = outboundStreamObserverFactory;
     this.cache = new ConcurrentHashMap<>();
   }
 
@@ -121,11 +122,14 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   private BeamFnDataGrpcMultiplexer getClientFor(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor) {
-    return cache.computeIfAbsent(apiServiceDescriptor,
-        (Endpoints.ApiServiceDescriptor descriptor) -> new BeamFnDataGrpcMultiplexer(
-            descriptor,
-            (StreamObserver<BeamFnApi.Elements> inboundObserver) -> streamObserverFactory.apply(
-                BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,
-                inboundObserver)));
+    return cache.computeIfAbsent(
+        apiServiceDescriptor,
+        (Endpoints.ApiServiceDescriptor descriptor) ->
+            new BeamFnDataGrpcMultiplexer(
+                descriptor,
+                (StreamObserver<BeamFnApi.Elements> inboundObserver) ->
+                    outboundStreamObserverFactory.apply(
+                        BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,
+                        inboundObserver)));
   }
 }

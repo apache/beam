@@ -19,6 +19,8 @@ package org.apache.beam.sdk.fn.data;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableList;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -46,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * <p>TODO: Add support for multiplexing over multiple outbound observers by stickying the output
  * location with a specific outbound observer.
  */
-public class BeamFnDataGrpcMultiplexer {
+public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
   @Nullable private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
@@ -94,6 +96,20 @@ public class BeamFnDataGrpcMultiplexer {
   @VisibleForTesting
   boolean hasConsumer(LogicalEndpoint outputLocation) {
     return consumers.containsKey(outputLocation);
+  }
+
+  @Override
+  public void close() {
+    for (CompletableFuture<Consumer<BeamFnApi.Elements.Data>> receiver :
+        ImmutableList.copyOf(consumers.values())) {
+      // Cancel any observer waiting for the client to complete. If the receiver has already been
+      // completed or cancelled, this call will be ignored.
+      receiver.cancel(true);
+    }
+    // Cancel any outbound calls and complete any inbound calls, as this multiplexer is hanging up
+    outboundObserver.onError(
+        Status.CANCELLED.withDescription("Multiplexer hanging up").asException());
+    inboundObserver.onCompleted();
   }
 
   /**
