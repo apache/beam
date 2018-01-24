@@ -214,10 +214,10 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 		case typex.KVType:
 			if isMain {
 				if args[0].Kind != funcx.FnValue {
-					return nil, kind, fmt.Errorf("Key of %v cannot bind to %v", t, args[0])
+					return nil, kind, fmt.Errorf("key of %v cannot bind to %v", t, args[0])
 				}
 				if args[1].Kind != funcx.FnValue {
-					return nil, kind, fmt.Errorf("Value of %v cannot bind to %v", t, args[1])
+					return nil, kind, fmt.Errorf("value of %v cannot bind to %v", t, args[1])
 				}
 				other = typex.NewWKV(typex.New(args[0].T), typex.New(args[1].T))
 			} else {
@@ -249,34 +249,37 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 				}
 			}
 
-		case typex.GBKType:
+		case typex.CoGBKType:
 			if args[0].Kind != funcx.FnValue {
-				return nil, kind, fmt.Errorf("Key of %v cannot bind to %v", t, args[0])
+				return nil, kind, fmt.Errorf("key of %v cannot bind to %v", t, args[0])
 			}
 
-			switch args[1].Kind {
-			case funcx.FnIter:
-				values, _ := funcx.UnfoldIter(args[1].T)
-				trimmed := trimIllegal(values)
-				if len(trimmed) != 1 {
-					return nil, kind, fmt.Errorf("Values of %v cannot bind to %v", t, args[1])
-				}
-				other = typex.NewWGBK(typex.New(args[0].T), typex.New(trimmed[0]))
+			components := []typex.FullType{typex.New(args[0].T)}
 
-			case funcx.FnReIter:
-				values, _ := funcx.UnfoldReIter(args[1].T)
-				trimmed := trimIllegal(values)
-				if len(trimmed) != 1 {
-					return nil, kind, fmt.Errorf("Values of %v cannot bind to %v", t, args[1])
-				}
-				other = typex.NewWGBK(typex.New(args[0].T), typex.New(trimmed[0]))
+			for i := 1; i < arity; i++ {
+				switch args[i].Kind {
+				case funcx.FnIter:
+					values, _ := funcx.UnfoldIter(args[i].T)
+					trimmed := trimIllegal(values)
+					if len(trimmed) != 1 {
+						return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
+					}
+					components = append(components, typex.New(trimmed[0]))
 
-			default:
-				return nil, kind, fmt.Errorf("Values of %v cannot bind to %v", t, args[1])
+				case funcx.FnReIter:
+					values, _ := funcx.UnfoldReIter(args[i].T)
+					trimmed := trimIllegal(values)
+					if len(trimmed) != 1 {
+						return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
+					}
+					components = append(components, typex.New(trimmed[0]))
+				default:
+					return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
+				}
 			}
+			other = typex.NewWCoGBK(components...)
 
 		default:
-			// TODO: typex.CoGBKType
 			panic("Unexpected inbound type")
 		}
 
@@ -299,12 +302,10 @@ func inboundArity(t typex.FullType, isMain bool) int {
 			}
 			// A KV side input must be a single iterator/map.
 			return 1
-		case typex.GBKType:
-			return 2
 		case typex.WindowedValueType:
 			return inboundArity(t.Components()[0], isMain)
 		case typex.CoGBKType:
-			return 1 + len(t.Components())
+			return len(t.Components())
 		default:
 			panic("Unexpected inbound type")
 		}

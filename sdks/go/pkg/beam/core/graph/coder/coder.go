@@ -126,8 +126,17 @@ const (
 	VarInt        Kind = "varint"
 	WindowedValue Kind = "W"
 	KV            Kind = "KV"
-	GBK           Kind = "GBK"
-	CoGBK         Kind = "CoGBK"
+
+	// CoGBK is non-standard and currently equivalent to either
+	//
+	//     KV<X,Iterable<Y>>         (if GBK)
+	//     KV<X,Iterable<KV<int,Y>>> (if CoGBK, using a tagged union encoding)
+	//
+	// It requires special handling in translation to the model pipeline in the latter case
+	// to add the incoming index for each input.
+	//
+	// TODO(BEAM-490): once this JIRA is done, this coder should become the new thing.
+	CoGBK Kind = "CoGBK"
 )
 
 // Coder is a description of how to encode and decode values of a given type.
@@ -137,7 +146,7 @@ type Coder struct {
 	Kind Kind
 	T    typex.FullType
 
-	Components []*Coder       // WindowedValue, KV, GCK, CoGBK
+	Components []*Coder       // WindowedValue, KV, CoGBK
 	Custom     *CustomCoder   // Custom
 	Window     *window.Window // WindowedValue
 }
@@ -214,6 +223,13 @@ func IsW(c *Coder) bool {
 
 // NewW returns a WindowedValue coder for the window of elements.
 func NewW(c *Coder, w *window.Window) *Coder {
+	if c == nil {
+		panic("coder must not be nil")
+	}
+	if w == nil {
+		panic("window must not be nil")
+	}
+
 	return &Coder{
 		Kind:       WindowedValue,
 		T:          typex.NewW(c.T),
@@ -229,24 +245,10 @@ func IsWKV(c *Coder) bool {
 
 // NewWKV returns a WindowedValue coder for the window of KV elements.
 func NewWKV(components []*Coder, w *window.Window) *Coder {
+	checkCodersNotNil(components)
 	c := &Coder{
 		Kind:       KV,
 		T:          typex.New(typex.KVType, Types(components)...),
-		Components: components,
-	}
-	return NewW(c, w)
-}
-
-// IsWGBK returns true iff the coder is for a WindowedValue GBK type.
-func IsWGBK(c *Coder) bool {
-	return IsW(c) && SkipW(c).Kind == GBK
-}
-
-// NewWGBK returns a WindowedValue coder for the window of GBK elements.
-func NewWGBK(components []*Coder, w *window.Window) *Coder {
-	c := &Coder{
-		Kind:       GBK,
-		T:          typex.New(typex.GBKType, Types(components)...),
 		Components: components,
 	}
 	return NewW(c, w)
@@ -259,6 +261,7 @@ func IsWCoGBK(c *Coder) bool {
 
 // NewWCoGBK returns a WindowedValue coder for the window of CoGBK elements.
 func NewWCoGBK(components []*Coder, w *window.Window) *Coder {
+	checkCodersNotNil(components)
 	c := &Coder{
 		Kind:       CoGBK,
 		T:          typex.New(typex.CoGBKType, Types(components)...),
@@ -284,4 +287,12 @@ func Types(list []*Coder) []typex.FullType {
 		ret = append(ret, c.T)
 	}
 	return ret
+}
+
+func checkCodersNotNil(list []*Coder) {
+	for i, c := range list {
+		if c == nil {
+			panic(fmt.Sprintf("nil coder at index: %v", i))
+		}
+	}
 }

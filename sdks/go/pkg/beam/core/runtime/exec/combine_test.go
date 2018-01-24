@@ -39,7 +39,7 @@ func TestCombine(t *testing.T) {
 	g := graph.New()
 	in := g.NewNode(typex.NewW(typex.New(reflectx.Int)), window.NewGlobalWindow())
 
-	edge, err := graph.NewCombine(g, g.Root(), fn, []*graph.Node{in})
+	edge, err := graph.NewCombine(g, g.Root(), fn, in)
 	if err != nil {
 		t.Fatalf("invalid pardo: %v", err)
 	}

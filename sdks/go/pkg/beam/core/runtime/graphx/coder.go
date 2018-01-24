@@ -160,8 +160,8 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		isGBK := elm.GetSpec().GetSpec().GetUrn() == urnStreamCoder
 		if isGBK {
 			id = elm.GetComponentCoderIds()[0]
-			kind = coder.GBK
-			root = typex.GBKType
+			kind = coder.CoGBK
+			root = typex.CoGBKType
 		}
 
 		value, err := b.Coder(id)
@@ -287,7 +287,7 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 		comp := b.AddMulti(c.Components)
 		return b.internBuiltInCoder(urnKVCoder, comp...)
 
-	case coder.GBK:
+	case coder.CoGBK:
 		comp := b.AddMulti(c.Components)
 		stream := b.internBuiltInCoder(urnStreamCoder, comp[1])
 		return b.internBuiltInCoder(urnKVCoder, comp[0], stream)

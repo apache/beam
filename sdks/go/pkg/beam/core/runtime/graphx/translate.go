@@ -235,7 +235,8 @@ func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
 	case graph.Flatten:
 		return &pb.FunctionSpec{Urn: urnFlatten}
 
-	case graph.GBK:
+	case graph.CoGBK:
+		// TODO(BEAM-490): replace once CoGBK is a primitive
 		return &pb.FunctionSpec{Urn: urnGBK}
 
 	case graph.External:
@@ -523,7 +524,7 @@ func (u *unmarshaller) unmarshalTransform(scope *graph.Scope, id string) error {
 		edge.Output = makeEmptyOutbound(1)
 
 	case urnGBK:
-		edge.Op = graph.GBK
+		edge.Op = graph.CoGBK
 		edge.Input = makeEmptyInbound(1)
 		edge.Output = makeEmptyOutbound(1)
 
