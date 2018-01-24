@@ -83,11 +83,16 @@ public class SplittableParDoProcessFnTest {
     }
   }
 
-  private static class SomeRestrictionTracker implements RestrictionTracker<SomeRestriction> {
+  private static class SomeRestrictionTracker extends RestrictionTracker<SomeRestriction, Void> {
     private final SomeRestriction someRestriction;
 
     public SomeRestrictionTracker(SomeRestriction someRestriction) {
       this.someRestriction = someRestriction;
+    }
+
+    @Override
+    protected boolean tryClaimImpl(Void position) {
+      return false;
     }
 
     @Override
@@ -112,7 +117,7 @@ public class SplittableParDoProcessFnTest {
    * possibly over multiple {@link DoFn.ProcessElement} calls).
    */
   private static class ProcessFnTester<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       implements AutoCloseable {
     private final DoFnTester<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> tester;
     private Instant currentProcessingTime;

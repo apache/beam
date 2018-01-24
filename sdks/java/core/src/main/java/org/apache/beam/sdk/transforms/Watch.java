@@ -27,6 +27,7 @@ import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -39,8 +40,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -52,7 +51,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -737,11 +735,11 @@ public class Watch {
       }
       while (tracker.hasPending()) {
         c.updateWatermark(tracker.getWatermark());
-
-        TimestampedValue<OutputT> nextPending = tracker.tryClaimNextPending();
-        if (nextPending == null) {
+        Map.Entry<HashCode, TimestampedValue<OutputT>> entry = tracker.getNextPending();
+        if (!tracker.tryClaim(entry.getKey())) {
           return stop();
         }
+        TimestampedValue<OutputT> nextPending = entry.getValue();
         c.outputWithTimestamp(
             KV.of(c.element(), nextPending.getValue()), nextPending.getTimestamp());
       }
@@ -792,10 +790,10 @@ public class Watch {
     // timestamp is more than X behind the watermark.
     // As of writing, we don't do this, but preserve the information for forward compatibility
     // in case of pipeline update. TODO: do this.
-    private final Map<HashCode, Instant> completed;
+    private final ImmutableMap<HashCode, Instant> completed;
     // Outputs that are known to be present in a poll result, but have not yet been returned
     // from a ProcessElement call, sorted by timestamp to help smooth watermark progress.
-    private final List<TimestampedValue<OutputT>> pending;
+    private final ImmutableMap<HashCode, TimestampedValue<OutputT>> pending;
     // If true, processing of this restriction should only output "pending". Otherwise, it should
     // also continue polling.
     private final boolean isOutputComplete;
@@ -805,24 +803,24 @@ public class Watch {
     @Nullable private final Instant pollWatermark;
 
     GrowthState(TerminationStateT terminationState) {
-      this.completed = Collections.emptyMap();
-      this.pending = Collections.emptyList();
+      this.completed = ImmutableMap.of();
+      this.pending = ImmutableMap.of();
       this.isOutputComplete = false;
       this.terminationState = checkNotNull(terminationState);
       this.pollWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
     }
 
     GrowthState(
-        Map<HashCode, Instant> completed,
-        List<TimestampedValue<OutputT>> pending,
+        ImmutableMap<HashCode, Instant> completed,
+        ImmutableMap<HashCode, TimestampedValue<OutputT>> pending,
         boolean isOutputComplete,
         @Nullable TerminationStateT terminationState,
         @Nullable Instant pollWatermark) {
       if (!isOutputComplete) {
         checkNotNull(terminationState);
       }
-      this.completed = Collections.unmodifiableMap(completed);
-      this.pending = Collections.unmodifiableList(pending);
+      this.completed = completed;
+      this.pending = pending;
       this.isOutputComplete = isOutputComplete;
       this.terminationState = terminationState;
       this.pollWatermark = pollWatermark;
@@ -848,7 +846,7 @@ public class Watch {
 
   @VisibleForTesting
   static class GrowthTracker<OutputT, KeyT, TerminationStateT>
-      implements RestrictionTracker<GrowthState<OutputT, KeyT, TerminationStateT>> {
+      extends RestrictionTracker<GrowthState<OutputT, KeyT, TerminationStateT>, HashCode> {
     private final Funnel<OutputT> coderFunnel;
     private final Growth.TerminationCondition<?, TerminationStateT> terminationCondition;
 
@@ -861,9 +859,9 @@ public class Watch {
 
     // Remaining pending outputs; initialized from state.pending (if non-empty) or in
     // addNewAsPending(); drained via tryClaimNextPending().
-    private LinkedList<TimestampedValue<OutputT>> pending;
+    private Map<HashCode, TimestampedValue<OutputT>> pending;
     // Outputs that have been claimed in the current ProcessElement call. A prefix of "pending".
-    private List<TimestampedValue<OutputT>> claimed = Lists.newArrayList();
+    private Map<HashCode, TimestampedValue<OutputT>> claimed = Maps.newLinkedHashMap();
     private boolean isOutputComplete;
     @Nullable private TerminationStateT terminationState;
     @Nullable private Instant pollWatermark;
@@ -889,7 +887,10 @@ public class Watch {
       this.isOutputComplete = state.isOutputComplete;
       this.pollWatermark = state.pollWatermark;
       this.terminationState = state.terminationState;
-      this.pending = Lists.newLinkedList(state.pending);
+      this.pending = Maps.newLinkedHashMapWithExpectedSize(state.pending.size());
+      for (Map.Entry<HashCode, TimestampedValue<OutputT>> entry : state.pending.entrySet()) {
+        this.pending.put(entry.getKey(), entry.getValue());
+      }
     }
 
     @Override
@@ -904,22 +905,23 @@ public class Watch {
       GrowthState<OutputT, KeyT, TerminationStateT> primary =
           new GrowthState<>(
               state.completed /* completed */,
-              claimed /* pending */,
+              ImmutableMap.copyOf(claimed) /* pending */,
               true /* isOutputComplete */,
               null /* terminationState */,
               BoundedWindow.TIMESTAMP_MAX_VALUE /* pollWatermark */);
 
       // residual should contain exactly the work *not* claimed in the current ProcessElement call -
       // unclaimed pending outputs plus future polling outputs.
-      Map<HashCode, Instant> newCompleted = Maps.newHashMap(state.completed);
-      for (TimestampedValue<OutputT> claimedOutput : claimed) {
+      ImmutableMap.Builder<HashCode, Instant> newCompleted = ImmutableMap.builder();
+      newCompleted.putAll(state.completed);
+      for (Map.Entry<HashCode, TimestampedValue<OutputT>> claimedOutput : claimed.entrySet()) {
         newCompleted.put(
-            hash128(claimedOutput.getValue()), claimedOutput.getTimestamp());
+            claimedOutput.getKey(), claimedOutput.getValue().getTimestamp());
       }
       GrowthState<OutputT, KeyT, TerminationStateT> residual =
           new GrowthState<>(
-              newCompleted /* completed */,
-              pending /* pending */,
+              newCompleted.build() /* completed */,
+              ImmutableMap.copyOf(pending) /* pending */,
               isOutputComplete /* isOutputComplete */,
               terminationState,
               pollWatermark);
@@ -930,7 +932,7 @@ public class Watch {
       this.isOutputComplete = primary.isOutputComplete;
       this.pollWatermark = primary.pollWatermark;
       this.terminationState = null;
-      this.pending = Lists.newLinkedList();
+      this.pending = Maps.newLinkedHashMap();
 
       this.shouldStop = true;
       return residual;
@@ -955,15 +957,21 @@ public class Watch {
     }
 
     @VisibleForTesting
-    @Nullable
-    synchronized TimestampedValue<OutputT> tryClaimNextPending() {
+    synchronized Map.Entry<HashCode, TimestampedValue<OutputT>> getNextPending() {
+      checkState (!pending.isEmpty(), "Pending set is empty");
+      return pending.entrySet().iterator().next();
+    }
+
+    @Override
+    protected synchronized boolean tryClaimImpl(HashCode hash) {
       if (shouldStop) {
-        return null;
+        return false;
       }
       checkState(!pending.isEmpty(), "No more unclaimed pending outputs");
-      TimestampedValue<OutputT> value = pending.removeFirst();
-      claimed.add(value);
-      return value;
+      TimestampedValue<OutputT> value = pending.remove(hash);
+      checkArgument(value != null, "Attempted to claim unknown hash %s", hash);
+      claimed.put(hash, value);
+      return true;
     }
 
     @VisibleForTesting
@@ -999,19 +1007,23 @@ public class Watch {
       if (!newPending.isEmpty()) {
         terminationState = terminationCondition.onSeenNewOutput(Instant.now(), terminationState);
       }
-      this.pending =
-          Lists.newLinkedList(
-              Ordering.natural()
-                  .onResultOf(
-                      (Function<TimestampedValue<OutputT>, Comparable>)
-                          TimestampedValue::getTimestamp)
-                  .sortedCopy(newPending.values()));
+
+      List<Map.Entry<HashCode, TimestampedValue<OutputT>>> sortedPending =
+          Ordering.natural()
+              .onResultOf(
+                  (Map.Entry<HashCode, TimestampedValue<OutputT>> entry) ->
+                      entry.getValue().getTimestamp())
+              .sortedCopy(newPending.entrySet());
+      this.pending = Maps.newLinkedHashMap();
+      for (Map.Entry<HashCode, TimestampedValue<OutputT>> entry : sortedPending) {
+        this.pending.put(entry.getKey(), entry.getValue());
+      }
       // If poll result doesn't provide a watermark, assume that future new outputs may
       // arrive with about the same timestamps as the current new outputs.
       if (pollResult.getWatermark() != null) {
         this.pollWatermark = pollResult.getWatermark();
       } else if (!pending.isEmpty()) {
-        this.pollWatermark = pending.getFirst().getTimestamp();
+        this.pollWatermark = pending.values().iterator().next().getTimestamp();
       }
       if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(pollWatermark)) {
         isOutputComplete = true;
@@ -1026,7 +1038,9 @@ public class Watch {
       // min(watermark for future polling, earliest remaining pending element)
       return Ordering.natural()
           .nullsLast()
-          .min(pollWatermark, pending.isEmpty() ? null : pending.getFirst().getTimestamp());
+          .min(
+              pollWatermark,
+              pending.isEmpty() ? null : pending.values().iterator().next().getTimestamp());
     }
 
     @Override
@@ -1091,7 +1105,7 @@ public class Watch {
 
     private final Coder<OutputT> outputCoder;
     private final Coder<Map<HashCode, Instant>> completedCoder;
-    private final Coder<List<TimestampedValue<OutputT>>> pendingCoder;
+    private final Coder<TimestampedValue<OutputT>> timestampedOutputCoder;
     private final Coder<TerminationStateT> terminationStateCoder;
 
     private GrowthStateCoder(
@@ -1099,14 +1113,18 @@ public class Watch {
       this.outputCoder = outputCoder;
       this.terminationStateCoder = terminationStateCoder;
       this.completedCoder = MapCoder.of(HASH_CODE_CODER, INSTANT_CODER);
-      this.pendingCoder = ListCoder.of(TimestampedValue.TimestampedValueCoder.of(outputCoder));
+      this.timestampedOutputCoder = TimestampedValue.TimestampedValueCoder.of(outputCoder);
     }
 
     @Override
     public void encode(GrowthState<OutputT, KeyT, TerminationStateT> value, OutputStream os)
         throws IOException {
       completedCoder.encode(value.completed, os);
-      pendingCoder.encode(value.pending, os);
+      VarIntCoder.of().encode(value.pending.size(), os);
+      for (Map.Entry<HashCode, TimestampedValue<OutputT>> entry : value.pending.entrySet()) {
+        HASH_CODE_CODER.encode(entry.getKey(), os);
+        timestampedOutputCoder.encode(entry.getValue(), os);
+      }
       BOOLEAN_CODER.encode(value.isOutputComplete, os);
       terminationStateCoder.encode(value.terminationState, os);
       INSTANT_CODER.encode(value.pollWatermark, os);
@@ -1115,12 +1133,22 @@ public class Watch {
     @Override
     public GrowthState<OutputT, KeyT, TerminationStateT> decode(InputStream is) throws IOException {
       Map<HashCode, Instant> completed = completedCoder.decode(is);
-      List<TimestampedValue<OutputT>> pending = pendingCoder.decode(is);
+      int numPending = VarIntCoder.of().decode(is);
+      ImmutableMap.Builder<HashCode, TimestampedValue<OutputT>> pending = ImmutableMap.builder();
+      for (int i = 0; i < numPending; ++i) {
+        HashCode hash = HASH_CODE_CODER.decode(is);
+        TimestampedValue<OutputT> output = timestampedOutputCoder.decode(is);
+        pending.put(hash, output);
+      }
       boolean isOutputComplete = BOOLEAN_CODER.decode(is);
       TerminationStateT terminationState = terminationStateCoder.decode(is);
       Instant pollWatermark = INSTANT_CODER.decode(is);
       return new GrowthState<>(
-          completed, pending, isOutputComplete, terminationState, pollWatermark);
+          ImmutableMap.copyOf(completed),
+          pending.build(),
+          isOutputComplete,
+          terminationState,
+          pollWatermark);
     }
 
     @Override

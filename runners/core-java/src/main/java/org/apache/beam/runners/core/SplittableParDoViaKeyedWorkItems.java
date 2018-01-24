@@ -150,7 +150,7 @@ public class SplittableParDoViaKeyedWorkItems {
 
   /** A primitive transform wrapping around {@link ProcessFn}. */
   public static class ProcessElements<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       extends PTransform<
           PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>, PCollectionTuple> {
     private final ProcessKeyedElements<InputT, OutputT, RestrictionT> original;
@@ -211,7 +211,7 @@ public class SplittableParDoViaKeyedWorkItems {
    */
   @VisibleForTesting
   public static class ProcessFn<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       extends DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
     /**
      * The state cell containing a watermark hold for the output of this {@link DoFn}. The hold is
