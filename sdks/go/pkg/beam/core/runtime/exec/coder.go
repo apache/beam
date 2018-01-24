@@ -134,8 +134,15 @@ type bytesEncoder struct{}
 
 func (*bytesEncoder) Encode(val FullValue, w io.Writer) error {
 	// Encoding: size (varint) + raw data
-
-	data := reflect.ValueOf(val.Elm).Convert(reflectx.ByteSlice).Interface().([]byte)
+	var data []byte
+	switch v := val.Elm.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	default:
+		return fmt.Errorf("received unknown value type: want []byte or string, got %T", v)
+	}
 	size := len(data)
 
 	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
