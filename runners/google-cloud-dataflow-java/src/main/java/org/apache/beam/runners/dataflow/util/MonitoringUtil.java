@@ -214,8 +214,9 @@ public class MonitoringUtil {
     }
 
     // Assemble cancel command from optional prefix and project/job parameters.
-    return String.format("%s%s jobs --project=%s cancel %s",
-        dataflowApiOverridePrefix, GCLOUD_DATAFLOW_PREFIX, options.getProject(), jobId);
+    return String.format("%s%s jobs --project=%s cancel --region=%s %s",
+        dataflowApiOverridePrefix, GCLOUD_DATAFLOW_PREFIX, options.getProject(),
+        options.getRegion(), jobId);
   }
 
   public static State toState(String stateName) {
