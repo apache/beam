@@ -9,6 +9,146 @@
     <generator>Jekyll v3.2.0</generator>
     
       <item>
+        <title>Apache Beam: A Look Back at 2017</title>
+        <description>&lt;p&gt;On January 10, 2017, Apache Beam got &lt;a href=&quot;/blog/2017/01/10/beam-graduates.html&quot;&gt;promoted&lt;/a&gt;
+as a Top-Level Apache Software Foundation project. It was an important milestone
+that validated the value of the project, legitimacy of its community, and
+heralded its growing adoption. In the past year, Apache Beam has been on a
+phenomenal growth trajectory, with significant growth in its community and
+feature set. Let us walk you through some of the notable achievements.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;h2 id=&quot;use-cases&quot;&gt;Use cases&lt;/h2&gt;
+
+&lt;p&gt;First, lets take a glimpse at how Beam was used in 2017. Apache Beam being a
+unified framework for batch and stream processing, enables a very wide spectrum
+of diverse use cases. Here are some use cases that exemplify the versatility of
+Beam.&lt;/p&gt;
+
+&lt;p&gt;&lt;img class=&quot;center-block&quot; src=&quot;/images/blog/2017-look-back/timeline.png&quot; alt=&quot;Use Cases&quot; width=&quot;600&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;community-growth&quot;&gt;Community growth&lt;/h2&gt;
+
+&lt;p&gt;In 2017, Apache Beam had 174 contributors worldwide, from many different
+organizations. As an Apache project, we are proud to count 18 PMC members and
+31 committers. The community had 7 releases in 2017, each bringing a rich set of
+new features and fixes.&lt;/p&gt;
+
+&lt;p&gt;The most obvious and encouraging sign of the growth of Apache Beam’s community,
+and validation of its core value proposition of portability, is the addition of
+significant new &lt;a href=&quot;/documentation/runners/capability-matrix/&quot;&gt;runners&lt;/a&gt;
+(i.e. execution engines). We entered 2017 with Apache Flink, Apache Spark 1.x,
+Google Cloud Dataflow, Apache Apex, and Apache Gearpump. In 2017, the following
+new and updated runners were developed:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Apache Spark 2.x update&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.ibm.com/blogs/bluemix/2017/10/streaming-analytics-updates-ibm-streams-runner-apache-beam-2-0/&quot;&gt;IBM Streams runner&lt;/a&gt;&lt;/li&gt;
+  &lt;li&gt;MapReduce runner&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://jstorm.io/&quot;&gt;JStorm runner&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In addition to runners, Beam added new IO connectors, some notable ones being
+the Cassandra, MQTT, AMQP, HBase/HCatalog, JDBC, Solr, Tika, Redis, and
+ElasticSearch connectors. Beam’s IO connectors make it possible to read from or
+write to data sources/sinks even when they are not natively supported by the
+underlying execution engine. Beam also provides fully pluggable filesystem
+support, allowing us to support and extend our coverage to HDFS, S3, Azure
+Storage, and Google Storage. We continue to add new IO connectors and
+filesystems to extend the Beam use cases.&lt;/p&gt;
+
+&lt;p&gt;A particularly telling sign of the maturity of an open source community is when
+it is able to collaborate with multiple other open source communities, and
+mutually improve the state of the art. Over the past few months, the Beam,
+Calcite, and Flink communities have come together to define a robust &lt;a href=&quot;https://docs.google.com/document/d/1wrla8mF_mmq-NW9sdJHYVgMyZsgCmHumJJ5f5WUzTiM/edit&quot;&gt;spec&lt;/a&gt;
+for Streaming SQL, with engineers from over four organizations contributing to
+it. If, like us, you are excited by the prospect of improving the state of
+streaming SQL, please join us!&lt;/p&gt;
+
+&lt;p&gt;In addition to SQL, new XML and JSON based declarative DSLs are also in PoC.&lt;/p&gt;
+
+&lt;h2 id=&quot;continued-innovation&quot;&gt;Continued innovation&lt;/h2&gt;
+
+&lt;p&gt;Innovation is important to the success on any open source project, and Beam has
+a rich history of bringing innovative new ideas to the open source community.
+Apache Beam was the first to introduce some seminal concepts in the world of
+big-data processing:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Unified batch and streaming SDK that enables users to author big-data jobs
+without having to learn multiple disparate SDKs/APIs.&lt;/li&gt;
+  &lt;li&gt;Cross-Engine Portability: Giving enterprises the confidence that workloads
+authored today will not have to be re-written when open source engines become
+outdated and are supplanted by newer ones.&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.oreilly.com/ideas/the-world-beyond-batch-streaming-101&quot;&gt;Semantics&lt;/a&gt;
+essential for reasoning about unbounded unordered data, and achieving
+consistent and correct output from a streaming job.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In 2017, the pace of innovation continued. The following capabilities were
+introduced:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Cross-Language Portability framework, and a &lt;a href=&quot;https://golang.org/&quot;&gt;Go&lt;/a&gt; SDK
+developed with it.&lt;/li&gt;
+  &lt;li&gt;Dynamically Shardable IO (SplittableDoFn)&lt;/li&gt;
+  &lt;li&gt;Support for schemas in PCollection, allowing us to extend the runner
+capabilities.&lt;/li&gt;
+  &lt;li&gt;Extensions addressing new use cases such as machine learning, and new data
+formats.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;areas-of-improvement&quot;&gt;Areas of improvement&lt;/h2&gt;
+
+&lt;p&gt;Any retrospective view of a project is incomplete without an honest assessment
+of areas of improvement. Two aspects stand out:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Helping runners showcase their individual strengths. After all, portability
+does not imply homogeneity. Different runners have different areas in which
+they excel, and we need to do a better job of helping them highlight their
+strengths.&lt;/li&gt;
+  &lt;li&gt;Based on the previous point, helping customers make a more informed decision
+when they select a runner or migrate from one to another.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;In 2018, we aim to take proactive steps to improve the above aspects.&lt;/p&gt;
+
+&lt;h2 id=&quot;ethos-of-the-project-and-its-community&quot;&gt;Ethos of the project and its community&lt;/h2&gt;
+
+&lt;p&gt;The world of batch and stream big-data processing today is reminiscent of the
+&lt;a href=&quot;https://en.wikipedia.org/wiki/Tower_of_Babel&quot;&gt;Tower of Babel&lt;/a&gt; parable: a
+slowdown of progress because different communities spoke different languages.
+Similarly, today there are multiple disparate big-data SDKs/APIs, each with
+their own distinct terminology to describe similar concepts. The side effect is
+user confusion and slower adoption.&lt;/p&gt;
+
+&lt;p&gt;The Apache Beam project aims to provide an industry standard portable SDK that
+will:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;Benefit users by providing &lt;strong&gt;&lt;em&gt;innovation with stability&lt;/em&gt;&lt;/strong&gt;: The separation of
+SDK and engine enables healthy competition between runners, without requiring
+users to constantly learn new SDKs/APIs and rewrite their workloads to
+benefit from new innovation.&lt;/li&gt;
+  &lt;li&gt;Benefit big-data engines by &lt;strong&gt;&lt;em&gt;growing the pie for everyone&lt;/em&gt;&lt;/strong&gt;: Making it
+easier for users to author, maintain, upgrade and migrate their big-data
+workloads will lead to significant growth in the number of production
+big-data deployments.&lt;/li&gt;
+&lt;/ul&gt;
+
+</description>
+        <pubDate>Tue, 09 Jan 2018 00:00:01 -0800</pubDate>
+        <link>https://beam.apache.org/blog/2018/01/09/beam-a-look-back.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2018/01/09/beam-a-look-back.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Timely (and Stateful) Processing with Apache Beam</title>
         <description>&lt;p&gt;In a &lt;a href=&quot;/blog/2017/02/13/stateful-processing.html&quot;&gt;prior blog
 post&lt;/a&gt;, I
@@ -2323,42 +2463,6 @@ Java SDK. If you have questions or comments, we’d love to hear them on the
         
         
         <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Strata+Hadoop World and Beam</title>
-        <description>&lt;p&gt;Tyler Akidau and I gave a &lt;a href=&quot;http://conferences.oreilly.com/strata/hadoop-big-data-ny/public/schedule/detail/52129&quot;&gt;three-hour tutorial&lt;/a&gt; on Apache Beam at Strata+Hadoop World 2016. We had a plethora of help from our TAs: Kenn Knowles, Reuven Lax, Felipe Hoffa, Slava Chernyak, and Jamie Grier. There were a total of 66 people that attended the session.&lt;!--more--&gt;&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/blog/IMG_20160927_170956.jpg&quot; alt=&quot;Exercise time&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;If you want to take a look at the tutorial materials, we’ve put them up &lt;a href=&quot;https://github.com/eljefe6a/beamexample&quot;&gt;on GitHub&lt;/a&gt;. This includes the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/blob/master/BeamTutorial/slides.pdf&quot;&gt;actual slides&lt;/a&gt; as well as the &lt;a href=&quot;https://github.com/eljefe6a/beamexample/tree/master/BeamTutorial/src/main/java/org/apache/beam/examples/tutorial/game&quot;&gt;exercises&lt;/a&gt; that we covered. If you’re looking to learn a little about Beam, this is a good way to start. The exercises are based on an imaginary mobile game where data needs processing and are based on code in the &lt;a href=&quot;https://github.com/apache/beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam examples directory&lt;/a&gt;. The code has TODOs for where you need to fill in code or there are full sample solutions to look over our code. You can run these examples on your own machine or on a cluster using a runner that Beam supports.&lt;/p&gt;
-
-&lt;p&gt;I want to share some of takeaways I had about Beam during the conference.&lt;/p&gt;
-
-&lt;p&gt;The Data Engineers are looking to Beam as a way to &lt;a href=&quot;https://www.oreilly.com/ideas/future-proof-and-scale-proof-your-code&quot;&gt;future-proof&lt;/a&gt;, meaning that code is portable between the various Big Data frameworks. In fact, many of the attendees were still on Hadoop MapReduce and looking to transition to a new framework. They’re realizing that continually rewriting code isn’t the most productive approach.&lt;/p&gt;
-
-&lt;p&gt;Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a &lt;a href=&quot;https://github.com/apache/beam/tree/master/sdks/python&quot;&gt;feature branch&lt;/a&gt;. As Beam matures, we’re looking to add other supported languages.&lt;/p&gt;
-
-&lt;p&gt;We heard &lt;a href=&quot;https://twitter.com/jessetanderson/status/781124173108305920&quot;&gt;loud and clear&lt;/a&gt; from Beam users that great runner support is crucial to adoption. We have great Apache Flink support. During the conference we had some more volunteers offer their help on the Spark runner.&lt;/p&gt;
-
-&lt;p&gt;On management and thought leader side, Beam went from “what’s Beam?” at previous conferences to “I’m interested in Beam.” or “I’ve formed an informed opinion on Beam.” at this conference. This is one of the metrics I look for in early technology adoption.&lt;/p&gt;
-
-&lt;p&gt;&lt;img src=&quot;/images/blog/IMG_20160927_170455.jpg&quot; alt=&quot;So much brainpower answering questions&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;We rounded out the tutorial with live demonstrations of Beam running on Apache Spark, Apache Flink, the local runner, and DataFlow runner. Then, we brought in the big brainpower and had a Q and A session.&lt;/p&gt;
-
-&lt;p&gt;If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk or tutorial, we’re happy to help you. In addition to this tutorial, we have &lt;a href=&quot;/contribute/presentation-materials/&quot;&gt;other presentation materials&lt;/a&gt;. You can reach out to us on the &lt;a href=&quot;/get-started/support/&quot;&gt;user mailing list&lt;/a&gt;.&lt;/p&gt;
-
-</description>
-        <pubDate>Tue, 11 Oct 2016 10:00:00 -0700</pubDate>
-        <link>https://beam.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/beam/update/2016/10/11/strata-hadoop-world-and-beam.html</guid>
-        
-        
-        <category>beam</category>
-        
-        <category>update</category>
         
       </item>
     
