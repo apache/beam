@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import com.google.bigtable.admin.v2.GetTableRequest;
-import com.google.bigtable.v2.MutateRowRequest;
 import com.google.bigtable.v2.MutateRowResponse;
+import com.google.bigtable.v2.MutateRowsRequest;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.ReadRowsRequest;
 import com.google.bigtable.v2.Row;
@@ -30,9 +30,9 @@ import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
-import com.google.cloud.bigtable.grpc.async.AsyncExecutor;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.io.Closer;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -94,13 +94,15 @@ class BigtableServiceImpl implements BigtableService {
     }
   }
 
-  private class BigtableReaderImpl implements Reader {
+  @VisibleForTesting
+  static class BigtableReaderImpl implements Reader {
     private BigtableSession session;
     private final BigtableSource source;
     private ResultScanner<Row> results;
     private Row currentRow;
 
-    public BigtableReaderImpl(BigtableSession session, BigtableSource source) {
+    @VisibleForTesting
+    BigtableReaderImpl(BigtableSession session, BigtableSource source) {
       this.session = session;
       this.source = source;
     }
@@ -116,10 +118,13 @@ class BigtableServiceImpl implements BigtableService {
       }
       RowSet rowSet = rowSetBuilder.build();
 
+      String tableNameSr =
+          session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
+
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder()
               .setRows(rowSet)
-              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId().get()));
+              .setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
         requestB.setFilter(source.getRowFilter());
       }
@@ -166,17 +171,14 @@ class BigtableServiceImpl implements BigtableService {
     }
   }
 
-  private static class BigtableWriterImpl implements Writer {
+  @VisibleForTesting
+  static class BigtableWriterImpl implements Writer {
     private BigtableSession session;
-    private AsyncExecutor executor;
     private BulkMutation bulkMutation;
-    private final String tableName;
 
-    public BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
+    BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
       this.session = session;
-      executor = session.createAsyncExecutor();
-      bulkMutation = session.createBulkMutation(tableName, executor);
-      this.tableName = tableName.toString();
+      bulkMutation = session.createBulkMutation(tableName);
     }
 
     @Override
@@ -189,7 +191,6 @@ class BigtableServiceImpl implements BigtableService {
           // We fail since flush() operation was interrupted.
           throw new IOException(e);
         }
-        executor.flush();
       }
     }
 
@@ -205,8 +206,6 @@ class BigtableServiceImpl implements BigtableService {
             throw new IOException(e);
           }
           bulkMutation = null;
-          executor.flush();
-          executor = null;
         }
       } finally {
         if (session != null) {
@@ -220,13 +219,11 @@ class BigtableServiceImpl implements BigtableService {
     public ListenableFuture<MutateRowResponse> writeRecord(
         KV<ByteString, Iterable<Mutation>> record)
         throws IOException {
-      MutateRowRequest r =
-          MutateRowRequest.newBuilder()
-              .setTableName(tableName)
-              .setRowKey(record.getKey())
-              .addAllMutations(record.getValue())
-              .build();
-      return bulkMutation.add(r);
+      MutateRowsRequest.Entry request = MutateRowsRequest.Entry.newBuilder()
+          .setRowKey(record.getKey())
+          .addAllMutations(record.getValue())
+          .build();
+      return bulkMutation.add(request);
     }
   }
 

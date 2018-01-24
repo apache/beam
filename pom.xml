@@ -110,7 +110,8 @@
     <args4j.version>2.33</args4j.version>
     <avro.version>1.8.2</avro.version>
     <bigquery.version>v2-rev355-1.22.0</bigquery.version>
-    <bigtable.version>1.0.0-pre3</bigtable.version>
+    <bigtable.version>1.0.0</bigtable.version>
+    <bigtable.proto.version>1.0.0-pre3</bigtable.proto.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
@@ -990,7 +991,7 @@
       <dependency>
         <groupId>com.google.cloud.bigtable</groupId>
         <artifactId>bigtable-protos</artifactId>
-        <version>${bigtable.version}</version>
+        <version>${bigtable.proto.version}</version>
       </dependency>
 
       <dependency>

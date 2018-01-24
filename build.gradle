@@ -27,7 +27,8 @@ apply from: project(":").file("build_rules.gradle")
 // a dependency version which should match across multiple
 // Maven artifacts.
 def google_cloud_bigdataoss_version = "1.4.5"
-def bigtable_version = "1.0.0-pre3"
+def bigtable_version = "1.0.0"
+def bigtable_proto_version = "1.0.0-pre3"
 def google_clients_version = "1.22.0"
 def google_auth_version = "0.7.1"
 def grpc_version = "1.2.0"
@@ -64,7 +65,7 @@ ext.library = [
     bigdataoss_gcsio: "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
     bigdataoss_util: "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
     bigtable_client_core: "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
-    bigtable_protos: "com.google.cloud.bigtable:bigtable-protos:$bigtable_version",
+    bigtable_protos: "com.google.cloud.bigtable:bigtable-protos:$bigtable_proto_version",
     byte_buddy: "net.bytebuddy:byte-buddy:1.6.8",
     commons_compress: "org.apache.commons:commons-compress:1.14",
     commons_csv: "org.apache.commons:commons-csv:1.4",
