@@ -278,6 +278,42 @@ public class DoFnInvokersTest {
   }
 
   @Test
+  public void testOnWindowExpirationWithNoParam() throws Exception {
+    class MockFn extends DoFn<String, String> {
+
+      @ProcessElement
+      public void process(ProcessContext c) {}
+
+      @OnWindowExpiration
+      public void onWindowExpiration() {}
+    }
+
+    MockFn fn = mock(MockFn.class);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
+
+    invoker.invokeOnWindowExpiration(mockArgumentProvider);
+    verify(fn).onWindowExpiration();
+  }
+
+  @Test
+  public void testOnWindowExpirationWithParam() {
+    class MockFn extends DoFn<String, String> {
+
+      @ProcessElement
+      public void process(ProcessContext c) {}
+
+      @OnWindowExpiration
+      public void onWindowExpiration(BoundedWindow window) {}
+    }
+
+    MockFn fn = mock(MockFn.class);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
+
+    invoker.invokeOnWindowExpiration(mockArgumentProvider);
+    verify(fn).onWindowExpiration(mockWindow);
+  }
+
+  @Test
   public void testDoFnWithReturn() throws Exception {
     class MockFn extends DoFn<String, String> {
       @DoFn.ProcessElement
