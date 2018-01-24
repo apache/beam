@@ -2025,7 +2025,6 @@
                   <version>[1.8,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
-                  <!-- Keep aligned with preqrequisite section below. -->
                   <version>[3.2,)</version>
                 </requireMavenVersion>
               </rules>
@@ -2120,9 +2119,4 @@
       </plugin>
     </plugins>
   </reporting>
-
-  <prerequisites>
-    <!-- Keep aligned with requireMavenVersion section above. -->
-    <maven>3.2</maven>
-  </prerequisites>
 </project>
