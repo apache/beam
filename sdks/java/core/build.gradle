@@ -71,6 +71,9 @@ dependencies {
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
+
+  // for the junit 5 integration - it looks wrong but aligned on junit 4 config -> to fix when fixing gradle build?
+  shadow 'org.junit.jupiter:junit-jupiter-api:5.0.2'
 }
 
 // Shade dependencies.

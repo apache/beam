@@ -40,7 +40,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.testing.PAssert.PCollectionContentsAssert.MatcherCheckerFn;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
@@ -143,7 +142,7 @@ public class PAssertTest implements Serializable {
       error = e;
     }
     SuccessOrFailure failure =
-        SuccessOrFailure.failure(PAssert.PAssertionSite.capture("here"), error);
+        SuccessOrFailure.failure(PAsserts.PAssertionSite.capture("here"), error);
     SuccessOrFailure res = CoderUtils.clone(SerializableCoder.of(SuccessOrFailure.class), failure);
     assertEquals(
         "Encode-decode failed SuccessOrFailure",
@@ -503,10 +502,11 @@ public class PAssertTest implements Serializable {
   @Test
   public void testAssertionSiteIsCaptured() {
     // This check should return a failure.
-    SuccessOrFailure res = PAssert.doChecks(
-        PAssert.PAssertionSite.capture("Captured assertion message."),
+    SuccessOrFailure res = PAsserts.doChecks(
+        PAsserts.PAssertionSite.capture("Captured assertion message."),
         new Integer(10),
-        new MatcherCheckerFn(SerializableMatchers.contains(new Integer(11))));
+        new PAsserts.PCollectionContentsAssert.MatcherCheckerFn<Integer>(
+                SerializableMatchers.contains(new Integer(11)), PAssert.ASSERTS));
 
     String stacktrace = Throwables.getStackTraceAsString(res.assertionError());
     assertEquals(res.isSuccess(), false);
@@ -577,7 +577,7 @@ public class PAssertTest implements Serializable {
     PAssert.thatMap(pipeline.apply("CreateMap", Create.of(KV.of(1, 2))))
         .isEqualTo(Collections.singletonMap(1, 2));
 
-    assertThat(PAssert.countAsserts(pipeline), equalTo(3));
+    assertThat(PAsserts.countAsserts(pipeline), equalTo(3));
   }
 
   @Test
@@ -586,11 +586,11 @@ public class PAssertTest implements Serializable {
 
     PAssert.that(create).containsInAnyOrder(1, 2, 3);
     PAssert.thatSingleton(create.apply(Sum.integersGlobally())).isEqualTo(6);
-    assertThat(PAssert.countAsserts(pipeline), equalTo(2));
+    assertThat(PAsserts.countAsserts(pipeline), equalTo(2));
 
     PAssert.thatMap(pipeline.apply("CreateMap", Create.of(KV.of(1, 2))))
         .isEqualTo(Collections.singletonMap(1, 2));
 
-    assertThat(PAssert.countAsserts(pipeline), equalTo(3));
+    assertThat(PAsserts.countAsserts(pipeline), equalTo(3));
   }
 }

@@ -1642,6 +1642,7 @@
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
             <argLine>${beamSurefireArgline}</argLine>
           </configuration>
+          <!-- let children do something else and it is the default anyway
           <dependencies>
             <dependency>
               <groupId>org.apache.maven.surefire</groupId>
@@ -1649,6 +1650,7 @@
               <version>${surefire-plugin.version}</version>
             </dependency>
           </dependencies>
+          -->
         </plugin>
 
         <plugin>

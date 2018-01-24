@@ -136,7 +136,8 @@ public class TestPipelineTest implements Serializable {
     @Test
     public void testRunWithDummyEnvironmentVariableFails() {
       System.getProperties()
-          .setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.toString(true));
+        .setProperty(TestPipelineHandler.PROPERTY_USE_DEFAULT_DUMMY_RUNNER,
+            Boolean.toString(true));
       pipeline.apply(Create.of(1, 2, 3));
 
       thrown.expect(IllegalArgumentException.class);
@@ -236,7 +237,7 @@ public class TestPipelineTest implements Serializable {
       @Category(ValidatesRunner.class)
       @Test
       public void testMissingRun() throws Exception {
-        exception.expect(TestPipeline.PipelineRunMissingException.class);
+        exception.expect(TestPipelineHandler.PipelineRunMissingException.class);
         addTransform(pCollection(pipeline));
       }
 
@@ -265,7 +266,7 @@ public class TestPipelineTest implements Serializable {
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
         pipeline.run().waitUntilFinish();
 
-        exception.expect(TestPipeline.AbandonedNodeException.class);
+        exception.expect(TestPipelineHandler.AbandonedNodeException.class);
         exception.expectMessage(P_TRANSFORM);
         // dangling PTransform
         addTransform(pCollection);
@@ -278,7 +279,7 @@ public class TestPipelineTest implements Serializable {
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
         pipeline.run().waitUntilFinish();
 
-        exception.expect(TestPipeline.AbandonedNodeException.class);
+        exception.expect(TestPipelineHandler.AbandonedNodeException.class);
         exception.expectMessage(P_TRANSFORM);
         // dangling PTransform
         addTransform(pCollection);
@@ -291,7 +292,7 @@ public class TestPipelineTest implements Serializable {
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
         pipeline.run().waitUntilFinish();
 
-        exception.expect(TestPipeline.AbandonedNodeException.class);
+        exception.expect(TestPipelineHandler.AbandonedNodeException.class);
         exception.expectMessage(P_ASSERT);
         // dangling PAssert
         PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
@@ -318,7 +319,9 @@ public class TestPipelineTest implements Serializable {
     public static class WithCrashingPipelineRunner {
 
       static {
-        System.setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.TRUE.toString());
+        System.setProperty(
+          TestPipelineHandler.PROPERTY_USE_DEFAULT_DUMMY_RUNNER,
+          Boolean.TRUE.toString());
       }
 
       private final transient ExpectedException exception = ExpectedException.none();

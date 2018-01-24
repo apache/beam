@@ -43,7 +43,7 @@ public class PaneExtractorsTest {
   @Test
   public void onlyPaneNoFiring() {
     SerializableFunction<Iterable<ValueInSingleWindow<Integer>>, Iterable<Integer>> extractor =
-        PaneExtractors.onlyPane(PAssert.PAssertionSite.capture(""));
+        PaneExtractors.onlyPane(PAsserts.PAssertionSite.capture(""));
     Iterable<ValueInSingleWindow<Integer>> noFiring =
         ImmutableList.of(
             ValueInSingleWindow.of(
@@ -56,7 +56,7 @@ public class PaneExtractorsTest {
   @Test
   public void onlyPaneOnlyOneFiring() {
     SerializableFunction<Iterable<ValueInSingleWindow<Integer>>, Iterable<Integer>> extractor =
-        PaneExtractors.onlyPane(PAssert.PAssertionSite.capture(""));
+        PaneExtractors.onlyPane(PAsserts.PAssertionSite.capture(""));
     Iterable<ValueInSingleWindow<Integer>> onlyFiring =
         ImmutableList.of(
             ValueInSingleWindow.of(
@@ -70,7 +70,7 @@ public class PaneExtractorsTest {
   @Test
   public void onlyPaneMultiplePanesFails() {
     SerializableFunction<Iterable<ValueInSingleWindow<Integer>>, Iterable<Integer>> extractor =
-        PaneExtractors.onlyPane(PAssert.PAssertionSite.capture(""));
+        PaneExtractors.onlyPane(PAsserts.PAssertionSite.capture(""));
     Iterable<ValueInSingleWindow<Integer>> multipleFiring =
         ImmutableList.of(
             ValueInSingleWindow.of(

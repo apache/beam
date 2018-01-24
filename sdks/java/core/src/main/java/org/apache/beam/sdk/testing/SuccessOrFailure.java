@@ -32,13 +32,13 @@ public final class SuccessOrFailure implements Serializable {
 
   private final boolean isSuccess;
   @Nullable
-  private final PAssert.PAssertionSite site;
+  private final PAsserts.PAssertionSite site;
   @Nullable
   private final SerializableThrowable throwable;
 
   private SuccessOrFailure(
       boolean isSuccess,
-      @Nullable PAssert.PAssertionSite site,
+      @Nullable PAsserts.PAssertionSite site,
       @Nullable Throwable throwable) {
     this.isSuccess = isSuccess;
     this.site = site;
@@ -58,7 +58,7 @@ public final class SuccessOrFailure implements Serializable {
     return new SuccessOrFailure(true, null, null);
   }
 
-  public static SuccessOrFailure failure(@Nullable PAssert.PAssertionSite site,
+  public static SuccessOrFailure failure(@Nullable PAsserts.PAssertionSite site,
       @Nullable Throwable t) {
     return new SuccessOrFailure(false, site, t);
   }
