@@ -107,14 +107,11 @@ public class TopWikipediaSessions {
       extends PTransform<PCollection<KV<String, Long>>, PCollection<List<KV<String, Long>>>> {
     @Override
     public PCollection<List<KV<String, Long>>> expand(PCollection<KV<String, Long>> sessions) {
+      SerializableComparator<KV<String, Long>> comparator =
+          (o1, o2) -> Long.compare(o1.getValue(), o2.getValue());
       return sessions
           .apply(Window.into(CalendarWindows.months(1)))
-          .apply(
-              Top.of(
-                      1,
-                      (SerializableComparator<KV<String, Long>>)
-                          (o1, o2) -> Long.compare(o1.getValue(), o2.getValue()))
-                  .withoutDefaults());
+          .apply(Top.of(1, comparator).withoutDefaults());
     }
   }
 
