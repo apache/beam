@@ -713,7 +713,7 @@ public class Watch {
         ProcessContext c, final GrowthTracker<OutputT, KeyT, TerminationStateT> tracker)
         throws Exception {
       if (!tracker.hasPending() && !tracker.currentRestriction().isOutputComplete) {
-        LOG.debug("{} - polling input", c.element());
+        Instant now = Instant.now();
         Growth.PollResult<OutputT> res =
             spec.getPollFn().getClosure().apply(c.element(), wrapProcessContext(c));
         // TODO (https://issues.apache.org/jira/browse/BEAM-2680):
@@ -724,25 +724,30 @@ public class Watch {
         int numPending = tracker.addNewAsPending(res);
         if (numPending > 0) {
           LOG.info(
-              "{} - polling returned {} results, of which {} were new. The output is {}.",
+              "{} - current round of polling took {} ms and returned {} results, "
+                  + "of which {} were new. The output is {}.",
               c.element(),
+              new Duration(now, Instant.now()).getMillis(),
               res.getOutputs().size(),
               numPending,
               BoundedWindow.TIMESTAMP_MAX_VALUE.equals(res.getWatermark())
-                  ? "complete"
-                  : "incomplete");
+                  ? "final"
+                  : "not yet final");
         }
       }
-      while (tracker.hasPending()) {
+      int numEmitted = 0;
+      while (true) {
         c.updateWatermark(tracker.getWatermark());
         Map.Entry<HashCode, TimestampedValue<OutputT>> entry = tracker.getNextPending();
-        if (!tracker.tryClaim(entry.getKey())) {
-          return stop();
+        if (entry == null || !tracker.tryClaim(entry.getKey())) {
+          break;
         }
         TimestampedValue<OutputT> nextPending = entry.getValue();
         c.outputWithTimestamp(
             KV.of(c.element(), nextPending.getValue()), nextPending.getTimestamp());
+        ++numEmitted;
       }
+      LOG.debug("{} - emitted {} new results.", c.element(), numEmitted);
       Instant watermark = tracker.getWatermark();
       if (watermark != null) {
         // Null means the poll result did not provide a watermark and there were no new elements,
@@ -752,14 +757,17 @@ public class Watch {
       // No more pending outputs - future output will come from more polling,
       // unless output is complete or termination condition is reached.
       if (tracker.shouldPollMore()) {
+        LOG.info(
+            "{} - emitted all known results so far; will resume polling in {} ms",
+            c.element(),
+            spec.getPollInterval().getMillis());
         return resume().withResumeDelay(spec.getPollInterval());
       }
       return stop();
     }
 
     private Growth.TerminationCondition<InputT, TerminationStateT> getTerminationCondition() {
-      return ((Growth.TerminationCondition<InputT, TerminationStateT>)
-          spec.getTerminationPerInput());
+      return (Growth.TerminationCondition<InputT, TerminationStateT>) spec.getTerminationPerInput();
     }
 
     @GetInitialRestriction
@@ -833,7 +841,7 @@ public class Watch {
           + " elements>, pending=<"
           + pending.size()
           + " elements"
-          + (pending.isEmpty() ? "" : (", earliest " + pending.get(0)))
+          + (pending.isEmpty() ? "" : (", earliest " + pending.values().iterator().next()))
           + ">, isOutputComplete="
           + isOutputComplete
           + ", terminationState="
@@ -900,6 +908,9 @@ public class Watch {
 
     @Override
     public synchronized GrowthState<OutputT, KeyT, TerminationStateT> checkpoint() {
+      checkState(
+          !claimed.isEmpty(), "Can't checkpoint before any element was successfully claimed");
+
       // primary should contain exactly the work claimed in the current ProcessElement call - i.e.
       // claimed outputs become pending, and it shouldn't poll again.
       GrowthState<OutputT, KeyT, TerminationStateT> primary =
@@ -957,8 +968,11 @@ public class Watch {
     }
 
     @VisibleForTesting
+    @Nullable
     synchronized Map.Entry<HashCode, TimestampedValue<OutputT>> getNextPending() {
-      checkState (!pending.isEmpty(), "Pending set is empty");
+      if (pending.isEmpty()) {
+        return null;
+      }
       return pending.entrySet().iterator().next();
     }
 
@@ -1051,7 +1065,7 @@ public class Watch {
           + ", pending=<"
           + pending.size()
           + " elements"
-          + (pending.isEmpty() ? "" : (", earliest " + pending.get(0)))
+          + (pending.isEmpty() ? "" : (", earliest " + pending.values().iterator().next()))
           + ">, claimed=<"
           + claimed.size()
           + " elements>, isOutputComplete="

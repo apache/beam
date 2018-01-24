@@ -47,9 +47,16 @@ public class OffsetRangeTrackerTest {
   @Test
   public void testCheckpointUnstarted() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    expected.expect(IllegalStateException.class);
+    tracker.checkpoint();
+  }
+
+  @Test
+  public void testCheckpointOnlyFailedClaim() throws Exception {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    assertFalse(tracker.tryClaim(250L));
+    expected.expect(IllegalStateException.class);
     OffsetRange checkpoint = tracker.checkpoint();
-    assertEquals(new OffsetRange(100, 100), tracker.currentRestriction());
-    assertEquals(new OffsetRange(100, 200), checkpoint);
   }
 
   @Test
