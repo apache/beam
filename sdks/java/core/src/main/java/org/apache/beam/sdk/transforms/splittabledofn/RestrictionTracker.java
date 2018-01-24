@@ -17,6 +17,11 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
+
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
@@ -24,14 +29,19 @@ import org.apache.beam.sdk.transforms.DoFn;
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  */
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
-  interface ClaimObserver<PositionT> {
+  @Internal
+  public interface ClaimObserver<PositionT> {
     void onClaimed(PositionT position);
     void onClaimFailed(PositionT position);
   }
 
+  @Nullable
   private ClaimObserver<PositionT> claimObserver;
 
-  void setClaimObserver(ClaimObserver<PositionT> claimObserver) {
+  @Internal
+  public void setClaimObserver(ClaimObserver<PositionT> claimObserver) {
+    checkNotNull(claimObserver, "claimObserver");
+    checkState(this.claimObserver == null, "A claim observer has already been set");
     this.claimObserver = claimObserver;
   }
 
@@ -49,6 +59,7 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
     }
   }
 
+  @Internal
   protected abstract boolean tryClaimImpl(PositionT position);
 
   /**
@@ -64,7 +75,10 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *
    * <p>Modifies {@link #currentRestriction}. Returns a restriction representing the rest of the
    * work: the old value of {@link #currentRestriction} is equivalent to the new value and the
-   * return value of this method combined. Must be called at most once on a given object.
+   * return value of this method combined.
+   *
+   * <p>Must be called at most once on a given object. Must not be called before the first
+   * successful {@link #tryClaim} call.
    */
   public abstract RestrictionT checkpoint();
 

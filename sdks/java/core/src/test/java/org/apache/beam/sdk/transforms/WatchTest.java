@@ -32,7 +32,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
@@ -498,33 +497,6 @@ public class WatchTest implements Serializable {
     return newTracker(new GrowthState<>(never().forNewInput(Instant.now(), null)));
   }
 
-  @Test
-  public void testGrowthTrackerCheckpointEmpty() {
-    // Checkpoint an empty tracker.
-    GrowthTracker<String, String, Integer> tracker = newTracker();
-    GrowthState<String, String, Integer> residual = tracker.checkpoint();
-    GrowthState<String, String, Integer> primary = tracker.currentRestriction();
-    Watch.Growth.Never<String> condition = never();
-    assertEquals(
-        primary.toString(condition),
-        new GrowthState<>(
-                ImmutableMap.of() /* completed */,
-                ImmutableMap.of() /* pending */,
-                true /* isOutputFinal */,
-                (Integer) null /* terminationState */,
-                BoundedWindow.TIMESTAMP_MAX_VALUE /* pollWatermark */)
-            .toString(condition));
-    assertEquals(
-        residual.toString(condition),
-        new GrowthState<>(
-                ImmutableMap.of() /* completed */,
-                ImmutableMap.of() /* pending */,
-                false /* isOutputFinal */,
-                0 /* terminationState */,
-                BoundedWindow.TIMESTAMP_MIN_VALUE /* pollWatermark */)
-            .toString(condition));
-  }
-
   private String tryClaimNextPending(GrowthTracker<String, ?, ?> tracker) {
     assertTrue(tracker.hasPending());
     Map.Entry<HashCode, TimestampedValue<String>> entry = tracker.getNextPending();
@@ -784,12 +756,6 @@ public class WatchTest implements Serializable {
       GrowthTracker<String, String, Integer> tracker = newTracker();
       tracker.addNewAsPending(PollResult.incomplete(Collections.emptyList()));
       assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, tracker.getWatermark());
-
-      // Simulate resuming from the checkpoint but there are still no new elements.
-      GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
-      tracker.addNewAsPending(PollResult.incomplete(Collections.emptyList()));
-      // No new elements and no explicit watermark supplied - still no watermark.
-      assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, residualTracker.getWatermark());
     }
     // Empty poll result with watermark
     {
@@ -799,12 +765,6 @@ public class WatchTest implements Serializable {
           PollResult.incomplete(Collections.<TimestampedValue<String>>emptyList())
               .withWatermark(now));
       assertEquals(now, tracker.getWatermark());
-
-      // Simulate resuming from the checkpoint but there are still no new elements.
-      GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
-      tracker.addNewAsPending(PollResult.incomplete(Collections.emptyList()));
-      // No new elements and no explicit watermark supplied - should keep old watermark.
-      assertEquals(now, residualTracker.getWatermark());
     }
   }
 

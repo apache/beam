@@ -46,11 +46,8 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long> {
 
   @Override
   public synchronized OffsetRange checkpoint() {
-    if (lastClaimedOffset == null) {
-      OffsetRange res = range;
-      range = new OffsetRange(range.getFrom(), range.getFrom());
-      return res;
-    }
+    checkState(
+        lastClaimedOffset != null, "Can't checkpoint before any offset was successfully claimed");
     OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
     this.range = new OffsetRange(range.getFrom(), lastClaimedOffset + 1);
     return res;
