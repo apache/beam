@@ -18,10 +18,10 @@
  */
 
 /*
- * Helper functions to make writing a test similar to the quickstart
+ * Scripting functions to make writing a test similar to the quickstart
  * instructions from https://beam.apache.org/get-started/quickstart-java/
  */
-class TestHelper {
+class TestScripts {
      
    // Global state to maintain when running the steps
    class var {
@@ -39,7 +39,7 @@ class TestHelper {
    }
    
    // Just document the intention of a set of steps
-   def it(String desc) { 
+   def intent(String desc) { 
      print "\n*****\n* Test: ${desc}\n*****\n\n"
    }
    
