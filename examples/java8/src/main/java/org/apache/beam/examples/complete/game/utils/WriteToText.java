@@ -83,7 +83,7 @@ public class WriteToText<InputT>
 
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) {
-      List<String> fields = new ArrayList<String>();
+      List<String> fields = new ArrayList<>();
       for (Map.Entry<String, FieldFn<InputT>> entry : fieldFn.entrySet()) {
         String key = entry.getKey();
         FieldFn<InputT> fcn = entry.getValue();

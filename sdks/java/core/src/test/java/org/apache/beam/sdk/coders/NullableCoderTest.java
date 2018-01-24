@@ -49,12 +49,16 @@ public class NullableCoderTest {
 
   private static final Coder<String> TEST_CODER = NullableCoder.of(StringUtf8Coder.of());
 
-  private static final List<String> TEST_VALUES = Arrays.<String>asList(
-      "", "a", "13", "hello",
-      null,
-      "a longer string with spaces and all that",
-      "a string with a \n newline",
-      "スタリング");
+  private static final List<String> TEST_VALUES =
+      Arrays.asList(
+          "",
+          "a",
+          "13",
+          "hello",
+          null,
+          "a longer string with spaces and all that",
+          "a string with a \n newline",
+          "スタリング");
 
   @Test
   public void testDecodeEncodeContentsInSameOrder() throws Exception {

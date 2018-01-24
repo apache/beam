@@ -62,7 +62,6 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -227,33 +226,28 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
   private SparkPipelineResult runAgain(int expectedAssertions) {
     // sleep before next run.
     Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
-    return run(Optional.<Instant>absent(), expectedAssertions);
+    return run(Optional.absent(), expectedAssertions);
   }
 
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private SparkPipelineResult run(
       Optional<Instant> stopWatermarkOption,
       int expectedAssertions) {
-    KafkaIO.Read<String, Instant> read = KafkaIO.<String, Instant>read()
-        .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
-        .withTopics(Collections.singletonList(TOPIC))
-        .withKeyDeserializer(StringDeserializer.class)
-        .withValueDeserializer(InstantDeserializer.class)
-        .updateConsumerProperties(ImmutableMap.<String, Object>of("auto.offset.reset", "earliest"))
-        .withTimestampFn(new SerializableFunction<KV<String, Instant>, Instant>() {
-          @Override
-          public Instant apply(KV<String, Instant> kv) {
-            return kv.getValue();
-          }
-        }).withWatermarkFn(new SerializableFunction<KV<String, Instant>, Instant>() {
-          @Override
-          public Instant apply(KV<String, Instant> kv) {
-            // at EOF move WM to infinity.
-            String key = kv.getKey();
-            Instant instant = kv.getValue();
-            return key.equals("EOF") ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
-          }
-        });
+    KafkaIO.Read<String, Instant> read =
+        KafkaIO.<String, Instant>read()
+            .withBootstrapServers(EMBEDDED_KAFKA_CLUSTER.getBrokerList())
+            .withTopics(Collections.singletonList(TOPIC))
+            .withKeyDeserializer(StringDeserializer.class)
+            .withValueDeserializer(InstantDeserializer.class)
+            .updateConsumerProperties(ImmutableMap.of("auto.offset.reset", "earliest"))
+            .withTimestampFn(kv -> kv.getValue())
+            .withWatermarkFn(
+                kv -> {
+                  // at EOF move WM to infinity.
+                  String key = kv.getKey();
+                  Instant instant = kv.getValue();
+                  return key.equals("EOF") ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
+                });
 
     TestSparkPipelineOptions options =
         PipelineOptionsFactory.create().as(TestSparkPipelineOptions.class);
@@ -273,20 +267,22 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
 
     PCollection<String> expectedCol =
         p.apply(Create.of(ImmutableList.of("side1", "side2")).withCoder(StringUtf8Coder.of()));
-    PCollectionView<List<String>> view = expectedCol.apply(View.<String>asList());
+    PCollectionView<List<String>> view = expectedCol.apply(View.asList());
 
     PCollection<KV<String, Instant>> kafkaStream = p.apply(read.withoutMetadata());
 
-    PCollection<Iterable<String>> grouped = kafkaStream
-        .apply(Keys.<String>create())
-        .apply("EOFShallNotPassFn", ParDo.of(new EOFShallNotPassFn(view)).withSideInputs(view))
-        .apply(Window.<String>into(FixedWindows.of(Duration.millis(500)))
-            .triggering(AfterWatermark.pastEndOfWindow())
-                .accumulatingFiredPanes()
-                .withAllowedLateness(Duration.ZERO))
-        .apply(WithKeys.<Integer, String>of(1))
-        .apply(GroupByKey.<Integer, String>create())
-        .apply(Values.<Iterable<String>>create());
+    PCollection<Iterable<String>> grouped =
+        kafkaStream
+            .apply(Keys.create())
+            .apply("EOFShallNotPassFn", ParDo.of(new EOFShallNotPassFn(view)).withSideInputs(view))
+            .apply(
+                Window.<String>into(FixedWindows.of(Duration.millis(500)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .accumulatingFiredPanes()
+                    .withAllowedLateness(Duration.ZERO))
+            .apply(WithKeys.of(1))
+            .apply(GroupByKey.create())
+            .apply(Values.create());
 
     grouped.apply(new PAssertWithoutFlatten<>("k1", "k2", "k3", "k4", "k5"));
 

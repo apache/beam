@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -85,18 +84,17 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
         // Combiner lifting will not happen regardless of the disallowCombinerLifting value.
         // There will be no combiners right after the GroupByKeyOnly because of the two ParDos
         // introduced in here.
-        .apply(new GroupByKeyOnly<K, V>())
+        .apply(new GroupByKeyOnly<>())
 
         // Sort each key's values by timestamp. GroupAlsoByWindow requires
         // its input to be sorted by timestamp.
-        .apply(new SortValuesByTimestamp<K, V>())
+        .apply(new SortValuesByTimestamp<>())
 
         // Group each key's values by window, merging windows as needed.
-        .apply(new GroupAlsoByWindow<K, V>(windowingStrategy))
+        .apply(new GroupAlsoByWindow<>(windowingStrategy))
 
         // And update the windowing strategy as appropriate.
-        .setWindowingStrategyInternal(
-            gbkTransform.updateWindowingStrategy(windowingStrategy));
+        .setWindowingStrategyInternal(gbkTransform.updateWindowingStrategy(windowingStrategy));
   }
 
   /**
@@ -131,8 +129,7 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
       return input
           .apply(
               ParDo.of(
-                  new DoFn<KV<K, Iterable<WindowedValue<V>>>,
-                           KV<K, Iterable<WindowedValue<V>>>>() {
+                  new DoFn<KV<K, Iterable<WindowedValue<V>>>, KV<K, Iterable<WindowedValue<V>>>>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) {
                       KV<K, Iterable<WindowedValue<V>>> kvs = c.element();
@@ -143,14 +140,8 @@ public class GroupByKeyViaGroupByKeyOnly<K, V>
                         sortedValues.add(value);
                       }
                       Collections.sort(
-                          sortedValues,
-                          new Comparator<WindowedValue<V>>() {
-                            @Override
-                            public int compare(WindowedValue<V> e1, WindowedValue<V> e2) {
-                              return e1.getTimestamp().compareTo(e2.getTimestamp());
-                            }
-                          });
-                      c.output(KV.<K, Iterable<WindowedValue<V>>>of(key, sortedValues));
+                          sortedValues, (e1, e2) -> e1.getTimestamp().compareTo(e2.getTimestamp()));
+                      c.output(KV.of(key, sortedValues));
                     }
                   }))
           .setCoder(input.getCoder());

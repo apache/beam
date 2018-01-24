@@ -53,12 +53,12 @@ class DynamicDestinationsHelpers {
 
     static <T> ConstantTableDestinations<T> fromTableSpec(
         ValueProvider<String> tableSpec, String tableDescription) {
-      return new ConstantTableDestinations<T>(tableSpec, tableDescription);
+      return new ConstantTableDestinations<>(tableSpec, tableDescription);
     }
 
     static <T> ConstantTableDestinations<T> fromJsonTableRef(
         ValueProvider<String> jsonTableRef, String tableDescription) {
-      return new ConstantTableDestinations<T>(
+      return new ConstantTableDestinations<>(
           NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableSpec()), tableDescription);
     }
 

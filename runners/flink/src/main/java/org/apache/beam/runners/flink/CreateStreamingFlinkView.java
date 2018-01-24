@@ -52,7 +52,7 @@ class CreateStreamingFlinkView<ElemT, ViewT>
   public PCollection<ElemT> expand(PCollection<ElemT> input) {
     input
         .apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults())
-        .apply(CreateFlinkPCollectionView.<ElemT, ViewT>of(view));
+        .apply(CreateFlinkPCollectionView.of(view));
     return input;
   }
 
@@ -67,7 +67,7 @@ class CreateStreamingFlinkView<ElemT, ViewT>
   private static class Concatenate<T> extends Combine.CombineFn<T, List<T>, List<T>> {
     @Override
     public List<T> createAccumulator() {
-      return new ArrayList<T>();
+      return new ArrayList<>();
     }
 
     @Override
@@ -154,8 +154,7 @@ class CreateStreamingFlinkView<ElemT, ViewT>
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      CreateStreamingFlinkView<ElemT, ViewT> createFlinkView =
-          new CreateStreamingFlinkView<ElemT, ViewT>(view);
+      CreateStreamingFlinkView<ElemT, ViewT> createFlinkView = new CreateStreamingFlinkView<>(view);
       return PTransformReplacement.of(collection, createFlinkView);
     }
 

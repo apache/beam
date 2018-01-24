@@ -20,11 +20,8 @@ package org.apache.beam.sdk.io.redis;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-
 import java.util.List;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -323,10 +320,10 @@ public class RedisIO {
     @Override public PCollection<KV<String, String>> expand(PCollection<KV<String, String>> input) {
       // reparallelize mimics the same behavior as in JdbcIO
       // breaking fusion
-      PCollectionView<Iterable<KV<String, String>>> empty = input
-          .apply("Consume",
-              Filter.by(SerializableFunctions.<KV<String, String>, Boolean>constant(false)))
-          .apply(View.<KV<String, String>>asIterable());
+      PCollectionView<Iterable<KV<String, String>>> empty =
+          input
+              .apply("Consume", Filter.by(SerializableFunctions.constant(false)))
+              .apply(View.asIterable());
       PCollection<KV<String, String>> materialized = input
           .apply("Identity", ParDo.of(new DoFn<KV<String, String>, KV<String, String>>() {
             @ProcessElement
@@ -334,7 +331,7 @@ public class RedisIO {
               context.output(context.element());
             }
       }).withSideInputs(empty));
-      return materialized.apply(Reshuffle.<KV<String, String>>viaRandomKey());
+      return materialized.apply(Reshuffle.viaRandomKey());
     }
   }
 

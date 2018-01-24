@@ -74,7 +74,7 @@ public class FlattenRunner<InputT>{
 
       // Give each input a MultiplexingFnDataReceiver to all outputs of the flatten.
       ImmutableSet.Builder<FnDataReceiver<WindowedValue<InputT>>> consumersBuilder =
-          new ImmutableSet.Builder<FnDataReceiver<WindowedValue<InputT>>>();
+          new ImmutableSet.Builder<>();
       String output = getOnlyElement(pTransform.getOutputsMap().values());
       consumersBuilder.addAll((Iterable) pCollectionIdsToConsumers.get(output));
 

@@ -54,12 +54,7 @@ public class PubsubTestClientTest {
   @Test
   public void pullOneMessage() throws IOException {
     final AtomicLong now = new AtomicLong();
-    Clock clock = new Clock() {
-      @Override
-      public long currentTimeMillis() {
-        return now.get();
-      }
-    };
+    Clock clock = () -> now.get();
     IncomingMessage expectedIncomingMessage =
         new IncomingMessage(DATA.getBytes(), null, MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
     try (PubsubTestClientFactory factory =
@@ -102,10 +97,8 @@ public class PubsubTestClientTest {
     OutgoingMessage expectedOutgoingMessage =
         new OutgoingMessage(DATA.getBytes(), null, MESSAGE_TIME, MESSAGE_ID);
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPublish(
-                 TOPIC,
-                 Sets.newHashSet(expectedOutgoingMessage),
-                 ImmutableList.<OutgoingMessage>of())) {
+        PubsubTestClient.createFactoryForPublish(
+            TOPIC, Sets.newHashSet(expectedOutgoingMessage), ImmutableList.of())) {
       try (PubsubTestClient client = (PubsubTestClient) factory.newClient(null, null, null)) {
         client.publish(TOPIC, ImmutableList.of(expectedOutgoingMessage));
       }

@@ -36,7 +36,7 @@ public class KeyedWorkItems {
    */
   public static <K, ElemT> KeyedWorkItem<K, ElemT> elementsWorkItem(
       K key, Iterable<WindowedValue<ElemT>> elementsIterable) {
-    return new ComposedKeyedWorkItem<>(key, Collections.<TimerData>emptyList(), elementsIterable);
+    return new ComposedKeyedWorkItem<>(key, Collections.emptyList(), elementsIterable);
   }
 
   /**

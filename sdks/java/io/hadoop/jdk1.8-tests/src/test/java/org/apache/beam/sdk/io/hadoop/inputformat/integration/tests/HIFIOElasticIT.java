@@ -94,9 +94,9 @@ public class HIFIOElasticIT implements Serializable {
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
-    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    PCollection<Long> count = esData.apply(Count.globally());
     PAssert.thatSingleton(count).isEqualTo(expectedRowCount);
-    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    PCollection<LinkedMapWritable> values = esData.apply(Values.create());
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
@@ -106,14 +106,15 @@ public class HIFIOElasticIT implements Serializable {
   }
 
   MapElements<LinkedMapWritable, String> transformFunc =
-      MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
-        @Override
-        public String apply(LinkedMapWritable mapw) {
-          String rowValue = "";
-          rowValue = convertMapWRowToString(mapw);
-          return rowValue;
-        }
-      });
+      MapElements.via(
+          new SimpleFunction<LinkedMapWritable, String>() {
+            @Override
+            public String apply(LinkedMapWritable mapw) {
+              String rowValue = "";
+              rowValue = convertMapWRowToString(mapw);
+              return rowValue;
+            }
+          });
   /*
    * Function to create a toString implementation of a MapWritable row by writing all field values
    * in a string row.
@@ -170,10 +171,10 @@ public class HIFIOElasticIT implements Serializable {
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    PCollection<Long> count = esData.apply(Count.globally());
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PAssert.thatSingleton(count).isEqualTo(expectedRecordsCount);
-    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    PCollection<LinkedMapWritable> values = esData.apply(Values.create());
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =

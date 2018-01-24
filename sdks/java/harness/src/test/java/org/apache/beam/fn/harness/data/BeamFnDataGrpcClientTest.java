@@ -41,7 +41,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -52,7 +51,6 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
-import org.apache.beam.sdk.fn.test.Consumer;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -256,14 +254,11 @@ public class BeamFnDataGrpcClientTest {
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
     CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
         TestStreams.withOnNext(
-            new Consumer<Elements>() {
-              @Override
-              public void accept(BeamFnApi.Elements t) {
-                inboundServerValues.add(t);
-                waitForInboundServerValuesCompletion.countDown();
-              }
-            }
-            ).build();
+                (BeamFnApi.Elements t) -> {
+                  inboundServerValues.add(t);
+                  waitForInboundServerValuesCompletion.countDown();
+                })
+            .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()

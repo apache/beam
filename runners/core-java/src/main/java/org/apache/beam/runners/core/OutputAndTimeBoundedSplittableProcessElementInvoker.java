@@ -222,11 +222,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
       this.scheduledCheckpoint =
           executor.schedule(
-              new Runnable() {
-                @Override
-                public void run() {
-                  takeCheckpointNow();
-                }
+              () -> {
+                takeCheckpointNow();
               },
               maxDuration.getMillis(),
               TimeUnit.MILLISECONDS);

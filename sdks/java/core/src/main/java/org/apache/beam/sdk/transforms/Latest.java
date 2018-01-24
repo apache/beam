@@ -162,15 +162,18 @@ public class Latest {
       Coder<T> inputCoder = input.getCoder();
 
       return input
-          .apply("Reify Timestamps", ParDo.of(
-            new DoFn<T, TimestampedValue<T>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                c.output(TimestampedValue.of(c.element(), c.timestamp()));
-              }
-            })).setCoder(TimestampedValue.TimestampedValueCoder.of(inputCoder))
-          .apply("Latest Value", Combine.globally(new LatestFn<T>()))
-            .setCoder(NullableCoder.of(inputCoder));
+          .apply(
+              "Reify Timestamps",
+              ParDo.of(
+                  new DoFn<T, TimestampedValue<T>>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      c.output(TimestampedValue.of(c.element(), c.timestamp()));
+                    }
+                  }))
+          .setCoder(TimestampedValue.TimestampedValueCoder.of(inputCoder))
+          .apply("Latest Value", Combine.globally(new LatestFn<>()))
+          .setCoder(NullableCoder.of(inputCoder));
     }
   }
 
@@ -186,18 +189,24 @@ public class Latest {
       @SuppressWarnings("unchecked")
       KvCoder<K, V> inputCoder = (KvCoder) input.getCoder();
       return input
-          .apply("Reify Timestamps", ParDo.of(
-            new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                c.output(KV.of(c.element().getKey(), TimestampedValue.of(c.element().getValue(),
-                    c.timestamp())));
-              }
-            })).setCoder(KvCoder.of(
-                inputCoder.getKeyCoder(),
-                TimestampedValue.TimestampedValueCoder.of(inputCoder.getValueCoder())))
-          .apply("Latest Value", Combine.<K, TimestampedValue<V>, V>perKey(new LatestFn<V>()))
-            .setCoder(inputCoder);
+          .apply(
+              "Reify Timestamps",
+              ParDo.of(
+                  new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      c.output(
+                          KV.of(
+                              c.element().getKey(),
+                              TimestampedValue.of(c.element().getValue(), c.timestamp())));
+                    }
+                  }))
+          .setCoder(
+              KvCoder.of(
+                  inputCoder.getKeyCoder(),
+                  TimestampedValue.TimestampedValueCoder.of(inputCoder.getValueCoder())))
+          .apply("Latest Value", Combine.perKey(new LatestFn<>()))
+          .setCoder(inputCoder);
     }
   }
 }

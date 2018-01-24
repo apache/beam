@@ -58,8 +58,8 @@ public class StructuralKeyTest {
   public void emptyKeysNotEqual() {
     StructuralKey<?> empty = StructuralKey.empty();
 
-    assertThat(empty, not(Matchers.<StructuralKey<?>>equalTo(StructuralKey.empty())));
-    assertThat(empty, Matchers.<StructuralKey<?>>equalTo(empty));
+    assertThat(empty, not(Matchers.equalTo(StructuralKey.empty())));
+    assertThat(empty, Matchers.equalTo(empty));
   }
 
   @Test

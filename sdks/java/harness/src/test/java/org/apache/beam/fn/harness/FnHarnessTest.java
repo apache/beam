@@ -36,7 +36,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.fn.test.Consumer;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -79,27 +78,29 @@ public class FnHarnessTest {
 
     BeamFnControlGrpc.BeamFnControlImplBase controlService =
         new BeamFnControlGrpc.BeamFnControlImplBase() {
-      @Override
-      public StreamObserver<InstructionResponse> control(
-          StreamObserver<InstructionRequest> responseObserver) {
-        CountDownLatch waitForResponses = new CountDownLatch(1 /* number of responses expected */);
-        options.as(GcsOptions.class).getExecutorService().submit(new Runnable() {
           @Override
-          public void run() {
-            responseObserver.onNext(INSTRUCTION_REQUEST);
-            Uninterruptibles.awaitUninterruptibly(waitForResponses);
-            responseObserver.onCompleted();
+          public StreamObserver<InstructionResponse> control(
+              StreamObserver<InstructionRequest> responseObserver) {
+            CountDownLatch waitForResponses =
+                new CountDownLatch(1 /* number of responses expected */);
+            options
+                .as(GcsOptions.class)
+                .getExecutorService()
+                .submit(
+                    () -> {
+                      responseObserver.onNext(INSTRUCTION_REQUEST);
+                      Uninterruptibles.awaitUninterruptibly(waitForResponses);
+                      responseObserver.onCompleted();
+                    });
+            return TestStreams.withOnNext(
+                    (InstructionResponse t) -> {
+                      instructionResponses.add(t);
+                      waitForResponses.countDown();
+                    })
+                .withOnCompleted(waitForResponses::countDown)
+                .build();
           }
-        });
-        return TestStreams.withOnNext(new Consumer<InstructionResponse>() {
-          @Override
-          public void accept(InstructionResponse t) {
-            instructionResponses.add(t);
-            waitForResponses.countDown();
-          }
-        }).withOnCompleted(waitForResponses::countDown).build();
-      }
-    };
+        };
 
     Server loggingServer = ServerBuilder.forPort(0).addService(loggingService).build();
     loggingServer.start();

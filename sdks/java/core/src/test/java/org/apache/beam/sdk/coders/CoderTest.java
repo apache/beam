@@ -62,7 +62,7 @@ public class CoderTest {
   public void testNonDeterministicExcpetionRequiresReason() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("Reasons must not be empty");
-    new NonDeterministicException(VoidCoder.of(), Collections.<String>emptyList());
+    new NonDeterministicException(VoidCoder.of(), Collections.emptyList());
   }
 
   @Test

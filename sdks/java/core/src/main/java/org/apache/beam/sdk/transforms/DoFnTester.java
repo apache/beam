@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -380,15 +379,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    *
    */
   public List<OutputT> peekOutputElements() {
-    return Lists.transform(
-        peekOutputElementsWithTimestamp(),
-        new Function<TimestampedValue<OutputT>, OutputT>() {
-          @Override
-          @SuppressWarnings("unchecked")
-          public OutputT apply(TimestampedValue<OutputT> input) {
-            return input.getValue();
-          }
-        });
+    return Lists.transform(peekOutputElementsWithTimestamp(), input -> input.getValue());
   }
 
   /**
@@ -402,14 +393,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   @Experimental
   public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(getImmutableOutput(mainOutputTag),
-        new Function<ValueInSingleWindow<OutputT>, TimestampedValue<OutputT>>() {
-          @Override
-          @SuppressWarnings("unchecked")
-          public TimestampedValue<OutputT> apply(ValueInSingleWindow<OutputT> input) {
-            return TimestampedValue.of(input.getValue(), input.getTimestamp());
-          }
-        });
+    return Lists.transform(
+        getImmutableOutput(mainOutputTag),
+        input -> TimestampedValue.of(input.getValue(), input.getTimestamp()));
   }
 
   /**
@@ -483,13 +469,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    */
   public <T> List<T> peekOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(getImmutableOutput(tag),
-        new Function<ValueInSingleWindow<T>, T>() {
-          @SuppressWarnings("unchecked")
-          @Override
-          public T apply(ValueInSingleWindow<T> input) {
-            return input.getValue();
-          }});
+    return Lists.transform(getImmutableOutput(tag), input -> input.getValue());
   }
 
   /**
@@ -516,8 +496,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   private <T> List<ValueInSingleWindow<T>> getImmutableOutput(TupleTag<T> tag) {
     @SuppressWarnings({"unchecked", "rawtypes"})
     List<ValueInSingleWindow<T>> elems = (List) getOutputs().get(tag);
-    return ImmutableList.copyOf(
-        MoreObjects.firstNonNull(elems, Collections.<ValueInSingleWindow<T>>emptyList()));
+    return ImmutableList.copyOf(MoreObjects.firstNonNull(elems, Collections.emptyList()));
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
@@ -612,13 +591,8 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           "Only materializations of type %s supported, received %s",
           Materializations.MULTIMAP_MATERIALIZATION_URN,
           view.getViewFn().getMaterialization().getUrn());
-      return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn()).apply(
-          new Materializations.MultimapView<Object, Object>() {
-            @Override
-            public Iterable<Object> get(Object o) {
-              return Collections.emptyList();
-            }
-          });
+      return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn())
+          .apply(o -> Collections.emptyList());
     }
 
     @Override

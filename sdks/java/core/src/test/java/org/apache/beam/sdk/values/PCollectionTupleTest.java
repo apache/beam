@@ -158,7 +158,7 @@ public final class PCollectionTupleTest implements Serializable {
       TupleTag<?> tag = taggedValue.getKey();
       PValue value = taggedValue.getValue();
       assertThat("The tag should map back to the value", tuple.get(tag), equalTo(value));
-      assertThat(value, Matchers.<PValue>equalTo(pcsByTag.get(tag)));
+      assertThat(value, Matchers.equalTo(pcsByTag.get(tag)));
       reconstructed = reconstructed.and(tag, (PCollection) value);
     }
 

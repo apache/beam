@@ -143,13 +143,7 @@ public class BigtableIOTest {
       new TypeDescriptor<KV<ByteString, Iterable<Mutation>>>() {};
 
   private static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
-    PORT_CONFIGURATOR =
-    new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
-      @Override
-      public BigtableOptions.Builder apply(BigtableOptions.Builder input) {
-        return input.setPort(1234);
-      }
-    };
+      PORT_CONFIGURATOR = input -> input.setPort(1234);
 
   @Before
   public void setup() throws Exception {
@@ -372,7 +366,7 @@ public class BigtableIOTest {
     service.createTable(table);
     service.setupSampleRowKeys(table, 1, 1L);
 
-    runReadTest(defaultRead.withTableId(table), new ArrayList<Row>());
+    runReadTest(defaultRead.withTableId(table), new ArrayList<>());
     logged.verifyInfo("Closing reader after reading 0 records.");
   }
 
@@ -408,20 +402,18 @@ public class BigtableIOTest {
   }
 
   private static List<Row> filterToRanges(List<Row> rows, final List<ByteKeyRange> ranges) {
-    return Lists.newArrayList(Iterables.filter(
-        rows,
-        new Predicate<Row>() {
-          @Override
-          public boolean apply(@Nullable Row input) {
-            verifyNotNull(input, "input");
-            for (ByteKeyRange range : ranges) {
-              if (range.containsKey(makeByteKey(input.getKey()))) {
-                return true;
+    return Lists.newArrayList(
+        Iterables.filter(
+            rows,
+            input -> {
+              verifyNotNull(input, "input");
+              for (ByteKeyRange range : ranges) {
+                if (range.containsKey(makeByteKey(input.getKey()))) {
+                  return true;
+                }
               }
-            }
-            return false;
-          }
-        }));
+              return false;
+            }));
   }
 
   private void runReadTest(BigtableIO.Read read, List<Row> expected) {
@@ -513,12 +505,9 @@ public class BigtableIOTest {
     Iterable<Row> filteredRows =
         Iterables.filter(
             testRows,
-            new Predicate<Row>() {
-              @Override
-              public boolean apply(@Nullable Row input) {
-                verifyNotNull(input, "input");
-                return keyPredicate.apply(input.getKey());
-              }
+            input -> {
+              verifyNotNull(input, "input");
+              return keyPredicate.apply(input.getKey());
             });
 
     RowFilter filter =
@@ -883,7 +872,7 @@ public class BigtableIOTest {
         .apply(defaultWrite.withTableId(table));
 
     thrown.expect(PipelineExecutionException.class);
-    thrown.expectCause(Matchers.<Throwable>instanceOf(IOException.class));
+    thrown.expectCause(Matchers.instanceOf(IOException.class));
     thrown.expectMessage("At least 1 errors occurred writing to Bigtable. First 1 errors:");
     thrown.expectMessage("Error mutating row " + key + " with mutations []: cell value missing");
     p.run();
@@ -1040,7 +1029,7 @@ public class BigtableIOTest {
     }
 
     public void createTable(String tableId) {
-      tables.put(tableId, new TreeMap<ByteString, ByteString>(new ByteStringComparator()));
+      tables.put(tableId, new TreeMap<>(new ByteStringComparator()));
     }
 
     @Override

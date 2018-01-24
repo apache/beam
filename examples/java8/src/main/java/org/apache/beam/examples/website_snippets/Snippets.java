@@ -42,14 +42,14 @@ public class Snippets {
     for (String elem : emails) {
       emailsList.add("'" + elem + "'");
     }
-    Collections.<String>sort(emailsList);
+    Collections.sort(emailsList);
     String emailsStr = "[" + String.join(", ", emailsList) + "]";
 
     List<String> phonesList = new ArrayList<>();
     for (String elem : phones) {
       phonesList.add("'" + elem + "'");
     }
-    Collections.<String>sort(phonesList);
+    Collections.sort(phonesList);
     String phonesStr = "[" + String.join(", ", phonesList) + "]";
 
     return name + "; " + emailsStr + "; " + phonesStr;
@@ -63,10 +63,9 @@ public class Snippets {
 
     // [START CoGroupByKeyTuple]
     PCollection<KV<String, CoGbkResult>> results =
-        KeyedPCollectionTuple
-        .of(emailsTag, emails)
-        .and(phonesTag, phones)
-        .apply(CoGroupByKey.<String>create());
+        KeyedPCollectionTuple.of(emailsTag, emails)
+            .and(phonesTag, phones)
+            .apply(CoGroupByKey.create());
 
     PCollection<String> contactLines = results.apply(ParDo.of(
       new DoFn<KV<String, CoGbkResult>, String>() {

@@ -111,8 +111,7 @@ public class HourlyTeamScore extends UserScore {
    */
   protected static Map<String, WriteToText.FieldFn<KV<String, Integer>>>
       configureOutput() {
-    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config =
-        new HashMap<String, WriteToText.FieldFn<KV<String, Integer>>>();
+    Map<String, WriteToText.FieldFn<KV<String, Integer>>> config = new HashMap<>();
     config.put("team", (c, w) -> c.element().getKey());
     config.put("total_score", (c, w) -> c.element().getValue());
     config.put(
@@ -138,40 +137,43 @@ public class HourlyTeamScore extends UserScore {
     final Instant startMinTimestamp = new Instant(minFmt.parseMillis(options.getStartMin()));
 
     // Read 'gaming' events from a text file.
-    pipeline.apply(TextIO.read().from(options.getInput()))
-      // Parse the incoming data.
-      .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
+    pipeline
+        .apply(TextIO.read().from(options.getInput()))
+        // Parse the incoming data.
+        .apply("ParseGameEvent", ParDo.of(new ParseEventFn()))
 
-      // Filter out data before and after the given times so that it is not included
-      // in the calculations. As we collect data in batches (say, by day), the batch for the day
-      // that we want to analyze could potentially include some late-arriving data from the previous
-      // day. If so, we want to weed it out. Similarly, if we include data from the following day
-      // (to scoop up late-arriving events from the day we're analyzing), we need to weed out events
-      // that fall after the time period we want to analyze.
-      // [START DocInclude_HTSFilters]
-      .apply("FilterStartTime", Filter.by(
-          (GameActionInfo gInfo)
-              -> gInfo.getTimestamp() > startMinTimestamp.getMillis()))
-      .apply("FilterEndTime", Filter.by(
-          (GameActionInfo gInfo)
-              -> gInfo.getTimestamp() < stopMinTimestamp.getMillis()))
-      // [END DocInclude_HTSFilters]
+        // Filter out data before and after the given times so that it is not included
+        // in the calculations. As we collect data in batches (say, by day), the batch for the day
+        // that we want to analyze could potentially include some late-arriving data from the
+        // previous day.
+        // If so, we want to weed it out. Similarly, if we include data from the following day
+        // (to scoop up late-arriving events from the day we're analyzing), we need to weed out
+        // events that fall after the time period we want to analyze.
+        // [START DocInclude_HTSFilters]
+        .apply(
+            "FilterStartTime",
+            Filter.by(
+                (GameActionInfo gInfo) -> gInfo.getTimestamp() > startMinTimestamp.getMillis()))
+        .apply(
+            "FilterEndTime",
+            Filter.by(
+                (GameActionInfo gInfo) -> gInfo.getTimestamp() < stopMinTimestamp.getMillis()))
+        // [END DocInclude_HTSFilters]
 
-      // [START DocInclude_HTSAddTsAndWindow]
-      // Add an element timestamp based on the event log, and apply fixed windowing.
-      .apply("AddEventTimestamps",
-             WithTimestamps.of((GameActionInfo i) -> new Instant(i.getTimestamp())))
-      .apply("FixedWindowsTeam", Window.<GameActionInfo>into(
-          FixedWindows.of(Duration.standardMinutes(options.getWindowDuration()))))
-      // [END DocInclude_HTSAddTsAndWindow]
+        // [START DocInclude_HTSAddTsAndWindow]
+        // Add an element timestamp based on the event log, and apply fixed windowing.
+        .apply(
+            "AddEventTimestamps",
+            WithTimestamps.of((GameActionInfo i) -> new Instant(i.getTimestamp())))
+        .apply(
+            "FixedWindowsTeam",
+            Window.into(FixedWindows.of(Duration.standardMinutes(options.getWindowDuration()))))
+        // [END DocInclude_HTSAddTsAndWindow]
 
-      // Extract and sum teamname/score pairs from the event data.
-      .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
-      .apply("WriteTeamScoreSums",
-          new WriteToText<KV<String, Integer>>(
-              options.getOutput(),
-              configureOutput(),
-              true));
+        // Extract and sum teamname/score pairs from the event data.
+        .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
+        .apply(
+            "WriteTeamScoreSums", new WriteToText<>(options.getOutput(), configureOutput(), true));
 
     pipeline.run().waitUntilFinish();
   }

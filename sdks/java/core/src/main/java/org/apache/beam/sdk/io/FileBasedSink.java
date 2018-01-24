@@ -679,9 +679,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       Set<Integer> missingShardNums;
       if (numShards == null) {
         missingShardNums =
-            existingResults.isEmpty()
-                ? ImmutableSet.of(UNKNOWN_SHARDNUM)
-                : ImmutableSet.<Integer>of();
+            existingResults.isEmpty() ? ImmutableSet.of(UNKNOWN_SHARDNUM) : ImmutableSet.of();
       } else {
         missingShardNums = Sets.newHashSet();
         for (int i = 0; i < numShards; ++i) {

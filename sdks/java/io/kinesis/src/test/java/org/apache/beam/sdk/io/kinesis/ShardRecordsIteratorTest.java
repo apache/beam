@@ -25,10 +25,8 @@ import static org.mockito.Matchers.anyListOf;
 import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
-
 import java.io.IOException;
 import java.util.Collections;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -93,9 +91,9 @@ public class ShardRecordsIteratorTest {
     when(secondResult.getNextShardIterator()).thenReturn(THIRD_ITERATOR);
     when(thirdResult.getNextShardIterator()).thenReturn(THIRD_ITERATOR);
 
-    when(firstResult.getRecords()).thenReturn(Collections.<KinesisRecord>emptyList());
-    when(secondResult.getRecords()).thenReturn(Collections.<KinesisRecord>emptyList());
-    when(thirdResult.getRecords()).thenReturn(Collections.<KinesisRecord>emptyList());
+    when(firstResult.getRecords()).thenReturn(Collections.emptyList());
+    when(secondResult.getRecords()).thenReturn(Collections.emptyList());
+    when(thirdResult.getRecords()).thenReturn(Collections.emptyList());
 
     when(recordFilter.apply(anyListOf(KinesisRecord.class), any(ShardCheckpoint
         .class))).thenAnswer(new IdentityAnswer());
@@ -107,7 +105,7 @@ public class ShardRecordsIteratorTest {
   public void goesThroughAvailableRecords() throws IOException, TransientKinesisException {
     when(firstResult.getRecords()).thenReturn(asList(a, b, c));
     when(secondResult.getRecords()).thenReturn(singletonList(d));
-    when(thirdResult.getRecords()).thenReturn(Collections.<KinesisRecord>emptyList());
+    when(thirdResult.getRecords()).thenReturn(Collections.emptyList());
 
     assertThat(iterator.getCheckpoint()).isEqualTo(firstCheckpoint);
     assertThat(iterator.readNextBatch()).isEqualTo(asList(a, b, c));
@@ -120,7 +118,7 @@ public class ShardRecordsIteratorTest {
   public void conformingRecordsMovesCheckpoint() throws IOException, TransientKinesisException {
     when(firstResult.getRecords()).thenReturn(asList(a, b, c));
     when(secondResult.getRecords()).thenReturn(singletonList(d));
-    when(thirdResult.getRecords()).thenReturn(Collections.<KinesisRecord>emptyList());
+    when(thirdResult.getRecords()).thenReturn(Collections.emptyList());
 
     iterator.ackRecord(a);
     assertThat(iterator.getCheckpoint()).isEqualTo(aCheckpoint);

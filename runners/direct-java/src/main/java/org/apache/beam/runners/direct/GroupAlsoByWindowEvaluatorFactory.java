@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.direct;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -206,37 +204,29 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       return FluentIterable.from(elements)
           .transformAndConcat(
               // Explode windows to filter out expired ones
-              new Function<WindowedValue<V>, Iterable<WindowedValue<V>>>() {
-                @Override
-                public Iterable<WindowedValue<V>> apply(WindowedValue<V> input) {
-                  return input.explodeWindows();
-                }
-              })
+              input -> input.explodeWindows())
           .filter(
-              new Predicate<WindowedValue<V>>() {
-                @Override
-                public boolean apply(WindowedValue<V> input) {
-                  BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
-                  boolean expired =
-                      window
-                          .maxTimestamp()
-                          .plus(windowingStrategy.getAllowedLateness())
-                          .isBefore(timerInternals.currentInputWatermarkTime());
-                  if (expired) {
-                    // The element is too late for this window.
-                    droppedDueToLateness.inc();
-                    WindowTracing.debug(
-                        "{}: Dropping element at {} for key: {}; "
-                            + "window: {} since it is too far behind inputWatermark: {}",
-                        DirectGroupAlsoByWindow.class.getSimpleName(),
-                        input.getTimestamp(),
-                        key,
-                        window,
-                        timerInternals.currentInputWatermarkTime());
-                  }
-                  // Keep the element if the window is not expired.
-                  return !expired;
+              input -> {
+                BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
+                boolean expired =
+                    window
+                        .maxTimestamp()
+                        .plus(windowingStrategy.getAllowedLateness())
+                        .isBefore(timerInternals.currentInputWatermarkTime());
+                if (expired) {
+                  // The element is too late for this window.
+                  droppedDueToLateness.inc();
+                  WindowTracing.debug(
+                      "{}: Dropping element at {} for key: {}; "
+                          + "window: {} since it is too far behind inputWatermark: {}",
+                      DirectGroupAlsoByWindow.class.getSimpleName(),
+                      input.getTimestamp(),
+                      key,
+                      window,
+                      timerInternals.currentInputWatermarkTime());
                 }
+                // Keep the element if the window is not expired.
+                return !expired;
               });
     }
   }

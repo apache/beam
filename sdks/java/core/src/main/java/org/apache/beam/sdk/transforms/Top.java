@@ -410,7 +410,7 @@ public class Top {
 
     @Override
     public BoundedHeap<T, ComparatorT> createAccumulator() {
-      return new BoundedHeap<>(count, compareFn, new ArrayList<T>());
+      return new BoundedHeap<>(count, compareFn, new ArrayList<>());
     }
 
     @Override

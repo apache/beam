@@ -61,14 +61,14 @@ public class FlattenPCollectionTranslatorTest {
     };
 
     Set<String> expected = Sets.newHashSet();
-    List<PCollection<String>> pcList = new ArrayList<PCollection<String>>();
+    List<PCollection<String>> pcList = new ArrayList<>();
     for (String[] collection : collections) {
       pcList.add(
           p.apply(Create.of(ImmutableList.copyOf(collection)).withCoder(StringUtf8Coder.of())));
       expected.addAll(Arrays.asList(collection));
     }
 
-    PCollection<String> actual = PCollectionList.of(pcList).apply(Flatten.<String>pCollections());
+    PCollection<String> actual = PCollectionList.of(pcList).apply(Flatten.pCollections());
     actual.apply(ParDo.of(new EmbeddedCollector()));
 
     ApexRunnerResult result = (ApexRunnerResult) p.run();
@@ -99,8 +99,9 @@ public class FlattenPCollectionTranslatorTest {
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
     Pipeline p = Pipeline.create();
     PCollection<String> single = p.apply(Create.of(Collections.singletonList("1")));
-    PCollectionList.of(single).apply(Flatten.<String>pCollections())
-      .apply(ParDo.of(new EmbeddedCollector()));
+    PCollectionList.of(single)
+        .apply(Flatten.pCollections())
+        .apply(ParDo.of(new EmbeddedCollector()));
     DAG dag = TestApexRunner.translate(p, options);
     Assert.assertNotNull(
         dag.getOperatorMeta("ParDo(EmbeddedCollector)/ParMultiDo(EmbeddedCollector)"));

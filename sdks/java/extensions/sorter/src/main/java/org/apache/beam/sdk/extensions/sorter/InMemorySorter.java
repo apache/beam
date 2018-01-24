@@ -78,7 +78,7 @@ class InMemorySorter implements Sorter {
   private boolean sortCalled;
 
   /** The stored records to be sorted. */
-  private ArrayList<KV<byte[], byte[]>> records = new ArrayList<KV<byte[], byte[]>>();
+  private ArrayList<KV<byte[], byte[]>> records = new ArrayList<>();
 
   /** Private constructor. */
   private InMemorySorter(Options options) {
@@ -116,13 +116,7 @@ class InMemorySorter implements Sorter {
     sortCalled = true;
 
     Comparator<KV<byte[], byte[]>> kvComparator =
-        new Comparator<KV<byte[], byte[]>>() {
-
-          @Override
-          public int compare(KV<byte[], byte[]> o1, KV<byte[], byte[]> o2) {
-            return COMPARATOR.compare(o1.getKey(), o2.getKey());
-          }
-        };
+        (o1, o2) -> COMPARATOR.compare(o1.getKey(), o2.getKey());
     Collections.sort(records, kvComparator);
     return Collections.unmodifiableList(records);
   }

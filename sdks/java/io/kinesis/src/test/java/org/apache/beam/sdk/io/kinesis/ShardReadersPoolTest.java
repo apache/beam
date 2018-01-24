@@ -25,21 +25,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.base.Stopwatch;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests {@link ShardReadersPool}.
@@ -76,13 +72,13 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldReturnAllRecords() throws TransientKinesisException {
     when(firstIterator.readNextBatch())
-        .thenReturn(Collections.<KinesisRecord>emptyList())
+        .thenReturn(Collections.emptyList())
         .thenReturn(asList(a, b))
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
     when(secondIterator.readNextBatch())
         .thenReturn(singletonList(c))
         .thenReturn(singletonList(d))
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
     List<KinesisRecord> fetchedRecords = new ArrayList<>();
@@ -97,10 +93,8 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldReturnAbsentOptionalWhenNoRecords() throws TransientKinesisException {
-    when(firstIterator.readNextBatch())
-        .thenReturn(Collections.<KinesisRecord>emptyList());
-    when(secondIterator.readNextBatch())
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+    when(firstIterator.readNextBatch()).thenReturn(Collections.emptyList());
+    when(secondIterator.readNextBatch()).thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
     CustomOptional<KinesisRecord> nextRecord = shardReadersPool.nextRecord();
@@ -111,11 +105,11 @@ public class ShardReadersPoolTest {
   public void shouldCheckpointReadRecords() throws TransientKinesisException {
     when(firstIterator.readNextBatch())
         .thenReturn(asList(a, b))
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
     when(secondIterator.readNextBatch())
         .thenReturn(singletonList(c))
         .thenReturn(singletonList(d))
-        .thenReturn(Collections.<KinesisRecord>emptyList());
+        .thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
     int recordsFound = 0;
@@ -135,14 +129,12 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldInterruptKinesisReadingAndStopShortly() throws TransientKinesisException {
-    when(firstIterator.readNextBatch()).thenAnswer(new Answer<List<KinesisRecord>>() {
-
-      @Override
-      public List<KinesisRecord> answer(InvocationOnMock invocation) throws Throwable {
-        Thread.sleep(TimeUnit.MINUTES.toMillis(1));
-        return Collections.emptyList();
-      }
-    });
+    when(firstIterator.readNextBatch())
+        .thenAnswer(
+            invocation -> {
+              Thread.sleep(TimeUnit.MINUTES.toMillis(1));
+              return Collections.emptyList();
+            });
     shardReadersPool.start();
 
     Stopwatch stopwatch = Stopwatch.createStarted();

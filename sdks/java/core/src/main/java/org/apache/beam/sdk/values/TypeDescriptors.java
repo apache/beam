@@ -200,9 +200,8 @@ public class TypeDescriptors {
   public static <K, V> TypeDescriptor<KV<K, V>>
     kvs(TypeDescriptor<K> key, TypeDescriptor<V> value) {
     TypeDescriptor<KV<K, V>> typeDescriptor =
-        new TypeDescriptor<KV<K, V>>() {}
-      .<K> where(new TypeParameter<K>() {}, key)
-      .<V> where(new TypeParameter<V>() {}, value);
+        new TypeDescriptor<KV<K, V>>() {}.where(new TypeParameter<K>() {}, key)
+            .where(new TypeParameter<V>() {}, value);
 
     return typeDescriptor;
   }
@@ -229,8 +228,7 @@ public class TypeDescriptors {
   public static <T> TypeDescriptor<Set<T>>
     sets(TypeDescriptor<T> element) {
     TypeDescriptor<Set<T>> typeDescriptor =
-        new TypeDescriptor<Set<T>>() {}
-      .<T> where(new TypeParameter<T>() {}, element);
+        new TypeDescriptor<Set<T>>() {}.where(new TypeParameter<T>() {}, element);
 
     return typeDescriptor;
   }
@@ -257,8 +255,7 @@ public class TypeDescriptors {
   public static <T> TypeDescriptor<List<T>>
     lists(TypeDescriptor<T> element) {
     TypeDescriptor<List<T>> typeDescriptor =
-        new TypeDescriptor<List<T>>() {}
-      .<T> where(new TypeParameter<T>() {}, element);
+        new TypeDescriptor<List<T>>() {}.where(new TypeParameter<T>() {}, element);
 
     return typeDescriptor;
   }
@@ -285,8 +282,7 @@ public class TypeDescriptors {
   public static <T> TypeDescriptor<Iterable<T>>
     iterables(TypeDescriptor<T> iterable) {
     TypeDescriptor<Iterable<T>> typeDescriptor =
-        new TypeDescriptor<Iterable<T>>() {}
-      .<T> where(new TypeParameter<T>() {}, iterable);
+        new TypeDescriptor<Iterable<T>>() {}.where(new TypeParameter<T>() {}, iterable);
 
     return typeDescriptor;
   }

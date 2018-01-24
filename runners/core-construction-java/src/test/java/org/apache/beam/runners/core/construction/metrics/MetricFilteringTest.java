@@ -130,7 +130,7 @@ public class MetricFilteringTest {
   }
 
   private boolean matchesScopeWithSingleFilter(String actualScope, String filter) {
-    Set<String> scopeFilter = new HashSet<String>();
+    Set<String> scopeFilter = new HashSet<>();
     scopeFilter.add(filter);
     return MetricFiltering.matchesScope(actualScope, scopeFilter);
   }

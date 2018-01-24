@@ -346,13 +346,9 @@ public class JdbcIO {
                   .withCoder(getCoder())
                   .withRowMapper(getRowMapper())
                   .withParameterSetter(
-                      new PreparedStatementSetter<Void>() {
-                        @Override
-                        public void setParameters(Void element, PreparedStatement preparedStatement)
-                            throws Exception {
-                          if (getStatementPreparator() != null) {
-                            getStatementPreparator().setParameters(preparedStatement);
-                          }
+                      (element, preparedStatement) -> {
+                        if (getStatementPreparator() != null) {
+                          getStatementPreparator().setParameters(preparedStatement);
                         }
                       }));
     }
@@ -440,7 +436,7 @@ public class JdbcIO {
                       getParameterSetter(),
                       getRowMapper())))
           .setCoder(getCoder())
-          .apply(new Reparallelize<OutputT>());
+          .apply(new Reparallelize<>());
     }
 
     @Override
@@ -546,7 +542,7 @@ public class JdbcIO {
      * @param batchSize maximum batch size in number of statements
      * @return the {@link Write} with connection batch size set
      */
-    public Write withBatchSize(long batchSize) {
+    public Write<T> withBatchSize(long batchSize) {
       checkArgument(batchSize > 0, "batchSize must be > 0, but was %d", batchSize);
       return toBuilder().setBatchSize(batchSize).build();
     }
@@ -559,7 +555,7 @@ public class JdbcIO {
       checkArgument(
           getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
 
-      input.apply(ParDo.of(new WriteFn<T>(this)));
+      input.apply(ParDo.of(new WriteFn<>(this)));
       return PDone.in(input.getPipeline());
     }
 
@@ -650,8 +646,8 @@ public class JdbcIO {
       // a single query may produce many gigabytes of query results.
       PCollectionView<Iterable<T>> empty =
           input
-              .apply("Consume", Filter.by(SerializableFunctions.<T, Boolean>constant(false)))
-              .apply(View.<T>asIterable());
+              .apply("Consume", Filter.by(SerializableFunctions.constant(false)))
+              .apply(View.asIterable());
       PCollection<T> materialized =
           input.apply(
               "Identity",
@@ -663,7 +659,7 @@ public class JdbcIO {
                         }
                       })
                   .withSideInputs(empty));
-      return materialized.apply(Reshuffle.<T>viaRandomKey());
+      return materialized.apply(Reshuffle.viaRandomKey());
     }
   }
 }

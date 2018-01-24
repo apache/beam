@@ -98,7 +98,7 @@ public class PTransformTranslationTest {
   abstract static class ToAndFromProtoSpec {
     public static ToAndFromProtoSpec leaf(AppliedPTransform<?, ?, ?> transform) {
       return new AutoValue_PTransformTranslationTest_ToAndFromProtoSpec(
-          transform, Collections.<ToAndFromProtoSpec>emptyList());
+          transform, Collections.emptyList());
     }
 
     public static ToAndFromProtoSpec composite(
@@ -164,14 +164,14 @@ public class PTransformTranslationTest {
   private static AppliedPTransform<?, ?, ?> generateSequence(Pipeline pipeline) {
     GenerateSequence sequence = GenerateSequence.from(0);
     PCollection<Long> pcollection = pipeline.apply(sequence);
-    return AppliedPTransform.<PBegin, PCollection<Long>, GenerateSequence>of(
+    return AppliedPTransform.of(
         "Count", pipeline.begin().expand(), pcollection.expand(), sequence, pipeline);
   }
 
   private static AppliedPTransform<?, ?, ?> read(Pipeline pipeline) {
     Read.Unbounded<Long> transform = Read.from(CountingSource.unbounded());
     PCollection<Long> pcollection = pipeline.apply(transform);
-    return AppliedPTransform.<PBegin, PCollection<Long>, Read.Unbounded<Long>>of(
+    return AppliedPTransform.of(
         "ReadTheCount", pipeline.begin().expand(), pcollection.expand(), transform, pipeline);
   }
 
@@ -198,8 +198,7 @@ public class PTransformTranslationTest {
   }
 
   private static AppliedPTransform<?, ?, ?> multiMultiParDo(Pipeline pipeline) {
-    PCollectionView<String> view =
-        pipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
+    PCollectionView<String> view = pipeline.apply(Create.of("foo")).apply(View.asSingleton());
     PCollection<Long> input = pipeline.apply(GenerateSequence.from(0));
     ParDo.MultiOutput<Long, KV<Long, String>> parDo =
         ParDo.of(new TestDoFn())

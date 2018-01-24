@@ -513,8 +513,7 @@ public class ParDoTranslation {
   private static <T> ParDoPayload getParDoPayload(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
     RunnerApi.PTransform parDoPTransform =
-        PTransformTranslation.toProto(
-            transform, Collections.<AppliedPTransform<?, ?, ?>>emptyList(), SdkComponents.create());
+        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create());
     return ParDoPayload.parseFrom(parDoPTransform.getSpec().getPayload());
   }
 

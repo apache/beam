@@ -130,7 +130,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   public void ensureWindowExists(W window) {
     if (!activeWindowToStateAddressWindows.containsKey(window)) {
       // Add window as NEW.
-      activeWindowToStateAddressWindows.put(window, new LinkedHashSet<W>());
+      activeWindowToStateAddressWindows.put(window, new LinkedHashSet<>());
     }
   }
 
@@ -404,7 +404,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     } else {
       for (Map.Entry<W, Set<W>> entry : multimap.entrySet()) {
         if (entry.getValue() == null) {
-          entry.setValue(new LinkedHashSet<W>());
+          entry.setValue(new LinkedHashSet<>());
         }
       }
       return multimap;

@@ -288,7 +288,7 @@ public class DoFnTesterTest {
               TimestampedValue.of("2", new Instant(2000L))));
       assertThat(
           tester.peekOutputElementsInWindow(new IntervalWindow(new Instant(0L), new Instant(10L))),
-          Matchers.<TimestampedValue<String>>emptyIterable());
+          Matchers.emptyIterable());
     }
   }
 

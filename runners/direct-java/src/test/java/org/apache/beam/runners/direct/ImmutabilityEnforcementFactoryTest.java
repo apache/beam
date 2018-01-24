@@ -64,7 +64,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
                         c.element()[0] = 'b';
                       }
                     }));
-    PCollection<Long> consumer = pcollection.apply(Count.<byte[]>globally());
+    PCollection<Long> consumer = pcollection.apply(Count.globally());
     DirectGraphs.performDirectOverrides(p);
     this.consumer = DirectGraphs.getProducer(consumer);
   }
@@ -81,7 +81,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
     enforcement.afterFinish(
         elements,
         StepTransformResult.<byte[]>withoutHold(consumer).build(),
-        Collections.<CommittedBundle<?>>emptyList());
+        Collections.emptyList());
   }
 
   @Test
@@ -101,7 +101,7 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
     enforcement.afterFinish(
         elements,
         StepTransformResult.<byte[]>withoutHold(consumer).build(),
-        Collections.<CommittedBundle<?>>emptyList());
+        Collections.emptyList());
   }
 
   @Test
@@ -123,6 +123,6 @@ public class ImmutabilityEnforcementFactoryTest implements Serializable {
     enforcement.afterFinish(
         elements,
         StepTransformResult.<byte[]>withoutHold(consumer).build(),
-        Collections.<CommittedBundle<?>>emptyList());
+        Collections.emptyList());
   }
 }

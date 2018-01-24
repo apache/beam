@@ -246,7 +246,7 @@ public class CoderRegistry {
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
   public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
-    return getCoderFromTypeDescriptor(type, Collections.<Type, Coder<?>>emptyMap());
+    return getCoderFromTypeDescriptor(type, Collections.emptyMap());
   }
 
   /**
@@ -598,11 +598,11 @@ public class CoderRegistry {
     if (typeCoderBindings.containsKey(type)) {
       coder = typeCoderBindings.get(type);
     } else if (type instanceof Class<?>) {
-      coder = getCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
+      coder = getCoderFromFactories(typeDescriptor, Collections.emptyList());
     } else if (type instanceof ParameterizedType) {
       coder = getCoderFromParameterizedType((ParameterizedType) type, typeCoderBindings);
     } else if (type instanceof TypeVariable) {
-      coder = getCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
+      coder = getCoderFromFactories(typeDescriptor, Collections.emptyList());
     } else if (type instanceof WildcardType) {
       // No coder for an unknown generic type.
       throw new CannotProvideCoderException(
@@ -690,7 +690,7 @@ public class CoderRegistry {
     checkArgument(type != null);
     checkArgument(coder != null);
     if (type instanceof TypeVariable || type instanceof Class) {
-      return ImmutableMap.<Type, Coder<?>>of(type, coder);
+      return ImmutableMap.of(type, coder);
     } else if (type instanceof ParameterizedType) {
       return getTypeToCoderBindings((ParameterizedType) type, coder);
     } else {

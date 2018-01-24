@@ -169,20 +169,10 @@ public class BeamFnDataBufferingOutboundObserverTest {
   }
 
   private Consumer<Elements> addToValuesConsumer(final Collection<Elements> values) {
-    return new Consumer<Elements>() {
-      @Override
-      public void accept(Elements item) {
-        values.add(item);
-      }
-    };
+    return item -> values.add(item);
   }
 
   private Runnable setBooleanToTrue(final AtomicBoolean onCompletedWasCalled) {
-    return new Runnable() {
-      @Override
-      public void run() {
-        onCompletedWasCalled.set(true);
-      }
-    };
+    return () -> onCompletedWasCalled.set(true);
   }
 }

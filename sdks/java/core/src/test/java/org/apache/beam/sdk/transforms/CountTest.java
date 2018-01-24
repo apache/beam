@@ -54,8 +54,7 @@ public class CountTest {
   public void testCountPerElementBasic() {
     PCollection<String> input = p.apply(Create.of(WORDS));
 
-    PCollection<KV<String, Long>> output =
-        input.apply(Count.<String>perElement());
+    PCollection<KV<String, Long>> output = input.apply(Count.perElement());
 
     PAssert.that(output)
         .containsInAnyOrder(
@@ -74,8 +73,7 @@ public class CountTest {
   public void testCountPerElementEmpty() {
     PCollection<String> input = p.apply(Create.of(NO_LINES).withCoder(StringUtf8Coder.of()));
 
-    PCollection<KV<String, Long>> output =
-        input.apply(Count.<String>perElement());
+    PCollection<KV<String, Long>> output = input.apply(Count.perElement());
 
     PAssert.that(output).empty();
     p.run();
@@ -86,8 +84,7 @@ public class CountTest {
   public void testCountGloballyBasic() {
     PCollection<String> input = p.apply(Create.of(WORDS));
 
-    PCollection<Long> output =
-        input.apply(Count.<String>globally());
+    PCollection<Long> output = input.apply(Count.globally());
 
     PAssert.that(output)
         .containsInAnyOrder(13L);
@@ -99,8 +96,7 @@ public class CountTest {
   public void testCountGloballyEmpty() {
     PCollection<String> input = p.apply(Create.of(NO_LINES).withCoder(StringUtf8Coder.of()));
 
-    PCollection<Long> output =
-        input.apply(Count.<String>globally());
+    PCollection<Long> output = input.apply(Count.globally());
 
     PAssert.that(output)
         .containsInAnyOrder(0L);

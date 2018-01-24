@@ -18,7 +18,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
@@ -272,12 +271,13 @@ public class HadoopInputFormatIO {
       CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
       Coder<K> keyCoder = getDefaultCoder(getKeyTypeDescriptor(), coderRegistry);
       Coder<V> valueCoder = getDefaultCoder(getValueTypeDescriptor(), coderRegistry);
-      HadoopInputFormatBoundedSource<K, V> source = new HadoopInputFormatBoundedSource<K, V>(
-          getConfiguration(),
-          keyCoder,
-          valueCoder,
-          getKeyTranslationFunction(),
-          getValueTranslationFunction());
+      HadoopInputFormatBoundedSource<K, V> source =
+          new HadoopInputFormatBoundedSource<>(
+              getConfiguration(),
+              keyCoder,
+              valueCoder,
+              getKeyTranslationFunction(),
+              getValueTranslationFunction());
       return input.getPipeline().apply(org.apache.beam.sdk.io.Read.from(source));
     }
 
@@ -360,18 +360,19 @@ public class HadoopInputFormatIO {
     private long boundedSourceEstimatedSize = 0;
     private transient InputFormat<?, ?> inputFormatObj;
     private transient TaskAttemptContext taskAttemptContext;
-    private static final Set<Class<?>> immutableTypes = new HashSet<Class<?>>(
-        Arrays.asList(
-            String.class,
-            Byte.class,
-            Short.class,
-            Integer.class,
-            Long.class,
-            Float.class,
-            Double.class,
-            Boolean.class,
-            BigInteger.class,
-            BigDecimal.class));
+    private static final Set<Class<?>> immutableTypes =
+        new HashSet<>(
+            Arrays.asList(
+                String.class,
+                Byte.class,
+                Short.class,
+                Integer.class,
+                Long.class,
+                Float.class,
+                Double.class,
+                Boolean.class,
+                BigInteger.class,
+                BigDecimal.class));
 
     HadoopInputFormatBoundedSource(
         SerializableConfiguration conf,
@@ -442,15 +443,18 @@ public class HadoopInputFormatIO {
       computeSplitsIfNecessary();
       LOG.info("Generated {} splits. Size of first split is {} ", inputSplits.size(), inputSplits
           .get(0).getSplit().getLength());
-      return Lists.transform(inputSplits,
-          new Function<SerializableSplit, BoundedSource<KV<K, V>>>() {
-            @Override
-            public BoundedSource<KV<K, V>> apply(SerializableSplit serializableInputSplit) {
-              HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
-                  new HadoopInputFormatBoundedSource<K, V>(conf, keyCoder, valueCoder,
-                      keyTranslationFunction, valueTranslationFunction, serializableInputSplit);
-              return hifBoundedSource;
-            }
+      return Lists.transform(
+          inputSplits,
+          serializableInputSplit -> {
+            HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
+                new HadoopInputFormatBoundedSource<>(
+                    conf,
+                    keyCoder,
+                    valueCoder,
+                    keyTranslationFunction,
+                    valueTranslationFunction,
+                    serializableInputSplit);
+            return hifBoundedSource;
           });
     }
 
@@ -485,7 +489,7 @@ public class HadoopInputFormatIO {
         throw new IOException("Error in computing splits, getSplits() returns a empty list");
       }
       boundedSourceEstimatedSize = 0;
-      inputSplits = new ArrayList<SerializableSplit>();
+      inputSplits = new ArrayList<>();
       for (InputSplit inputSplit : splits) {
         if (inputSplit == null) {
           throw new IOException("Error in computing splits, split is null in InputSplits list "

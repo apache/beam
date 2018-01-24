@@ -54,7 +54,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -681,7 +680,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       List<String> idsToPublish = insertIdList;
       while (true) {
         List<ValueInSingleWindow<TableRow>> retryRows = new ArrayList<>();
-        List<String> retryIds = (idsToPublish != null) ? new ArrayList<String>() : null;
+        List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
 
         int strideIndex = 0;
         // Upload in batches.
@@ -711,31 +710,29 @@ class BigQueryServicesImpl implements BigQueryServices {
                     content);
 
             futures.add(
-                executor.submit(new Callable<List<TableDataInsertAllResponse.InsertErrors>>() {
-                  @Override
-                  public List<TableDataInsertAllResponse.InsertErrors> call() throws IOException {
-                    // A backoff for rate limit exceeded errors. Retries forever.
-                    BackOff backoff = BackOffAdapter.toGcpBackOff(
-                        RATE_LIMIT_BACKOFF_FACTORY.backoff());
-                    while (true) {
-                      try {
-                        return insert.execute().getInsertErrors();
-                      } catch (IOException e) {
-                        if (new ApiErrorExtractor().rateLimited(e)) {
-                          LOG.info("BigQuery insertAll exceeded rate limit, retrying");
-                          try {
-                            sleeper.sleep(backoff.nextBackOffMillis());
-                          } catch (InterruptedException interrupted) {
-                            throw new IOException(
-                                "Interrupted while waiting before retrying insertAll");
+                executor.submit(
+                    () -> {
+                      // A backoff for rate limit exceeded errors. Retries forever.
+                      BackOff backoff1 =
+                          BackOffAdapter.toGcpBackOff(RATE_LIMIT_BACKOFF_FACTORY.backoff());
+                      while (true) {
+                        try {
+                          return insert.execute().getInsertErrors();
+                        } catch (IOException e) {
+                          if (new ApiErrorExtractor().rateLimited(e)) {
+                            LOG.info("BigQuery insertAll exceeded rate limit, retrying");
+                            try {
+                              sleeper.sleep(backoff1.nextBackOffMillis());
+                            } catch (InterruptedException interrupted) {
+                              throw new IOException(
+                                  "Interrupted while waiting before retrying insertAll");
+                            }
+                          } else {
+                            throw e;
                           }
-                        } else {
-                          throw e;
                         }
                       }
-                    }
-                  }
-                }));
+                    }));
             strideIndices.add(strideIndex);
 
             retTotalDataSize += dataSize;
@@ -839,22 +836,12 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   static final SerializableFunction<IOException, Boolean> DONT_RETRY_NOT_FOUND =
-      new SerializableFunction<IOException, Boolean>() {
-        @Override
-        public Boolean apply(IOException input) {
-          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-          return !errorExtractor.itemNotFound(input);
-        }
+      input -> {
+        ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+        return !errorExtractor.itemNotFound(input);
       };
 
-  static final SerializableFunction<IOException, Boolean> ALWAYS_RETRY =
-      new SerializableFunction<IOException, Boolean>() {
-        @Override
-        public Boolean apply(IOException input) {
-          return true;
-        }
-      };
-
+  static final SerializableFunction<IOException, Boolean> ALWAYS_RETRY = input -> true;
 
   @VisibleForTesting
   static <T> T executeWithRetries(

@@ -123,7 +123,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -850,7 +849,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       majorVersion = runnerInfo.getLegacyEnvironmentMajorVersion();
       jobType = options.isStreaming() ? "STREAMING" : "JAVA_BATCH_AUTOSCALING";
     }
-    return ImmutableMap.<String, Object>of(
+    return ImmutableMap.of(
         PropertyNames.ENVIRONMENT_VERSION_MAJOR_KEY, majorVersion,
         PropertyNames.ENVIRONMENT_VERSION_JOB_TYPE_KEY, jobType);
   }
@@ -1360,11 +1359,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       source.validate();
 
       if (source.requiresDeduping()) {
-        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
-            .apply(new Deduplicate<T>());
+        return Pipeline.applyTransform(input, new ReadWithIds<>(source)).apply(new Deduplicate<>());
       } else {
         return Pipeline.applyTransform(input, new ReadWithIds<>(source))
-            .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
+            .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<>()));
       }
     }
 
@@ -1431,22 +1429,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PCollection<T> expand(PCollection<ValueWithRecordId<T>> input) {
       return input
-          .apply(WithKeys.of(new SerializableFunction<ValueWithRecordId<T>, Integer>() {
-            @Override
-            public Integer apply(ValueWithRecordId<T> value) {
-              return Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS;
-            }
-          }))
+          .apply(WithKeys.of(value -> Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS))
           // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
-          .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
-          .apply("StripIds", ParDo.of(
-              new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  c.output(c.element().getValue().getValue());
-                }
-              }));
+          .apply(Reshuffle.of())
+          .apply(
+              "StripIds",
+              ParDo.of(
+                  new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      c.output(c.element().getValue().getValue());
+                    }
+                  }));
     }
   }
 
@@ -1529,7 +1524,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                     }
                   }))
           .setCoder((Coder<BoundedSource<T>>) SerializableCoder.of((Class) BoundedSource.class))
-          .apply(Reshuffle.<BoundedSource<T>>viaRandomKey())
+          .apply(Reshuffle.viaRandomKey())
           .apply(
               ParDo.of(
                   new DoFn<BoundedSource<T>, T>() {

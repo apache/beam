@@ -61,8 +61,7 @@ public class StepTransformResultTest {
     TransformResult<Integer> result =
         StepTransformResult.<Integer>withoutHold(transform).addOutput(bundle).build();
 
-    assertThat(
-        result.getOutputBundles(), Matchers.<UncommittedBundle<?>>containsInAnyOrder(bundle));
+    assertThat(result.getOutputBundles(), Matchers.containsInAnyOrder(bundle));
   }
 
   @Test

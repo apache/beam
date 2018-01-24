@@ -101,9 +101,7 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
       Map<String, Object> metadata = dynamicDestinations.getMetadata(destination);
 
       DatumWriter<OutputT> datumWriter =
-          genericRecords
-              ? new GenericDatumWriter<OutputT>(schema)
-              : new ReflectDatumWriter<OutputT>(schema);
+          genericRecords ? new GenericDatumWriter<>(schema) : new ReflectDatumWriter<>(schema);
       dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec);
       for (Map.Entry<String, Object> entry : metadata.entrySet()) {
         Object v = entry.getValue();

@@ -24,7 +24,6 @@ import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -625,12 +624,6 @@ public class MutationGroupEncoderTest {
 
   // Pray for Java 8 support.
   private static Iterable<String> getNormalizedColumns(Mutation a) {
-    return Iterables.transform(a.getColumns(), new Function<String, String>() {
-
-      @Override
-      public String apply(String input) {
-        return input.toLowerCase();
-      }
-    });
+    return Iterables.transform(a.getColumns(), input -> input.toLowerCase());
   }
 }
