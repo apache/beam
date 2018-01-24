@@ -118,10 +118,13 @@ class BigtableServiceImpl implements BigtableService {
       }
       RowSet rowSet = rowSetBuilder.build();
 
+      String tableNameSr =
+          session.getOptions().getInstanceName().toTableNameStr(source.getTableId().get());
+
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder()
               .setRows(rowSet)
-              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId().get()));
+              .setTableName(tableNameSr);
       if (source.getRowFilter() != null) {
         requestB.setFilter(source.getRowFilter());
       }
