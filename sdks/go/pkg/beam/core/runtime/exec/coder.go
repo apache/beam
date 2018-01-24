@@ -143,6 +143,7 @@ func (*bytesEncoder) Encode(val FullValue, w io.Writer) error {
 	default:
 		return fmt.Errorf("received unknown value type: want []byte or string, got %T", v)
 	}
+	size := len(data)
 
 	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
 		return err
