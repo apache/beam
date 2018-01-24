@@ -22,27 +22,30 @@ import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
-import java.io.File;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
-import org.junit.After;
-import static org.junit.Assert.*;
+import org.apache.hadoop.hbase.security.User;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static org.junit.Assert.*;
 
 /**
  * Test {@code HFileSink}.
@@ -53,7 +56,7 @@ public class HFileSinkTest extends HBaseTestCase {
 
     private final List<String> loadedPaths;
 
-    public TestedHFilesSink(HFileSink clone, List<String> loadedPaths) {
+    TestedHFilesSink(HFileSink clone, List<String> loadedPaths) {
       super(clone);
       this.loadedPaths = loadedPaths;
     }
@@ -64,15 +67,15 @@ public class HFileSinkTest extends HBaseTestCase {
       super.loadIncrementalHFiles(path);
     }
 
-  };
+  }
 
   @Rule
   public TemporaryFolder folder = new TemporaryFolder();
 
-  final TableName table = TableName.valueOf("test");
+  private final TableName table = TableName.valueOf("test");
 
-  List<String> loadedPaths;
-  Flow flow;
+  private List<String> loadedPaths;
+  private Flow flow;
 
   @Before
   @Override
@@ -82,10 +85,10 @@ public class HFileSinkTest extends HBaseTestCase {
     loadedPaths = new ArrayList<>();
   }
 
-  @After
   @Override
-  public void tearDown() throws IOException {
-    super.tearDown();
+  protected void additionalConf() throws Exception {
+    cluster.getConfiguration().set(HFileSink.HBASE_USER, User.getCurrent().getName());
+    cluster.getConfiguration().set(HFileSink.HDFS_USER, User.getCurrent().getName());
   }
 
   @Override
@@ -128,7 +131,7 @@ public class HFileSinkTest extends HBaseTestCase {
     ListDataSource<String> source = ListDataSource.unbounded(inputs);
     Dataset<String> input = flow.createInput(source);
     MapElements.of(input)
-        .using(s -> kv(s))
+        .using(HBaseTestCase::kv)
         .output()
         .persist(traceLoading(HFileSink.newBuilder()
             .withTable(table.getNameAsString())
@@ -142,7 +145,7 @@ public class HFileSinkTest extends HBaseTestCase {
     // we should not have success marker
     assertFalse(new File(tmp, "_SUCCESS").exists());
 
-    assertEquals(Arrays.asList("file:" + tmp.getPath() + "/global"), loadedPaths);
+    assertEquals(Collections.singletonList("file:" + tmp.getPath() + "/global"), loadedPaths);
 
     // validate that the bulk load directory was deleted
     assertFalse(new File(tmp + "/global", "t").exists());
