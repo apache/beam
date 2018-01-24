@@ -1208,9 +1208,14 @@ class CombinePerKey(PTransformWithSideInputs):
         self.fn, *args, **kwargs)
 
   def to_runner_api_parameter(self, context):
+    if self.args or self.kwargs:
+      from apache_beam.transforms.combiners import curry_combine_fn
+      combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
+    else:
+      combine_fn = self.fn
     return (
         urns.COMBINE_PER_KEY_TRANSFORM,
-        _combine_payload(self.fn, context))
+        _combine_payload(combine_fn, context))
 
   @PTransform.register_urn(
       urns.COMBINE_PER_KEY_TRANSFORM, beam_runner_api_pb2.CombinePayload)
@@ -1241,9 +1246,14 @@ class CombineValues(PTransformWithSideInputs):
         *args, **kwargs)
 
   def to_runner_api_parameter(self, context):
+    if self.args or self.kwargs:
+      from apache_beam.transforms.combiners import curry_combine_fn
+      combine_fn = curry_combine_fn(self.fn, self.args, self.kwargs)
+    else:
+      combine_fn = self.fn
     return (
         urns.COMBINE_GROUPED_VALUES_TRANSFORM,
-        _combine_payload(self.fn, context))
+        _combine_payload(combine_fn, context))
 
   @PTransform.register_urn(
       urns.COMBINE_GROUPED_VALUES_TRANSFORM, beam_runner_api_pb2.CombinePayload)

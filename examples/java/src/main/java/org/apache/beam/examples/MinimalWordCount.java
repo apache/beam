@@ -110,7 +110,7 @@ public class MinimalWordCount {
      // TextIO.Write writes the contents of a PCollection (in this case, our PCollection of
      // formatted strings) to a series of text files.
      //
-     // By default, it will write to a set of files with names like wordcount-00001-of-00005
+     // By default, it will write to a set of files with names like wordcounts-00001-of-00005
      .apply(TextIO.write().to("wordcounts"));
 
     // Run the pipeline.

@@ -28,6 +28,7 @@ import mock
 
 from apache_beam.io import localfilesystem
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.options.pipeline_options import PipelineOptions
 
 
 def _gen_fake_join(separator):
@@ -56,7 +57,8 @@ class LocalFileSystemTest(unittest.TestCase):
 
   def setUp(self):
     self.tmpdir = tempfile.mkdtemp()
-    self.fs = localfilesystem.LocalFileSystem()
+    pipeline_options = PipelineOptions()
+    self.fs = localfilesystem.LocalFileSystem(pipeline_options)
 
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
