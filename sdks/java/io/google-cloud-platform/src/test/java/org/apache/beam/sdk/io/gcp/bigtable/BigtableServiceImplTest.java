@@ -43,6 +43,7 @@ import java.util.Arrays;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Assert;
 import org.junit.Before;
@@ -97,6 +98,7 @@ public class BigtableServiceImplTest {
     ByteKey start = ByteKey.copyFrom("a".getBytes());
     ByteKey end = ByteKey.copyFrom("b".getBytes());
     when(mockBigtableSource.getRanges()).thenReturn(Arrays.asList(ByteKeyRange.of(start, end)));
+    when(mockBigtableSource.getTableId()).thenReturn(StaticValueProvider.of("table_name"));
     @SuppressWarnings("unchecked")
     ResultScanner<Row> mockResultScanner = Mockito.mock(ResultScanner.class);
     Row expectedRow = Row.newBuilder()
