@@ -30,10 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import java.util.TimeZone;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
+import org.apache.beam.examples.complete.game.utils.GameConstants;
 
 
 /**
@@ -86,7 +83,6 @@ class Injector {
   private static Random random = new Random();
   private static String topic;
   private static String project;
-  private static final String TIMESTAMP_ATTRIBUTE = "timestamp_ms";
 
   // QPS ranges from 800 to 1000.
   private static final int MIN_QPS = 800;
@@ -110,11 +106,6 @@ class Injector {
 
   // The list of live teams.
   private static ArrayList<TeamInfo> liveTeams = new ArrayList<TeamInfo>();
-
-  private static DateTimeFormatter fmt =
-    DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS")
-        .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
-
 
   // The total number of robots in the system.
   private static final int NUM_ROBOTS = 20;
@@ -275,7 +266,7 @@ class Injector {
     String eventTimeString =
         Long.toString((currTime - delayInMillis) / 1000 * 1000);
     // Add a (redundant) 'human-readable' date string to make the data semantics more clear.
-    String dateString = fmt.print(currTime);
+    String dateString = GameConstants.DATE_TIME_FORMATTER.print(currTime);
     message = message + "," + eventTimeString + "," + dateString;
     return message;
   }
@@ -294,7 +285,7 @@ class Injector {
       PubsubMessage pubsubMessage = new PubsubMessage()
               .encodeData(message.getBytes("UTF-8"));
       pubsubMessage.setAttributes(
-          ImmutableMap.of(TIMESTAMP_ATTRIBUTE,
+          ImmutableMap.of(GameConstants.TIMESTAMP_ATTRIBUTE,
               Long.toString((currTime - delayInMillis) / 1000 * 1000)));
       if (delayInMillis != 0) {
         System.out.println(pubsubMessage.getAttributes());

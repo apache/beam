@@ -431,6 +431,12 @@ class FileSystem(BeamPlugin):
   __metaclass__ = abc.ABCMeta
   CHUNK_SIZE = 1  # Chuck size in the batch operations
 
+  def __init__(self, pipeline_options):
+    """
+    Args:
+      pipeline_options: Instance of ``PipelineOptions``.
+    """
+
   @staticmethod
   def _get_compression_type(path, compression_type):
     if compression_type == CompressionTypes.AUTO:

@@ -17,13 +17,18 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
-import java.util.concurrent.Future;
+import java.util.Map;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
+import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,10 +59,12 @@ public class SdkHarnessClientTest {
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(registerResponseFuture);
 
-    Future<BeamFnApi.RegisterResponse> responseFuture = sdkHarnessClient.register(
-        ImmutableList.of(
-            BeamFnApi.ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build(),
-            BeamFnApi.ProcessBundleDescriptor.newBuilder().setId(descriptorId2).build()));
+    ProcessBundleDescriptor descriptor1 =
+        ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
+    ProcessBundleDescriptor descriptor2 =
+        ProcessBundleDescriptor.newBuilder().setId(descriptorId2).build();
+    Map<String, BundleProcessor> responseFuture =
+        sdkHarnessClient.register(ImmutableList.of(descriptor1, descriptor2));
 
     // Correlating the RegisterRequest and RegisterResponse is owned by the underlying
     // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
@@ -65,24 +72,27 @@ public class SdkHarnessClientTest {
     //
     // Currently there are no fields so there's nothing to check. This test is formulated
     // to match the pattern it should have if/when the response is meaningful.
-    BeamFnApi.RegisterResponse response = BeamFnApi.RegisterResponse.getDefaultInstance();
-    registerResponseFuture.set(
-        BeamFnApi.InstructionResponse.newBuilder().setRegister(response).build());
-    responseFuture.get();
+    assertThat(
+        responseFuture.keySet(), containsInAnyOrder(descriptor1.getId(), descriptor2.getId()));
   }
 
   @Test
   public void testNewBundleNoDataDoesNotCrash() throws Exception {
     String descriptorId1 = "descriptor1";
 
+    ProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
     SettableFuture<BeamFnApi.InstructionResponse> processBundleResponseFuture =
         SettableFuture.create();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
+        .thenReturn(SettableFuture.<InstructionResponse>create())
         .thenReturn(processBundleResponseFuture);
 
-    SdkHarnessClient.ActiveBundle activeBundle = sdkHarnessClient.newBundle(descriptorId1);
+    BundleProcessor processor =
+        sdkHarnessClient.getProcessor(descriptor);
+    SdkHarnessClient.ActiveBundle activeBundle = processor.newBundle();
 
-    // Correlating the ProcessBundleRequest and ProcessBundleReponse is owned by the underlying
+    // Correlating the ProcessBundleRequest and ProcessBundleResponse is owned by the underlying
     // FnApiControlClient. The SdkHarnessClient owns just wrapping the request and unwrapping
     // the response.
     //

@@ -27,7 +27,7 @@ class DirectPipelineResultTest(unittest.TestCase):
   def test_waiting_on_result_stops_executor_threads(self):
     pre_test_threads = set(t.ident for t in threading.enumerate())
 
-    pipeline = test_pipeline.TestPipeline()
+    pipeline = test_pipeline.TestPipeline(runner='DirectRunner')
     _ = (pipeline | beam.Create([{'foo': 'bar'}]))
     result = pipeline.run()
     result.wait_until_finish()

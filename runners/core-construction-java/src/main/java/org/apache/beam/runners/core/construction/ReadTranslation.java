@@ -35,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -51,33 +52,35 @@ public class ReadTranslation {
   private static final String JAVA_SERIALIZED_BOUNDED_SOURCE = "urn:beam:java:boundedsource:v1";
   private static final String JAVA_SERIALIZED_UNBOUNDED_SOURCE = "urn:beam:java:unboundedsource:v1";
 
-  public static ReadPayload toProto(Read.Bounded<?> read) {
+  public static ReadPayload toProto(Read.Bounded<?> read, SdkComponents components) {
     return ReadPayload.newBuilder()
         .setIsBounded(IsBounded.Enum.BOUNDED)
-        .setSource(toProto(read.getSource()))
+        .setSource(toProto(read.getSource(), components))
         .build();
   }
 
-  public static ReadPayload toProto(Read.Unbounded<?> read) {
+  public static ReadPayload toProto(
+      Unbounded<?> read, SdkComponents components) {
     return ReadPayload.newBuilder()
         .setIsBounded(IsBounded.Enum.UNBOUNDED)
-        .setSource(toProto(read.getSource()))
+        .setSource(toProto(read.getSource(), components))
         .build();
   }
 
-  public static SdkFunctionSpec toProto(Source<?> source) {
+  public static SdkFunctionSpec toProto(Source<?> source, SdkComponents components) {
     if (source instanceof BoundedSource) {
-      return toProto((BoundedSource) source);
+      return toProto((BoundedSource) source, components);
     } else if (source instanceof UnboundedSource) {
-      return toProto((UnboundedSource<?, ?>) source);
+      return toProto((UnboundedSource<?, ?>) source, components);
     } else {
       throw new IllegalArgumentException(
           String.format("Unknown %s type %s", Source.class.getSimpleName(), source.getClass()));
     }
   }
 
-  private static SdkFunctionSpec toProto(BoundedSource<?> source) {
+  private static SdkFunctionSpec toProto(BoundedSource<?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
+        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_BOUNDED_SOURCE)
@@ -119,8 +122,9 @@ public class ReadTranslation {
             .getPayload());
   }
 
-  private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source) {
+  private static SdkFunctionSpec toProto(UnboundedSource<?, ?> source, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
+        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_UNBOUNDED_SOURCE)
@@ -171,7 +175,7 @@ public class ReadTranslation {
     @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, Read.Unbounded<?>> transform, SdkComponents components) {
-      ReadPayload payload = toProto(transform.getTransform());
+      ReadPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
           .setPayload(payload.toByteString())
@@ -197,7 +201,7 @@ public class ReadTranslation {
     @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, Read.Bounded<?>> transform, SdkComponents components) {
-      ReadPayload payload = toProto(transform.getTransform());
+      ReadPayload payload = toProto(transform.getTransform(), components);
       return RunnerApi.FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
           .setPayload(payload.toByteString())
