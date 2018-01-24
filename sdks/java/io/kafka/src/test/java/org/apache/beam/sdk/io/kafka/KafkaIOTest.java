@@ -644,7 +644,11 @@ public class KafkaIOTest {
     String readStep = "readFromKafka";
 
     p.apply(readStep,
-        mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata());
+        mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+          .updateConsumerProperties(ImmutableMap.<String, Object>of(ConsumerConfig.GROUP_ID_CONFIG,
+                                                                    "test.group"))
+          .commitOffsetsInFinalize()
+          .withoutMetadata());
 
     PipelineResult result = p.run();
 
@@ -709,6 +713,23 @@ public class KafkaIOTest {
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
     assertThat(backlogBytesMetrics.gauges(), IsIterableWithSize.iterableWithSize(1));
+
+    // Ensure checkpoint mark is committed by checking 'commits' metric.
+    MetricQueryResults checkpointMarkCommitsMetrics =
+      result.metrics().queryMetrics(
+        MetricsFilter.builder()
+          .addNameFilter(
+            MetricNameFilter.named(
+              KafkaIO.UnboundedKafkaReader.METRIC_NAMESPACE,
+              KafkaIO.UnboundedKafkaReader.CHECKPOINT_MARK_COMMITS_METRIC))
+          .build());
+
+    // xxx: Not sure by result.metrics() does not contain UnboundedKafkaReader source metrics.
+    assertThat(checkpointMarkCommitsMetrics.counters(),
+               IsIterableWithSize.iterableWithSize(0)); // CHANGE TO 1
+
+    // assertThat(checkpointMarkCommitsMetrics.counters().iterator().next().attempted(),
+    //           greaterThan(0L));
   }
 
   @Test

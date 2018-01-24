@@ -62,6 +62,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -302,6 +304,7 @@ public class KafkaIO {
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
+        .setCommitOffsetsInFinalizeEnabled(false)
         .build();
   }
 
@@ -344,6 +347,7 @@ public class KafkaIO {
     @Nullable abstract Duration getMaxReadTime();
 
     @Nullable abstract Instant getStartReadTime();
+    abstract boolean isCommitOffsetsInFinalizeEnabled();
 
     abstract Builder<K, V> toBuilder();
 
@@ -364,6 +368,7 @@ public class KafkaIO {
       abstract Builder<K, V> setMaxNumRecords(long maxNumRecords);
       abstract Builder<K, V> setMaxReadTime(Duration maxReadTime);
       abstract Builder<K, V> setStartReadTime(Instant startReadTime);
+      abstract Builder<K, V> setCommitOffsetsInFinalizeEnabled(boolean commitOffsetInFinalize);
 
       abstract Read<K, V> build();
     }
@@ -562,6 +567,19 @@ public class KafkaIO {
     }
 
     /**
+     * Finalized offsets are committed to Kafka. See {@link CheckpointMark#finalizeCheckpoint()}.
+     * It helps with minimizing gaps or duplicate processing of records while restarting a pipeline
+     * from scratch. But it does not provide hard processing guarantees. There
+     * could be a short delay to commit after {@link CheckpointMark#finalizeCheckpoint()} is
+     * invoked, as reader might be blocked on reading from Kafka. Note that it is independent of
+     * 'AUTO_COMMIT' Kafka consumer configuration. Usually either this or AUTO_COMMIT in Kafka
+     * consumer is enabled, but not both.
+     */
+    public Read<K, V> commitOffsetsInFinalize() {
+      return toBuilder().setCommitOffsetsInFinalizeEnabled(true).build();
+    }
+
+    /**
      * Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata.
      */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
@@ -583,6 +601,11 @@ public class KafkaIO {
                 + "current version of Kafka Client is " + AppInfoParser.getVersion()
                 + ". If you are building with maven, set \"kafka.clients.version\" "
                 + "maven property to 0.10.1.0 or newer.");
+      }
+      if (isCommitOffsetsInFinalizeEnabled()) {
+        checkArgument(getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
+          "withCommitOffsetsInFinalizeEnabled() is true, but group.id in Kafka consumer config "
+              + "is not set. Offset management requires group.id.");
       }
 
       // Infer key/value coders if not specified explicitly
@@ -877,7 +900,16 @@ public class KafkaIO {
     }
   }
 
-  private static class UnboundedKafkaReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
+  @VisibleForTesting
+  static class UnboundedKafkaReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
+    // package private, accessed in KafkaCheckpointMark.finalizeCheckpoint.
+
+    @VisibleForTesting
+    static final String METRIC_NAMESPACE = "KafkaIOReader";
+    @VisibleForTesting
+    static final String CHECKPOINT_MARK_COMMITS_METRIC = "checkpointMarkCommits";
+    private static final String CHECKPOINT_MARK_COMMIT_SKIPS_METRIC = "checkpointMarkCommitSkips";
+
 
     private final UnboundedKafkaSource<K, V> source;
     private final String name;
@@ -896,9 +928,25 @@ public class KafkaIO {
     private final Counter bytesReadBySplit;
     private final Gauge backlogBytesOfSplit;
     private final Gauge backlogElementsOfSplit;
+    private final Counter checkpointMarkCommits = Metrics.counter(
+      METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_METRIC);
+    // Checkpoint marks skipped in favor of newer mark (only the latest needs to be committed).
+    private final Counter checkpointMarkCommitSkips = Metrics.counter(
+      METRIC_NAMESPACE, CHECKPOINT_MARK_COMMIT_SKIPS_METRIC);
 
+    /**
+     * The poll timeout while reading records from Kafka.
+     * If option to commit reader offsets in to Kafka in
+     * {@link KafkaCheckpointMark#finalizeCheckpoint()} is enabled, it would be delayed until
+     * this poll returns. It should be reasonably low as a result.
+     * At the same time it probably can't be very low like 10 millis, I am not sure how it affects
+     * when the latency is high. Probably good to experiment. Often multiple marks would be
+     * finalized in a batch, it it reduce finalization overhead to wait a short while and finalize
+     * only the last checkpoint mark.
+     */
     private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
-    private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
+    private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
+    private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(10);
 
     // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
     // network I/O inside poll(). Polling only inside #advance(), especially with a small timeout
@@ -907,6 +955,7 @@ public class KafkaIO {
     private final ExecutorService consumerPollThread = Executors.newSingleThreadExecutor();
     private final SynchronousQueue<ConsumerRecords<byte[], byte[]>> availableRecordsQueue =
         new SynchronousQueue<>();
+    private AtomicReference<KafkaCheckpointMark> finalizedCheckpointMark = new AtomicReference<>();
     private AtomicBoolean closed = new AtomicBoolean(false);
 
     // Backlog support :
@@ -1036,13 +1085,20 @@ public class KafkaIO {
     }
 
     private void consumerPollLoop() {
-      // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue
+      // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
+
+      ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
       while (!closed.get()) {
         try {
-          ConsumerRecords<byte[], byte[]> records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          if (!records.isEmpty() && !closed.get()) {
-            availableRecordsQueue.put(records); // blocks until dequeued.
+          if (records.isEmpty()) {
+            records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
           }
+          if (!records.isEmpty() && !closed.get()) {
+            availableRecordsQueue.offer(records,
+                                        RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(),
+                                        TimeUnit.MILLISECONDS);
+          }
+          commitFinalizedCheckpointMark(); // If any.
         } catch (InterruptedException e) {
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
           break;
@@ -1054,13 +1110,46 @@ public class KafkaIO {
       LOG.info("{}: Returning from consumer pool loop", this);
     }
 
+    /**
+     * Commit offsets from latest finalized checkpoint mark. The checkpoint mark is set
+     * only when committing offsets back to Kafka is enabled.
+     */
+    private void commitFinalizedCheckpointMark() {
+      KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
+      if (checkpointMark != null) {
+        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
+        for (PartitionMark partitionMark : checkpointMark.getPartitions()) {
+          if (partitionMark.getNextOffset() != UNINITIALIZED_OFFSET) {
+            offsets.put(
+              new TopicPartition(partitionMark.getTopic(), partitionMark.getPartition()),
+              new OffsetAndMetadata(partitionMark.getNextOffset()));
+          }
+        }
+        consumer.commitSync(offsets);
+        checkpointMarkCommits.inc();
+      }
+    }
+
+    /**
+     * Enqueue checkpoint mark to be committed to Kafka. This does not block until
+     * it is committed. There could be a delay of up to KAFKA_POLL_TIMEOUT (1 second).
+     * Any checkpoint mark enqueued earlier is dropped in favor of this checkpoint mark.
+     * Documentation for {@link CheckpointMark#finalizeCheckpoint()} says these are finalized
+     * in order. Only the latest offsets need to be committed.
+     */
+    void finalizeCheckpointMarkAsync(KafkaCheckpointMark checkpointMark) {
+      if (finalizedCheckpointMark.getAndSet(checkpointMark) != null) {
+        checkpointMarkCommitSkips.inc();
+      }
+    }
+
     private void nextBatch() {
       curBatch = Collections.emptyIterator();
 
       ConsumerRecords<byte[], byte[]> records;
       try {
         // poll available records, wait (if necessary) up to the specified timeout.
-        records = availableRecordsQueue.poll(NEW_RECORDS_POLL_TIMEOUT.getMillis(),
+        records = availableRecordsQueue.poll(RECORDS_DEQUEUE_POLL_TIMEOUT.getMillis(),
                                              TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -1307,13 +1396,13 @@ public class KafkaIO {
     public CheckpointMark getCheckpointMark() {
       reportBacklog();
       return new KafkaCheckpointMark(
-          // avoid lazy (consumedOffset can change)
-          ImmutableList.copyOf(
-              Lists.transform(
-                  partitionStates,
-                  p ->
-                      new PartitionMark(
-                          p.topicPartition.topic(), p.topicPartition.partition(), p.nextOffset))));
+        partitionStates.stream()
+            .map((p) -> new PartitionMark(p.topicPartition.topic(),
+                                          p.topicPartition.partition(),
+                                          p.nextOffset))
+            .collect(Collectors.toList()),
+        source.spec.isCommitOffsetsInFinalizeEnabled() ? this : null
+      );
     }
 
     @Override
