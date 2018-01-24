@@ -76,8 +76,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.flink.api.common.functions.FilterFunction;
-import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -88,7 +86,6 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
-import org.apache.flink.util.Collector;
 
 /**
  * Translators for transforming {@link PTransform PTransforms} to
@@ -238,9 +235,8 @@ class FlinkBatchTransformTranslators {
                   KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder),
                   windowingStrategy.getWindowFn().windowCoder()));
 
-
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
-          inputDataSet.groupBy(new KvKeySelector<InputT, K>(inputCoder.getKeyCoder()));
+          inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
       @SuppressWarnings("unchecked")
       WindowingStrategy<Object, BoundedWindow> boundedStrategy =
@@ -248,15 +244,11 @@ class FlinkBatchTransformTranslators {
 
       FlinkPartialReduceFunction<K, InputT, List<InputT>, ?> partialReduceFunction =
           new FlinkPartialReduceFunction<>(
-              combineFn, boundedStrategy,
-              Collections.<PCollectionView<?>, WindowingStrategy<?, ?>>emptyMap(),
-              context.getPipelineOptions());
+              combineFn, boundedStrategy, Collections.emptyMap(), context.getPipelineOptions());
 
       FlinkReduceFunction<K, List<InputT>, List<InputT>, ?> reduceFunction =
           new FlinkReduceFunction<>(
-              combineFn, boundedStrategy,
-              Collections.<PCollectionView<?>, WindowingStrategy<?, ?>>emptyMap(),
-              context.getPipelineOptions());
+              combineFn, boundedStrategy, Collections.emptyMap(), context.getPipelineOptions());
 
       // Partially GroupReduce the values into the intermediate format AccumT (combine)
       GroupCombineOperator<
@@ -269,7 +261,7 @@ class FlinkBatchTransformTranslators {
               "GroupCombine: " + transform.getName());
 
       Grouping<WindowedValue<KV<K, List<InputT>>>> intermediateGrouping =
-          groupCombine.groupBy(new KvKeySelector<List<InputT>, K>(inputCoder.getKeyCoder()));
+          groupCombine.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
       // Fully reduce the values and create output format VO
       GroupReduceOperator<
@@ -391,7 +383,7 @@ class FlinkBatchTransformTranslators {
               windowingStrategy);
 
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
-          inputDataSet.groupBy(new KvKeySelector<InputT, K>(inputCoder.getKeyCoder()));
+          inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
       // construct a map from side input to WindowingStrategy so that
       // the DoFn runner can map main-input windows to side input windows
@@ -441,7 +433,7 @@ class FlinkBatchTransformTranslators {
             context.getTypeInfo(context.getOutput(transform));
 
         Grouping<WindowedValue<KV<K, AccumT>>> intermediateGrouping =
-            groupCombine.groupBy(new KvKeySelector<AccumT, K>(inputCoder.getKeyCoder()));
+            groupCombine.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
         // Fully reduce the values and create output format OutputT
         GroupReduceOperator<
@@ -466,7 +458,7 @@ class FlinkBatchTransformTranslators {
             context.getTypeInfo(context.getOutput(transform));
 
         Grouping<WindowedValue<KV<K, InputT>>> grouping =
-            inputDataSet.groupBy(new KvKeySelector<InputT, K>(inputCoder.getKeyCoder()));
+            inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
         // Fully reduce the values and create output format OutputT
         GroupReduceOperator<
@@ -675,16 +667,16 @@ class FlinkBatchTransformTranslators {
         // add the flatMap that simply never forwards the single element
         DataSource<String> dummySource =
             context.getExecutionEnvironment().fromElements("dummy");
-        result = dummySource.flatMap(new FlatMapFunction<String, WindowedValue<T>>() {
-          @Override
-          public void flatMap(String s, Collector<WindowedValue<T>> collector) throws Exception {
-            // never return anything
-          }
-        }).returns(
-            new CoderTypeInformation<>(
-                WindowedValue.getFullCoder(
-                    (Coder<T>) VoidCoder.of(),
-                    GlobalWindow.Coder.INSTANCE)));
+        result =
+            dummySource
+                .<WindowedValue<T>>flatMap(
+                    (s, collector) -> {
+                      // never return anything
+                    })
+                .returns(
+                    new CoderTypeInformation<>(
+                        WindowedValue.getFullCoder(
+                            (Coder<T>) VoidCoder.of(), GlobalWindow.Coder.INSTANCE)));
       } else {
         for (PValue taggedPc : allInputs.values()) {
           checkArgument(
@@ -705,12 +697,7 @@ class FlinkBatchTransformTranslators {
       // insert a dummy filter, there seems to be a bug in Flink
       // that produces duplicate elements after the union in some cases
       // if we don't
-      result = result.filter(new FilterFunction<WindowedValue<T>>() {
-        @Override
-        public boolean filter(WindowedValue<T> tWindowedValue) throws Exception {
-          return true;
-        }
-      }).name("UnionFixFilter");
+      result = result.filter(tWindowedValue -> true).name("UnionFixFilter");
       context.setOutputDataSet(context.getOutput(transform), result);
     }
   }

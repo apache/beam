@@ -790,20 +790,23 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
     }
 
-    events.apply(queryName + ".EventToPubsubMessage",
-            ParDo.of(new DoFn<Event, PubsubMessage>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                try {
-                  byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-                  c.output(new PubsubMessage(payload, new HashMap<String, String>()));
-                } catch (CoderException e1) {
-                  LOG.error("Error while sending Event {} to pusbSub: serialization error",
-                      c.element().toString());
-                }
-              }
-            })
-        )
+    events
+        .apply(
+            queryName + ".EventToPubsubMessage",
+            ParDo.of(
+                new DoFn<Event, PubsubMessage>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    try {
+                      byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+                      c.output(new PubsubMessage(payload, new HashMap<>()));
+                    } catch (CoderException e1) {
+                      LOG.error(
+                          "Error while sending Event {} to pusbSub: serialization error",
+                          c.element().toString());
+                    }
+                  }
+                }))
         .apply(queryName + ".WritePubsubEvents", io);
   }
 
@@ -925,26 +928,26 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             break;
           case PUBLISH_ONLY:
             // Send synthesized events to Pubsub in this job.
-            sinkEventsToPubsub(sourceEventsFromSynthetic(p).apply(queryName + ".Snoop",
-                    NexmarkUtils.snoop(queryName)), now);
+            sinkEventsToPubsub(
+                sourceEventsFromSynthetic(p)
+                    .apply(queryName + ".Snoop", NexmarkUtils.snoop(queryName)),
+                now);
             break;
           case COMBINED:
             // Send synthesized events to Pubsub in separate publisher job.
             // We won't start the main pipeline until the publisher has sent the pre-load events.
             // We'll shutdown the publisher job when we notice the main job has finished.
-            invokeBuilderForPublishOnlyPipeline(new PipelineBuilder<NexmarkOptions>() {
-              @Override
-              public void build(NexmarkOptions publishOnlyOptions) {
-                Pipeline sp = Pipeline.create(options);
-                NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
-                publisherMonitor = new Monitor<>(queryName, "publisher");
-                sinkEventsToPubsub(
-                    sourceEventsFromSynthetic(sp)
-                            .apply(queryName + ".Monitor", publisherMonitor.getTransform()),
-                    now);
-                publisherResult = sp.run();
-              }
-            });
+            invokeBuilderForPublishOnlyPipeline(
+                publishOnlyOptions -> {
+                  Pipeline sp = Pipeline.create(options);
+                  NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
+                  publisherMonitor = new Monitor<>(queryName, "publisher");
+                  sinkEventsToPubsub(
+                      sourceEventsFromSynthetic(sp)
+                          .apply(queryName + ".Monitor", publisherMonitor.getTransform()),
+                      now);
+                  publisherResult = sp.run();
+                });
             break;
         }
 
@@ -991,8 +994,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     PCollection<String> formattedResults =
       results.apply(queryName + ".Format", NexmarkUtils.format(queryName));
     if (options.getLogResults()) {
-      formattedResults = formattedResults.apply(queryName + ".Results.Log",
-              NexmarkUtils.<String>log(queryName + ".Results"));
+      formattedResults =
+          formattedResults.apply(
+              queryName + ".Results.Log", NexmarkUtils.log(queryName + ".Results"));
     }
 
     switch (configuration.sinkType) {
@@ -1091,8 +1095,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       PCollection<Event> source = createSource(p, now);
 
       if (options.getLogEvents()) {
-        source = source.apply(queryName + ".Events.Log",
-                NexmarkUtils.<Event>log(queryName + ".Events"));
+        source = source.apply(queryName + ".Events.Log", NexmarkUtils.log(queryName + ".Events"));
       }
 
       // Source will be null if source type is PUBSUB and mode is PUBLISH_ONLY.
@@ -1198,7 +1201,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private List<NexmarkQuery> createSqlQueries() {
-    return Arrays.<NexmarkQuery> asList(
+    return Arrays.asList(
         new NexmarkSqlQuery(configuration, new SqlQuery0()),
         new NexmarkSqlQuery(configuration, new SqlQuery1()),
         new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)));

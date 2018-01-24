@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -223,7 +222,7 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
 
     File parent = file.getAbsoluteFile().getParentFile();
     if (!parent.exists()) {
-      return MatchResult.create(Status.NOT_FOUND, Collections.<Metadata>emptyList());
+      return MatchResult.create(Status.NOT_FOUND, Collections.emptyList());
     }
 
     // Method getAbsolutePath() on Windows platform may return something like
@@ -241,15 +240,11 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
 
     // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
     Iterable<File> files = com.google.common.io.Files.fileTreeTraverser().preOrderTraversal(parent);
-    Iterable<File> matchedFiles = Iterables.filter(files,
-        Predicates.and(
-            com.google.common.io.Files.isFile(),
-            new Predicate<File>() {
-              @Override
-              public boolean apply(File input) {
-                return matcher.matches(input.toPath());
-              }
-            }));
+    Iterable<File> matchedFiles =
+        Iterables.filter(
+            files,
+            Predicates.and(
+                com.google.common.io.Files.isFile(), input -> matcher.matches(input.toPath())));
 
     List<Metadata> result = Lists.newLinkedList();
     for (File match : matchedFiles) {

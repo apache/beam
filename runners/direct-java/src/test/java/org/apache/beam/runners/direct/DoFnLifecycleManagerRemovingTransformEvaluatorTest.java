@@ -83,7 +83,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     try {
       evaluator.processElement(WindowedValue.valueInGlobalWindow(new Object()));
     } catch (Exception e) {
-      assertThat(lifecycleManager.get(), not(Matchers.<DoFn<?, ?>>theInstance(original)));
+      assertThat(lifecycleManager.get(), not(Matchers.theInstance(original)));
       return;
     }
     fail("Expected underlying evaluator to throw on method call");
@@ -106,7 +106,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
           TimerData.of("foo", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME),
           GlobalWindow.INSTANCE);
     } catch (Exception e) {
-      assertThat(lifecycleManager.get(), not(Matchers.<DoFn<?, ?>>theInstance(original)));
+      assertThat(lifecycleManager.get(), not(Matchers.theInstance(original)));
       return;
     }
     fail("Expected underlying evaluator to throw on method call");
@@ -126,7 +126,7 @@ public class DoFnLifecycleManagerRemovingTransformEvaluatorTest {
     try {
       evaluator.finishBundle();
     } catch (Exception e) {
-      assertThat(lifecycleManager.get(), Matchers.not(Matchers.<DoFn<?, ?>>theInstance(original)));
+      assertThat(lifecycleManager.get(), Matchers.not(Matchers.theInstance(original)));
       return;
     }
     fail("Expected underlying evaluator to throw on method call");

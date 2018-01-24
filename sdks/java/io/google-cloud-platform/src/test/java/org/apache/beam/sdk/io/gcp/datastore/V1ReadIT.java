@@ -88,9 +88,7 @@ public class V1ReadIT {
 
     // Count the total number of entities
     Pipeline p = Pipeline.create(options);
-    PCollection<Long> count = p
-        .apply(read)
-        .apply(Count.<Entity>globally());
+    PCollection<Long> count = p.apply(read).apply(Count.globally());
 
     PAssert.thatSingleton(count).isEqualTo(numEntities);
     p.run();
@@ -131,9 +129,7 @@ public class V1ReadIT {
 
     // Count the total number of entities
     Pipeline p = Pipeline.create(options);
-    PCollection<Long> count = p
-        .apply(read)
-        .apply(Count.<Entity>globally());
+    PCollection<Long> count = p.apply(read).apply(Count.globally());
 
     PAssert.thatSingleton(count).isEqualTo(expectedNumEntities);
     p.run();

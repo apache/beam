@@ -64,9 +64,8 @@ class ViewOverrideFactory<ElemT, ViewT>
           exc);
     }
 
-      return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
-        new GroupAndWriteView<ElemT, ViewT>(view));
+    return PTransformReplacement.of(
+        PTransformReplacements.getSingletonMainInput(transform), new GroupAndWriteView<>(view));
   }
 
   @Override
@@ -87,11 +86,11 @@ class ViewOverrideFactory<ElemT, ViewT>
     @Override
     public PCollection<ElemT> expand(final PCollection<ElemT> input) {
       input
-          .apply(WithKeys.<Void, ElemT>of((Void) null))
+          .apply(WithKeys.of((Void) null))
           .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()))
-          .apply(GroupByKey.<Void, ElemT>create())
-          .apply(Values.<Iterable<ElemT>>create())
-          .apply(new WriteView<ElemT, ViewT>(view));
+          .apply(GroupByKey.create())
+          .apply(Values.create())
+          .apply(new WriteView<>(view));
       return input;
     }
   }

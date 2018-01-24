@@ -138,23 +138,10 @@ public class SplittableParDoProcessFnTest {
       this.tester = DoFnTester.of(processFn);
       this.timerInternals = new InMemoryTimerInternals();
       this.stateInternals = new TestInMemoryStateInternals<>("dummy");
-      processFn.setStateInternalsFactory(
-          new StateInternalsFactory<String>() {
-            @Override
-            public StateInternals stateInternalsForKey(String key) {
-              return stateInternals;
-            }
-          });
-      processFn.setTimerInternalsFactory(
-          new TimerInternalsFactory<String>() {
-            @Override
-            public TimerInternals timerInternalsForKey(String key) {
-              return timerInternals;
-            }
-          });
+      processFn.setStateInternalsFactory(key -> stateInternals);
+      processFn.setTimerInternalsFactory(key -> timerInternals);
       processFn.setProcessElementInvoker(
-          new OutputAndTimeBoundedSplittableProcessElementInvoker<
-              InputT, OutputT, RestrictionT, TrackerT>(
+          new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
               fn,
               tester.getPipelineOptions(),
               new OutputWindowedValueToDoFnTester<>(tester),
@@ -222,8 +209,7 @@ public class SplittableParDoProcessFnTest {
       if (timers.isEmpty()) {
         return false;
       }
-      tester.processElement(
-          KeyedWorkItems.<String, KV<InputT, RestrictionT>>timersWorkItem("key", timers));
+      tester.processElement(KeyedWorkItems.timersWorkItem("key", timers));
       return true;
     }
 

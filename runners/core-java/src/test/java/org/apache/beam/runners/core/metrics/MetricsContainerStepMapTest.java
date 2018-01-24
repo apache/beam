@@ -234,7 +234,7 @@ public class MetricsContainerStepMapTest {
   }
 
   private <T> void assertIterableSize(Iterable<T> iterable, int size) {
-    assertThat(iterable, IsIterableWithSize.<T>iterableWithSize(size));
+    assertThat(iterable, IsIterableWithSize.iterableWithSize(size));
   }
 
   private void assertCounter(

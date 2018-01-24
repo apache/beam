@@ -22,13 +22,11 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.util.List;
-import javax.annotation.Nonnull;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -47,14 +45,7 @@ public class ApiSurfaceTest {
     final ImmutableSet<Matcher<Class<?>>> allowed =
         FluentIterable.from(
                 Iterables.concat(Sets.newHashSet(classToExamine), Sets.newHashSet(exposedClasses)))
-            .transform(
-                new Function<Class, Matcher<Class<?>>>() {
-
-                  @Override
-                  public Matcher<Class<?>> apply(@Nonnull final Class input) {
-                    return Matchers.<Class<?>>equalTo(input);
-                  }
-                })
+            .transform(input -> Matchers.<Class<?>>equalTo(input))
             .toSet();
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowed));

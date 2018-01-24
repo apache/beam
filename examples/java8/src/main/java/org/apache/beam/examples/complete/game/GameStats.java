@@ -106,12 +106,12 @@ public class GameStats extends LeaderBoard {
     public PCollection<KV<String, Integer>> expand(PCollection<KV<String, Integer>> userScores) {
 
       // Get the sum of scores for each user.
-      PCollection<KV<String, Integer>> sumScores = userScores
-          .apply("UserSum", Sum.<String>integersPerKey());
+      PCollection<KV<String, Integer>> sumScores =
+          userScores.apply("UserSum", Sum.integersPerKey());
 
       // Extract the score from each element, and use it to find the global mean.
-      final PCollectionView<Double> globalMeanScore = sumScores.apply(Values.<Integer>create())
-          .apply(Mean.<Integer>globally().asSingletonView());
+      final PCollectionView<Double> globalMeanScore =
+          sumScores.apply(Values.create()).apply(Mean.<Integer>globally().asSingletonView());
 
       // Filter the user sums using the global mean.
       PCollection<KV<String, Integer>> filtered = sumScores
@@ -184,18 +184,15 @@ public class GameStats extends LeaderBoard {
   protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
       configureWindowedWrite() {
     Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-        new HashMap<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>();
+        new HashMap<>();
     tableConfigure.put(
-        "team",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", (c, w) -> c.element().getKey()));
+        "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
     tableConfigure.put(
         "total_score",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "INTEGER", (c, w) -> c.element().getValue()));
+        new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
     tableConfigure.put(
         "window_start",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+        new WriteWindowedToBigQuery.FieldInfo<>(
             "STRING",
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
@@ -203,7 +200,7 @@ public class GameStats extends LeaderBoard {
             }));
     tableConfigure.put(
         "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
+        new WriteWindowedToBigQuery.FieldInfo<>(
             "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
@@ -215,19 +212,17 @@ public class GameStats extends LeaderBoard {
   protected static Map<String, WriteWindowedToBigQuery.FieldInfo<Double>>
       configureSessionWindowWrite() {
 
-    Map<String, WriteWindowedToBigQuery.FieldInfo<Double>> tableConfigure =
-        new HashMap<String, WriteWindowedToBigQuery.FieldInfo<Double>>();
+    Map<String, WriteWindowedToBigQuery.FieldInfo<Double>> tableConfigure = new HashMap<>();
     tableConfigure.put(
         "window_start",
-        new WriteWindowedToBigQuery.FieldInfo<Double>(
+        new WriteWindowedToBigQuery.FieldInfo<>(
             "STRING",
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
               return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
-        "mean_duration",
-        new WriteWindowedToBigQuery.FieldInfo<Double>("FLOAT", (c, w) -> c.element()));
+        "mean_duration", new WriteWindowedToBigQuery.FieldInfo<>("FLOAT", (c, w) -> c.element()));
     return tableConfigure;
   }
 
@@ -257,16 +252,19 @@ public class GameStats extends LeaderBoard {
 
     // Calculate the total score per user over fixed windows, and
     // cumulative updates for late data.
-    final PCollectionView<Map<String, Integer>> spammersView = userEvents
-      .apply("FixedWindowsUser", Window.<KV<String, Integer>>into(
-          FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
+    final PCollectionView<Map<String, Integer>> spammersView =
+        userEvents
+            .apply(
+                "FixedWindowsUser",
+                Window.into(
+                    FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
 
-      // Filter out everyone but those with (SCORE_WEIGHT * avg) clickrate.
-      // These might be robots/spammers.
-      .apply("CalculateSpammyUsers", new CalculateSpammyUsers())
-      // Derive a view from the collection of spammer users. It will be used as a side input
-      // in calculating the team score sums, below.
-      .apply("CreateSpammersView", View.<String, Integer>asMap());
+            // Filter out everyone but those with (SCORE_WEIGHT * avg) clickrate.
+            // These might be robots/spammers.
+            .apply("CalculateSpammyUsers", new CalculateSpammyUsers())
+            // Derive a view from the collection of spammer users. It will be used as a side input
+            // in calculating the team score sums, below.
+            .apply("CreateSpammersView", View.asMap());
 
     // [START DocInclude_FilterAndCalc]
     // Calculate the total score per team over fixed windows,
@@ -274,29 +272,35 @@ public class GameStats extends LeaderBoard {
     // suspected robots-- to filter out scores from those users from the sum.
     // Write the results to BigQuery.
     rawEvents
-      .apply("WindowIntoFixedWindows", Window.<GameActionInfo>into(
-          FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
-      // Filter out the detected spammer users, using the side input derived above.
-      .apply("FilterOutSpammers", ParDo
-              .of(new DoFn<GameActionInfo, GameActionInfo>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  // If the user is not in the spammers Map, output the data element.
-                  if (c.sideInput(spammersView).get(c.element().getUser().trim()) == null) {
-                    c.output(c.element());
-                  }
-                }
-              }).withSideInputs(spammersView))
+        .apply(
+            "WindowIntoFixedWindows",
+            Window.into(
+                FixedWindows.of(Duration.standardMinutes(options.getFixedWindowDuration()))))
+        // Filter out the detected spammer users, using the side input derived above.
+        .apply(
+            "FilterOutSpammers",
+            ParDo.of(
+                    new DoFn<GameActionInfo, GameActionInfo>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        // If the user is not in the spammers Map, output the data element.
+                        if (c.sideInput(spammersView).get(c.element().getUser().trim()) == null) {
+                          c.output(c.element());
+                        }
+                      }
+                    })
+                .withSideInputs(spammersView))
         // Extract and sum teamname/score pairs from the event data.
-      .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
-      // [END DocInclude_FilterAndCalc]
-      // Write the result to BigQuery
-      .apply("WriteTeamSums",
-          new WriteWindowedToBigQuery<KV<String, Integer>>(
-              options.as(GcpOptions.class).getProject(),
-              options.getDataset(),
-              options.getGameStatsTablePrefix() + "_team", configureWindowedWrite()));
-
+        .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
+        // [END DocInclude_FilterAndCalc]
+        // Write the result to BigQuery
+        .apply(
+            "WriteTeamSums",
+            new WriteWindowedToBigQuery<>(
+                options.as(GcpOptions.class).getProject(),
+                options.getDataset(),
+                options.getGameStatsTablePrefix() + "_team",
+                configureWindowedWrite()));
 
     // [START DocInclude_SessionCalc]
     // Detect user sessions-- that is, a burst of activity separated by a gap from further
@@ -304,27 +308,33 @@ public class GameStats extends LeaderBoard {
     // This information could help the game designers track the changing user engagement
     // as their set of games changes.
     userEvents
-      .apply("WindowIntoSessions", Window.<KV<String, Integer>>into(
-          Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
-          .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW))
-      // For this use, we care only about the existence of the session, not any particular
-      // information aggregated over it, so the following is an efficient way to do that.
-      .apply(Combine.perKey(x -> 0))
-      // Get the duration per session.
-      .apply("UserSessionActivity", ParDo.of(new UserSessionInfoFn()))
-      // [END DocInclude_SessionCalc]
-      // [START DocInclude_Rewindow]
-      // Re-window to process groups of session sums according to when the sessions complete.
-      .apply("WindowToExtractSessionMean", Window.<Integer>into(
-          FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
-      // Find the mean session duration in each window.
-      .apply(Mean.<Integer>globally().withoutDefaults())
-      // Write this info to a BigQuery table.
-      .apply("WriteAvgSessionLength",
-             new WriteWindowedToBigQuery<Double>(
-                 options.as(GcpOptions.class).getProject(),
-                 options.getDataset(),
-                 options.getGameStatsTablePrefix() + "_sessions", configureSessionWindowWrite()));
+        .apply(
+            "WindowIntoSessions",
+            Window.<KV<String, Integer>>into(
+                    Sessions.withGapDuration(Duration.standardMinutes(options.getSessionGap())))
+                .withTimestampCombiner(TimestampCombiner.END_OF_WINDOW))
+        // For this use, we care only about the existence of the session, not any particular
+        // information aggregated over it, so the following is an efficient way to do that.
+        .apply(Combine.perKey(x -> 0))
+        // Get the duration per session.
+        .apply("UserSessionActivity", ParDo.of(new UserSessionInfoFn()))
+        // [END DocInclude_SessionCalc]
+        // [START DocInclude_Rewindow]
+        // Re-window to process groups of session sums according to when the sessions complete.
+        .apply(
+            "WindowToExtractSessionMean",
+            Window.into(
+                FixedWindows.of(Duration.standardMinutes(options.getUserActivityWindowDuration()))))
+        // Find the mean session duration in each window.
+        .apply(Mean.<Integer>globally().withoutDefaults())
+        // Write this info to a BigQuery table.
+        .apply(
+            "WriteAvgSessionLength",
+            new WriteWindowedToBigQuery<>(
+                options.as(GcpOptions.class).getProject(),
+                options.getDataset(),
+                options.getGameStatsTablePrefix() + "_sessions",
+                configureSessionWindowWrite()));
     // [END DocInclude_Rewindow]
 
 

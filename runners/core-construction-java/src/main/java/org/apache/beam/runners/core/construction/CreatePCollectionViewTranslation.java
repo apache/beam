@@ -60,10 +60,7 @@ public class CreatePCollectionViewTranslation {
       throws IOException {
 
     RunnerApi.PTransform transformProto =
-        PTransformTranslation.toProto(
-            application,
-            Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
-            SdkComponents.create());
+        PTransformTranslation.toProto(application, Collections.emptyList(), SdkComponents.create());
 
     checkArgument(
         PTransformTranslation.CREATE_VIEW_TRANSFORM_URN.equals(transformProto.getSpec().getUrn()),

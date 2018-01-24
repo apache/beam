@@ -122,7 +122,7 @@ class ElasticsearchIOTestCommon implements Serializable {
                 .withScrollKeepalive("5m")
                 //set to default value, useful just to test parameter passing.
                 .withBatchSize(100L));
-    PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(numDocs);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numDocs);
     pipeline.run();
   }
 
@@ -148,7 +148,7 @@ class ElasticsearchIOTestCommon implements Serializable {
             ElasticsearchIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
                 .withQuery(query));
-    PAssert.thatSingleton(output.apply("Count", Count.<String>globally()))
+    PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(numDocs / NUM_SCIENTISTS);
     pipeline.run();
   }
@@ -176,11 +176,7 @@ class ElasticsearchIOTestCommon implements Serializable {
         connectionConfiguration.getType());
     HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
     Response response =
-        restClient.performRequest(
-            "GET",
-            endPoint,
-            Collections.<String, String>emptyMap(),
-            httpEntity);
+        restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
     JsonNode searchResult = parseResponse(response);
     int count = searchResult.path("hits").path("total").asInt();
     assertEquals(numDocs / NUM_SCIENTISTS, count);

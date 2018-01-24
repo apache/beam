@@ -1136,9 +1136,10 @@ public class Combine {
 
     @Override
     public PCollection<OutputT> expand(PCollection<InputT> input) {
-      PCollection<KV<Void, InputT>> withKeys = input
-          .apply(WithKeys.<Void, InputT>of((Void) null))
-          .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
+      PCollection<KV<Void, InputT>> withKeys =
+          input
+              .apply(WithKeys.of((Void) null))
+              .setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
 
       Combine.PerKey<Void, InputT, OutputT> combine = Combine.fewKeys(fn, fnDisplayData);
       if (!sideInputs.isEmpty()) {
@@ -1152,7 +1153,7 @@ public class Combine {
         combined = withKeys.apply(combine);
       }
 
-      PCollection<OutputT> output = combined.apply(Values.<OutputT>create());
+      PCollection<OutputT> output = combined.apply(Values.create());
 
       if (insertDefault) {
         if (!output.getWindowingStrategy().getWindowFn().isCompatible(new GlobalWindows())) {
@@ -1173,9 +1174,7 @@ public class Combine {
     }
 
     private PCollection<OutputT> insertDefaultValueIfEmpty(PCollection<OutputT> maybeEmpty) {
-      final PCollectionView<Iterable<OutputT>> maybeEmptyView = maybeEmpty.apply(
-          View.<OutputT>asIterable());
-
+      final PCollectionView<Iterable<OutputT>> maybeEmptyView = maybeEmpty.apply(View.asIterable());
 
       final OutputT defaultValue = fn.defaultValue();
       PCollection<OutputT> defaultIfEmpty = maybeEmpty.getPipeline()
@@ -1193,8 +1192,7 @@ public class Combine {
           .setCoder(maybeEmpty.getCoder())
           .setWindowingStrategyInternal(maybeEmpty.getWindowingStrategy());
 
-      return PCollectionList.of(maybeEmpty).and(defaultIfEmpty)
-          .apply(Flatten.<OutputT>pCollections());
+      return PCollectionList.of(maybeEmpty).and(defaultIfEmpty).apply(Flatten.pCollections());
     }
   }
 
@@ -1276,15 +1274,14 @@ public class Combine {
       PCollection<OutputT> combined =
           input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
       PCollection<KV<Void, OutputT>> materializationInput =
-          combined.apply(new VoidKeyToMultimapMaterialization<OutputT>());
+          combined.apply(new VoidKeyToMultimapMaterialization<>());
       PCollectionView<OutputT> view = PCollectionViews.singletonView(
           materializationInput,
               input.getWindowingStrategy(),
               insertDefault,
               insertDefault ? fn.defaultValue() : null,
           combined.getCoder());
-      materializationInput.apply(
-          CreatePCollectionView.<KV<Void, OutputT>, OutputT>of(view));
+      materializationInput.apply(CreatePCollectionView.of(view));
       return view;
     }
 
@@ -1583,8 +1580,7 @@ public class Combine {
     @Override
     public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
       return input
-          .apply(
-              fewKeys ? GroupByKey.<K, InputT>createWithFewKeys() : GroupByKey.<K, InputT>create())
+          .apply(fewKeys ? GroupByKey.createWithFewKeys() : GroupByKey.create())
           .apply(
               Combine.<K, InputT, OutputT>groupedValues(fn, fnDisplayData)
                   .withSideInputs(sideInputs));
@@ -1650,8 +1646,7 @@ public class Combine {
         throw new IllegalStateException("Unable to determine accumulator coder.", e);
       }
       Coder<InputOrAccum<InputT, AccumT>> inputOrAccumCoder =
-          new InputOrAccum.InputOrAccumCoder<InputT, AccumT>(
-              inputCoder.getValueCoder(), accumCoder);
+          new InputOrAccum.InputOrAccumCoder<>(inputCoder.getValueCoder(), accumCoder);
 
       // A CombineFn's mergeAccumulator can be applied in a tree-like fashion.
       // Here we shard the key using an integer nonce, combine on that partial
@@ -1892,9 +1887,7 @@ public class Combine {
                       KvCoder.of(inputCoder.getKeyCoder(), VarIntCoder.of()),
                       inputCoder.getValueCoder()))
               .setWindowingStrategyInternal(preCombineStrategy)
-              .apply(
-                  "PreCombineHot",
-                  Combine.<KV<K, Integer>, InputT, AccumT>perKey(hotPreCombine, fnDisplayData))
+              .apply("PreCombineHot", Combine.perKey(hotPreCombine, fnDisplayData))
               .apply(
                   "StripNonce",
                   MapElements.via(
@@ -1909,7 +1902,7 @@ public class Combine {
                         }
                       }))
               .setCoder(KvCoder.of(inputCoder.getKeyCoder(), inputOrAccumCoder))
-              .apply(Window.<KV<K, InputOrAccum<InputT, AccumT>>>remerge())
+              .apply(Window.remerge())
               .setWindowingStrategyInternal(input.getWindowingStrategy());
       PCollection<KV<K, InputOrAccum<InputT, AccumT>>> preprocessedCold = split
           .get(cold)
@@ -1927,10 +1920,8 @@ public class Combine {
       // Combine the union of the pre-processed hot and cold key results.
       return PCollectionList.of(precombinedHot)
           .and(preprocessedCold)
-          .apply(Flatten.<KV<K, InputOrAccum<InputT, AccumT>>>pCollections())
-          .apply(
-              "PostCombine",
-              Combine.<K, InputOrAccum<InputT, AccumT>, OutputT>perKey(postCombine, fnDisplayData));
+          .apply(Flatten.pCollections())
+          .apply("PostCombine", Combine.perKey(postCombine, fnDisplayData));
     }
 
     @Override
@@ -2006,9 +1997,9 @@ public class Combine {
         public InputOrAccum<InputT, AccumT> decode(InputStream inStream, Coder.Context context)
             throws CoderException, IOException {
           if (inStream.read() == 0) {
-            return InputOrAccum.<InputT, AccumT>input(inputCoder.decode(inStream, context));
+            return InputOrAccum.input(inputCoder.decode(inStream, context));
           } else {
-            return InputOrAccum.<InputT, AccumT>accum(accumCoder.decode(inStream, context));
+            return InputOrAccum.accum(accumCoder.decode(inStream, context));
           }
         }
 

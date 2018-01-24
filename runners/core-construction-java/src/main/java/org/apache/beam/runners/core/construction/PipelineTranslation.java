@@ -85,8 +85,7 @@ public class PipelineTranslation {
             children.put(node.getEnclosingNode(), node.toAppliedPTransform(pipeline));
             try {
               components.registerPTransform(
-                  node.toAppliedPTransform(pipeline),
-                  Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+                  node.toAppliedPTransform(pipeline), Collections.emptyList());
             } catch (IOException e) {
               throw new IllegalStateException(e);
             }

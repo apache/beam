@@ -38,7 +38,7 @@ abstract class StubTrigger extends Trigger.OnceTrigger {
   }
 
   protected StubTrigger() {
-    super(Lists.<Trigger>newArrayList());
+    super(Lists.newArrayList());
   }
 
   @Override

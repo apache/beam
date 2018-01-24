@@ -195,7 +195,7 @@ public class FileBasedSinkTest {
     // Create temporary output bundles and output File objects.
     for (int i = 0; i < numFiles; i++) {
       fileResults.add(
-          new FileResult<Void>(
+          new FileResult<>(
               LocalResources.fromFile(temporaryFiles.get(i), false),
               UNKNOWN_SHARDNUM,
               GlobalWindow.INSTANCE,
@@ -253,7 +253,7 @@ public class FileBasedSinkTest {
       outputFiles.add(outputFile);
     }
 
-    writeOp.removeTemporaryFiles(Collections.<ResourceId>emptySet(), true);
+    writeOp.removeTemporaryFiles(Collections.emptySet(), true);
 
     for (int i = 0; i < numFiles; i++) {
       File temporaryFile = temporaryFiles.get(i);
@@ -293,7 +293,7 @@ public class FileBasedSinkTest {
           .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED);
       resultsToFinalFilenames.add(
           KV.of(
-              new FileResult<Void>(
+              new FileResult<>(
                   LocalResources.fromFile(inputTmpFile, false),
                   UNKNOWN_SHARDNUM,
                   GlobalWindow.INSTANCE,
@@ -363,12 +363,13 @@ public class FileBasedSinkTest {
     try {
       List<FileResult<Void>> results = Lists.newArrayList();
       for (int i = 0; i < 3; ++i) {
-        results.add(new FileResult<Void>(
-            root.resolve("temp" + i, StandardResolveOptions.RESOLVE_FILE),
-            1 /* shard - should be different, but is the same */,
-            GlobalWindow.INSTANCE,
-            PaneInfo.ON_TIME_AND_ONLY_FIRING,
-            null));
+        results.add(
+            new FileResult<>(
+                root.resolve("temp" + i, StandardResolveOptions.RESOLVE_FILE),
+                1 /* shard - should be different, but is the same */,
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                null));
       }
       writeOp.finalizeDestination(null, GlobalWindow.INSTANCE, 5 /* numShards */, results);
       fail("Should have failed.");

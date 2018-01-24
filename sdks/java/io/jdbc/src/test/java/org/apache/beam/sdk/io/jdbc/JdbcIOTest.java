@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.apache.beam.sdk.io.common.TestRow.getNameForSeed;
 import static org.junit.Assert.assertTrue;
 
 import java.io.PrintWriter;
@@ -32,7 +33,6 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import javax.sql.DataSource;
-
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -213,8 +213,7 @@ public class JdbcIOTest implements Serializable {
             .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
             .withCoder(SerializableCoder.of(TestRow.class)));
 
-    PAssert.thatSingleton(
-        rows.apply("Count All", Count.<TestRow>globally()))
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally()))
         .isEqualTo((long) EXPECTED_ROW_COUNT);
 
     Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
@@ -225,24 +224,17 @@ public class JdbcIOTest implements Serializable {
 
    @Test
    public void testReadWithSingleStringParameter() throws Exception {
-     PCollection<TestRow> rows = pipeline.apply(
-             JdbcIO.<TestRow>read()
-                     .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-                     .withQuery(String.format("select name,id from %s where name = ?",
-                         readTableName))
-                     .withStatementPreparator(new JdbcIO.StatementPreparator() {
-                       @Override
-                       public void setParameters(PreparedStatement preparedStatement)
-                           throws Exception {
-                         preparedStatement.setString(1, TestRow.getNameForSeed(1));
-                       }
-                     })
-                     .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                 .withCoder(SerializableCoder.of(TestRow.class)));
+    PCollection<TestRow> rows =
+        pipeline.apply(
+            JdbcIO.<TestRow>read()
+                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+                .withStatementPreparator(
+                    (preparedStatement) -> preparedStatement.setString(1, getNameForSeed(1)))
+                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+                .withCoder(SerializableCoder.of(TestRow.class)));
 
-     PAssert.thatSingleton(
-         rows.apply("Count All", Count.<TestRow>globally()))
-         .isEqualTo(1L);
+    PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1L);
 
      Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
      PAssert.that(rows).containsInAnyOrder(expectedValues);
@@ -262,21 +254,21 @@ public class JdbcIOTest implements Serializable {
         KV<Integer, String> kv = KV.of(i, "Test");
         data.add(kv);
       }
-      pipeline.apply(Create.of(data))
-          .apply(JdbcIO.<KV<Integer, String>>write()
-              .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
-                  "org.apache.derby.jdbc.ClientDriver",
-                  "jdbc:derby://localhost:" + port + "/target/beam"))
-              .withStatement(String.format("insert into %s values(?, ?)", tableName))
-              .withBatchSize(10L)
-              .withPreparedStatementSetter(
-                  new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
-                public void setParameters(
-                    KV<Integer, String> element, PreparedStatement statement) throws Exception {
-                  statement.setInt(1, element.getKey());
-                  statement.setString(2, element.getValue());
-                }
-              }));
+      pipeline
+          .apply(Create.of(data))
+          .apply(
+              JdbcIO.<KV<Integer, String>>write()
+                  .withDataSourceConfiguration(
+                      JdbcIO.DataSourceConfiguration.create(
+                          "org.apache.derby.jdbc.ClientDriver",
+                          "jdbc:derby://localhost:" + port + "/target/beam"))
+                  .withStatement(String.format("insert into %s values(?, ?)", tableName))
+                  .withBatchSize(10L)
+                  .withPreparedStatementSetter(
+                      (element, statement) -> {
+                        statement.setInt(1, element.getKey());
+                        statement.setString(2, element.getValue());
+                      }));
 
       pipeline.run();
 
@@ -300,18 +292,18 @@ public class JdbcIOTest implements Serializable {
   public void testWriteWithEmptyPCollection() throws Exception {
     pipeline
         .apply(Create.empty(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
-        .apply(JdbcIO.<KV<Integer, String>>write()
-            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:" + port + "/target/beam"))
-            .withStatement("insert into BEAM values(?, ?)")
-            .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
-              public void setParameters(KV<Integer, String> element, PreparedStatement statement)
-                  throws Exception {
-                statement.setInt(1, element.getKey());
-                statement.setString(2, element.getValue());
-              }
-            }));
+        .apply(
+            JdbcIO.<KV<Integer, String>>write()
+                .withDataSourceConfiguration(
+                    JdbcIO.DataSourceConfiguration.create(
+                        "org.apache.derby.jdbc.ClientDriver",
+                        "jdbc:derby://localhost:" + port + "/target/beam"))
+                .withStatement("insert into BEAM values(?, ?)")
+                .withPreparedStatementSetter(
+                    (element, statement) -> {
+                      statement.setInt(1, element.getKey());
+                      statement.setString(2, element.getValue());
+                    }));
 
     pipeline.run();
   }

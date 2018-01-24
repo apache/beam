@@ -72,11 +72,10 @@ public class KeyedPValueTrackingVisitorTest {
   @Test
   public void groupByKeyProducesKeyedOutput() {
     PCollection<KV<String, Iterable<Integer>>> keyed =
-        p
-            .apply(Create.of(KV.of("foo", 3)))
-            .apply(new DirectGroupByKeyOnly<String, Integer>())
+        p.apply(Create.of(KV.of("foo", 3)))
+            .apply(new DirectGroupByKeyOnly<>())
             .apply(
-                new DirectGroupAlsoByWindow<String, Integer>(
+                new DirectGroupAlsoByWindow<>(
                     WindowingStrategy.globalDefault(), WindowingStrategy.globalDefault()));
 
     p.traverseTopologically(visitor);
@@ -87,7 +86,7 @@ public class KeyedPValueTrackingVisitorTest {
   public void noInputUnkeyedOutput() {
     PCollection<KV<Integer, Iterable<Void>>> unkeyed =
         p.apply(
-            Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.<Void>emptyList()))
+            Create.of(KV.<Integer, Iterable<Void>>of(-1, Collections.emptyList()))
                 .withCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(VoidCoder.of()))));
 
     p.traverseTopologically(visitor);
@@ -98,8 +97,8 @@ public class KeyedPValueTrackingVisitorTest {
   public void keyedInputWithoutKeyPreserving() {
     PCollection<KV<String, Iterable<Integer>>> onceKeyed =
         p.apply(Create.of(KV.of("hello", 42)))
-            .apply(GroupByKey.<String, Integer>create())
-            .apply(ParDo.of(new IdentityFn<KV<String, Iterable<Integer>>>()));
+            .apply(GroupByKey.create())
+            .apply(ParDo.of(new IdentityFn<>()));
 
     p.traverseTopologically(visitor);
     assertThat(visitor.getKeyedPValues(), not(hasItem(onceKeyed)));
@@ -124,7 +123,7 @@ public class KeyedPValueTrackingVisitorTest {
 
     PCollection<KeyedWorkItem<String, KV<String, Integer>>> unkeyed =
         input
-            .apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>()))
+            .apply(ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<>()))
             .setCoder(
                 KeyedWorkItemCoder.of(
                     StringUtf8Coder.of(),
@@ -157,9 +156,9 @@ public class KeyedPValueTrackingVisitorTest {
     TupleTag<KeyedWorkItem<String, KV<String, Integer>>> keyedTag = new TupleTag<>();
     PCollection<KeyedWorkItem<String, KV<String, Integer>>> keyed =
         input
-            .apply(new DirectGroupByKeyOnly<String, WindowedValue<KV<String, Integer>>>())
+            .apply(new DirectGroupByKeyOnly<>())
             .apply(
-                new DirectGroupAlsoByWindow<String, WindowedValue<KV<String, Integer>>>(
+                new DirectGroupAlsoByWindow<>(
                     WindowingStrategy.globalDefault(), WindowingStrategy.globalDefault()))
             .apply(
                 ParDo.of(new ParDoMultiOverrideFactory.ToKeyedWorkItem<String, Integer>())
@@ -180,8 +179,8 @@ public class KeyedPValueTrackingVisitorTest {
     p.apply(
             Create.of(KV.of(1, (Void) null), KV.of(2, (Void) null), KV.of(3, (Void) null))
                 .withCoder(KvCoder.of(VarIntCoder.of(), VoidCoder.of())))
-        .apply(GroupByKey.<Integer, Void>create())
-        .apply(Keys.<Integer>create());
+        .apply(GroupByKey.create())
+        .apply(Keys.create());
 
     p.traverseTopologically(visitor);
     thrown.expect(IllegalStateException.class);

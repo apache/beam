@@ -49,7 +49,7 @@ public class EmployeeInputFormat extends InputFormat<Text, Employee> {
 
   @Override
   public List<InputSplit> getSplits(JobContext arg0) throws IOException, InterruptedException {
-    List<InputSplit> inputSplitList = new ArrayList<InputSplit>();
+    List<InputSplit> inputSplitList = new ArrayList<>();
     for (int i = 1; i <= TestEmployeeDataSet.NUMBER_OF_SPLITS; i++) {
       InputSplit inputSplitObj =
           new NewObjectsEmployeeInputSplit(

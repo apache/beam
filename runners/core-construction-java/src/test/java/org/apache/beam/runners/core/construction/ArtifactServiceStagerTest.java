@@ -122,7 +122,7 @@ public class ArtifactServiceStagerTest {
       contentChannel.write(ByteBuffer.wrap(thirdContent));
     }
 
-    stager.stage(ImmutableList.<File>of(file, otherFile, thirdFile));
+    stager.stage(ImmutableList.of(file, otherFile, thirdFile));
 
     assertThat(service.getManifest().getArtifactCount(), equalTo(3));
     assertThat(service.getStagedArtifacts().entrySet(), hasSize(3));

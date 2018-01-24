@@ -57,9 +57,7 @@ public class TfIdfTest {
             KV.of(new URI("z"), "a m n")))
         .apply(new TfIdf.ComputeTfIdf());
 
-    PCollection<String> words = wordToUriAndTfIdf
-        .apply(Keys.<String>create())
-        .apply(Distinct.<String>create());
+    PCollection<String> words = wordToUriAndTfIdf.apply(Keys.create()).apply(Distinct.create());
 
     PAssert.that(words).containsInAnyOrder(Arrays.asList("a", "m", "n", "b", "c", "d"));
 

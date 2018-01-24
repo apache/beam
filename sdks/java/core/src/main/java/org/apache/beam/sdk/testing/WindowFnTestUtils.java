@@ -28,7 +28,6 @@ import com.google.common.collect.Ordering;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -280,12 +279,7 @@ public class WindowFnTestUtils {
       WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
     Collection<W> windows = assignedWindowsWithValue(windowFn, timestampedValue);
     List<W> sortedWindows = new ArrayList<>(windows);
-    Collections.sort(sortedWindows, new Comparator<BoundedWindow>() {
-      @Override
-      public int compare(BoundedWindow o1, BoundedWindow o2) {
-        return o1.maxTimestamp().compareTo(o2.maxTimestamp());
-      }
-    });
+    Collections.sort(sortedWindows, (o1, o2) -> o1.maxTimestamp().compareTo(o2.maxTimestamp()));
 
     Instant instant = timestampedValue.getTimestamp();
     Instant endOfPrevious = null;

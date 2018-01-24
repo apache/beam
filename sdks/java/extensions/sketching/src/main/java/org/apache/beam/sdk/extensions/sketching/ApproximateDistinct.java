@@ -22,11 +22,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
 import com.google.auto.value.AutoValue;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -274,7 +272,7 @@ public final class ApproximateDistinct {
           .apply(
               "Compute HyperLogLog Structure",
               Combine.globally(
-                  ApproximateDistinctFn.<InputT>create(input.getCoder())
+                  ApproximateDistinctFn.create(input.getCoder())
                       .withPrecision(this.precision())
                       .withSparseRepresentation(this.sparsePrecision())))
           .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.globally()));
@@ -325,11 +323,11 @@ public final class ApproximateDistinct {
       KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
       return input
           .apply(
-              Combine.<K, V, HyperLogLogPlus>perKey(
-                  ApproximateDistinctFn.<V>create(inputCoder.getValueCoder())
+              Combine.perKey(
+                  ApproximateDistinctFn.create(inputCoder.getValueCoder())
                       .withPrecision(this.precision())
                       .withSparseRepresentation(this.sparsePrecision())))
-          .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.<K>perKey()));
+          .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.perKey()));
     }
   }
 

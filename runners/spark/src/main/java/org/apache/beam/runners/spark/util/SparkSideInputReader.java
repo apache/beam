@@ -20,8 +20,6 @@ package org.apache.beam.runners.spark.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -37,7 +35,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-
 
 /**
  * A {@link SideInputReader} for the SparkRunner.
@@ -70,21 +67,15 @@ public class SparkSideInputReader implements SideInputReader {
         (Iterable<WindowedValue<KV<?, ?>>>) windowedBroadcastHelper.getValue().getValue();
     Iterable<KV<?, ?>> sideInputForWindow =
         Iterables.transform(
-            Iterables.filter(availableSideInputs, new Predicate<WindowedValue<?>>() {
-              @Override
-              public boolean apply(@Nullable WindowedValue<?> sideInputCandidate) {
-                if (sideInputCandidate == null) {
-                  return false;
-                }
-                return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
-              }
-            }),
-            new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
-              @Override
-              public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
-                return windowedValue.getValue();
-              }
-            });
+            Iterables.filter(
+                availableSideInputs,
+                sideInputCandidate -> {
+                  if (sideInputCandidate == null) {
+                    return false;
+                  }
+                  return Iterables.contains(sideInputCandidate.getWindows(), sideInputWindow);
+                }),
+            windowedValue -> windowedValue.getValue());
 
     ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
     Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();

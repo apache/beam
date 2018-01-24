@@ -36,7 +36,6 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -61,7 +60,6 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
-import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -157,7 +155,7 @@ public class KafkaIOTest {
         TopicPartition tp = new TopicPartition(topic, i);
         partitions.add(tp);
         partIds.add(new PartitionInfo(topic, i, null, null, null));
-        records.put(tp, new ArrayList<ConsumerRecord<byte[], byte[]>>());
+        records.put(tp, new ArrayList<>());
       }
       partitionMap.put(topic, partIds);
     }
@@ -342,32 +340,23 @@ public class KafkaIOTest {
   public static void addCountingAsserts(
       PCollection<Long> input, long count, long uniqueCount, long min, long max) {
 
-    PAssert
-        .thatSingleton(input.apply("Count", Count.<Long>globally()))
-        .isEqualTo(count);
+    PAssert.thatSingleton(input.apply("Count", Count.globally())).isEqualTo(count);
 
-    PAssert
-        .thatSingleton(input.apply(Distinct.<Long>create())
-            .apply("UniqueCount", Count.<Long>globally()))
+    PAssert.thatSingleton(input.apply(Distinct.create()).apply("UniqueCount", Count.globally()))
         .isEqualTo(uniqueCount);
 
-    PAssert
-        .thatSingleton(input.apply("Min", Min.<Long>globally()))
-        .isEqualTo(min);
+    PAssert.thatSingleton(input.apply("Min", Min.globally())).isEqualTo(min);
 
-    PAssert
-        .thatSingleton(input.apply("Max", Max.<Long>globally()))
-        .isEqualTo(max);
+    PAssert.thatSingleton(input.apply("Max", Max.globally())).isEqualTo(max);
   }
 
   @Test
   public void testUnboundedSource() {
     int numElements = 1000;
 
-    PCollection<Long> input = p
-        .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
-            .withoutMetadata())
-        .apply(Values.<Long>create());
+    PCollection<Long> input =
+        p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+            .apply(Values.create());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -383,20 +372,22 @@ public class KafkaIOTest {
     thrown.expectMessage("Reader-0: Timeout while initializing partition 'test-0'");
 
     int numElements = 1000;
-    PCollection<Long> input = p
-        .apply(KafkaIO.<Integer, Long>read()
-            .withBootstrapServers("8.8.8.8:9092") // Google public DNS ip.
-            .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
-            .withKeyDeserializer(IntegerDeserializer.class)
-            .withValueDeserializer(LongDeserializer.class)
-            .updateConsumerProperties(ImmutableMap.<String, Object>of(
-                ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
-                ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
-                ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 8,
-                ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 8))
-            .withMaxNumRecords(10)
-            .withoutMetadata())
-        .apply(Values.<Long>create());
+    PCollection<Long> input =
+        p.apply(
+                KafkaIO.<Integer, Long>read()
+                    .withBootstrapServers("8.8.8.8:9092") // Google public DNS ip.
+                    .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
+                    .withKeyDeserializer(IntegerDeserializer.class)
+                    .withValueDeserializer(LongDeserializer.class)
+                    .updateConsumerProperties(
+                        ImmutableMap.of(
+                            ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
+                            ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
+                            ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 8,
+                            ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 8))
+                    .withMaxNumRecords(10)
+                    .withoutMetadata())
+            .apply(Values.create());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -418,9 +409,7 @@ public class KafkaIOTest {
         .withKeyDeserializer(IntegerDeserializer.class)
         .withValueDeserializer(LongDeserializer.class);
 
-    PCollection<Long> input = p
-        .apply(reader.withoutMetadata())
-        .apply(Values.<Long>create());
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -441,18 +430,14 @@ public class KafkaIOTest {
         .withValueDeserializer(LongDeserializer.class)
         .withMaxNumRecords(numElements / 10);
 
-    PCollection<Long> input = p
-        .apply(reader.withoutMetadata())
-        .apply(Values.<Long>create());
+    PCollection<Long> input = p.apply(reader.withoutMetadata()).apply(Values.create());
 
     // assert that every element is a multiple of 5.
     PAssert
       .that(input)
       .satisfies(new AssertMultipleOf(5));
 
-    PAssert
-      .thatSingleton(input.apply(Count.<Long>globally()))
-      .isEqualTo(numElements / 10L);
+    PAssert.thatSingleton(input.apply(Count.globally())).isEqualTo(numElements / 10L);
 
     p.run();
   }
@@ -469,15 +454,16 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    PCollection<Long> input = p
-        .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
-        .apply(Values.<Long>create());
+    PCollection<Long> input =
+        p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+            .apply(Values.create());
 
     addCountingAsserts(input, numElements);
 
-    PCollection<Long> diffs = input
-        .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-        .apply("DistinctTimestamps", Distinct.<Long>create());
+    PCollection<Long> diffs =
+        input
+            .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
+            .apply("DistinctTimestamps", Distinct.create());
     // This assert also confirms that diffs only has one unique value.
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 
@@ -513,12 +499,13 @@ public class KafkaIOTest {
     assertEquals("Expected even splits", numElements, elementsPerSplit * numSplits);
     PCollectionList<Long> pcollections = PCollectionList.empty(p);
     for (int i = 0; i < splits.size(); ++i) {
-      pcollections = pcollections.and(
-          p.apply("split" + i, Read.from(splits.get(i)).withMaxNumRecords(elementsPerSplit))
-           .apply("Remove Metadata " + i, ParDo.of(new RemoveKafkaMetadata<Integer, Long>()))
-           .apply("collection " + i, Values.<Long>create()));
+      pcollections =
+          pcollections.and(
+              p.apply("split" + i, Read.from(splits.get(i)).withMaxNumRecords(elementsPerSplit))
+                  .apply("Remove Metadata " + i, ParDo.of(new RemoveKafkaMetadata<>()))
+                  .apply("collection " + i, Values.create()));
     }
-    PCollection<Long> input = pcollections.apply(Flatten.<Long>pCollections());
+    PCollection<Long> input = pcollections.apply(Flatten.pCollections());
 
     addCountingAsserts(input, numElements);
     p.run();
@@ -709,8 +696,7 @@ public class KafkaIOTest {
                 .build());
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
-    assertThat(backlogElementsMetrics.gauges(),
-        IsIterableWithSize.<MetricResult<GaugeResult>>iterableWithSize(1));
+    assertThat(backlogElementsMetrics.gauges(), IsIterableWithSize.iterableWithSize(1));
 
     MetricQueryResults backlogBytesMetrics =
         result.metrics().queryMetrics(
@@ -722,8 +708,7 @@ public class KafkaIOTest {
                 .build());
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
-    assertThat(backlogBytesMetrics.gauges(),
-        IsIterableWithSize.<MetricResult<GaugeResult>>iterableWithSize(1));
+    assertThat(backlogBytesMetrics.gauges(), IsIterableWithSize.iterableWithSize(1));
   }
 
   @Test
@@ -771,16 +756,15 @@ public class KafkaIOTest {
 
       String topic = "test";
 
-      p
-        .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
-            .withoutMetadata())
-        .apply(Values.<Long>create()) // there are no keys
-        .apply(KafkaIO.<Integer, Long>write()
-            .withBootstrapServers("none")
-            .withTopic(topic)
-            .withValueSerializer(LongSerializer.class)
-            .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
-            .values());
+      p.apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata())
+          .apply(Values.create()) // there are no keys
+          .apply(
+              KafkaIO.<Integer, Long>write()
+                  .withBootstrapServers("none")
+                  .withTopic(topic)
+                  .withValueSerializer(LongSerializer.class)
+                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
+                  .values());
 
       p.run();
 
@@ -887,11 +871,12 @@ public class KafkaIOTest {
     int startTime = numElements / 20 / 2;
     int maxNumRecords = numElements / 2;
 
-    PCollection<Long> input = p
-        .apply(mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn())
-            .withStartReadTime(new Instant(startTime))
-            .withoutMetadata())
-        .apply(Values.<Long>create());
+    PCollection<Long> input =
+        p.apply(
+                mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn())
+                    .withStartReadTime(new Instant(startTime))
+                    .withoutMetadata())
+            .apply(Values.create());
 
     addCountingAsserts(input, maxNumRecords, maxNumRecords, maxNumRecords, numElements - 1);
     p.run();
@@ -912,10 +897,11 @@ public class KafkaIOTest {
     // partitions. So set this startTime can not read any element.
     int startTime = numElements / 20;
 
-    p.apply(mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn())
-            .withStartReadTime(new Instant(startTime))
-            .withoutMetadata())
-        .apply(Values.<Long>create());
+    p.apply(
+            mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn())
+                .withStartReadTime(new Instant(startTime))
+                .withoutMetadata())
+        .apply(Values.create());
 
     p.run();
 
@@ -1099,12 +1085,7 @@ public class KafkaIOTest {
     List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
 
     // sort by values
-    Collections.sort(sent, new Comparator<ProducerRecord<Integer, Long>>() {
-      @Override
-      public int compare(ProducerRecord<Integer, Long> o1, ProducerRecord<Integer, Long> o2) {
-        return Long.compare(o1.value(), o2.value());
-      }
-    });
+    Collections.sort(sent, (o1, o2) -> Long.compare(o1.value(), o2.value()));
 
     for (int i = 0; i < numElements; i++) {
       ProducerRecord<Integer, Long> record = sent.get(i);
@@ -1251,38 +1232,37 @@ public class KafkaIOTest {
     }
 
     ProducerSendCompletionThread start() {
-      injectorThread.submit(new Runnable() {
-        @Override
-        public void run() {
-          int errorsInjected = 0;
+      injectorThread.submit(
+          () -> {
+            int errorsInjected = 0;
 
-          while (!done.get()) {
-            boolean successful;
+            while (!done.get()) {
+              boolean successful;
 
-            if (errorsInjected < maxErrors && ((numCompletions + 1) % errorFrequency) == 0) {
-              successful = mockProducer.errorNext(
-                  new InjectedErrorException("Injected Error #" + (errorsInjected + 1)));
+              if (errorsInjected < maxErrors && ((numCompletions + 1) % errorFrequency) == 0) {
+                successful =
+                    mockProducer.errorNext(
+                        new InjectedErrorException("Injected Error #" + (errorsInjected + 1)));
+
+                if (successful) {
+                  errorsInjected++;
+                }
+              } else {
+                successful = mockProducer.completeNext();
+              }
 
               if (successful) {
-                errorsInjected++;
-              }
-            } else {
-              successful = mockProducer.completeNext();
-            }
-
-            if (successful) {
-              numCompletions++;
-            } else {
-              // wait a bit since there are no unsent records
-              try {
-                Thread.sleep(1);
-              } catch (InterruptedException e) {
-                // ok to retry.
+                numCompletions++;
+              } else {
+                // wait a bit since there are no unsent records
+                try {
+                  Thread.sleep(1);
+                } catch (InterruptedException e) {
+                  // ok to retry.
+                }
               }
             }
-          }
-        }
-      });
+          });
 
       return this;
     }

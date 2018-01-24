@@ -305,7 +305,7 @@ public class CalendarWindowsTest {
                 return new Instant(100L);
               }
             }),
-        Matchers.<BoundedWindow>equalTo(windowFn.assignWindow(new Instant(100L))));
+        Matchers.equalTo(windowFn.assignWindow(new Instant(100L))));
     assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));
   }
 

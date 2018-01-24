@@ -26,14 +26,12 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.common.base.Function;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.io.ByteSource;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -49,7 +47,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -141,21 +138,18 @@ class PackageUtil implements Closeable {
       final DataflowPackage source, final String stagingPath) {
 
     return executorService.submit(
-        new Callable<PackageAttributes>() {
-          @Override
-          public PackageAttributes call() throws Exception {
-            final File file = new File(source.getLocation());
-            if (!file.exists()) {
-              throw new FileNotFoundException(
-                  String.format("Non-existent file to stage: %s", file.getAbsolutePath()));
-            }
-
-            PackageAttributes attributes = PackageAttributes.forFileToStage(file, stagingPath);
-            if (source.getName() != null) {
-              attributes = attributes.withPackageName(source.getName());
-            }
-            return attributes;
+        () -> {
+          final File file = new File(source.getLocation());
+          if (!file.exists()) {
+            throw new FileNotFoundException(
+                String.format("Non-existent file to stage: %s", file.getAbsolutePath()));
           }
+
+          PackageAttributes attributes = PackageAttributes.forFileToStage(file, stagingPath);
+          if (source.getName() != null) {
+            attributes = attributes.withPackageName(source.getName());
+          }
+          return attributes;
         });
   }
 
@@ -176,12 +170,7 @@ class PackageUtil implements Closeable {
       final Sleeper retrySleeper,
       final CreateOptions createOptions) {
     return executorService.submit(
-        new Callable<StagingResult>() {
-          @Override
-          public StagingResult call() throws Exception {
-            return stagePackageSynchronously(attributes, retrySleeper, createOptions);
-          }
-        });
+        () -> stagePackageSynchronously(attributes, retrySleeper, createOptions));
   }
 
   /** Synchronously stages a package, with retry and backoff for resiliency. */
@@ -365,27 +354,18 @@ class PackageUtil implements Closeable {
       ListenableFuture<StagingResult> stagingResult =
           Futures.transformAsync(
               computePackageAttributes(sourcePackage, stagingPath),
-              new AsyncFunction<PackageAttributes, StagingResult>() {
-                @Override
-                public ListenableFuture<StagingResult> apply(
-                    final PackageAttributes packageAttributes) throws Exception {
-                  return stagePackage(packageAttributes, retrySleeper, createOptions);
-                }
-              });
+              packageAttributes -> stagePackage(packageAttributes, retrySleeper, createOptions));
 
       ListenableFuture<DataflowPackage> stagedPackage =
           Futures.transform(
               stagingResult,
-              new Function<StagingResult, DataflowPackage>() {
-                @Override
-                public DataflowPackage apply(StagingResult stagingResult) {
-                  if (stagingResult.alreadyStaged()) {
-                    numCached.incrementAndGet();
-                  } else {
-                    numUploaded.incrementAndGet();
-                  }
-                  return stagingResult.getPackageAttributes().getDestination();
+              stagingResult1 -> {
+                if (stagingResult1.alreadyStaged()) {
+                  numCached.incrementAndGet();
+                } else {
+                  numUploaded.incrementAndGet();
                 }
+                return stagingResult1.getPackageAttributes().getDestination();
               });
 
       destinationPackages.add(stagedPackage);

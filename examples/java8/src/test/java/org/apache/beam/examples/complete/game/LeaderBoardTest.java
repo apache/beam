@@ -32,7 +32,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -240,13 +239,14 @@ public class LeaderBoardTest implements Serializable {
     String redTeam = TestUser.RED_ONE.getTeam();
     PAssert.that(teamScores)
         .inWindow(window)
-        .satisfies((SerializableFunction<Iterable<KV<String, Integer>>, Void>) input -> {
-          // The final sums need not exist in the same pane, but must appear in the output
-          // PCollection
-          assertThat(input, hasItem(KV.of(blueTeam, 11)));
-          assertThat(input, hasItem(KV.of(redTeam, 27)));
-          return null;
-        });
+        .satisfies(
+            input -> {
+              // The final sums need not exist in the same pane, but must appear in the output
+              // PCollection
+              assertThat(input, hasItem(KV.of(blueTeam, 11)));
+              assertThat(input, hasItem(KV.of(redTeam, 27)));
+              return null;
+            });
     PAssert.thatMap(teamScores)
         // The closing behavior of CalculateTeamScores precludes an inFinalPane matcher
         .inOnTimePane(window)

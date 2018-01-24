@@ -354,7 +354,7 @@ public class DoFnSignaturesTest {
 
     assertThat(
         sig.processElement().extraParameters(),
-        Matchers.<Parameter>hasItem(instanceOf(Parameter.PipelineOptionsParameter.class)));
+        Matchers.hasItem(instanceOf(Parameter.PipelineOptionsParameter.class)));
   }
 
   @Test

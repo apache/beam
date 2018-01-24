@@ -127,9 +127,7 @@ public class CombinePerKeyExamples {
           ParDo.of(new ExtractLargeWordsFn()));
 
       // word, play_name => word, all_plays ...
-      PCollection<KV<String, String>> wordAllPlays =
-          words.apply(Combine.<String, String>perKey(
-              new ConcatWords()));
+      PCollection<KV<String, String>> wordAllPlays = words.apply(Combine.perKey(new ConcatWords()));
 
       // <word, all_plays>... => row...
       PCollection<TableRow> results = wordAllPlays.apply(

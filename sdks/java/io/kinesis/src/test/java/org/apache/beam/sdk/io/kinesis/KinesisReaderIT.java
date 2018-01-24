@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -98,18 +97,15 @@ public class KinesisReaderIT {
 
     Future<?> future =
         singleThreadExecutor.submit(
-            new Callable<Void>() {
-              @Override
-              public Void call() throws Exception {
-                PipelineResult result = p.run();
-                PipelineResult.State state = result.getState();
-                while (state != PipelineResult.State.DONE && state != PipelineResult.State.FAILED) {
-                  Thread.sleep(1000);
-                  state = result.getState();
-                }
-                assertThat(state).isEqualTo(PipelineResult.State.DONE);
-                return null;
+            () -> {
+              PipelineResult result1 = p.run();
+              PipelineResult.State state = result1.getState();
+              while (state != PipelineResult.State.DONE && state != PipelineResult.State.FAILED) {
+                Thread.sleep(1000);
+                state = result1.getState();
               }
+              assertThat(state).isEqualTo(PipelineResult.State.DONE);
+              return null;
             });
     Thread.sleep(PIPELINE_STARTUP_TIME);
     return future;

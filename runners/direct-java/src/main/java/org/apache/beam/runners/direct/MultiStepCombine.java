@@ -221,7 +221,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
                     input.getWindowingStrategy().getTimestampCombiner(),
                     inputCoder.getKeyCoder())))
         .setCoder(KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder))
-        .apply(GroupByKey.<K, AccumT>create())
+        .apply(GroupByKey.create())
         .apply(new MergeAndExtractAccumulatorOutput<>(combineFn, outputCoder));
   }
 

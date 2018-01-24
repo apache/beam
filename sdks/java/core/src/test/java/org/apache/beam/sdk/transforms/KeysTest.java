@@ -60,7 +60,7 @@ public class KeysTest {
         p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-    PCollection<String> output = input.apply(Keys.<String>create());
+    PCollection<String> output = input.apply(Keys.create());
     PAssert.that(output)
         .containsInAnyOrder("one", "two", "three", "dup", "dup");
 
@@ -74,7 +74,7 @@ public class KeysTest {
         p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-    PCollection<String> output = input.apply(Keys.<String>create());
+    PCollection<String> output = input.apply(Keys.create());
     PAssert.that(output).empty();
     p.run();
   }

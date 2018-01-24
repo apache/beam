@@ -65,7 +65,7 @@ public class PrimitiveCreate<T> extends PTransform<PBegin, PCollection<T>> {
         AppliedPTransform<PBegin, PCollection<T>, Values<T>> transform) {
       return PTransformReplacement.of(
           transform.getPipeline().begin(),
-          new PrimitiveCreate<T>(
+          new PrimitiveCreate<>(
               transform.getTransform(),
               ((PCollection<T>) Iterables.getOnlyElement(transform.getOutputs().values()))
                   .getCoder()));

@@ -42,7 +42,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   private final KvCoder<K, V> kvCoder;
 
   public static <K, V> KafkaRecordCoder<K, V> of(Coder<K> keyCoder, Coder<V> valueCoder) {
-    return new KafkaRecordCoder<K, V>(keyCoder, valueCoder);
+    return new KafkaRecordCoder<>(keyCoder, valueCoder);
   }
 
   public KafkaRecordCoder(Coder<K> keyCoder, Coder<V> valueCoder) {
@@ -75,7 +75,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   public KafkaRecord<K, V> decode(InputStream inStream, Context context)
                                       throws CoderException, IOException {
     Context nested = context.nested();
-    return new KafkaRecord<K, V>(
+    return new KafkaRecord<>(
         stringCoder.decode(inStream, nested),
         intCoder.decode(inStream, nested),
         longCoder.decode(inStream, nested),
@@ -105,7 +105,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
     if (consistentWithEquals()) {
       return value;
     } else {
-      return new KafkaRecord<Object, Object>(
+      return new KafkaRecord<>(
           value.getTopic(),
           value.getPartition(),
           value.getOffset(),

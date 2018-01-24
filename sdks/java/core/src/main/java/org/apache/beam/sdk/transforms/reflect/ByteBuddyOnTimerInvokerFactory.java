@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms.reflect;
 
-
 import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import com.google.common.base.CharMatcher;
@@ -45,7 +44,6 @@ import net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import net.bytebuddy.implementation.bytecode.member.MethodReturn;
 import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
@@ -251,41 +249,35 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
 
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
-      return new ByteCodeAppender() {
-        @Override
-        public Size apply(
-            MethodVisitor methodVisitor,
-            Context implementationContext,
-            MethodDescription instrumentedMethod) {
-          StackManipulation.Size size =
-              new StackManipulation.Compound(
-                      // Load the this reference
-                      MethodVariableAccess.REFERENCE.loadFrom(0),
-                      // Invoke the super constructor (default constructor of Object)
-                      MethodInvocation.invoke(
-                          new TypeDescription.ForLoadedType(Object.class)
-                              .getDeclaredMethods()
-                              .filter(
-                                  ElementMatchers.isConstructor()
-                                      .and(ElementMatchers.takesArguments(0)))
-                              .getOnly()),
-                      // Load the this reference
-                      MethodVariableAccess.REFERENCE.loadFrom(0),
-                      // Load the delegate argument
-                      MethodVariableAccess.REFERENCE.loadFrom(1),
-                      // Assign the delegate argument to the delegate field
-                      FieldAccess.forField(
-                              implementationTarget
-                                  .getInstrumentedType()
-                                  .getDeclaredFields()
-                                  .filter(ElementMatchers.named(FN_DELEGATE_FIELD_NAME))
-                                  .getOnly())
-                          .write(),
-                      // Return void.
-                      MethodReturn.VOID)
-                  .apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
-        }
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        StackManipulation.Size size =
+            new StackManipulation.Compound(
+                    // Load the this reference
+                    MethodVariableAccess.REFERENCE.loadFrom(0),
+                    // Invoke the super constructor (default constructor of Object)
+                    MethodInvocation.invoke(
+                        new TypeDescription.ForLoadedType(Object.class)
+                            .getDeclaredMethods()
+                            .filter(
+                                ElementMatchers.isConstructor()
+                                    .and(ElementMatchers.takesArguments(0)))
+                            .getOnly()),
+                    // Load the this reference
+                    MethodVariableAccess.REFERENCE.loadFrom(0),
+                    // Load the delegate argument
+                    MethodVariableAccess.REFERENCE.loadFrom(1),
+                    // Assign the delegate argument to the delegate field
+                    FieldAccess.forField(
+                            implementationTarget
+                                .getInstrumentedType()
+                                .getDeclaredFields()
+                                .filter(ElementMatchers.named(FN_DELEGATE_FIELD_NAME))
+                                .getOnly())
+                        .write(),
+                    // Return void.
+                    MethodReturn.VOID)
+                .apply(methodVisitor, implementationContext);
+        return new ByteCodeAppender.Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
       };
     }
   }

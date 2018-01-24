@@ -147,8 +147,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + "FROM TABLE_A group by f_int2";
 
     PCollection<BeamRecord> result =
-        PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
-        .apply("testAggregationFunctions", BeamSql.queryMulti(sql));
+        PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
+            .apply("testAggregationFunctions", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
         Arrays.asList("f_int2", "size", "sum1", "avg1", "max1", "min1", "sum2", "avg2", "max2",
@@ -277,8 +277,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + " FROM TABLE_A"
         + " GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
     PCollection<BeamRecord> result =
-        PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
-        .apply("testTumbleWindow", BeamSql.queryMulti(sql));
+        PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
+            .apply("testTumbleWindow", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
         Arrays.asList("f_int2", "size", "window_start"),
@@ -352,8 +352,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + " FROM TABLE_A"
         + " GROUP BY f_int2, SESSION(f_timestamp, INTERVAL '5' MINUTE)";
     PCollection<BeamRecord> result =
-        PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
-        .apply("testSessionWindow", BeamSql.queryMulti(sql));
+        PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
+            .apply("testSessionWindow", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
         Arrays.asList("f_int2", "size", "window_start"),
@@ -377,8 +377,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount` FROM TABLE_A "
         + "GROUP BY f_int2, TUMBLE(f_long, INTERVAL '1' HOUR)";
     PCollection<BeamRecord> result =
-        PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), boundedInput1)
-        .apply("testWindowOnNonTimestampField", BeamSql.queryMulti(sql));
+        PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
+            .apply("testWindowOnNonTimestampField", BeamSql.queryMulti(sql));
 
     pipeline.run().waitUntilFinish();
   }

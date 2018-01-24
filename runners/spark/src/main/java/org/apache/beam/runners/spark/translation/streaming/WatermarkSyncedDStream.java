@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.translation.streaming;
 
 import static com.google.common.base.Preconditions.checkState;
+
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Queue;
@@ -71,7 +72,7 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
   public WatermarkSyncedDStream(final Queue<JavaRDD<WindowedValue<T>>> rdds,
                                 final Long batchDuration,
                                 final StreamingContext ssc) {
-    super(ssc, JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
+    super(ssc, JavaSparkContext$.MODULE$.fakeClassTag());
     this.rdds = rdds;
     this.batchDuration = batchDuration;
   }

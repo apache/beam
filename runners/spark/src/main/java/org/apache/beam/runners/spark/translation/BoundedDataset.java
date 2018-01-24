@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -53,8 +52,7 @@ public class BoundedDataset<T> implements Dataset {
   }
 
   BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
-    this.windowedValues =
-        Iterables.transform(values, WindowingHelpers.<T>windowValueFunction());
+    this.windowedValues = Iterables.transform(values, WindowingHelpers.windowValueFunction());
     this.jsc = jsc;
     this.coder = coder;
   }
@@ -86,13 +84,9 @@ public class BoundedDataset<T> implements Dataset {
       JavaRDDLike<byte[], ?> bytesRDD =
           rdd.map(CoderHelpers.toByteFunction(windowedValueCoder));
       List<byte[]> clientBytes = bytesRDD.collect();
-      windowedValues = Iterables.transform(clientBytes,
-          new Function<byte[], WindowedValue<T>>() {
-            @Override
-            public WindowedValue<T> apply(byte[] bytes) {
-              return CoderHelpers.fromByteArray(bytes, windowedValueCoder);
-            }
-          });
+      windowedValues =
+          Iterables.transform(
+              clientBytes, bytes -> CoderHelpers.fromByteArray(bytes, windowedValueCoder));
     }
     return windowedValues;
   }
@@ -117,7 +111,7 @@ public class BoundedDataset<T> implements Dataset {
   @Override
   public void action() {
     // Empty function to force computation of RDD.
-    rdd.foreach(TranslationUtils.<WindowedValue<T>>emptyVoidFunction());
+    rdd.foreach(TranslationUtils.emptyVoidFunction());
   }
 
   @Override

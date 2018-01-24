@@ -103,7 +103,7 @@ public class TransformTreeTest {
     @Override
     public PDone expand(PCollection<Integer> input) {
       // Apply an operation so that this is a composite transform.
-      input.apply(Count.<Integer>perElement());
+      input.apply(Count.perElement());
 
       return PDone.in(input.getPipeline());
     }
@@ -120,7 +120,7 @@ public class TransformTreeTest {
         Sample.fixedSizeGlobally(10);
     p.apply("ReadMyFile", TextIO.read().from(inputFile.getPath()))
         .apply(sample)
-        .apply(Flatten.<String>iterables())
+        .apply(Flatten.iterables())
         .apply("WriteMyFile", TextIO.write().to(outputFile.getPath()));
 
     final EnumSet<TransformsSeen> visited =

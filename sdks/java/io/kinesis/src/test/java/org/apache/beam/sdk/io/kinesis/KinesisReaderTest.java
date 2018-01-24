@@ -28,7 +28,6 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -65,7 +64,7 @@ public class KinesisReaderTest {
     when(generator.generate(kinesis)).thenReturn(new KinesisReaderCheckpoint(
         asList(firstCheckpoint, secondCheckpoint)
     ));
-    when(shardReadersPool.nextRecord()).thenReturn(CustomOptional.<KinesisRecord>absent());
+    when(shardReadersPool.nextRecord()).thenReturn(CustomOptional.absent());
     when(a.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
     when(b.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
     when(c.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
@@ -97,23 +96,23 @@ public class KinesisReaderTest {
   @Test
   public void startReturnsTrueIfSomeDataAvailable() throws IOException,
       TransientKinesisException {
-    when(shardReadersPool.nextRecord()).
-        thenReturn(CustomOptional.of(a)).
-        thenReturn(CustomOptional.<KinesisRecord>absent());
+    when(shardReadersPool.nextRecord())
+        .thenReturn(CustomOptional.of(a))
+        .thenReturn(CustomOptional.absent());
 
     assertThat(reader.start()).isTrue();
   }
 
   @Test
   public void readsThroughAllDataAvailable() throws IOException, TransientKinesisException {
-    when(shardReadersPool.nextRecord()).
-        thenReturn(CustomOptional.of(c)).
-        thenReturn(CustomOptional.<KinesisRecord>absent()).
-        thenReturn(CustomOptional.of(a)).
-        thenReturn(CustomOptional.<KinesisRecord>absent()).
-        thenReturn(CustomOptional.of(d)).
-        thenReturn(CustomOptional.of(b)).
-        thenReturn(CustomOptional.<KinesisRecord>absent());
+    when(shardReadersPool.nextRecord())
+        .thenReturn(CustomOptional.of(c))
+        .thenReturn(CustomOptional.absent())
+        .thenReturn(CustomOptional.of(a))
+        .thenReturn(CustomOptional.absent())
+        .thenReturn(CustomOptional.of(d))
+        .thenReturn(CustomOptional.of(b))
+        .thenReturn(CustomOptional.absent());
 
     assertThat(reader.start()).isTrue();
     assertThat(reader.getCurrent()).isEqualTo(c);
@@ -184,7 +183,7 @@ public class KinesisReaderTest {
       KinesisRecord record = prepareRecordMockWithArrivalTimestamp(timestampMs);
       shardReadersPoolStubbing = shardReadersPoolStubbing.thenReturn(CustomOptional.of(record));
     }
-    shardReadersPoolStubbing.thenReturn(CustomOptional.<KinesisRecord>absent());
+    shardReadersPoolStubbing.thenReturn(CustomOptional.absent());
   }
 
   private KinesisRecord prepareRecordMockWithArrivalTimestamp(long timestampMs) {

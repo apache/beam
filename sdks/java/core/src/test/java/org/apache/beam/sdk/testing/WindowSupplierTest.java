@@ -51,7 +51,7 @@ public class WindowSupplierTest {
   public void getReturnsProvidedWindows() {
     assertThat(
         WindowSupplier.of(IntervalWindow.getCoder(), ImmutableList.of(window, otherWindow)).get(),
-        Matchers.<BoundedWindow>containsInAnyOrder(otherWindow, window));
+        Matchers.containsInAnyOrder(otherWindow, window));
   }
 
   @Test
@@ -59,17 +59,14 @@ public class WindowSupplierTest {
     WindowSupplier supplier =
         WindowSupplier.of(IntervalWindow.getCoder(), ImmutableList.of(window, otherWindow));
     assertThat(
-        SerializableUtils.clone(supplier).get(),
-        Matchers.<BoundedWindow>containsInAnyOrder(otherWindow, window));
+        SerializableUtils.clone(supplier).get(), Matchers.containsInAnyOrder(otherWindow, window));
   }
 
   @Test
   public void unencodableWindowFails() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Could not encode");
-    WindowSupplier.of(
-        new FailingCoder(),
-        Collections.<BoundedWindow>singleton(window));
+    WindowSupplier.of(new FailingCoder(), Collections.singleton(window));
   }
 
   private static class FailingCoder extends AtomicCoder<BoundedWindow> {

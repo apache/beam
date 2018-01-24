@@ -95,7 +95,7 @@ public class CommonCoderTest {
         @JsonProperty("non_deterministic") @Nullable Boolean nonDeterministic) {
       return new AutoValue_CommonCoderTest_CommonCoder(
           checkNotNull(urn, "urn"),
-          firstNonNull(components, Collections.<CommonCoder>emptyList()),
+          firstNonNull(components, Collections.emptyList()),
           firstNonNull(nonDeterministic, Boolean.FALSE));
     }
   }

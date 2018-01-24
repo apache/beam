@@ -365,23 +365,14 @@ public class DoFnInvokersTest {
                   }
                 }))
         .when(fn)
-        .splitRestriction(
-            eq("blah"), same(restriction), Mockito.<DoFn.OutputReceiver<SomeRestriction>>any());
+        .splitRestriction(eq("blah"), same(restriction), Mockito.any());
     when(fn.newTracker(restriction)).thenReturn(tracker);
     when(fn.processElement(mockProcessContext, tracker)).thenReturn(resume());
 
     assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault()));
     assertEquals(restriction, invoker.invokeGetInitialRestriction("blah"));
     final List<SomeRestriction> outputs = new ArrayList<>();
-    invoker.invokeSplitRestriction(
-        "blah",
-        restriction,
-        new DoFn.OutputReceiver<SomeRestriction>() {
-          @Override
-          public void output(SomeRestriction output) {
-            outputs.add(output);
-          }
-        });
+    invoker.invokeSplitRestriction("blah", restriction, output -> outputs.add(output));
     assertEquals(Arrays.asList(part1, part2, part3), outputs);
     assertEquals(tracker, invoker.invokeNewTracker(restriction));
     assertEquals(

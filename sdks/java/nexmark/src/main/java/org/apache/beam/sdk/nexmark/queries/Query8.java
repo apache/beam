@@ -57,26 +57,29 @@ public class Query8 extends NexmarkQuery {
     // Window and key new people by their id.
     PCollection<KV<Long, Person>> personsById =
         events
-          .apply(JUST_NEW_PERSONS)
-          .apply("Query8.WindowPersons",
-            Window.<Person>into(
-              FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
+            .apply(JUST_NEW_PERSONS)
+            .apply(
+                "Query8.WindowPersons",
+                Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
             .apply("PersonById", PERSON_BY_ID);
 
     // Window and key new auctions by their id.
     PCollection<KV<Long, Auction>> auctionsBySeller =
-        events.apply(JUST_NEW_AUCTIONS)
-          .apply("Query8.WindowAuctions",
-            Window.<Auction>into(
-              FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
+        events
+            .apply(JUST_NEW_AUCTIONS)
+            .apply(
+                "Query8.WindowAuctions",
+                Window.into(FixedWindows.of(Duration.standardSeconds(configuration.windowSizeSec))))
             .apply("AuctionBySeller", AUCTION_BY_SELLER);
 
     // Join people and auctions and project the person id, name and auction reserve price.
     return KeyedPCollectionTuple.of(PERSON_TAG, personsById)
         .and(AUCTION_TAG, auctionsBySeller)
-        .apply(CoGroupByKey.<Long>create())
-        .apply(name + ".Select",
-            ParDo.of(new DoFn<KV<Long, CoGbkResult>, IdNameReserve>() {
+        .apply(CoGroupByKey.create())
+        .apply(
+            name + ".Select",
+            ParDo.of(
+                new DoFn<KV<Long, CoGbkResult>, IdNameReserve>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     @Nullable Person person = c.element().getValue().getOnly(PERSON_TAG, null);

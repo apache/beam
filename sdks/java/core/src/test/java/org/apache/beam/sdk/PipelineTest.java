@@ -217,13 +217,12 @@ public class PipelineTest {
     PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
         addSuffix("+");
 
-    PCollection<String> input = pipeline.apply(Create.<String>of(ImmutableList.of("a", "b")));
+    PCollection<String> input = pipeline.apply(Create.of(ImmutableList.of("a", "b")));
 
     PCollection<String> left = input.apply("Left1", myTransform).apply("Left2", myTransform);
     PCollection<String> right = input.apply("Right", myTransform);
 
-    PCollection<String> both = PCollectionList.of(left).and(right)
-        .apply(Flatten.<String>pCollections());
+    PCollection<String> both = PCollectionList.of(left).and(right).apply(Flatten.pCollections());
 
     PAssert.that(both).containsInAnyOrder("a++", "b++", "a+", "b+");
 
@@ -290,9 +289,8 @@ public class PipelineTest {
   @Category(ValidatesRunner.class)
   public void testIdentityTransform() throws Exception {
 
-    PCollection<Integer> output = pipeline
-        .apply(Create.<Integer>of(1, 2, 3, 4))
-        .apply("IdentityTransform", new IdentityTransform<PCollection<Integer>>());
+    PCollection<Integer> output =
+        pipeline.apply(Create.of(1, 2, 3, 4)).apply("IdentityTransform", new IdentityTransform<>());
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
@@ -312,14 +310,12 @@ public class PipelineTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testTupleProjectionTransform() throws Exception {
-    PCollection<Integer> input = pipeline
-        .apply(Create.<Integer>of(1, 2, 3, 4));
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4));
 
-    TupleTag<Integer> tag = new TupleTag<Integer>();
+    TupleTag<Integer> tag = new TupleTag<>();
     PCollectionTuple tuple = PCollectionTuple.of(tag, input);
 
-    PCollection<Integer> output = tuple
-        .apply("ProjectTag", new TupleProjectionTransform<Integer>(tag));
+    PCollection<Integer> output = tuple.apply("ProjectTag", new TupleProjectionTransform<>(tag));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
@@ -345,13 +341,11 @@ public class PipelineTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testTupleInjectionTransform() throws Exception {
-    PCollection<Integer> input = pipeline
-        .apply(Create.<Integer>of(1, 2, 3, 4));
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4));
 
-    TupleTag<Integer> tag = new TupleTag<Integer>();
+    TupleTag<Integer> tag = new TupleTag<>();
 
-    PCollectionTuple output = input
-        .apply("ProjectTag", new TupleInjectionTransform<Integer>(tag));
+    PCollectionTuple output = input.apply("ProjectTag", new TupleInjectionTransform<>(tag));
 
     PAssert.that(output.get(tag)).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
@@ -389,20 +383,10 @@ public class PipelineTest {
     pipeline.replaceAll(
         ImmutableList.of(
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof GenerateSequence;
-                  }
-                },
+                application -> application.getTransform() instanceof GenerateSequence,
                 new GenerateSequenceToCreateOverride()),
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof Create.Values;
-                  }
-                },
+                application -> application.getTransform() instanceof Create.Values,
                 new CreateValuesToEmptyFlattenOverride())));
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -413,10 +397,8 @@ public class PipelineTest {
                   node.getTransform().getClass(),
                   not(
                       anyOf(
-                          Matchers.<Class<? extends PTransform>>equalTo(
-                              GenerateSequence.class),
-                          Matchers.<Class<? extends PTransform>>equalTo(
-                              Create.Values.class))));
+                          Matchers.equalTo(GenerateSequence.class),
+                          Matchers.equalTo(Create.Values.class))));
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }
@@ -437,20 +419,10 @@ public class PipelineTest {
     pipeline.replaceAll(
         ImmutableList.of(
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof Create.Values;
-                  }
-                },
+                application -> application.getTransform() instanceof Create.Values,
                 new CreateValuesToEmptyFlattenOverride()),
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof GenerateSequence;
-                  }
-                },
+                application -> application.getTransform() instanceof GenerateSequence,
                 new GenerateSequenceToCreateOverride())));
   }
 
@@ -484,7 +456,7 @@ public class PipelineTest {
       @Override
       public Map<PValue, ReplacementOutput> mapOutputs(
           Map<TupleTag<?>, PValue> outputs, PCollection<Integer> newOutput) {
-        return Collections.<PValue, ReplacementOutput>singletonMap(
+        return Collections.singletonMap(
             newOutput,
             ReplacementOutput.of(
                 TaggedPValue.ofExpandedValue(Iterables.getOnlyElement(outputs.values())),
@@ -539,7 +511,7 @@ public class PipelineTest {
       Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
       Map.Entry<TupleTag<?>, PValue> replacement =
           Iterables.getOnlyElement(newOutput.expand().entrySet());
-      return Collections.<PValue, ReplacementOutput>singletonMap(
+      return Collections.singletonMap(
           newOutput,
           ReplacementOutput.of(
               TaggedPValue.of(original.getKey(), original.getValue()),
@@ -551,7 +523,7 @@ public class PipelineTest {
     @Override
     public PCollection<T> expand(PBegin input) {
       PCollectionList<T> empty = PCollectionList.empty(input.getPipeline());
-      return empty.apply(Flatten.<T>pCollections());
+      return empty.apply(Flatten.pCollections());
     }
   }
 
@@ -571,7 +543,7 @@ public class PipelineTest {
       Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
       Map.Entry<TupleTag<?>, PValue> replacement =
           Iterables.getOnlyElement(newOutput.expand().entrySet());
-      return Collections.<PValue, ReplacementOutput>singletonMap(
+      return Collections.singletonMap(
           newOutput,
           ReplacementOutput.of(
               TaggedPValue.of(original.getKey(), original.getValue()),

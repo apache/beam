@@ -463,7 +463,7 @@ public class ApexStateInternals<K> implements StateInternals {
     private static final long serialVersionUID = 1L;
 
     public <K> ApexStateInternalsFactory<K> newStateInternalsFactory(Coder<K> keyCoder) {
-      return new ApexStateInternalsFactory<K>(keyCoder);
+      return new ApexStateInternalsFactory<>(keyCoder);
     }
   }
 

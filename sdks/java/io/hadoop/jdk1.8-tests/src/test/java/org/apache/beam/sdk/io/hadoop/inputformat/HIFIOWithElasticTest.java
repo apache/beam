@@ -113,10 +113,10 @@ public class HIFIOWithElasticTest implements Serializable {
     Configuration conf = getConfiguration();
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    PCollection<Long> count = esData.apply(Count.globally());
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PAssert.thatSingleton(count).isEqualTo((long) TEST_DATA_ROW_COUNT);
-    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    PCollection<LinkedMapWritable> values = esData.apply(Values.create());
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
@@ -126,12 +126,13 @@ public class HIFIOWithElasticTest implements Serializable {
   }
 
   MapElements<LinkedMapWritable, String> transformFunc =
-      MapElements.<LinkedMapWritable, String>via(new SimpleFunction<LinkedMapWritable, String>() {
-        @Override
-        public String apply(LinkedMapWritable mapw) {
-          return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
-        }
-      });
+      MapElements.via(
+          new SimpleFunction<LinkedMapWritable, String>() {
+            @Override
+            public String apply(LinkedMapWritable mapw) {
+              return mapw.get(new Text("id")) + "|" + mapw.get(new Text("scientist"));
+            }
+          });
   /**
    * Test to read data from embedded Elasticsearch instance based on query and verify whether data
    * is read successfully.
@@ -155,10 +156,10 @@ public class HIFIOWithElasticTest implements Serializable {
     conf.set(ConfigurationOptions.ES_QUERY, query);
     PCollection<KV<Text, LinkedMapWritable>> esData =
         pipeline.apply(HadoopInputFormatIO.<Text, LinkedMapWritable>read().withConfiguration(conf));
-    PCollection<Long> count = esData.apply(Count.<KV<Text, LinkedMapWritable>>globally());
+    PCollection<Long> count = esData.apply(Count.globally());
     // Verify that the count of objects fetched using HIFInputFormat IO is correct.
     PAssert.thatSingleton(count).isEqualTo(expectedRowCount);
-    PCollection<LinkedMapWritable> values = esData.apply(Values.<LinkedMapWritable>create());
+    PCollection<LinkedMapWritable> values = esData.apply(Values.create());
     PCollection<String> textValues = values.apply(transformFunc);
     // Verify the output values using checksum comparison.
     PCollection<String> consolidatedHashcode =
@@ -191,7 +192,7 @@ public class HIFIOWithElasticTest implements Serializable {
  }
 
   private static Map<String, String> createElasticRow(String id, String name) {
-    Map<String, String> data = new HashMap<String, String>();
+    Map<String, String> data = new HashMap<>();
     data.put("id", id);
     data.put("scientist", name);
     return data;
@@ -269,7 +270,8 @@ public class HIFIOWithElasticTest implements Serializable {
   static class PluginNode extends Node implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    static Collection<Class<? extends Plugin>> list = new ArrayList<Class<? extends Plugin>>();
+    static Collection<Class<? extends Plugin>> list = new ArrayList<>();
+
     static {
       list.add(Netty4Plugin.class);
     }

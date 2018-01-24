@@ -28,7 +28,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -80,14 +79,9 @@ public class AutoCompleteTest implements Serializable {
     PCollection<String> input = p.apply(Create.of(words));
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
-      input.apply(new ComputeTopCompletions(2, recursive))
-           .apply(Filter.by(
-               new SerializableFunction<KV<String, List<CompletionCandidate>>, Boolean>() {
-                 @Override
-                 public Boolean apply(KV<String, List<CompletionCandidate>> element) {
-                   return element.getKey().length() <= 2;
-                 }
-               }));
+        input
+            .apply(new ComputeTopCompletions(2, recursive))
+            .apply(Filter.by(element -> element.getKey().length() <= 2));
 
     PAssert.that(output).containsInAnyOrder(
         KV.of("a", parseList("apple:2", "apricot:1")),
@@ -128,8 +122,9 @@ public class AutoCompleteTest implements Serializable {
     PCollection<String> input = p.apply(Create.timestamped(words));
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
-      input.apply(Window.<String>into(SlidingWindows.of(new Duration(2))))
-           .apply(new ComputeTopCompletions(2, recursive));
+        input
+            .apply(Window.into(SlidingWindows.of(new Duration(2))))
+            .apply(new ComputeTopCompletions(2, recursive));
 
     PAssert.that(output).containsInAnyOrder(
         // Window [0, 2)

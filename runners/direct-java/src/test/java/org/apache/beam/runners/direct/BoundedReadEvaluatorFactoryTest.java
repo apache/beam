@@ -66,8 +66,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link BoundedReadEvaluatorFactory}.
@@ -128,7 +126,7 @@ public class BoundedReadEvaluatorFactoryTest {
 
     assertThat(
         outputs,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
@@ -224,20 +222,13 @@ public class BoundedReadEvaluatorFactoryTest {
 
     assertThat(
         outputs,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 
   @Test
   public void getInitialInputsSplitsIntoBundles() throws Exception {
-    when(context.createRootBundle())
-        .thenAnswer(
-            new Answer<UncommittedBundle<?>>() {
-              @Override
-              public UncommittedBundle<?> answer(InvocationOnMock invocation) throws Throwable {
-                return bundleFactory.createRootBundle();
-              }
-            });
+    when(context.createRootBundle()).thenAnswer(invocation -> bundleFactory.createRootBundle());
     Collection<CommittedBundle<?>> initialInputs =
         new BoundedReadEvaluatorFactory.InputProvider(context)
             .getInitialInputs(longsProducer, 3);
@@ -249,7 +240,7 @@ public class BoundedReadEvaluatorFactoryTest {
       Iterable<WindowedValue<BoundedSourceShard<Long>>> shards =
           (Iterable) initialInput.getElements();
       WindowedValue<BoundedSourceShard<Long>> shard = Iterables.getOnlyElement(shards);
-      assertThat(shard.getWindows(), Matchers.<BoundedWindow>contains(GlobalWindow.INSTANCE));
+      assertThat(shard.getWindows(), Matchers.contains(GlobalWindow.INSTANCE));
       assertThat(shard.getTimestamp(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
       sources.add(shard.getValue().getSource());
     }
@@ -291,7 +282,7 @@ public class BoundedReadEvaluatorFactoryTest {
     }
     assertThat(
         outputElems,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             gw(1L), gw(2L), gw(4L), gw(8L), gw(9L), gw(7L), gw(6L), gw(5L), gw(3L), gw(0L)));
   }
 

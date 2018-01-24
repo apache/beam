@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.BagState;
@@ -73,16 +72,20 @@ public abstract class SystemReduceFn<K, InputT, AccumT, OutputT, W extends Bound
           final Coder<K> keyCoder, final AppliedCombineFn<K, InputT, AccumT, OutputT> combineFn) {
     final StateTag<CombiningState<InputT, AccumT, OutputT>> bufferTag;
     if (combineFn.getFn() instanceof CombineFnWithContext) {
-      bufferTag = StateTags.makeSystemTagInternal(
-          StateTags.<InputT, AccumT, OutputT>combiningValueWithContext(
-              BUFFER_NAME, combineFn.getAccumulatorCoder(),
-              (CombineFnWithContext<InputT, AccumT, OutputT>) combineFn.getFn()));
+      bufferTag =
+          StateTags.makeSystemTagInternal(
+              StateTags.combiningValueWithContext(
+                  BUFFER_NAME,
+                  combineFn.getAccumulatorCoder(),
+                  (CombineFnWithContext<InputT, AccumT, OutputT>) combineFn.getFn()));
 
     } else {
-      bufferTag = StateTags.makeSystemTagInternal(
-            StateTags.<InputT, AccumT, OutputT>combiningValue(
-                BUFFER_NAME, combineFn.getAccumulatorCoder(),
-                (CombineFn<InputT, AccumT, OutputT>) combineFn.getFn()));
+      bufferTag =
+          StateTags.makeSystemTagInternal(
+              StateTags.combiningValue(
+                  BUFFER_NAME,
+                  combineFn.getAccumulatorCoder(),
+                  (CombineFn<InputT, AccumT, OutputT>) combineFn.getFn()));
     }
     return new SystemReduceFn<K, InputT, AccumT, OutputT, W>(bufferTag) {
       @Override

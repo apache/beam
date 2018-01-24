@@ -884,30 +884,32 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         StateSpec<CombiningState<InputT, AccumT, OutputT>> spec,
         Coder<AccumT> accumCoder,
         CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-      return (CombiningState<InputT, AccumT, OutputT>) stateObjectCache.computeIfAbsent(
-          createOrUseCachedBagUserStateKey(id),
-          new Function<StateKey.BagUserState, Object>() {
-            @Override
-            public Object apply(StateKey.BagUserState s) {
-              return bindCombining(id, spec, accumCoder, CombineFnUtil.bindContext(combineFn,
-                  new StateContext<BoundedWindow>() {
-                    @Override
-                    public PipelineOptions getPipelineOptions() {
-                      return pipelineOptions;
-                    }
+      return (CombiningState<InputT, AccumT, OutputT>)
+          stateObjectCache.computeIfAbsent(
+              createOrUseCachedBagUserStateKey(id),
+              s ->
+                  bindCombining(
+                      id,
+                      spec,
+                      accumCoder,
+                      CombineFnUtil.bindContext(
+                          combineFn,
+                          new StateContext<BoundedWindow>() {
+                            @Override
+                            public PipelineOptions getPipelineOptions() {
+                              return pipelineOptions;
+                            }
 
-                    @Override
-                    public <T> T sideInput(PCollectionView<T> view) {
-                      return processBundleContext.sideInput(view);
-                    }
+                            @Override
+                            public <T> T sideInput(PCollectionView<T> view) {
+                              return processBundleContext.sideInput(view);
+                            }
 
-                    @Override
-                    public BoundedWindow window() {
-                      return currentWindow;
-                    }
-                  }));
-            }
-          });
+                            @Override
+                            public BoundedWindow window() {
+                              return currentWindow;
+                            }
+                          })));
     }
 
     /**
@@ -922,23 +924,23 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     private <T> BagUserState<T> createBagUserState(String id, Coder<T> coder) {
-      BagUserState rval = new BagUserState<T>(
-          beamFnStateClient,
-          id,
-          coder,
-          new Supplier<StateRequest.Builder>() {
-            /** Memoizes the partial state key for the lifetime of the {@link BagUserState}. */
-            private final Supplier<StateKey.BagUserState> memoizingSupplier =
-                Suppliers.memoize(() -> createOrUseCachedBagUserStateKey(id))::get;
+      BagUserState rval =
+          new BagUserState<>(
+              beamFnStateClient,
+              id,
+              coder,
+              new Supplier<StateRequest.Builder>() {
+                /** Memoizes the partial state key for the lifetime of the {@link BagUserState}. */
+                private final Supplier<StateKey.BagUserState> memoizingSupplier =
+                    Suppliers.memoize(() -> createOrUseCachedBagUserStateKey(id))::get;
 
-            @Override
-            public Builder get() {
-              return StateRequest.newBuilder()
-                  .setInstructionReference(processBundleInstructionId.get())
-                  .setStateKey(StateKey.newBuilder()
-                      .setBagUserState(memoizingSupplier.get()));
-            }
-          });
+                @Override
+                public Builder get() {
+                  return StateRequest.newBuilder()
+                      .setInstructionReference(processBundleInstructionId.get())
+                      .setStateKey(StateKey.newBuilder().setBagUserState(memoizingSupplier.get()));
+                }
+              });
       stateFinalizers.add(rval::asyncClose);
       return rval;
     }

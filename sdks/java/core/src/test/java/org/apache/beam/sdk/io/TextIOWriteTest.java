@@ -389,8 +389,7 @@ public class TextIOWriteTest {
     }
 
     WriteFilesResult<Void> result = input.apply(write);
-    PAssert.that(result.getPerDestinationOutputFilenames()
-        .apply("GetFilenames", Values.<String>create()))
+    PAssert.that(result.getPerDestinationOutputFilenames().apply("GetFilenames", Values.create()))
         .satisfies(new MatchesFilesystem(baseFilename));
     p.run();
 
@@ -491,13 +490,10 @@ public class TextIOWriteTest {
 
   private static Predicate<List<String>> haveProperHeaderAndFooter(
       final String header, final String footer) {
-    return new Predicate<List<String>>() {
-      @Override
-      public boolean apply(List<String> fileLines) {
-        int last = fileLines.size() - 1;
-        return (header == null || fileLines.get(0).equals(header))
-            && (footer == null || fileLines.get(last).equals(footer));
-      }
+    return fileLines -> {
+      int last = fileLines.size() - 1;
+      return (header == null || fileLines.get(0).equals(header))
+          && (footer == null || fileLines.get(last).equals(footer));
     };
   }
 
@@ -670,7 +666,7 @@ public class TextIOWriteTest {
                     .withWindowedWrites()
                     .<Void>withOutputFilenames())
             .getPerDestinationOutputFilenames()
-            .apply(Values.<String>create());
+            .apply(Values.create());
 
     PAssert.that(filenames.apply(TextIO.readAll())).containsInAnyOrder("0", "1", "2");
 
@@ -690,7 +686,7 @@ public class TextIOWriteTest {
                         .via(TextIO.sink())
                         .withIgnoreWindowing())
                 .getPerDestinationOutputFilenames()
-                .apply(Values.<String>create())
+                .apply(Values.create())
                 .apply(TextIO.readAll()))
         .containsInAnyOrder(data);
 

@@ -30,6 +30,6 @@ public class HadoopFileSystemOptionsRegistrar implements PipelineOptionsRegistra
 
   @Override
   public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-    return ImmutableList.<Class<? extends PipelineOptions>>of(HadoopFileSystemOptions.class);
+    return ImmutableList.of(HadoopFileSystemOptions.class);
   }
 }
