@@ -217,17 +217,11 @@ class BigtableServiceImpl implements BigtableService {
     public ListenableFuture<MutateRowResponse> writeRecord(
         KV<ByteString, Iterable<Mutation>> record)
         throws IOException {
-      MutateRowsRequest.Entry.Builder requestBuilder = MutateRowsRequest.Entry.newBuilder();
-      requestBuilder.setRowKey(record.getKey());
-
-      // TODO: Ideally, this should use `requestBuilder.addAllMutations(record.getValue());`
-      //       Unfortunately, the version of protobuf used by Cloud Bigtable is not compatible
-      //       with the version used by beam. Specifically, the follow does not work:
-      //       `requestBuilder.addAllMutations(record.getValue());`.
-      for (Mutation mutation : record.getValue()) {
-        requestBuilder.addMutations(mutation);
-      }
-      return bulkMutation.add(requestBuilder.build());
+      MutateRowsRequest.Entry request = MutateRowsRequest.Entry.newBuilder()
+          .setRowKey(record.getKey())
+          .addAllMutations(record.getValue())
+          .build();
+      return bulkMutation.add(request);
     }
   }
 
