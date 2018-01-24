@@ -432,8 +432,6 @@ func tryEncodeSpecial(t reflect.Type) (v1.Type_Special, bool) {
 		return v1.Type_EVENTTIME, true
 	case typex.KVType:
 		return v1.Type_KV, true
-	case typex.GBKType:
-		return v1.Type_GBK, true
 	case typex.CoGBKType:
 		return v1.Type_COGBK, true
 	case typex.WindowedValueType:
@@ -579,8 +577,6 @@ func decodeSpecial(s v1.Type_Special) (reflect.Type, error) {
 		return typex.EventTimeType, nil
 	case v1.Type_KV:
 		return typex.KVType, nil
-	case v1.Type_GBK:
-		return typex.GBKType, nil
 	case v1.Type_COGBK:
 		return typex.CoGBKType, nil
 	case v1.Type_WINDOWEDVALUE:
@@ -758,7 +754,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		}
 		return &CoderRef{Type: pairType, Components: []*CoderRef{key, value}, IsPairLike: true}, nil
 
-	case coder.GBK:
+	case coder.CoGBK:
 		if len(c.Components) != 2 {
 			return nil, fmt.Errorf("bad GBK: %v", c)
 		}
@@ -827,8 +823,8 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		isGBK := elm.Type == streamType
 		if isGBK {
 			elm = elm.Components[0]
-			kind = coder.GBK
-			root = typex.GBKType
+			kind = coder.CoGBK
+			root = typex.CoGBKType
 		}
 		value, err := DecodeCoderRef(elm)
 		if err != nil {

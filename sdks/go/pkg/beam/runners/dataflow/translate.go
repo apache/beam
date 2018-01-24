@@ -204,7 +204,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 			SerializedFn: fn,
 		}, nil
 
-	case graph.GBK:
+	case graph.CoGBK:
 		w := edge.Input[0].From.Window()
 		sfn, err := encodeSerializedFn(translateWindow(w))
 		if err != nil {

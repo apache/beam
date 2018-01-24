@@ -45,12 +45,14 @@ func Printf(s beam.Scope, format string, col beam.PCollection) beam.PCollection 
 	switch {
 	case typex.IsWKV(col.Type()):
 		return beam.ParDo(s, &printKVFn{Format: format}, col)
-	case typex.IsWGBK(col.Type()):
+	case typex.IsWCoGBK(col.Type()):
 		return beam.ParDo(s, &printGBKFn{Format: format}, col)
 	default:
 		return beam.ParDo(s, &printFn{Format: format}, col)
 	}
 }
+
+// TODO(herohde) 1/24/2018: use DynFn for a unified signature here instead.
 
 type printFn struct {
 	Format string `json:"format"`

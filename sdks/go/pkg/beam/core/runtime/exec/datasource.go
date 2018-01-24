@@ -64,7 +64,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 
 	c := n.Edge.Output[0].To.Coder
 	switch {
-	case coder.IsWGBK(c):
+	case coder.IsWCoGBK(c):
 		ck := MakeElementDecoder(coder.SkipW(c).Components[0])
 		cv := MakeElementDecoder(coder.SkipW(c).Components[1])
 
@@ -140,9 +140,6 @@ func (n *DataSource) Process(ctx context.Context) error {
 				return err
 			}
 		}
-
-	case coder.IsWCoGBK(c):
-		panic("NYI")
 
 	default:
 		ec := MakeElementDecoder(coder.SkipW(c))

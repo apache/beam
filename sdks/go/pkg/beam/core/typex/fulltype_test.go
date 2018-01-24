@@ -29,8 +29,8 @@ func TestIsBound(t *testing.T) {
 	}{
 		{New(reflectx.Int), true},
 		{New(TType), false},
-		{NewWGBK(New(TType), New(reflectx.String)), false},
-		{NewWGBK(New(reflectx.String), New(reflectx.String)), true},
+		{NewWCoGBK(New(TType), New(reflectx.String)), false},
+		{NewWCoGBK(New(reflectx.String), New(reflectx.String)), true},
 		{NewWKV(New(reflectx.String), New(reflect.SliceOf(reflectx.Int))), true},
 		{NewWKV(New(reflectx.String), New(reflect.SliceOf(XType))), false},
 		{NewWKV(New(reflectx.String), New(reflectx.String)), true},
@@ -53,8 +53,8 @@ func TestIsStructurallyAssignable(t *testing.T) {
 		{New(reflectx.Int64), New(reflectx.Int32), false}, // from Go assignability
 		{New(reflectx.Int), New(TType), true},
 		{New(XType), New(TType), true},
-		{NewWKV(New(XType), New(YType)), New(TType), false},                                                  // T cannot match composites
-		{NewWKV(New(reflectx.Int), New(reflectx.Int)), NewWGBK(New(reflectx.Int), New(reflectx.Int)), false}, // structural mismatch
+		{NewWKV(New(XType), New(YType)), New(TType), false},                                                    // T cannot match composites
+		{NewWKV(New(reflectx.Int), New(reflectx.Int)), NewWCoGBK(New(reflectx.Int), New(reflectx.Int)), false}, // structural mismatch
 		{NewWKV(New(XType), New(reflectx.Int)), NewWKV(New(TType), New(UType)), true},
 		{NewWKV(New(XType), New(reflectx.Int)), NewWKV(New(TType), New(XType)), true},
 		{NewWKV(New(reflectx.String), New(reflectx.Int)), NewWKV(New(TType), New(TType)), true},
@@ -88,20 +88,20 @@ func TestBindSubstitute(t *testing.T) {
 		{
 			NewWKV(New(reflectx.Int), New(reflectx.String)),
 			NewWKV(New(XType), New(YType)),
-			NewWGBK(New(XType), New(XType)),
-			NewWGBK(New(reflectx.Int), New(reflectx.Int)),
+			NewWCoGBK(New(XType), New(XType)),
+			NewWCoGBK(New(reflectx.Int), New(reflectx.Int)),
 		},
 		{
-			NewWGBK(New(reflectx.Int), New(reflectx.String)),
-			NewWGBK(New(XType), New(YType)),
-			NewWGBK(New(YType), New(XType)),
-			NewWGBK(New(reflectx.String), New(reflectx.Int)),
+			NewWCoGBK(New(reflectx.Int), New(reflectx.String)),
+			NewWCoGBK(New(XType), New(YType)),
+			NewWCoGBK(New(YType), New(XType)),
+			NewWCoGBK(New(reflectx.String), New(reflectx.Int)),
 		},
 		{
-			NewWGBK(New(ZType), New(XType)),
-			NewWGBK(New(XType), New(YType)),
-			NewWGBK(New(YType), New(XType)),
-			NewWGBK(New(XType), New(ZType)),
+			NewWCoGBK(New(ZType), New(XType)),
+			NewWCoGBK(New(XType), New(YType)),
+			NewWCoGBK(New(YType), New(XType)),
+			NewWCoGBK(New(XType), New(ZType)),
 		},
 	}
 

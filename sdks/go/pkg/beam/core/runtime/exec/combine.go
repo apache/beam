@@ -66,7 +66,7 @@ func (n *Combine) Up(ctx context.Context) error {
 	// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
 	// instead of inferring it here?
 
-	n.isPerKey = typex.IsWGBK(n.Edge.Input[0].From.Type())
+	n.isPerKey = typex.IsWCoGBK(n.Edge.Input[0].From.Type())
 	n.usesKey = typex.IsWKV(n.Edge.Input[0].Type)
 	return nil
 }
@@ -260,7 +260,7 @@ func (n *Combine) fail(err error) error {
 
 func (n *Combine) String() string {
 	// Re-compute: the corresponding fields are not necessarily set yet.
-	isPerKey := typex.IsWGBK(n.Edge.Input[0].From.Type())
+	isPerKey := typex.IsWCoGBK(n.Edge.Input[0].From.Type())
 	usesKey := typex.IsWKV(n.Edge.Input[0].Type)
 
 	return fmt.Sprintf("Combine[%v] Keyed:%v (Use:%v) Out:%v", path.Base(n.Edge.CombineFn.Name()), isPerKey, usesKey, n.Out.ID())

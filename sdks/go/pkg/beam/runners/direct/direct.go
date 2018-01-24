@@ -243,8 +243,9 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 	case graph.Combine:
 		u = &exec.Combine{UID: b.idgen.New(), Edge: edge, Out: out[0]}
 
-	case graph.GBK:
-		u = &GBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}
+	case graph.CoGBK:
+
+		u = &CoGBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}
 
 	case graph.Flatten:
 		u = &exec.Flatten{UID: b.idgen.New(), N: len(edge.Input), Out: out[0]}

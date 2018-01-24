@@ -68,7 +68,7 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interfac
 			param := fn.Param[in[i]]
 
 			if param.Kind != funcx.FnIter {
-				return nil, fmt.Errorf("GBK result values must be iterable: %v", param)
+				return nil, fmt.Errorf("GBK/CoGBK result values must be iterable: %v", param)
 			}
 
 			// TODO(herohde) 12/12/2017: allow form conversion on GBK results?

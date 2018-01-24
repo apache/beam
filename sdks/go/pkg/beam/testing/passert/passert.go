@@ -174,12 +174,14 @@ func Empty(s beam.Scope, col beam.PCollection) beam.PCollection {
 	return col
 }
 
+// TODO(herohde) 1/24/2018: use DynFn for a unified signature here instead.
+
 func fail(s beam.Scope, col beam.PCollection, format string) {
 	switch {
 	case typex.IsWKV(col.Type()):
 		beam.ParDo0(s, &failKVFn{Format: format}, col)
 
-	case typex.IsWGBK(col.Type()):
+	case typex.IsWCoGBK(col.Type()):
 		beam.ParDo0(s, &failGBKFn{Format: format}, col)
 
 	default:

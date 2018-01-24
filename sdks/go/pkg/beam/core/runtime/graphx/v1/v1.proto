@@ -51,7 +51,7 @@ message Type {
         SLICE = 20;
         STRUCT = 21;
         FUNC = 22;
-        CHAN = 23; // TODO: remove?
+        CHAN = 23;
         PTR = 24;
         SPECIAL = 25;
 
@@ -104,7 +104,6 @@ message Type {
         EVENTTIME = 10;
 
         KV = 11;
-        GBK = 12;
         COGBK = 13;
         WINDOWEDVALUE = 14;
 
