@@ -36,6 +36,7 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1106,7 +1107,7 @@ public class KafkaIOTest {
     List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
 
     // sort by values
-    Collections.sort(sent, (o1, o2) -> Long.compare(o1.value(), o2.value()));
+    Collections.sort(sent, Comparator.comparingLong((o) -> o.value()));
 
     for (int i = 0; i < numElements; i++) {
       ProducerRecord<Integer, Long> record = sent.get(i);
