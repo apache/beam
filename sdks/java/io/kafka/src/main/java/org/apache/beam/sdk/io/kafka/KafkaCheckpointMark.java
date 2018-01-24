@@ -21,6 +21,8 @@ import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+
+import org.apache.avro.reflect.AvroIgnore;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -35,7 +37,8 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   private List<PartitionMark> partitions;
 
   // Kafka reader is set only when option to commit offsets is enabled.
-  private KafkaIO.UnboundedKafkaReader reader;
+  @AvroIgnore
+  private KafkaIO.UnboundedKafkaReader<?, ?> reader;
 
   private KafkaCheckpointMark() {} // for Avro
 
@@ -44,7 +47,7 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
     this.reader = null;
   }
 
-  KafkaCheckpointMark(List<PartitionMark> partitions, KafkaIO.UnboundedKafkaReader reader) {
+  KafkaCheckpointMark(List<PartitionMark> partitions, KafkaIO.UnboundedKafkaReader<?, ?> reader) {
     this.partitions = partitions;
     this.reader = reader;
   }
