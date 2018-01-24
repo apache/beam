@@ -56,16 +56,14 @@ public class MinimalWordCountJava8 {
     Pipeline p = Pipeline.create(options);
 
     p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
-        .apply(
-            FlatMapElements.into(TypeDescriptors.strings())
-                .via((String word) -> Arrays.asList(word.split("[^\\p{L}]+"))))
+        .apply(FlatMapElements
+            .into(TypeDescriptors.strings())
+            .via((String word) -> Arrays.asList(word.split("[^\\p{L}]+"))))
         .apply(Filter.by((String word) -> !word.isEmpty()))
         .apply(Count.perElement())
-        .apply(
-            MapElements.into(TypeDescriptors.strings())
-                .via(
-                    (KV<String, Long> wordCount) ->
-                        wordCount.getKey() + ": " + wordCount.getValue()))
+        .apply(MapElements
+            .into(TypeDescriptors.strings())
+            .via((KV<String, Long> wordCount) -> wordCount.getKey() + ": " + wordCount.getValue()))
         // CHANGE 3/3: The Google Cloud Storage path is required for outputting the results to.
         .apply(TextIO.write().to("gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX"));
 
