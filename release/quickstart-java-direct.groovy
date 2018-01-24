@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-t = new TestHelper()  
+t = new TestScripts()  
 
 /*
  * Run the direct quickstart from https://beam.apache.org/get-started/quickstart-java/
@@ -25,7 +25,7 @@ t = new TestHelper()
 
 t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
 
-  t.it 'Gets the WordCount Code'
+  t.intent 'Gets the WordCount Code'
     ver = System.env.snapshot_version ?: "2.3.0-SNAPSHOT"
 
     // Generate a maven project from the snapshot repository
@@ -48,7 +48,7 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
     t.run "ls src/main/java/org/apache/beam/examples/"
     t.see "WordCount.java"
 
-  t.it 'Runs the WordCount Code with Direct runner'
+  t.intent 'Runs the WordCount Code with Direct runner'
 
     // Run the workcount example with the direct runner
     t.run """mvn compile exec:java \
