@@ -1092,13 +1092,15 @@ public class KafkaIO {
         try {
           if (records.isEmpty()) {
             records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          } else {
-            availableRecordsQueue.offer(records,
-                                        RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(),
-                                        TimeUnit.MILLISECONDS);
+          } else if (availableRecordsQueue.offer(records,
+                                                 RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(),
+                                                 TimeUnit.MILLISECONDS)) {
             records = ConsumerRecords.empty();
           }
-          commitFinalizedCheckpointMark(); // If any.
+          KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
+          if (checkpointMark != null) {
+            commitCheckpointMark(checkpointMark);
+          }
         } catch (InterruptedException e) {
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
           break;
@@ -1110,24 +1112,18 @@ public class KafkaIO {
       LOG.info("{}: Returning from consumer pool loop", this);
     }
 
-    /**
-     * Commit offsets from latest finalized checkpoint mark. The checkpoint mark is set
-     * only when committing offsets back to Kafka is enabled.
-     */
-    private void commitFinalizedCheckpointMark() {
-      KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
-      if (checkpointMark != null) {
-        Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
-        for (PartitionMark partitionMark : checkpointMark.getPartitions()) {
-          if (partitionMark.getNextOffset() != UNINITIALIZED_OFFSET) {
-            offsets.put(
-              new TopicPartition(partitionMark.getTopic(), partitionMark.getPartition()),
-              new OffsetAndMetadata(partitionMark.getNextOffset()));
-          }
-        }
-        consumer.commitSync(offsets);
-        checkpointMarkCommits.inc();
-      }
+    private void commitCheckpointMark(KafkaCheckpointMark checkpointMark) {
+      consumer.commitSync(
+        checkpointMark
+          .getPartitions()
+          .stream()
+          .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
+          .collect(Collectors.toMap(
+            p -> new TopicPartition(p.getTopic(), p.getPartition()),
+            p -> new OffsetAndMetadata(p.getNextOffset())
+          ))
+      );
+      checkpointMarkCommits.inc();
     }
 
     /**
