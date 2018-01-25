@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
+import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.INTEGER;
+import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.VARCHAR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -25,7 +27,6 @@ import static org.junit.Assert.assertThat;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
 import java.net.URI;
-import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
@@ -91,10 +92,7 @@ public class InMemoryMetaStoreTest {
     BeamSqlTable actualSqlTable = store.buildBeamSqlTable("hello");
     assertNotNull(actualSqlTable);
     assertEquals(
-        BeamRecordSqlType.create(
-            ImmutableList.of("id", "name"),
-            ImmutableList.of(Types.INTEGER, Types.VARCHAR)
-        ),
+        BeamRecordSqlType.builder().withIntegerField("id").withVarcharField("name").build(),
         actualSqlTable.getRowType()
     );
   }
@@ -133,8 +131,8 @@ public class InMemoryMetaStoreTest {
         .comment(name + " table")
         .location(URI.create("text://home/admin/" + name))
         .columns(ImmutableList.of(
-            Column.builder().name("id").type(Types.INTEGER).primaryKey(true).build(),
-            Column.builder().name("name").type(Types.VARCHAR).primaryKey(false).build()
+            Column.builder().name("id").coder(INTEGER).primaryKey(true).build(),
+            Column.builder().name("name").coder(VARCHAR).primaryKey(false).build()
         ))
         .type(type)
         .properties(new JSONObject())

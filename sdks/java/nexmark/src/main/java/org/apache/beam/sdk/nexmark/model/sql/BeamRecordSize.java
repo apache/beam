@@ -22,17 +22,19 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.sql.Types;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
  * {@link KnownSize} implementation to estimate the size of a {@link BeamRecord},
@@ -60,19 +62,19 @@ public class BeamRecordSize implements KnownSize {
     }
   };
 
-  private static final Map<Integer, Integer> ESTIMATED_FIELD_SIZES =
-      ImmutableMap.<Integer, Integer>builder()
-          .put(Types.TINYINT, bytes(Byte.SIZE))
-          .put(Types.SMALLINT, bytes(Short.SIZE))
-          .put(Types.INTEGER, bytes(Integer.SIZE))
-          .put(Types.BIGINT, bytes(Long.SIZE))
-          .put(Types.FLOAT, bytes(Float.SIZE))
-          .put(Types.DOUBLE, bytes(Double.SIZE))
-          .put(Types.DECIMAL, 32)
-          .put(Types.BOOLEAN, 1)
-          .put(Types.TIME, bytes(Long.SIZE))
-          .put(Types.DATE, bytes(Long.SIZE))
-          .put(Types.TIMESTAMP, bytes(Long.SIZE))
+  private static final Map<SqlTypeCoder, Integer> ESTIMATED_FIELD_SIZES =
+      ImmutableMap.<SqlTypeCoder, Integer>builder()
+          .put(SqlTypeCoders.TINYINT, bytes(Byte.SIZE))
+          .put(SqlTypeCoders.SMALLINT, bytes(Short.SIZE))
+          .put(SqlTypeCoders.INTEGER, bytes(Integer.SIZE))
+          .put(SqlTypeCoders.BIGINT, bytes(Long.SIZE))
+          .put(SqlTypeCoders.FLOAT, bytes(Float.SIZE))
+          .put(SqlTypeCoders.DOUBLE, bytes(Double.SIZE))
+          .put(SqlTypeCoders.DECIMAL, 32)
+          .put(SqlTypeCoders.BOOLEAN, 1)
+          .put(SqlTypeCoders.TIME, bytes(Long.SIZE))
+          .put(SqlTypeCoders.DATE, bytes(Long.SIZE))
+          .put(SqlTypeCoders.TIMESTAMP, bytes(Long.SIZE))
           .build();
 
   public static ParDo.SingleOutput<BeamRecord, BeamRecordSize> parDo() {
@@ -89,11 +91,11 @@ public class BeamRecordSize implements KnownSize {
   }
 
   private static long sizeInBytes(BeamRecord beamRecord) {
-    BeamRecordSqlType recordType = (BeamRecordSqlType) beamRecord.getDataType();
+    BeamRecordType recordType = beamRecord.getDataType();
     long size = 1; // nulls bitset
 
     for (int fieldIndex = 0; fieldIndex < recordType.getFieldCount(); fieldIndex++) {
-      Integer fieldType = recordType.getFieldTypeByIndex(fieldIndex);
+      Coder fieldType = recordType.getFieldCoder(fieldIndex);
 
       Integer estimatedSize = ESTIMATED_FIELD_SIZES.get(fieldType);
 
@@ -124,8 +126,9 @@ public class BeamRecordSize implements KnownSize {
     return sizeInBytes;
   }
 
-  private static boolean isString(Integer fieldType) {
-    return fieldType == Types.CHAR || fieldType == Types.VARCHAR;
+  private static boolean isString(Coder fieldType) {
+    return SqlTypeCoders.CHAR.equals(fieldType)
+        || SqlTypeCoders.VARCHAR.equals(fieldType);
   }
 
   private static Integer bytes(int size) {

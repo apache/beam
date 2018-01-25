@@ -19,10 +19,10 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -47,13 +47,13 @@ public class BeamTextCSVTable extends BeamTextTable {
   /**
    * CSV table with {@link CSVFormat#DEFAULT DEFAULT} format.
    */
-  public BeamTextCSVTable(BeamRecordSqlType beamSqlRowType, String filePattern)  {
-    this(beamSqlRowType, filePattern, CSVFormat.DEFAULT);
+  public BeamTextCSVTable(BeamRecordType beamRowType, String filePattern)  {
+    this(beamRowType, filePattern, CSVFormat.DEFAULT);
   }
 
-  public BeamTextCSVTable(BeamRecordSqlType beamRecordSqlType, String filePattern,
-      CSVFormat csvFormat) {
-    super(beamRecordSqlType, filePattern);
+  public BeamTextCSVTable(BeamRecordType beamRecordType, String filePattern,
+                          CSVFormat csvFormat) {
+    super(beamRecordType, filePattern);
     this.filePattern = filePattern;
     this.csvFormat = csvFormat;
   }
@@ -62,12 +62,12 @@ public class BeamTextCSVTable extends BeamTextTable {
   public PCollection<BeamRecord> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply("decodeRecord", TextIO.read().from(filePattern))
         .apply("parseCSVLine",
-            new BeamTextCSVTableIOReader(beamRecordSqlType, filePattern, csvFormat));
+            new BeamTextCSVTableIOReader(beamRecordType, filePattern, csvFormat));
   }
 
   @Override
   public PTransform<? super PCollection<BeamRecord>, PDone> buildIOWriter() {
-    return new BeamTextCSVTableIOWriter(beamRecordSqlType, filePattern, csvFormat);
+    return new BeamTextCSVTableIOWriter(beamRecordType, filePattern, csvFormat);
   }
 
   public CSVFormat getCsvFormat() {

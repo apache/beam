@@ -25,13 +25,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -45,8 +45,8 @@ public class MockedBoundedTable extends MockedTable {
   /** rows flow out from this table. */
   private final List<BeamRecord> rows = new ArrayList<>();
 
-  public MockedBoundedTable(BeamRecordSqlType beamSqlRowType) {
-    super(beamSqlRowType);
+  public MockedBoundedTable(BeamRecordType beamRowType) {
+    super(beamRowType);
   }
 
   /**
@@ -69,7 +69,7 @@ public class MockedBoundedTable extends MockedTable {
   /**
    * Build a mocked bounded table with the specified type.
    */
-  public static MockedBoundedTable of(final BeamRecordSqlType type) {
+  public static MockedBoundedTable of(final BeamRecordType type) {
     return new MockedBoundedTable(type);
   }
 

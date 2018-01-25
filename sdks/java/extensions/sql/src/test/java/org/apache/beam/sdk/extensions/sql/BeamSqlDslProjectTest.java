@@ -17,10 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.sql.Types;
-import java.util.Arrays;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -80,11 +79,14 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testPartialFields", BeamSql.queryMulti(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT));
+    BeamRecordType resultType = BeamRecordSqlType.builder()
+        .withIntegerField("f_int")
+        .withBigIntField("f_long")
+        .build();
 
-    BeamRecord record = new BeamRecord(resultType
-        , recordsInTableA.get(0).getFieldValue(0), recordsInTableA.get(0).getFieldValue(1));
+    BeamRecord record = new BeamRecord(resultType,
+        recordsInTableA.get(0).getFieldValue(0),
+        recordsInTableA.get(0).getFieldValue(1));
 
     PAssert.that(result).containsInAnyOrder(record);
 
@@ -114,8 +116,12 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testPartialFieldsInMultipleRow", BeamSql.queryMulti(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT));
+    BeamRecordType resultType =
+        BeamRecordSqlType
+            .builder()
+            .withIntegerField("f_int")
+            .withBigIntField("f_long")
+            .build();
 
     BeamRecord record1 = new BeamRecord(resultType
         , recordsInTableA.get(0).getFieldValue(0), recordsInTableA.get(0).getFieldValue(1));
@@ -157,8 +163,12 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testPartialFieldsInRows", BeamSql.queryMulti(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT));
+    BeamRecordType resultType =
+        BeamRecordSqlType
+            .builder()
+            .withIntegerField("f_int")
+            .withBigIntField("f_long")
+            .build();
 
     BeamRecord record1 = new BeamRecord(resultType
         , recordsInTableA.get(0).getFieldValue(0), recordsInTableA.get(0).getFieldValue(1));
@@ -200,8 +210,8 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testLiteralField", BeamSql.queryMulti(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("literal_field"),
-        Arrays.asList(Types.INTEGER));
+    BeamRecordType resultType =
+        BeamRecordSqlType.builder().withIntegerField("literal_field").build();
 
     BeamRecord record = new BeamRecord(resultType, 1);
 

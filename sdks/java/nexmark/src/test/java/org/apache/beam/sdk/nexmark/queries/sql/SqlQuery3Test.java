@@ -29,6 +29,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -39,12 +40,14 @@ import org.junit.Test;
  */
 public class SqlQuery3Test {
 
-  private static final BeamRecordSqlType RESULT_RECORD_TYPE = BeamRecordSqlType.builder()
-      .withVarcharField("name")
-      .withVarcharField("city")
-      .withVarcharField("state")
-      .withBigIntField("id")
-      .build();
+  private static final BeamRecordType RESULT_RECORD_TYPE =
+      BeamRecordSqlType
+          .builder()
+          .withVarcharField("name")
+          .withVarcharField("city")
+          .withVarcharField("state")
+          .withBigIntField("id")
+          .build();
 
   private static final List<Person> PEOPLE = ImmutableList.of(
       newPerson(0L, "WA"),
