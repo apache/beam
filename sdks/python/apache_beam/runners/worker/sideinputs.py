@@ -93,7 +93,7 @@ class PrefetchingSourceSetIterable(object):
       if is_record_size:
         self.read_counter.add_bytes_read(record_size)
 
-    if self.read_counter and isinstance(reader, observable.ObservableMixin):
+    if isinstance(reader, observable.ObservableMixin):
       reader.register_observer(update_bytes_read)
 
   def _start_reader_threads(self):
