@@ -42,11 +42,11 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /**
- * To keep {@link MinimalWordCountJava8} simple, it is not factored or testable. This test
+ * To keep {@link MinimalWordCount} simple, it is not factored or testable. This test
  * file should be maintained with a copy of its code for a basic smoke test.
  */
 @RunWith(JUnit4.class)
-public class MinimalWordCountJava8Test implements Serializable {
+public class MinimalWordCountTest implements Serializable {
 
   @Rule
   public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
@@ -55,7 +55,7 @@ public class MinimalWordCountJava8Test implements Serializable {
    * A basic smoke test that ensures there is no crash at pipeline construction time.
    */
   @Test
-  public void testMinimalWordCountJava8() throws Exception {
+  public void testMinimalWordCount() throws Exception {
     p.getOptions().as(GcsOptions.class).setGcsUtil(buildMockGcsUtil());
 
     p.apply(TextIO.read().from("gs://apache-beam-samples/shakespeare/*"))
