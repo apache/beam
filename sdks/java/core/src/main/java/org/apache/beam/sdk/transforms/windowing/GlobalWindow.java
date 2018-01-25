@@ -58,6 +58,11 @@ public class GlobalWindow extends BoundedWindow {
     return GlobalWindow.class.hashCode();
   }
 
+  @Override
+  public String toString() {
+    return "GlobalWindow";
+  }
+
   private GlobalWindow() {}
 
   /**

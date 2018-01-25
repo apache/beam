@@ -289,8 +289,11 @@ public final class PaneInfo {
 
   @Override
   public String toString() {
-    if (this == PaneInfo.NO_FIRING) {
-      return "PaneInfo.NO_FIRING";
+    if (this == NO_FIRING) {
+      return "NO_FIRING";
+    }
+    if (this == ON_TIME_AND_ONLY_FIRING) {
+      return "ON_TIME_AND_ONLY_FIRING";
     }
 
     return MoreObjects.toStringHelper(getClass())
