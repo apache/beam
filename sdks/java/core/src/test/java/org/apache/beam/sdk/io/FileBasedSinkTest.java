@@ -420,7 +420,7 @@ public class FileBasedSinkTest {
         new BufferedReader(
             new InputStreamReader(
                 new BZip2CompressorInputStream(new FileInputStream(file)),
-                StandardCharsets.UTF_8.name())),
+                StandardCharsets.UTF_8)),
         "abc",
         "123");
   }
@@ -433,7 +433,7 @@ public class FileBasedSinkTest {
     assertReadValues(
         new BufferedReader(
             new InputStreamReader(
-                new GZIPInputStream(new FileInputStream(file)), StandardCharsets.UTF_8.name())),
+                new GZIPInputStream(new FileInputStream(file)), StandardCharsets.UTF_8)),
         "abc",
         "123");
   }
@@ -448,7 +448,7 @@ public class FileBasedSinkTest {
         new BufferedReader(
             new InputStreamReader(
                 new DeflateCompressorInputStream(new FileInputStream(file)),
-                StandardCharsets.UTF_8.name())),
+                StandardCharsets.UTF_8)),
         "abc",
         "123");
   }
@@ -461,7 +461,7 @@ public class FileBasedSinkTest {
     // Read uncompressed data back in using standard API.
     assertReadValues(
         new BufferedReader(
-            new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8.name())),
+            new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)),
         "abc",
         "123");
   }

@@ -36,6 +36,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -419,9 +420,9 @@ public class AvroSource<T> extends BlockBasedSource<T> {
           byte[] bytes = new byte[valueBuffer.remaining()];
           valueBuffer.get(bytes);
           if (key.equals(DataFileConstants.CODEC)) {
-            codec = new String(bytes, "UTF-8");
+            codec = new String(bytes, StandardCharsets.UTF_8);
           } else if (key.equals(DataFileConstants.SCHEMA)) {
-            schemaString = new String(bytes, "UTF-8");
+            schemaString = new String(bytes, StandardCharsets.UTF_8);
           }
         }
         numRecords = decoder.mapNext();
