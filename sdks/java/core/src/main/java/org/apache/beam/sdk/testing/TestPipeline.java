@@ -345,12 +345,9 @@ public class TestPipeline extends Pipeline implements TestRule {
     final PipelineResult pipelineResult;
     try {
       enforcement.get().beforePipelineExecution();
-      PipelineOptions updatedOptions =
-          MAPPER.convertValue(MAPPER.valueToTree(options), PipelineOptions.class);
-      updatedOptions
-          .as(TestValueProviderOptions.class)
+      options.as(TestValueProviderOptions.class)
           .setProviderRuntimeValues(StaticValueProvider.of(providerRuntimeValues));
-      pipelineResult = super.run(updatedOptions);
+      pipelineResult = super.run(options);
       verifyPAssertsSucceeded(this, pipelineResult);
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
