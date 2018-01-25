@@ -82,7 +82,8 @@ public class FlinkMetricContainer {
     this.metricsAccumulator = (MetricsAccumulator) metricsAccumulator;
     //it would have been better to create MetricsPusher from runner-core but we need runner-specific
     // MetricsContainerStepMap
-    MetricsPusher.createAndStart(
+    //TODO:metricsAccumulator.getLocalValue() will be one for each UDF. So MetricsPusher need to have a list of MetricsContainerStepMap to merge
+    MetricsPusher.init(
         metricsAccumulator.getLocalValue(), serializedOptions.get());
   }
 

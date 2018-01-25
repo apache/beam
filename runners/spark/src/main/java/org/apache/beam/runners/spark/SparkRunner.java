@@ -254,10 +254,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     // Init metrics accumulators
     MetricsAccumulator.init(opts, jsc);
     AggregatorsAccumulator.init(opts, jsc);
-    // TODO pass parameters with pipelineOptions
-    //it would have been better to create MetricsPusher from runner-core but we need runn-specific
+    //it would have been better to create MetricsPusher from runner-core but we need runner-specific
     // MetricsContainerStepMap
-    MetricsPusher.createAndStart(
+    MetricsPusher.init(
         MetricsAccumulator.getInstance().value(), opts);
   }
 
