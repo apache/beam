@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.sql.Types;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
@@ -43,9 +43,9 @@ public class BeamUnionRelTest extends BaseRelTest {
   public static void prepare() {
     sqlEnv.registerTable("ORDER_DETAILS",
         MockedBoundedTable.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            SqlTypeCoders.BIGINT, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.DOUBLE, "price"
         ).addRows(
             1L, 1, 1.0,
             2L, 2, 2.0
@@ -65,9 +65,9 @@ public class BeamUnionRelTest extends BaseRelTest {
     PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            SqlTypeCoders.BIGINT, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.DOUBLE, "price"
         ).addRows(
             1L, 1, 1.0,
             2L, 2, 2.0
@@ -88,9 +88,9 @@ public class BeamUnionRelTest extends BaseRelTest {
     PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            SqlTypeCoders.BIGINT, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.DOUBLE, "price"
         ).addRows(
             1L, 1, 1.0,
             1L, 1, 1.0,

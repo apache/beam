@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.sql.Types;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
@@ -43,9 +43,9 @@ public class BeamMinusRelTest extends BaseRelTest {
   public static void prepare() {
     sqlEnv.registerTable("ORDER_DETAILS1",
         MockedBoundedTable.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            SqlTypeCoders.BIGINT, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.DOUBLE, "price"
         ).addRows(
             1L, 1, 1.0,
             1L, 1, 1.0,
@@ -57,9 +57,9 @@ public class BeamMinusRelTest extends BaseRelTest {
 
     sqlEnv.registerTable("ORDER_DETAILS2",
         MockedBoundedTable.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            SqlTypeCoders.BIGINT, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.DOUBLE, "price"
         ).addRows(
             1L, 1, 1.0,
             2L, 2, 2.0,
@@ -80,9 +80,9 @@ public class BeamMinusRelTest extends BaseRelTest {
     PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            SqlTypeCoders.BIGINT, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.DOUBLE, "price"
         ).addRows(
             4L, 4, 4.0
         ).getRows());
@@ -104,9 +104,9 @@ public class BeamMinusRelTest extends BaseRelTest {
 
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.BIGINT, "order_id",
-            Types.INTEGER, "site_id",
-            Types.DOUBLE, "price"
+            SqlTypeCoders.BIGINT, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.DOUBLE, "price"
         ).addRows(
             4L, 4, 4.0,
             4L, 4, 4.0

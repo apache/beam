@@ -18,13 +18,13 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
+import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.NUMERIC_TYPES;
 import static org.junit.Assert.assertNotNull;
 
-import com.google.common.collect.ImmutableSet;
 import java.math.BigDecimal;
-import java.util.Set;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -36,18 +36,9 @@ public class BigDecimalConverterTest {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  private static final Set<SqlTypeName> NUMERIC_TYPES = ImmutableSet.of(
-      SqlTypeName.TINYINT,
-      SqlTypeName.SMALLINT,
-      SqlTypeName.INTEGER,
-      SqlTypeName.BIGINT,
-      SqlTypeName.FLOAT,
-      SqlTypeName.DOUBLE,
-      SqlTypeName.DECIMAL);
-
   @Test
   public void testReturnsConverterForNumericTypes() {
-    for (SqlTypeName numericType : NUMERIC_TYPES) {
+    for (SqlTypeCoder numericType : NUMERIC_TYPES) {
       SerializableFunction<BigDecimal, ? extends Number> converter =
           BigDecimalConverter.forSqlType(numericType);
 
@@ -59,6 +50,6 @@ public class BigDecimalConverterTest {
   @Test
   public void testThrowsForUnsupportedTypes() {
     thrown.expect(UnsupportedOperationException.class);
-    BigDecimalConverter.forSqlType(SqlTypeName.ARRAY);
+    BigDecimalConverter.forSqlType(SqlTypeCoders.VARCHAR);
   }
 }

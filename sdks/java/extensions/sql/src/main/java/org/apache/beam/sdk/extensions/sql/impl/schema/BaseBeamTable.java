@@ -18,19 +18,19 @@
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
  * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
  */
 public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
-  protected BeamRecordSqlType beamRecordSqlType;
-  public BaseBeamTable(BeamRecordSqlType beamRecordSqlType) {
-    this.beamRecordSqlType = beamRecordSqlType;
+  protected BeamRecordType beamRecordType;
+  public BaseBeamTable(BeamRecordType beamRecordType) {
+    this.beamRecordType = beamRecordType;
   }
 
-  @Override public BeamRecordSqlType getRowType() {
-    return beamRecordSqlType;
+  @Override public BeamRecordType getRowType() {
+    return beamRecordType;
   }
 }

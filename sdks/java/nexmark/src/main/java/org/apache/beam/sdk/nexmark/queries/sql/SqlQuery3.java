@@ -136,13 +136,14 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<BeamRe
   }
 
   private static BeamRecordCoder createOutputRecordCoder() {
-    BeamRecordSqlType outputRecordType = BeamRecordSqlType.builder()
-        .withVarcharField("name")
-        .withVarcharField("city")
-        .withVarcharField("state")
-        .withBigIntField("id")
-        .build();
-
-    return outputRecordType.getRecordCoder();
+    return
+        BeamRecordSqlType
+            .builder()
+            .withVarcharField("name")
+            .withVarcharField("city")
+            .withVarcharField("state")
+            .withBigIntField("id")
+            .build()
+            .getRecordCoder();
   }
 }

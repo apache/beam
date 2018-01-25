@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.sql.Types;
-import java.util.Arrays;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -37,8 +36,10 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdaf() throws Exception {
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int2", "squaresum"),
-        Arrays.asList(Types.INTEGER, Types.INTEGER));
+    BeamRecordType resultType = BeamRecordSqlType.builder()
+        .withIntegerField("f_int2")
+        .withIntegerField("squaresum")
+        .build();
 
     BeamRecord record = new BeamRecord(resultType, 0, 30);
 
@@ -64,8 +65,10 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdf() throws Exception{
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "cubicvalue"),
-        Arrays.asList(Types.INTEGER, Types.INTEGER));
+    BeamRecordType resultType = BeamRecordSqlType.builder()
+        .withIntegerField("f_int")
+        .withIntegerField("cubicvalue")
+        .build();
 
     BeamRecord record = new BeamRecord(resultType, 2, 8);
 

@@ -24,12 +24,12 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -49,20 +49,20 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
   private List<TopicPartition> topicPartitions;
   private Map<String, Object> configUpdates;
 
-  protected BeamKafkaTable(BeamRecordSqlType beamSqlRowType) {
-    super(beamSqlRowType);
+  protected BeamKafkaTable(BeamRecordType beamRowType) {
+    super(beamRowType);
   }
 
-  public BeamKafkaTable(BeamRecordSqlType beamSqlRowType, String bootstrapServers,
+  public BeamKafkaTable(BeamRecordType beamRowType, String bootstrapServers,
       List<String> topics) {
-    super(beamSqlRowType);
+    super(beamRowType);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
   }
 
-  public BeamKafkaTable(BeamRecordSqlType beamSqlRowType,
+  public BeamKafkaTable(BeamRecordType beamRowType,
       List<TopicPartition> topicPartitions, String bootstrapServers) {
-    super(beamSqlRowType);
+    super(beamRowType);
     this.bootstrapServers = bootstrapServers;
     this.topicPartitions = topicPartitions;
   }
