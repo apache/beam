@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -175,7 +176,7 @@ public class MongoDbGridFSIO {
         .setConnectionConfiguration(ConnectionConfiguration.create())
         .setWriteFn(
             (output, outStream) -> {
-              outStream.write(output.getBytes("utf-8"));
+              outStream.write(output.getBytes(StandardCharsets.UTF_8));
               outStream.write('\n');
             })
         .build();

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -112,7 +113,7 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, Strin
     }
 
     private static ByteBuffer wrap(String value) throws Exception {
-      return ByteBuffer.wrap((value + "\n").getBytes("UTF-8"));
+      return ByteBuffer.wrap((value + "\n").getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
