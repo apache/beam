@@ -23,8 +23,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
-import java.sql.Types;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -38,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -55,42 +54,29 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   public PCollection<BeamRecord> boundedInput3;
 
   @Before
-  public void setUp(){
-    BeamRecordSqlType rowTypeInTableB = BeamRecordSqlType.create(
-            Arrays.asList("f_int", "f_double", "f_int2", "f_decimal"),
-            Arrays.asList(Types.INTEGER, Types.DOUBLE, Types.INTEGER, Types.DECIMAL));
+  public void setUp() {
+    BeamRecordType rowTypeInTableB =
+        BeamRecordSqlType.builder()
+            .withIntegerField("f_int")
+            .withDoubleField("f_double")
+            .withIntegerField("f_int2")
+            .withDecimalField("f_decimal")
+            .build();
 
-    List<BeamRecord> recordsInTableB = new ArrayList<>();
-    BeamRecord row1 = new BeamRecord(rowTypeInTableB
-            , 1, 1.0, 0, BigDecimal.ONE);
-    recordsInTableB.add(row1);
-
-    BeamRecord row2 = new BeamRecord(rowTypeInTableB
-            , 4, 4.0, 0, new BigDecimal(4));
-    recordsInTableB.add(row2);
-
-    BeamRecord row3 = new BeamRecord(rowTypeInTableB
-            , 7, 7.0, 0, new BigDecimal(7));
-    recordsInTableB.add(row3);
-
-    BeamRecord row4 = new BeamRecord(rowTypeInTableB
-            , 13, 13.0, 0, new BigDecimal(13));
-    recordsInTableB.add(row4);
-
-    BeamRecord row5 = new BeamRecord(rowTypeInTableB
-            , 5, 5.0, 0, new BigDecimal(5));
-    recordsInTableB.add(row5);
-
-    BeamRecord row6 = new BeamRecord(rowTypeInTableB
-            , 10, 10.0, 0, BigDecimal.TEN);
-    recordsInTableB.add(row6);
-
-    BeamRecord row7 = new BeamRecord(rowTypeInTableB
-            , 17, 17.0, 0, new BigDecimal(17));
-    recordsInTableB.add(row7);
+    List<BeamRecord> recordsInTableB =
+        TestUtils.RowsBuilder.of(rowTypeInTableB)
+            .addRows(
+                1, 1.0, 0, new BigDecimal(1),
+                4, 4.0, 0, new BigDecimal(4),
+                7, 7.0, 0, new BigDecimal(7),
+                13, 13.0, 0, new BigDecimal(13),
+                5, 5.0, 0, new BigDecimal(5),
+                10, 10.0, 0, new BigDecimal(10),
+                17, 17.0, 0, new BigDecimal(17)
+            ).getRows();
 
     boundedInput3 = PBegin.in(pipeline).apply("boundedInput3",
-            Create.of(recordsInTableB).withCoder(rowTypeInTableB.getRecordCoder()));
+        Create.of(recordsInTableB).withCoder(rowTypeInTableB.getRecordCoder()));
   }
 
   /**
@@ -115,9 +101,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<BeamRecord> result =
         input.apply("testAggregationWithoutWindow", BeamSql.query(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int2", "size"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT));
-
+    BeamRecordType resultType = BeamRecordSqlType.builder()
+        .withIntegerField("f_int2")
+        .withBigIntField("size")
+        .build();
 
     BeamRecord record = new BeamRecord(resultType, 0, 4L);
 
@@ -142,7 +129,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     runAggregationFunctions(unboundedInput1);
   }
 
-  private void runAggregationFunctions(PCollection<BeamRecord> input) throws Exception{
+  private void runAggregationFunctions(PCollection<BeamRecord> input) throws Exception {
     String sql = "select f_int2, count(*) as getFieldCount, "
         + "sum(f_long) as sum1, avg(f_long) as avg1, max(f_long) as max1, min(f_long) as min1, "
         + "sum(f_short) as sum2, avg(f_short) as avg2, max(f_short) as max2, min(f_short) as min2, "
@@ -159,17 +146,38 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testAggregationFunctions", BeamSql.queryMulti(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(
-        Arrays.asList("f_int2", "size", "sum1", "avg1", "max1", "min1", "sum2", "avg2", "max2",
-            "min2", "sum3", "avg3", "max3", "min3", "sum4", "avg4", "max4", "min4", "sum5", "avg5",
-            "max5", "min5", "max6", "min6",
-            "varpop1", "varsamp1", "varpop2", "varsamp2"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.BIGINT, Types.BIGINT, Types.BIGINT,
-            Types.BIGINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT,
-            Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.FLOAT, Types.FLOAT,
-            Types.FLOAT, Types.FLOAT, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE,
-            Types.TIMESTAMP, Types.TIMESTAMP,
-            Types.DOUBLE, Types.DOUBLE, Types.INTEGER, Types.INTEGER));
+    BeamRecordType resultType =
+        BeamRecordSqlType
+            .builder()
+            .withIntegerField("f_int2")
+            .withBigIntField("size")
+            .withBigIntField("sum1")
+            .withBigIntField("avg1")
+            .withBigIntField("max1")
+            .withBigIntField("min1")
+            .withSmallIntField("sum2")
+            .withSmallIntField("avg2")
+            .withSmallIntField("max2")
+            .withSmallIntField("min2")
+            .withTinyIntField("sum3")
+            .withTinyIntField("avg3")
+            .withTinyIntField("max3")
+            .withTinyIntField("min3")
+            .withFloatField("sum4")
+            .withFloatField("avg4")
+            .withFloatField("max4")
+            .withFloatField("min4")
+            .withDoubleField("sum5")
+            .withDoubleField("avg5")
+            .withDoubleField("max5")
+            .withDoubleField("min5")
+            .withTimestampField("max6")
+            .withTimestampField("min6")
+            .withDoubleField("varpop1")
+            .withDoubleField("varsamp1")
+            .withIntegerField("varpop2")
+            .withIntegerField("varsamp2")
+            .build();
 
     BeamRecord record = new BeamRecord(resultType
         , 0, 4L
@@ -209,20 +217,23 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   @Test
   public void testAggregationFunctionsWithBoundedOnBigDecimalDivide() throws Exception {
     String sql = "SELECT AVG(f_double) as avg1, AVG(f_int) as avg2, "
-            + "VAR_POP(f_double) as varpop1, VAR_POP(f_int) as varpop2, "
-            + "VAR_SAMP(f_double) as varsamp1, VAR_SAMP(f_int) as varsamp2 "
-            + "FROM PCOLLECTION GROUP BY f_int2";
+        + "VAR_POP(f_double) as varpop1, VAR_POP(f_int) as varpop2, "
+        + "VAR_SAMP(f_double) as varsamp1, VAR_SAMP(f_int) as varsamp2 "
+        + "FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<BeamRecord> result =
-            boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
+        boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(
-            Arrays.asList("avg1", "avg2", "avg3",
-                    "varpop1", "varpop2",
-                    "varsamp1", "varsamp2"),
-            Arrays.asList(Types.DOUBLE, Types.INTEGER, Types.DECIMAL,
-                    Types.DOUBLE, Types.INTEGER,
-                    Types.DOUBLE, Types.INTEGER));
+    BeamRecordType resultType =
+        BeamRecordSqlType.builder()
+            .withDoubleField("avg1")
+            .withIntegerField("avg2")
+            .withDecimalField("avg3")
+            .withDoubleField("varpop1")
+            .withIntegerField("varpop2")
+            .withDoubleField("varsamp1")
+            .withIntegerField("varsamp2")
+            .build();
 
     PAssert.that(result).satisfies(new CheckerBigDecimalDivide());
 
@@ -251,8 +262,12 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<BeamRecord> result =
         input.apply("testDistinct", BeamSql.query(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT));
+    BeamRecordType resultType =
+        BeamRecordSqlType
+            .builder()
+            .withIntegerField("f_int")
+            .withBigIntField("f_long")
+            .build();
 
     BeamRecord record1 = new BeamRecord(resultType, 1, 1000L);
     BeamRecord record2 = new BeamRecord(resultType, 2, 2000L);
@@ -289,9 +304,13 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testTumbleWindow", BeamSql.queryMulti(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(
-        Arrays.asList("f_int2", "size", "window_start"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
+    BeamRecordType resultType =
+        BeamRecordSqlType
+            .builder()
+            .withIntegerField("f_int2")
+            .withBigIntField("size")
+            .withTimestampField("window_start")
+            .build();
 
     BeamRecord record1 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 01:00:00"));
     BeamRecord record2 = new BeamRecord(resultType, 0, 1L, FORMAT.parse("2017-01-01 02:00:00"));
@@ -325,9 +344,13 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<BeamRecord> result =
         input.apply("testHopWindow", BeamSql.query(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(
-        Arrays.asList("f_int2", "size", "window_start"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
+    BeamRecordType resultType =
+        BeamRecordSqlType
+            .builder()
+            .withIntegerField("f_int2")
+            .withBigIntField("size")
+            .withTimestampField("window_start")
+            .build();
 
     BeamRecord record1 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 00:30:00"));
     BeamRecord record2 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 01:00:00"));
@@ -364,9 +387,13 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testSessionWindow", BeamSql.queryMulti(sql));
 
-    BeamRecordSqlType resultType = BeamRecordSqlType.create(
-        Arrays.asList("f_int2", "size", "window_start"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.TIMESTAMP));
+    BeamRecordType resultType =
+        BeamRecordSqlType
+            .builder()
+            .withIntegerField("f_int2")
+            .withBigIntField("size")
+            .withTimestampField("window_start")
+            .build();
 
     BeamRecord record1 = new BeamRecord(resultType, 0, 3L, FORMAT.parse("2017-01-01 01:01:03"));
     BeamRecord record2 = new BeamRecord(resultType, 0, 1L, FORMAT.parse("2017-01-01 02:04:03"));
@@ -429,7 +456,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
 
-    BeamRecordSqlType type =
+    BeamRecordType type =
         BeamRecordSqlType
             .builder()
             .withIntegerField("f_intGroupingKey")
@@ -472,7 +499,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   public void testSupportsNonGlobalWindowWithCustomTrigger() {
     DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
 
-    BeamRecordSqlType type =
+    BeamRecordType type =
         BeamRecordSqlType
             .builder()
             .withIntegerField("f_intGroupingKey")
@@ -525,7 +552,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   private PCollection<BeamRecord> createTestPCollection(
-      BeamRecordSqlType type,
+      BeamRecordType type,
       Object[] rows,
       String timestampField) {
     return

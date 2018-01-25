@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
@@ -33,13 +33,13 @@ public class BeamPCollectionTable extends BaseBeamTable {
   private BeamIOType ioType;
   private transient PCollection<BeamRecord> upstream;
 
-  protected BeamPCollectionTable(BeamRecordSqlType beamSqlRowType) {
-    super(beamSqlRowType);
+  protected BeamPCollectionTable(BeamRecordType beamRowType) {
+    super(beamRowType);
   }
 
   public BeamPCollectionTable(PCollection<BeamRecord> upstream,
-      BeamRecordSqlType beamSqlRowType){
-    this(beamSqlRowType);
+      BeamRecordType beamRowType){
+    this(beamRowType);
     ioType = upstream.isBounded().equals(IsBounded.BOUNDED)
         ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;
     this.upstream = upstream;

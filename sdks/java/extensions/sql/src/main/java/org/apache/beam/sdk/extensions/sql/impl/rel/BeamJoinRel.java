@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -38,6 +37,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -100,7 +100,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       BeamSqlEnv sqlEnv)
       throws Exception {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
-    BeamRecordSqlType leftRowType = CalciteUtils.toBeamRowType(left.getRowType());
+    BeamRecordType leftRowType = CalciteUtils.toBeamRowType(left.getRowType());
     final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
 
     if (!seekable(leftRelNode, sqlEnv) && seekable(rightRelNode, sqlEnv)) {
@@ -122,12 +122,12 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     // build the extract key type
     // the name of the join field is not important
     List<String> names = new ArrayList<>(pairs.size());
-    List<Integer> types = new ArrayList<>(pairs.size());
+    List<Coder> types = new ArrayList<>(pairs.size());
     for (int i = 0; i < pairs.size(); i++) {
       names.add("c" + i);
-      types.add(leftRowType.getFieldTypeByIndex(pairs.get(i).getKey()));
+      types.add(leftRowType.getFieldCoder(pairs.get(i).getKey()));
     }
-    BeamRecordSqlType extractKeyRowType = BeamRecordSqlType.create(names, types);
+    BeamRecordType extractKeyRowType = new BeamRecordType(names, types);
 
     Coder extractKeyRowCoder = extractKeyRowType.getRecordCoder();
 
@@ -263,7 +263,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   }
 
   private BeamRecord buildNullRow(BeamRelNode relNode) {
-    BeamRecordSqlType leftType = CalciteUtils.toBeamRowType(relNode.getRowType());
+    BeamRecordType leftType = CalciteUtils.toBeamRowType(relNode.getRowType());
     return new BeamRecord(leftType, Collections.nCopies(leftType.getFieldCount(), null));
   }
 
