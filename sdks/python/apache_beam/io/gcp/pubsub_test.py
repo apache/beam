@@ -61,6 +61,7 @@ class TestReadStringsFromPubSub(unittest.TestCase):
     self.assertEqual(unicode, pcoll.element_type)
 
     # Ensure that the properties passed through correctly
+    print 'A', dir(pcoll.producer.transform)
     source = pcoll.producer.transform._source
     self.assertEqual('a_subscription', source.subscription_name)
     self.assertEqual('a_label', source.id_label)

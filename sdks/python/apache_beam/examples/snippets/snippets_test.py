@@ -223,24 +223,27 @@ class ParDoTest(unittest.TestCase):
     self.assertEqual({'xyz'}, set(marked))
 
   def test_pardo_with_undeclared_outputs(self):
-    numbers = [1, 2, 3, 4, 5, 10, 20]
+    # Note: the use of undeclared outputs is currently not supported in eager
+    # execution mode.
+    with TestPipeline() as p:
+      numbers = p | beam.Create([1, 2, 3, 4, 5, 10, 20])
 
-    # [START model_pardo_with_undeclared_outputs]
-    def even_odd(x):
-      yield pvalue.TaggedOutput('odd' if x % 2 else 'even', x)
-      if x % 10 == 0:
-        yield x
+      # [START model_pardo_with_undeclared_outputs]
+      def even_odd(x):
+        yield pvalue.TaggedOutput('odd' if x % 2 else 'even', x)
+        if x % 10 == 0:
+          yield x
 
-    results = numbers | beam.FlatMap(even_odd).with_outputs()
+      results = numbers | beam.FlatMap(even_odd).with_outputs()
 
-    evens = results.even
-    odds = results.odd
-    tens = results[None]  # the undeclared main output
-    # [END model_pardo_with_undeclared_outputs]
+      evens = results.even
+      odds = results.odd
+      tens = results[None]  # the undeclared main output
+      # [END model_pardo_with_undeclared_outputs]
 
-    self.assertEqual({2, 4, 10, 20}, set(evens))
-    self.assertEqual({1, 3, 5}, set(odds))
-    self.assertEqual({10, 20}, set(tens))
+      assert_that(evens, equal_to([2, 4, 10, 20]), label='assert_even')
+      assert_that(odds, equal_to([1, 3, 5]), label='assert_odds')
+      assert_that(tens, equal_to([10, 20]), label='assert_tens')
 
 
 class TypeHintsTest(unittest.TestCase):
