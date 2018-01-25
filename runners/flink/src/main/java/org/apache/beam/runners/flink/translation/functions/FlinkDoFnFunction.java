@@ -134,7 +134,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.getInstance().pushMetrics();
+    MetricsPusher.pushMetrics();
     doFnInvoker.invokeTeardown();
   }
 

@@ -233,7 +233,7 @@ public class BoundedSourceWrapper<OutputT>
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.getInstance().pushMetrics();
+    MetricsPusher.pushMetrics();
     super.close();
     if (readers != null) {
       for (BoundedSource.BoundedReader<OutputT> reader: readers) {

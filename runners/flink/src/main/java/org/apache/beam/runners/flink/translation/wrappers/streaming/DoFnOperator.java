@@ -381,7 +381,7 @@ public class DoFnOperator<InputT, OutputT>
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.getInstance().pushMetrics();
+    MetricsPusher.pushMetrics();
     try {
 
       // This is our last change to block shutdown of this operator while

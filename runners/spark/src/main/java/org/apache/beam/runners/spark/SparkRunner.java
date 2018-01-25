@@ -230,7 +230,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       registerMetricsSource(mOptions.getAppName());
     }
 
-    MetricsPusher.getInstance().setPipelineResult(result);
+    MetricsPusher.setPipelineResult(result);
     return result;
   }
 

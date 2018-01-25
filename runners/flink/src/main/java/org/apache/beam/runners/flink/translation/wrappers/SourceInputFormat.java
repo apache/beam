@@ -159,7 +159,7 @@ public class SourceInputFormat<T>
 
   @Override
   public void close() throws IOException {
-    MetricsPusher.getInstance().pushMetrics();
+    MetricsPusher.pushMetrics();
     // TODO null check can be removed once FLINK-3796 is fixed
     if (reader != null) {
       reader.close();
