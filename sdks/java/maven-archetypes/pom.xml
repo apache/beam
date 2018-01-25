@@ -111,20 +111,5 @@
         <module>examples</module>
       </modules>
     </profile>
-
-    <profile>
-      <id>beam-sdks-java-archetypes-examples-java8</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-        <os>
-          <family>unix</family>
-        </os>
-        <jdk>[1.8,)</jdk>
-        <property><name>!beam.sdks.java.archetypes.examples.skip</name></property>
-      </activation>
-      <modules>
-        <module>examples-java8</module>
-      </modules>
-    </profile>
   </profiles>
 </project>
