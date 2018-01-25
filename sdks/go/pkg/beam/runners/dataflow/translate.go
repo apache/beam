@@ -222,7 +222,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		}, nil
 
 	default:
-		return "", properties{}, fmt.Errorf("Bad opcode: %v", edge)
+		return "", properties{}, fmt.Errorf("bad opcode: %v", edge)
 	}
 }
 

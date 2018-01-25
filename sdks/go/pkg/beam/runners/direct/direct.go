@@ -203,7 +203,7 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 
 	// Process all incoming links for the edge and cache them. It thus doesn't matter
 	// which exact link triggers the Node generation. The link caching is only needed
-	// to process ParDo side inputs.
+	// to process ParDo side inputs and CoGBK.
 
 	edge := b.edges[id.to]
 
@@ -244,8 +244,25 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		u = &exec.Combine{UID: b.idgen.New(), Edge: edge, Out: out[0]}
 
 	case graph.CoGBK:
-
 		u = &CoGBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}
+		b.units = append(b.units, u)
+
+		// CoGBK needs injection of each incoming index. If > 1 incoming,
+		// insert Flatten as well.
+
+		if len(edge.Input) > 1 {
+			u = &exec.Flatten{UID: b.idgen.New(), N: len(edge.Input), Out: u}
+			b.units = append(b.units, u)
+		}
+
+		for i := 0; i < len(edge.Input); i++ {
+			n := &Inject{UID: b.idgen.New(), N: i, Out: u}
+
+			b.units = append(b.units, n)
+			b.links[linkID{edge.ID(), i}] = n
+		}
+
+		return b.links[id], nil
 
 	case graph.Flatten:
 		u = &exec.Flatten{UID: b.idgen.New(), N: len(edge.Input), Out: out[0]}
