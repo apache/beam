@@ -26,7 +26,7 @@ import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -46,8 +46,10 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -58,6 +60,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -69,6 +72,7 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xerial.snappy.Snappy;
 
 /**
  * Given a "poll function" that produces a potentially growing set of outputs for an input, this
@@ -785,8 +789,8 @@ public class Watch {
     @GetRestrictionCoder
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Coder<GrowthState<OutputT, KeyT, TerminationStateT>> getRestrictionCoder() {
-      return GrowthStateCoder.of(
-          outputCoder, (Coder) spec.getTerminationPerInput().getStateCoder());
+      return SnappyCoder.of(GrowthStateCoder.of(
+          outputCoder, (Coder) spec.getTerminationPerInput().getStateCoder()));
     }
   }
 
@@ -1102,6 +1106,40 @@ public class Watch {
       int numRead = is.read(res, 0, 16);
       checkArgument(numRead == 16, "Expected to read 16 bytes, but read %s", numRead);
       return HashCode.fromBytes(res);
+    }
+  }
+
+  private static class SnappyCoder<T> extends StructuredCoder<T> {
+    private final Coder<T> innerCoder;
+
+    public static <T> SnappyCoder<T> of(Coder<T> innerCoder) {
+      return new SnappyCoder<>(innerCoder);
+    }
+
+    private SnappyCoder(Coder<T> innerCoder) {
+      this.innerCoder = innerCoder;
+    }
+
+    @Override
+    public void encode(T value, OutputStream os) throws IOException {
+      ByteArrayCoder.of()
+          .encode(Snappy.compress(CoderUtils.encodeToByteArray(innerCoder, value)), os);
+    }
+
+    @Override
+    public T decode(InputStream is) throws CoderException, IOException {
+      return CoderUtils.decodeFromByteArray(
+          innerCoder, Snappy.uncompress(ByteArrayCoder.of().decode(is)));
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return ImmutableList.of(innerCoder);
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+      innerCoder.verifyDeterministic();
     }
   }
 
