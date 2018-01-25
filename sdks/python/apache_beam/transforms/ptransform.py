@@ -36,11 +36,14 @@ FlatMap processing functions.
 
 from __future__ import absolute_import
 
+import collections
 import copy
 import inspect
+import itertools
 import operator
 import os
 import sys
+import threading
 from functools import reduce
 
 from google.protobuf import wrappers_pb2
@@ -97,29 +100,96 @@ class _SetInputPValues(_PValueishTransform):
       return self.visit_nested(node, replacements)
 
 
+# Caches to allow for materialization of values when executing a pipeline
+# in-process, in eager mode.  This cache allows the same _MaterializedResult
+# object to be accessed and used despite Runner API round-trip serialization.
+_pipeline_materialization_cache = collections.defaultdict(dict)
+_pipeline_materialization_lock = threading.Lock()
+
+
+def _allocate_materialized_result(pipeline):
+  with _pipeline_materialization_lock:
+    pipeline_id = id(pipeline)
+    result_id = len(_pipeline_materialization_cache[pipeline_id])
+    result = _MaterializedResult(pipeline_id, result_id)
+    _pipeline_materialization_cache[pipeline_id][result_id] = result
+    return result
+
+
+def _get_materialized_result(pipeline_id, result_id):
+  with _pipeline_materialization_lock:
+    return _pipeline_materialization_cache[pipeline_id][result_id]
+
+
+def _release_materialized_results(pipeline):
+  with _pipeline_materialization_lock:
+    pipeline_id = id(pipeline)
+    if pipeline_id in _pipeline_materialization_cache:
+      del _pipeline_materialization_cache[pipeline_id]
+
+
+class _MaterializedResult(object):
+  def __init__(self, pipeline_id, result_id):
+    self._pipeline_id = pipeline_id
+    self._result_id = result_id
+    self.elements = []
+
+  def __reduce__(self):
+    # When unpickled (during Runner API roundtrip serailization), get the
+    # _MaterializedResult object from the cache so that values are written
+    # to the original _MaterializedResult when run in eager mode.
+    return (_get_materialized_result, (self._pipeline_id, self._result_id))
+
+
 class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
-  def __init__(self, deferred, pvalue_cache):
+  def __init__(self, deferred, results_by_tag):
     super(_MaterializedDoOutputsTuple, self).__init__(
         None, None, deferred._tags, deferred._main_tag)
     self._deferred = deferred
-    self._pvalue_cache = pvalue_cache
+    self._results_by_tag = results_by_tag
 
   def __getitem__(self, tag):
-    # Simply accessing the value should not use it up.
-    return self._pvalue_cache.get_unwindowed_pvalue(
-        self._deferred[tag], decref=False)
+    return self._results_by_tag[tag].elements
 
 
-class _MaterializePValues(_PValueishTransform):
-  def __init__(self, pvalue_cache):
-    self._pvalue_cache = pvalue_cache
+class _AddMaterializationTransforms(_PValueishTransform):
+
+  def _materialize_transform(self, pipeline):
+    result = _allocate_materialized_result(pipeline)
+
+    # Need to define _MaterializeValuesTransform here to avoid circular
+    # dependencies.
+    from apache_beam import DoFn
+    from apache_beam import ParDo
+
+    class _MaterializeValuesTransform(DoFn):
+      def process(self, element):
+        result.elements.append(element)
+
+    materialization_label = '_MaterializeValues%d' % result._result_id
+    return (materialization_label >> ParDo(_MaterializeValuesTransform()),
+            result)
 
   def visit(self, node):
     if isinstance(node, pvalue.PValue):
-      # Simply accessing the value should not use it up.
-      return self._pvalue_cache.get_unwindowed_pvalue(node, decref=False)
+      transform, result = self._materialize_transform(node.pipeline)
+      node | transform
+      return result
     elif isinstance(node, pvalue.DoOutputsTuple):
-      return _MaterializedDoOutputsTuple(node, self._pvalue_cache)
+      results_by_tag = {}
+      for tag in itertools.chain([node._main_tag], node._tags):
+        results_by_tag[tag] = self.visit(node[tag])
+      return _MaterializedDoOutputsTuple(node, results_by_tag)
+    else:
+      return self.visit_nested(node)
+
+
+class _FinalizeMaterialization(_PValueishTransform):
+  def visit(self, node):
+    if isinstance(node, _MaterializedResult):
+      return node.elements
+    elif isinstance(node, _MaterializedDoOutputsTuple):
+      return node
     else:
       return self.visit_nested(node)
 
@@ -401,9 +471,10 @@ class PTransform(WithTypeHints, HasDisplayData):
       return result
     # Get a reference to the runners internal cache, otherwise runner may
     # clean it after run.
-    cache = p.runner.cache
+    materialized_result = _AddMaterializationTransforms().visit(result)
     p.run().wait_until_finish()
-    return _MaterializePValues(cache).visit(result)
+    _release_materialized_results(p)
+    return _FinalizeMaterialization().visit(materialized_result)
 
   def _extract_input_pvalues(self, pvalueish):
     """Extract all the pvalues contained in the input pvalueish.

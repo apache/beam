@@ -341,17 +341,6 @@ class TransformExecutor(_ExecutorService.CallableTask):
       result = evaluator.finish_bundle()
       result.logical_metric_updates = metrics_container.get_cumulative()
 
-    if self._evaluation_context.has_cache:
-      for uncommitted_bundle in result.uncommitted_output_bundles:
-        self._evaluation_context.append_to_cache(
-            self._applied_ptransform, uncommitted_bundle.tag,
-            uncommitted_bundle.get_elements_iterable())
-      undeclared_tag_values = result.undeclared_tag_values
-      if undeclared_tag_values:
-        for tag, value in undeclared_tag_values.iteritems():
-          self._evaluation_context.append_to_cache(
-              self._applied_ptransform, tag, value)
-
     self._completion_callback.handle_result(self, self._input_bundle, result)
     return result
 
