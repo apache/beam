@@ -18,10 +18,7 @@
 import logging
 import math
 import random
-import time
 import unittest
-
-from nose.plugins.skip import SkipTest
 
 from apache_beam import coders
 from apache_beam.runners.worker import opcounters
@@ -49,11 +46,6 @@ class ObjectThatDoesNotImplementLen(object):
 
 class TransformIoCounterTest(unittest.TestCase):
 
-  def setUp(self):
-    if not statesampler.FAST_SAMPLER:
-      raise SkipTest('State sampler not compiled.')
-    super(TransformIoCounterTest, self).setUp()
-
   def test_basic_counters(self):
     counter_factory = CounterFactory()
     sampler = statesampler.StateSampler('stage1', counter_factory)
@@ -66,7 +58,6 @@ class TransformIoCounterTest(unittest.TestCase):
     with sampler.scoped_state('step2', 'stateB'):
       with counter:
         counter.add_bytes_read(10)
-        time.sleep(0.1)  # An arbitrary short interval.
 
       counter.update_current_step()
 
