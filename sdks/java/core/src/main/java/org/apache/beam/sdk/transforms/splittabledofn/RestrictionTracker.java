@@ -29,15 +29,22 @@ import org.apache.beam.sdk.transforms.DoFn;
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  */
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
+  /** Internal interface allowing a runner to observe the calls to {@link #tryClaim}. */
   @Internal
   public interface ClaimObserver<PositionT> {
+    /** Called when {@link #tryClaim} returns true. */
     void onClaimed(PositionT position);
+
+    /** Called when {@link #tryClaim} returns false. */
     void onClaimFailed(PositionT position);
   }
 
-  @Nullable
-  private ClaimObserver<PositionT> claimObserver;
+  @Nullable private ClaimObserver<PositionT> claimObserver;
 
+  /**
+   * Sets a {@link ClaimObserver} to be invoked on every call to {@link #tryClaim}. Internal:
+   * intended only for runner authors.
+   */
   @Internal
   public void setClaimObserver(ClaimObserver<PositionT> claimObserver) {
     checkNotNull(claimObserver, "claimObserver");
@@ -45,6 +52,23 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
     this.claimObserver = claimObserver;
   }
 
+  /**
+   * Attempts to claim the block of work in the current restriction identified by the given
+   * position.
+   *
+   * <p>If this succeeds, the DoFn MUST execute the entire block of work. If this fails:
+   *
+   * <ul>
+   *   <li>{@link DoFn.ProcessElement} MUST return {@link DoFn.ProcessContinuation#stop} without
+   *       performing any additional work or emitting output (note that emitting output or
+   *       performing work from {@link DoFn.ProcessElement} is also not allowed before the first
+   *       call to this method).
+   *   <li>{@link RestrictionTracker#checkDone} MUST succeed.
+   * </ul>
+   *
+   * <p>Under the hood, calls {@link #tryClaimImpl} and notifies {@link ClaimObserver} of the
+   * result.
+   */
   public final boolean tryClaim(PositionT position) {
     if (tryClaimImpl(position)) {
       if (claimObserver != null) {
@@ -59,6 +83,7 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
     }
   }
 
+  /** Tracker-specific implementation of {@link #tryClaim}. */
   @Internal
   protected abstract boolean tryClaimImpl(PositionT position);
 

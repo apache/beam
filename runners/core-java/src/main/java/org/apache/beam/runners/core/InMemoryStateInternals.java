@@ -218,7 +218,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
       InMemoryValue<T> that = new InMemoryValue<>(coder);
       if (!this.isCleared) {
         that.isCleared = this.isCleared;
-        that.value = unsafeClone(coder, this.value);
+        that.value = uncheckedClone(coder, this.value);
       }
       return that;
     }
@@ -391,7 +391,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
           new InMemoryCombiningState<>(combineFn, accumCoder);
       if (!this.isCleared) {
         that.isCleared = this.isCleared;
-        that.addAccum(accum);
+        that.addAccum(uncheckedClone(accumCoder, accum));
       }
       return that;
     }
@@ -459,7 +459,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     public InMemoryBag<T> copy() {
       InMemoryBag<T> that = new InMemoryBag<>(elemCoder);
       for (T elem : this.contents) {
-        that.contents.add(unsafeClone(elemCoder, elem));
+        that.contents.add(uncheckedClone(elemCoder, elem));
       }
       return that;
     }
@@ -537,7 +537,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
     public InMemorySet<T> copy() {
       InMemorySet<T> that = new InMemorySet<>(elemCoder);
       for (T elem : this.contents) {
-        that.contents.add(unsafeClone(elemCoder, elem));
+        that.contents.add(uncheckedClone(elemCoder, elem));
       }
       return that;
     }
@@ -635,14 +635,15 @@ public class InMemoryStateInternals<K> implements StateInternals {
       InMemoryMap<K, V> that = new InMemoryMap<>(keyCoder, valueCoder);
       for (Map.Entry<K, V> entry : this.contents.entrySet()) {
         that.contents.put(
-            unsafeClone(keyCoder, entry.getKey()), unsafeClone(valueCoder, entry.getValue()));
+            uncheckedClone(keyCoder, entry.getKey()), uncheckedClone(valueCoder, entry.getValue()));
       }
       that.contents.putAll(this.contents);
       return that;
     }
   }
 
-  private static <T> T unsafeClone(Coder<T> coder, T value) {
+  /** Like {@link CoderUtils#clone} but without a checked exception. */
+  private static <T> T uncheckedClone(Coder<T> coder, T value) {
     try {
       return CoderUtils.clone(coder, value);
     } catch (CoderException e) {
