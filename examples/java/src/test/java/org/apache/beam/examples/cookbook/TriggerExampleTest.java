@@ -104,7 +104,7 @@ public class TriggerExampleTest {
     List<KV<String, Integer>> results = extractFlowInfow.processBundle(INPUT);
     Assert.assertEquals(results.size(), 1);
     Assert.assertEquals(results.get(0).getKey(), "94");
-    Assert.assertEquals(results.get(0).getValue(), new Integer(29));
+    Assert.assertEquals(results.get(0).getValue(), Integer.valueOf(29));
 
     List<KV<String, Integer>> output = extractFlowInfow.processBundle("");
     Assert.assertEquals(output.size(), 0);

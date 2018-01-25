@@ -169,7 +169,7 @@ public class JmsIOTest {
 
     PAssert
         .thatSingleton(output.apply("Count", Count.<JmsRecord>globally()))
-        .isEqualTo(new Long(5));
+        .isEqualTo(Long.valueOf(5));
     pipeline.run();
 
     connection = connectionFactory.createConnection(USERNAME, PASSWORD);

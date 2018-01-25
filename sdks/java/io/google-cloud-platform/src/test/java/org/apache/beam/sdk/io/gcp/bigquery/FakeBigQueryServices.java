@@ -76,7 +76,7 @@ class FakeBigQueryServices implements BigQueryServices {
   static TableRow convertNumbers(TableRow tableRow) {
     for (TableRow.Entry entry : tableRow.entrySet()) {
       if (entry.getValue() instanceof Integer) {
-        entry.setValue(new Long((Integer) entry.getValue()));
+        entry.setValue(Long.valueOf((Integer) entry.getValue()));
       }
     }
     return tableRow;

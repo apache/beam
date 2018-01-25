@@ -331,7 +331,7 @@ public class AvroCoderTest {
     Assert.assertEquals(before, after);
 
     Integer intAfter = intCoder.decode(inStream, context);
-    Assert.assertEquals(new Integer(10), intAfter);
+    Assert.assertEquals(Integer.valueOf(10), intAfter);
   }
 
   @Test

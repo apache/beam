@@ -94,7 +94,7 @@ public class UserScoreTest implements Serializable {
     Assert.assertEquals(results.size(), 8);
     Assert.assertEquals(results.get(0).getUser(), "user0_MagentaKangaroo");
     Assert.assertEquals(results.get(0).getTeam(), "MagentaKangaroo");
-    Assert.assertEquals(results.get(0).getScore(), new Integer(3));
+    Assert.assertEquals(results.get(0).getScore(), Integer.valueOf(3));
   }
 
   /** Tests ExtractAndSumScore("user"). */

@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.NoSuchElementException;
 import javax.xml.bind.JAXBContext;
@@ -180,7 +181,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
                       + getCurrentSource().configuration.getCharset()
                       + "\"?><%s>",
                   XML_VERSION, getCurrentSource().configuration.getRootElement()))
-              .getBytes(getCurrentSource().configuration.getCharset());
+              .getBytes(Charset.forName(getCurrentSource().configuration.getCharset()));
       preambleByteBuffer.write(dummyStartDocumentBytes);
       // Gets the byte offset (in the input file) of the first record in ReadableByteChannel. This
       // method returns the offset and stores any bytes that should be used when creating the XML

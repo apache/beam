@@ -48,6 +48,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.net.ServerSocket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -336,7 +337,7 @@ public class MongoDBGridFSIOTest implements Serializable {
           DataInputStream dis = new DataInputStream(ins);
           byte b[] = new byte[l];
           dis.readFully(b);
-          results.append(new String(b, "utf-8"));
+          results.append(new String(b, StandardCharsets.UTF_8));
         }
       }
       String dataString = results.toString();

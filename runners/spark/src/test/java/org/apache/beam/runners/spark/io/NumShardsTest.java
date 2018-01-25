@@ -21,12 +21,12 @@ package org.apache.beam.runners.spark.io;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -83,7 +83,7 @@ public class NumShardsTest {
       }
     })) {
       count++;
-      for (String line : Files.readLines(f, Charsets.UTF_8)) {
+      for (String line : Files.readLines(f, StandardCharsets.UTF_8)) {
         assertTrue(line + " not found", expected.remove(line));
       }
     }

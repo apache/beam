@@ -58,7 +58,7 @@ public class ApexRunnerTest {
     DAG dag = TestApexRunner.translate(p, options);
     OperatorMeta t1Meta = dag.getOperatorMeta(operName);
     Assert.assertNotNull(t1Meta);
-    Assert.assertEquals(new Integer(32), t1Meta.getValue(OperatorContext.MEMORY_MB));
+    Assert.assertEquals(Integer.valueOf(32), t1Meta.getValue(OperatorContext.MEMORY_MB));
 
     File tmp = File.createTempFile("beam-runners-apex-", ".properties");
     tmp.deleteOnExit();
@@ -73,7 +73,7 @@ public class ApexRunnerTest {
 
     t1Meta = dag.getOperatorMeta(operName);
     Assert.assertNotNull(t1Meta);
-    Assert.assertEquals(new Integer(64), t1Meta.getValue(OperatorContext.MEMORY_MB));
+    Assert.assertEquals(Integer.valueOf(64), t1Meta.getValue(OperatorContext.MEMORY_MB));
 
   }
 

@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -346,7 +347,7 @@ public class Query10 extends NexmarkQuery {
                          Channels.newOutputStream(
                              openWritableGcsFile(options, filename))) {
                   for (OutputFile outputFile : c.element().getValue()) {
-                    output.write(outputFile.toString().getBytes("UTF-8"));
+                    output.write(outputFile.toString().getBytes(StandardCharsets.UTF_8));
                     n++;
                   }
                 }

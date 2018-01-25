@@ -26,6 +26,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -283,7 +284,7 @@ class Injector {
       Long currTime = System.currentTimeMillis();
       String message = generateEvent(currTime, delayInMillis);
       PubsubMessage pubsubMessage = new PubsubMessage()
-              .encodeData(message.getBytes("UTF-8"));
+              .encodeData(message.getBytes(StandardCharsets.UTF_8));
       pubsubMessage.setAttributes(
           ImmutableMap.of(GameConstants.TIMESTAMP_ATTRIBUTE,
               Long.toString((currTime - delayInMillis) / 1000 * 1000)));
@@ -305,7 +306,7 @@ class Injector {
   public static void publishDataToFile(String fileName, int numMessages, int delayInMillis)
       throws IOException {
     PrintWriter out = new PrintWriter(new OutputStreamWriter(
-        new BufferedOutputStream(new FileOutputStream(fileName, true)), "UTF-8"));
+        new BufferedOutputStream(new FileOutputStream(fileName, true)), StandardCharsets.UTF_8));
 
     try {
       for (int i = 0; i < Math.max(1, numMessages); i++) {

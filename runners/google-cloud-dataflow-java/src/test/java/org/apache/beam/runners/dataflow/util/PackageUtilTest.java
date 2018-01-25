@@ -261,7 +261,8 @@ public class PackageUtilTest {
 
     assertThat(target.getName(), RegexMatcher.matches("file-" + HASH_PATTERN + ".txt"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + target.getName()));
-    assertThat(new LineReader(Channels.newReader(pipe.source(), "UTF-8")).readLine(),
+    assertThat(new LineReader(Channels.newReader(pipe.source(),
+        StandardCharsets.UTF_8.name())).readLine(),
         equalTo(contents));
   }
 
