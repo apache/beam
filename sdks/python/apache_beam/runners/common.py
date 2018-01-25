@@ -37,16 +37,6 @@ from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.windowed_value import WindowedValue
 
 
-class LoggingContext(object):
-  """For internal use only; no backwards-compatibility guarantees."""
-
-  def enter(self):
-    pass
-
-  def exit(self):
-    pass
-
-
 class Receiver(object):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -425,7 +415,6 @@ class DoFnRunner(Receiver):
                windowing,
                tagged_receivers=None,
                step_name=None,
-               logging_context=None,
                state=None,
                scoped_metrics_container=None):
     """Initializes a DoFnRunner.
@@ -438,7 +427,6 @@ class DoFnRunner(Receiver):
       windowing: windowing properties of the output PCollection(s)
       tagged_receivers: a dict of tag name to Receiver objects
       step_name: the name of this step
-      logging_context: a LoggingContext object
       state: handle for accessing DoFn state
       scoped_metrics_container: Context switcher for metrics container
     """
@@ -448,7 +436,6 @@ class DoFnRunner(Receiver):
     self.scoped_metrics_container = (
         scoped_metrics_container or ScopedMetricsContainer())
     self.step_name = step_name
-    self.logging_context = logging_context or LoggingContext()
     self.context = DoFnContext(step_name, state=state)
 
     do_fn_signature = DoFnSignature(fn)
@@ -467,18 +454,15 @@ class DoFnRunner(Receiver):
 
   def process(self, windowed_value):
     try:
-      self.logging_context.enter()
       self.scoped_metrics_container.enter()
       self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
       self._reraise_augmented(exn)
     finally:
       self.scoped_metrics_container.exit()
-      self.logging_context.exit()
 
   def _invoke_bundle_method(self, bundle_method):
     try:
-      self.logging_context.enter()
       self.scoped_metrics_container.enter()
       self.context.set_element(None)
       bundle_method()
@@ -486,7 +470,6 @@ class DoFnRunner(Receiver):
       self._reraise_augmented(exn)
     finally:
       self.scoped_metrics_container.exit()
-      self.logging_context.exit()
 
   def start(self):
     self._invoke_bundle_method(self.do_fn_invoker.invoke_start_bundle)

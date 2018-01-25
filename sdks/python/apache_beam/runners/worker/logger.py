@@ -22,7 +22,10 @@ import logging
 import threading
 import traceback
 
-from apache_beam.runners.common import LoggingContext
+try:
+  from apache_beam.runners.worker import statesampler
+except ImportError:
+  from apache_beam.runners.worker import statesampler_slow as statesampler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -49,7 +52,7 @@ class _PerThreadWorkerData(threading.local):
 per_thread_worker_data = _PerThreadWorkerData()
 
 
-class PerThreadLoggingContext(LoggingContext):
+class PerThreadLoggingContext(object):
   """A context manager to add per thread attributes."""
 
   def __init__(self, **kwargs):
@@ -148,8 +151,15 @@ class JsonLogFormatter(logging.Formatter):
       output['work'] = data['work_item_id']
     if 'stage_name' in data:
       output['stage'] = data['stage_name']
-    if 'step_name' in data:
+
+    current_sampler = statesampler.EXECUTION_STATE_SAMPLERS.current_sampler()
+    current_state = current_sampler.current_state() if current_sampler else None
+    if current_state and current_state.name.step_name:
+      output['step'] = current_state.name.step_name
+    elif 'step_name' in data:
+      # TODO(pabloem): Clean up after clients no longer rely on it for logging.
       output['step'] = data['step_name']
+
     # All logging happens using the root logger. We will add the basename of the
     # file and the function name where the logging happened to make it easier
     # to identify who generated the record.

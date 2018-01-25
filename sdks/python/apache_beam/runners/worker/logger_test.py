@@ -25,8 +25,16 @@ import unittest
 
 from apache_beam.runners.worker import logger
 
+try:
+  from apache_beam.runners.worker import statesampler
+except ImportError:
+  from apache_beam.runners.worker import statesampler_slow as statesampler
+
 
 class PerThreadLoggingContextTest(unittest.TestCase):
+
+  def setUp(self):
+    self.sampler = statesampler.StateSampler.simple_tracker()
 
   def thread_check_attribute(self, name):
     self.assertFalse(name in logger.per_thread_worker_data.get_data())
@@ -88,6 +96,9 @@ class JsonLogFormatterTest(unittest.TestCase):
 
     return Record(**kwargs)
 
+  def setUp(self):
+    self.sampler = statesampler.StateSampler.simple_tracker()
+
   def test_basic_record(self):
     formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
     record = self.create_log_record(**self.SAMPLE_RECORD)
@@ -126,11 +137,13 @@ class JsonLogFormatterTest(unittest.TestCase):
     self.execute_multiple_cases(test_cases)
 
   def test_record_with_per_thread_info(self):
-    with logger.PerThreadLoggingContext(
-        work_item_id='workitem', stage_name='stage', step_name='step'):
-      formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
-      record = self.create_log_record(**self.SAMPLE_RECORD)
-      log_output = json.loads(formatter.format(record))
+    with self.sampler.scoped_state('step', 'state'):
+      with logger.PerThreadLoggingContext(
+          work_item_id='workitem', stage_name='stage'):
+        formatter = logger.JsonLogFormatter(
+            job_id='jobid', worker_id='workerid')
+        record = self.create_log_record(**self.SAMPLE_RECORD)
+        log_output = json.loads(formatter.format(record))
     expected_output = dict(self.SAMPLE_OUTPUT)
     expected_output.update(
         {'work': 'workitem', 'stage': 'stage', 'step': 'step'})
@@ -138,17 +151,18 @@ class JsonLogFormatterTest(unittest.TestCase):
 
   def test_nested_with_per_thread_info(self):
     formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
-    with logger.PerThreadLoggingContext(
-        work_item_id='workitem', stage_name='stage', step_name='step1'):
-      record = self.create_log_record(**self.SAMPLE_RECORD)
-      log_output1 = json.loads(formatter.format(record))
-
-      with logger.PerThreadLoggingContext(step_name='step2'):
+    with self.sampler.scoped_state('step1', 'state'):
+      with logger.PerThreadLoggingContext(
+          work_item_id='workitem', stage_name='stage'):
         record = self.create_log_record(**self.SAMPLE_RECORD)
-        log_output2 = json.loads(formatter.format(record))
+        log_output1 = json.loads(formatter.format(record))
 
-      record = self.create_log_record(**self.SAMPLE_RECORD)
-      log_output3 = json.loads(formatter.format(record))
+        with self.sampler.scoped_state('step2', 'state'):
+          record = self.create_log_record(**self.SAMPLE_RECORD)
+          log_output2 = json.loads(formatter.format(record))
+
+        record = self.create_log_record(**self.SAMPLE_RECORD)
+        log_output3 = json.loads(formatter.format(record))
 
     record = self.create_log_record(**self.SAMPLE_RECORD)
     log_output4 = json.loads(formatter.format(record))
