@@ -51,7 +51,7 @@
     <module>google-cloud-platform</module>
     <module>hadoop-common</module>
     <module>hadoop-file-system</module>
-    <module>hadoop</module>
+    <module>hadoop-input-format</module>
     <module>hbase</module>
     <module>hcatalog</module>
     <module>jdbc</module>
