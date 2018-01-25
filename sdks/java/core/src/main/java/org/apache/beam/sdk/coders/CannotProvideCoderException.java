@@ -82,7 +82,7 @@ public class CannotProvideCoderException extends Exception {
    */
   public enum ReasonCode {
     /**
-     * The reason a coder could not be provided is unknown or does have an established
+     * The reason a coder could not be provided is unknown or does not have an established
      * {@link ReasonCode}.
      */
     UNKNOWN,
@@ -91,6 +91,12 @@ public class CannotProvideCoderException extends Exception {
      * The reason a coder could not be provided is type erasure, for example when requesting
      * coder inference for a {@code List<T>} where {@code T} is unknown.
      */
-    TYPE_ERASURE
+    TYPE_ERASURE,
+
+    /**
+     * The reason a coder could not be provided is because the type variable {@code T} is
+     * over specified with multiple incompatible coders.
+     */
+    OVER_SPECIFIED
   }
 }
