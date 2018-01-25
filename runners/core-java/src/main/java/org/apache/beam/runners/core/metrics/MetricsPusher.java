@@ -26,11 +26,11 @@ public class MetricsPusher implements Serializable {
 
   public static final long DEFAULT_PERIOD = 5L;
   private static volatile MetricsPusher instance;
-  private final MetricsSink metricsSink;
-  private final long period;
-  private List<MetricsContainerStepMap> metricsContainerStepMaps;
-  private ScheduledFuture<?> scheduledFuture;
-  private PipelineResult pipelineResult;
+  private static MetricsSink metricsSink;
+  private static long period;
+  private static List<MetricsContainerStepMap> metricsContainerStepMaps;
+  private static ScheduledFuture<?> scheduledFuture;
+  private static PipelineResult pipelineResult;
 
   private MetricsPusher(PipelineOptions pipelineOptions) {
     switch (pipelineOptions.getMetricsSink()) {
@@ -47,53 +47,42 @@ public class MetricsPusher implements Serializable {
     metricsContainerStepMaps = new ArrayList<>();
   }
 
-  private void addMetricsContainerStepMap(MetricsContainerStepMap metricsContainerStepMap){
+  private static void addMetricsContainerStepMap(MetricsContainerStepMap metricsContainerStepMap){
     if (metricsContainerStepMaps.indexOf(metricsContainerStepMap) == -1) {
       metricsContainerStepMaps.add(metricsContainerStepMap);
     }
   }
 
-  public static void init(
+  public static synchronized void init(
       MetricsContainerStepMap metricsContainerStepMap, PipelineOptions pipelineOptions) {
     if (instance == null) {
-      synchronized (MetricsPusher.class) {
-        if (instance == null) {
-          instance = new MetricsPusher(pipelineOptions);
-          instance.addMetricsContainerStepMap(metricsContainerStepMap);
-          instance.start();
-        } else {
-          /*
-          MetricsPusher.init will be called several times in a pipeline
-          (e.g Flink calls it with each UDF with a different MetricsContainerStepMap instance).
-          Then the singleton needs to register a new metricsContainerStepMap to merge
-          */
-          instance.addMetricsContainerStepMap(metricsContainerStepMap);
-          /*    if the thread is stopped, then it means that the pipeline is finished.
-          If we run multiple pipelines in the same JVM, as MetricsPusher is a singleton,
-          the instance will still be in memory but the thread will be stopped.*/
-          if (instance.scheduledFuture.isCancelled()) {
-            instance.start();
-          }
-        }
+      instance = new MetricsPusher(pipelineOptions);
+      addMetricsContainerStepMap(metricsContainerStepMap);
+      start();
+    } else {
+      /*
+      MetricsPusher.init will be called several times in a pipeline
+      (e.g Flink calls it with each UDF with a different MetricsContainerStepMap instance).
+      Then the singleton needs to register a new metricsContainerStepMap to merge
+      */
+      addMetricsContainerStepMap(metricsContainerStepMap);
+      /*    if the thread is stopped, then it means that the pipeline is finished.
+      If we run multiple pipelines in the same JVM, as MetricsPusher is a singleton,
+      the instance will still be in memory but the thread will be stopped.*/
+      if (scheduledFuture.isCancelled()) {
+        start();
       }
     }
   }
 
-  public static MetricsPusher getInstance(){
-    if (instance == null) {
-      throw new IllegalStateException("Metrics pusher not been instantiated");
-    } else {
-      return instance;
-    }
-  }
   /**
    * Lazily set the pipelineResult.
-   * @param pipelineResult
+   * @param pr
    */
-  public void setPipelineResult(PipelineResult pipelineResult){
-    this.pipelineResult = pipelineResult;
+  public static void setPipelineResult(PipelineResult pr){
+    pipelineResult = pr;
   }
-  private void start() {
+  private static void start() {
     ScheduledExecutorService scheduler =
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder()
@@ -105,12 +94,12 @@ public class MetricsPusher implements Serializable {
             TimeUnit.SECONDS);
   }
   private static synchronized void stop(){
-    if (!instance.scheduledFuture.isCancelled()) {
-      instance.scheduledFuture.cancel(true);
+    if (!scheduledFuture.isCancelled()) {
+      scheduledFuture.cancel(true);
     }
   }
 
-  public void pushMetrics(){
+  public static void pushMetrics(){
     try {
       // merge metrics
       for (MetricsContainerStepMap metricsContainerStepMap : metricsContainerStepMaps) {
@@ -120,11 +109,11 @@ public class MetricsPusher implements Serializable {
         if ((Iterables.size(metricQueryResults.distributions()) != 0)
             || (Iterables.size(metricQueryResults.gauges()) != 0)
             || (Iterables.size(metricQueryResults.counters()) != 0)) {
-          instance.metricsSink.writeMetrics(metricQueryResults);
+          metricsSink.writeMetrics(metricQueryResults);
         }
       }
-      if (instance.pipelineResult != null) {
-        PipelineResult.State pipelineState = instance.pipelineResult.getState();
+      if (pipelineResult != null) {
+        PipelineResult.State pipelineState = pipelineResult.getState();
         if (pipelineState.isTerminal()) {
           stop();
         }
@@ -140,7 +129,7 @@ public class MetricsPusher implements Serializable {
 
     @Override
     public void run() {
-      instance.pushMetrics();
+      pushMetrics();
     }
   }
 

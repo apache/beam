@@ -226,7 +226,7 @@ public class UnboundedSocketSource<CheckpointMarkT extends UnboundedSource.Check
 
     @Override
     public void close() throws IOException {
-      MetricsPusher.getInstance().pushMetrics();
+      MetricsPusher.pushMetrics();
       this.reader.close();
       this.socket.close();
       this.isRunning = false;

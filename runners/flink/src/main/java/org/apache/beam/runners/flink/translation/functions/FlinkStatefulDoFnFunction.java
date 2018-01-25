@@ -206,7 +206,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.getInstance().pushMetrics();
+    MetricsPusher.pushMetrics();
     doFnInvoker.invokeTeardown();
   }
 
