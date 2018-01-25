@@ -134,7 +134,7 @@ func makeSideInputs(fn *funcx.Fn, in []*graph.Inbound, side []ReStream) ([]Reusa
 
 	var ret []ReusableInput
 	for i := 0; i < len(side); i++ {
-		s, err := makeSideInput(in[i+1].Kind, fn.Param[i+offset].T, side[i])
+		s, err := makeSideInput(in[i+1].Kind, fn.Param[param[i+offset]].T, side[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to make side input %v: %v", i, err)
 		}

@@ -112,6 +112,8 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X
 	defer client.Close()
 
 	q := client.Query(f.Query)
+	q.UseLegacySQL = true
+
 	it, err := q.Read(ctx)
 	if err != nil {
 		return err
