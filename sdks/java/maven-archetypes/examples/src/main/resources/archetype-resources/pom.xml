@@ -40,6 +40,7 @@
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
     <maven-jar-plugin.version>@maven-jar-plugin.version@</maven-jar-plugin.version>
     <maven-shade-plugin.version>@maven-shade-plugin.version@</maven-shade-plugin.version>
+    <mockito.version>@mockito.version@</mockito.version>
     <pubsub.version>@pubsub.version@</pubsub.version>
     <slf4j.version>@slf4j.version@</slf4j.version>
     <spark.version>@spark.version@</spark.version>
@@ -395,6 +396,13 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
       <version>${beam.version}</version>
+      <scope>test</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
