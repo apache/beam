@@ -181,10 +181,19 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           tracker.checkDone();
         } else {
           // The call returned resume() without trying to claim any blocks, i.e. it is unaware
-          // of any work to be done at the moment, but more might emerge later. In this case,
-          // we must simply reschedule the original restriction - checkpointing a tracker that
-          // hasn't claimed any work is not allowed.
-          residual = KV.of(tracker.currentRestriction(), processContext.lastReportedWatermark);
+          // of any work to be done at the moment, but more might emerge later. This is a valid
+          // use case: e.g. a DoFn reading from a streaming source might see that there are
+          // currently no new elements (hence not claim anything) and return resume() with a delay
+          // to check again later.
+          // In this case, we must simply reschedule the original restriction - checkpointing a
+          // tracker that hasn't claimed any work is not allowed.
+          //
+          // Note that the situation "a DoFn repeatedly says that it doesn't have any work to claim
+          // and asks to try again later with the same restriction" is different from the situation
+          // "a runner repeatedly checkpoints the DoFn before it has a chance to even attempt
+          // claiming work": the former is valid, and the latter would be a bug, and is addressed
+          // by not checkpointing the tracker until it attempts to claim some work.
+          residual = KV.of(tracker.currentRestriction(), processContext.getLastReportedWatermark());
           // Don't call tracker.checkDone() - it's not done.
         }
       } else {
@@ -242,15 +251,11 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       this.tracker = tracker;
     }
 
-    void checkClaimHasNotFailed() {
+    @Override
+    public void onClaimed(PositionT position) {
       checkState(
           !hasClaimFailed,
           "Must not call tryClaim() after it has previously returned false");
-    }
-
-    @Override
-    public void onClaimed(PositionT position) {
-      checkClaimHasNotFailed();
       if (numClaimedBlocks == 0) {
         // Claiming first block: can schedule the checkpoint now.
         // We don't schedule it right away to prevent checkpointing before any blocks are claimed,
@@ -265,7 +270,9 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public void onClaimFailed(PositionT position) {
-      checkClaimHasNotFailed();
+      checkState(
+          !hasClaimFailed,
+          "Must not call tryClaim() after it has previously returned false");
       hasClaimFailed = true;
     }
 
@@ -323,7 +330,16 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     @Override
     public synchronized void updateWatermark(Instant watermark) {
       // Updating the watermark without any claimed blocks is allowed.
+      // The watermark is a promise about the timestamps of output from future claimed blocks.
+      // Such a promise can be made even if there are no claimed blocks. E.g. imagine reading
+      // from a streaming source that currently has no new data: there are no blocks to claim, but
+      // we may still want to advance the watermark if we have information about what timestamps
+      // of future elements in the source will be like.
       lastReportedWatermark = watermark;
+    }
+
+    synchronized Instant getLastReportedWatermark() {
+      return lastReportedWatermark;
     }
 
     @Override

@@ -26,7 +26,6 @@ import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -46,21 +45,19 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BooleanCoder;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DurationCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.SnappyCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -72,7 +69,6 @@ import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xerial.snappy.Snappy;
 
 /**
  * Given a "poll function" that produces a potentially growing set of outputs for an input, this
@@ -739,7 +735,10 @@ public class Watch {
                   : "not yet final");
         }
       }
-      int numEmitted = 0;
+      int numEmittedInThisRound = 0;
+      int numTotalPending = tracker.getNumPending();
+      int numPreviouslyEmitted = tracker.currentRestriction().completed.size();
+      int numTotalKnown = numPreviouslyEmitted + numTotalPending;
       while (true) {
         c.updateWatermark(tracker.getWatermark());
         Map.Entry<HashCode, TimestampedValue<OutputT>> entry = tracker.getNextPending();
@@ -749,9 +748,15 @@ public class Watch {
         TimestampedValue<OutputT> nextPending = entry.getValue();
         c.outputWithTimestamp(
             KV.of(c.element(), nextPending.getValue()), nextPending.getTimestamp());
-        ++numEmitted;
+        ++numEmittedInThisRound;
       }
-      LOG.debug("{} - emitted {} new results.", c.element(), numEmitted);
+      LOG.info(
+          "{} - emitted {} new results (of {} total known: {} emitted so far, {} more to emit).",
+          c.element(),
+          numEmittedInThisRound,
+          numTotalKnown,
+          numEmittedInThisRound + numPreviouslyEmitted,
+          numTotalPending - numEmittedInThisRound);
       Instant watermark = tracker.getWatermark();
       if (watermark != null) {
         // Null means the poll result did not provide a watermark and there were no new elements,
@@ -762,8 +767,9 @@ public class Watch {
       // unless output is complete or termination condition is reached.
       if (tracker.shouldPollMore()) {
         LOG.info(
-            "{} - emitted all known results so far; will resume polling in {} ms",
+            "{} - emitted all {} known results so far; will resume polling in {} ms",
             c.element(),
+            numTotalKnown,
             spec.getPollInterval().getMillis());
         return resume().withResumeDelay(spec.getPollInterval());
       }
@@ -899,10 +905,7 @@ public class Watch {
       this.isOutputComplete = state.isOutputComplete;
       this.pollWatermark = state.pollWatermark;
       this.terminationState = state.terminationState;
-      this.pending = Maps.newLinkedHashMapWithExpectedSize(state.pending.size());
-      for (Map.Entry<HashCode, TimestampedValue<OutputT>> entry : state.pending.entrySet()) {
-        this.pending.put(entry.getKey(), entry.getValue());
-      }
+      this.pending = Maps.newLinkedHashMap(state.pending);
     }
 
     @Override
@@ -969,6 +972,10 @@ public class Watch {
     @VisibleForTesting
     synchronized boolean hasPending() {
       return !pending.isEmpty();
+    }
+
+    private synchronized int getNumPending() {
+      return pending.size();
     }
 
     @VisibleForTesting
@@ -1106,40 +1113,6 @@ public class Watch {
       int numRead = is.read(res, 0, 16);
       checkArgument(numRead == 16, "Expected to read 16 bytes, but read %s", numRead);
       return HashCode.fromBytes(res);
-    }
-  }
-
-  private static class SnappyCoder<T> extends StructuredCoder<T> {
-    private final Coder<T> innerCoder;
-
-    public static <T> SnappyCoder<T> of(Coder<T> innerCoder) {
-      return new SnappyCoder<>(innerCoder);
-    }
-
-    private SnappyCoder(Coder<T> innerCoder) {
-      this.innerCoder = innerCoder;
-    }
-
-    @Override
-    public void encode(T value, OutputStream os) throws IOException {
-      ByteArrayCoder.of()
-          .encode(Snappy.compress(CoderUtils.encodeToByteArray(innerCoder, value)), os);
-    }
-
-    @Override
-    public T decode(InputStream is) throws CoderException, IOException {
-      return CoderUtils.decodeFromByteArray(
-          innerCoder, Snappy.uncompress(ByteArrayCoder.of().decode(is)));
-    }
-
-    @Override
-    public List<? extends Coder<?>> getCoderArguments() {
-      return ImmutableList.of(innerCoder);
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-      innerCoder.verifyDeterministic();
     }
   }
 
