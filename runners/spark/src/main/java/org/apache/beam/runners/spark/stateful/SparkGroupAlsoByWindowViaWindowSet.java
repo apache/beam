@@ -272,9 +272,12 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
           if (!encodedKeyedElements.isEmpty()) {
             // new input for key.
             try {
+              //cast to GenTraversable to avoid a ambiguous call to head() which can come from
+              //mulitple super interfacesof Seq<byte[]>
+              byte[] b = ((scala.collection.GenTraversable<byte[]>) encodedKeyedElements).head();
               final KV<Long, Iterable<WindowedValue<InputT>>> keyedElements =
                   CoderHelpers.fromByteArray(
-                      encodedKeyedElements.head(), KvCoder.of(VarLongCoder.of(), itrWvCoder));
+                      b, KvCoder.of(VarLongCoder.of(), itrWvCoder));
 
               final Long rddTimestamp = keyedElements.getKey();
 
