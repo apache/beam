@@ -564,8 +564,9 @@ public class CoderRegistry {
       }
       for (int i = 0; i < typeArgumentCoders.size(); i++) {
         try {
+          Coder<?> c2 = typeArgumentCoders.get(i);
           verifyCompatible(
-              typeArgumentCoders.get(i),
+              c2,
               candidateDescriptor.resolveType(typeArguments[i]).getType());
         } catch (IncompatibleCoderException exn) {
           throw new IncompatibleCoderException(
