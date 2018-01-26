@@ -95,8 +95,8 @@ public class DirectGraphVisitorTest implements Serializable {
     assertThat(graph.getRootTransforms(), hasSize(3));
     assertThat(
         graph.getRootTransforms(),
-        Matchers.containsInAnyOrder(
-            graph.getProducer(created), graph.getProducer(counted), graph.getProducer(unCounted)));
+        Matchers.containsInAnyOrder(new Object[] {
+            graph.getProducer(created), graph.getProducer(counted), graph.getProducer(unCounted)}));
     for (AppliedPTransform<?, ?, ?> root : graph.getRootTransforms())  {
       // Root transforms will have no inputs
       assertThat(root.getInputs().entrySet(), emptyIterable());
@@ -114,9 +114,10 @@ public class DirectGraphVisitorTest implements Serializable {
     empty.setCoder(StringUtf8Coder.of());
     p.traverseTopologically(visitor);
     DirectGraph graph = visitor.getGraph();
-    assertThat(graph.getRootTransforms(), Matchers.containsInAnyOrder(graph.getProducer(empty)));
+    assertThat(graph.getRootTransforms(),
+               Matchers.containsInAnyOrder(new Object[] {graph.getProducer(empty)}));
     AppliedPTransform<?, ?, ?> onlyRoot = Iterables.getOnlyElement(graph.getRootTransforms());
-    assertThat(onlyRoot.getTransform(), Matchers.equalTo(flatten));
+    assertThat((Object) onlyRoot.getTransform(), Matchers.equalTo(flatten));
     assertThat(onlyRoot.getInputs().entrySet(), emptyIterable());
     assertThat(onlyRoot.getOutputs(), equalTo(empty.expand()));
   }
@@ -148,9 +149,10 @@ public class DirectGraphVisitorTest implements Serializable {
 
     assertThat(
         graph.getPerElementConsumers(created),
-        Matchers.containsInAnyOrder(transformedProducer, flattenedProducer));
+        Matchers.containsInAnyOrder(new Object[] {transformedProducer, flattenedProducer}));
     assertThat(
-        graph.getPerElementConsumers(transformed), Matchers.containsInAnyOrder(flattenedProducer));
+        graph.getPerElementConsumers(transformed),
+        Matchers.containsInAnyOrder(new Object[] {flattenedProducer}));
     assertThat(graph.getPerElementConsumers(flattened), emptyIterable());
   }
 
@@ -168,7 +170,7 @@ public class DirectGraphVisitorTest implements Serializable {
 
     assertThat(
         graph.getPerElementConsumers(created),
-        Matchers.containsInAnyOrder(flattenedProducer, flattenedProducer));
+        Matchers.containsInAnyOrder(new Object[] {flattenedProducer, flattenedProducer}));
     assertThat(graph.getPerElementConsumers(flattened), emptyIterable());
   }
 
