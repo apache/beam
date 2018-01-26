@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.flink;
 
+import com.esotericsoftware.kryo.Serializer;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
@@ -30,7 +31,6 @@ import cz.seznam.euphoria.flink.batch.BatchElement;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.slf4j.Logger;
@@ -40,10 +40,10 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -63,7 +63,7 @@ public class FlinkExecutor implements Executor {
   private Duration latencyTracking = Duration.ofSeconds(2);
   private FlinkAccumulatorFactory accumulatorFactory =
           new FlinkAccumulatorFactory.Adapter(VoidAccumulatorProvider.getFactory());
-  private final Set<Class<?>> registeredClasses = getDefaultClasses();
+  private final HashMap<Class<?>, Class<? extends Serializer>> registeredClasses = getDefaultClasses();
   @Nullable
   private Duration checkpointInterval;
 
@@ -287,7 +287,19 @@ public class FlinkExecutor implements Executor {
    * @return this instance (for method chaining purposes)
    */
   public FlinkExecutor registerClass(Class<?> cls) {
-    registeredClasses.add(cls);
+    registeredClasses.put(cls, null);
+    return this;
+  }
+
+  /**
+   * Pre-register given class to flink for serialization purposes.
+   *
+   * @param cls the type of objects which flink is supposed to serialize/deserialize
+   * @param classSeriliazer serilizer
+   * @return this instance (for method chaining purposes)
+   */
+  public FlinkExecutor registerClass(Class<?> cls, Class<? extends Serializer> classSeriliazer) {
+    registeredClasses.put(cls, classSeriliazer);
     return this;
   }
 
@@ -326,13 +338,15 @@ public class FlinkExecutor implements Executor {
 
   // return classes that should be registered by default
   // because the flink executor (might) use them by default
-  private Set<Class<?>> getDefaultClasses() {
-    return Sets.newHashSet(
-        Pair.class,
-        Window.class,
-        GlobalWindowing.Window.class,
-        TimeInterval.class,
-        BatchElement.class,
-        StreamingElement.class);
+  private HashMap<Class<?>, Class<? extends Serializer>> getDefaultClasses() {
+    HashMap<Class<?>, Class<? extends Serializer>> classSerializerMap = new HashMap<>();
+    classSerializerMap.put(Pair.class, null);
+    classSerializerMap.put(Window.class, null);
+    classSerializerMap.put(GlobalWindowing.class, null);
+    classSerializerMap.put(TimeInterval.class, null);
+    classSerializerMap.put(BatchElement.class, null);
+    classSerializerMap.put(StreamingElement.class, null);
+    return classSerializerMap;
+
   }
 }
