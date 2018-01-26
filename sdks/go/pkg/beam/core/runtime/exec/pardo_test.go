@@ -66,7 +66,7 @@ func TestParDo(t *testing.T) {
 
 	out := &CaptureNode{UID: 1}
 	sum := &CaptureNode{UID: 2}
-	pardo := &ParDo{UID: 3, Edge: edge, Out: []Node{out, sum}, Side: []ReStream{
+	pardo := &ParDo{UID: 3, Fn: edge.DoFn, Inbound: edge.Input, Out: []Node{out, sum}, Side: []ReStream{
 		&FixedReStream{Buf: makeValues(1)},       // a
 		&FixedReStream{Buf: makeValues(2, 3, 4)}, // b
 		&FixedReStream{Buf: makeValues(5, 6)},    // c

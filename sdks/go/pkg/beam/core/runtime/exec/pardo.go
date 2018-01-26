@@ -29,10 +29,11 @@ import (
 
 // ParDo is a DoFn executor.
 type ParDo struct {
-	UID  UnitID
-	Edge *graph.MultiEdge
-	Side []ReStream
-	Out  []Node
+	UID     UnitID
+	Fn      *graph.DoFn
+	Inbound []*graph.Inbound
+	Side    []ReStream
+	Out     []Node
 
 	ready     bool
 	sideinput []ReusableInput
@@ -53,7 +54,7 @@ func (n *ParDo) Up(ctx context.Context) error {
 	}
 	n.status = Up
 
-	if _, err := Invoke(ctx, n.Edge.DoFn.SetupFn(), nil); err != nil {
+	if _, err := Invoke(ctx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	return nil
@@ -80,7 +81,7 @@ func (n *ParDo) StartBundle(ctx context.Context, id string, data DataManager) er
 
 	// TODO(BEAM-3303): what to set for StartBundle/FinishBundle emitter timestamp?
 
-	if _, err := n.invokeDataFn(ctx, beam.EventTime{}, n.Edge.DoFn.StartBundleFn(), nil); err != nil {
+	if _, err := n.invokeDataFn(ctx, beam.EventTime{}, n.Fn.StartBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	return nil
@@ -91,7 +92,7 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
 
-	val, err := n.invokeDataFn(ctx, elm.Timestamp, n.Edge.DoFn.ProcessElementFn(), &MainInput{Key: elm, Values: values})
+	val, err := n.invokeDataFn(ctx, elm.Timestamp, n.Fn.ProcessElementFn(), &MainInput{Key: elm, Values: values})
 	if err != nil {
 		return n.fail(err)
 	}
@@ -109,7 +110,7 @@ func (n *ParDo) FinishBundle(ctx context.Context) error {
 	}
 	n.status = Up
 
-	if _, err := n.invokeDataFn(ctx, beam.EventTime{}, n.Edge.DoFn.FinishBundleFn(), nil); err != nil {
+	if _, err := n.invokeDataFn(ctx, beam.EventTime{}, n.Fn.FinishBundleFn(), nil); err != nil {
 		return n.fail(err)
 	}
 	if err := MultiFinishBundle(ctx, n.Out...); err != nil {
@@ -124,7 +125,7 @@ func (n *ParDo) Down(ctx context.Context) error {
 	}
 	n.status = Down
 
-	if _, err := Invoke(ctx, n.Edge.DoFn.TeardownFn(), nil); err != nil {
+	if _, err := Invoke(ctx, n.Fn.TeardownFn(), nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
@@ -140,11 +141,11 @@ func (n *ParDo) initIfNeeded() error {
 	// processing methods consume the same side input/emitters.
 
 	var err error
-	n.sideinput, err = makeSideInputs(n.Edge.DoFn.ProcessElementFn(), n.Edge.Input, n.Side)
+	n.sideinput, err = makeSideInputs(n.Fn.ProcessElementFn(), n.Inbound, n.Side)
 	if err != nil {
 		return n.fail(err)
 	}
-	n.emitters, err = makeEmitters(n.Edge.DoFn.ProcessElementFn(), n.Out)
+	n.emitters, err = makeEmitters(n.Fn.ProcessElementFn(), n.Out)
 	if err != nil {
 		return n.fail(err)
 	}
@@ -188,5 +189,5 @@ func (n *ParDo) fail(err error) error {
 }
 
 func (n *ParDo) String() string {
-	return fmt.Sprintf("ParDo[%v] Out:%v", path.Base(n.Edge.DoFn.Name()), IDs(n.Out...))
+	return fmt.Sprintf("ParDo[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out...))
 }

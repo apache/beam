@@ -168,6 +168,9 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// TODO: if value is union coder
+
 		t := typex.New(root, key.T, value.T)
 
 		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil

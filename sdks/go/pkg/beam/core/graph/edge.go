@@ -26,19 +26,17 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-// Opcode represents a primitive Fn API instruction kind.
+// Opcode represents a primitive Beam instruction kind.
 type Opcode string
 
 // Valid opcodes.
 const (
-	Impulse    Opcode = "Impulse"
-	ParDo      Opcode = "ParDo"
-	CoGBK      Opcode = "CoGBK"
-	External   Opcode = "External"
-	Flatten    Opcode = "Flatten"
-	Combine    Opcode = "Combine"
-	DataSource Opcode = "DataSource"
-	DataSink   Opcode = "DataSink"
+	Impulse  Opcode = "Impulse"
+	ParDo    Opcode = "ParDo"
+	CoGBK    Opcode = "CoGBK"
+	External Opcode = "External"
+	Flatten  Opcode = "Flatten"
+	Combine  Opcode = "Combine"
 )
 
 // InputKind represents the role of the input and its shape.
@@ -131,17 +129,6 @@ func (o *Outbound) String() string {
 	return fmt.Sprintf("Out: %v -> %v", o.Type, o.To)
 }
 
-// Port represents the connection port of external operations.
-type Port struct {
-	URL string
-}
-
-// Target represents the target of external operations.
-type Target struct {
-	ID   string
-	Name string
-}
-
 // Payload represents an external payload.
 type Payload struct {
 	URN  string
@@ -160,8 +147,6 @@ type MultiEdge struct {
 	Op        Opcode
 	DoFn      *DoFn      // ParDo
 	CombineFn *CombineFn // Combine
-	Port      *Port      // DataSource, DataSink
-	Target    *Target    // DataSource, DataSink
 	Value     []byte     // Impulse
 	Payload   *Payload   // External
 

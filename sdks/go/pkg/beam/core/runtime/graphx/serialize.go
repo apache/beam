@@ -755,6 +755,8 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		return &CoderRef{Type: pairType, Components: []*CoderRef{key, value}, IsPairLike: true}, nil
 
 	case coder.CoGBK:
+		// TODO: encode CoGBK as union coder, if Comp > 2
+
 		if len(c.Components) != 2 {
 			return nil, fmt.Errorf("bad GBK: %v", c)
 		}
@@ -830,6 +832,8 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
+		// TODO: if value is union coder
+
 		t := typex.New(root, key.T, value.T)
 
 		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
