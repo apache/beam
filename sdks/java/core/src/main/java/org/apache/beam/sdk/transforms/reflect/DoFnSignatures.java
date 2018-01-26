@@ -1175,11 +1175,9 @@ public class DoFnSignatures {
     MemberT[] getMembers(Class<?> clazz);
   }
 
-  // Class::getDeclaredMethods for Java 7
-  private static final MemberGetter<Method> GET_METHODS = clazz -> clazz.getDeclaredMethods();
+  private static final MemberGetter<Method> GET_METHODS = Class::getDeclaredMethods;
 
-  // Class::getDeclaredFields for Java 7
-  private static final MemberGetter<Field> GET_FIELDS = clazz -> clazz.getDeclaredFields();
+  private static final MemberGetter<Field> GET_FIELDS = Class::getDeclaredFields;
 
   private static <MemberT extends AnnotatedElement>
       Collection<MemberT> declaredMembersWithAnnotation(
