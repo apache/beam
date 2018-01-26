@@ -302,7 +302,7 @@ public class Pipeline {
    * by the options.
    */
   public PipelineResult run(PipelineOptions options) {
-    PipelineRunner runner = PipelineRunner.fromOptions(options);
+    PipelineRunner<? extends PipelineResult> runner = PipelineRunner.fromOptions(options);
     // Ensure all of the nodes are fully specified before a PipelineRunner gets access to the
     // pipeline.
     LOG.debug("Running {} via {}", this, runner);

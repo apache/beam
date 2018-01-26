@@ -173,7 +173,7 @@ buildscript {
     maven { url "http://repo.spring.io/plugins-release" }
   }
   dependencies {
-    classpath "net.ltgt.gradle:gradle-apt-plugin:0.12"                                                  // Enable a Java annotation processor
+    classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
     classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"                                        // Enable proto code generation
     classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
     classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
