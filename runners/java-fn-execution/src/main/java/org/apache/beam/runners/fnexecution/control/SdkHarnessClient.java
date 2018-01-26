@@ -130,7 +130,7 @@ public class SdkHarnessClient {
                     BeamFnApi.InstructionResponse response) {
                   return response.getProcessBundle();
                 }
-              });
+              }, MoreExecutors.directExecutor());
 
       return ActiveBundle.create(bundleId, specificResponse, dataReceiver);
     }
