@@ -410,9 +410,10 @@ class BatchElements(PTransform):
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
   """
+
   def __init__(self,
                min_batch_size=1,
-               max_batch_size=1000,
+               max_batch_size=10000,
                target_batch_overhead=.05,
                target_batch_duration_secs=1,
                clock=time.time):
