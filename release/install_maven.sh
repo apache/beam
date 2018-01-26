@@ -26,13 +26,27 @@
 
 set -x
 
-ZIP="http://www.apache.org/dist/maven/maven-3/3.5.2/binaries/apache-maven-3.5.2-bin.tar.gz"
-DIR="${HOME}/.local/maven"
-rm -rf $DIR
-mkdir -p $DIR
-pushd $DIR
-curl -L $ZIP --output maven.tar.gz
-tar xf maven.tar.gz
-PATH=$(pwd)/apache-maven-3.5.2/bin:$PATH
-export PATH
-popd
+mvn_ver=$(mvn -v | head -1 | awk '{print $3}')
+echo "Maven version ${mvn_ver}"
+if [[ $mvn_ver < "3.5" ]]
+then
+  echo "Maven is old, (pre 3.5)"
+  
+  if [ -f /home/jenkins/tools/maven/apache-maven-3.5.2/bin/mvn ]
+  then
+    echo "Found maven"
+    PATH=/home/jenkins/tools/maven/apache-maven-3.5.2/bin:$PATH
+  else
+    echo "Did not find maven, installing locally"
+    ZIP="http://www.apache.org/dist/maven/maven-3/3.5.2/binaries/apache-maven-3.5.2-bin.tar.gz"
+    DIR="${HOME}/.local/maven"
+    rm -rf $DIR
+    mkdir -p $DIR
+    pushd $DIR
+    curl -L $ZIP --output maven.tar.gz
+    tar xf maven.tar.gz
+    PATH=$(pwd)/apache-maven-3.5.2/bin:$PATH
+    export PATH
+    popd
+  fi
+fi
