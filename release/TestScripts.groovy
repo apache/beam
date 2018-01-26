@@ -46,6 +46,7 @@ class TestScripts {
      
    // Run a command
    public void run(String cmd) {
+     println cmd
      if (cmd.startsWith("cd ")) {
        _chdir(cmd.substring(3))
      } else if (cmd.startsWith("mvn ")) {
@@ -74,7 +75,6 @@ class TestScripts {
 
    // Run a single command, capture output, verify return code is 0
    private void _execute(String cmd) {
-     println cmd
      def shell = "sh -c cmd".split(' ')
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
