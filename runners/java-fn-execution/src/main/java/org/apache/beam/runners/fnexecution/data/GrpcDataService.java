@@ -107,6 +107,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   }
 
   @Override
+  @SuppressWarnings("FutureReturnValueIgnored")
   public <T> InboundDataClient receive(
       final LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
