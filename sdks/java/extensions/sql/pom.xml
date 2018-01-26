@@ -165,7 +165,7 @@
             </goals>
             <configuration>
               <cfgFile>${project.build.directory}/codegen/config.fmpp</cfgFile>
-              <outputDirectory>target/generated-sources</outputDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/fmpp</outputDirectory>
               <templateDirectory>${project.build.directory}/codegen/templates</templateDirectory>
             </configuration>
           </execution>
@@ -175,7 +175,6 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
-        <version>1.9</version>
         <executions>
           <execution>
             <id>add-generated-sources</id>
@@ -185,7 +184,7 @@
             </goals>
             <configuration>
               <sources>
-                <source>${project.build.directory}/generated-sources</source>
+                <source>${project.build.directory}/generated-sources/java</source>
               </sources>
             </configuration>
           </execution>
@@ -210,7 +209,7 @@
               </includes>
               <lookAhead>2</lookAhead>
               <isStatic>false</isStatic>
-              <outputDirectory>${project.build.directory}/generated-sources/</outputDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/java</outputDirectory>
             </configuration>
           </execution>
         </executions>

@@ -191,6 +191,7 @@
 
     <!-- Default skipping -->
     <rat.skip>true</rat.skip>
+
   </properties>
 
   <packaging>pom</packaging>
@@ -344,7 +345,7 @@
                 <dependency>
                   <groupId>org.eclipse.tycho</groupId>
                   <artifactId>tycho-compiler-jdt</artifactId>
-                  <version>0.26.0</version>
+                  <version>1.0.0</version>
                 </dependency>
               </dependencies>
             </plugin>
@@ -1721,6 +1722,36 @@
                 </pluginExecution>
                 <pluginExecution>
                   <pluginExecutionFilter>
+                    <groupId>com.googlecode.fmpp-maven-plugin</groupId>
+                    <artifactId>fmpp-maven-plugin</artifactId>
+                    <versionRange>[1.0,)</versionRange>
+                    <goals>
+                      <goal>generate</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <execute>
+                      <runOnIncremental>false</runOnIncremental>
+                    </execute>
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>javacc-maven-plugin</artifactId>
+                    <versionRange>[2.4,)</versionRange>
+                    <goals>
+                      <goal>javacc</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <execute>
+                      <runOnIncremental>false</runOnIncremental>
+                    </execute>
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
                     <versionRange>[2.5,)</versionRange>
@@ -1746,6 +1777,19 @@
                   <action>
                     <ignore />
                   </action>
+                </pluginExecution>
+                <pluginExecution>
+                    <pluginExecutionFilter>
+                        <groupId>net.revelc.code.formatter</groupId>
+                        <artifactId>formatter-maven-plugin</artifactId>
+                        <versionRange>[2.0.0,)</versionRange>
+                        <goals>
+                            <goal>format</goal>
+                        </goals>
+                    </pluginExecutionFilter>
+                    <action>
+                        <ignore />
+                    </action>
                 </pluginExecution>
               </pluginExecutions>
             </lifecycleMappingMetadata>
