@@ -41,7 +41,6 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Parameter.Type;
@@ -146,12 +145,8 @@ public class ParDoTranslation {
         new ParDoLike() {
           @Override
           public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-            return ParDoTranslation.translateDoFn(parDo.getFn(), parDo.getMainOutputTag());
-          }
-
-          @Override
-          public Environment getEnvironment() {
-            return Environments.JAVA_SDK_HARNESS_ENVIRONMENT;
+            return ParDoTranslation.translateDoFn(
+                parDo.getFn(), parDo.getMainOutputTag(), newComponents);
           }
 
           @Override
@@ -170,7 +165,8 @@ public class ParDoTranslation {
           public Map<String, SideInput> translateSideInputs(SdkComponents components) {
             Map<String, SideInput> sideInputs = new HashMap<>();
             for (PCollectionView<?> sideInput : parDo.getSideInputs()) {
-              sideInputs.put(sideInput.getTagInternal().getId(), translateView(sideInput));
+              sideInputs.put(
+                  sideInput.getTagInternal().getId(), translateView(sideInput, components));
             }
             return sideInputs;
           }
@@ -432,8 +428,10 @@ public class ParDoTranslation {
     }
   }
 
-  public static SdkFunctionSpec translateDoFn(DoFn<?, ?> fn, TupleTag<?> tag) {
+  public static SdkFunctionSpec translateDoFn(
+      DoFn<?, ?> fn, TupleTag<?> tag, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
+        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_DO_FN_URN)
@@ -491,17 +489,18 @@ public class ParDoTranslation {
         });
   }
 
-  public static SideInput translateView(PCollectionView<?> view) {
+  public static SideInput translateView(PCollectionView<?> view, SdkComponents components) {
     Builder builder = SideInput.newBuilder();
     builder.setAccessPattern(
         FunctionSpec.newBuilder().setUrn(view.getViewFn().getMaterialization().getUrn()).build());
-    builder.setViewFn(translateViewFn(view.getViewFn()));
-    builder.setWindowMappingFn(translateWindowMappingFn(view.getWindowMappingFn()));
+    builder.setViewFn(translateViewFn(view.getViewFn(), components));
+    builder.setWindowMappingFn(translateWindowMappingFn(view.getWindowMappingFn(), components));
     return builder.build();
   }
 
-  private static SdkFunctionSpec translateViewFn(ViewFn<?, ?> viewFn) {
+  private static SdkFunctionSpec translateViewFn(ViewFn<?, ?> viewFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
+        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_VIEW_FN_URN)
@@ -527,8 +526,10 @@ public class ParDoTranslation {
     return payload.getSplittable();
   }
 
-  private static SdkFunctionSpec translateWindowMappingFn(WindowMappingFn<?> windowMappingFn) {
+  private static SdkFunctionSpec translateWindowMappingFn(
+      WindowMappingFn<?> windowMappingFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
+        .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(CUSTOM_JAVA_WINDOW_MAPPING_FN_URN)
@@ -591,13 +592,13 @@ public class ParDoTranslation {
 
     @Override
     public SdkFunctionSpec translateDoFn(SdkComponents newComponents) {
-      // TODO: re-register the environment with the new components
-      return payload.getDoFn();
-    }
-
-    @Override
-    public Environment getEnvironment() {
-      return rehydratedComponents.getEnvironment(payload.getDoFn().getEnvironmentId());
+      SdkFunctionSpec sdkFnSpec = payload.getDoFn();
+      return sdkFnSpec
+          .toBuilder()
+          .setEnvironmentId(
+              newComponents.registerEnvironment(
+                  rehydratedComponents.getEnvironment(sdkFnSpec.getEnvironmentId())))
+          .build();
     }
 
     @Override
@@ -635,8 +636,6 @@ public class ParDoTranslation {
   /** These methods drive to-proto translation from Java and from rehydrated ParDos. */
   public interface ParDoLike {
     SdkFunctionSpec translateDoFn(SdkComponents newComponents);
-
-    Environment getEnvironment();
 
     List<RunnerApi.Parameter> translateParameters();
 
