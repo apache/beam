@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
@@ -202,6 +203,7 @@ public class SourceRDD {
       private void close() {
         closed = true;
         try {
+          MetricsPusher.pushMetrics();
           reader.close();
         } catch (final IOException e) {
           throw new RuntimeException(e);
