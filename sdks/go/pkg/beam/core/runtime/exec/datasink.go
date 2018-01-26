@@ -21,14 +21,15 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 )
 
 // DataSink is a Node.
 type DataSink struct {
-	UID  UnitID
-	Edge *graph.MultiEdge
+	UID    UnitID
+	Port   Port
+	Target Target
+	Coder  *coder.Coder
 
 	enc ElementEncoder
 	w   io.WriteCloser
@@ -39,13 +40,13 @@ func (n *DataSink) ID() UnitID {
 }
 
 func (n *DataSink) Up(ctx context.Context) error {
-	c := coder.SkipW(n.Edge.Input[0].From.Coder)
+	c := coder.SkipW(n.Coder)
 	n.enc = MakeElementEncoder(c)
 	return nil
 }
 
 func (n *DataSink) StartBundle(ctx context.Context, id string, data DataManager) error {
-	sid := StreamID{Port: *n.Edge.Port, Target: *n.Edge.Target, InstID: id}
+	sid := StreamID{Port: n.Port, Target: n.Target, InstID: id}
 
 	w, err := data.OpenWrite(ctx, sid)
 	if err != nil {
@@ -60,7 +61,7 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 	// unit.
 	var b bytes.Buffer
 
-	c := n.Edge.Input[0].From.Coder
+	c := n.Coder
 	if err := EncodeWindowedValueHeader(c, value.Timestamp, &b); err != nil {
 		return err
 	}
@@ -83,6 +84,6 @@ func (n *DataSink) Down(ctx context.Context) error {
 }
 
 func (n *DataSink) String() string {
-	sid := StreamID{Port: *n.Edge.Port, Target: *n.Edge.Target}
+	sid := StreamID{Port: n.Port, Target: n.Target}
 	return fmt.Sprintf("DataSink[%v]", sid)
 }

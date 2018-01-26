@@ -45,7 +45,7 @@ func TestCombine(t *testing.T) {
 	}
 
 	out := &CaptureNode{UID: 1}
-	combine := &Combine{UID: 2, Edge: edge, Out: out}
+	combine := &Combine{UID: 2, Fn: edge.CombineFn, Out: out}
 	n := &FixedRoot{UID: 3, Elements: makeValues(1, 2, 3, 4, 5, 6), Out: combine}
 
 	p, err := NewPlan("a", []Unit{n, combine, out})

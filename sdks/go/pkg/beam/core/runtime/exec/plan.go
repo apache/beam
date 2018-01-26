@@ -32,6 +32,8 @@ type Plan struct {
 	units []Unit
 
 	status Status
+
+	// TODO: there can be more than 1 DataSource in a bundle.
 	source *DataSource
 }
 

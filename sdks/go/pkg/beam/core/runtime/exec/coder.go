@@ -22,17 +22,27 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+// Port represents the connection port of external operations.
+type Port struct {
+	URL string
+}
+
+// Target represents the target of external operations.
+type Target struct {
+	ID   string
+	Name string
+}
+
 // StreamID represents the information needed to identify a data stream.
 type StreamID struct {
-	Port   graph.Port
-	Target graph.Target
+	Port   Port
+	Target Target
 	InstID string
 }
 

@@ -22,16 +22,17 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // DataSource is a Root execution unit.
 type DataSource struct {
-	UID  UnitID
-	Edge *graph.MultiEdge
-	Out  Node
+	UID    UnitID
+	Port   Port
+	Target Target
+	Coder  *coder.Coder
+	Out    Node
 
 	sid    StreamID
 	source DataReader
@@ -48,7 +49,7 @@ func (n *DataSource) Up(ctx context.Context) error {
 }
 
 func (n *DataSource) StartBundle(ctx context.Context, id string, data DataManager) error {
-	n.sid = StreamID{Port: *n.Edge.Port, Target: *n.Edge.Target, InstID: id}
+	n.sid = StreamID{Port: n.Port, Target: n.Target, InstID: id}
 	n.source = data
 	n.start = time.Now()
 	atomic.StoreInt64(&n.count, 0)
@@ -62,7 +63,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 	}
 	defer r.Close()
 
-	c := n.Edge.Output[0].To.Coder
+	c := n.Coder
 	switch {
 	case coder.IsWCoGBK(c):
 		ck := MakeElementDecoder(coder.SkipW(c).Components[0])
@@ -183,7 +184,7 @@ func (n *DataSource) Down(ctx context.Context) error {
 }
 
 func (n *DataSource) String() string {
-	sid := StreamID{Port: *n.Edge.Port, Target: *n.Edge.Target}
+	sid := StreamID{Port: n.Port, Target: n.Target}
 	return fmt.Sprintf("DataSource[%v] Out:%v", sid, n.Out.ID())
 }
 

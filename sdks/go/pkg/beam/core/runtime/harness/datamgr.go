@@ -22,7 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
@@ -54,7 +53,7 @@ func (m *DataManager) OpenWrite(ctx context.Context, id exec.StreamID) (io.Write
 	return ch.OpenWrite(ctx, id)
 }
 
-func (m *DataManager) open(ctx context.Context, port graph.Port) (*DataChannel, error) {
+func (m *DataManager) open(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -77,7 +76,7 @@ func (m *DataManager) open(ctx context.Context, port graph.Port) (*DataChannel, 
 type DataChannel struct {
 	cc     *grpc.ClientConn
 	client pb.BeamFnData_DataClient
-	port   graph.Port
+	port   exec.Port
 
 	writers map[string]*dataWriter
 	readers map[string]*dataReader
@@ -86,7 +85,7 @@ type DataChannel struct {
 	mu sync.Mutex
 }
 
-func NewDataChannel(ctx context.Context, port graph.Port) (*DataChannel, error) {
+func NewDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %v", err)
@@ -137,7 +136,7 @@ func (m *DataChannel) read(ctx context.Context) {
 		// to reduce lock contention.
 
 		for _, elm := range msg.GetData() {
-			id := exec.StreamID{Port: m.port, Target: graph.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, InstID: elm.GetInstructionReference()}
+			id := exec.StreamID{Port: m.port, Target: exec.Target{ID: elm.GetTarget().PrimitiveTransformReference, Name: elm.GetTarget().GetName()}, InstID: elm.GetInstructionReference()}
 			sid := id.String()
 
 			// log.Printf("Chan read (%v): %v", sid, elm.GetData())
