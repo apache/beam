@@ -517,7 +517,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will write into the Cloud Bigtable project
+     * Returns a new {@link BigtableIO.Write} that will write into the Cloud Bigtable project
      * indicated by given parameter, requires {@link #withInstanceId}
      * to be called to determine the instance.
      *
@@ -529,7 +529,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will write into the Cloud Bigtable project
+     * Returns a new {@link BigtableIO.Write} that will write into the Cloud Bigtable project
      * indicated by given parameter, requires {@link #withInstanceId}
      * to be called to determine the instance.
      *
@@ -540,7 +540,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will write into the Cloud Bigtable instance
+     * Returns a new {@link BigtableIO.Write} that will write into the Cloud Bigtable instance
      * indicated by given parameter, requires {@link #withProjectId} to be called to
      * determine the project.
      *
@@ -552,7 +552,7 @@ public class BigtableIO {
     }
 
     /**
-     * Returns a new {@link BigtableIO.Read} that will write into the Cloud Bigtable instance
+     * Returns a new {@link BigtableIO.Write} that will write into the Cloud Bigtable instance
      * indicated by given parameter, requires {@link #withProjectId} to be called to
      * determine the project.
      *
