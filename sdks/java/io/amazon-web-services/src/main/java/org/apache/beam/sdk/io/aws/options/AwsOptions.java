@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.aws.options;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -44,7 +43,6 @@ public interface AwsOptions extends PipelineOptions {
    * The credential instance that should be used to authenticate against AWS services. Refer to
    * {@link DefaultAWSCredentialsProviderChain} Javadoc for usage help.
    */
-  @JsonIgnore
   @Description("The credential instance that should be used to authenticate against AWS services. "
       + "Refer to DefaultAWSCredentialsProviderChain Javadoc for usage help.")
   @Default.InstanceFactory(AwsUserCredentialsFactory.class)
