@@ -88,7 +88,6 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024
           ? MINIMUM_UPLOAD_BUFFER_SIZE_BYTES
           : 64 * 1024 * 1024;
-  private static final int MAX_THREADS_PER_CONCURRENT_COPY = 3;
 
   // S3 API, delete-objects: "You may specify up to 1000 keys."
   private static final int MAX_DELETE_OBJECTS_PER_REQUEST = 1000;
