@@ -46,18 +46,4 @@
     <module>javadoc</module> -->
     <module>nexmark</module>
   </modules>
-
-  <profiles>
-    <profile>
-      <id>java8-tests</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <modules>
-        <module>harness</module>
-        <module>container</module>
-        <module>java8tests</module>
-      </modules>
-    </profile>
-  </profiles>
 </project>
