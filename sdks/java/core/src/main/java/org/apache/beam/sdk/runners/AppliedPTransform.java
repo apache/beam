@@ -19,6 +19,7 @@ package org.apache.beam.sdk.runners;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -69,4 +70,19 @@ public abstract class AppliedPTransform<
   public abstract TransformT getTransform();
 
   public abstract Pipeline getPipeline();
+
+  @Override
+  public boolean equals(Object other) {
+    if (!(other instanceof AppliedPTransform)) {
+      return false;
+    }
+    AppliedPTransform<?, ?, ?> that = (AppliedPTransform<?, ?, ?>) other;
+    return Objects.equals(this.getFullName(), that.getFullName())
+        && Objects.equals(this.getPipeline(), that.getPipeline());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getFullName(), getPipeline());
+  }
 }
