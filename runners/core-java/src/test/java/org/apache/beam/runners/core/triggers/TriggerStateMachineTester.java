@@ -266,7 +266,7 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
         Instant timestamp = input.getTimestamp();
         Collection<W> assignedWindows =
             windowFn.assignWindows(
-                new TestAssignContext<>(windowFn, value, timestamp, GlobalWindow.INSTANCE));
+                new TestAssignContext<W>(windowFn, value, timestamp, GlobalWindow.INSTANCE));
 
         for (W window : assignedWindows) {
           activeWindows.addActiveForTesting(window);
