@@ -46,7 +46,8 @@ import org.junit.runners.JUnit4;
  *
  * <p>You can run this test by doing the following:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/jdk1.8-tests/HIFIOCassandraIT
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop-input-format
+ *  -Dit.test=org.apache.beam.sdk.io.hadoop.inputformat.HIFIOCassandraIT
  *  -DintegrationTestPipelineOptions='[
  *  "--cassandraServerIp=1.2.3.4",
  *  "--cassandraServerPort=port",
@@ -55,8 +56,8 @@ import org.junit.runners.JUnit4;
  * </pre>
  *
  * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
- * and spark in the jdk1.8-tests pom. You'll want to activate those in addition to the normal test
- * runner invocation pipeline options.
+ * and spark in the pom. You'll want to activate those in addition to the normal test runner
+ * invocation pipeline options.
  */
 
 @RunWith(JUnit4.class)
