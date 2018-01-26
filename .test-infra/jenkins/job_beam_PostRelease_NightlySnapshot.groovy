@@ -52,7 +52,7 @@ job('beam_PostRelease_NightlySnapshot') {
       'Run Dataflow PostRelease')
 
   steps {
-    // Run a quickstart from https://beam.apache.org/get-started/quickstart-java/
+    // Run a quickstart from https://beam.apache.org/get-started/quickstart-java
     shell('cd ' + common_job_properties.checkoutDir + '/release && ' +
           '. install_groovy.sh && ' +
           'groovy quickstart-java-direct.groovy')

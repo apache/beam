@@ -84,7 +84,7 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
       reduceRunner = new SortingFlinkCombineRunner<>();
     }
     reduceRunner.combine(
-        new AbstractFlinkCombineRunner.FinalFlinkCombiner<K, AccumT, OutputT>(combineFn),
+        new AbstractFlinkCombineRunner.FinalFlinkCombiner<>(combineFn),
         windowingStrategy,
         sideInputReader,
         options,

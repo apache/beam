@@ -18,11 +18,9 @@
 package org.apache.beam.runners.gearpump.translators;
 
 import com.google.common.collect.Iterables;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -50,7 +48,7 @@ class CreateStreamingGearpumpView<ElemT, ViewT>
   public PCollection<ElemT> expand(PCollection<ElemT> input) {
     input
         .apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults())
-        .apply(CreateGearpumpPCollectionView.<ElemT, ViewT>of(view));
+        .apply(CreateGearpumpPCollectionView.of(view));
     return input;
   }
 
@@ -66,7 +64,7 @@ class CreateStreamingGearpumpView<ElemT, ViewT>
   private static class Concatenate<T> extends Combine.CombineFn<T, List<T>, List<T>> {
     @Override
     public List<T> createAccumulator() {
-      return new ArrayList<T>();
+      return new ArrayList<>();
     }
 
     @Override
@@ -123,7 +121,7 @@ class CreateStreamingGearpumpView<ElemT, ViewT>
 
     @Override
     public PCollection<List<ElemT>> expand(PCollection<List<ElemT>> input) {
-      return PCollection.<List<ElemT>>createPrimitiveOutputInternal(
+      return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), input.getCoder());
     }
 
@@ -144,7 +142,7 @@ class CreateStreamingGearpumpView<ElemT, ViewT>
             transform) {
       return PTransformReplacement.of(
           (PCollection<ElemT>) Iterables.getOnlyElement(transform.getInputs().values()),
-          new CreateStreamingGearpumpView<ElemT, ViewT>(transform.getTransform().getView()));
+          new CreateStreamingGearpumpView<>(transform.getTransform().getView()));
     }
 
     @Override

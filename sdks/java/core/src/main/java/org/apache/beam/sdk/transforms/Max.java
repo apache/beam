@@ -65,7 +65,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    return Combine.<K, Integer, Integer>perKey(new MaxIntegerFn());
+    return Combine.perKey(new MaxIntegerFn());
   }
 
   /**
@@ -86,7 +86,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-    return Combine.<K, Long, Long>perKey(new MaxLongFn());
+    return Combine.perKey(new MaxLongFn());
   }
 
   /**
@@ -107,7 +107,7 @@ public class Max {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    return Combine.<K, Double, Double>perKey(new MaxDoubleFn());
+    return Combine.perKey(new MaxDoubleFn());
   }
 
   /**
@@ -143,7 +143,7 @@ public class Max {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   BinaryCombineFn<T> of(final T identity, final ComparatorT comparator) {
-    return new MaxFn<T>(identity, comparator);
+    return new MaxFn<>(identity, comparator);
   }
 
   /**
@@ -155,15 +155,15 @@ public class Max {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   BinaryCombineFn<T> of(final ComparatorT comparator) {
-    return new MaxFn<T>(null, comparator);
+    return new MaxFn<>(null, comparator);
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
-    return new MaxFn<T>(identity, new Top.Natural<T>());
+    return new MaxFn<>(identity, new Top.Natural<>());
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
-    return new MaxFn<T>(null, new Top.Natural<T>());
+    return new MaxFn<>(null, new Top.Natural<>());
   }
 
   /**
@@ -173,7 +173,7 @@ public class Max {
    */
   public static <T extends Comparable<? super T>>
   Combine.Globally<T, T> globally() {
-    return Combine.<T, T>globally(Max.<T>naturalOrder());
+    return Combine.globally(Max.<T>naturalOrder());
   }
 
   /**
@@ -186,7 +186,7 @@ public class Max {
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
-    return Combine.<K, T, T>perKey(Max.<T>naturalOrder());
+    return Combine.perKey(Max.<T>naturalOrder());
   }
 
   /**
@@ -196,7 +196,7 @@ public class Max {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.Globally<T, T> globally(ComparatorT comparator) {
-    return Combine.<T, T>globally(Max.<T, ComparatorT>of(comparator));
+    return Combine.globally(Max.of(comparator));
   }
 
   /**
@@ -208,7 +208,7 @@ public class Max {
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
-    return Combine.<K, T, T>perKey(Max.<T, ComparatorT>of(comparator));
+    return Combine.perKey(Max.of(comparator));
   }
 
   /////////////////////////////////////////////////////////////////////////////

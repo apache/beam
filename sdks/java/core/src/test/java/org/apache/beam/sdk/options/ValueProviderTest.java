@@ -230,13 +230,7 @@ public class ValueProviderTest {
   @Test
   public void testNestedValueProviderStatic() throws Exception {
     ValueProvider<String> svp = StaticValueProvider.of("foo");
-    ValueProvider<String> nvp = NestedValueProvider.of(
-      svp, new SerializableFunction<String, String>() {
-        @Override
-        public String apply(String from) {
-          return from + "bar";
-        }
-      });
+    ValueProvider<String> nvp = NestedValueProvider.of(svp, from -> from + "bar");
     assertTrue(nvp.isAccessible());
     assertEquals("foobar", nvp.get());
     assertEquals("foobar", nvp.toString());
@@ -246,20 +240,8 @@ public class ValueProviderTest {
   public void testNestedValueProviderRuntime() throws Exception {
     TestOptions options = PipelineOptionsFactory.as(TestOptions.class);
     ValueProvider<String> rvp = options.getBar();
-    ValueProvider<String> nvp = NestedValueProvider.of(
-      rvp, new SerializableFunction<String, String>() {
-        @Override
-        public String apply(String from) {
-          return from + "bar";
-        }
-      });
-    ValueProvider<String> doubleNvp = NestedValueProvider.of(
-      nvp, new SerializableFunction<String, String>() {
-        @Override
-        public String apply(String from) {
-          return from;
-        }
-      });
+    ValueProvider<String> nvp = NestedValueProvider.of(rvp, from -> from + "bar");
+    ValueProvider<String> doubleNvp = NestedValueProvider.of(nvp, from -> from);
     assertEquals("bar", ((NestedValueProvider) nvp).propertyName());
     assertEquals("bar", ((NestedValueProvider) doubleNvp).propertyName());
     assertFalse(nvp.isAccessible());

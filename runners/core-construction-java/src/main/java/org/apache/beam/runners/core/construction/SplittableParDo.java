@@ -143,16 +143,13 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
                 "Pair with initial restriction",
                 ParDo.of(new PairWithRestrictionFn<InputT, OutputT, RestrictionT>(doFn)))
             .setCoder(splitCoder)
-            .apply(
-                "Split restriction", ParDo.of(new SplitRestrictionFn<InputT, RestrictionT>(doFn)))
+            .apply("Split restriction", ParDo.of(new SplitRestrictionFn<>(doFn)))
             .setCoder(splitCoder)
             // ProcessFn requires all input elements to be in a single window and have a single
             // element per work item. This must precede the unique keying so each key has a single
             // associated element.
-            .apply("Explode windows", ParDo.of(new ExplodeWindowsFn<KV<InputT, RestrictionT>>()))
-            .apply(
-                "Assign unique key",
-                WithKeys.of(new RandomUniqueKeyFn<KV<InputT, RestrictionT>>()));
+            .apply("Explode windows", ParDo.of(new ExplodeWindowsFn<>()))
+            .apply("Assign unique key", WithKeys.of(new RandomUniqueKeyFn<>()));
 
     return keyedRestrictions.apply(
         "ProcessKeyedElements",
@@ -339,9 +336,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     @ProcessElement
     public void processElement(ProcessContext context) {
       context.output(
-          KV.of(
-              context.element(),
-              invoker.<RestrictionT>invokeGetInitialRestriction(context.element())));
+          KV.of(context.element(), invoker.invokeGetInitialRestriction(context.element())));
     }
   }
 
@@ -366,14 +361,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public void processElement(final ProcessContext c) {
       final InputT element = c.element().getKey();
       invoker.invokeSplitRestriction(
-          element,
-          c.element().getValue(),
-          new OutputReceiver<RestrictionT>() {
-            @Override
-            public void output(RestrictionT part) {
-              c.output(KV.of(element, part));
-            }
-          });
+          element, c.element().getValue(), part -> c.output(KV.of(element, part)));
     }
   }
 }

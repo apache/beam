@@ -35,7 +35,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.tika.exception.TikaException;
@@ -112,14 +111,11 @@ public class TikaIOTest implements Serializable {
 
     PAssert.thatSingleton(res)
         .satisfies(
-            new SerializableFunction<ParseResult, Void>() {
-              @Override
-              public Void apply(ParseResult input) {
-                assertEquals(path, input.getFileLocation());
-                assertFalse(input.isSuccess());
-                assertTrue(input.getError() instanceof TikaException);
-                return null;
-              }
+            input -> {
+              assertEquals(path, input.getFileLocation());
+              assertFalse(input.isSuccess());
+              assertTrue(input.getError() instanceof TikaException);
+              return null;
             });
     p.run();
   }

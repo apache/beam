@@ -17,15 +17,9 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import javax.sql.DataSource;
 import org.apache.beam.sdk.io.common.TestRow;
 
 /**
@@ -33,32 +27,6 @@ import org.apache.beam.sdk.io.common.TestRow;
  * {@link org.apache.beam.sdk.io.jdbc.JdbcIO}.
  */
 class JdbcTestHelper {
-  static String getTableName(String testIdentifier) throws ParseException {
-    SimpleDateFormat formatter = new SimpleDateFormat();
-    formatter.applyPattern("yyyy_MM_dd_HH_mm_ss_S");
-    return String.format("BEAMTEST_%s_%s", testIdentifier, formatter.format(new Date()));
-  }
-
-  static void createDataTable(
-      DataSource dataSource, String tableName)
-      throws SQLException {
-    try (Connection connection = dataSource.getConnection()) {
-      try (Statement statement = connection.createStatement()) {
-        statement.execute(
-            String.format("create table %s (id INT, name VARCHAR(500))", tableName));
-      }
-    }
-  }
-
-  static void cleanUpDataTable(DataSource dataSource, String tableName)
-      throws SQLException {
-    if (tableName != null) {
-      try (Connection connection = dataSource.getConnection();
-          Statement statement = connection.createStatement()) {
-        statement.executeUpdate(String.format("drop table %s", tableName));
-      }
-    }
-  }
 
   static class CreateTestRowOfNameAndId implements JdbcIO.RowMapper<TestRow> {
     @Override
@@ -68,8 +36,7 @@ class JdbcTestHelper {
     }
   }
 
-  static class PrepareStatementFromTestRow
-      implements JdbcIO.PreparedStatementSetter<TestRow> {
+  static class PrepareStatementFromTestRow implements JdbcIO.PreparedStatementSetter<TestRow> {
     @Override
     public void setParameters(TestRow element, PreparedStatement statement)
         throws SQLException {

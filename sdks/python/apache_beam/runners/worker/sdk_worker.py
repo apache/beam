@@ -159,10 +159,11 @@ class SdkHarness(object):
     self._process_thread_pool.submit(task)
 
   def _request_process_bundle_progress(self, request):
-    worker = self._instruction_id_vs_worker[request.instruction_id]
 
     def task():
-      self._execute(lambda: worker.do_instruction(request), request)
+      self._execute(lambda: self._instruction_id_vs_worker[getattr(
+          request, request.WhichOneof('request')
+      ).instruction_reference].do_instruction(request), request)
 
     self._progress_thread_pool.submit(task)
 
@@ -208,7 +209,11 @@ class SdkWorker(object):
 
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
-    return self.bundle_processors.get(instruction_id).metrics()
+    processor = self.bundle_processors.get(request.instruction_reference)
+    return beam_fn_api_pb2.InstructionResponse(
+        instruction_id=instruction_id,
+        process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
+            metrics=processor.metrics() if processor else None))
 
 
 class GrpcStateHandler(object):
@@ -260,7 +265,7 @@ class GrpcStateHandler(object):
             state_key=state_key,
             get=beam_fn_api_pb2.StateGetRequest()))
     if response.get.continuation_token:
-      raise NotImplementedErrror
+      raise NotImplementedError
     return response.get.data
 
   def blocking_append(self, state_key, data, instruction_reference):

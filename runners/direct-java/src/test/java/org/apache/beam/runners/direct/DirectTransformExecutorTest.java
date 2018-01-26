@@ -90,7 +90,7 @@ public class DirectTransformExecutorTest {
     completionCallback = new RegisteringCompletionCallback(evaluatorCompleted);
 
     created = p.apply(Create.of("foo", "spam", "third"));
-    PCollection<KV<Integer, String>> downstream = created.apply(WithKeys.<Integer, String>of(3));
+    PCollection<KV<Integer, String>> downstream = created.apply(WithKeys.of(3));
 
     DirectGraphs.performDirectOverrides(p);
     DirectGraph graph = DirectGraphs.getGraph(p);
@@ -124,7 +124,7 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.<ModelEnforcementFactory>emptyList(),
+            Collections.emptyList(),
             null,
             createdProducer,
             completionCallback,
@@ -132,7 +132,7 @@ public class DirectTransformExecutorTest {
     executor.run();
 
     assertThat(finishCalled.get(), is(true));
-    assertThat(completionCallback.handledResult, Matchers.<TransformResult<?>>equalTo(result));
+    assertThat(completionCallback.handledResult, Matchers.equalTo(result));
     assertThat(completionCallback.handledException, is(nullValue()));
   }
 
@@ -144,7 +144,7 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.<ModelEnforcementFactory>emptyList(),
+            Collections.emptyList(),
             null,
             createdProducer,
             completionCallback,
@@ -186,7 +186,7 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.<ModelEnforcementFactory>emptyList(),
+            Collections.emptyList(),
             inputBundle,
             downstreamProducer,
             completionCallback,
@@ -197,7 +197,7 @@ public class DirectTransformExecutorTest {
     evaluatorCompleted.await();
 
     assertThat(elementsProcessed, containsInAnyOrder(spam, third, foo));
-    assertThat(completionCallback.handledResult, Matchers.<TransformResult<?>>equalTo(result));
+    assertThat(completionCallback.handledResult, Matchers.equalTo(result));
     assertThat(completionCallback.handledException, is(nullValue()));
   }
 
@@ -228,7 +228,7 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.<ModelEnforcementFactory>emptyList(),
+            Collections.emptyList(),
             inputBundle,
             downstreamProducer,
             completionCallback,
@@ -262,7 +262,7 @@ public class DirectTransformExecutorTest {
         new DirectTransformExecutor<>(
             evaluationContext,
             registry,
-            Collections.<ModelEnforcementFactory>emptyList(),
+            Collections.emptyList(),
             inputBundle,
             downstreamProducer,
             completionCallback,
@@ -310,13 +310,9 @@ public class DirectTransformExecutorTest {
 
     executor.run();
     TestEnforcement<?> testEnforcement = enforcement.instance;
-    assertThat(
-        testEnforcement.beforeElements,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(barElem, fooElem));
-    assertThat(
-        testEnforcement.afterElements,
-        Matchers.<WindowedValue<?>>containsInAnyOrder(barElem, fooElem));
-    assertThat(testEnforcement.finishedBundles, Matchers.<TransformResult<?>>contains(result));
+    assertThat(testEnforcement.beforeElements, Matchers.containsInAnyOrder(barElem, fooElem));
+    assertThat(testEnforcement.afterElements, Matchers.containsInAnyOrder(barElem, fooElem));
+    assertThat(testEnforcement.finishedBundles, Matchers.contains(result));
   }
 
   @Test
@@ -425,10 +421,7 @@ public class DirectTransformExecutorTest {
             Optional.<CommittedBundle<?>>of(inputBundle.withElements(unprocessedElements));
       }
       return CommittedResult.create(
-          result,
-          unprocessedBundle,
-          Collections.<CommittedBundle<?>>emptyList(),
-          EnumSet.noneOf(OutputType.class));
+          result, unprocessedBundle, Collections.emptyList(), EnumSet.noneOf(OutputType.class));
     }
 
     @Override

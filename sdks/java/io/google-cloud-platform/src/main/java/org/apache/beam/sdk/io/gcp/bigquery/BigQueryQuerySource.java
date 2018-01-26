@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
  * A {@link BigQuerySourceBase} for querying BigQuery tables.
  */
@@ -59,14 +58,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn) {
-    return new BigQueryQuerySource<T>(
-        stepUuid,
-        query,
-        flattenResults,
-        useLegacySql,
-        bqServices,
-        coder,
-        parseFn);
+    return new BigQueryQuerySource<>(
+        stepUuid, query, flattenResults, useLegacySql, bqServices, coder, parseFn);
   }
 
   private final ValueProvider<String> query;

@@ -31,7 +31,6 @@ import io.grpc.stub.StreamObserver;
 import java.util.EnumMap;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -115,24 +114,15 @@ public class BeamFnControlClientTest {
       ThrowingFunction<BeamFnApi.InstructionRequest,
                        BeamFnApi.InstructionResponse.Builder>> handlers =
                        new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
-      handlers.put(BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
-        new ThrowingFunction<BeamFnApi.InstructionRequest,
-                             BeamFnApi.InstructionResponse.Builder>() {
-          @Override
-          public BeamFnApi.InstructionResponse.Builder apply(BeamFnApi.InstructionRequest value)
-              throws Exception {
-            return BeamFnApi.InstructionResponse.newBuilder()
-                .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance());
-          }
-        });
-      handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER,
-          new ThrowingFunction<BeamFnApi.InstructionRequest,
-                               BeamFnApi.InstructionResponse.Builder>() {
-            @Override
-            public BeamFnApi.InstructionResponse.Builder apply(BeamFnApi.InstructionRequest value)
-                throws Exception {
-              throw FAILURE;
-            }
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
+          value ->
+              BeamFnApi.InstructionResponse.newBuilder()
+                  .setProcessBundle(BeamFnApi.ProcessBundleResponse.getDefaultInstance()));
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.REGISTER,
+          value -> {
+            throw FAILURE;
           });
 
       BeamFnControlClient client = new BeamFnControlClient(
@@ -146,13 +136,12 @@ public class BeamFnControlClientTest {
           outboundServerObservers.take();
 
       ExecutorService executor = Executors.newCachedThreadPool();
-      Future<Void> future = executor.submit(new Callable<Void>() {
-        @Override
-        public Void call() throws Exception {
-          client.processInstructionRequests(executor);
-          return null;
-        }
-      });
+      Future<Void> future =
+          executor.submit(
+              () -> {
+                client.processInstructionRequests(executor);
+                return null;
+              });
 
       outboundServerObserver.onNext(SUCCESSFUL_REQUEST);
       assertEquals(SUCCESSFUL_RESPONSE, values.take());

@@ -18,13 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret;
 
-import com.google.common.base.Function;
-
 import java.util.Date;
 import java.util.GregorianCalendar;
-
-import javax.annotation.Nonnull;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -37,23 +32,21 @@ public abstract class DatetimeReinterpretConversions {
       ReinterpretConversion.builder()
           .from(SqlTypeName.TIME)
           .to(SqlTypeName.BIGINT)
-          .convert(new Function<BeamSqlPrimitive, BeamSqlPrimitive>() {
-            @Override
-            public BeamSqlPrimitive apply(@Nonnull BeamSqlPrimitive beamSqlPrimitive) {
-              GregorianCalendar date = (GregorianCalendar) beamSqlPrimitive.getValue();
-              return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTimeInMillis());
-            }
-          }).build();
+          .convert(
+              beamSqlPrimitive -> {
+                GregorianCalendar date = (GregorianCalendar) beamSqlPrimitive.getValue();
+                return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTimeInMillis());
+              })
+          .build();
 
   public static final ReinterpretConversion DATE_TYPES_TO_BIGINT =
       ReinterpretConversion.builder()
           .from(SqlTypeName.DATE, SqlTypeName.TIMESTAMP)
           .to(SqlTypeName.BIGINT)
-          .convert(new Function<BeamSqlPrimitive, BeamSqlPrimitive>() {
-            @Override
-            public BeamSqlPrimitive apply(@Nonnull BeamSqlPrimitive beamSqlPrimitive) {
-              Date date = (Date) beamSqlPrimitive.getValue();
-              return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTime());
-            }
-          }).build();
+          .convert(
+              beamSqlPrimitive -> {
+                Date date = (Date) beamSqlPrimitive.getValue();
+                return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTime());
+              })
+          .build();
 }

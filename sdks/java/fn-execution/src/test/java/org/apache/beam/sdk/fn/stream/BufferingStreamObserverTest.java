@@ -31,8 +31,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.sdk.fn.test.Consumer;
-import org.apache.beam.sdk.fn.test.Supplier;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.fn.test.TestStreams;
@@ -55,18 +53,16 @@ public class BufferingStreamObserverTest {
         new BufferingStreamObserver<>(
             phaser,
             TestStreams.withOnNext(
-                new Consumer<String>() {
-                  @Override
-                  public void accept(String t) {
-                    // Use the atomic boolean to detect if multiple threads are in this
-                    // critical section. Any thread that enters purposefully blocks by sleeping
-                    // to increase the contention between threads artificially.
-                    assertFalse(isCriticalSectionShared.getAndSet(true));
-                    Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
-                    onNextValues.add(t);
-                    assertTrue(isCriticalSectionShared.getAndSet(false));
-                  }
-                }).build(),
+                    (String t) -> {
+                      // Use the atomic boolean to detect if multiple threads are in this
+                      // critical section. Any thread that enters purposefully blocks by sleeping
+                      // to increase the contention between threads artificially.
+                      assertFalse(isCriticalSectionShared.getAndSet(true));
+                      Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
+                      onNextValues.add(t);
+                      assertTrue(isCriticalSectionShared.getAndSet(false));
+                    })
+                .build(),
             executor,
             3);
 
@@ -74,14 +70,11 @@ public class BufferingStreamObserverTest {
     List<Callable<String>> tasks = new ArrayList<>();
     for (final String prefix : prefixes) {
       tasks.add(
-          new Callable<String>() {
-            @Override
-            public String call() throws Exception {
-              for (int i = 0; i < 10; i++) {
-                streamObserver.onNext(prefix + i);
-              }
-              return prefix;
+          () -> {
+            for (int i = 0; i < 10; i++) {
+              streamObserver.onNext(prefix + i);
             }
+            return prefix;
           });
     }
     List<Future<String>> results = executor.invokeAll(tasks);
@@ -108,20 +101,8 @@ public class BufferingStreamObserverTest {
     final BufferingStreamObserver<String> streamObserver =
         new BufferingStreamObserver<>(
             phaser,
-            TestStreams.withOnNext(
-                    new Consumer<String>() {
-                      @Override
-                      public void accept(String t) {
-                        assertTrue(elementsAllowed.get());
-                      }
-                    })
-                .withIsReady(
-                    new Supplier<Boolean>() {
-                      @Override
-                      public Boolean get() {
-                        return elementsAllowed.get();
-                      }
-                    })
+            TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
+                .withIsReady(() -> elementsAllowed.get())
                 .build(),
             executor,
             3);
@@ -131,14 +112,11 @@ public class BufferingStreamObserverTest {
     for (final String prefix : ImmutableList.of("0", "1", "2", "3", "4")) {
       results.add(
           executor.submit(
-              new Callable<String>() {
-                @Override
-                public String call() throws Exception {
-                  for (int i = 0; i < 10; i++) {
-                    streamObserver.onNext(prefix + i);
-                  }
-                  return prefix;
+              () -> {
+                for (int i = 0; i < 10; i++) {
+                  streamObserver.onNext(prefix + i);
                 }
+                return prefix;
               }));
     }
 

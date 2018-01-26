@@ -33,7 +33,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class BeamSqlCurrentDateExpression extends BeamSqlExpression {
   public BeamSqlCurrentDateExpression() {
-    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.DATE);
+    super(Collections.emptyList(), SqlTypeName.DATE);
   }
   @Override public boolean accept() {
     return getOperands().size() == 0;

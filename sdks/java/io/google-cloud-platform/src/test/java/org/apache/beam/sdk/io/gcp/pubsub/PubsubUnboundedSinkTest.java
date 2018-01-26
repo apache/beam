@@ -62,7 +62,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
     private final Map<String, String> attributes;
 
     private Stamp() {
-      this(ImmutableMap.<String, String>of());
+      this(ImmutableMap.of());
     }
 
     private Stamp(Map<String, String> attributes) {
@@ -87,8 +87,8 @@ public class PubsubUnboundedSinkTest implements Serializable {
 
   @Test
   public void saneCoder() throws Exception {
-    OutgoingMessage message = new OutgoingMessage(
-            DATA.getBytes(), ImmutableMap.<String, String>of(), TIMESTAMP, getRecordId(DATA));
+    OutgoingMessage message =
+        new OutgoingMessage(DATA.getBytes(), ImmutableMap.of(), TIMESTAMP, getRecordId(DATA));
     CoderProperties.coderDecodeEncodeEqual(PubsubUnboundedSink.CODER, message);
     CoderProperties.coderSerializable(PubsubUnboundedSink.CODER);
   }
@@ -103,8 +103,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
     int batchSize = 1;
     int batchBytes = 1;
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
-                                                      ImmutableList.<OutgoingMessage>of())) {
+        PubsubTestClient.createFactoryForPublish(TOPIC, outgoing, ImmutableList.of())) {
       PubsubUnboundedSink sink =
           new PubsubUnboundedSink(factory, StaticValueProvider.of(TOPIC),
               TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, NUM_SHARDS, batchSize, batchBytes,
@@ -126,8 +125,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
             new OutgoingMessage(
                 DATA.getBytes(), null /* attributes */, TIMESTAMP, getRecordId(DATA)));
     try (PubsubTestClientFactory factory =
-        PubsubTestClient.createFactoryForPublish(
-            TOPIC, outgoing, ImmutableList.<OutgoingMessage>of())) {
+        PubsubTestClient.createFactoryForPublish(TOPIC, outgoing, ImmutableList.of())) {
       PubsubUnboundedSink sink =
           new PubsubUnboundedSink(
               factory,
@@ -156,13 +154,12 @@ public class PubsubUnboundedSinkTest implements Serializable {
     int batchBytes = 1000;
     for (int i = 0; i < batchSize * 10; i++) {
       String str = String.valueOf(i);
-      outgoing.add(new OutgoingMessage(
-              str.getBytes(), ImmutableMap.<String, String>of(), TIMESTAMP, getRecordId(str)));
+      outgoing.add(
+          new OutgoingMessage(str.getBytes(), ImmutableMap.of(), TIMESTAMP, getRecordId(str)));
       data.add(str);
     }
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
-                                                      ImmutableList.<OutgoingMessage>of())) {
+        PubsubTestClient.createFactoryForPublish(TOPIC, outgoing, ImmutableList.of())) {
       PubsubUnboundedSink sink =
           new PubsubUnboundedSink(factory, StaticValueProvider.of(TOPIC),
               TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, NUM_SHARDS, batchSize, batchBytes,
@@ -189,14 +186,13 @@ public class PubsubUnboundedSinkTest implements Serializable {
         sb.append(String.valueOf(n));
       }
       String str = sb.toString();
-      outgoing.add(new OutgoingMessage(
-              str.getBytes(), ImmutableMap.<String, String>of(), TIMESTAMP, getRecordId(str)));
+      outgoing.add(
+          new OutgoingMessage(str.getBytes(), ImmutableMap.of(), TIMESTAMP, getRecordId(str)));
       data.add(str);
       n += str.length();
     }
     try (PubsubTestClientFactory factory =
-             PubsubTestClient.createFactoryForPublish(TOPIC, outgoing,
-                                                      ImmutableList.<OutgoingMessage>of())) {
+        PubsubTestClient.createFactoryForPublish(TOPIC, outgoing, ImmutableList.of())) {
       PubsubUnboundedSink sink =
           new PubsubUnboundedSink(factory, StaticValueProvider.of(TOPIC),
               TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE,

@@ -82,14 +82,18 @@ public class BeamSetOperatorRelBase {
 
     // co-group
     String stageName = BeamSqlRelUtils.getStageName(beamRelNode);
-    PCollection<KV<BeamRecord, CoGbkResult>> coGbkResultCollection = KeyedPCollectionTuple
-        .of(leftTag, leftRows.apply(
-            stageName + "_CreateLeftIndex", MapElements.via(
-                new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-        .and(rightTag, rightRows.apply(
-            stageName + "_CreateRightIndex", MapElements.via(
-                new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
-        .apply(CoGroupByKey.<BeamRecord>create());
+    PCollection<KV<BeamRecord, CoGbkResult>> coGbkResultCollection =
+        KeyedPCollectionTuple.of(
+                leftTag,
+                leftRows.apply(
+                    stageName + "_CreateLeftIndex",
+                    MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
+            .and(
+                rightTag,
+                rightRows.apply(
+                    stageName + "_CreateRightIndex",
+                    MapElements.via(new BeamSetOperatorsTransforms.BeamSqlRow2KvFn())))
+            .apply(CoGroupByKey.create());
     PCollection<BeamRecord> ret = coGbkResultCollection
         .apply(ParDo.of(new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(leftTag, rightTag,
             opType, all)));

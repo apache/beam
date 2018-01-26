@@ -40,7 +40,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
   @Override
   public <T> ModelEnforcement<T> forBundle(
       CommittedBundle<T> input, AppliedPTransform<?, ?, ?> consumer) {
-    return new ImmutabilityCheckingEnforcement<T>(input, consumer);
+    return new ImmutabilityCheckingEnforcement<>(input, consumer);
   }
 
   private static class ImmutabilityCheckingEnforcement<T> extends AbstractModelEnforcement<T> {

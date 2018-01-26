@@ -56,9 +56,7 @@ public class WriteFilesResult<DestinationT> implements POutput {
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return ImmutableMap.<TupleTag<?>, PValue>of(
-        perDestinationOutputFilenamesTag,
-        perDestinationOutputFilenames);
+    return ImmutableMap.of(perDestinationOutputFilenamesTag, perDestinationOutputFilenames);
   }
 
   @Override

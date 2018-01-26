@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -83,15 +82,15 @@ public class SideInputInitializer<ViewT>
 
       ViewFn<MultimapView, ViewT> viewFn = (ViewFn<MultimapView, ViewT>) view.getViewFn();
       Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-      resultMap.put(elements.getKey(), viewFn.apply(InMemoryMultimapSideInputView.fromIterable(
-          keyCoder,
-          (Iterable) Iterables.transform(elements.getValue(),
-              new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
-                @Override
-                public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
-                  return windowedValue.getValue();
-                }
-              }))));
+      resultMap.put(
+          elements.getKey(),
+          (ViewT)
+              viewFn.apply(
+                  InMemoryMultimapSideInputView.fromIterable(
+                      keyCoder,
+                      (Iterable)
+                          Iterables.transform(
+                              elements.getValue(), windowedValue -> windowedValue.getValue()))));
     }
 
     return resultMap;

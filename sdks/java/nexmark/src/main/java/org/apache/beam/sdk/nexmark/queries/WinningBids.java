@@ -350,53 +350,55 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
     // Find the highest price valid bid for each closed auction.
     return
-      // Join auctions and bids.
-      KeyedPCollectionTuple.of(NexmarkQuery.AUCTION_TAG, auctionsById)
+    // Join auctions and bids.
+    KeyedPCollectionTuple.of(NexmarkQuery.AUCTION_TAG, auctionsById)
         .and(NexmarkQuery.BID_TAG, bidsByAuctionId)
-        .apply(CoGroupByKey.<Long>create())
+        .apply(CoGroupByKey.create())
         // Filter and select.
-        .apply(name + ".Join",
-          ParDo.of(new DoFn<KV<Long, CoGbkResult>, AuctionBid>() {
-            private final Counter noAuctionCounter = Metrics.counter(name, "noAuction");
-            private final Counter underReserveCounter = Metrics.counter(name, "underReserve");
-            private final Counter noValidBidsCounter = Metrics.counter(name, "noValidBids");
+        .apply(
+            name + ".Join",
+            ParDo.of(
+                new DoFn<KV<Long, CoGbkResult>, AuctionBid>() {
+                  private final Counter noAuctionCounter = Metrics.counter(name, "noAuction");
+                  private final Counter underReserveCounter = Metrics.counter(name, "underReserve");
+                  private final Counter noValidBidsCounter = Metrics.counter(name, "noValidBids");
 
-            @ProcessElement
-            public void processElement(ProcessContext c) {
-              @Nullable Auction auction =
-                  c.element().getValue().getOnly(NexmarkQuery.AUCTION_TAG, null);
-              if (auction == null) {
-                // We have bids without a matching auction. Give up.
-                noAuctionCounter.inc();
-                return;
-              }
-              // Find the current winning bid for auction.
-              // The earliest bid with the maximum price above the reserve wins.
-              Bid bestBid = null;
-              for (Bid bid : c.element().getValue().getAll(NexmarkQuery.BID_TAG)) {
-                // Bids too late for their auction will have been
-                // filtered out by the window merge function.
-                checkState(bid.dateTime < auction.expires);
-                if (bid.price < auction.reserve) {
-                  // Bid price is below auction reserve.
-                  underReserveCounter.inc();
-                  continue;
-                }
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    @Nullable
+                    Auction auction =
+                        c.element().getValue().getOnly(NexmarkQuery.AUCTION_TAG, null);
+                    if (auction == null) {
+                      // We have bids without a matching auction. Give up.
+                      noAuctionCounter.inc();
+                      return;
+                    }
+                    // Find the current winning bid for auction.
+                    // The earliest bid with the maximum price above the reserve wins.
+                    Bid bestBid = null;
+                    for (Bid bid : c.element().getValue().getAll(NexmarkQuery.BID_TAG)) {
+                      // Bids too late for their auction will have been
+                      // filtered out by the window merge function.
+                      checkState(bid.dateTime < auction.expires);
+                      if (bid.price < auction.reserve) {
+                        // Bid price is below auction reserve.
+                        underReserveCounter.inc();
+                        continue;
+                      }
 
-                if (bestBid == null
-                    || Bid.PRICE_THEN_DESCENDING_TIME.compare(bid, bestBid) > 0) {
-                  bestBid = bid;
-                }
-              }
-              if (bestBid == null) {
-                // We don't have any valid bids for auction.
-                noValidBidsCounter.inc();
-                return;
-              }
-              c.output(new AuctionBid(auction, bestBid));
-            }
-          }
-        ));
+                      if (bestBid == null
+                          || Bid.PRICE_THEN_DESCENDING_TIME.compare(bid, bestBid) > 0) {
+                        bestBid = bid;
+                      }
+                    }
+                    if (bestBid == null) {
+                      // We don't have any valid bids for auction.
+                      noValidBidsCounter.inc();
+                      return;
+                    }
+                    c.output(new AuctionBid(auction, bestBid));
+                  }
+                }));
   }
 
   @Override

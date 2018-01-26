@@ -78,13 +78,7 @@ final class ClassPath {
   private static final Logger LOG = LoggerFactory.getLogger(ClassPath.class.getName());
 
   private static final Predicate<ClassInfo> IS_TOP_LEVEL =
-      new Predicate<ClassInfo>() {
-
-        @Override
-        public boolean apply(ClassInfo info) {
-          return info != null && info.className.indexOf('$') == -1;
-        }
-      };
+      info -> info != null && info.className.indexOf('$') == -1;
 
   /** Separator for the Class-Path manifest attribute value in jar files. */
   private static final Splitter CLASS_PATH_ATTRIBUTE_SEPARATOR =

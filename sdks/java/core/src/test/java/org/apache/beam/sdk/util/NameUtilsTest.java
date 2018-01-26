@@ -172,12 +172,7 @@ public class NameUtilsTest {
 
   @Test
   public void testApproximateSimpleNameOverride() {
-    Object overriddenName = new NameOverride() {
-      @Override
-      public String getNameOverride() {
-        return "CUSTOM_NAME";
-      }
-    };
+    NameOverride overriddenName = () -> "CUSTOM_NAME";
     assertEquals("CUSTOM_NAME", NameUtils.approximateSimpleName(overriddenName));
   }
 

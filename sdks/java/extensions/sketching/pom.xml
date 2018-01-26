@@ -39,6 +39,7 @@
       <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
+    <!-- Library containing sketches' implementation -->
     <dependency>
       <groupId>com.clearspring.analytics</groupId>
       <artifactId>stream</artifactId>

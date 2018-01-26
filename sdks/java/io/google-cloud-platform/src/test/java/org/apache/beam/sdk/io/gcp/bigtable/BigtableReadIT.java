@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigtable;
 
-import com.google.bigtable.v2.Row;
 import com.google.cloud.bigtable.config.BigtableOptions;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -52,9 +51,9 @@ public class BigtableReadIT {
     final long numRows = 1000L;
 
     Pipeline p = Pipeline.create(options);
-    PCollection<Long> count = p
-        .apply(BigtableIO.read().withBigtableOptions(bigtableOptionsBuilder).withTableId(tableId))
-        .apply(Count.<Row>globally());
+    PCollection<Long> count =
+        p.apply(BigtableIO.read().withBigtableOptions(bigtableOptionsBuilder).withTableId(tableId))
+            .apply(Count.globally());
     PAssert.thatSingleton(count).isEqualTo(numRows);
     p.run();
   }

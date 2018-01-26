@@ -34,6 +34,8 @@ from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
+from apache_beam.metrics.metricbase import MetricName
+from apache_beam.portability.api import beam_fn_api_pb2
 
 
 class MetricKey(object):
@@ -56,12 +58,20 @@ class MetricKey(object):
     return (self.step == other.step and
             self.metric == other.metric)
 
-  def __str__(self):
+  def __repr__(self):
     return 'MetricKey(step={}, metric={})'.format(
         self.step, self.metric)
 
   def __hash__(self):
     return hash((self.step, self.metric))
+
+  def to_runner_api(self):
+    return beam_fn_api_pb2.Metrics.User.MetricKey(
+        step=self.step, namespace=self.metric.namespace, name=self.metric.name)
+
+  @staticmethod
+  def from_runner_api(proto):
+    return MetricKey(proto.step, MetricName(proto.namespace, proto.name))
 
 
 class MetricResult(object):
@@ -95,7 +105,7 @@ class MetricResult(object):
             self.committed == other.committed and
             self.attempted == other.attempted)
 
-  def __str__(self):
+  def __repr__(self):
     return 'MetricResult(key={}, committed={}, attempted={})'.format(
         self.key, str(self.committed), str(self.attempted))
 
@@ -191,6 +201,20 @@ class MetricsContainer(object):
     they have been committed or not.
     """
     return self._get_updates()
+
+  def to_runner_api(self):
+    return (
+        [beam_fn_api_pb2.Metrics.User(
+            key=beam_fn_api_pb2.Metrics.User.MetricKey(
+                step=self.step_name, namespace=k.namespace, name=k.name),
+            counter_data=beam_fn_api_pb2.Metrics.User.CounterData(
+                value=v.get_cumulative()))
+         for k, v in self.counters.items()] +
+        [beam_fn_api_pb2.Metrics.User(
+            key=beam_fn_api_pb2.Metrics.User.MetricKey(
+                step=self.step_name, namespace=k.namespace, name=k.name),
+            distribution_data=v.get_cumulative().to_runner_api())
+         for k, v in self.distributions.items()])
 
 
 class ScopedMetricsContainer(object):

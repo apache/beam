@@ -75,14 +75,13 @@ public class ReplacementOutputsTest {
     Map<PValue, ReplacementOutput> replacements =
         ReplacementOutputs.singleton(ints.expand(), replacementInts);
 
-    assertThat(replacements, Matchers.<PValue>hasKey(replacementInts));
+    assertThat(replacements, Matchers.hasKey(replacementInts));
 
     ReplacementOutput replacement = replacements.get(replacementInts);
     Map.Entry<TupleTag<?>, PValue> taggedInts = Iterables.getOnlyElement(ints.expand().entrySet());
-    assertThat(
-        replacement.getOriginal().getTag(), Matchers.<TupleTag<?>>equalTo(taggedInts.getKey()));
+    assertThat(replacement.getOriginal().getTag(), Matchers.equalTo(taggedInts.getKey()));
     assertThat(replacement.getOriginal().getValue(), equalTo(taggedInts.getValue()));
-    assertThat(replacement.getReplacement().getValue(), Matchers.<PValue>equalTo(replacementInts));
+    assertThat(replacement.getReplacement().getValue(), Matchers.equalTo(replacementInts));
   }
 
   @Test
@@ -113,7 +112,7 @@ public class ReplacementOutputsTest {
                 .and(intsTag, replacementInts));
     assertThat(
         replacements.keySet(),
-        Matchers.<PValue>containsInAnyOrder(replacementStrs, replacementInts, moreReplacementInts));
+        Matchers.containsInAnyOrder(replacementStrs, replacementInts, moreReplacementInts));
     ReplacementOutput intsReplacement = replacements.get(replacementInts);
     ReplacementOutput strsReplacement = replacements.get(replacementStrs);
     ReplacementOutput moreIntsReplacement = replacements.get(moreReplacementInts);

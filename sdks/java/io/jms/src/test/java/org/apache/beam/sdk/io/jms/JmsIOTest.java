@@ -167,9 +167,7 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withMaxNumRecords(5));
 
-    PAssert
-        .thatSingleton(output.apply("Count", Count.<JmsRecord>globally()))
-        .isEqualTo(new Long(5));
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(new Long(5));
     pipeline.run();
 
     connection = connectionFactory.createConnection(USERNAME, PASSWORD);

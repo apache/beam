@@ -40,7 +40,7 @@ public class AfterAll extends OnceTrigger {
    * Returns an {@code AfterAll} {@code Trigger} with the given subtriggers.
    */
   public static AfterAll of(OnceTrigger... triggers) {
-    return new AfterAll(Arrays.<Trigger>asList(triggers));
+    return new AfterAll(Arrays.asList(triggers));
   }
 
   /**

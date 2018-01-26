@@ -313,7 +313,7 @@ public class FlinkStateInternals<K> implements StateInternals {
             StringSerializer.INSTANCE,
             flinkStateDescriptor).get();
 
-        return result != null ? ImmutableList.copyOf(result) : Collections.<T>emptyList();
+        return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -940,11 +940,12 @@ public class FlinkStateInternals<K> implements StateInternals {
         @Override
         public Iterable<KeyT> read() {
           try {
-            Iterable<KeyT> result = flinkStateBackend.getPartitionedState(
-                namespace.stringKey(),
-                StringSerializer.INSTANCE,
-                flinkStateDescriptor).keys();
-            return result != null ? ImmutableList.copyOf(result) : Collections.<KeyT>emptyList();
+            Iterable<KeyT> result =
+                flinkStateBackend
+                    .getPartitionedState(
+                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                    .keys();
+            return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state keys.", e);
           }
@@ -963,11 +964,12 @@ public class FlinkStateInternals<K> implements StateInternals {
         @Override
         public Iterable<ValueT> read() {
           try {
-            Iterable<ValueT> result = flinkStateBackend.getPartitionedState(
-                namespace.stringKey(),
-                StringSerializer.INSTANCE,
-                flinkStateDescriptor).values();
-            return result != null ? ImmutableList.copyOf(result) : Collections.<ValueT>emptyList();
+            Iterable<ValueT> result =
+                flinkStateBackend
+                    .getPartitionedState(
+                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                    .values();
+            return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state values.", e);
           }
@@ -986,13 +988,12 @@ public class FlinkStateInternals<K> implements StateInternals {
         @Override
         public Iterable<Map.Entry<KeyT, ValueT>> read() {
           try {
-            Iterable<Map.Entry<KeyT, ValueT>> result = flinkStateBackend.getPartitionedState(
-                namespace.stringKey(),
-                StringSerializer.INSTANCE,
-                flinkStateDescriptor).entries();
-            return result != null
-                ? ImmutableList.copyOf(result)
-                : Collections.<Map.Entry<KeyT, ValueT>>emptyList();
+            Iterable<Map.Entry<KeyT, ValueT>> result =
+                flinkStateBackend
+                    .getPartitionedState(
+                        namespace.stringKey(), StringSerializer.INSTANCE, flinkStateDescriptor)
+                    .entries();
+            return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state entries.", e);
           }
@@ -1149,7 +1150,7 @@ public class FlinkStateInternals<K> implements StateInternals {
             namespace.stringKey(),
             StringSerializer.INSTANCE,
             flinkStateDescriptor).keys();
-        return result != null ? ImmutableList.copyOf(result) : Collections.<T>emptyList();
+        return result != null ? ImmutableList.copyOf(result) : Collections.emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error read from state.", e);
       }

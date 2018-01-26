@@ -76,8 +76,7 @@ public class TestStreamEvaluatorFactoryTest {
             TimestampedValue.atMinimumTimestamp(6))
         .advanceProcessingTime(Duration.standardMinutes(10))
         .advanceWatermarkToInfinity();
-    PCollection<Integer> streamVals =
-        p.apply(new DirectTestStream<Integer>(runner, testStream));
+    PCollection<Integer> streamVals = p.apply(new DirectTestStream<>(runner, testStream));
 
     TestClock clock = new TestClock();
     when(context.getClock()).thenReturn(clock);
@@ -156,7 +155,7 @@ public class TestStreamEvaluatorFactoryTest {
         Iterables.getOnlyElement(firstResult.getOutputBundles())
             .commit(Instant.now())
             .getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(1),
             WindowedValue.valueInGlobalWindow(2),
             WindowedValue.valueInGlobalWindow(3)));
@@ -165,7 +164,7 @@ public class TestStreamEvaluatorFactoryTest {
         Iterables.getOnlyElement(thirdResult.getOutputBundles())
             .commit(Instant.now())
             .getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(4),
             WindowedValue.valueInGlobalWindow(5),
             WindowedValue.valueInGlobalWindow(6)));

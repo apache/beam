@@ -1713,7 +1713,7 @@ public class PipelineOptionsFactoryTest {
   public static class RegisteredTestRunnerRegistrar implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(RegisteredTestRunner.class);
+      return ImmutableList.of(RegisteredTestRunner.class);
     }
   }
 
@@ -1729,7 +1729,7 @@ public class PipelineOptionsFactoryTest {
   public static class RegisteredTestOptionsRegistrar implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(RegisteredTestOptions.class);
+      return ImmutableList.of(RegisteredTestOptions.class);
     }
   }
 

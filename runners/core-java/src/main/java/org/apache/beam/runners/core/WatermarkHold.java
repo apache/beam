@@ -56,7 +56,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   public static <W extends BoundedWindow>
       StateTag<WatermarkHoldState> watermarkHoldTagForTimestampCombiner(
           TimestampCombiner timestampCombiner) {
-    return StateTags.<WatermarkHoldState>makeSystemTagInternal(
+    return StateTags.makeSystemTagInternal(
         StateTags.<W>watermarkStateInternal("hold", timestampCombiner));
   }
 

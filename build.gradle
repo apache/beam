@@ -27,7 +27,8 @@ apply from: project(":").file("build_rules.gradle")
 // a dependency version which should match across multiple
 // Maven artifacts.
 def google_cloud_bigdataoss_version = "1.4.5"
-def bigtable_version = "1.0.0-pre3"
+def bigtable_version = "1.0.0"
+def bigtable_proto_version = "1.0.0-pre3"
 def google_clients_version = "1.22.0"
 def google_auth_version = "0.7.1"
 def grpc_version = "1.2.0"
@@ -42,6 +43,7 @@ def spark_version = "2.2.1"
 def pubsub_grpc_version = "0.1.18"
 def apex_core_version = "3.6.0"
 def apex_malhar_version = "3.4.0"
+def postgres_version = "9.4.1212.jre7"
 
 // A map of maps containing common libraries used per language. To use:
 // dependencies {
@@ -63,7 +65,7 @@ ext.library = [
     bigdataoss_gcsio: "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
     bigdataoss_util: "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
     bigtable_client_core: "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
-    bigtable_protos: "com.google.cloud.bigtable:bigtable-protos:$bigtable_version",
+    bigtable_protos: "com.google.cloud.bigtable:bigtable-protos:$bigtable_proto_version",
     byte_buddy: "net.bytebuddy:byte-buddy:1.6.8",
     commons_compress: "org.apache.commons:commons-compress:1.14",
     commons_csv: "org.apache.commons:commons-csv:1.4",
@@ -120,16 +122,18 @@ ext.library = [
     jackson_annotations: "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
     jackson_core: "com.fasterxml.jackson.core:jackson-core:$jackson_version",
     jackson_databind: "com.fasterxml.jackson.core:jackson-databind:$jackson_version",
+    jackson_dataformat_cbor: "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:$jackson_version",
     jackson_dataformat_yaml: "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
     jackson_module_scala: "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
     joda_time: "joda-time:joda-time:2.4",
     junit: "junit:junit:4.12",
-    kafka_clients: "org.apache.kafka:kafka-clients:0.11.0.1",
+    kafka_clients: "org.apache.kafka:kafka-clients:1.0.0",
     malhar_library: "org.apache.apex:malhar-library:$apex_malhar_version",
     mockito_core: "org.mockito:mockito-core:1.9.5",
     netty_handler: "io.netty:netty-handler:$netty_version",
     netty_tcnative_boringssl_static: "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26",
     netty_transport_native_epoll: "io.netty:netty-transport-native-epoll:$netty_version",
+    postgres: "org.postgresql:postgresql:$postgres_version",
     protobuf_java: "com.google.protobuf:protobuf-java:$protobuf_version",
     protobuf_java_util: "com.google.protobuf:protobuf-java-util:$protobuf_version",
     proto_google_cloud_pubsub_v1: "com.google.api.grpc:proto-google-cloud-pubsub-v1:$pubsub_grpc_version",
@@ -151,6 +155,17 @@ ext.library = [
 // fetch and enable plugins.
 buildscript {
   repositories {
+    maven { url offlineRepositoryRoot }
+
+    // To run gradle in offline mode, one must first invoke
+    // 'updateOfflineRepository' to create an offline repo
+    // inside the root project directory. See the application
+    // of the offline repo plugin within build_rules.gradle
+    // for further details.
+    if (gradle.startParameter.isOffline()) {
+      return
+    }
+
     mavenLocal()
     mavenCentral()
     jcenter()
@@ -158,17 +173,18 @@ buildscript {
     maven { url "http://repo.spring.io/plugins-release" }
   }
   dependencies {
-    classpath "net.ltgt.gradle:gradle-apt-plugin:0.12"                         // Enable a Java annotation processor
-    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"               // Enable proto code generation
-    classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                 // Enable provided and optional configurations
-    classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"     // Enable Apache license enforcement
-    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"        // Enable Avro code generation
-    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"             // Enable a code formatting plugin
-    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.7.0"            // Enable Go code compilation
-    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"  // Enable building Docker containers
-    classpath "cz.malohlava:visteg:1.0.3"                                      // Enable generating Gradle task dependencies as ".dot" files
-    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"               // Enable shading Java dependencies
-    classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                          // Enable the JavaCC parser generator
+    classpath "net.ltgt.gradle:gradle-apt-plugin:0.12"                                                  // Enable a Java annotation processor
+    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"                                        // Enable proto code generation
+    classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
+    classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
+    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                 // Enable Avro code generation
+    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"                                      // Enable a code formatting plugin
+    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.7.0"                                     // Enable Go code compilation
+    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"                           // Enable building Docker containers
+    classpath "cz.malohlava:visteg:1.0.3"                                                               // Enable generating Gradle task dependencies as ".dot" files
+    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"                                        // Enable shading Java dependencies
+    classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
+    classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
   }
 }
 
@@ -185,11 +201,15 @@ rat {
   htmlOutput = false
   failOnError = true
   excludes = [
+    // Ignore any offline repositories the user may have created.
+    "**/${offlineRepositoryRoot}/**/*",
+
     // Exclude files generated by the Gradle build process
-    "**/.gradle/**",
-    "**/.gogradle/**",
-    "**/build/**",
-    "**/vendor/**",
+    "**/.gradle/**/*",
+    "**/.gogradle/**/*",
+    "**/build/**/*",
+    "**/vendor/**/*",
+    "**/.gradletasknamecache",
 
     // .gitignore: Ignore files generated by the Maven build process
     "**/target/**/*",
@@ -204,12 +224,12 @@ rat {
     "**/.eggs/**/*",
     "**/nose-*.egg/**/*",
     "**/.tox/**/*",
-    "**/build/**/*",
     "**/dist/**/*",
     "**/distribute-*/**/*",
     "**/env/**/*",
     "sdks/python/**/*.c",
     "sdks/python/**/*.so",
+    "sdks/python/**/*.egg",
     "sdks/python/LICENSE",
     "sdks/python/NOTICE",
     "sdks/python/README.md",
@@ -231,7 +251,7 @@ rat {
     "**/.settings/**/*",
 
     // .gitignore: Ignore Visual Studio Code files.
-    "**/.vscode/*/**",
+    "**/.vscode/**/*",
 
     // .gitignore: Hotspot VM leaves this log in a non-target directory when java crashes
     "**/hs_err_pid*.log",
@@ -266,14 +286,14 @@ check.dependsOn rat
 // Define a root Java PreCommit task simplifying what is needed
 // to be specified on the commandline when executing locally.
 def javaPreCommitRoots = [
-  ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core",
-  ":beam-runners-parent:beam-runners-direct-java",
-  ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution",
+  ":sdks:java:core",
+  ":runners:direct-java",
+  ":sdks:java:fn-execution",
 ]
 task javaPreCommit() {
   for (String javaPreCommitRoot : javaPreCommitRoots) {
     dependsOn javaPreCommitRoot + ":buildNeeded"
     dependsOn javaPreCommitRoot + ":buildDependents"
   }
-  dependsOn ":beam-examples-parent:beam-examples-java:preCommit"
+  dependsOn ":examples:java:preCommit"
 }

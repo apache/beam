@@ -40,9 +40,11 @@
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
     <maven-jar-plugin.version>@maven-jar-plugin.version@</maven-jar-plugin.version>
     <maven-shade-plugin.version>@maven-shade-plugin.version@</maven-shade-plugin.version>
+    <mockito.version>@mockito.version@</mockito.version>
     <pubsub.version>@pubsub.version@</pubsub.version>
     <slf4j.version>@slf4j.version@</slf4j.version>
     <spark.version>@spark.version@</spark.version>
+    <hadoop.version>@hadoop.version@</hadoop.version>
     <surefire-plugin.version>@surefire-plugin.version@</surefire-plugin.version>
   </properties>
 
@@ -176,14 +178,14 @@
           <scope>runtime</scope>
         </dependency>
         <!--
-          Apex depends on httpclient version 4.3.5, project has a transitive dependency to httpclient 4.0.1 from
+          Apex depends on httpclient version 4.3.6, project has a transitive dependency to httpclient 4.0.1 from
           google-http-client. Apex dependency version being specified explicitly so that it gets picked up. This
           can be removed when the project no longer has a dependency on a different httpclient version.
         -->
         <dependency>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
-          <version>4.3.5</version>
+          <version>4.3.6</version>
           <scope>runtime</scope>
           <exclusions>
             <exclusion>
@@ -191,6 +193,22 @@
               <artifactId>commons-codec</artifactId>
             </exclusion>
           </exclusions>
+        </dependency>
+        <!--
+          Apex 3.6 is built against YARN 2.6. Version in the fat jar has to match
+          what's on the cluster, hence we need to repeat the Apex Hadoop dependencies here.
+        -->
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-yarn-client</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>runtime</scope>
         </dependency>
       </dependencies>
     </profile>
@@ -378,6 +396,13 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
       <version>${beam.version}</version>
+      <scope>test</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

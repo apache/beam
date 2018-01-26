@@ -26,7 +26,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -38,7 +37,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
@@ -65,7 +63,7 @@ public class CoGroupByKeyTest implements Serializable {
    */
   private PCollection<KV<Integer, String>> createInput(String name,
       Pipeline p, List<KV<Integer, String>> list) {
-    return createInput(name, p, list,  new ArrayList<Long>());
+    return createInput(name, p, list, new ArrayList<>());
   }
 
   /**
@@ -115,7 +113,7 @@ public class CoGroupByKeyTest implements Serializable {
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(tag1, collection1)
             .and(tag2, collection2)
-            .apply(CoGroupByKey.<Integer>create());
+            .apply(CoGroupByKey.create());
     return coGbkResults;
   }
 
@@ -131,17 +129,15 @@ public class CoGroupByKeyTest implements Serializable {
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildGetOnlyGbk(p, tag1, tag2);
 
-    PAssert.thatMap(coGbkResults).satisfies(
-        new SerializableFunction<Map<Integer, CoGbkResult>, Void>() {
-          @Override
-          public Void apply(Map<Integer, CoGbkResult> results) {
-            assertEquals("collection1-1", results.get(1).getOnly(tag1));
-            assertEquals("collection1-2", results.get(2).getOnly(tag1));
-            assertEquals("collection2-2", results.get(2).getOnly(tag2));
-            assertEquals("collection2-3", results.get(3).getOnly(tag2));
-            return null;
-          }
-        });
+    PAssert.thatMap(coGbkResults)
+        .satisfies(
+            results -> {
+              assertEquals("collection1-1", results.get(1).getOnly(tag1));
+              assertEquals("collection1-2", results.get(2).getOnly(tag1));
+              assertEquals("collection2-2", results.get(2).getOnly(tag2));
+              assertEquals("collection2-3", results.get(3).getOnly(tag2));
+              return null;
+            });
 
     p.run();
   }
@@ -200,7 +196,7 @@ public class CoGroupByKeyTest implements Serializable {
         KeyedPCollectionTuple.of(namesTag, nameTable)
             .and(addressesTag, addressTable)
             .and(purchasesTag, purchasesTable)
-            .apply(CoGroupByKey.<Integer>create());
+            .apply(CoGroupByKey.create());
     return coGbkResults;
   }
 
@@ -255,7 +251,7 @@ public class CoGroupByKeyTest implements Serializable {
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         KeyedPCollectionTuple.of(clicksTag, clicksTable)
             .and(purchasesTag, purchasesTable)
-            .apply(CoGroupByKey.<Integer>create());
+            .apply(CoGroupByKey.create());
     return coGbkResults;
   }
 
@@ -270,42 +266,40 @@ public class CoGroupByKeyTest implements Serializable {
     PCollection<KV<Integer, CoGbkResult>> coGbkResults =
         buildPurchasesCoGbk(p, purchasesTag, addressesTag, namesTag);
 
-    PAssert.thatMap(coGbkResults).satisfies(
-        new SerializableFunction<Map<Integer, CoGbkResult>, Void>() {
-          @Override
-          public Void apply(Map<Integer, CoGbkResult> results) {
-            CoGbkResult result1 = results.get(1);
-            assertEquals("John Smith", result1.getOnly(namesTag));
-            assertThat(result1.getAll(purchasesTag), containsInAnyOrder("Shoes", "Book"));
+    PAssert.thatMap(coGbkResults)
+        .satisfies(
+            results -> {
+              CoGbkResult result1 = results.get(1);
+              assertEquals("John Smith", result1.getOnly(namesTag));
+              assertThat(result1.getAll(purchasesTag), containsInAnyOrder("Shoes", "Book"));
 
-            CoGbkResult result2 = results.get(2);
-            assertEquals("Sally James", result2.getOnly(namesTag));
-            assertEquals("53 S. 3rd", result2.getOnly(addressesTag));
-            assertThat(result2.getAll(purchasesTag), containsInAnyOrder("Suit", "Boat"));
+              CoGbkResult result2 = results.get(2);
+              assertEquals("Sally James", result2.getOnly(namesTag));
+              assertEquals("53 S. 3rd", result2.getOnly(addressesTag));
+              assertThat(result2.getAll(purchasesTag), containsInAnyOrder("Suit", "Boat"));
 
-            CoGbkResult result3 = results.get(3);
-            assertEquals("29 School Rd", result3.getOnly(addressesTag), "29 School Rd");
-            assertThat(result3.getAll(purchasesTag), containsInAnyOrder("Car", "House"));
+              CoGbkResult result3 = results.get(3);
+              assertEquals("29 School Rd", result3.getOnly(addressesTag), "29 School Rd");
+              assertThat(result3.getAll(purchasesTag), containsInAnyOrder("Car", "House"));
 
-            CoGbkResult result8 = results.get(8);
-            assertEquals("Jeffery Spalding", result8.getOnly(namesTag));
-            assertEquals("6 Watling Rd", result8.getOnly(addressesTag));
-            assertThat(result8.getAll(purchasesTag), containsInAnyOrder("House", "Suit Case"));
+              CoGbkResult result8 = results.get(8);
+              assertEquals("Jeffery Spalding", result8.getOnly(namesTag));
+              assertEquals("6 Watling Rd", result8.getOnly(addressesTag));
+              assertThat(result8.getAll(purchasesTag), containsInAnyOrder("House", "Suit Case"));
 
-            CoGbkResult result20 = results.get(20);
-            assertEquals("Joan Lichtfield", result20.getOnly(namesTag));
-            assertEquals("3 W. Arizona", result20.getOnly(addressesTag));
+              CoGbkResult result20 = results.get(20);
+              assertEquals("Joan Lichtfield", result20.getOnly(namesTag));
+              assertEquals("3 W. Arizona", result20.getOnly(addressesTag));
 
-            assertEquals("383 Jackson Street", results.get(10).getOnly(addressesTag));
+              assertEquals("383 Jackson Street", results.get(10).getOnly(addressesTag));
 
-            assertThat(results.get(4).getAll(purchasesTag), containsInAnyOrder("Suit"));
-            assertThat(results.get(10).getAll(purchasesTag), containsInAnyOrder("Pens"));
-            assertThat(results.get(11).getAll(purchasesTag), containsInAnyOrder("House"));
-            assertThat(results.get(14).getAll(purchasesTag), containsInAnyOrder("Shoes"));
+              assertThat(results.get(4).getAll(purchasesTag), containsInAnyOrder("Suit"));
+              assertThat(results.get(10).getAll(purchasesTag), containsInAnyOrder("Pens"));
+              assertThat(results.get(11).getAll(purchasesTag), containsInAnyOrder("House"));
+              assertThat(results.get(14).getAll(purchasesTag), containsInAnyOrder("Shoes"));
 
-            return null;
-          }
-        });
+              return null;
+            });
 
     p.run();
   }
@@ -383,7 +377,7 @@ public class CoGroupByKeyTest implements Serializable {
       // Buffer the addresses so we can accredit all of them with
       // corresponding purchases. All addresses are for the same id, so
       // if there are multiple, we apply the same purchase count to all.
-      ArrayList<String> addressList = new ArrayList<String>();
+      ArrayList<String> addressList = new ArrayList<>();
       for (String address : addresses) {
         addressList.add(address);
       }
@@ -415,20 +409,20 @@ public class CoGroupByKeyTest implements Serializable {
         .and(addressesTag, Arrays.asList("2a", "2b"))
         .and(namesTag, Arrays.asList("1a"));
     // result 2 should be counted because it has an address and purchases.
-    CoGbkResult result2 = CoGbkResult
-        .of(purchasesTag, Arrays.asList("5a", "5b"))
-        .and(addressesTag, Arrays.asList("4a"))
-        .and(namesTag, new ArrayList<String>());
+    CoGbkResult result2 =
+        CoGbkResult.of(purchasesTag, Arrays.asList("5a", "5b"))
+            .and(addressesTag, Arrays.asList("4a"))
+            .and(namesTag, new ArrayList<>());
     // result 3 should not be counted because it has no addresses.
-    CoGbkResult result3 = CoGbkResult
-        .of(purchasesTag, Arrays.asList("7a", "7b"))
-        .and(addressesTag, new ArrayList<String>())
-        .and(namesTag, new ArrayList<String>());
+    CoGbkResult result3 =
+        CoGbkResult.of(purchasesTag, Arrays.asList("7a", "7b"))
+            .and(addressesTag, new ArrayList<>())
+            .and(namesTag, new ArrayList<>());
     // result 4 should be counted as 0, because it has no purchases.
-    CoGbkResult result4 = CoGbkResult
-        .of(purchasesTag, new ArrayList<String>())
-        .and(addressesTag, Arrays.asList("8a"))
-        .and(namesTag, new ArrayList<String>());
+    CoGbkResult result4 =
+        CoGbkResult.of(purchasesTag, new ArrayList<>())
+            .and(addressesTag, Arrays.asList("8a"))
+            .and(namesTag, new ArrayList<>());
 
     List<KV<String, Integer>> results =
         DoFnTester.of(

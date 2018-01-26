@@ -30,7 +30,6 @@ import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
@@ -67,7 +66,7 @@ public class UnconsumedReadsTest {
   public void doesNotConsumeAlreadyConsumedRead() {
     Unbounded<Long> transform = Read.from(CountingSource.unbounded());
     final PCollection<Long> output = pipeline.apply(transform);
-    final Flatten.PCollections<Long> consumer = Flatten.<Long>pCollections();
+    final Flatten.PCollections<Long> consumer = Flatten.pCollections();
     PCollectionList.of(output).apply(consumer);
     UnconsumedReads.ensureAllReadsConsumed(pipeline);
     pipeline.traverseTopologically(
@@ -76,15 +75,15 @@ public class UnconsumedReadsTest {
           public void visitPrimitiveTransform(Node node) {
             // The output should only be consumed by a single consumer
             if (node.getInputs().values().contains(output)) {
-              assertThat(node.getTransform(), Matchers.<PTransform<?, ?>>is(consumer));
+              assertThat(node.getTransform(), Matchers.is(consumer));
             }
           }
         });
   }
 
   private void validateConsumed() {
-    final Set<PValue> consumedOutputs = new HashSet<PValue>();
-    final Set<PValue> allReadOutputs = new HashSet<PValue>();
+    final Set<PValue> consumedOutputs = new HashSet<>();
+    final Set<PValue> allReadOutputs = new HashSet<>();
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
           @Override

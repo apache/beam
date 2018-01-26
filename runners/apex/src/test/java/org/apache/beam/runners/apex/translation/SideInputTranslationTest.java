@@ -78,7 +78,7 @@ public class SideInputTranslationTest implements Serializable {
     final PCollectionView<Map<String, Integer>> view =
         pipeline
             .apply("CreateSideInput", Create.of(KV.of("a", 1), KV.of("b", 3)))
-            .apply(View.<String, Integer>asMap());
+            .apply(View.asMap());
 
     PCollection<KV<String, Integer>> output =
         pipeline
@@ -114,7 +114,7 @@ public class SideInputTranslationTest implements Serializable {
   public void testListSideInputTranslation() throws Exception {
     assertEquals(
         ListCoder.of(KvCoder.of(VoidCoder.of(), VarIntCoder.of())),
-        getTranslatedSideInputCoder(ImmutableList.of(11, 13, 17, 23), View.<Integer>asList()));
+        getTranslatedSideInputCoder(ImmutableList.of(11, 13, 17, 23), View.asList()));
   }
 
   @Test
@@ -122,8 +122,7 @@ public class SideInputTranslationTest implements Serializable {
     assertEquals(
         ListCoder.of(
             KvCoder.of(VoidCoder.of(), KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))),
-        getTranslatedSideInputCoder(
-            ImmutableList.of(KV.of("a", 1), KV.of("b", 3)), View.<String, Integer>asMap()));
+        getTranslatedSideInputCoder(ImmutableList.of(KV.of("a", 1), KV.of("b", 3)), View.asMap()));
   }
 
   @Test
@@ -132,8 +131,7 @@ public class SideInputTranslationTest implements Serializable {
         ListCoder.of(
             KvCoder.of(VoidCoder.of(), KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()))),
         getTranslatedSideInputCoder(
-            ImmutableList.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)),
-            View.<String, Integer>asMultimap()));
+            ImmutableList.of(KV.of("a", 1), KV.of("a", 2), KV.of("b", 3)), View.asMultimap()));
   }
 
   private <T> Coder<?> getTranslatedSideInputCoder(

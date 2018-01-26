@@ -25,7 +25,6 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -160,15 +159,14 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   private List<MatchResult> matchGlobs(List<GcsPath> globs) {
     // TODO: Executes in parallel, address https://issues.apache.org/jira/browse/BEAM-1503.
     return FluentIterable.from(globs)
-        .transform(new Function<GcsPath, MatchResult>() {
-          @Override
-          public MatchResult apply(GcsPath gcsPath) {
-            try {
-              return expand(gcsPath);
-            } catch (IOException e) {
-              return MatchResult.create(Status.ERROR, e);
-            }
-          }})
+        .transform(
+            gcsPath -> {
+              try {
+                return expand(gcsPath);
+              } catch (IOException e) {
+                return MatchResult.create(Status.ERROR, e);
+              }
+            })
         .toList();
   }
 
@@ -250,22 +248,11 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
 
   private List<String> toFilenames(Collection<GcsResourceId> resources) {
     return FluentIterable.from(resources)
-        .transform(
-            new Function<GcsResourceId, String>() {
-              @Override
-              public String apply(GcsResourceId resource) {
-                return resource.getGcsPath().toString();
-              }})
+        .transform(resource -> resource.getGcsPath().toString())
         .toList();
   }
 
   private List<GcsPath> toGcsPaths(Collection<String> specs) {
-    return FluentIterable.from(specs)
-        .transform(new Function<String, GcsPath>() {
-          @Override
-          public GcsPath apply(String spec) {
-            return GcsPath.fromUri(spec);
-          }})
-        .toList();
+    return FluentIterable.from(specs).transform(spec -> GcsPath.fromUri(spec)).toList();
   }
 }

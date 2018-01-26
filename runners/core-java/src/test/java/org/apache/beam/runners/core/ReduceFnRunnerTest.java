@@ -88,8 +88,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link ReduceFnRunner}. These tests instantiate a full "stack" of
@@ -106,10 +104,10 @@ public class ReduceFnRunnerTest {
   private IntervalWindow firstWindow;
 
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
-    return Mockito.<TriggerStateMachine.TriggerContext>any();
+    return Mockito.any();
   }
   private static TriggerStateMachine.OnElementContext anyElementContext() {
-    return Mockito.<TriggerStateMachine.OnElementContext>any();
+    return Mockito.any();
   }
 
   @Before
@@ -132,17 +130,16 @@ public class ReduceFnRunnerTest {
   }
 
   private void triggerShouldFinish(TriggerStateMachine mockTrigger) throws Exception {
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) throws Exception {
-        @SuppressWarnings("unchecked")
-        TriggerStateMachine.TriggerContext context =
-            (TriggerStateMachine.TriggerContext) invocation.getArguments()[0];
-        context.trigger().setFinished(true);
-        return null;
-      }
-    })
-    .when(mockTrigger).onFire(anyTriggerContext());
+    doAnswer(
+            invocation -> {
+              @SuppressWarnings("unchecked")
+              TriggerStateMachine.TriggerContext context =
+                  (TriggerStateMachine.TriggerContext) invocation.getArguments()[0];
+              context.trigger().setFinished(true);
+              return null;
+            })
+        .when(mockTrigger)
+        .onFire(anyTriggerContext());
   }
 
   /**
@@ -674,18 +671,15 @@ public class ReduceFnRunnerTest {
         .thenReturn(true);
     when(mockSideInputReader.get(any(PCollectionView.class), any(BoundedWindow.class)))
         .then(
-            new Answer<Integer>() {
-              @Override
-              public Integer answer(InvocationOnMock invocation) throws Throwable {
-                IntervalWindow sideInputWindow = (IntervalWindow) invocation.getArguments()[1];
-                long startMs = sideInputWindow.start().getMillis();
-                long endMs = sideInputWindow.end().getMillis();
-                // Window should have been produced by sideInputWindowingStrategy.
-                assertThat(startMs, anyOf(equalTo(0L), equalTo(4L)));
-                assertThat(endMs - startMs, equalTo(4L));
-                // If startMs == 4 (second window), equal to secondWindowSideInput.
-                return firstWindowSideInput + (int) startMs;
-              }
+            invocation -> {
+              IntervalWindow sideInputWindow = (IntervalWindow) invocation.getArguments()[1];
+              long startMs = sideInputWindow.start().getMillis();
+              long endMs = sideInputWindow.end().getMillis();
+              // Window should have been produced by sideInputWindowingStrategy.
+              assertThat(startMs, anyOf(equalTo(0L), equalTo(4L)));
+              assertThat(endMs - startMs, equalTo(4L));
+              // If startMs == 4 (second window), equal to secondWindowSideInput.
+              return firstWindowSideInput + (int) startMs;
             });
 
     SumAndVerifyContextFn combineFn = new SumAndVerifyContextFn(mockView, expectedValue);

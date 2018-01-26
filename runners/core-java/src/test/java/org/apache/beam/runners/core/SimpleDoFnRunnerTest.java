@@ -83,7 +83,7 @@ public class SimpleDoFnRunnerTest {
             NullSideInputReader.empty(),
             null,
             null,
-            Collections.<TupleTag<?>>emptyList(),
+            Collections.emptyList(),
             mockStepContext,
             WindowingStrategy.of(new GlobalWindows()));
 
@@ -103,7 +103,7 @@ public class SimpleDoFnRunnerTest {
             NullSideInputReader.empty(),
             null,
             null,
-            Collections.<TupleTag<?>>emptyList(),
+            Collections.emptyList(),
             mockStepContext,
             WindowingStrategy.of(new GlobalWindows()));
 
@@ -133,7 +133,7 @@ public class SimpleDoFnRunnerTest {
             NullSideInputReader.empty(),
             null,
             null,
-            Collections.<TupleTag<?>>emptyList(),
+            Collections.emptyList(),
             mockStepContext,
             WindowingStrategy.of(new GlobalWindows()));
 
@@ -161,7 +161,7 @@ public class SimpleDoFnRunnerTest {
             NullSideInputReader.empty(),
             null,
             null,
-            Collections.<TupleTag<?>>emptyList(),
+            Collections.emptyList(),
             mockStepContext,
             WindowingStrategy.of(new GlobalWindows()));
 
@@ -181,7 +181,7 @@ public class SimpleDoFnRunnerTest {
             NullSideInputReader.empty(),
             null,
             null,
-            Collections.<TupleTag<?>>emptyList(),
+            Collections.emptyList(),
             mockStepContext,
             WindowingStrategy.of(new GlobalWindows()));
 
@@ -207,7 +207,7 @@ public class SimpleDoFnRunnerTest {
             NullSideInputReader.empty(),
             null,
             null,
-            Collections.<TupleTag<?>>emptyList(),
+            Collections.emptyList(),
             mockStepContext,
             WindowingStrategy.of(windowFn));
 
@@ -245,8 +245,8 @@ public class SimpleDoFnRunnerTest {
             fn,
             NullSideInputReader.empty(),
             new ListOutputManager(),
-            new TupleTag<Duration>(),
-            Collections.<TupleTag<?>>emptyList(),
+            new TupleTag<>(),
+            Collections.emptyList(),
             mockStepContext,
             WindowingStrategy.of(new GlobalWindows()));
 
@@ -281,8 +281,8 @@ public class SimpleDoFnRunnerTest {
             fn,
             NullSideInputReader.empty(),
             new ListOutputManager(),
-            new TupleTag<Duration>(),
-            Collections.<TupleTag<?>>emptyList(),
+            new TupleTag<>(),
+            Collections.emptyList(),
             mockStepContext,
             WindowingStrategy.of(new GlobalWindows()));
 
@@ -318,8 +318,8 @@ public class SimpleDoFnRunnerTest {
             fn,
             NullSideInputReader.empty(),
             new ListOutputManager(),
-            new TupleTag<Duration>(),
-            Collections.<TupleTag<?>>emptyList(),
+            new TupleTag<>(),
+            Collections.emptyList(),
             mockStepContext,
             WindowingStrategy.of(new GlobalWindows()));
 

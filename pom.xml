@@ -110,7 +110,8 @@
     <args4j.version>2.33</args4j.version>
     <avro.version>1.8.2</avro.version>
     <bigquery.version>v2-rev355-1.22.0</bigquery.version>
-    <bigtable.version>1.0.0-pre3</bigtable.version>
+    <bigtable.version>1.0.0</bigtable.version>
+    <bigtable.proto.version>1.0.0-pre3</bigtable.proto.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
@@ -155,7 +156,7 @@
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <snappy-java.version>1.1.4</snappy-java.version>
-    <kafka.clients.version>0.11.0.1</kafka.clients.version>
+    <kafka.clients.version>1.0.0</kafka.clients.version>
     <commons.csv.version>1.4</commons.csv.version>
 
     <apache-rat-plugin.version>0.12</apache-rat-plugin.version>
@@ -172,7 +173,7 @@
     <maven-license-plugin.version>1.13</maven-license-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
     <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
-    <reproducible-build-maven-plugin.version>0.3</reproducible-build-maven-plugin.version>
+    <reproducible-build-maven-plugin.version>0.4</reproducible-build-maven-plugin.version>
 
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
@@ -290,52 +291,6 @@
     </profile>
 
     <profile>
-      <id>java8-enable-like-dependencies</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <build>
-        <plugins>
-          <!-- Override Beam parent to allow Java8 dependencies -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-enforcer-plugin</artifactId>
-            <version>${maven-enforcer-plugin.version}</version>
-            <executions>
-              <execution>
-                <id>enforce</id>
-                <goals>
-                  <goal>enforce</goal>
-                </goals>
-                <configuration>
-                  <rules>
-                    <enforceBytecodeVersion>
-                      <maxJdkVersion>1.8</maxJdkVersion>
-                      <excludes>
-                        <!--
-                          Supplied by the user JDK and compiled with matching
-                          version. Is not shaded, so safe to ignore.
-                        -->
-                        <exclude>jdk.tools:jdk.tools</exclude>
-                      </excludes>
-                    </enforceBytecodeVersion>
-                    <requireJavaVersion>
-                      <version>[1.7,)</version>
-                    </requireJavaVersion>
-                    <requireMavenVersion>
-                      <!-- Keep aligned with preqrequisite section below. -->
-                      <version>[3.2,)</version>
-                    </requireMavenVersion>
-                  </rules>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-
-    <profile>
       <id>doclint-java8-disable</id>
       <activation>
         <jdk>[1.8,)</jdk>
@@ -343,49 +298,6 @@
       <properties>
         <beam.javadoc_opts>-Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
       </properties>
-    </profile>
-
-    <profile>
-      <id>java7-packageinfo</id>
-      <activation>
-        <jdk>1.7</jdk>
-      </activation>
-      <properties>
-        <!--
-         Exclude package-info.java from main compilation to work around
-         https://jira.codehaus.org/browse/MCOMPILER-205
-         -->
-        <compiler.default.pkginfo.flag>-Xpkginfo:legacy</compiler.default.pkginfo.flag>
-        <compiler.default.exclude>**/package-info.java</compiler.default.exclude>
-      </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <executions>
-              <!--
-               Compile just package-info.java to avoid
-               https://bugs.openjdk.java.net/browse/JDK-8022161
-               -->
-              <execution>
-                <id>compile-package-info</id>
-                <goals>
-                  <goal>compile</goal>
-                </goals>
-                <phase>compile</phase>
-                <configuration>
-                  <compilerArgs>
-                    <arg>-Xpkginfo:always</arg>
-                  </compilerArgs>
-                  <includes>
-                    <include>**/package-info.java</include>
-                  </includes>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
 
     <profile>
@@ -762,12 +674,6 @@
       </dependency>
 
       <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-examples-java8</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
         <version>${apache.commons.compress.version}</version>
@@ -1079,7 +985,7 @@
       <dependency>
         <groupId>com.google.cloud.bigtable</groupId>
         <artifactId>bigtable-protos</artifactId>
-        <version>${bigtable.version}</version>
+        <version>${bigtable.proto.version}</version>
       </dependency>
 
       <dependency>
@@ -1509,8 +1415,8 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven-compiler-plugin.version}</version>
           <configuration>
-            <source>1.7</source>
-            <target>1.7</target>
+            <source>1.8</source>
+            <target>1.8</target>
             <compilerArgs>
               <arg>-Xlint:all</arg>
               <arg>${compiler.error.flag}</arg>
@@ -1642,68 +1548,10 @@
             <excludeSubProjects>false</excludeSubProjects>
             <consoleOutput>true</consoleOutput>
             <useDefaultExcludes>true</useDefaultExcludes>
-
-            <!--
-              Keep excludes in sync with .gitignore, with consistent
-              order and sections for easy cross-checking.
-
-              Patterns are relative to $PWD, not the RAT ${basedir},
-              so each _must_ be prefixed with `**` or `${project.basedir}`.
-            -->
             <excludes>
-              <!-- .gitignore: Ignore files generated by the Maven build process -->
-              <exclude>**/target/**/*</exclude>
-              <exclude>**/bin/**/*</exclude>
-              <exclude>**/dependency-reduced-pom.xml</exclude>
+              <!-- rat uses .gitignore for excludes -->
 
-              <!-- .gitignore: Ignore files generated by the Python build process -->
-              <exclude>**/*.pyc</exclude>
-              <exclude>**/*.pyo</exclude>
-              <exclude>**/*.pyd</exclude>
-              <exclude>**/*.egg-info/**/*</exclude>
-              <exclude>**/.eggs/**/*</exclude>
-              <exclude>**/nose-*.egg/**/*</exclude>
-              <exclude>**/.tox/**/*</exclude>
-              <exclude>**/build/**/*</exclude>
-              <exclude>**/dist/**/*</exclude>
-              <exclude>**/distribute-*/**/*</exclude>
-              <exclude>**/env/**/*</exclude>
-              <exclude>sdks/python/**/*.c</exclude>
-              <exclude>sdks/python/**/*.so</exclude>
-              <exclude>sdks/python/LICENSE</exclude>
-              <exclude>sdks/python/NOTICE</exclude>
-              <exclude>sdks/python/README.md</exclude>
-              <exclude>sdks/python/apache_beam/portability/api/*pb2*.*</exclude>
-
-              <!-- .gitignore: Ignore IntelliJ files. -->
-              <exclude>**/.idea/**/*</exclude>
-              <exclude>**/*.iml</exclude>
-              <exclude>**/*.ipr</exclude>
-              <exclude>**/*.iws</exclude>
-
-              <!-- .gitignore: Ignore Eclipse files. -->
-              <exclude>**/.classpath</exclude>
-              <exclude>**/.project</exclude>
-              <exclude>**/.factorypath</exclude>
-              <exclude>**/.checkstyle</exclude>
-              <exclude>**/.fbExcludeFilterFile</exclude>
-              <exclude>**/.apt_generated/**/*</exclude>
-              <exclude>**/.settings/**/*</exclude>
-
-              <!-- .gitignore: Ignore Visual Studio Code files. -->
-              <exclude>**/.vscode/*/**</exclude>
-
-              <!-- .gitignore: Hotspot VM leaves this log in a non-target directory when java crashes -->
-              <exclude>**/hs_err_pid*.log</exclude>
-
-              <!-- .gitignore: Ignore files that end with '~', since they
-                   are most likely auto-save files produced by a text editor. -->
-              <exclude>**/*~</exclude>
-
-              <!-- .gitignore: Ignore MacOSX files. -->
-              <exclude>**/.DS_Store/**/*</exclude>
-
-              <!-- Ignore files we track but do not distribute -->
+              <!-- ignore files we track but do not distribute -->
               <exclude>.github/**/*</exclude>
 
               <exclude>**/package-list</exclude>
@@ -1711,9 +1559,7 @@
               <exclude>**/test/resources/**/*.txt</exclude>
               <exclude>**/test/**/.placeholder</exclude>
 
-              <!-- Default eclipse excludes neglect subprojects -->
-
-              <!-- Proto/grpc generated wrappers -->
+              <!-- proto/grpc generated wrappers -->
               <exclude>**/apache_beam/portability/api/*_pb2*.py</exclude>
               <exclude>**/go/pkg/beam/model/**/*.pb.go</exclude>
 
@@ -2113,7 +1959,7 @@
             <configuration>
               <rules>
                 <enforceBytecodeVersion>
-                  <maxJdkVersion>1.7</maxJdkVersion>
+                  <maxJdkVersion>1.8</maxJdkVersion>
                   <excludes>
                     <!--
                       Supplied by the user JDK and compiled with matching
@@ -2124,7 +1970,7 @@
                   </excludes>
                 </enforceBytecodeVersion>
                 <requireJavaVersion>
-                  <version>[1.7,)</version>
+                  <version>[1.8,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
                   <!-- Keep aligned with preqrequisite section below. -->

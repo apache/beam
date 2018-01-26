@@ -135,9 +135,11 @@ public interface GcsOptions extends
        * can be active.
        */
       return new ThreadPoolExecutor(
-          0, Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
-          Long.MAX_VALUE, TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
-          new SynchronousQueue<Runnable>(),
+          0,
+          Integer.MAX_VALUE, // Allow an unlimited number of re-usable threads.
+          Long.MAX_VALUE,
+          TimeUnit.NANOSECONDS, // Keep non-core threads alive forever.
+          new SynchronousQueue<>(),
           threadFactoryBuilder.build());
     }
   }

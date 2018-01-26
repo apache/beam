@@ -436,7 +436,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                 .discardingFiredPanes())
         .apply("PubsubUnboundedSink.Shard", ParDo.of(new ShardFn(numShards, recordIdMethod)))
         .setCoder(KvCoder.of(VarIntCoder.of(), CODER))
-        .apply(GroupByKey.<Integer, OutgoingMessage>create())
+        .apply(GroupByKey.create())
         .apply(
             "PubsubUnboundedSink.Writer",
             ParDo.of(

@@ -20,9 +20,6 @@ package org.apache.beam.sdk.io.kinesis;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Lists.transform;
 
-import com.amazonaws.services.kinesis.model.Shard;
-import com.google.common.base.Function;
-
 /**
  * Creates {@link KinesisReaderCheckpoint}, which spans over all shards in given stream.
  * List of shards is obtained dynamically on call to {@link #generate(SimplifiedKinesisClient)}.
@@ -41,14 +38,9 @@ class DynamicCheckpointGenerator implements CheckpointGenerator {
   public KinesisReaderCheckpoint generate(SimplifiedKinesisClient kinesis)
       throws TransientKinesisException {
     return new KinesisReaderCheckpoint(
-        transform(kinesis.listShards(streamName), new Function<Shard, ShardCheckpoint>() {
-
-          @Override
-          public ShardCheckpoint apply(Shard shard) {
-            return new ShardCheckpoint(streamName, shard.getShardId(), startingPoint);
-          }
-        })
-    );
+        transform(
+            kinesis.listShards(streamName),
+            shard -> new ShardCheckpoint(streamName, shard.getShardId(), startingPoint)));
   }
 
   @Override

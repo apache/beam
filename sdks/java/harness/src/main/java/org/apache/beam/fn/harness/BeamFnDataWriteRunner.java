@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
@@ -32,8 +31,10 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -54,9 +56,6 @@ import org.apache.beam.sdk.util.WindowedValue;
  */
 public class BeamFnDataWriteRunner<InputT> {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final String URN = "urn:org.apache.beam:sink:runner:0.1";
-
   /** A registrar which provides a factory to handle writing to the Fn Api Data Plane. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
   public static class Registrar implements
@@ -64,7 +63,7 @@ public class BeamFnDataWriteRunner<InputT> {
 
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
-      return ImmutableMap.of(URN, new Factory());
+      return ImmutableMap.of(RemoteGrpcPortWrite.URN, new Factory());
     }
   }
 
@@ -94,7 +93,7 @@ public class BeamFnDataWriteRunner<InputT> {
           pCollections.get(getOnlyElement(pTransform.getInputsMap().values())).getCoderId());
       BeamFnDataWriteRunner<InputT> runner =
           new BeamFnDataWriteRunner<>(
-              pTransform.getSpec(),
+              pTransform,
               processBundleInstructionId,
               target,
               coderSpec,
@@ -119,26 +118,31 @@ public class BeamFnDataWriteRunner<InputT> {
   private CloseableFnDataReceiver<WindowedValue<InputT>> consumer;
 
   BeamFnDataWriteRunner(
-      RunnerApi.FunctionSpec functionSpec,
+      RunnerApi.PTransform remoteWriteNode,
       Supplier<String> processBundleInstructionIdSupplier,
       BeamFnApi.Target outputTarget,
       RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory)
           throws IOException {
-    this.apiServiceDescriptor =
-        BeamFnApi.RemoteGrpcPort.parseFrom(functionSpec.getPayload()).getApiServiceDescriptor();
+    RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(remoteWriteNode).getPort();
+    this.apiServiceDescriptor = port.getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.outputTarget = outputTarget;
 
+    RehydratedComponents components =
+        RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
     @SuppressWarnings("unchecked")
-    Coder<WindowedValue<InputT>> coder =
-        (Coder<WindowedValue<InputT>>)
-            CoderTranslation.fromProto(
-                coderSpec,
-                RehydratedComponents.forComponents(
-                    RunnerApi.Components.newBuilder().putAllCoders(coders).build()));
+    Coder<WindowedValue<InputT>> coder;
+    if (!port.getCoderId().isEmpty()) {
+      coder =
+          (Coder<WindowedValue<InputT>>)
+              CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
+    } else {
+      // TODO: remove this path once it is no longer used
+      coder = (Coder<WindowedValue<InputT>>) CoderTranslation.fromProto(coderSpec, components);
+    }
     this.coder = coder;
   }
 

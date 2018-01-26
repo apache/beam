@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -138,13 +137,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
         }
         List<? extends BoundedSource<T>> splits =
             boundedSource.split(desiredBundleSize, options);
-        return Lists.transform(
-            splits,
-            new Function<BoundedSource<T>, BoundedToUnboundedSourceAdapter<T>>() {
-              @Override
-              public BoundedToUnboundedSourceAdapter<T> apply(BoundedSource<T> input) {
-                return new BoundedToUnboundedSourceAdapter<>(input);
-              }});
+        return Lists.transform(splits, input -> new BoundedToUnboundedSourceAdapter<>(input));
       } catch (Exception e) {
         LOG.warn("Exception while splitting {}, skips the initial splits.", boundedSource, e);
         return ImmutableList.of(this);
@@ -234,7 +227,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
 
       @Override
       public List<Coder<?>> getCoderArguments() {
-        return Arrays.<Coder<?>>asList(elemCoder);
+        return Arrays.asList(elemCoder);
       }
 
       @Override
@@ -273,8 +266,9 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
           @Nullable List<TimestampedValue<T>> residualElementsList,
           @Nullable BoundedSource<T> residualSource,
           PipelineOptions options) {
-        this.residualElements = residualElementsList == null
-            ? new ResidualElements(Collections.<TimestampedValue<T>>emptyList())
+        this.residualElements =
+            residualElementsList == null
+                ? new ResidualElements(Collections.emptyList())
                 : new ResidualElements(residualElementsList);
         this.residualSource =
             residualSource == null ? null : new ResidualSource(residualSource, options);

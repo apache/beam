@@ -55,8 +55,7 @@ public class DistinctExampleTest {
         p.apply(Create.of(strings)
             .withCoder(StringUtf8Coder.of()));
 
-    PCollection<String> output =
-        input.apply(Distinct.<String>create());
+    PCollection<String> output = input.apply(Distinct.create());
 
     PAssert.that(output)
         .containsInAnyOrder("k1", "k5", "k2", "k3");
@@ -72,8 +71,7 @@ public class DistinctExampleTest {
         p.apply(Create.of(strings)
             .withCoder(StringUtf8Coder.of()));
 
-    PCollection<String> output =
-        input.apply(Distinct.<String>create());
+    PCollection<String> output = input.apply(Distinct.create());
 
     PAssert.that(output).empty();
     p.run().waitUntilFinish();

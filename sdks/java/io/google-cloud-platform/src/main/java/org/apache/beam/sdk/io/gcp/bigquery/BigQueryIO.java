@@ -310,16 +310,10 @@ public class BigQueryIO {
   static final Pattern TABLE_SPEC = Pattern.compile(DATASET_TABLE_REGEXP);
 
   /**
-   * A formatting function that maps a TableRow to itself. This allows sending a
-   * {@code PCollection<TableRow>} directly to BigQueryIO.Write.
+   * A formatting function that maps a TableRow to itself. This allows sending a {@code
+   * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
-  static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER =
-      new SerializableFunction<TableRow, TableRow>() {
-        @Override
-        public TableRow apply(TableRow input) {
-          return input;
-        }
-      };
+  static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER = input -> input;
 
   /**
    * @deprecated Use {@link #read(SerializableFunction)} or {@link #readTableRows} instead.
@@ -690,7 +684,7 @@ public class BigQueryIO {
         final String staticJobUuid = BigQueryHelpers.randomUUIDString();
         jobIdTokenView =
             p.apply("TriggerIdCreation", Create.of(staticJobUuid))
-                .apply("ViewId", View.<String>asSingleton());
+                .apply("ViewId", View.asSingleton());
         // Apply the traditional Source model.
         rows = p.apply(org.apache.beam.sdk.io.Read.from(createSource(staticJobUuid, coder)));
       } else {
@@ -706,7 +700,7 @@ public class BigQueryIO {
                             return BigQueryHelpers.randomUUIDString();
                           }
                         }));
-        jobIdTokenView = jobIdTokenCollection.apply("ViewId", View.<String>asSingleton());
+        jobIdTokenView = jobIdTokenCollection.apply("ViewId", View.asSingleton());
 
         final TupleTag<String> filesTag = new TupleTag<>();
         final TupleTag<String> tableSchemaTag = new TupleTag<>();
@@ -731,11 +725,11 @@ public class BigQueryIO {
         tuple.get(filesTag).setCoder(StringUtf8Coder.of());
         tuple.get(tableSchemaTag).setCoder(StringUtf8Coder.of());
         final PCollectionView<String> schemaView =
-            tuple.get(tableSchemaTag).apply(View.<String>asSingleton());
+            tuple.get(tableSchemaTag).apply(View.asSingleton());
         rows =
             tuple
                 .get(filesTag)
-                .apply(Reshuffle.<String>viaRandomKey())
+                .apply(Reshuffle.viaRandomKey())
                 .apply(
                     "ReadFiles",
                     ParDo.of(
@@ -763,7 +757,7 @@ public class BigQueryIO {
                               }
                             })
                         .withSideInputs(schemaView, jobIdTokenView))
-                        .setCoder(coder);
+                .setCoder(coder);
       }
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
           new PassThroughThenCleanup.CleanupOperation() {
@@ -792,7 +786,7 @@ public class BigQueryIO {
               }
             }
           };
-      return rows.apply(new PassThroughThenCleanup<T>(cleanupOperation, jobIdTokenView));
+      return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
     }
 
     @Override

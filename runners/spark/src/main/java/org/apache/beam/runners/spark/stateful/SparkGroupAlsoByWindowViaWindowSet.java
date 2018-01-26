@@ -61,14 +61,9 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.streaming.Duration;
-import org.apache.spark.streaming.Time;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.dstream.DStream;
@@ -220,14 +215,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       private Collection<TimerInternals.TimerData> filterTimersEligibleForProcessing(
           final Collection<TimerInternals.TimerData> timers, final Instant inputWatermark) {
         final Predicate<TimerInternals.TimerData> eligibleForProcessing =
-            new Predicate<TimerInternals.TimerData>() {
-
-              @Override
-              public boolean apply(final TimerInternals.TimerData timer) {
-                return !timer.getDomain().equals(TimeDomain.EVENT_TIME)
+            timer ->
+                !timer.getDomain().equals(TimeDomain.EVENT_TIME)
                     || inputWatermark.isAfter(timer.getTimestamp());
-              }
-            };
 
         return FluentIterable.from(timers).filter(eligibleForProcessing).toSet();
       }
@@ -504,24 +494,18 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       final Coder<K> keyCoder,
       final FullWindowedValueCoder<InputT> wvCoder) {
 
+    /*K*/
+    /*WV<KV<K, Itr<I>>>*/
+    /*K*/
+    /*WV<KV<K, Itr<I>>>*/
     return JavaPairDStream.fromPairDStream(
             firedStream,
-            JavaSparkContext$.MODULE$.<ByteArray>fakeClassTag(),
-            JavaSparkContext$.MODULE$.<Tuple2<StateAndTimers, List<byte[]>>>fakeClassTag())
+            JavaSparkContext$.MODULE$.fakeClassTag(),
+            JavaSparkContext$.MODULE$.fakeClassTag())
         .filter(
-            new Function<
-                Tuple2</*K*/ ByteArray, Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>,
-                Boolean>() {
-              @Override
-              public Boolean call(
-                  final Tuple2<
-                          /*K*/ ByteArray,
-                          Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>
-                      t2)
-                  throws Exception {
-                // filter output if defined.
-                return !t2._2()._2().isEmpty();
-              }
+            t2 -> {
+              // filter output if defined.
+              return !t2._2()._2().isEmpty();
             })
         .flatMap(
             new FlatMapFunction<
@@ -560,44 +544,25 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
     // for checkpointing.
     // for readability, we add comments with actual type next to byte[].
     // to shorten line length, we use:
-    //---- WV: WindowedValue
-    //---- Iterable: Itr
-    //---- AccumT: A
-    //---- InputT: I
+    // ---- WV: WindowedValue
+    // ---- Iterable: Itr
+    // ---- AccumT: A
+    // ---- InputT: I
+    // we use mapPartitions with the RDD API because its the only available API
+    // that allows to preserve partitioning.
     final DStream<Tuple2<ByteArray, byte[]>> tupleDStream =
         inputDStream
             .transformToPair(
-                new Function2<
-                    JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>>, Time,
-                    JavaPairRDD<ByteArray, byte[]>>() {
-
-                  // we use mapPartitions with the RDD API because its the only available API
-                  // that allows to preserve partitioning.
-                  @Override
-                  public JavaPairRDD<ByteArray, byte[]> call(
-                      final JavaRDD<WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>>> rdd,
-                      final Time time)
-                      throws Exception {
-                    return rdd.mapPartitions(
+                (rdd, time) ->
+                    rdd.mapPartitions(
                             TranslationUtils.functionToFlatMapFunction(
-                                WindowingHelpers
-                                    .<KV<K, Iterable<WindowedValue<InputT>>>>unwindowFunction()),
+                                WindowingHelpers.unwindowFunction()),
                             true)
-                        .mapPartitionsToPair(
-                            TranslationUtils
-                                .<K, Iterable<WindowedValue<InputT>>>toPairFlatMapFunction(),
-                            true)
+                        .mapPartitionsToPair(TranslationUtils.toPairFlatMapFunction(), true)
                         .mapValues(
-                            new Function<
-                                Iterable<WindowedValue<InputT>>,
-                                KV<Long, Iterable<WindowedValue<InputT>>>>() {
-
-                              @Override
-                              public KV<Long, Iterable<WindowedValue<InputT>>> call(
-                                  final Iterable<WindowedValue<InputT>> values) throws Exception {
-                                // add the batch timestamp for visibility (e.g., debugging)
-                                return KV.of(time.milliseconds(), values);
-                              }
+                            values -> {
+                              // add the batch timestamp for visibility (e.g., debugging)
+                              return KV.of(time.milliseconds(), values);
                             })
                         // move to bytes representation and use coders for deserialization
                         // because of checkpointing.
@@ -606,15 +571,13 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                                 CoderHelpers.toByteFunction(
                                     keyCoder,
                                     KvCoder.of(VarLongCoder.of(), IterableCoder.of(wvCoder)))),
-                            true);
-                  }
-                })
+                            true))
             .dstream();
 
     return DStream.toPairDStreamFunctions(
         tupleDStream,
-        JavaSparkContext$.MODULE$.<ByteArray>fakeClassTag(),
-        JavaSparkContext$.MODULE$.<byte[]>fakeClassTag(),
+        JavaSparkContext$.MODULE$.fakeClassTag(),
+        JavaSparkContext$.MODULE$.fakeClassTag(),
         null);
   }
 
@@ -646,7 +609,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                 updateFunc,
                 pairDStream.defaultPartitioner(pairDStream.defaultPartitioner$default$1()),
                 true,
-                JavaSparkContext$.MODULE$.<Tuple2<StateAndTimers, List<byte[]>>>fakeClassTag());
+                JavaSparkContext$.MODULE$.fakeClassTag());
 
     checkpointIfNeeded(firedStream, options);
 

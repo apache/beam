@@ -76,8 +76,8 @@ public class Reify {
     public PCollection<V> expand(PBegin input) {
       return input
           .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-          .apply(Reify.<Void, V>viewAsValues(view, coder))
-          .apply(Values.<V>create());
+          .apply(Reify.viewAsValues(view, coder))
+          .apply(Values.create());
     }
   }
 

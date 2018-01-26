@@ -48,7 +48,6 @@ import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
-
 /**
  * DoFunctions ignore outputs that are not the main output. MultiDoFunctions deal with additional
  * outputs by enriching the underlying data with multiple TupleTags.
@@ -149,10 +148,12 @@ public class MultiDoFnFunction<InputT, OutputT>
         new DoFnRunnerWithMetrics<>(stepName, doFnRunner, metricsAccum);
 
     return new SparkProcessContext<>(
-        doFn, doFnRunnerWithMetrics, outputManager,
-        stateful ? new TimerDataIterator(timerInternals) :
-            Collections.<TimerInternals.TimerData>emptyIterator()).processPartition(iter)
-              .iterator();
+            doFn,
+            doFnRunnerWithMetrics,
+            outputManager,
+            stateful ? new TimerDataIterator(timerInternals) : Collections.emptyIterator())
+        .processPartition(iter)
+        .iterator();
   }
 
   private static class TimerDataIterator implements Iterator<TimerInternals.TimerData> {
@@ -218,16 +219,11 @@ public class MultiDoFnFunction<InputT, OutputT>
     @Override
     public Iterator<Tuple2<TupleTag<?>, WindowedValue<?>>> iterator() {
       Iterator<Map.Entry<TupleTag<?>, WindowedValue<?>>> entryIter = outputs.entries().iterator();
-      return Iterators.transform(entryIter, this.<TupleTag<?>, WindowedValue<?>>entryToTupleFn());
+      return Iterators.transform(entryIter, this.entryToTupleFn());
     }
 
     private <K, V> Function<Map.Entry<K, V>, Tuple2<K, V>> entryToTupleFn() {
-      return new Function<Map.Entry<K, V>, Tuple2<K, V>>() {
-        @Override
-        public Tuple2<K, V> apply(Map.Entry<K, V> en) {
-          return new Tuple2<>(en.getKey(), en.getValue());
-        }
-      };
+      return en -> new Tuple2<>(en.getKey(), en.getValue());
     }
 
     @Override

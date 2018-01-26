@@ -36,7 +36,7 @@ public abstract class DynamicAvroDestinations<UserT, DestinationT, OutputT>
 
   /** Return AVRO file metadata for a given destination. */
   public Map<String, Object> getMetadata(DestinationT destination) {
-    return ImmutableMap.<String, Object>of();
+    return ImmutableMap.of();
   }
 
   /** Return an AVRO codec for a given destination. */

@@ -227,6 +227,18 @@ public class CoderRegistryTest {
     CoderRegistry.verifyCompatible(BigEndianIntegerCoder.of(), String.class);
   }
 
+  // BEAM-3160: We can't choose between the BigEndianIntegerCoder or the VarIntCoder since
+  // they are incompatible.
+  @Test
+  public void testTypeOverSpecifiedWithMultipleCoders() throws Exception {
+    thrown.expect(CannotProvideCoderException.class);
+    thrown.expectMessage("type is over specified");
+    CoderRegistry.createDefault().getCoder(
+        new TypeDescriptor<Integer>() {},
+        new TypeDescriptor<KV<Integer, Integer>>() {},
+        KvCoder.of(BigEndianIntegerCoder.of(), VarIntCoder.of()));
+  }
+
   private static class TooManyComponentCoders<T> extends ListCoder<T> {
     public TooManyComponentCoders(Coder<T> actualComponentCoder) {
       super(actualComponentCoder);

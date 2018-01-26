@@ -40,10 +40,11 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DelegateCoderTest implements Serializable {
 
-  private static final List<Set<Integer>> TEST_VALUES = Arrays.<Set<Integer>>asList(
-      Collections.<Integer>emptySet(),
-      Collections.singleton(13),
-      new HashSet<>(Arrays.asList(31, -5, 83)));
+  private static final List<Set<Integer>> TEST_VALUES =
+      Arrays.asList(
+          Collections.emptySet(),
+          Collections.singleton(13),
+          new HashSet<>(Arrays.asList(31, -5, 83)));
 
   private static final TypeDescriptor<Set<Integer>> SET_INTEGER_TYPE_DESCRIPTOR =
       new TypeDescriptor<Set<Integer>>() {};
@@ -108,13 +109,7 @@ public class DelegateCoderTest implements Serializable {
 
   @Test
   public void testCoderEquals() throws Exception {
-    DelegateCoder.CodingFunction<Integer, Integer> identityFn =
-        new DelegateCoder.CodingFunction<Integer, Integer>() {
-          @Override
-          public Integer apply(Integer input) {
-            return input;
-          }
-        };
+    DelegateCoder.CodingFunction<Integer, Integer> identityFn = input -> input;
     Coder<Integer> varIntCoder1 = DelegateCoder.of(VarIntCoder.of(), identityFn, identityFn);
     Coder<Integer> varIntCoder2 = DelegateCoder.of(VarIntCoder.of(), identityFn, identityFn);
     Coder<Integer> bigEndianIntegerCoder =
@@ -130,20 +125,11 @@ public class DelegateCoderTest implements Serializable {
   public void testEncodedTypeDescriptorSimpleEncodedType() throws Exception {
     assertThat(
         DelegateCoder.of(
-            StringUtf8Coder.of(),
-            new DelegateCoder.CodingFunction<Integer, String>() {
-              @Override
-              public String apply(Integer input) {
-                return String.valueOf(input);
-              }
-            },
-            new DelegateCoder.CodingFunction<String, Integer>() {
-              @Override
-              public Integer apply(String input) {
-                return Integer.valueOf(input);
-              }
-            },
-            new TypeDescriptor<Integer>(){}).getEncodedTypeDescriptor(),
+                StringUtf8Coder.of(),
+                input -> String.valueOf(input),
+                input -> Integer.valueOf(input),
+                new TypeDescriptor<Integer>() {})
+            .getEncodedTypeDescriptor(),
         equalTo(TypeDescriptor.of(Integer.class)));
   }
 

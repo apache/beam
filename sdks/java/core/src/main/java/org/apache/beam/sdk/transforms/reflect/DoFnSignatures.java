@@ -1176,22 +1176,10 @@ public class DoFnSignatures {
   }
 
   // Class::getDeclaredMethods for Java 7
-  private static final MemberGetter<Method> GET_METHODS =
-      new MemberGetter<Method>() {
-        @Override
-        public Method[] getMembers(Class<?> clazz) {
-          return clazz.getDeclaredMethods();
-        }
-      };
+  private static final MemberGetter<Method> GET_METHODS = clazz -> clazz.getDeclaredMethods();
 
   // Class::getDeclaredFields for Java 7
-  private static final MemberGetter<Field> GET_FIELDS =
-      new MemberGetter<Field>() {
-        @Override
-        public Field[] getMembers(Class<?> clazz) {
-          return clazz.getDeclaredFields();
-        }
-      };
+  private static final MemberGetter<Field> GET_FIELDS = clazz -> clazz.getDeclaredFields();
 
   private static <MemberT extends AnnotatedElement>
       Collection<MemberT> declaredMembersWithAnnotation(
@@ -1381,4 +1369,51 @@ public class DoFnSignatures {
       }
     }
   }
+
+  public static StateSpec<?> getStateSpecOrThrow(
+      StateDeclaration stateDeclaration, DoFn<?, ?> target) {
+    try {
+      Object fieldValue = stateDeclaration.field().get(target);
+      checkState(
+          fieldValue instanceof StateSpec,
+          "Malformed %s class %s: state declaration field %s does not have type %s.",
+          DoFn.class.getSimpleName(),
+          target.getClass().getName(),
+          stateDeclaration.field().getName(),
+          StateSpec.class);
+
+      return (StateSpec<?>) stateDeclaration.field().get(target);
+    } catch (IllegalAccessException exc) {
+      throw new RuntimeException(
+          String.format(
+              "Malformed %s class %s: state declaration field %s is not accessible.",
+              DoFn.class.getSimpleName(),
+              target.getClass().getName(),
+              stateDeclaration.field().getName()));
+    }
+  }
+
+  public static TimerSpec getTimerSpecOrThrow(
+      TimerDeclaration timerDeclaration, DoFn<?, ?> target) {
+    try {
+      Object fieldValue = timerDeclaration.field().get(target);
+      checkState(
+          fieldValue instanceof TimerSpec,
+          "Malformed %s class %s: timer declaration field %s does not have type %s.",
+          DoFn.class.getSimpleName(),
+          target.getClass().getName(),
+          timerDeclaration.field().getName(),
+          TimerSpec.class);
+
+      return (TimerSpec) timerDeclaration.field().get(target);
+    } catch (IllegalAccessException exc) {
+      throw new RuntimeException(
+          String.format(
+              "Malformed %s class %s: timer declaration field %s is not accessible.",
+              DoFn.class.getSimpleName(),
+              target.getClass().getName(),
+              timerDeclaration.field().getName()));
+    }
+  }
+
 }

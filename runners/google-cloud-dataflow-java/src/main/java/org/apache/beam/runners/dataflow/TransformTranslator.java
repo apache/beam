@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.Pipeline;
@@ -71,6 +72,10 @@ public interface TransformTranslator<TransformT extends PTransform> {
     /** Encode a PValue reference as an output reference. */
     OutputReference asOutputReference(PValue value, AppliedPTransform<?, ?, ?> producer);
 
+    SdkComponents getSdkComponents();
+
+    AppliedPTransform<?, ?, ?> getCurrentTransform();
+
     /**
      * Get the {@link AppliedPTransform} that produced the provided {@link PValue}.
      */
@@ -97,8 +102,8 @@ public interface TransformTranslator<TransformT extends PTransform> {
      *
      * <p>The input {@link PValue} must have already been produced by a step earlier in this
      * {@link Pipeline}. If the input value has not yet been produced yet (by a call to either
-     * {@link StepTranslationContext#addOutput(PCollection)} or
-     * {@link StepTranslationContext#addCollectionToSingletonOutput(PCollection, PCollectionView)})
+     * {@link StepTranslationContext#addOutput} or
+     * {@link StepTranslationContext#addCollectionToSingletonOutput})
      * this method will throw an exception.
      */
     void addInput(String name, PInput value);
@@ -110,18 +115,19 @@ public interface TransformTranslator<TransformT extends PTransform> {
     void addInput(String name, List<? extends Map<String, Object>> elements);
 
     /**
-     * Adds a primitive output to this Dataflow step, producing the specified output {@code PValue},
-     * including its {@code Coder} if a {@code TypedPValue}. If the {@code PValue} is a {@code
-     * PCollection}, wraps its coder inside a {@code WindowedValueCoder}. Returns a pipeline level
-     * unique id.
+     * Adds a primitive output to this Dataflow step with the given name as the local output name,
+     * producing the specified output {@code PValue}, including its {@code Coder} if a
+     * {@code TypedPValue}. If the {@code PValue} is a {@code PCollection}, wraps its coder
+     * inside a {@code WindowedValueCoder}.
      */
-    long addOutput(PCollection<?> value);
+    void addOutput(String name, PCollection<?> value);
 
     /**
      * Adds an output to this {@code CollectionToSingleton} Dataflow step, consuming the specified
      * input {@code PValue} and producing the specified output {@code PValue}. This step requires
      * special treatment for its output encoding. Returns a pipeline level unique id.
      */
-    long addCollectionToSingletonOutput(PCollection<?> inputValue, PCollectionView<?> outputValue);
+    void addCollectionToSingletonOutput(PCollection<?> inputValue,
+        String outputName, PCollectionView<?> outputValue);
   }
 }

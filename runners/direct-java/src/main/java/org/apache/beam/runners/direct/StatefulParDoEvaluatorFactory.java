@@ -182,26 +182,21 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
               (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder(), window);
 
       Runnable cleanup =
-          new Runnable() {
-            @Override
-            public void run() {
-              for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
-                StateTag<?> tag;
-                try {
-                  tag =
-                      StateTags.tagForSpec(
-                          stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
-                } catch (IllegalAccessException e) {
-                  throw new RuntimeException(
-                      String.format(
-                          "Error accessing %s for %s",
-                          StateSpec.class.getName(), doFn.getClass().getName()),
-                      e);
-                }
-                stepContext.stateInternals().state(namespace, tag).clear();
+          () -> {
+            for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
+              StateTag<?> tag;
+              try {
+                tag = StateTags.tagForSpec(stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
+              } catch (IllegalAccessException e) {
+                throw new RuntimeException(
+                    String.format(
+                        "Error accessing %s for %s",
+                        StateSpec.class.getName(), doFn.getClass().getName()),
+                    e);
               }
-              cleanupRegistry.invalidate(transformOutputWindow);
+              stepContext.stateInternals().state(namespace, tag).clear();
             }
+            cleanupRegistry.invalidate(transformOutputWindow);
           };
 
       evaluationContext.scheduleAfterWindowExpiration(

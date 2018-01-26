@@ -36,8 +36,7 @@ public class FinishedTriggersSetTest {
    */
   @Test
   public void testSetGet() {
-    FinishedTriggersProperties.verifyGetAfterSet(
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerStateMachine>()));
+    FinishedTriggersProperties.verifyGetAfterSet(FinishedTriggersSet.fromSet(new HashSet<>()));
   }
 
   /**
@@ -46,14 +45,12 @@ public class FinishedTriggersSetTest {
    */
   @Test
   public void testClearRecursively() {
-    FinishedTriggersProperties.verifyClearRecursively(
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerStateMachine>()));
+    FinishedTriggersProperties.verifyClearRecursively(FinishedTriggersSet.fromSet(new HashSet<>()));
   }
 
   @Test
   public void testCopy() throws Exception {
-    FinishedTriggersSet finishedSet =
-        FinishedTriggersSet.fromSet(new HashSet<ExecutableTriggerStateMachine>());
+    FinishedTriggersSet finishedSet = FinishedTriggersSet.fromSet(new HashSet<>());
     assertThat(finishedSet.copy().getFinishedTriggers(),
         not(theInstance(finishedSet.getFinishedTriggers())));
   }
