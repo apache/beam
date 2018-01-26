@@ -17,7 +17,6 @@
  */
 
 include ":examples:java"
-include ":examples:java8"
 include ":model:fn-execution"
 include ":model:job-management"
 include ":model:pipeline"
