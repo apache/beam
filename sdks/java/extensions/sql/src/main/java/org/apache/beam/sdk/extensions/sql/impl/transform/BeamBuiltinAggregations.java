@@ -217,7 +217,7 @@ class BeamBuiltinAggregations {
       extends CombineFn<T, KV<Integer, BigDecimal>, T> {
     @Override
     public KV<Integer, BigDecimal> createAccumulator() {
-      return KV.of(0, new BigDecimal(0));
+      return KV.of(0, BigDecimal.ZERO);
     }
 
     @Override
@@ -229,7 +229,7 @@ class BeamBuiltinAggregations {
     public KV<Integer, BigDecimal> mergeAccumulators(
         Iterable<KV<Integer, BigDecimal>> accumulators) {
       int size = 0;
-      BigDecimal acc = new BigDecimal(0);
+      BigDecimal acc = BigDecimal.ZERO;
       Iterator<KV<Integer, BigDecimal>> ite = accumulators.iterator();
       while (ite.hasNext()) {
         KV<Integer, BigDecimal> ele = ite.next();
@@ -362,8 +362,8 @@ class BeamBuiltinAggregations {
 
     @Override
     public KV<BigDecimal, VarAgg> createAccumulator() {
-      VarAgg varagg = new VarAgg(0L, new BigDecimal(0));
-      return KV.of(new BigDecimal(0), varagg);
+      VarAgg varagg = new VarAgg(0L, BigDecimal.ZERO);
+      return KV.of(BigDecimal.ZERO, varagg);
     }
 
     @Override
@@ -398,9 +398,9 @@ class BeamBuiltinAggregations {
     @Override
     public KV<BigDecimal, VarAgg> mergeAccumulators(
             Iterable<KV<BigDecimal, VarAgg>> accumulators) {
-      BigDecimal variance = new BigDecimal(0);
+      BigDecimal variance = BigDecimal.ZERO;
       long count = 0;
-      BigDecimal sum = new BigDecimal(0);
+      BigDecimal sum = BigDecimal.ZERO;
 
       Iterator<KV<BigDecimal, VarAgg>> ite = accumulators.iterator();
       while (ite.hasNext()) {
