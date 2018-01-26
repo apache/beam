@@ -27,4 +27,8 @@ public class DummyMetricsSink extends MetricsSink<Long> {
   public static long getCounterValue(){
     return counterValue;
   }
+
+  public static void clear(){
+    counterValue = 0L;
+  }
 }

@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -60,11 +61,14 @@ public class SparkMetricsPusherTest {
         (pipeline.getOptions().as(SparkPipelineOptions.class)).getBatchIntervalMillis());
   }
 
+  @Before
+  public void init(){
+    DummyMetricsSink.clear();
+  }
+
   @Category(StreamingTest.class)
   @Test
   public void testInStreamingMode() throws Exception {
-    assertThat(DummyMetricsSink.getCounterValue(), is(0L));
-
     Instant instant = new Instant(0);
     CreateStream<Integer> source =
         CreateStream.of(VarIntCoder.of(), batchDuration())
@@ -110,7 +114,6 @@ public class SparkMetricsPusherTest {
   @Category(ValidatesRunner.class)
   @Test
   public void testInSBatchMode() throws Exception {
-    assertThat(DummyMetricsSink.getCounterValue(), is(0L));
     pipeline.apply(Create.of(1, 2, 3, 4, 5, 6))
         .apply(ParDo.of(new CountingDoFn()));
 

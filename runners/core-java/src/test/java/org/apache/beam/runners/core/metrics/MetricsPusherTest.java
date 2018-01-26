@@ -31,6 +31,7 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.joda.time.Duration;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -58,10 +59,14 @@ public class MetricsPusherTest {
     }
   }
 
+  @Before
+  public void init(){
+    DummyMetricsSink.clear();
+  }
+
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
   @Test
   public void test() throws Exception {
-    assertThat(DummyMetricsSink.getCounterValue(), is(0L));
     pipeline.apply(
         // Use maxReadTime to force unbounded mode.
         GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
