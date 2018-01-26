@@ -126,7 +126,7 @@ class MapTaskExecutorRunner(PipelineRunner):
       # Create the CounterFactory and StateSampler for this MapTask.
       # TODO(robertwb): Output counters produced here are currently ignored.
       counter_factory = CounterFactory()
-      state_sampler = statesampler.StateSampler('%s' % ix, counter_factory)
+      state_sampler = statesampler.make_full_tracker('%s' % ix, counter_factory)
       map_executor = operations.SimpleMapTaskExecutor(
           operation_specs.MapTask(
               all_operations, 'S%02d' % ix,

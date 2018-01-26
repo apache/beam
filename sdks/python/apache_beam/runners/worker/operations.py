@@ -27,6 +27,7 @@ from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsContainer
+from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
@@ -121,8 +122,9 @@ class Operation(object):
     # These are overwritten in the legacy harness.
     self.step_name = operation_name
     self.metrics_container = MetricsContainer(self.step_name)
-    self.scoped_metrics_container = ScopedMetricsContainer(
-        self.metrics_container)
+    self.scoped_metrics_container = ScopedMetricsContainer()
+    MetricsEnvironment.register_container(self.step_name,
+                                          self.metrics_container)
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
@@ -224,16 +226,15 @@ class ReadOperation(Operation):
 
   def start(self):
     with self.scoped_start_state:
-      with self.scoped_metrics_container:
-        super(ReadOperation, self).start()
-        range_tracker = self.spec.source.source.get_range_tracker(
-            self.spec.source.start_position, self.spec.source.stop_position)
-        for value in self.spec.source.source.read(range_tracker):
-          if isinstance(value, WindowedValue):
-            windowed_value = value
-          else:
-            windowed_value = _globally_windowed_value.with_value(value)
-          self.output(windowed_value)
+      super(ReadOperation, self).start()
+      range_tracker = self.spec.source.source.get_range_tracker(
+          self.spec.source.start_position, self.spec.source.stop_position)
+      for value in self.spec.source.source.read(range_tracker):
+        if isinstance(value, WindowedValue):
+          windowed_value = value
+        else:
+          windowed_value = _globally_windowed_value.with_value(value)
+        self.output(windowed_value)
 
 
 class InMemoryWriteOperation(Operation):
@@ -358,8 +359,7 @@ class DoOperation(Operation):
           step_name=self.step_name,
           logging_context=logger.PerThreadLoggingContext(
               step_name=self.step_name),
-          state=state,
-          scoped_metrics_container=self.scoped_metrics_container)
+          state=state)
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
                             else DoFnRunnerReceiver(self.dofn_runner))
@@ -413,9 +413,8 @@ class CombineOperation(Operation):
     if self.debug_logging_enabled:
       logging.debug('Processing [%s] in %s', o, self)
     key, values = o.value
-    with self.scoped_metrics_container:
-      self.output(
-          o.with_value((key, self.phased_combine_fn.apply(values))))
+    self.output(
+        o.with_value((key, self.phased_combine_fn.apply(values))))
 
 
 def create_pgbk_op(step_name, spec, counter_factory, state_sampler):
@@ -613,8 +612,6 @@ def create_operation(operation_name, spec, counter_factory, step_name,
     raise TypeError('Expected an instance of operation_specs.Worker* class '
                     'instead of %s' % (spec,))
   op.step_name = step_name
-  op.metrics_container = MetricsContainer(step_name)
-  op.scoped_metrics_container = ScopedMetricsContainer(op.metrics_container)
   return op
 
 
@@ -689,8 +686,6 @@ class SimpleMapTaskExecutor(object):
 
     for ix, op in reversed(list(enumerate(self._ops))):
       logging.debug('Starting op %d %s', ix, op)
-      with op.scoped_metrics_container:
-        op.start()
+      op.start()
     for op in self._ops:
-      with op.scoped_metrics_container:
-        op.finish()
+      op.finish()

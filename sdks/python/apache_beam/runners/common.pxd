@@ -18,7 +18,6 @@
 cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
-from apache_beam.metrics.execution cimport ScopedMetricsContainer
 
 
 cdef type TaggedOutput, TimestampedValue
@@ -78,7 +77,6 @@ cdef class DoFnRunner(Receiver):
   cdef DoFnContext context
   cdef LoggingContext logging_context
   cdef object step_name
-  cdef ScopedMetricsContainer scoped_metrics_container
   cdef list side_inputs
   cdef DoFnInvoker do_fn_invoker
 
