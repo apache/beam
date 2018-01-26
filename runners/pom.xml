@@ -45,6 +45,7 @@
     <module>spark</module>
     <module>apex</module>
     <module>gcp</module>
+    <module>samza</module>
   </modules>
 
   <profiles>
