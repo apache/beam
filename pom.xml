@@ -93,7 +93,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <external.build.directory>${project.basedir}/target</external.build.directory>
-    <beam.javadoc_opts />
+    <beam.javadoc_opts>-Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
 
     <!-- Disable integration tests by default -->
     <skipITs>true</skipITs>
@@ -288,16 +288,6 @@
           </plugin>
         </plugins>
       </build>
-    </profile>
-
-    <profile>
-      <id>doclint-java8-disable</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <properties>
-        <beam.javadoc_opts>-Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
-      </properties>
     </profile>
 
     <profile>
