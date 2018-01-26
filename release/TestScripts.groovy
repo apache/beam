@@ -74,6 +74,7 @@ class TestScripts {
 
    // Run a single command, capture output, verify return code is 0
    private void _execute(String cmd) {
+     println cmd
      def shell = "sh -c cmd".split(' ')
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
