@@ -113,7 +113,6 @@ public class CombineTest implements Serializable {
 
     PCollection<Integer> sum = input.apply(Values.create()).apply(Combine.globally(new SumInts()));
 
-    // Java 8 will infer.
     PCollection<KV<String, String>> sumPerKey = input.apply(Combine.perKey(new TestCombineFn()));
 
     PAssert.that(sum).containsInAnyOrder(globalSum);
@@ -133,7 +132,6 @@ public class CombineTest implements Serializable {
 
     PCollectionView<Integer> globallySumView = sum.apply(View.asSingleton());
 
-    // Java 8 will infer.
     PCollection<KV<String, String>> combinePerKey =
         perKeyInput.apply(
             Combine.<String, Integer, String>perKey(new TestCombineFnWithContext(globallySumView))
@@ -200,7 +198,6 @@ public class CombineTest implements Serializable {
     PCollection<Set<Integer>> unique =
         input.apply(Values.create()).apply(Combine.globally(new UniqueInts()));
 
-    // Java 8 will infer.
     PCollection<KV<String, Set<Integer>>> uniquePerKey =
         input.apply(Combine.perKey(new UniqueInts()));
 
@@ -237,7 +234,6 @@ public class CombineTest implements Serializable {
 
     PCollection<Double> mean = input.apply(Values.create()).apply(Combine.globally(new MeanInts()));
 
-    // Java 8 will infer.
     PCollection<KV<String, Double>> meanPerKey = input.apply(Combine.perKey(new MeanInts()));
 
     PAssert.that(mean).containsInAnyOrder(globalMean);
