@@ -20,21 +20,19 @@
 
 ##############################################################################
 ##
-##  Install groovy, if not installed. Source the script to get the path set.
+##  Install Maven, to make sure at right version. Source the script to get the path set.
 ##
 ##############################################################################
 
 set -x
 
-ZIP="https://dl.bintray.com/groovy/maven/apache-groovy-binary-2.4.13.zip"
-DIR="${HOME}/.local/groovy"
+ZIP="http://www.apache.org/dist/maven/maven-3/3.5.2/binaries/apache-maven-3.5.2-bin.tar.gz"
+DIR="${HOME}/.local/maven"
 rm -rf $DIR
 mkdir -p $DIR
 pushd $DIR
-curl -L $ZIP --output groovy-binary.zip
-unzip groovy-binary.zip
-PATH=${DIR}/groovy-2.4.13/bin:$PATH
+curl -L $ZIP --output maven.tar.gz
+tar xf maven.tar.gz
+PATH=$(pwd)/apache-maven-3.5.2/bin:$PATH
 export PATH
 popd
-
-. install_maven.sh
