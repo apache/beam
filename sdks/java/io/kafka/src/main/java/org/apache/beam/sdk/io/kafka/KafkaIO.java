@@ -604,8 +604,13 @@ public class KafkaIO {
       }
       if (isCommitOffsetsInFinalizeEnabled()) {
         checkArgument(getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
-          "withCommitOffsetsInFinalizeEnabled() is true, but group.id in Kafka consumer config "
+          "commitOffsetsInFinalize() is enabled, but group.id in Kafka consumer config "
               + "is not set. Offset management requires group.id.");
+        if (Boolean.TRUE.equals(
+          getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG))) {
+          LOG.warn("'{}' in consumer config is enabled even though commitOffsetsInFinalize() "
+              + "is set. You need only one of them.", ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
+        }
       }
 
       // Infer key/value coders if not specified explicitly
