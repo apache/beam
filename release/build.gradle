@@ -1,0 +1,14 @@
+apply plugin: 'groovy'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.codehaus.groovy:groovy-all:2.4.13'
+}
+
+task runQuickstartJavaDirect (dependsOn: 'classes', type: JavaExec) {
+    main = 'quickstart-java-direct'
+    classpath = sourceSets.main.runtimeClasspath
+}

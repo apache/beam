@@ -48,13 +48,14 @@ job('beam_PostRelease_NightlySnapshot') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      'Google Cloud Dataflow PostRelease Tests',
+      './gradlew :release:runQuickstartJavaDirect',
       'Run Dataflow PostRelease')
 
   steps {
     // Run a quickstart from https://beam.apache.org/get-started/quickstart-java
-    shell('cd ' + common_job_properties.checkoutDir + '/release && ' +
-          '. install_groovy.sh && ' +
-          'groovy quickstart-java-direct.groovy')
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':release:runQuickstartJavaDirect')
+    }
   }
 }

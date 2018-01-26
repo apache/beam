@@ -129,7 +129,11 @@ class TestScripts {
         </settings>
         """
        def cmd = "mvn ${args} -s${settings.absolutePath} -Psnapshot -B"
-       _execute(cmd)
+       String path = System.getenv("PATH");
+       def mvnPath = "/home/jenkins/tools/maven/apache-maven-3.5.2/bin"
+       def setPath = "export PATH=${mvnPath}:${path} && " 
+       println "setPath ${setPath}"
+       _execute(setPath + cmd)
    }
 
    // Clean up and report error
