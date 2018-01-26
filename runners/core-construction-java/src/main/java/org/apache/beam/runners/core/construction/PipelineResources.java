@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import com.google.common.base.Splitter;
+import com.google.common.base.StandardSystemProperty;
 import java.io.File;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -37,6 +39,11 @@ public class PipelineResources {
    * @return A list of absolute paths to the resources the class loader uses.
    */
   public static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
+    if (classLoader == ClassLoader.getSystemClassLoader()) {
+      return Splitter.on(File.pathSeparatorChar)
+        .splitToList(StandardSystemProperty.JAVA_CLASS_PATH.value());
+    }
+
     if (!(classLoader instanceof URLClassLoader)) {
       String message = String.format("Unable to use ClassLoader to detect classpath elements. "
           + "Current ClassLoader is %s, only URLClassLoaders are supported.", classLoader);
