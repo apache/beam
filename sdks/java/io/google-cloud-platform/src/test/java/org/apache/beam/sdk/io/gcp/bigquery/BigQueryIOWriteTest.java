@@ -219,7 +219,7 @@ public class BigQueryIOWriteTest implements Serializable {
     // WriteGroupedRecordsToFiles.
     for (int i = 0; i < BatchLoads.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE * 10; ++i) {
       // Every user has 10 nicknames.
-      for (int j = 0; j < 1; ++j) {
+      for (int j = 0; j < 10; ++j) {
         String nickname = allUsernames.get(
             ThreadLocalRandom.current().nextInt(allUsernames.size()));
         userList.add(nickname + i);
