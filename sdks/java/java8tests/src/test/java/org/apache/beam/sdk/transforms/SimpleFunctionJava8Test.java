@@ -43,8 +43,7 @@ public class SimpleFunctionJava8Test implements Serializable {
    */
   @Test
   public void testGoodTypeForLambda() throws Exception {
-    SimpleFunction<Integer, String> fn =
-        new SimpleFunction<Integer, String>((Integer i) -> i.toString()) {};
+    SimpleFunction<Integer, String> fn = new SimpleFunction<Integer, String>(Object::toString) {};
 
     assertThat(fn.getInputTypeDescriptor(), equalTo(TypeDescriptors.integers()));
     assertThat(fn.getOutputTypeDescriptor(), equalTo(TypeDescriptors.strings()));

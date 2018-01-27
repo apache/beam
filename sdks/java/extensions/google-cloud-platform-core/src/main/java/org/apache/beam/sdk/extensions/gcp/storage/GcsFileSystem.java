@@ -253,6 +253,6 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   }
 
   private List<GcsPath> toGcsPaths(Collection<String> specs) {
-    return FluentIterable.from(specs).transform(spec -> GcsPath.fromUri(spec)).toList();
+    return FluentIterable.from(specs).transform(GcsPath::fromUri).toList();
   }
 }

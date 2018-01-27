@@ -204,7 +204,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
       return FluentIterable.from(elements)
           .transformAndConcat(
               // Explode windows to filter out expired ones
-              input -> input.explodeWindows())
+              WindowedValue::explodeWindows)
           .filter(
               input -> {
                 BoundedWindow window = Iterables.getOnlyElement(input.getWindows());

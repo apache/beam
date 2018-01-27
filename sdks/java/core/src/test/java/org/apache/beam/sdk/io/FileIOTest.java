@@ -201,21 +201,19 @@ public class FileIOTest implements Serializable {
                         Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
 
     Thread writer =
-        new Thread() {
-          @Override
-          public void run() {
-            try {
-              Thread.sleep(1000);
-              Files.write(basePath.resolve("first"), new byte[42]);
-              Thread.sleep(300);
-              Files.write(basePath.resolve("second"), new byte[37]);
-              Thread.sleep(300);
-              Files.write(basePath.resolve("third"), new byte[99]);
-            } catch (IOException | InterruptedException e) {
-              throw new RuntimeException(e);
-            }
-          }
-        };
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(1000);
+                Files.write(basePath.resolve("first"), new byte[42]);
+                Thread.sleep(300);
+                Files.write(basePath.resolve("second"), new byte[37]);
+                Thread.sleep(300);
+                Files.write(basePath.resolve("third"), new byte[99]);
+              } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            });
     writer.start();
 
     List<MatchResult.Metadata> expected =

@@ -126,7 +126,7 @@ public final class TranslationUtils {
 
   /** Transform a pair stream into a value stream. */
   public static <T1, T2> JavaDStream<T2> dStreamValues(JavaPairDStream<T1, T2> pairDStream) {
-    return pairDStream.map(v1 -> v1._2());
+    return pairDStream.map(Tuple2::_2);
   }
 
   /** {@link KV} to pair function. */

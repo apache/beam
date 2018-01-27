@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -43,6 +42,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -241,10 +242,13 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
     // TODO: Avoid iterating all files: https://issues.apache.org/jira/browse/BEAM-1309
     Iterable<File> files = com.google.common.io.Files.fileTreeTraverser().preOrderTraversal(parent);
     Iterable<File> matchedFiles =
-        Iterables.filter(
-            files,
-            Predicates.and(
-                com.google.common.io.Files.isFile(), input -> matcher.matches(input.toPath())));
+        StreamSupport.stream(files.spliterator(), false)
+            .filter(
+                Predicates.and(
+                        com.google.common.io.Files.isFile(),
+                        input -> matcher.matches(input.toPath()))
+                    ::apply)
+            .collect(Collectors.toList());
 
     List<Metadata> result = Lists.newLinkedList();
     for (File match : matchedFiles) {

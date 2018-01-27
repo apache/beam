@@ -49,7 +49,7 @@ public class PipelineOptionsFactoryJava8Test {
     assertThat(optsWithDefault.getValue(), nullValue());
 
     optsWithDefault.setValue(12.25);
-    assertThat(optsWithDefault.getValue(), equalTo(Double.valueOf(12.25)));
+    assertThat(optsWithDefault.getValue(), equalTo(12.25));
   }
 
   private interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}

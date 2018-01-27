@@ -55,7 +55,6 @@ import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -73,6 +72,7 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.Coder;
@@ -403,17 +403,18 @@ public class BigtableIOTest {
 
   private static List<Row> filterToRanges(List<Row> rows, final List<ByteKeyRange> ranges) {
     return Lists.newArrayList(
-        Iterables.filter(
-            rows,
-            input -> {
-              verifyNotNull(input, "input");
-              for (ByteKeyRange range : ranges) {
-                if (range.containsKey(makeByteKey(input.getKey()))) {
-                  return true;
-                }
-              }
-              return false;
-            }));
+        rows.stream()
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  for (ByteKeyRange range : ranges) {
+                    if (range.containsKey(makeByteKey(input.getKey()))) {
+                      return true;
+                    }
+                  }
+                  return false;
+                })
+            .collect(Collectors.toList()));
   }
 
   private void runReadTest(BigtableIO.Read read, List<Row> expected) {
@@ -503,12 +504,14 @@ public class BigtableIOTest {
     String regex = ".*17.*";
     final KeyMatchesRegex keyPredicate = new KeyMatchesRegex(regex);
     Iterable<Row> filteredRows =
-        Iterables.filter(
-            testRows,
-            input -> {
-              verifyNotNull(input, "input");
-              return keyPredicate.apply(input.getKey());
-            });
+        testRows
+            .stream()
+            .filter(
+                input -> {
+                  verifyNotNull(input, "input");
+                  return keyPredicate.apply(input.getKey());
+                })
+            .collect(Collectors.toList());
 
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(regex)).build();

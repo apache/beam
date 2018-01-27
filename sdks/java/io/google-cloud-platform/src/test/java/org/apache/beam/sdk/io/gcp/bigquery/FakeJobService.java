@@ -422,8 +422,8 @@ class FakeJobService implements JobService, Serializable {
     Schema avroSchema = BigQueryAvroUtils.toGenericAvroSchema(tableId, schema.getFields());
     List<TableRow> rowsToWrite = Lists.newArrayList();
     int shard = 0;
-    for (int i = 0; i < rows.size(); ++i) {
-      rowsToWrite.add(rows.get(i));
+    for (TableRow row : rows) {
+      rowsToWrite.add(row);
       if (rowsToWrite.size() == 5) {
         writeRowsHelper(rowsToWrite, avroSchema, destinationPattern, shard++);
         rowsToWrite.clear();

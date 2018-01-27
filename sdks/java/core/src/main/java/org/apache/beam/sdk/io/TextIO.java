@@ -34,6 +34,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -688,7 +689,7 @@ public class TextIO {
     public TypedWrite<UserT, DestinationT> to(ValueProvider<String> outputPrefix) {
       return toResource(
           NestedValueProvider.of(
-              outputPrefix, input -> FileBasedSink.convertToFileResourceIfPossible(input)));
+              outputPrefix, FileBasedSink::convertToFileResourceIfPossible));
     }
 
     /**
@@ -911,7 +912,12 @@ public class TextIO {
               getFilenamePrefix(),
               getDestinationFunction());
       checkArgument(
-          1 == Iterables.size(Iterables.filter(allToArgs, Predicates.notNull())),
+          1
+              == Iterables.size(
+                  allToArgs
+                      .stream()
+                      .filter(Predicates.notNull()::apply)
+                      .collect(Collectors.toList())),
           "Exactly one of filename policy, dynamic destinations, filename prefix, or destination "
               + "function must be set");
 

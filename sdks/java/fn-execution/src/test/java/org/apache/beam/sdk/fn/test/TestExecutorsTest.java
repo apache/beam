@@ -66,7 +66,7 @@ public class TestExecutorsTest {
               new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                  testService.submit(() -> taskToRun());
+                  testService.submit(this::taskToRun);
                 }
 
                 private void taskToRun() {
@@ -128,7 +128,7 @@ public class TestExecutorsTest {
               new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                  testService.submit(() -> taskToRun());
+                  testService.submit(this::taskToRun);
                   throw exceptionToThrow;
                 }
 
