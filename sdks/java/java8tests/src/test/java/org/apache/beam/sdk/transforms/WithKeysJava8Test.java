@@ -49,7 +49,7 @@ public class WithKeysJava8Test {
 
     PCollection<String> values = p.apply(Create.of("1234", "3210", "0", "-12"));
     PCollection<KV<Integer, String>> kvs = values.apply(
-        WithKeys.of((String s) -> Integer.valueOf(s))
+        WithKeys.of((SerializableFunction<String, Integer>) Integer::valueOf)
                 .withKeyType(TypeDescriptor.of(Integer.class)));
 
     PAssert.that(kvs).containsInAnyOrder(
@@ -63,7 +63,7 @@ public class WithKeysJava8Test {
 
     PCollection<String> values = p.apply(Create.of("1234", "3210", "0", "-12"));
 
-    values.apply("ApplyKeysWithWithKeys", WithKeys.of((String s) -> Integer.valueOf(s)));
+    values.apply("ApplyKeysWithWithKeys", WithKeys.of(Integer::valueOf));
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage("Unable to return a default Coder for ApplyKeysWithWithKeys");

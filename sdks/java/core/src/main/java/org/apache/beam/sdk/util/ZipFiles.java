@@ -125,31 +125,28 @@ public final class ZipFiles {
         targetDirectory.isDirectory(),
         "%s is not a valid directory",
         targetDirectory.getAbsolutePath());
-    final ZipFile zipFileObj = new ZipFile(zipFile);
-    try {
+    try (ZipFile zipFileObj = new ZipFile(zipFile)) {
       for (ZipEntry entry : entries(zipFileObj)) {
         checkName(entry.getName());
         File targetFile = new File(targetDirectory, entry.getName());
         if (entry.isDirectory()) {
           if (!targetFile.isDirectory() && !targetFile.mkdirs()) {
             throw new IOException(
-                "Failed to create directory: " + targetFile.getAbsolutePath());
+                    "Failed to create directory: " + targetFile.getAbsolutePath());
           }
         } else {
           File parentFile = targetFile.getParentFile();
           if (!parentFile.isDirectory()) {
             if (!parentFile.mkdirs()) {
               throw new IOException(
-                  "Failed to create directory: "
-                  + parentFile.getAbsolutePath());
+                      "Failed to create directory: "
+                              + parentFile.getAbsolutePath());
             }
           }
           // Write the file to the destination.
           asByteSource(zipFileObj, entry).copyTo(Files.asByteSink(targetFile));
         }
       }
-    } finally {
-      zipFileObj.close();
     }
   }
 

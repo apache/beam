@@ -23,7 +23,6 @@ import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectS
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectStateAndTimers;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
@@ -167,14 +168,15 @@ public final class StreamingTransformTranslator {
 
         for (final Iterable<TimestampedValue<T>> timestampedValues : batches) {
           final Iterable<WindowedValue<T>> windowedValues =
-              Iterables.transform(
-                  timestampedValues,
-                  timestampedValue ->
-                      WindowedValue.of(
-                          timestampedValue.getValue(),
-                          timestampedValue.getTimestamp(),
-                          GlobalWindow.INSTANCE,
-                          PaneInfo.NO_FIRING));
+              StreamSupport.stream(timestampedValues.spliterator(), false)
+                  .map(
+                      timestampedValue ->
+                          WindowedValue.of(
+                              timestampedValue.getValue(),
+                              timestampedValue.getTimestamp(),
+                              GlobalWindow.INSTANCE,
+                              PaneInfo.NO_FIRING))
+                  .collect(Collectors.toList());
 
           final JavaRDD<WindowedValue<T>> rdd =
               jssc.sparkContext()

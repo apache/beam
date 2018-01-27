@@ -102,7 +102,7 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.FLOAT, 1.1F));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
-    assertEquals(Float.valueOf(1.1F + 1),
+    assertEquals(1.1F + 1,
         new BeamSqlPlusExpression(operands).evaluate(record, null).getValue());
 
     // double + long => double
@@ -170,7 +170,7 @@ public class BeamSqlArithmeticExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.FLOAT, 2.1F));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1L));
-    assertEquals(Float.valueOf(2.1F * 1L),
+    assertEquals(2.1F * 1L,
         new BeamSqlMultiplyExpression(operands).evaluate(record, null).getValue());
 
     // double + long => double

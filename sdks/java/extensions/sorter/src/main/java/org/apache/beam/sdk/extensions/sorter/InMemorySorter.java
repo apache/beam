@@ -117,7 +117,7 @@ class InMemorySorter implements Sorter {
 
     Comparator<KV<byte[], byte[]>> kvComparator =
         (o1, o2) -> COMPARATOR.compare(o1.getKey(), o2.getKey());
-    Collections.sort(records, kvComparator);
+    records.sort(kvComparator);
     return Collections.unmodifiableList(records);
   }
 

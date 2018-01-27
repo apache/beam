@@ -105,12 +105,10 @@ public class BeamRecordSqlType extends BeamRecordType {
 
     List<Coder> fieldCoders = new ArrayList<>(fieldTypes.size());
 
-    for (int idx = 0; idx < fieldTypes.size(); ++idx) {
-      Integer fieldType = fieldTypes.get(idx);
-
+    for (Integer fieldType : fieldTypes) {
       if (!CODERS.containsKey(fieldType)) {
         throw new UnsupportedOperationException(
-            "Data type: " + fieldType + " not supported yet!");
+                "Data type: " + fieldType + " not supported yet!");
       }
 
       fieldCoders.add(CODERS.get(fieldType));

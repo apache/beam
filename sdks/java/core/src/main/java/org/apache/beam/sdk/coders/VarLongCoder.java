@@ -50,7 +50,7 @@ public class VarLongCoder extends StructuredCoder<Long> {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }
-    VarInt.encode(value.longValue(), outStream);
+    VarInt.encode(value, outStream);
   }
 
   @Override
@@ -104,6 +104,6 @@ public class VarLongCoder extends StructuredCoder<Long> {
     if (value == null) {
       throw new CoderException("cannot encode a null Long");
     }
-    return VarInt.getLength(value.longValue());
+    return VarInt.getLength(value);
   }
 }

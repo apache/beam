@@ -204,9 +204,11 @@ public class ReduceFnRunnerTest {
     // This element shouldn't be seen, because the trigger has finished
     injectElement(tester, 4);
 
-    long droppedElements = container.getCounter(MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
-        .getCumulative().longValue();
+    long droppedElements =
+        container
+            .getCounter(
+                MetricName.named(ReduceFnRunner.class, ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+            .getCumulative();
     assertEquals(1, droppedElements);
   }
 
@@ -751,10 +753,11 @@ public class ReduceFnRunnerTest {
         tester.getWatermarkHold(), nullValue());
 
     // Nothing dropped.
-    long droppedElements = container.getCounter(
-        MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
-        .getCumulative().longValue();
+    long droppedElements =
+        container
+            .getCounter(
+                MetricName.named(ReduceFnRunner.class, ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+            .getCumulative();
     assertEquals(0, droppedElements);
 
     // Input watermark -> 4, output watermark should advance that far as well
@@ -834,10 +837,11 @@ public class ReduceFnRunnerTest {
     // Because we're about to expire the window, we output it.
     when(mockTriggerStateMachine.shouldFire(anyTriggerContext())).thenReturn(false);
     injectElement(tester, 8);
-    droppedElements = container.getCounter(
-        MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
-        .getCumulative().longValue();
+    droppedElements =
+        container
+            .getCounter(
+                MetricName.named(ReduceFnRunner.class, ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+            .getCumulative();
     assertEquals(0, droppedElements);
 
     // Exceed the GC limit, triggering the last pane to be fired
@@ -1495,10 +1499,11 @@ public class ReduceFnRunnerTest {
         // assigned to [-30, 70), [0, 100), [30, 130)
         TimestampedValue.of(12, new Instant(40)));
 
-    long droppedElements = container.getCounter(
-        MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
-        .getCumulative().longValue();
+    long droppedElements =
+        container
+            .getCounter(
+                MetricName.named(ReduceFnRunner.class, ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+            .getCumulative();
     assertEquals(0, droppedElements);
 
     tester.advanceInputWatermark(new Instant(70));
@@ -1507,10 +1512,11 @@ public class ReduceFnRunnerTest {
         // but [-30, 70) is closed by the trigger
         TimestampedValue.of(14, new Instant(60)));
 
-    droppedElements = container.getCounter(
-        MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
-        .getCumulative().longValue();
+    droppedElements =
+        container
+            .getCounter(
+                MetricName.named(ReduceFnRunner.class, ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+            .getCumulative();
     assertEquals(1, droppedElements);
 
     tester.advanceInputWatermark(new Instant(130));
@@ -1518,10 +1524,11 @@ public class ReduceFnRunnerTest {
     // but they are all closed
     tester.injectElements(TimestampedValue.of(16, new Instant(40)));
 
-    droppedElements = container.getCounter(
-        MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
-        .getCumulative().longValue();
+    droppedElements =
+        container
+            .getCounter(
+                MetricName.named(ReduceFnRunner.class, ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+            .getCumulative();
     assertEquals(4, droppedElements);
   }
 
@@ -1569,10 +1576,11 @@ public class ReduceFnRunnerTest {
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
-    long droppedElements = container.getCounter(
-        MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
-        .getCumulative().longValue();
+    long droppedElements =
+        container
+            .getCounter(
+                MetricName.named(ReduceFnRunner.class, ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+            .getCumulative();
     assertEquals(0, droppedElements);
   }
 
@@ -1622,10 +1630,11 @@ public class ReduceFnRunnerTest {
     assertTrue(tester.isMarkedFinished(firstWindow));
     tester.assertHasOnlyGlobalAndFinishedSetsFor(firstWindow);
 
-    long droppedElements = container.getCounter(
-        MetricName.named(ReduceFnRunner.class,
-            ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
-        .getCumulative().longValue();
+    long droppedElements =
+        container
+            .getCounter(
+                MetricName.named(ReduceFnRunner.class, ReduceFnRunner.DROPPED_DUE_TO_CLOSED_WINDOW))
+            .getCumulative();
     assertEquals(0, droppedElements);
   }
 

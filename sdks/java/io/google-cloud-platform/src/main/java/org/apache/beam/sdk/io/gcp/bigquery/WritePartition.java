@@ -136,11 +136,8 @@ class WritePartition<DestinationT>
     Map<DestinationT, DestinationData> currentResults = Maps.newHashMap();
     for (WriteBundlesToFiles.Result<DestinationT> fileResult : results) {
       DestinationT destination = fileResult.destination;
-      DestinationData destinationData = currentResults.get(destination);
-      if (destinationData == null) {
-        destinationData = new DestinationData();
-        currentResults.put(destination, destinationData);
-      }
+      DestinationData destinationData =
+          currentResults.computeIfAbsent(destination, k -> new DestinationData());
 
       PartitionData latestPartition = destinationData.getLatestPartition();
       if (!latestPartition.canAccept(1, fileResult.fileByteSize)) {

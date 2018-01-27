@@ -196,7 +196,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
                 MetricNameFilter.named(PAssertWithoutFlatten.class, PAssert.SUCCESS_COUNTER))
             .build()).counters();
     for (MetricResult<Long> counter : counterResults) {
-      if (counter.attempted().longValue() > 0) {
+      if (counter.attempted() > 0) {
         successAssertions++;
       }
     }
@@ -213,7 +213,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
                 PAssertWithoutFlatten.class, PAssert.FAILURE_COUNTER))
             .build()).counters();
     for (MetricResult<Long> counter : failCounterResults) {
-      if (counter.attempted().longValue() > 0) {
+      if (counter.attempted() > 0) {
         failedAssertions++;
       }
     }
@@ -240,7 +240,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
             .withKeyDeserializer(StringDeserializer.class)
             .withValueDeserializer(InstantDeserializer.class)
             .updateConsumerProperties(ImmutableMap.of("auto.offset.reset", "earliest"))
-            .withTimestampFn(kv -> kv.getValue())
+            .withTimestampFn(KV::getValue)
             .withWatermarkFn(
                 kv -> {
                   // at EOF move WM to infinity.

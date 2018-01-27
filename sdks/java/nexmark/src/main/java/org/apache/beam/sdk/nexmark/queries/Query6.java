@@ -19,7 +19,6 @@ package org.apache.beam.sdk.nexmark.queries;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
@@ -75,7 +74,7 @@ public class Query6 extends NexmarkQuery {
     @Override
     public List<Bid> addInput(List<Bid> accumulator, Bid input) {
       accumulator.add(input);
-      Collections.sort(accumulator, Bid.ASCENDING_TIME_THEN_PRICE);
+      accumulator.sort(Bid.ASCENDING_TIME_THEN_PRICE);
       if (accumulator.size() > maxNumBids) {
         accumulator.remove(0);
       }
@@ -88,7 +87,7 @@ public class Query6 extends NexmarkQuery {
       for (List<Bid> accumulator : accumulators) {
         result.addAll(accumulator);
       }
-      Collections.sort(result, Bid.ASCENDING_TIME_THEN_PRICE);
+      result.sort(Bid.ASCENDING_TIME_THEN_PRICE);
       if (result.size() > maxNumBids) {
         result = Lists.newArrayList(result.listIterator(result.size() - maxNumBids));
       }
