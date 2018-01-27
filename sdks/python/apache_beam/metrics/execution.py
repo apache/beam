@@ -29,6 +29,7 @@ Available classes:
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
 """
+import logging
 from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterCell
@@ -138,15 +139,15 @@ class MetricsEnvironment(object):
     current_tracker = statesampler.EXECUTION_STATE_TRACKERS.current_tracker()
     if not current_tracker:
       raise MetricsContextException(
-          'No context manager set for metrics.')
+          'No context manager set for Metrics.')
     current_tracker.metrics_container_registry[step_name] = container
 
   @classmethod
   def current_container(cls):
     current_tracker = statesampler.EXECUTION_STATE_TRACKERS.current_tracker()
     if not current_tracker:
-      raise MetricsContextException(
-          'No context manager set for metrics.')
+      logging.warn('No context manager is set for Metrics')
+      return None
     current_step_name = current_tracker.current_state().name.step_name
     container = current_tracker.metrics_container_registry.get(
         current_step_name)
