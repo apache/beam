@@ -112,7 +112,7 @@ public class JdbcIOIT {
   @Test
   public void testWriteIterableThenRead() {
     runWriteIterable();
-    runRead(writeTableName);
+    runRead(writeIterableTableName);
   }
 
   /**
