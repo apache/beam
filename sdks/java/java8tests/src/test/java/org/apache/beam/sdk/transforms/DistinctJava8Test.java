@@ -59,8 +59,9 @@ public class DistinctJava8Test {
     PCollection<String> dupes =
         p.apply(Create.of("foo", "foos", "barbaz", "barbaz", "bazbar", "foo"));
     PCollection<String> deduped =
-        dupes.apply(Distinct.withRepresentativeValueFn((String s) -> s.length())
-                                    .withRepresentativeType(TypeDescriptor.of(Integer.class)));
+        dupes.apply(
+            Distinct.withRepresentativeValueFn(String::length)
+                .withRepresentativeType(TypeDescriptor.of(Integer.class)));
 
     PAssert.that(deduped).satisfies((Iterable<String> strs) -> {
       Set<Integer> seenLengths = new HashSet<>();
@@ -91,7 +92,6 @@ public class DistinctJava8Test {
 
     // Thrown when applying a transform to the internal WithKeys that withRepresentativeValueFn is
     // implemented with
-    dupes.apply("RemoveRepresentativeDupes",
-        Distinct.withRepresentativeValueFn((String s) -> s.length()));
+    dupes.apply("RemoveRepresentativeDupes", Distinct.withRepresentativeValueFn(String::length));
   }
 }

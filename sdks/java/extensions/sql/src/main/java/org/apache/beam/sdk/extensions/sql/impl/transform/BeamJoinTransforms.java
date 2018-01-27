@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
@@ -74,9 +73,9 @@ public class BeamJoinTransforms {
 
       // build the row
       List<Object> fieldValues = new ArrayList<>(joinColumns.size());
-      for (int i = 0; i < joinColumns.size(); i++) {
+      for (Pair<Integer, Integer> joinColumn : joinColumns) {
         fieldValues.add(input
-            .getFieldValue(isLeft ? joinColumns.get(i).getKey() : joinColumns.get(i).getValue()));
+                .getFieldValue(isLeft ? joinColumn.getKey() : joinColumn.getValue()));
       }
       return KV.of(new BeamRecord(type, fieldValues), input);
     }
@@ -108,9 +107,8 @@ public class BeamJoinTransforms {
       Iterable<BeamRecord> rightRowsIterable = key2Rows.get(key);
 
       if (rightRowsIterable != null && rightRowsIterable.iterator().hasNext()) {
-        Iterator<BeamRecord> it = rightRowsIterable.iterator();
-        while (it.hasNext()) {
-          context.output(combineTwoRowsIntoOne(leftRow, it.next(), swap));
+        for (BeamRecord aRightRowsIterable : rightRowsIterable) {
+          context.output(combineTwoRowsIntoOne(leftRow, aRightRowsIterable, swap));
         }
       } else {
         if (joinType == JoinRelType.LEFT) {

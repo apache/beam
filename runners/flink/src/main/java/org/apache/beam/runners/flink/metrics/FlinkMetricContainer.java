@@ -100,11 +100,9 @@ public class FlinkMetricContainer {
       Long update = metricResult.attempted();
 
       // update flink metric
-      Counter counter = flinkCounterCache.get(flinkMetricName);
-      if (counter == null) {
-        counter = runtimeContext.getMetricGroup().counter(flinkMetricName);
-        flinkCounterCache.put(flinkMetricName, counter);
-      }
+      Counter counter =
+          flinkCounterCache.computeIfAbsent(
+              flinkMetricName, n -> runtimeContext.getMetricGroup().counter(n));
       counter.dec(counter.getCount());
       counter.inc(update);
     }

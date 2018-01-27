@@ -236,11 +236,8 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
         if (window.isAuctionWindow()) {
           idToTrueAuctionWindow.put(window.auction, window);
         } else {
-          List<AuctionOrBidWindow> bidWindows = idToBidAuctionWindows.get(window.auction);
-          if (bidWindows == null) {
-            bidWindows = new ArrayList<>();
-            idToBidAuctionWindows.put(window.auction, bidWindows);
-          }
+          List<AuctionOrBidWindow> bidWindows =
+              idToBidAuctionWindows.computeIfAbsent(window.auction, k -> new ArrayList<>());
           bidWindows.add(window);
         }
       }

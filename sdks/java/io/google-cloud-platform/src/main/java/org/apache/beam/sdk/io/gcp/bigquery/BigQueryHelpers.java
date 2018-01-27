@@ -83,12 +83,7 @@ public class BigQueryHelpers {
   }
 
   static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {
-    List<V> value = map.get(key);
-    if (value == null) {
-      value = new ArrayList<>();
-      map.put(key, value);
-    }
-    return value;
+    return map.computeIfAbsent(key, k -> new ArrayList<>());
   }
 
   /**

@@ -169,7 +169,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
   }
 
   private Consumer<Elements> addToValuesConsumer(final Collection<Elements> values) {
-    return item -> values.add(item);
+    return values::add;
   }
 
   private Runnable setBooleanToTrue(final AtomicBoolean onCompletedWasCalled) {

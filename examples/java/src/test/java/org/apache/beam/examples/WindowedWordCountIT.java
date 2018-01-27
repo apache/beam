@@ -222,13 +222,7 @@ public class WindowedWordCountIT {
           String[] splits = line.split(": ");
           String word = splits[0];
           long count = Long.parseLong(splits[1]);
-
-          Long current = actualCounts.get(word);
-          if (current == null) {
-            actualCounts.put(word, count);
-          } else {
-            actualCounts.put(word, current + count);
-          }
+          actualCounts.merge(word, count, (a, b) -> a + b);
         }
 
         return actualCounts.equals(expectedWordCounts);

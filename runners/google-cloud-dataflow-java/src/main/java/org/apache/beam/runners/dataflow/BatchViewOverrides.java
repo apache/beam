@@ -872,23 +872,20 @@ class BatchViewOverrides {
         Optional<Object> previousWindowStructuralValue = Optional.absent();
         T previousValue = null;
 
-        Iterator<KV<W, WindowedValue<T>>> iterator = c.element().getValue().iterator();
-        while (iterator.hasNext()) {
-          KV<W, WindowedValue<T>> next = iterator.next();
+        for (KV<W, WindowedValue<T>> next : c.element().getValue()) {
           Object currentWindowStructuralValue = windowCoder.structuralValue(next.getKey());
 
           // Verify that the user isn't trying to have more than one element per window as
           // a singleton.
-          checkState(!previousWindowStructuralValue.isPresent()
+          checkState(
+              !previousWindowStructuralValue.isPresent()
                   || !previousWindowStructuralValue.get().equals(currentWindowStructuralValue),
               "Multiple values [%s, %s] found for singleton within window [%s].",
               previousValue,
               next.getValue().getValue(),
               next.getKey());
 
-          c.output(
-              IsmRecord.of(
-                  ImmutableList.of(next.getKey()), next.getValue()));
+          c.output(IsmRecord.of(ImmutableList.of(next.getKey()), next.getValue()));
 
           previousWindowStructuralValue = Optional.of(currentWindowStructuralValue);
           previousValue = next.getValue().getValue();

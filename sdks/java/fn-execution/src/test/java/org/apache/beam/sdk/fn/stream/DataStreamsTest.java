@@ -100,12 +100,9 @@ public class DataStreamsTest {
       final BlockingQueueIterator<String> iterator =
           new BlockingQueueIterator<>(new SynchronousQueue<String>());
       final SettableFuture<List<String>> valuesFuture = SettableFuture.create();
-      Thread appender = new Thread() {
-        @Override
-        public void run() {
-          valuesFuture.set(Arrays.asList(Iterators.toArray(iterator, String.class)));
-        }
-      };
+      Thread appender =
+          new Thread(
+              () -> valuesFuture.set(Arrays.asList(Iterators.toArray(iterator, String.class))));
       appender.start();
       iterator.accept("A");
       iterator.accept("B");

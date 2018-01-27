@@ -126,8 +126,8 @@ public class DelegateCoderTest implements Serializable {
     assertThat(
         DelegateCoder.of(
                 StringUtf8Coder.of(),
-                input -> String.valueOf(input),
-                input -> Integer.valueOf(input),
+                String::valueOf,
+                Integer::valueOf,
                 new TypeDescriptor<Integer>() {})
             .getEncodedTypeDescriptor(),
         equalTo(TypeDescriptor.of(Integer.class)));

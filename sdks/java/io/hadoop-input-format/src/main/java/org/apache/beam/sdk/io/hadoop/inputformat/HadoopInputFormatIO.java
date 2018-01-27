@@ -19,7 +19,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -33,6 +32,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -441,21 +441,25 @@ public class HadoopInputFormatIO {
         return ImmutableList.of((BoundedSource<KV<K, V>>) this);
       }
       computeSplitsIfNecessary();
-      LOG.info("Generated {} splits. Size of first split is {} ", inputSplits.size(), inputSplits
-          .get(0).getSplit().getLength());
-      return Lists.transform(
-          inputSplits,
-          serializableInputSplit -> {
-            HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
-                new HadoopInputFormatBoundedSource<>(
-                    conf,
-                    keyCoder,
-                    valueCoder,
-                    keyTranslationFunction,
-                    valueTranslationFunction,
-                    serializableInputSplit);
-            return hifBoundedSource;
-          });
+      LOG.info(
+          "Generated {} splits. Size of first split is {} ",
+          inputSplits.size(),
+          inputSplits.get(0).getSplit().getLength());
+      return inputSplits
+          .stream()
+          .map(
+              serializableInputSplit -> {
+                HadoopInputFormatBoundedSource<K, V> hifBoundedSource =
+                    new HadoopInputFormatBoundedSource<>(
+                        conf,
+                        keyCoder,
+                        valueCoder,
+                        keyTranslationFunction,
+                        valueTranslationFunction,
+                        serializableInputSplit);
+                return hifBoundedSource;
+              })
+          .collect(Collectors.toList());
     }
 
     @Override

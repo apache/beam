@@ -97,7 +97,7 @@ public class DirectStreamObserverTest {
         new DirectStreamObserver<>(
             phaser,
             TestStreams.withOnNext((String t) -> assertTrue(elementsAllowed.get()))
-                .withIsReady(() -> elementsAllowed.get())
+                .withIsReady(elementsAllowed::get)
                 .build());
 
     // Start all the tasks

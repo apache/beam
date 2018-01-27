@@ -705,7 +705,7 @@ public class KafkaIO {
 
     // default Kafka 0.9 Consumer supplier.
     private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
-        KAFKA_CONSUMER_FACTORY_FN = config -> new KafkaConsumer<>(config);
+        KAFKA_CONSUMER_FACTORY_FN = KafkaConsumer::new;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -831,8 +831,7 @@ public class KafkaIO {
         }
       }
 
-      Collections.sort(
-          partitions,
+      partitions.sort(
           (tp1, tp2) ->
               ComparisonChain.start()
                   .compare(tp1.topic(), tp2.topic())
@@ -1059,7 +1058,10 @@ public class KafkaIO {
       List<TopicPartition> partitions = source.spec.getTopicPartitions();
       partitionStates =
           ImmutableList.copyOf(
-              Lists.transform(partitions, tp -> new PartitionState(tp, UNINITIALIZED_OFFSET)));
+              partitions
+                  .stream()
+                  .map(tp -> new PartitionState(tp, UNINITIALIZED_OFFSET))
+                  .collect(Collectors.toList()));
 
       if (checkpointMark != null) {
         // a) verify that assigned and check-pointed partitions match exactly
@@ -1247,7 +1249,7 @@ public class KafkaIO {
 
       // Start consumer read loop.
       // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
-      consumerPollThread.submit(() -> consumerPollLoop());
+      consumerPollThread.submit(this::consumerPollLoop);
 
       // offsetConsumer setup :
 
@@ -1263,7 +1265,7 @@ public class KafkaIO {
       consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
 
       offsetFetcherThread.scheduleAtFixedRate(
-          () -> updateLatestOffsets(), 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
+          this::updateLatestOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
       nextBatch();
       return advance();
@@ -1397,12 +1399,12 @@ public class KafkaIO {
     public CheckpointMark getCheckpointMark() {
       reportBacklog();
       return new KafkaCheckpointMark(
-        partitionStates.stream()
-            .map((p) -> new PartitionMark(p.topicPartition.topic(),
-                                          p.topicPartition.partition(),
-                                          p.nextOffset))
-            .collect(Collectors.toList()),
-        source.spec.isCommitOffsetsInFinalizeEnabled() ? this : null
+              partitionStates.stream()
+                      .map((p) -> new PartitionMark(p.topicPartition.topic(),
+                              p.topicPartition.partition(),
+                              p.nextOffset))
+                      .collect(Collectors.toList()),
+              source.spec.isCommitOffsetsInFinalizeEnabled() ? this : null
       );
     }
 
@@ -2165,7 +2167,7 @@ public class KafkaIO {
             // might be problematic in extreme cases. Might need to improve it in future.
 
             List<KV<Long, KV<K, V>>> buffered = Lists.newArrayList(oooBufferState.read());
-            Collections.sort(buffered, new KV.OrderByKey<>());
+            buffered.sort(new KV.OrderByKey<>());
 
             LOG.info("{} : merging {} buffered records (min buffered id is {}).",
                      shard, buffered.size(), minBufferedId);
@@ -2405,7 +2407,7 @@ public class KafkaIO {
 
         // run cache.cleanUp() every 10 seconds.
         SCHEDULED_CLEAN_UP_THREAD.scheduleAtFixedRate(
-            () -> cache.cleanUp(),
+            cache::cleanUp,
             CLEAN_UP_CHECK_INTERVAL_MS,
             CLEAN_UP_CHECK_INTERVAL_MS,
             TimeUnit.MILLISECONDS);

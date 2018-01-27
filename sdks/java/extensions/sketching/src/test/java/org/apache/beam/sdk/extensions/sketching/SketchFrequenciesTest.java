@@ -79,7 +79,7 @@ public class SketchFrequenciesTest implements Serializable {
     Coder<Long> coder = stream.getCoder();
 
     PAssert.thatSingleton("Verify number of hits", sketch)
-            .satisfies(new VerifyStreamFrequencies<Long>(coder, distinctElems, frequencies));
+            .satisfies(new VerifyStreamFrequencies<>(coder, distinctElems, frequencies));
 
     tp.run();
   }
@@ -98,7 +98,7 @@ public class SketchFrequenciesTest implements Serializable {
     Coder<Long> coder = stream.getCoder();
 
     PAssert.thatSingleton("Verify number of hits", sketch)
-            .satisfies(new VerifyStreamFrequencies<Long>(coder, distinctElems, frequencies));
+            .satisfies(new VerifyStreamFrequencies<>(coder, distinctElems, frequencies));
 
     tp.run();
   }
@@ -162,7 +162,7 @@ public class SketchFrequenciesTest implements Serializable {
     }
 
     CoderProperties.<Sketch<Integer>>coderDecodeEncodeEqual(
-            new SketchFrequencies.CountMinSketchCoder<Integer>(), cMSketch);
+            new SketchFrequencies.CountMinSketchCoder<>(), cMSketch);
   }
 
   @Test

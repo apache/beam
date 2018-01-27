@@ -23,7 +23,6 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
@@ -110,8 +109,8 @@ public class BeamAggregationTransforms implements Serializable{
       BeamRecordSqlType typeOfKey = exTypeOfKeyRecord(BeamSqlRecordHelper.getSqlRecordType(input));
 
       List<Object> fieldValues = new ArrayList<>(groupByKeys.size());
-      for (int idx = 0; idx < groupByKeys.size(); ++idx) {
-        fieldValues.add(input.getFieldValue(groupByKeys.get(idx)));
+      for (Integer groupByKey : groupByKeys) {
+        fieldValues.add(input.getFieldValue(groupByKey));
       }
 
       BeamRecord keyOfRecord = new BeamRecord(typeOfKey, fieldValues);
@@ -238,9 +237,8 @@ public class BeamAggregationTransforms implements Serializable{
       AggregationAccumulator deltaAcc = new AggregationAccumulator();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
         List accs = new ArrayList<>();
-        Iterator<AggregationAccumulator> ite = accumulators.iterator();
-        while (ite.hasNext()) {
-          accs.add(ite.next().accumulatorElements.get(idx));
+        for (AggregationAccumulator accumulator : accumulators) {
+          accs.add(accumulator.accumulatorElements.get(idx));
         }
         deltaAcc.accumulatorElements.add(aggregators.get(idx).mergeAccumulators(accs));
       }

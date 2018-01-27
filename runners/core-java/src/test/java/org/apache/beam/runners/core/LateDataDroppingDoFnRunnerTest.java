@@ -78,17 +78,23 @@ public class LateDataDroppingDoFnRunnerTest {
         createDatum(16, 16L),
         createDatum(18, 18L));
     assertThat(expected, containsInAnyOrder(Iterables.toArray(actual, WindowedValue.class)));
-    long droppedValues = container.getCounter(
-        MetricName.named(LateDataDroppingDoFnRunner.class,
-            LateDataDroppingDoFnRunner.DROPPED_DUE_TO_LATENESS))
-        .getCumulative().longValue();
+    long droppedValues =
+        container
+            .getCounter(
+                MetricName.named(
+                    LateDataDroppingDoFnRunner.class,
+                    LateDataDroppingDoFnRunner.DROPPED_DUE_TO_LATENESS))
+            .getCumulative();
     assertEquals(1, droppedValues);
     // Ensure that reiterating returns the same results and doesn't increment the counter again.
     assertThat(expected, containsInAnyOrder(Iterables.toArray(actual, WindowedValue.class)));
-    droppedValues = container.getCounter(
-        MetricName.named(LateDataDroppingDoFnRunner.class,
-            LateDataDroppingDoFnRunner.DROPPED_DUE_TO_LATENESS))
-        .getCumulative().longValue();
+    droppedValues =
+        container
+            .getCounter(
+                MetricName.named(
+                    LateDataDroppingDoFnRunner.class,
+                    LateDataDroppingDoFnRunner.DROPPED_DUE_TO_LATENESS))
+            .getCumulative();
     assertEquals(1, droppedValues);
   }
 
