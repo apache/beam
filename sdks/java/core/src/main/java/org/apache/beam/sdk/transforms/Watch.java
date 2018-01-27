@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -1001,7 +1002,9 @@ public class Watch {
       this.pending =
           Lists.newLinkedList(
               Ordering.natural()
-                  .onResultOf((TimestampedValue<OutputT> output) -> output.getTimestamp())
+                  .onResultOf(
+                      (Function<TimestampedValue<OutputT>, Comparable>)
+                          TimestampedValue::getTimestamp)
                   .sortedCopy(newPending.values()));
       // If poll result doesn't provide a watermark, assume that future new outputs may
       // arrive with about the same timestamps as the current new outputs.

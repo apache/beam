@@ -219,7 +219,7 @@ public class FileSystems {
    */
   public static List<MatchResult> matchResources(List<ResourceId> resourceIds) throws IOException {
     return match(
-        FluentIterable.from(resourceIds).transform(resourceId -> resourceId.toString()).toList());
+        FluentIterable.from(resourceIds).transform(ResourceId::toString).toList());
   }
 
   /**
@@ -431,7 +431,7 @@ public class FileSystems {
     Set<String> schemes =
         FluentIterable.from(srcResourceIds)
             .append(destResourceIds)
-            .transform(resourceId -> resourceId.getScheme())
+            .transform(ResourceId::getScheme)
             .toSet();
     checkArgument(
         schemes.size() == 1,
@@ -442,7 +442,7 @@ public class FileSystems {
 
   private static String getOnlyScheme(List<String> specs) {
     checkArgument(!specs.isEmpty(), "Expect specs are not empty.");
-    Set<String> schemes = FluentIterable.from(specs).transform(spec -> parseScheme(spec)).toSet();
+    Set<String> schemes = FluentIterable.from(specs).transform(FileSystems::parseScheme).toSet();
     return Iterables.getOnlyElement(schemes);
   }
 

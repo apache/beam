@@ -193,10 +193,10 @@ public class FileBasedSinkTest {
 
     List<FileResult<Void>> fileResults = new ArrayList<>();
     // Create temporary output bundles and output File objects.
-    for (int i = 0; i < numFiles; i++) {
+    for (File temporaryFile : temporaryFiles) {
       fileResults.add(
           new FileResult<>(
-              LocalResources.fromFile(temporaryFiles.get(i), false),
+              LocalResources.fromFile(temporaryFile, false),
               UNKNOWN_SHARDNUM,
               GlobalWindow.INSTANCE,
               PaneInfo.ON_TIME_AND_ONLY_FIRING,

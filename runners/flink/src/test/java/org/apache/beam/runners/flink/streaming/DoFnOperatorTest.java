@@ -277,9 +277,7 @@ public class DoFnOperatorTest {
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
-            doFnOperator,
-            integerWindowedValue -> integerWindowedValue.getValue(),
-            new CoderTypeInformation<>(VarIntCoder.of()));
+            doFnOperator, WindowedValue::getValue, new CoderTypeInformation<>(VarIntCoder.of()));
 
     testHarness.setup(new CoderTypeSerializer<>(outputCoder));
 
@@ -360,9 +358,7 @@ public class DoFnOperatorTest {
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
-            doFnOperator,
-            integerWindowedValue -> integerWindowedValue.getValue(),
-            new CoderTypeInformation<>(VarIntCoder.of()));
+            doFnOperator, WindowedValue::getValue, new CoderTypeInformation<>(VarIntCoder.of()));
 
     testHarness.open();
 

@@ -41,7 +41,6 @@ import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -479,16 +478,12 @@ public class SpannerIOWriteTest implements Serializable {
       Map<String, List<byte[]>> map = new HashMap<>();
       for (Mutation m : mutations) {
         String table = m.getTable();
-        List<byte[]> list = map.get(table);
-        if (list == null) {
-          list = new ArrayList<>();
-          map.put(table, list);
-        }
+        List<byte[]> list = map.computeIfAbsent(table, k -> new ArrayList<>());
         list.add(coder.encodeKey(m));
       }
       List<KV<String, List<byte[]>>> result = new ArrayList<>();
       for (Map.Entry<String, List<byte[]>> entry : map.entrySet()) {
-        Collections.sort(entry.getValue(), SpannerIO.SerializableBytesComparator.INSTANCE);
+        entry.getValue().sort(SpannerIO.SerializableBytesComparator.INSTANCE);
         result.add(KV.of(entry.getKey(), entry.getValue()));
       }
       return input.getPipeline().apply(Create.of(result));

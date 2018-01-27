@@ -565,8 +565,7 @@ public class Create<T> {
           coder = input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
         } else {
           Iterable<T> rawElements =
-              Iterables.transform(
-                  timestampedElements, timestampedValue -> timestampedValue.getValue());
+              Iterables.transform(timestampedElements, TimestampedValue::getValue);
           coder = getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
         }
 

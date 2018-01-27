@@ -72,10 +72,10 @@ public class ReflectHelpers {
   };
 
   /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_NAME = input -> input.getName();
+  public static final Function<Class<?>, String> CLASS_NAME = Class::getName;
 
   /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_SIMPLE_NAME = input -> input.getSimpleName();
+  public static final Function<Class<?>, String> CLASS_SIMPLE_NAME = Class::getSimpleName;
 
   /** A {@link Function} that returns a concise string for a {@link Annotation}. */
   public static final Function<Annotation, String> ANNOTATION_FORMATTER =
@@ -176,7 +176,7 @@ public class ReflectHelpers {
   public static Iterable<Method> getClosureOfMethodsOnInterfaces(
       Iterable<? extends Class<?>> interfaces) {
     return FluentIterable.from(interfaces)
-        .transformAndConcat(input -> getClosureOfMethodsOnInterface(input));
+        .transformAndConcat(ReflectHelpers::getClosureOfMethodsOnInterface);
   }
 
   /**

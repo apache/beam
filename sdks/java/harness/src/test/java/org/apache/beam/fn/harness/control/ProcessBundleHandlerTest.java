@@ -197,35 +197,37 @@ public class ProcessBundleHandlerTest {
             .build();
     Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
-    ProcessBundleHandler handler = new ProcessBundleHandler(
-        PipelineOptionsFactory.create(),
-        fnApiRegistry::get,
-        beamFnDataClient,
-        null /* beamFnStateGrpcClientCache */,
-        ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
-          @Override
-          public Object createRunnerForPTransform(
-              PipelineOptions pipelineOptions,
-              BeamFnDataClient beamFnDataClient,
-              BeamFnStateClient beamFnStateClient,
-              String pTransformId,
-              PTransform pTransform,
-              Supplier<String> processBundleInstructionId,
-              Map<String, PCollection> pCollections,
-              Map<String, Coder> coders,
-              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-              Consumer<ThrowingRunnable> addStartFunction,
-              Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
-            thrown.expect(IllegalStateException.class);
-            thrown.expectMessage("TestException");
-            addStartFunction.accept(ProcessBundleHandlerTest::throwException);
-            return null;
-          }
-        }));
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            null /* beamFnStateGrpcClientCache */,
+            ImmutableMap.of(
+                DATA_INPUT_URN,
+                (PTransformRunnerFactory<Object>)
+                    (pipelineOptions,
+                        beamFnDataClient,
+                        beamFnStateClient,
+                        pTransformId,
+                        pTransform,
+                        processBundleInstructionId,
+                        pCollections,
+                        coders,
+                        windowingStrategies,
+                        pCollectionIdsToConsumers,
+                        addStartFunction,
+                        addFinishFunction) -> {
+                      thrown.expect(IllegalStateException.class);
+                      thrown.expectMessage("TestException");
+                      addStartFunction.accept(ProcessBundleHandlerTest::throwException);
+                      return null;
+                    }));
     handler.processBundle(
-        BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
-            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorReference("1L"))
             .build());
   }
 
@@ -239,32 +241,32 @@ public class ProcessBundleHandlerTest {
             .build();
     Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
 
-    ProcessBundleHandler handler = new ProcessBundleHandler(
-        PipelineOptionsFactory.create(),
-        fnApiRegistry::get,
-        beamFnDataClient,
-        null /* beamFnStateGrpcClientCache */,
-        ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
-          @Override
-          public Object createRunnerForPTransform(
-              PipelineOptions pipelineOptions,
-              BeamFnDataClient beamFnDataClient,
-              BeamFnStateClient beamFnStateClient,
-              String pTransformId,
-              PTransform pTransform,
-              Supplier<String> processBundleInstructionId,
-              Map<String, PCollection> pCollections,
-              Map<String, Coder> coders,
-              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-              Consumer<ThrowingRunnable> addStartFunction,
-              Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
-            thrown.expect(IllegalStateException.class);
-            thrown.expectMessage("TestException");
-            addFinishFunction.accept(ProcessBundleHandlerTest::throwException);
-            return null;
-          }
-        }));
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            null /* beamFnStateGrpcClientCache */,
+            ImmutableMap.of(
+                DATA_INPUT_URN,
+                (PTransformRunnerFactory<Object>)
+                    (pipelineOptions,
+                        beamFnDataClient,
+                        beamFnStateClient,
+                        pTransformId,
+                        pTransform,
+                        processBundleInstructionId,
+                        pCollections,
+                        coders,
+                        windowingStrategies,
+                        pCollectionIdsToConsumers,
+                        addStartFunction,
+                        addFinishFunction) -> {
+                      thrown.expect(IllegalStateException.class);
+                      thrown.expectMessage("TestException");
+                      addFinishFunction.accept(ProcessBundleHandlerTest::throwException);
+                      return null;
+                    }));
     handler.processBundle(
         BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
             BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
@@ -297,21 +299,21 @@ public class ProcessBundleHandlerTest {
                   (StateRequest.Builder) invocation.getArguments()[0];
               CompletableFuture<StateResponse> completableFuture =
                   (CompletableFuture<StateResponse>) invocation.getArguments()[1];
-              new Thread() {
-                @Override
-                public void run() {
-                  // Simulate sleeping which introduces a race which most of the time requires
-                  // the ProcessBundleHandler to block.
-                  Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
-                  switch (stateRequestBuilder.getInstructionReference()) {
-                    case "SUCCESS":
-                      completableFuture.complete(StateResponse.getDefaultInstance());
-                      break;
-                    case "FAIL":
-                      completableFuture.completeExceptionally(new RuntimeException("TEST ERROR"));
-                  }
-                }
-              }.start();
+              new Thread(
+                      () -> {
+                        // Simulate sleeping which introduces a race which most of the time requires
+                        // the ProcessBundleHandler to block.
+                        Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
+                        switch (stateRequestBuilder.getInstructionReference()) {
+                          case "SUCCESS":
+                            completableFuture.complete(StateResponse.getDefaultInstance());
+                            break;
+                          case "FAIL":
+                            completableFuture.completeExceptionally(
+                                new RuntimeException("TEST ERROR"));
+                        }
+                      })
+                  .start();
               return null;
             })
         .when(mockBeamFnStateClient)

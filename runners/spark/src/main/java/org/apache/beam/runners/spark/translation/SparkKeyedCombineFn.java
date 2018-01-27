@@ -18,13 +18,13 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.transforms.CombineWithContext;
@@ -38,8 +38,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
-
-
 
 /**
  * A {@link org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn}
@@ -264,17 +262,15 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
   }
 
   Iterable<WindowedValue<OutputT>> extractOutput(Iterable<WindowedValue<KV<K, AccumT>>> wkvas) {
-    return Iterables.transform(wkvas,
-        new Function<WindowedValue<KV<K, AccumT>>, WindowedValue<OutputT>>() {
-          @Nullable
-          @Override
-          public WindowedValue<OutputT> apply(@Nullable WindowedValue<KV<K, AccumT>> wkva) {
-            if (wkva == null) {
-              return null;
-            }
-            AccumT accumulator = wkva.getValue().getValue();
-            return wkva.withValue(combineFn.extractOutput(accumulator, ctxtForInput(wkva)));
-          }
-        });
+    return StreamSupport.stream(wkvas.spliterator(), false)
+        .map(
+            wkva -> {
+              if (wkva == null) {
+                return null;
+              }
+              AccumT accumulator = wkva.getValue().getValue();
+              return wkva.withValue(combineFn.extractOutput(accumulator, ctxtForInput(wkva)));
+            })
+        .collect(Collectors.toList());
   }
 }

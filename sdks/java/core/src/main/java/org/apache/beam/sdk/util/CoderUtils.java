@@ -41,15 +41,9 @@ public final class CoderUtils {
   private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>>
       threadLocalOutputStream = new ThreadLocal<>();
 
-  /**
-   * If true, a call to {@code encodeToByteArray} is already on the call stack.
-   */
-  private static ThreadLocal<Boolean> threadLocalOutputStreamInUse = new ThreadLocal<Boolean>() {
-    @Override
-    protected Boolean initialValue() {
-      return false;
-    }
-  };
+  /** If true, a call to {@code encodeToByteArray} is already on the call stack. */
+  private static ThreadLocal<Boolean> threadLocalOutputStreamInUse =
+      ThreadLocal.withInitial(() -> false);
 
   /**
    * Encodes the given value using the specified Coder, and returns

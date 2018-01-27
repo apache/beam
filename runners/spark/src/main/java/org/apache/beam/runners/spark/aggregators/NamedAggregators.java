@@ -59,7 +59,7 @@ public class NamedAggregators implements Serializable {
    * @return a map of all the aggregator names and their <b>rendered </b>values
    */
   public Map<String, ?> renderAll() {
-    return ImmutableMap.copyOf(Maps.transformValues(mNamedAggregators, state -> state.render()));
+    return ImmutableMap.copyOf(Maps.transformValues(mNamedAggregators, State::render));
   }
 
   /**
@@ -73,12 +73,7 @@ public class NamedAggregators implements Serializable {
     for (Map.Entry<String, State<?, ?, ?>> e : other.mNamedAggregators.entrySet()) {
       String key = e.getKey();
       State<?, ?, ?> otherValue = e.getValue();
-      State<?, ?, ?> value = mNamedAggregators.get(key);
-      if (value == null) {
-        mNamedAggregators.put(key, otherValue);
-      } else {
-        mNamedAggregators.put(key, merge(value, otherValue));
-      }
+      mNamedAggregators.merge(key, otherValue, NamedAggregators::merge);
     }
     return this;
   }

@@ -26,7 +26,6 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -39,6 +38,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -731,16 +732,17 @@ public class GroupByKeyTest implements Serializable {
         final Iterable<T> iterable,
         final Coder<T> coder) {
 
-      return Iterables.transform(
-          iterable,
-          input -> {
-            try {
-              return coder.structuralValue(input);
-            } catch (Exception e) {
-              Assert.fail("Could not structural values.");
-              throw new RuntimeException(); // to satisfy the compiler...
-            }
-          });
+      return StreamSupport.stream(iterable.spliterator(), false)
+          .map(
+              input -> {
+                try {
+                  return coder.structuralValue(input);
+                } catch (Exception e) {
+                  Assert.fail("Could not structural values.");
+                  throw new RuntimeException(); // to satisfy the compiler...
+                }
+              })
+          .collect(Collectors.toList());
     }
     @Override
     public Void apply(Iterable<BadEqualityKey> input) {

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -467,20 +466,23 @@ public abstract class DoFnSignature {
      * they are each scoped to a single window.
      */
     public boolean observesWindow() {
-      return Iterables.any(
-          extraParameters(),
-          Predicates.or(
-              Predicates.instanceOf(WindowParameter.class),
-              Predicates.instanceOf(TimerParameter.class),
-              Predicates.instanceOf(StateParameter.class)));
+      return extraParameters()
+          .stream()
+          .anyMatch(
+              Predicates.or(
+                      Predicates.instanceOf(WindowParameter.class),
+                      Predicates.instanceOf(TimerParameter.class),
+                      Predicates.instanceOf(StateParameter.class))
+                  ::apply);
     }
 
     /**
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return Iterables.any(
-          extraParameters(), Predicates.instanceOf(RestrictionTrackerParameter.class));
+      return extraParameters()
+          .stream()
+          .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
   }
 

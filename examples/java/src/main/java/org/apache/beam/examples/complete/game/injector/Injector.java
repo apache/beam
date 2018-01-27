@@ -420,16 +420,15 @@ class Injector {
         publishDataToFile(fileName, numMessages, delayInMillis);
       } else { // Write to PubSub.
         // Start a thread to inject some data.
-        new Thread(){
-          @Override
-          public void run() {
-            try {
-              publishData(numMessages, delayInMillis);
-            } catch (IOException e) {
-              System.err.println(e);
-            }
-          }
-        }.start();
+        new Thread(
+                () -> {
+                  try {
+                    publishData(numMessages, delayInMillis);
+                  } catch (IOException e) {
+                    System.err.println(e);
+                  }
+                })
+            .start();
       }
 
       // Wait before creating another injector thread.
