@@ -26,11 +26,10 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
+
 import javax.sql.DataSource;
 
 import org.apache.beam.sdk.coders.KvCoder;
@@ -51,7 +50,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -70,6 +68,8 @@ public class JdbcIOTest implements Serializable {
 
   private static int port;
   private static String readTableName;
+  private static String writeTableName;
+  private static String writeIterableTableName;
 
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
@@ -116,8 +116,12 @@ public class JdbcIOTest implements Serializable {
     dataSource.setPortNumber(port);
 
     readTableName = DatabaseTestHelper.getTestTableName("UT_READ");
+    writeTableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    writeIterableTableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ITERABLE");
 
     DatabaseTestHelper.createTable(dataSource, readTableName);
+    DatabaseTestHelper.createTable(dataSource, writeTableName);
+    DatabaseTestHelper.createTable(dataSource, writeIterableTableName);
     addInitialData(dataSource, readTableName);
   }
 
@@ -125,6 +129,8 @@ public class JdbcIOTest implements Serializable {
   public static void shutDownDatabase() throws Exception {
     try {
       DatabaseTestHelper.deleteTable(dataSource, readTableName);
+      DatabaseTestHelper.deleteTable(dataSource, writeTableName);
+      DatabaseTestHelper.deleteTable(dataSource, writeIterableTableName);
     } finally {
       if (derbyServer != null) {
         derbyServer.shutdown();
@@ -255,47 +261,31 @@ public class JdbcIOTest implements Serializable {
 
   @Test
   public void testWrite() throws Exception {
-    final long rowsToAdd = 1000L;
+    final int rowsToAdd = EXPECTED_ROW_COUNT;
+    //String sql = "merge into %s as dest \n"
+    //        + "using %s as source \n"
+    //        + "on (dest.id=?) \n"
+    //        + "when not matched then insert values (?, ?)";
+    // This insert statement should be a merge statement, but that generates a
+    // NullPointerException in the Derby server
+    String sql = "insert into %s values(?, ?)";
 
-    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
-    DatabaseTestHelper.createTable(dataSource, tableName);
-    try {
-      ArrayList<KV<Integer, String>> data = new ArrayList<>();
-      for (int i = 0; i < rowsToAdd; i++) {
-        KV<Integer, String> kv = KV.of(i, "Test");
-        data.add(kv);
-      }
-      pipeline.apply(Create.of(data))
-          .apply(JdbcIO.<KV<Integer, String>>write()
-              .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
-                  "org.apache.derby.jdbc.ClientDriver",
-                  "jdbc:derby://localhost:" + port + "/target/beam"))
-              .withStatement(String.format("insert into %s values(?, ?)", tableName))
-              .withPreparedStatementSetter(
-                  new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
-                public void setParameters(
-                    KV<Integer, String> element, PreparedStatement statement) throws Exception {
-                  statement.setInt(1, element.getKey());
-                  statement.setString(2, element.getValue());
-                }
-              }));
+    pipeline.apply(Create.of(createTestDataForWrite(rowsToAdd)))
+        .apply(JdbcIO.<KV<Integer, String>>write()
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+            .withStatement(String.format(sql, writeTableName))
+            .withBatchSize(1000L)
+            .withPreparedStatementSetter(
+                new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
+              public void setParameters(
+                  KV<Integer, String> element, PreparedStatement statement) throws Exception {
+                statement.setInt(1, element.getKey());
+                statement.setString(2, element.getValue());
+              }
+            }));
 
-      pipeline.run();
-
-      try (Connection connection = dataSource.getConnection()) {
-        try (Statement statement = connection.createStatement()) {
-          try (ResultSet resultSet = statement.executeQuery("select count(*) from "
-                + tableName)) {
-            resultSet.next();
-            int count = resultSet.getInt(1);
-
-            Assert.assertEquals(EXPECTED_ROW_COUNT, count);
-          }
-        }
-      }
-    } finally {
-      DatabaseTestHelper.deleteTable(dataSource, tableName);
-    }
+    pipeline.run();
+    verifyWriteResults(writeTableName);
   }
 
   @Test
@@ -303,9 +293,7 @@ public class JdbcIOTest implements Serializable {
     pipeline
         .apply(Create.empty(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
         .apply(JdbcIO.<KV<Integer, String>>write()
-            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
-                "org.apache.derby.jdbc.ClientDriver",
-                "jdbc:derby://localhost:" + port + "/target/beam"))
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
             .withStatement("insert into BEAM values(?, ?)")
             .withPreparedStatementSetter(new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
               public void setParameters(KV<Integer, String> element, PreparedStatement statement)
@@ -336,50 +324,58 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
-  public void testWriteIterator() throws Exception {
-    final long rowsToAdd = 1000L;
+  public void testWriteIterable() throws Exception {
+    final int rowsToAdd = EXPECTED_ROW_COUNT;
+    // This insert statement should be a merge statement, but that generates an error
+    // in the Derby driver
+    String sql = "insert into %s values(?, ?)";
 
-    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_ITERATOR");
-    DatabaseTestHelper.createTable(dataSource, tableName);
-    try {
-      ArrayList<KV<Integer, String>> data = new ArrayList<>();
-      for (int i = 0; i < rowsToAdd; i++) {
-        KV<Integer, String> kv = KV.of(i, "Test");
-        data.add(kv);
-      }
-      pipeline.apply(Create.of(data))
-          .apply(ParDo.of(new ModuloTen()))
-          .apply(GroupByKey.<Integer, KV<Integer, String>> create())
-          .apply(ParDo.of(new GetValues()))
-          .apply(JdbcIO.<KV<Integer, String>>writeIterable()
-              .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
-                  "org.apache.derby.jdbc.ClientDriver",
-                  "jdbc:derby://localhost:" + port + "/target/beam"))
-              .withStatement(String.format("insert into %s values(?, ?)", tableName))
-              .withPreparedStatementSetter(
-                  new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
-                public void setParameters(
-                    KV<Integer, String> element, PreparedStatement statement) throws Exception {
-                  statement.setInt(1, element.getKey());
-                  statement.setString(2, element.getValue());
-                }
-              }));
+    pipeline.apply(Create.of(createTestDataForWrite(rowsToAdd)))
+        .apply(ParDo.of(new ModuloTen()))
+        .apply(GroupByKey.<Integer, KV<Integer, String>> create())
+        .apply(ParDo.of(new GetValues()))
+        .apply(JdbcIO.<KV<Integer, String>>writeIterable()
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+            .withStatement(String.format(sql, writeIterableTableName))
+            .withPreparedStatementSetter(
+                new JdbcIO.PreparedStatementSetter<KV<Integer, String>>() {
+              public void setParameters(
+                  KV<Integer, String> element, PreparedStatement statement) throws Exception {
+                statement.setInt(1, element.getKey());
+                statement.setString(2, element.getValue());
+              }
+            }));
 
-      pipeline.run();
+    pipeline.run();
+    verifyWriteResults(writeIterableTableName);
+  }
 
-      try (Connection connection = dataSource.getConnection()) {
-        try (Statement statement = connection.createStatement()) {
-          try (ResultSet resultSet = statement.executeQuery("select count(*) from "
-                + tableName)) {
-            resultSet.next();
-            int count = resultSet.getInt(1);
-
-            Assert.assertEquals(EXPECTED_ROW_COUNT, count);
-          }
-        }
-      }
-    } finally {
-      DatabaseTestHelper.deleteTable(dataSource, tableName);
+  private ArrayList<KV<Integer, String>> createTestDataForWrite(int rowsToAdd) {
+    ArrayList<KV<Integer, String>> data = new ArrayList<>();
+    for (int i = 0; i < rowsToAdd; i++) {
+      KV<Integer, String> kv = KV.of(i, "Testval" + i);
+      data.add(kv);
     }
+    return data;
+  }
+
+  private void verifyWriteResults(String tableName) {
+    PCollection<TestRow> rows = pipeline.apply(
+          JdbcIO.<TestRow>read()
+              .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+              // Distinct as merge statements do not work on the integrated Derby db
+              // and it is therefore possible that rows have been inserted multiple times
+              .withQuery("select distinct name,id from " + tableName)
+              .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+              .withCoder(SerializableCoder.of(TestRow.class)));
+
+    PAssert.thatSingleton(
+          rows.apply("Count All", Count.<TestRow>globally()))
+          .isEqualTo((long) EXPECTED_ROW_COUNT);
+
+    Iterable<TestRow> expectedValues = TestRow.getExpectedValues(0, EXPECTED_ROW_COUNT);
+    PAssert.that(rows).containsInAnyOrder(expectedValues);
+
+    pipeline.run();
   }
 }

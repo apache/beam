@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import java.io.Serializable;
 import java.sql.SQLException;
 import java.util.List;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -30,8 +31,11 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -65,7 +69,8 @@ public class JdbcIOIT {
 
   private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
-  private static String tableName;
+  private static String writeTableName;
+  private static String writeIterableTableName;
 
   @Rule
   public TestPipeline pipelineWrite = TestPipeline.create();
@@ -80,13 +85,16 @@ public class JdbcIOIT {
 
     numberOfRows = options.getNumberOfRecords();
     dataSource = DatabaseTestHelper.getPostgresDataSource(options);
-    tableName = DatabaseTestHelper.getTestTableName("IT");
-    DatabaseTestHelper.createTable(dataSource, tableName);
+    writeTableName = DatabaseTestHelper.getTestTableName("IT");
+    writeIterableTableName = DatabaseTestHelper.getTestTableName("IT_ITERABLE");
+    DatabaseTestHelper.createTable(dataSource, writeTableName);
+    DatabaseTestHelper.createTable(dataSource, writeIterableTableName);
   }
 
   @AfterClass
   public static void tearDown() throws SQLException {
-    DatabaseTestHelper.deleteTable(dataSource, tableName);
+    DatabaseTestHelper.deleteTable(dataSource, writeTableName);
+    DatabaseTestHelper.deleteTable(dataSource, writeIterableTableName);
   }
 
   /**
@@ -95,7 +103,16 @@ public class JdbcIOIT {
   @Test
   public void testWriteThenRead() {
     runWrite();
-    runRead();
+    runRead(writeTableName);
+  }
+
+  /**
+   * Tests writing iterables then reading data for a postgres database.
+   */
+  @Test
+  public void testWriteIterableThenRead() {
+    runWriteIterable();
+    runRead(writeTableName);
   }
 
   /**
@@ -111,7 +128,37 @@ public class JdbcIOIT {
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply(JdbcIO.<TestRow>write()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-            .withStatement(String.format("insert into %s values(?, ?)", tableName))
+            .withStatement(String.format("insert into %s values(?, ?)", writeTableName))
+            .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
+
+    pipelineWrite.run().waitUntilFinish();
+  }
+
+  static class ModuloTen
+        extends DoFn<TestRow, KV<Integer, TestRow>> {
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      context.output(KV.of(context.element().id() % 10, context.element()));
+    }
+  }
+  private static class GetValues
+        extends DoFn<KV<Integer, Iterable<TestRow>>, Iterable<TestRow>>
+        implements Serializable {
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      context.output(context.element().getValue());
+    }
+  }
+
+  private void runWriteIterable() {
+    pipelineWrite.apply(GenerateSequence.from(0).to(numberOfRows))
+        .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
+        .apply(ParDo.of(new ModuloTen()))
+        .apply(GroupByKey.<Integer, TestRow> create())
+        .apply(ParDo.of(new GetValues()))
+        .apply(JdbcIO.<TestRow>writeIterable()
+            .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+            .withStatement(String.format("insert into %s values(?, ?)", writeIterableTableName))
             .withPreparedStatementSetter(new JdbcTestHelper.PrepareStatementFromTestRow()));
 
     pipelineWrite.run().waitUntilFinish();
@@ -134,8 +181,10 @@ public class JdbcIOIT {
    * 2. Use containsInAnyOrder to verify that their values are correct.
    * Where first/last 500 rows is determined by the fact that we know all rows have a unique id - we
    * can use the natural ordering of that key.
+   *
+   * @param tableName The table to read and verify
    */
-  private void runRead() {
+  private void runRead(String tableName) {
     PCollection<TestRow> namesAndIds =
         pipelineRead.apply(JdbcIO.<TestRow>read()
         .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
