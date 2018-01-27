@@ -120,7 +120,7 @@ public class ApiSurface {
   public static Matcher<ApiSurface> containsOnlyPackages(final Set<String> packageNames) {
 
     final Function<String, Matcher<Class<?>>> packageNameToClassMatcher =
-        packageName -> classesInPackage(packageName);
+        ApiSurface::classesInPackage;
 
     final ImmutableSet<Matcher<Class<?>>> classesInPackages =
         FluentIterable.from(packageNames).transform(packageNameToClassMatcher).toSet();
@@ -183,7 +183,7 @@ public class ApiSurface {
         final Predicate<Matcher<Class<?>>> matchedByExposedClasses =
             classMatcher ->
                 FluentIterable.from(checkedApiSurface.getExposedClasses())
-                    .anyMatch(aClass -> classMatcher.matches(aClass));
+                    .anyMatch(classMatcher::matches);
 
         // </helper_lambdas>
 
@@ -215,8 +215,7 @@ public class ApiSurface {
 
         /* <helper_lambdas> */
 
-        final Function<Class<?>, List<Class<?>>> toExposure =
-            aClass -> checkedApiSurface.getAnyExposurePath(aClass);
+        final Function<Class<?>, List<Class<?>>> toExposure = checkedApiSurface::getAnyExposurePath;
 
         final Maps.EntryTransformer<Class<?>, List<Class<?>>, String> toMessage =
             (aClass, exposure) ->
@@ -481,7 +480,7 @@ public class ApiSurface {
     visited = Sets.newHashSet();
     exposedToExposers =
         Multimaps.newSetMultimap(
-            Maps.<Class<?>, Collection<Class<?>>>newHashMap(), () -> Sets.newHashSet());
+            Maps.<Class<?>, Collection<Class<?>>>newHashMap(), Sets::newHashSet);
 
     for (Class<?> clazz : rootClasses) {
       addExposedTypes(clazz, null);

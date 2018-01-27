@@ -37,6 +37,7 @@ import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -211,8 +212,8 @@ public class ApexYarnLauncher {
         ClassLoader classLoader = ApexYarnLauncher.class.getClassLoader();
         URL[] urls = ((URLClassLoader) classLoader).getURLs();
         List<File> dependencyJars = new ArrayList<>();
-        for (int i = 0; i < urls.length; i++) {
-          File f = new File(urls[i].getFile());
+        for (URL url : urls) {
+          File f = new File(url.getFile());
           // dependencies can also be directories in the build reactor,
           // the Apex client will automatically create jar files for those.
           if (f.exists() && !excludeJarFileNames.contains(f.getName())) {
@@ -363,11 +364,10 @@ public class ApexYarnLauncher {
         from.getClass(), to.getClass());
     Field[] fields = from.getClass().getDeclaredFields();
     AccessibleObject.setAccessible(fields, true);
-    for (int i = 0; i < fields.length; i++) {
-      Field field = fields[i];
-      if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+    for (Field field : fields) {
+      if (!Modifier.isStatic(field.getModifiers())) {
         try {
-          field.set(to,  field.get(from));
+          field.set(to, field.get(from));
         } catch (IllegalArgumentException | IllegalAccessException e) {
           throw new RuntimeException(e);
         }

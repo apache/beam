@@ -155,18 +155,19 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       DoFnInfo<InputT, OutputT> doFnInfo = (DoFnInfo) SerializableUtils.deserializeFromByteArray(
           serializedFn.toByteArray(), "DoFnInfo");
 
-        @SuppressWarnings({"unchecked", "rawtypes"})
-      DoFnRunner<InputT, OutputT> runner = new FnApiDoFnRunner<InputT, OutputT>(
-          pipelineOptions,
-          beamFnStateClient,
-          pTransformId,
-          processBundleInstructionId,
-          doFnInfo.getDoFn(),
-          doFnInfo.getInputCoder(),
-          (Collection<FnDataReceiver<WindowedValue<OutputT>>>) (Collection)
-              tagToOutputMap.get(doFnInfo.getMainOutput()),
-          tagToOutputMap,
-          doFnInfo.getWindowingStrategy());
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      DoFnRunner<InputT, OutputT> runner =
+          new FnApiDoFnRunner<>(
+              pipelineOptions,
+              beamFnStateClient,
+              pTransformId,
+              processBundleInstructionId,
+              doFnInfo.getDoFn(),
+              doFnInfo.getInputCoder(),
+              (Collection<FnDataReceiver<WindowedValue<OutputT>>>)
+                  (Collection) tagToOutputMap.get(doFnInfo.getMainOutput()),
+              tagToOutputMap,
+              doFnInfo.getWindowingStrategy());
 
       registerHandlers(
           runner, pTransform, addStartFunction, addFinishFunction, pCollectionIdsToConsumers);

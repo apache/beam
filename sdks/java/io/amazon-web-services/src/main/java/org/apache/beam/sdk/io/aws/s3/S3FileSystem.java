@@ -39,15 +39,12 @@ import com.amazonaws.services.s3.model.PartETag;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -151,18 +148,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   @Override
   protected List<MatchResult> match(List<String> specs) throws IOException {
     List<S3ResourceId> paths =
-        FluentIterable.from(specs)
-            .transform(
-                new Function<String, S3ResourceId>() {
-                  @Override
-                  public S3ResourceId apply(String spec) {
-                    return S3ResourceId.fromUri(spec);
-                  }
-                })
-            .toList();
-    List<S3ResourceId> globs = Lists.newArrayList();
-    List<S3ResourceId> nonGlobs = Lists.newArrayList();
-    List<Boolean> isGlobBooleans = Lists.newArrayList();
+        FluentIterable.from(specs).transform(spec -> S3ResourceId.fromUri(spec)).toList();
+    List<S3ResourceId> globs = new ArrayList<>();
+    List<S3ResourceId> nonGlobs = new ArrayList<>();
+    List<Boolean> isGlobBooleans = new ArrayList<>();
 
     for (S3ResourceId path : paths) {
       if (path.isWildcard()) {
@@ -200,13 +189,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   List<MatchResult> matchGlobPaths(Collection<S3ResourceId> globPaths) throws IOException {
     List<Callable<ExpandedGlob>> expandTasks = new ArrayList<>(globPaths.size());
     for (final S3ResourceId path : globPaths) {
-      expandTasks.add(
-          new Callable<ExpandedGlob>() {
-            @Override
-            public ExpandedGlob call() {
-              return expandGlob(path);
-            }
-          });
+      expandTasks.add(() -> expandGlob(path));
     }
 
     Map<S3ResourceId, ExpandedGlob> expandedGlobByGlobPath = new HashMap<>();
@@ -216,14 +199,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       expandedGlobByGlobPath.put(expandedGlob.getGlobPath(), expandedGlob);
       if (expandedGlob.getExpandedPaths() != null) {
         for (final S3ResourceId path : expandedGlob.getExpandedPaths()) {
-          contentTypeTasks.add(
-              new Callable<PathWithEncoding>() {
-                @Override
-                public PathWithEncoding call() {
-                  return getPathContentEncoding(path);
-                }
-              }
-          );
+          contentTypeTasks.add(() -> getPathContentEncoding(path));
         }
       }
     }
@@ -381,13 +357,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   private List<MatchResult> matchNonGlobPaths(Collection<S3ResourceId> paths) throws IOException {
     List<Callable<MatchResult>> tasks = new ArrayList<>(paths.size());
     for (final S3ResourceId path : paths) {
-      tasks.add(
-          new Callable<MatchResult>() {
-            @Override
-            public MatchResult call() {
-              return matchNonGlobPath(path);
-            }
-          });
+      tasks.add(() -> matchNonGlobPath(path));
     }
 
     return callTasks(tasks);
@@ -516,12 +486,9 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       final S3ResourceId destinationPath = destinationPathsIterator.next();
 
       tasks.add(
-          new Callable<Void>() {
-            @Override
-            public Void call() throws IOException {
-              copy(sourcePath, destinationPath);
-              return null;
-            }
+          () -> {
+            copy(sourcePath, destinationPath);
+            return null;
           });
     }
 
@@ -602,15 +569,10 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
 
   @Override
   protected void delete(Collection<S3ResourceId> resourceIds) throws IOException {
-    List<S3ResourceId> nonDirectoryPaths = FluentIterable
-        .from(resourceIds)
-        .filter(new Predicate<S3ResourceId>() {
-          @Override
-          public boolean apply(S3ResourceId s3ResourceId) {
-            return !s3ResourceId.isDirectory();
-          }
-        })
-        .toList();
+    List<S3ResourceId> nonDirectoryPaths =
+        FluentIterable.from(resourceIds)
+            .filter(s3ResourceId -> !s3ResourceId.isDirectory())
+            .toList();
     Multimap<String, String> keysByBucket = ArrayListMultimap.create();
     for (S3ResourceId path : nonDirectoryPaths) {
       keysByBucket.put(path.getBucket(), path.getKey());
@@ -621,12 +583,9 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
       for (final List<String> keysPartition
           : Iterables.partition(keysByBucket.get(bucket), MAX_DELETE_OBJECTS_PER_REQUEST)) {
         tasks.add(
-            new Callable<Void>() {
-              @Override
-              public Void call() throws IOException {
-                delete(bucket, keysPartition);
-                return null;
-              }
+            () -> {
+              delete(bucket, keysPartition);
+              return null;
             });
       }
     }
@@ -641,15 +600,7 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
         MAX_DELETE_OBJECTS_PER_REQUEST,
         keys.size());
     List<KeyVersion> deleteKeyVersions =
-        FluentIterable.from(keys)
-            .transform(
-                new Function<String, KeyVersion>() {
-                  @Override
-                  public KeyVersion apply(String key) {
-                    return new KeyVersion(key);
-                  }
-                })
-            .toList();
+        FluentIterable.from(keys).transform(key -> new KeyVersion(key)).toList();
     DeleteObjectsRequest request = new DeleteObjectsRequest(bucket).withKeys(deleteKeyVersions);
     try {
       amazonS3.deleteObjects(request);

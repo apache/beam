@@ -33,7 +33,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
@@ -42,6 +41,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -349,11 +350,19 @@ public class WatchTest implements Serializable {
                   byTimestamp.isOrdered(byValue.sortedCopy(outputs)));
               assertEquals(
                   "Yields all expected values",
-                  Sets.newHashSet(Iterables.transform(outputs, extractValueFn)).size(),
+                  Sets.newHashSet(
+                          StreamSupport.stream(outputs.spliterator(), false)
+                              .map(extractValueFn::apply)
+                              .collect(Collectors.toList()))
+                      .size(),
                   numResults);
               assertThat(
                   "Poll called more than once",
-                  Sets.newHashSet(Iterables.transform(outputs, extractTimestampFn)).size(),
+                  Sets.newHashSet(
+                          StreamSupport.stream(outputs.spliterator(), false)
+                              .map(extractTimestampFn::apply)
+                              .collect(Collectors.toList()))
+                      .size(),
                   greaterThan(1));
               return null;
             });

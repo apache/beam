@@ -477,7 +477,7 @@ public class ApproximateQuantiles {
     private void addUnbuffered(T elem) {
       unbufferedElements.add(elem);
       if (unbufferedElements.size() == bufferSize) {
-        Collections.sort(unbufferedElements, compareFn);
+        unbufferedElements.sort(compareFn);
         buffers.add(new QuantileBuffer<>(unbufferedElements));
         unbufferedElements = Lists.newArrayListWithCapacity(bufferSize);
         collapseIfNeeded();
@@ -605,7 +605,7 @@ public class ApproximateQuantiles {
       }
       List<QuantileBuffer<T>> all = Lists.newArrayList(buffers);
       if (!unbufferedElements.isEmpty()) {
-        Collections.sort(unbufferedElements, compareFn);
+        unbufferedElements.sort(compareFn);
         all.add(new QuantileBuffer<>(unbufferedElements));
       }
       double step = 1.0 * totalCount / (numQuantiles - 1);

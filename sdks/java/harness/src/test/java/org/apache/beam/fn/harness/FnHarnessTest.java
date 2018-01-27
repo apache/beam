@@ -66,15 +66,16 @@ public class FnHarnessTest {
 
     BeamFnLoggingGrpc.BeamFnLoggingImplBase loggingService =
         new BeamFnLoggingGrpc.BeamFnLoggingImplBase() {
-      @Override
-      public StreamObserver<BeamFnApi.LogEntry.List> logging(
-          StreamObserver<LogControl> responseObserver) {
-        return TestStreams.withOnNext(
-            (BeamFnApi.LogEntry.List entries) -> logEntries.addAll(entries.getLogEntriesList()))
-            .withOnCompleted(() -> responseObserver.onCompleted())
-            .build();
-      }
-    };
+          @Override
+          public StreamObserver<BeamFnApi.LogEntry.List> logging(
+              StreamObserver<LogControl> responseObserver) {
+            return TestStreams.withOnNext(
+                    (BeamFnApi.LogEntry.List entries) ->
+                        logEntries.addAll(entries.getLogEntriesList()))
+                .withOnCompleted(responseObserver::onCompleted)
+                .build();
+          }
+        };
 
     BeamFnControlGrpc.BeamFnControlImplBase controlService =
         new BeamFnControlGrpc.BeamFnControlImplBase() {

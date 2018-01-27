@@ -18,7 +18,6 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Function;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.util.concurrent.Futures;
@@ -26,7 +25,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
@@ -124,13 +122,8 @@ public class SdkHarnessClient {
       ListenableFuture<BeamFnApi.ProcessBundleResponse> specificResponse =
           Futures.transform(
               genericResponse,
-              new Function<BeamFnApi.InstructionResponse, BeamFnApi.ProcessBundleResponse>() {
-                @Override
-                public BeamFnApi.ProcessBundleResponse apply(
-                    BeamFnApi.InstructionResponse response) {
-                  return response.getProcessBundle();
-                }
-              }, MoreExecutors.directExecutor());
+              InstructionResponse::getProcessBundle,
+              MoreExecutors.directExecutor());
 
       return ActiveBundle.create(bundleId, specificResponse, dataReceiver);
     }
@@ -181,12 +174,7 @@ public class SdkHarnessClient {
     try {
       return clientProcessors.get(
           descriptor.getId(),
-          new Callable<BundleProcessor>() {
-            @Override
-            public BundleProcessor call() {
-              return register(Collections.singleton(descriptor)).get(descriptor.getId());
-            }
-          });
+              () -> register(Collections.singleton(descriptor)).get(descriptor.getId()));
     } catch (ExecutionException e) {
       throw new RuntimeException(e);
     }

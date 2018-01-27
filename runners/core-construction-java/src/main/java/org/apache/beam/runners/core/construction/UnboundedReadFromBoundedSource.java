@@ -31,6 +31,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -137,7 +138,10 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
         }
         List<? extends BoundedSource<T>> splits =
             boundedSource.split(desiredBundleSize, options);
-        return Lists.transform(splits, input -> new BoundedToUnboundedSourceAdapter<>(input));
+        return splits
+            .stream()
+            .map(input -> new BoundedToUnboundedSourceAdapter<>(input))
+            .collect(Collectors.toList());
       } catch (Exception e) {
         LOG.warn("Exception while splitting {}, skips the initial splits.", boundedSource, e);
         return ImmutableList.of(this);

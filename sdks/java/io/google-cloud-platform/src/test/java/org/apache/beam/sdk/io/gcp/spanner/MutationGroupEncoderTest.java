@@ -30,7 +30,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.primitives.UnsignedBytes;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import org.junit.Assert;
 import org.junit.Before;
@@ -547,7 +546,7 @@ public class MutationGroupEncoderTest {
       mutationEncodings.add(encoder.encodeKey(m));
     }
     List<byte[]> copy = new ArrayList<>(mutationEncodings);
-    Collections.sort(copy, UnsignedBytes.lexicographicalComparator());
+    copy.sort(UnsignedBytes.lexicographicalComparator());
 
     Assert.assertEquals(mutationEncodings, copy);
   }
@@ -559,7 +558,7 @@ public class MutationGroupEncoderTest {
       keyEncodings.add(encoder.encodeKey(table, k));
     }
     List<byte[]> copy = new ArrayList<>(keyEncodings);
-    Collections.sort(copy, UnsignedBytes.lexicographicalComparator());
+    copy.sort(UnsignedBytes.lexicographicalComparator());
 
     Assert.assertEquals(keyEncodings, copy);
   }
@@ -624,6 +623,6 @@ public class MutationGroupEncoderTest {
 
   // Pray for Java 8 support.
   private static Iterable<String> getNormalizedColumns(Mutation a) {
-    return Iterables.transform(a.getColumns(), input -> input.toLowerCase());
+    return Iterables.transform(a.getColumns(), String::toLowerCase);
   }
 }

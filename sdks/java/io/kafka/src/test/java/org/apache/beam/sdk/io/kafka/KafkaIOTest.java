@@ -1090,7 +1090,7 @@ public class KafkaIOTest {
     List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
 
     // sort by values
-    Collections.sort(sent, Comparator.comparingLong((o) -> o.value()));
+    sent.sort(Comparator.comparingLong(ProducerRecord::value));
 
     for (int i = 0; i < numElements; i++) {
       ProducerRecord<Integer, Long> record = sent.get(i);

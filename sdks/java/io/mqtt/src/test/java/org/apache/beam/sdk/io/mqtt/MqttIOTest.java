@@ -103,29 +103,27 @@ public class MqttIOTest {
     client.setHost("tcp://localhost:" + port);
     final BlockingConnection publishConnection = client.blockingConnection();
     publishConnection.connect();
-    Thread publisherThread = new Thread() {
-      public void run() {
-        try {
-          LOG.info("Waiting pipeline connected to the MQTT broker before sending "
-              + "messages ...");
-          boolean pipelineConnected = false;
-          while (!pipelineConnected) {
-            Thread.sleep(1000);
-            for (Connection connection : brokerService.getBroker().getClients()) {
-              if (!connection.getConnectionId().isEmpty()) {
-                pipelineConnected = true;
-              }
+    Thread publisherThread = new Thread(() -> {
+      try {
+        LOG.info("Waiting pipeline connected to the MQTT broker before sending "
+            + "messages ...");
+        boolean pipelineConnected = false;
+        while (!pipelineConnected) {
+          Thread.sleep(1000);
+          for (Connection connection : brokerService.getBroker().getClients()) {
+            if (!connection.getConnectionId().isEmpty()) {
+              pipelineConnected = true;
             }
           }
-          for (int i = 0; i < 10; i++) {
-            publishConnection.publish(topicName, ("This is test " + i).getBytes(),
-                QoS.EXACTLY_ONCE, false);
-          }
-        } catch (Exception e) {
-          // nothing to do
         }
+        for (int i = 0; i < 10; i++) {
+          publishConnection.publish(topicName, ("This is test " + i).getBytes(),
+              QoS.EXACTLY_ONCE, false);
+        }
+      } catch (Exception e) {
+        // nothing to do
       }
-    };
+    });
     publisherThread.start();
     pipeline.run();
 
@@ -162,29 +160,27 @@ public class MqttIOTest {
     client.setHost("tcp://localhost:" + port);
     final BlockingConnection publishConnection = client.blockingConnection();
     publishConnection.connect();
-    Thread publisherThread = new Thread() {
-      public void run() {
-        try {
-          LOG.info("Waiting pipeline connected to the MQTT broker before sending "
-              + "messages ...");
-          boolean pipelineConnected = false;
-          while (!pipelineConnected) {
-            Thread.sleep(1000);
-            for (Connection connection : brokerService.getBroker().getClients()) {
-              if (connection.getConnectionId().startsWith("READ_PIPELINE")) {
-                pipelineConnected = true;
-              }
+    Thread publisherThread = new Thread(() -> {
+      try {
+        LOG.info("Waiting pipeline connected to the MQTT broker before sending "
+            + "messages ...");
+        boolean pipelineConnected = false;
+        while (!pipelineConnected) {
+          Thread.sleep(1000);
+          for (Connection connection : brokerService.getBroker().getClients()) {
+            if (connection.getConnectionId().startsWith("READ_PIPELINE")) {
+              pipelineConnected = true;
             }
           }
-          for (int i = 0; i < 10; i++) {
-            publishConnection.publish("READ_TOPIC", ("This is test " + i).getBytes(),
-                QoS.EXACTLY_ONCE, false);
-          }
-        } catch (Exception e) {
-          // nothing to do
         }
+        for (int i = 0; i < 10; i++) {
+          publishConnection.publish("READ_TOPIC", ("This is test " + i).getBytes(),
+              QoS.EXACTLY_ONCE, false);
+        }
+      } catch (Exception e) {
+        // nothing to do
       }
-    };
+    });
     publisherThread.start();
     pipeline.run();
 
@@ -219,19 +215,17 @@ public class MqttIOTest {
 
     final Set<String> messages = new ConcurrentSkipListSet<>();
 
-    Thread subscriber = new Thread() {
-      public void run() {
-        try {
-          for (int i = 0; i < numberOfTestMessages; i++) {
-            Message message = connection.receive();
-            messages.add(new String(message.getPayload()));
-            message.ack();
-          }
-        } catch (Exception e) {
-          LOG.error("Can't receive message", e);
+    Thread subscriber = new Thread(() -> {
+      try {
+        for (int i = 0; i < numberOfTestMessages; i++) {
+          Message message = connection.receive();
+          messages.add(new String(message.getPayload()));
+          message.ack();
         }
+      } catch (Exception e) {
+        LOG.error("Can't receive message", e);
       }
-    };
+    });
     subscriber.start();
 
     ArrayList<byte[]> data = new ArrayList<>();

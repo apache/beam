@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
@@ -1420,16 +1421,25 @@ public class BigQueryIO {
 
       List<?> allToArgs = Lists.newArrayList(getJsonTableRef(), getTableFunction(),
           getDynamicDestinations());
-      checkArgument(1
-              == Iterables.size(Iterables.filter(allToArgs, Predicates.notNull())),
+      checkArgument(
+          1
+              == Iterables.size(
+                  allToArgs
+                      .stream()
+                      .filter(Predicates.notNull()::apply)
+                      .collect(Collectors.toList())),
           "Exactly one of jsonTableRef, tableFunction, or " + "dynamicDestinations must be set");
 
       List<?> allSchemaArgs = Lists.newArrayList(getJsonSchema(), getSchemaFromView(),
           getDynamicDestinations());
-      checkArgument(2
-              > Iterables.size(Iterables.filter(allSchemaArgs, Predicates.notNull())),
-          "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may "
-              + "be set");
+      checkArgument(
+          2
+              > Iterables.size(
+                  allSchemaArgs
+                      .stream()
+                      .filter(Predicates.notNull()::apply)
+                      .collect(Collectors.toList())),
+          "No more than one of jsonSchema, schemaFromView, or dynamicDestinations may " + "be set");
 
       Method method = resolveMethod(input);
       if (input.isBounded() == IsBounded.UNBOUNDED && method == Method.FILE_LOADS) {
