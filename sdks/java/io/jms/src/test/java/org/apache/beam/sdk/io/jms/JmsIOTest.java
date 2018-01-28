@@ -28,6 +28,7 @@ import com.google.common.base.Throwables;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
@@ -36,12 +37,14 @@ import javax.jms.MessageProducer;
 import javax.jms.QueueBrowser;
 import javax.jms.Session;
 import javax.jms.TextMessage;
+
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerPlugin;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -180,6 +183,44 @@ public class JmsIOTest {
   }
 
   @Test
+  public void testReadBytesMessages() throws Exception {
+
+    // produce message
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
+    BytesMessage message = session.createBytesMessage();
+    message.writeBytes("This Is A Test".getBytes());
+    producer.send(message);
+    producer.close();
+    session.close();
+    connection.close();
+
+    // read from the queue
+    PCollection<String> output = pipeline.apply(
+        JmsIO.<String>readMessage()
+            .withConnectionFactory(connectionFactory)
+            .withQueue(QUEUE)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withMaxNumRecords(1)
+            .withCoder(SerializableCoder.of(String.class))
+            .withMessageMapper(new BytesMessageToStringMessageMapper())
+    );
+
+    PAssert
+        .thatSingleton(output.apply("Count", Count.<String>globally()))
+        .isEqualTo(new Long(1));
+    pipeline.run();
+
+    connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+    Message msg = consumer.receiveNoWait();
+    assertNull(msg);
+  }
+
+  @Test
   public void testWriteMessage() throws Exception {
 
     ArrayList<String> data = new ArrayList<>();
@@ -304,6 +345,20 @@ public class JmsIOTest {
       count++;
     }
     return count;
+  }
+
+  /**
+   * A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}.
+   */
+  public static class BytesMessageToStringMessageMapper implements JmsIO.MessageMapper<String> {
+
+    @Override public String mapMessage(Message message) throws Exception {
+      BytesMessage bytesMessage = (BytesMessage) message;
+
+      byte[] bytes = new byte[(int) bytesMessage.getBodyLength()];
+
+      return new String(bytes);
+    }
   }
 
 }
