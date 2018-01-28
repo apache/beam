@@ -1469,6 +1469,7 @@
               <arg>-Xlint:-try</arg>
               <arg>-Xlint:-unchecked</arg>
               <arg>-Xlint:-varargs</arg>
+	      <arg>-parameters</arg>
               <!-- Uncomment the following args to display more warnings. -->
               <!-- -Xmaxwarns -->
               <!-- 10000 -->
