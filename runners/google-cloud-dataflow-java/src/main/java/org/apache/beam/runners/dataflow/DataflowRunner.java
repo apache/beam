@@ -25,6 +25,7 @@ import static org.apache.beam.runners.core.construction.PipelineResources.detect
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
+import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -260,7 +261,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(
-          DataflowRunner.class.getClassLoader()));
+          options, findClassLoader()));
       if (dataflowOptions.getFilesToStage().isEmpty()) {
         throw new IllegalArgumentException("No files to stage has been found.");
       } else {

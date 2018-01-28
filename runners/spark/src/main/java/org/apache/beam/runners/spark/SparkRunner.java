@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark;
 
 import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
@@ -126,7 +127,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     if (sparkOptions.getFilesToStage() == null) {
       sparkOptions.setFilesToStage(detectClassPathResourcesToStage(
-          SparkRunner.class.getClassLoader()));
+          options, findClassLoader()));
       LOG.info("PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "
               + "Enable logging at DEBUG level to see which files will be staged.",
