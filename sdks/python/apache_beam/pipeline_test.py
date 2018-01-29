@@ -323,7 +323,7 @@ class PipelineTest(unittest.TestCase):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r', ptransform)
 
-    def get_overrides():
+    def get_overrides(unused_pipeline_options):
       return [MyParDoOverride()]
 
     file_system_override_mock.side_effect = get_overrides
