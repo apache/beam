@@ -332,6 +332,10 @@ class Pipeline(object):
       return Pipeline.from_runner_api(
           self.to_runner_api(), self.runner, self._options).run(False)
 
+    if self._options.view_as(TypeOptions).runtime_type_check:
+      from apache_beam.typehints import typecheck
+      self.visit(typecheck.TypeCheckVisitor())
+
     if self._options.view_as(SetupOptions).save_main_session:
       # If this option is chosen, verify we can pickle the main session early.
       tmpdir = tempfile.mkdtemp()

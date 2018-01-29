@@ -201,6 +201,9 @@ class DataflowRunner(PipelineRunner):
       we could directly replace the coder instead of mutating the element type.
       """
 
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
       def visit_transform(self, transform_node):
         # Imported here to avoid circular dependencies.
         # pylint: disable=wrong-import-order, wrong-import-position
@@ -237,6 +240,9 @@ class DataflowRunner(PipelineRunner):
                   "Input to GroupByKey must be of Tuple or Any type. "
                   "Found %s for %s" % (element_type, pcoll))
           pcoll.element_type = coerce_to_kv_type(input_type)
+          key_type, value_type = pcoll.element_type.tuple_types
+          transform_node.outputs[None].element_type = typehints.KV[
+              key_type, typehints.Iterable[value_type]]
 
     return GroupByKeyInputVisitor()
 
