@@ -43,8 +43,8 @@ job('beam_PerformanceTests_JDBC'){
     parameters {
         nodeParam('TEST_HOST') {
             description('select beam2 test host')
-            defaultNodes(['beam3'])
-            allowedNodes(['beam3'])
+            defaultNodes(['beam8'])
+            allowedNodes(['beam8'])
             trigger('multiSelectionDisallowed')
             eligibility('IgnoreOfflineNodeEligibility')
         }
