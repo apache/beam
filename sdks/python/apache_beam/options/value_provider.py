@@ -57,6 +57,15 @@ class StaticValueProvider(ValueProvider):
   def __str__(self):
     return str(self.value)
 
+  def __eq__(self, other):
+    if self.value == other:
+      return True
+    if isinstance(other, StaticValueProvider):
+      if (self.value_type == other.value_type and
+          self.value == other.value):
+        return True
+    return False
+
 
 class RuntimeValueProvider(ValueProvider):
   runtime_options = None
