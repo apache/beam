@@ -116,7 +116,7 @@ func Convert(v interface{}, to reflect.Type) interface{} {
 		switch {
 		// Perform conservative type conversions.
 		case from == reflectx.ByteSlice && to == reflectx.String:
-			return reflect.ValueOf(v).Convert(to).Interface()
+			return string(v.([]byte))
 
 		default:
 			return v
