@@ -88,8 +88,8 @@ public class WindowFnTestUtils {
       for (W window : assignedWindowsWithValue(windowFn, element)) {
         windowSet.put(window, timestampValue(element.getTimestamp().getMillis()));
       }
-      TestMergeContext<T, W> tmc = new TestMergeContext<>(windowSet, windowFn);
-      windowFn.mergeWindows(tmc);
+      TestMergeContext<T, W> mergeContext = new TestMergeContext<>(windowSet, windowFn);
+      windowFn.mergeWindows(mergeContext);
     }
     Map<W, Set<String>> actual = new HashMap<>();
     for (W window : windowSet.windows()) {
@@ -113,8 +113,8 @@ public class WindowFnTestUtils {
    */
   public static <T, W extends BoundedWindow> Collection<W> assignedWindowsWithValue(
       WindowFn<T, W> windowFn, TimestampedValue<T> timestampedValue) throws Exception {
-    TestAssignContext<T, W> tac = new TestAssignContext<>(timestampedValue, windowFn);
-    return windowFn.assignWindows(tac);
+    TestAssignContext<T, W> assignContext = new TestAssignContext<>(timestampedValue, windowFn);
+    return windowFn.assignWindows(assignContext);
   }
 
   private static String timestampValue(long timestamp) {
