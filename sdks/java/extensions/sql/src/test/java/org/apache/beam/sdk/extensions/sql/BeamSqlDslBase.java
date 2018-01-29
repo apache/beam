@@ -28,9 +28,12 @@ import java.util.List;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -94,7 +97,11 @@ public class BeamSqlDslBase {
       values = values.addElements(row);
     }
 
-    return PBegin.in(pipeline).apply("unboundedInput1", values.advanceWatermarkToInfinity());
+    return PBegin
+        .in(pipeline)
+        .apply("unboundedInput1", values.advanceWatermarkToInfinity())
+        .apply("unboundedInput1.fixedWindow1year",
+               Window.into(FixedWindows.of(Duration.standardDays(365))));
   }
 
   private PCollection<BeamRecord> prepareUnboundedPCollection2() {
@@ -105,7 +112,11 @@ public class BeamSqlDslBase {
     values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
     values = values.addElements(row);
 
-    return PBegin.in(pipeline).apply("unboundedInput2", values.advanceWatermarkToInfinity());
+    return PBegin
+        .in(pipeline)
+        .apply("unboundedInput2", values.advanceWatermarkToInfinity())
+        .apply("unboundedInput2.fixedWindow1year",
+               Window.into(FixedWindows.of(Duration.standardDays(365))));
   }
 
   private static List<BeamRecord> prepareInputRowsInTableA() throws ParseException{

@@ -18,11 +18,19 @@
 
 package org.apache.beam.sdk.extensions.sql;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Instant;
 
 /**
  * Test utilities.
@@ -48,6 +56,10 @@ public class TestUtils {
     }
 
     return strs;
+  }
+
+  public static RowsBuilder rowsBuilderOf(BeamRecordSqlType type) {
+    return RowsBuilder.of(type);
   }
 
   /**
@@ -135,6 +147,77 @@ public class TestUtils {
 
     public List<String> getStringRows() {
       return beamSqlRows2Strings(rows);
+    }
+
+    public PCollectionBuilder getPCollectionBuilder() {
+      return
+          pCollectionBuilder()
+              .withRowType(type)
+              .withRows(rows);
+    }
+  }
+
+  public static PCollectionBuilder pCollectionBuilder() {
+    return new PCollectionBuilder();
+  }
+
+  static class PCollectionBuilder {
+    private BeamRecordType type;
+    private List<BeamRecord> rows;
+    private String timestampField;
+    private Pipeline pipeline;
+
+    public PCollectionBuilder withRowType(BeamRecordType type) {
+      this.type = type;
+      return this;
+    }
+
+    public PCollectionBuilder withRows(List<BeamRecord> rows) {
+      this.rows = rows;
+      return this;
+    }
+
+    /**
+     * Event time field, defines watermark.
+     */
+    public PCollectionBuilder withTimestampField(String timestampField) {
+      this.timestampField = timestampField;
+      return this;
+    }
+
+    public PCollectionBuilder inPipeline(Pipeline pipeline) {
+      this.pipeline = pipeline;
+      return this;
+    }
+
+    /**
+     * Builds an unbounded {@link PCollection} in {@link Pipeline}
+     * set by {@link #inPipeline(Pipeline)}.
+     *
+     * <p>If timestamp field was set with {@link #withTimestampField(String)} then
+     * watermark will be advanced to the values from that field.
+     */
+    public PCollection<BeamRecord> buildUnbounded() {
+      checkArgument(pipeline != null);
+      checkArgument(rows.size() > 0);
+
+      if (type == null) {
+        type = rows.get(0).getDataType();
+      }
+
+      TestStream.Builder<BeamRecord> values = TestStream.create(type.getRecordCoder());
+
+      for (BeamRecord row : rows) {
+        if (timestampField != null) {
+          values = values.advanceWatermarkTo(new Instant(row.getDate(timestampField)));
+        }
+
+        values = values.addElements(row);
+      }
+
+      return PBegin
+          .in(pipeline)
+          .apply("unboundedPCollection", values.advanceWatermarkToInfinity());
     }
   }
 
