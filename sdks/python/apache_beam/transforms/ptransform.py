@@ -103,13 +103,22 @@ class _SetInputPValues(_PValueishTransform):
 # Caches to allow for materialization of values when executing a pipeline
 # in-process, in eager mode.  This cache allows the same _MaterializedResult
 # object to be accessed and used despite Runner API round-trip serialization.
-_pipeline_materialization_cache = collections.defaultdict(dict)
+_pipeline_materialization_cache = {}
 _pipeline_materialization_lock = threading.Lock()
+
+
+def _allocate_materialized_pipeline(pipeline):
+  with _pipeline_materialization_lock:
+    pipeline_id = id(pipeline)
+    _pipeline_materialization_cache[pipeline_id] = {}
 
 
 def _allocate_materialized_result(pipeline):
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
+    if pipeline_id not in _pipeline_materialization_cache:
+      raise ValueError('Materialized pipeline is not allocated for result '
+                       'cache.')
     result_id = len(_pipeline_materialization_cache[pipeline_id])
     result = _MaterializedResult(pipeline_id, result_id)
     _pipeline_materialization_cache[pipeline_id][result_id] = result
@@ -118,14 +127,17 @@ def _allocate_materialized_result(pipeline):
 
 def _get_materialized_result(pipeline_id, result_id):
   with _pipeline_materialization_lock:
+    if pipeline_id not in _pipeline_materialization_cache:
+      raise Exception(
+          'Materialization in out-of-process and remote runners is not yet '
+          'supported.')
     return _pipeline_materialization_cache[pipeline_id][result_id]
 
 
-def _release_materialized_results(pipeline):
+def _release_materialized_pipeline(pipeline):
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
-    if pipeline_id in _pipeline_materialization_cache:
-      del _pipeline_materialization_cache[pipeline_id]
+    del _pipeline_materialization_cache[pipeline_id]
 
 
 class _MaterializedResult(object):
@@ -149,6 +161,10 @@ class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
     self._results_by_tag = results_by_tag
 
   def __getitem__(self, tag):
+    if tag not in self._results_by_tag:
+      raise KeyError(
+          'Tag %r is not a a defined output tag of %s.' % (
+              tag, self._deferred))
     return self._results_by_tag[tag].elements
 
 
@@ -469,11 +485,10 @@ class PTransform(WithTypeHints, HasDisplayData):
     result = p.apply(self, pvalueish, label)
     if deferred:
       return result
-    # Get a reference to the runners internal cache, otherwise runner may
-    # clean it after run.
+    _allocate_materialized_pipeline(p)
     materialized_result = _AddMaterializationTransforms().visit(result)
     p.run().wait_until_finish()
-    _release_materialized_results(p)
+    _release_materialized_pipeline(p)
     return _FinalizeMaterialization().visit(materialized_result)
 
   def _extract_input_pvalues(self, pvalueish):
