@@ -45,8 +45,8 @@ from the Mobile Gaming example series.
 
 ## LeaderBoard and the Mobile Gaming Example
 
-[LeaderBoard](https://github.com/apache/beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177)
-is part of the [Beam mobile gaming examples](https://github.com/apache/beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game)
+[LeaderBoard](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177)
+is part of the [Beam mobile gaming examples](https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete/game)
 (and [walkthroughs]({{ site.baseurl }}/get-started/mobile-gaming-example/))
 which produces a continuous accounting of user and team scores. User scores are
 calculated over the lifetime of the program, while team scores are calculated
