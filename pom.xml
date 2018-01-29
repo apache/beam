@@ -191,7 +191,6 @@
 
     <!-- Default skipping -->
     <rat.skip>true</rat.skip>
-
   </properties>
 
   <packaging>pom</packaging>
@@ -1779,17 +1778,17 @@
                   </action>
                 </pluginExecution>
                 <pluginExecution>
-                    <pluginExecutionFilter>
-                        <groupId>net.revelc.code.formatter</groupId>
-                        <artifactId>formatter-maven-plugin</artifactId>
-                        <versionRange>[2.0.0,)</versionRange>
-                        <goals>
-                            <goal>format</goal>
-                        </goals>
-                    </pluginExecutionFilter>
-                    <action>
-                        <ignore />
-                    </action>
+                  <pluginExecutionFilter>
+                    <groupId>net.revelc.code.formatter</groupId>
+                    <artifactId>formatter-maven-plugin</artifactId>
+                    <versionRange>[2.0.0,)</versionRange>
+                    <goals>
+                      <goal>format</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
                 </pluginExecution>
               </pluginExecutions>
             </lifecycleMappingMetadata>

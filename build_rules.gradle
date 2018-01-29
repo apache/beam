@@ -222,7 +222,6 @@ ext.applyJavaNature = {
     testApt auto_service
   }
 
-
   // Add the optional and provided configurations for dependencies
   // TODO: Either remove these plugins and find another way to generate the Maven poms
   // with the correct dependency scopes configured.
@@ -238,6 +237,13 @@ ext.applyJavaNature = {
     showViolations = true
     maxErrors = 0
   }
+
+  // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
+  // connects the apt-eclipse plugin to update the eclipse project files
+  // with the instructions needed to run apt within eclipse to handle the AutoValue
+  // and additional annotations
+  apply plugin: 'eclipse'
+  apply plugin: "net.ltgt.apt-eclipse"
 
   // Enables a plugin which can apply code formatting to source.
   // TODO: Should this plugin be enabled for all projects?
@@ -434,9 +440,5 @@ ext.applyAvroNature = {
   println "applyAvroNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.commercehub.gradle.plugin.avro"
 }
-
-// Apply the apt-eclipse plugin so the eclipse import can work
-apply plugin: 'eclipse'
-apply plugin: "net.ltgt.apt-eclipse"
 
 

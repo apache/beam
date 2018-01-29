@@ -52,6 +52,7 @@ sdks/python/apache_beam/portability/api/*pb2*.*
 **/.fbExcludeFilterFile
 **/.apt_generated/**/*
 **/.settings/**/*
+**/.gitignore
 
 # Ignore Visual Studio Code files.
 **/.vscode/**/*
