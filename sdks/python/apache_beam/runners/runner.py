@@ -45,7 +45,7 @@ _PYTHON_RPC_DIRECT_RUNNER = (
     'python_rpc_direct_runner.')
 
 _KNOWN_PYTHON_RPC_DIRECT_RUNNER = ('PythonRPCDirectRunner',)
-_KNOWN_DIRECT_RUNNERS = ('DirectRunner', 'EagerRunner')
+_KNOWN_DIRECT_RUNNERS = ('DirectRunner',)
 _KNOWN_DATAFLOW_RUNNERS = ('DataflowRunner',)
 _KNOWN_TEST_RUNNERS = ('TestDataflowRunner',)
 

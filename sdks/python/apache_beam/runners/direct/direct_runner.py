@@ -23,7 +23,6 @@ graph of transformations belonging to a pipeline on the local machine.
 
 from __future__ import absolute_import
 
-import collections
 import logging
 
 from google.protobuf import wrappers_pb2
@@ -41,7 +40,6 @@ from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.core import _GroupAlsoByWindow
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.ptransform import PTransform
@@ -106,7 +104,6 @@ class DirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 
   def __init__(self):
-    self._cache = None
     self._use_test_clock = False  # use RealClock() in production
     self._ptransform_overrides = _get_transform_overrides()
 
@@ -229,8 +226,6 @@ class DirectRunner(PipelineRunner):
         self.consumer_tracking_visitor.views,
         clock)
 
-    evaluation_context.use_pvalue_cache(self._cache)
-
     executor = Executor(self.consumer_tracking_visitor.value_to_consumers,
                         TransformEvaluatorRegistry(evaluation_context),
                         evaluation_context)
@@ -242,52 +237,7 @@ class DirectRunner(PipelineRunner):
     executor.start(self.consumer_tracking_visitor.root_transforms)
     result = DirectPipelineResult(executor, evaluation_context)
 
-    if self._cache:
-      # We are running in eager mode, block until the pipeline execution
-      # completes in order to have full results in the cache.
-      result.wait_until_finish()
-      self._cache.finalize()
-
     return result
-
-  @property
-  def cache(self):
-    if not self._cache:
-      self._cache = BufferingInMemoryCache()
-    return self._cache.pvalue_cache
-
-
-class BufferingInMemoryCache(object):
-  """PValueCache wrapper for buffering bundles until a PValue is fully computed.
-
-  BufferingInMemoryCache keeps an in memory cache of
-  (applied_ptransform, tag) tuples. It accepts appending to existing cache
-  entries until it is finalized. finalize() will make all the existing cached
-  entries visible to the underyling PValueCache in their entirety, clean the in
-  memory cache and stop accepting new cache entries.
-  """
-
-  def __init__(self):
-    self._cache = collections.defaultdict(list)
-    self._pvalue_cache = PValueCache()
-    self._finalized = False
-
-  @property
-  def pvalue_cache(self):
-    return self._pvalue_cache
-
-  def append(self, applied_ptransform, tag, elements):
-    assert not self._finalized
-    assert elements is not None
-    self._cache[(applied_ptransform, tag)].extend(elements)
-
-  def finalize(self):
-    """Make buffered cache elements visible to the underlying PValueCache."""
-    assert not self._finalized
-    for key, value in self._cache.iteritems():
-      applied_ptransform, tag = key
-      self._pvalue_cache.cache_output(applied_ptransform, tag, value)
-    self._cache = None
 
 
 class DirectPipelineResult(PipelineResult):
@@ -329,8 +279,3 @@ class DirectPipelineResult(PipelineResult):
 
   def metrics(self):
     return self._evaluation_context.metrics()
-
-
-class EagerRunner(DirectRunner):
-
-  is_eager = True
