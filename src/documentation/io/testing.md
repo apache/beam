@@ -561,7 +561,7 @@ You can do this by:
 1.  Creating two Kubernetes scripts: one for a small instance of the data store, and one for a large instance.
 1.  Having your test take a pipeline option that decides whether to generate a small or large amount of test data (where small and large are sizes appropriate to your data store)
 
-An example of this is [HadoopInputFormatIO](https://github.com/apache/beam/tree/master/sdks/java/io/hadoop/input-format)'s tests.
+An example of this is [HadoopInputFormatIO](https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-input-format)'s tests.
 
 <!--
 # Next steps
