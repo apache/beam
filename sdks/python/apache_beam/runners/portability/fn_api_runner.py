@@ -29,6 +29,7 @@ import grpc
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam import metrics
+from apache_beam import pipeline
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import registry
 from apache_beam.coders.coder_impl import create_InputStream
@@ -43,6 +44,7 @@ from apache_beam.runners import runner
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.transforms import core
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
@@ -192,6 +194,9 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_pipeline(self, pipeline):
     MetricsEnvironment.set_metrics_supported(False)
+    # This is sometimes needed if type checking is disabled.
+    from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
+    pipeline.visit(DataflowRunner.group_by_key_input_visitor())
     return self.run_via_runner_api(pipeline.to_runner_api())
 
   def run_via_runner_api(self, pipeline_proto):

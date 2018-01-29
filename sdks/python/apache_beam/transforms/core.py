@@ -1199,13 +1199,27 @@ class CombinePerKey(PTransformWithSideInputs):
     return '%s(%s)' % (self.__class__.__name__, self._fn_label)
 
   def _process_argspec_fn(self):
-    return self.fn._fn  # pylint: disable=protected-access
+    return lambda element, *args, **kwargs: None
 
   def expand(self, pcoll):
     args, kwargs = util.insert_values_in_args(
         self.args, self.kwargs, self.side_inputs)
     return pcoll | GroupByKey() | 'Combine' >> CombineValues(
         self.fn, *args, **kwargs)
+
+  def default_type_hints(self):
+    hints = self.fn.get_type_hints().copy()
+    if hints.input_types:
+      K = typehints.TypeVariable('K')
+      args, kwargs = hints.input_types
+      args = (typehints.Tuple[K, args[0]],) + args[1:]
+      hints.set_input_types(*args, **kwargs)
+    else:
+      K = typehints.Any
+    if hints.output_types:
+      main_output_type = hints.simple_output_type('')
+      hints.set_output_types(typehints.Tuple[K, main_output_type])
+    return hints
 
   def to_runner_api_parameter(self, context):
     if self.args or self.kwargs:

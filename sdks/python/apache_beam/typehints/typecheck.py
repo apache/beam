@@ -25,7 +25,9 @@ import inspect
 import sys
 import types
 
+from apache_beam import pipeline
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.transforms import core
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.decorators import GeneratorWrapper
@@ -34,6 +36,7 @@ from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
+from apache_beam.typehints.typehints import check_constraint
 from apache_beam.typehints.typehints import check_constraint
 
 
@@ -178,3 +181,69 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
                    "Instead, received '%s', an instance of type %s."
                    % (datum_type, type_constraint, datum, type(datum)))
       raise TypeCheckError, error_msg, sys.exc_info()[2]
+
+
+class TypeCheckCombineFn(core.CombineFn):
+  """A wrapper around a DoFn which performs type-checking of input and output.
+  """
+
+  def __init__(self, combinefn, type_hints, label=None):
+    self._combinefn = combinefn
+    self._input_type_hint = type_hints.input_types
+    self._output_type_hint = type_hints.simple_output_type(label)
+    self._label = label
+
+  def create_accumulator(self, *args, **kwargs):
+    return self._combinefn.create_accumulator(*args, **kwargs)
+
+  def add_input(self, accumulator, element, *args, **kwargs):
+    if self._input_type_hint:
+      try:
+        _check_instance_type(
+            self._input_type_hint[0][0].tuple_types[1], element, 'element', True)
+      except TypeCheckError as e:
+        error_msg = ('Runtime type violation detected within %s: '
+                     '%s' % (self._label, e))
+        raise TypeCheckError, error_msg, sys.exc_info()[2]
+    return self._combinefn.add_input(accumulator, element, *args, **kwargs)
+
+  def merge_accumulators(self, accumulators, *args, **kwargs):
+    return self._combinefn.merge_accumulators(accumulators, *args, **kwargs)
+
+  def extract_output(self, accumulator, *args, **kwargs):
+    result = self._combinefn.extract_output(accumulator, *args, **kwargs)
+    if self._output_type_hint:
+      try:
+        _check_instance_type(
+            self._output_type_hint.tuple_types[1], result, None, True)
+      except TypeCheckError as e:
+        error_msg = ('Runtime type violation detected within %s: '
+                     '%s' % (self._label, e))
+        raise TypeCheckError, error_msg, sys.exc_info()[2]
+    return result
+
+
+class TypeCheckVisitor(pipeline.PipelineVisitor):
+
+  _in_combine = False
+
+  def enter_composite_transform(self, applied_transform):
+    if isinstance(applied_transform.transform, core.CombinePerKey):
+      self._in_combine = True
+      applied_transform.transform.fn = TypeCheckCombineFn(
+          applied_transform.transform.fn,
+          applied_transform.transform.get_type_hints(),
+          applied_transform.full_label)
+  def leave_composite_transform(self, applied_transform):
+    if isinstance(applied_transform.transform, core.CombinePerKey):
+      self._in_combine = False
+
+  def visit_transform(self, applied_transform):
+    transform = applied_transform.transform
+    if isinstance(transform, core.ParDo) and not self._in_combine:
+      transform.fn = OutputCheckWrapperDoFn(
+          TypeCheckWrapperDoFn(
+              transform.fn,
+              transform.get_type_hints(),
+              applied_transform.full_label),
+          applied_transform.full_label)
