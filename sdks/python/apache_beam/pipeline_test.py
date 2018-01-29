@@ -306,6 +306,28 @@ class PipelineTest(unittest.TestCase):
   #   p = Pipeline('EagerRunner')
   #   self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
 
+  def test_pcollection_reuse_errors(self):
+    class MyObject(object):
+      def __init__(self, pcollection):
+        self.pcollection = pcollection
+
+    class CreateMyObject(beam.PTransform):
+      def expand(self, data):
+        return MyObject(data)
+
+    class TransformMyObject(beam.PTransform):
+      def _extract_input_pvalues(self, data_and_my_object):
+        data, my_object = data_and_my_object
+        return data_and_my_object, [data, my_object.pcollection]
+
+      def expand(self, data_and_my_object):
+        return data_and_my_object
+
+    def testErrorOnReuseOfPCollection(self):
+      input_data = [1, 2, 3, 4]
+      my_object = input_data | 'CreateMyObject' >> CreateMyObject()
+      _ = (input_data, my_object) | 'TransformMyObject' >> TransformMyObject()
+
   @mock.patch(
       'apache_beam.runners.direct.direct_runner._get_transform_overrides')
   def test_ptransform_overrides(self, file_system_override_mock):
