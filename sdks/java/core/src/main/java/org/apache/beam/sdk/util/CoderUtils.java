@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import com.google.common.base.Throwables;
 import com.google.common.io.BaseEncoding;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -27,7 +26,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.ParameterizedType;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.values.TypeDescriptor;

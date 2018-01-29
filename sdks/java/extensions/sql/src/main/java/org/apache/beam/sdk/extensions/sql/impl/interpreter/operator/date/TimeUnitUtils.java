@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import java.math.BigDecimal;
-
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.type.SqlTypeName;
 

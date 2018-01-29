@@ -22,10 +22,8 @@ import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.
 import static org.apache.beam.sdk.extensions.sql.impl.utils.SqlTypeUtils.findExpressionOfType;
 
 import com.google.common.base.Optional;
-
 import java.math.BigDecimal;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;

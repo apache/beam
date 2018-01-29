@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.kinesis;
 
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
-
 import java.io.Serializable;
 
 /**

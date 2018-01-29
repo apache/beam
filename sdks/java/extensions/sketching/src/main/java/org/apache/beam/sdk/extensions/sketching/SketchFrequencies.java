@@ -21,13 +21,11 @@ import com.clearspring.analytics.stream.frequency.CountMinSketch;
 import com.clearspring.analytics.stream.frequency.FrequencyMergeException;
 import com.google.auto.value.AutoValue;
 import com.google.common.hash.Hashing;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Iterator;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;

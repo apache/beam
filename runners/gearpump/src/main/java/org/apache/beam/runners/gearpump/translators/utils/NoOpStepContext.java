@@ -19,7 +19,6 @@
 package org.apache.beam.runners.gearpump.translators.utils;
 
 import java.io.Serializable;
-
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
