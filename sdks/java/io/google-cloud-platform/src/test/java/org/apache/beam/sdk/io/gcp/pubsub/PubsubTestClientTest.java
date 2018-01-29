@@ -54,7 +54,7 @@ public class PubsubTestClientTest {
   @Test
   public void pullOneMessage() throws IOException {
     final AtomicLong now = new AtomicLong();
-    Clock clock = () -> now.get();
+    Clock clock = now::get;
     IncomingMessage expectedIncomingMessage =
         new IncomingMessage(DATA.getBytes(), null, MESSAGE_TIME, REQ_TIME, ACK_ID, MESSAGE_ID);
     try (PubsubTestClientFactory factory =

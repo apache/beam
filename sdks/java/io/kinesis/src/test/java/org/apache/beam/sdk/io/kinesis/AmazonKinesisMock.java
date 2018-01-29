@@ -82,6 +82,7 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 import org.mockito.Mockito;
@@ -141,9 +142,10 @@ class AmazonKinesisMock implements AmazonKinesis {
     @Override
     public AmazonKinesis getKinesisClient() {
       return new AmazonKinesisMock(
-          transform(
-              shardedData,
-              testDatas -> transform(testDatas, testData -> testData.convertToRecord())),
+          shardedData
+              .stream()
+              .map(testDatas -> transform(testDatas, TestData::convertToRecord))
+              .collect(Collectors.toList()),
           numberOfRecordsPerGet);
     }
 

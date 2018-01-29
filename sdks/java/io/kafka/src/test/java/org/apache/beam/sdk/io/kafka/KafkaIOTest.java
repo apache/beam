@@ -36,6 +36,7 @@ import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -644,7 +645,11 @@ public class KafkaIOTest {
     String readStep = "readFromKafka";
 
     p.apply(readStep,
-        mkKafkaReadTransform(numElements, new ValueAsTimestampFn()).withoutMetadata());
+        mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+          .updateConsumerProperties(ImmutableMap.<String, Object>of(ConsumerConfig.GROUP_ID_CONFIG,
+                                                                    "test.group"))
+          .commitOffsetsInFinalize()
+          .withoutMetadata());
 
     PipelineResult result = p.run();
 
@@ -1085,7 +1090,7 @@ public class KafkaIOTest {
     List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
 
     // sort by values
-    Collections.sort(sent, (o1, o2) -> Long.compare(o1.value(), o2.value()));
+    sent.sort(Comparator.comparingLong(ProducerRecord::value));
 
     for (int i = 0; i < numElements; i++) {
       ProducerRecord<Integer, Long> record = sent.get(i);

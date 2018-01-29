@@ -22,7 +22,6 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Date;
-import java.util.Iterator;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -230,9 +229,7 @@ class BeamBuiltinAggregations {
         Iterable<KV<Integer, BigDecimal>> accumulators) {
       int size = 0;
       BigDecimal acc = BigDecimal.ZERO;
-      Iterator<KV<Integer, BigDecimal>> ite = accumulators.iterator();
-      while (ite.hasNext()) {
-        KV<Integer, BigDecimal> ele = ite.next();
+      for (KV<Integer, BigDecimal> ele : accumulators) {
         size += ele.getKey();
         acc = acc.add(ele.getValue());
       }
@@ -402,10 +399,7 @@ class BeamBuiltinAggregations {
       long count = 0;
       BigDecimal sum = BigDecimal.ZERO;
 
-      Iterator<KV<BigDecimal, VarAgg>> ite = accumulators.iterator();
-      while (ite.hasNext()) {
-        KV<BigDecimal, VarAgg> r = ite.next();
-
+      for (KV<BigDecimal, VarAgg> r : accumulators) {
         BigDecimal b = r.getValue().sum;
 
         count += r.getValue().count;
@@ -415,10 +409,13 @@ class BeamBuiltinAggregations {
 //        d = t^2 * ( ( count / r.count ) / ( count + r.count ) );
         BigDecimal t = new BigDecimal(r.getValue().count).divide(new BigDecimal(count), mc)
                 .multiply(sum).subtract(b);
-        BigDecimal d = t.pow(2)
-                .multiply(new BigDecimal(r.getValue().count).divide(new BigDecimal(count), mc)
-                          .divide(new BigDecimal(count)
-                                  .add(new BigDecimal(r.getValue().count))), mc);
+        BigDecimal d =
+            t.pow(2)
+                .multiply(
+                    new BigDecimal(r.getValue().count)
+                        .divide(new BigDecimal(count), mc)
+                        .divide(new BigDecimal(count).add(new BigDecimal(r.getValue().count))),
+                    mc);
         variance = variance.add(r.getKey().add(d));
       }
 

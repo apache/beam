@@ -22,13 +22,13 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -379,7 +379,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    *
    */
   public List<OutputT> peekOutputElements() {
-    return Lists.transform(peekOutputElementsWithTimestamp(), input -> input.getValue());
+    return peekOutputElementsWithTimestamp()
+        .stream()
+        .map(TimestampedValue::getValue)
+        .collect(Collectors.toList());
   }
 
   /**
@@ -393,9 +396,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   @Experimental
   public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(
-        getImmutableOutput(mainOutputTag),
-        input -> TimestampedValue.of(input.getValue(), input.getTimestamp()));
+    return getImmutableOutput(mainOutputTag)
+        .stream()
+        .map(input -> TimestampedValue.of(input.getValue(), input.getTimestamp()))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -469,7 +473,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
    */
   public <T> List<T> peekOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(getImmutableOutput(tag), input -> input.getValue());
+    return getImmutableOutput(tag)
+        .stream()
+        .map(ValueInSingleWindow::getValue)
+        .collect(Collectors.toList());
   }
 
   /**

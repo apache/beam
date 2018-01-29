@@ -77,8 +77,8 @@ public class ServerFactoryTest {
     final Collection<Elements> serverElements = new ArrayList<>();
     final CountDownLatch clientHangedUp = new CountDownLatch(1);
     CallStreamObserver<Elements> serverInboundObserver =
-        TestStreams.withOnNext((Elements item) -> serverElements.add(item))
-            .withOnCompleted(() -> clientHangedUp.countDown())
+        TestStreams.withOnNext(serverElements::add)
+            .withOnCompleted(clientHangedUp::countDown)
             .build();
     TestDataService service = new TestDataService(serverInboundObserver);
     Server server = serverFactory.allocatePortAndCreate(service, apiServiceDescriptorBuilder);
@@ -89,8 +89,8 @@ public class ServerFactoryTest {
     final Collection<BeamFnApi.Elements> clientElements = new ArrayList<>();
     final CountDownLatch serverHangedUp = new CountDownLatch(1);
     CallStreamObserver<BeamFnApi.Elements> clientInboundObserver =
-        TestStreams.withOnNext((Elements item) -> clientElements.add(item))
-            .withOnCompleted(() -> serverHangedUp.countDown())
+        TestStreams.withOnNext(clientElements::add)
+            .withOnCompleted(serverHangedUp::countDown)
             .build();
 
     StreamObserver<Elements> clientOutboundObserver = stub.data(clientInboundObserver);

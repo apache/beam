@@ -19,7 +19,6 @@
 package org.apache.beam.runners.spark;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -80,10 +79,11 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
 
   private boolean shouldDebug(final TransformHierarchy.Node node) {
     return node == null
-        || !Iterables.any(
-                transforms,
-                debugTransform ->
-                    debugTransform.getNode().equals(node) && debugTransform.isComposite())
+        || !transforms
+                .stream()
+                .anyMatch(
+                    debugTransform ->
+                        debugTransform.getNode().equals(node) && debugTransform.isComposite())
             && shouldDebug(node.getEnclosingNode());
   }
 

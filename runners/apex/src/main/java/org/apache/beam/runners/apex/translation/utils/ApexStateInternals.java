@@ -446,11 +446,8 @@ public class ApexStateInternals<K> implements StateInternals {
       } catch (CoderException e) {
         throw new RuntimeException(e);
       }
-      HashBasedTable<String, String, byte[]> stateTable = perKeyState.get(keyBytes);
-      if (stateTable == null) {
-        stateTable = HashBasedTable.create();
-        perKeyState.put(keyBytes, stateTable);
-      }
+      HashBasedTable<String, String, byte[]> stateTable =
+          perKeyState.computeIfAbsent(keyBytes, k -> HashBasedTable.create());
       return new ApexStateInternals<>(key, stateTable);
     }
 

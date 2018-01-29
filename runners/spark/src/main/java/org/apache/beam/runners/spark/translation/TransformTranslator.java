@@ -317,7 +317,7 @@ public final class TransformTranslator {
 
         JavaRDD<WindowedValue<KV<K, OutputT>>> outRdd =
             accumulatePerKey
-                .flatMapValues(iter -> sparkCombineFn.extractOutput(iter))
+                .flatMapValues(sparkCombineFn::extractOutput)
                 .map(TranslationUtils.fromPairFunction())
                 .map(TranslationUtils.toKVByWindowInValue());
 

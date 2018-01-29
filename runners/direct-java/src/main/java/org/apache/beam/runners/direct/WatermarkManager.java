@@ -299,17 +299,10 @@ class WatermarkManager {
     }
 
     private synchronized void updateTimers(TimerUpdate update) {
-      NavigableSet<TimerData> keyTimers = objectTimers.get(update.key);
-      if (keyTimers == null) {
-        keyTimers = new TreeSet<>();
-        objectTimers.put(update.key, keyTimers);
-      }
+      NavigableSet<TimerData> keyTimers =
+          objectTimers.computeIfAbsent(update.key, k -> new TreeSet<>());
       Table<StateNamespace, String, TimerData> existingTimersForKey =
-          existingTimers.get(update.key);
-      if (existingTimersForKey == null) {
-        existingTimersForKey = HashBasedTable.create();
-        existingTimers.put(update.key, existingTimersForKey);
-      }
+              existingTimers.computeIfAbsent(update.key, k -> HashBasedTable.create());
 
       for (TimerData timer : update.getSetTimers()) {
         if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
@@ -543,11 +536,7 @@ class WatermarkManager {
     private synchronized void updateTimers(TimerUpdate update) {
       Map<TimeDomain, NavigableSet<TimerData>> timerMap = timerMap(update.key);
       Table<StateNamespace, String, TimerData> existingTimersForKey =
-          existingTimers.get(update.key);
-      if (existingTimersForKey == null) {
-        existingTimersForKey = HashBasedTable.create();
-        existingTimers.put(update.key, existingTimersForKey);
-      }
+          existingTimers.computeIfAbsent(update.key, k -> HashBasedTable.create());
 
       for (TimerData addedTimer : update.setTimers) {
         NavigableSet<TimerData> timerQueue = timerMap.get(addedTimer.getDomain());
@@ -617,17 +606,10 @@ class WatermarkManager {
     }
 
     private Map<TimeDomain, NavigableSet<TimerData>> timerMap(StructuralKey<?> key) {
-      NavigableSet<TimerData> processingQueue = processingTimers.get(key);
-      if (processingQueue == null) {
-        processingQueue = new TreeSet<>();
-        processingTimers.put(key, processingQueue);
-      }
+      NavigableSet<TimerData> processingQueue =
+          processingTimers.computeIfAbsent(key, k -> new TreeSet<>());
       NavigableSet<TimerData> synchronizedProcessingQueue =
-          synchronizedProcessingTimers.get(key);
-      if (synchronizedProcessingQueue == null) {
-        synchronizedProcessingQueue = new TreeSet<>();
-        synchronizedProcessingTimers.put(key, synchronizedProcessingQueue);
-      }
+              synchronizedProcessingTimers.computeIfAbsent(key, k -> new TreeSet<>());
       EnumMap<TimeDomain, NavigableSet<TimerData>> result = new EnumMap<>(TimeDomain.class);
       result.put(TimeDomain.PROCESSING_TIME, processingQueue);
       result.put(TimeDomain.SYNCHRONIZED_PROCESSING_TIME, synchronizedProcessingQueue);
@@ -1316,11 +1298,8 @@ class WatermarkManager {
       Map<StructuralKey<?>, List<TimerData>> groupedTimers = new HashMap<>();
       for (Map<StructuralKey<?>, List<TimerData>> subGroup : timersToGroup) {
         for (Map.Entry<StructuralKey<?>, List<TimerData>> newTimers : subGroup.entrySet()) {
-          List<TimerData> grouped = groupedTimers.get(newTimers.getKey());
-          if (grouped == null) {
-            grouped = new ArrayList<>();
-            groupedTimers.put(newTimers.getKey(), grouped);
-          }
+          List<TimerData> grouped =
+              groupedTimers.computeIfAbsent(newTimers.getKey(), k -> new ArrayList<>());
           grouped.addAll(newTimers.getValue());
         }
       }

@@ -36,7 +36,7 @@ public class TestStreamsTest {
   @Test
   public void testOnNextIsCalled() {
     final AtomicBoolean onNextWasCalled = new AtomicBoolean();
-    TestStreams.withOnNext((Boolean item) -> onNextWasCalled.set(item)).build().onNext(true);
+    TestStreams.withOnNext(onNextWasCalled::set).build().onNext(true);
     assertTrue(onNextWasCalled.get());
   }
 
@@ -77,7 +77,7 @@ public class TestStreamsTest {
     RuntimeException throwable = new RuntimeException();
     final Collection<Throwable> onErrorWasCalled = new ArrayList<>();
     TestStreams.withOnNext(null)
-        .withOnError(item -> onErrorWasCalled.add(item))
+        .withOnError(onErrorWasCalled::add)
         .build()
         .onError(throwable);
     assertThat(onErrorWasCalled, Matchers.contains(throwable));

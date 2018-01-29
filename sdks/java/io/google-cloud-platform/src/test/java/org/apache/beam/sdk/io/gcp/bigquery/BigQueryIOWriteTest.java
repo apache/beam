@@ -219,7 +219,7 @@ public class BigQueryIOWriteTest implements Serializable {
     // WriteGroupedRecordsToFiles.
     for (int i = 0; i < BatchLoads.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE * 10; ++i) {
       // Every user has 10 nicknames.
-      for (int j = 0; j < 1; ++j) {
+      for (int j = 0; j < 10; ++j) {
         String nickname = allUsernames.get(
             ThreadLocalRandom.current().nextInt(allUsernames.size()));
         userList.add(nickname + i);
@@ -305,16 +305,13 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     Map<Integer, List<TableRow>> expectedTableRows = Maps.newHashMap();
-    for (int i = 0; i < userList.size(); ++i) {
-      Matcher matcher = userPattern.matcher(userList.get(i));
+    for (String anUserList : userList) {
+      Matcher matcher = userPattern.matcher(anUserList);
       checkState(matcher.matches());
       String nickname = matcher.group(1);
       int userid = Integer.valueOf(matcher.group(2));
-      List<TableRow> expected = expectedTableRows.get(userid);
-      if (expected == null) {
-        expected = Lists.newArrayList();
-        expectedTableRows.put(userid, expected);
-      }
+      List<TableRow> expected =
+              expectedTableRows.computeIfAbsent(userid, k -> Lists.newArrayList());
       expected.add(new TableRow().set("name", nickname).set("id", userid));
     }
 
@@ -1033,11 +1030,8 @@ public class BigQueryIOWriteTest implements Serializable {
     Map<String, List<String>> filenamesPerTable = Maps.newHashMap();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.tables%05d", i);
-      List<String> filenames = filenamesPerTable.get(tableName);
-      if (filenames == null) {
-        filenames = Lists.newArrayList();
-        filenamesPerTable.put(tableName, filenames);
-      }
+      List<String> filenames =
+          filenamesPerTable.computeIfAbsent(tableName, k -> Lists.newArrayList());
       for (int j = 0; j < numFilesPerTable; ++j) {
         String fileName = String.format("%s_files%05d", tableName, j);
         filenames.add(fileName);
@@ -1084,11 +1078,8 @@ public class BigQueryIOWriteTest implements Serializable {
     for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
       String table = partition.getKey().getKey().getTableSpec();
       partitionsResult.add(partition.getKey());
-      List<String> tableFilesResult = filesPerTableResult.get(table);
-      if (tableFilesResult == null) {
-        tableFilesResult = Lists.newArrayList();
-        filesPerTableResult.put(table, tableFilesResult);
-      }
+      List<String> tableFilesResult =
+          filesPerTableResult.computeIfAbsent(table, k -> Lists.newArrayList());
       tableFilesResult.addAll(partition.getValue());
     }
 
@@ -1326,7 +1317,7 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   private static void testNumFiles(File tempDir, int expectedNumFiles) {
-    assertEquals(expectedNumFiles, tempDir.listFiles(pathname -> pathname.isFile()).length);
+    assertEquals(expectedNumFiles, tempDir.listFiles(File::isFile).length);
   }
 
   @Test

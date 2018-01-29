@@ -73,6 +73,8 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.Validation.Required;
@@ -353,23 +355,29 @@ public class PipelineOptionsFactory {
       } catch (ClassNotFoundException e) {
         // If we didn't find an exact match, look for any that match the class name.
         Iterable<Class<? extends PipelineOptions>> matches =
-            Iterables.filter(
-                getRegisteredOptions(),
-                input -> {
-                  if (helpOption.contains(".")) {
-                    return input.getName().endsWith(helpOption);
-                  } else {
-                    return input.getSimpleName().equals(helpOption);
-                  }
-                });
+            getRegisteredOptions()
+                .stream()
+                .filter(
+                    input -> {
+                      if (helpOption.contains(".")) {
+                        return input.getName().endsWith(helpOption);
+                      } else {
+                        return input.getSimpleName().equals(helpOption);
+                      }
+                    })
+                .collect(Collectors.toList());
         try {
           printHelp(printStream, Iterables.getOnlyElement(matches));
         } catch (NoSuchElementException exception) {
           printStream.format("Unable to find option %s.%n", helpOption);
           printHelp(printStream);
         } catch (IllegalArgumentException exception) {
-          printStream.format("Multiple matches found for %s: %s.%n", helpOption,
-              Iterables.transform(matches, ReflectHelpers.CLASS_NAME));
+          printStream.format(
+              "Multiple matches found for %s: %s.%n",
+              helpOption,
+              StreamSupport.stream(matches.spliterator(), false)
+                  .map(ReflectHelpers.CLASS_NAME::apply)
+                  .collect(Collectors.toList()));
           printHelp(printStream);
         }
       }
@@ -713,7 +721,7 @@ public class PipelineOptionsFactory {
       out.println();
 
       List<String> lists = Lists.newArrayList(propertyNamesToGetters.keySet());
-      Collections.sort(lists, String.CASE_INSENSITIVE_ORDER);
+      lists.sort(String.CASE_INSENSITIVE_ORDER);
       for (String propertyName : lists) {
         Method method = propertyNamesToGetters.get(propertyName);
         String printableType = method.getReturnType().getSimpleName();
@@ -1464,7 +1472,7 @@ public class PipelineOptionsFactory {
     private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES =
         Sets.newHashSet(
             FluentIterable.from(Default.class.getDeclaredClasses())
-                .filter(klass -> klass.isAnnotation()));
+                .filter(Class::isAnnotation));
 
     static final AnnotationPredicates DEFAULT_VALUE =
         new AnnotationPredicates(

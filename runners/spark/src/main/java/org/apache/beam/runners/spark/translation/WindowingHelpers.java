@@ -37,7 +37,7 @@ public final class WindowingHelpers {
    * @return A function that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> Function<T, WindowedValue<T>> windowFunction() {
-    return t -> WindowedValue.valueInGlobalWindow(t);
+    return WindowedValue::valueInGlobalWindow;
   }
 
   /**
@@ -47,7 +47,7 @@ public final class WindowingHelpers {
    * @return A function that accepts a {@link WindowedValue} and returns its value.
    */
   public static <T> Function<WindowedValue<T>, T> unwindowFunction() {
-    return t -> t.getValue();
+    return WindowedValue::getValue;
   }
 
   /**
@@ -57,7 +57,7 @@ public final class WindowingHelpers {
    * @return A function that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> com.google.common.base.Function<T, WindowedValue<T>> windowValueFunction() {
-    return t -> WindowedValue.valueInGlobalWindow(t);
+    return WindowedValue::valueInGlobalWindow;
   }
 
   /**
@@ -67,6 +67,6 @@ public final class WindowingHelpers {
    * @return A function that accepts an object and returns its {@link WindowedValue}.
    */
   public static <T> com.google.common.base.Function<WindowedValue<T>, T> unwindowValueFunction() {
-    return t -> t.getValue();
+    return WindowedValue::getValue;
   }
 }
