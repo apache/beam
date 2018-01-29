@@ -221,8 +221,8 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     RexNode rexNode;
     BeamSqlExpression exp;
     rexNode = rexBuilder.makeCall(fn, Arrays.asList(
-        rexBuilder.makeBigintLiteral(new BigDecimal(1L)),
-        rexBuilder.makeBigintLiteral(new BigDecimal(1L))
+        rexBuilder.makeBigintLiteral(BigDecimal.ONE),
+        rexBuilder.makeBigintLiteral(BigDecimal.ONE)
     ));
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
 
