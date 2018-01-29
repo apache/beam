@@ -1411,12 +1411,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>2.17</version>
+          <version>3.0.0</version>
           <dependencies>
             <dependency>
               <groupId>com.puppycrawl.tools</groupId>
               <artifactId>checkstyle</artifactId>
-              <version>6.19</version>
+              <version>8.7</version>
             </dependency>
             <dependency>
               <groupId>org.apache.beam</groupId>
@@ -1431,6 +1431,13 @@
             <failOnViolation>true</failOnViolation>
             <includeResources>false</includeResources>
             <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <!-- only check the actual source directories in src, not anything generated in target -->
+            <sourceDirectories>
+                <sourceDirctory>src/main/java</sourceDirctory>
+            </sourceDirectories>
+            <testSourceDirectories>
+                <testSourceDirctory>src/test/java</testSourceDirctory>
+            </testSourceDirectories>
           </configuration>
           <executions>
             <!--

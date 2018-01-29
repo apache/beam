@@ -39,7 +39,6 @@ import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Arrays;
-
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;

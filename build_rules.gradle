@@ -244,6 +244,9 @@ ext.applyJavaNature = {
     showViolations = true
     maxErrors = 0
   }
+  checkstyle {
+    toolVersion = "8.7"
+  }
 
   // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
   // connects the apt-eclipse plugin to update the eclipse project files
