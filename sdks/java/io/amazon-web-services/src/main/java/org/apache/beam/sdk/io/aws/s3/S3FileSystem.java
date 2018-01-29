@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
@@ -106,11 +107,15 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
               + "was not specified. If you don't plan to use S3, then ignore this message.");
     }
 
-    amazonS3 =
-        AmazonS3ClientBuilder.standard()
-            .withCredentials(options.getAwsCredentialsProvider())
-            .withRegion(options.getAwsRegion())
-            .build();
+    AmazonS3ClientBuilder builder = AmazonS3ClientBuilder.standard()
+        .withCredentials(options.getAwsCredentialsProvider());
+    if (Strings.isNullOrEmpty(options.getAwsServiceEndpoint())) {
+      builder = builder.withRegion(options.getAwsRegion());
+    } else {
+      builder = builder.withEndpointConfiguration(new EndpointConfiguration(
+          options.getAwsServiceEndpoint(), options.getAwsRegion()));
+    }
+    amazonS3 = builder.build();
 
     this.storageClass = checkNotNull(options.getS3StorageClass(), "storageClass");
 
