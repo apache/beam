@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
@@ -32,7 +50,30 @@ public class MetricsPusher implements Serializable {
   private static ScheduledFuture<?> scheduledFuture;
   private static PipelineResult pipelineResult;
 
-  private MetricsPusher(PipelineOptions pipelineOptions) {
+
+  private static void addMetricsContainerStepMap(MetricsContainerStepMap metricsContainerStepMap){
+    if (metricsContainerStepMaps.indexOf(metricsContainerStepMap) == -1) {
+      metricsContainerStepMaps.add(metricsContainerStepMap);
+    }
+  }
+
+  public static synchronized void init(
+      MetricsContainerStepMap metricsContainerStepMap, PipelineOptions pipelineOptions) {
+    if (instance == null) {
+      instance = new MetricsPusher();
+      configureFromPipelineOptions(pipelineOptions);
+      metricsContainerStepMaps = new ArrayList<>();
+      start();
+    }
+    /*
+      MetricsPusher.init will be called several times in a pipeline
+      (e.g Flink calls it with each UDF with a different MetricsContainerStepMap instance).
+      Then the singleton needs to register a new metricsContainerStepMap to merge
+      */
+    addMetricsContainerStepMap(metricsContainerStepMap);
+  }
+
+  private static void configureFromPipelineOptions(PipelineOptions pipelineOptions) {
     switch (pipelineOptions.getMetricsSink()) {
       case "org.apache.beam.runners.core.metrics.MetricsHttpSink":
         metricsSink = new MetricsHttpSink(pipelineOptions.getMetricsHttpSinkUrl());
@@ -44,35 +85,6 @@ public class MetricsPusher implements Serializable {
         pipelineOptions.getMetricsPushPeriod() != null
             ? pipelineOptions.getMetricsPushPeriod()
             : DEFAULT_PERIOD;
-    metricsContainerStepMaps = new ArrayList<>();
-  }
-
-  private static void addMetricsContainerStepMap(MetricsContainerStepMap metricsContainerStepMap){
-    if (metricsContainerStepMaps.indexOf(metricsContainerStepMap) == -1) {
-      metricsContainerStepMaps.add(metricsContainerStepMap);
-    }
-  }
-
-  public static synchronized void init(
-      MetricsContainerStepMap metricsContainerStepMap, PipelineOptions pipelineOptions) {
-    if (instance == null) {
-      instance = new MetricsPusher(pipelineOptions);
-      addMetricsContainerStepMap(metricsContainerStepMap);
-      start();
-    } else {
-      /*
-      MetricsPusher.init will be called several times in a pipeline
-      (e.g Flink calls it with each UDF with a different MetricsContainerStepMap instance).
-      Then the singleton needs to register a new metricsContainerStepMap to merge
-      */
-      addMetricsContainerStepMap(metricsContainerStepMap);
-      /*    if the thread is stopped, then it means that the pipeline is finished.
-      If we run multiple pipelines in the same JVM, as MetricsPusher is a singleton,
-      the instance will still be in memory but the thread will be stopped.*/
-      if (scheduledFuture.isCancelled()) {
-        start();
-      }
-    }
   }
 
   /**
@@ -93,10 +105,15 @@ public class MetricsPusher implements Serializable {
         .scheduleAtFixedRate(new PushingThread(), 0, period,
             TimeUnit.SECONDS);
   }
-  private static synchronized void stop(){
+  private static synchronized void tearDown(){
     if (!scheduledFuture.isCancelled()) {
       scheduledFuture.cancel(true);
     }
+    /*
+    it is the end of the pipeline, so set the instance to null so that it can be initialized
+    for the next pipeline runnin gin that JVM
+    */
+    instance = null;
   }
 
   public static void pushMetrics(){
@@ -115,7 +132,7 @@ public class MetricsPusher implements Serializable {
       if (pipelineResult != null) {
         PipelineResult.State pipelineState = pipelineResult.getState();
         if (pipelineState.isTerminal()) {
-          stop();
+          tearDown();
         }
       }
 
