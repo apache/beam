@@ -32,7 +32,6 @@ from apache_beam import typehints
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import PCollection
 from apache_beam.runners.direct.bundle_factory import BundleFactory
@@ -41,6 +40,7 @@ from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import _GroupAlsoByWindow
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.ptransform import PTransform
@@ -87,7 +87,23 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
         context.windowing_strategies.get_by_id(payload.value))
 
 
-def _get_transform_overrides():
+class _DirectReadStringsFromPubSub(PTransform):
+  def __init__(self, source):
+    self._source = source
+
+  def _infer_output_coder(self, unused_input_type=None,
+                          unused_input_coder=None):
+    return coders.StrUtf8Coder()
+
+  def get_windowing(self, inputs):
+    return beam.Windowing(beam.window.GlobalWindows())
+
+  def expand(self, pvalue):
+    # This is handled as a native transform.
+    return PCollection(self.pipeline)
+
+
+def _get_transform_overrides(pipeline_options):
   # A list of PTransformOverride objects to be applied before running a pipeline
   # using DirectRunner.
   # Currently this only works for overrides where the input and output types do
@@ -95,10 +111,135 @@ def _get_transform_overrides():
   # For internal use only; no backwards-compatibility guarantees.
 
   # Importing following locally to avoid a circular dependency.
+  from apache_beam.pipeline import PTransformOverride
   from apache_beam.runners.sdf_common import SplittableParDoOverride
+  from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
   from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
-  return [SplittableParDoOverride(),
-          ProcessKeyedElementsViaKeyedWorkItemsOverride()]
+
+  class CombinePerKeyOverride(PTransformOverride):
+    def get_matcher(self):
+      def _matcher(applied_ptransform):
+        if isinstance(applied_ptransform.transform, CombinePerKey):
+          return True
+      return _matcher
+
+    def get_replacement_transform(self, transform):
+      # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
+      # with resolving imports when they are at top.
+      # pylint: disable=wrong-import-position
+      try:
+        return LiftedCombinePerKey(transform.fn, transform.args,
+                                   transform.kwargs)
+      except NotImplementedError:
+        return transform
+
+  class StreamingGroupByKeyOverride(PTransformOverride):
+    def get_matcher(self):
+      def _matcher(applied_ptransform):
+        # Note: we match the exact class, since we replace it with a subclass.
+        return applied_ptransform.transform.__class__ == _GroupByKeyOnly
+      return _matcher
+
+    def get_replacement_transform(self, transform):
+      # Use specialized streaming implementation.
+      type_hints = transform.get_type_hints()
+      transform = (_StreamingGroupByKeyOnly()
+                   .with_input_types(*type_hints.input_types[0])
+                   .with_output_types(*type_hints.output_types[0]))
+      return transform
+
+  class StreamingGroupAlsoByWindowOverride(PTransformOverride):
+    def get_matcher(self):
+      def _matcher(applied_ptransform):
+        # Note: we match the exact class, since we replace it with a subclass.
+        return applied_ptransform.transform.__class__ == _GroupAlsoByWindow
+      return _matcher
+
+    def get_replacement_transform(self, transform):
+      # Use specialized streaming implementation.
+      type_hints = transform.get_type_hints()
+      transform = (_StreamingGroupAlsoByWindow(transform.windowing)
+                   .with_input_types(*type_hints.input_types[0])
+                   .with_output_types(*type_hints.output_types[0]))
+      return transform
+
+  overrides = [SplittableParDoOverride(),
+               ProcessKeyedElementsViaKeyedWorkItemsOverride(),
+               CombinePerKeyOverride(),]
+
+  # Add streaming overrides, if necessary.
+  if pipeline_options.view_as(StandardOptions).streaming:
+    overrides.append(StreamingGroupByKeyOverride())
+    overrides.append(StreamingGroupAlsoByWindowOverride())
+
+  # Add PubSub overrides, if PubSub is available.
+  pubsub = None
+  try:
+    from apache_beam.io.gcp import pubsub
+  except ImportError:
+    pass
+  if pubsub:
+    class ReadStringsFromPubSubOverride(PTransformOverride):
+      def get_matcher(self):
+        def _matcher(applied_ptransform):
+          return isinstance(applied_ptransform.transform,
+                            pubsub.ReadStringsFromPubSub)
+        return _matcher
+
+      def get_replacement_transform(self, transform):
+        if not pipeline_options.view_as(StandardOptions).streaming:
+          raise Exception('PubSub I/O is only available in streaming mode '
+                          '(use the --streaming flag).')
+        return _DirectReadStringsFromPubSub(transform._source)
+
+    class WriteStringsToPubSubOverride(PTransformOverride):
+      def get_matcher(self):
+        def _matcher(applied_ptransform):
+          return isinstance(applied_ptransform.transform,
+                            pubsub.WriteStringsToPubSub)
+        return _matcher
+
+      def get_replacement_transform(self, transform):
+        if not pipeline_options.view_as(StandardOptions).streaming:
+          raise Exception('PubSub I/O is only available in streaming mode '
+                          '(use the --streaming flag).')
+
+        class _DirectWriteToPubSub(beam.DoFn):
+          _topic = None
+
+          def __init__(self, project, topic_name):
+            self.project = project
+            self.topic_name = topic_name
+
+          def start_bundle(self):
+            if self._topic is None:
+              self._topic = pubsub.Client(project=self.project).topic(
+                  self.topic_name)
+            self._buffer = []
+
+          def process(self, elem):
+            self._buffer.append(elem.encode('utf-8'))
+            if len(self._buffer) >= 100:
+              self._flush()
+
+          def finish_bundle(self):
+            self._flush()
+
+          def _flush(self):
+            if self._buffer:
+              with self._topic.batch() as batch:
+                for datum in self._buffer:
+                  batch.publish(datum)
+              self._buffer = []
+
+        project = transform._sink.project
+        topic_name = transform._sink.topic_name
+        return beam.ParDo(_DirectWriteToPubSub(project, topic_name))
+
+    overrides.append(ReadStringsFromPubSubOverride())
+    overrides.append(WriteStringsToPubSubOverride())
+
+  return overrides
 
 
 class DirectRunner(PipelineRunner):
@@ -106,103 +247,12 @@ class DirectRunner(PipelineRunner):
 
   def __init__(self):
     self._use_test_clock = False  # use RealClock() in production
-    self._ptransform_overrides = _get_transform_overrides()
-
-  def apply_CombinePerKey(self, transform, pcoll):
-    if pcoll.pipeline._options.view_as(TypeOptions).runtime_type_check:
-      # TODO(robertwb): This can be reenabled once expansion happens after run.
-      return transform.expand(pcoll)
-    # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
-    # with resolving imports when they are at top.
-    # pylint: disable=wrong-import-position
-    from apache_beam.runners.direct.helper_transforms import LiftedCombinePerKey
-    try:
-      return pcoll | LiftedCombinePerKey(
-          transform.fn, transform.args, transform.kwargs)
-    except NotImplementedError:
-      return transform.expand(pcoll)
-
-  def apply_TestStream(self, transform, pcoll):
-    self._use_test_clock = True  # use TestClock() for testing
-    return transform.expand(pcoll)
-
-  def apply__GroupByKeyOnly(self, transform, pcoll):
-    if (transform.__class__ == _GroupByKeyOnly and
-        pcoll.pipeline._options.view_as(StandardOptions).streaming):
-      # Use specialized streaming implementation, if requested.
-      type_hints = transform.get_type_hints()
-      return pcoll | (_StreamingGroupByKeyOnly()
-                      .with_input_types(*type_hints.input_types[0])
-                      .with_output_types(*type_hints.output_types[0]))
-    return transform.expand(pcoll)
-
-  def apply__GroupAlsoByWindow(self, transform, pcoll):
-    if (transform.__class__ == _GroupAlsoByWindow and
-        pcoll.pipeline._options.view_as(StandardOptions).streaming):
-      # Use specialized streaming implementation, if requested.
-      type_hints = transform.get_type_hints()
-      return pcoll | (_StreamingGroupAlsoByWindow(transform.windowing)
-                      .with_input_types(*type_hints.input_types[0])
-                      .with_output_types(*type_hints.output_types[0]))
-    return transform.expand(pcoll)
-
-  def apply_ReadStringsFromPubSub(self, transform, pcoll):
-    try:
-      from google.cloud import pubsub as unused_pubsub
-    except ImportError:
-      raise ImportError('Google Cloud PubSub not available, please install '
-                        'apache_beam[gcp]')
-    # Execute this as a native transform.
-    output = PCollection(pcoll.pipeline)
-    output.element_type = unicode
-    return output
-
-  def apply_WriteStringsToPubSub(self, transform, pcoll):
-    try:
-      from google.cloud import pubsub
-    except ImportError:
-      raise ImportError('Google Cloud PubSub not available, please install '
-                        'apache_beam[gcp]')
-    project = transform._sink.project
-    topic_name = transform._sink.topic_name
-
-    class DirectWriteToPubSub(beam.DoFn):
-      _topic = None
-
-      def __init__(self, project, topic_name):
-        self.project = project
-        self.topic_name = topic_name
-
-      def start_bundle(self):
-        if self._topic is None:
-          self._topic = pubsub.Client(project=self.project).topic(
-              self.topic_name)
-        self._buffer = []
-
-      def process(self, elem):
-        self._buffer.append(elem.encode('utf-8'))
-        if len(self._buffer) >= 100:
-          self._flush()
-
-      def finish_bundle(self):
-        self._flush()
-
-      def _flush(self):
-        if self._buffer:
-          with self._topic.batch() as batch:
-            for datum in self._buffer:
-              batch.publish(datum)
-          self._buffer = []
-
-    output = pcoll | beam.ParDo(DirectWriteToPubSub(project, topic_name))
-    output.element_type = unicode
-    return output
 
   def run_pipeline(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(self._ptransform_overrides)
+    pipeline.replace_all(_get_transform_overrides(pipeline.options))
 
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
     # with resolving imports when they are at top.
