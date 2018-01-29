@@ -36,9 +36,9 @@
     <!-- build-tools inherits from the Beam root pom to enable checkstyle
          and other project configuration to be used in all modules.
     <module>build-tools</module> -->
+    <module>harness</module>
     <module>container</module>
     <module>core</module>
-    <module>harness</module>
     <module>io</module>
     <module>java8tests</module>
     <module>maven-archetypes</module>
