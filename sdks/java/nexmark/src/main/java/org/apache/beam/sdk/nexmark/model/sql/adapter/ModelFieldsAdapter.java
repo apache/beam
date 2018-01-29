@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.nexmark.model.sql.adapter;
 
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.values.BeamRecordType;
 

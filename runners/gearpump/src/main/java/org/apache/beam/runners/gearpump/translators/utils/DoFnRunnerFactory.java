@@ -21,7 +21,6 @@ package org.apache.beam.runners.gearpump.translators.utils;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
-
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;

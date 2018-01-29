@@ -265,7 +265,7 @@ class PackageUtil implements Closeable {
   /**
    * Transfers the classpath elements to the staging location using a default {@link Sleeper}.
    *
-   * @see {@link #stageClasspathElements(Collection, String, Sleeper, CreateOptions)}
+   * @see #stageClasspathElements(Collection, String, Sleeper, CreateOptions)
    */
   List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, String stagingPath, CreateOptions createOptions) {
@@ -275,7 +275,7 @@ class PackageUtil implements Closeable {
   /**
    * Transfers the classpath elements to the staging location using default settings.
    *
-   * @see {@link #stageClasspathElements(Collection, String, Sleeper, CreateOptions)}
+   * @see #stageClasspathElements(Collection, String, Sleeper, CreateOptions)
    */
   List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, String stagingPath) {

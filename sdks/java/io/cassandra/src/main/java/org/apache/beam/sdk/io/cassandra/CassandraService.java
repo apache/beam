@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.cassandra;
 
 import java.io.Serializable;
 import java.util.List;
-
 import org.apache.beam.sdk.io.BoundedSource;
 
 /**
