@@ -40,6 +40,13 @@ public interface AwsOptions extends PipelineOptions {
   void setAwsRegion(String value);
 
   /**
+   * The AWS service endpoint used by the AWS client.
+   */
+  @Description("AWS service endpoint used by the AWS client")
+  String getAwsServiceEndpoint();
+  void setAwsServiceEndpoint(String value);
+
+  /**
    * The credential instance that should be used to authenticate against AWS services. Refer to
    * {@link DefaultAWSCredentialsProviderChain} Javadoc for usage help.
    */
