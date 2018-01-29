@@ -36,7 +36,6 @@ FlatMap processing functions.
 
 from __future__ import absolute_import
 
-import collections
 import copy
 import inspect
 import itertools
@@ -108,36 +107,40 @@ _pipeline_materialization_lock = threading.Lock()
 
 
 def _allocate_materialized_pipeline(pipeline):
+  pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
-    _pipeline_materialization_cache[pipeline_id] = {}
+    _pipeline_materialization_cache[(pid, pipeline_id)] = {}
 
 
 def _allocate_materialized_result(pipeline):
+  pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
-    if pipeline_id not in _pipeline_materialization_cache:
+    if (pid, pipeline_id) not in _pipeline_materialization_cache:
       raise ValueError('Materialized pipeline is not allocated for result '
                        'cache.')
-    result_id = len(_pipeline_materialization_cache[pipeline_id])
+    result_id = len(_pipeline_materialization_cache[(pid, pipeline_id)])
     result = _MaterializedResult(pipeline_id, result_id)
-    _pipeline_materialization_cache[pipeline_id][result_id] = result
+    _pipeline_materialization_cache[(pid, pipeline_id)][result_id] = result
     return result
 
 
 def _get_materialized_result(pipeline_id, result_id):
+  pid = os.getpid()
   with _pipeline_materialization_lock:
-    if pipeline_id not in _pipeline_materialization_cache:
+    if (pid, pipeline_id) not in _pipeline_materialization_cache:
       raise Exception(
           'Materialization in out-of-process and remote runners is not yet '
           'supported.')
-    return _pipeline_materialization_cache[pipeline_id][result_id]
+    return _pipeline_materialization_cache[(pid, pipeline_id)][result_id]
 
 
 def _release_materialized_pipeline(pipeline):
+  pid = os.getpid()
   with _pipeline_materialization_lock:
     pipeline_id = id(pipeline)
-    del _pipeline_materialization_cache[pipeline_id]
+    del _pipeline_materialization_cache[(pid, pipeline_id)]
 
 
 class _MaterializedResult(object):
@@ -173,17 +176,17 @@ class _AddMaterializationTransforms(_PValueishTransform):
   def _materialize_transform(self, pipeline):
     result = _allocate_materialized_result(pipeline)
 
-    # Need to define _MaterializeValuesTransform here to avoid circular
+    # Need to define _MaterializeValuesDoFn here to avoid circular
     # dependencies.
     from apache_beam import DoFn
     from apache_beam import ParDo
 
-    class _MaterializeValuesTransform(DoFn):
+    class _MaterializeValuesDoFn(DoFn):
       def process(self, element):
         result.elements.append(element)
 
     materialization_label = '_MaterializeValues%d' % result._result_id
-    return (materialization_label >> ParDo(_MaterializeValuesTransform()),
+    return (materialization_label >> ParDo(_MaterializeValuesDoFn()),
             result)
 
   def visit(self, node):
