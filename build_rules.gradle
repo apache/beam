@@ -183,6 +183,7 @@ ext.applyJavaNature = {
   targetCompatibility = configuration.javaVersion
   tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
+    options.compilerArgs += ["-Xlint:all","-Xlint:-options","-Xlint:-cast","-Xlint:-deprecation","-Xlint:-processing","-Xlint:-rawtypes","-Xlint:-serial","-Xlint:-try","-Xlint:-unchecked","-Xlint:-varargs","-parameters"]
   }
 
   // Configure the default test tasks set of tests executed
