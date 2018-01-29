@@ -87,7 +87,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
                     rexBuilder.makeBigintLiteral(new BigDecimal(1000L)))),
             rexBuilder.makeCall(SqlStdOperatorTable.EQUALS,
                 Arrays.asList(rexBuilder.makeInputRef(relDataType, 1),
-                    rexBuilder.makeExactLiteral(new BigDecimal(0))))));
+                    rexBuilder.makeExactLiteral(BigDecimal.ZERO)))));
 
     BeamFilterRel beamFilterRel = new BeamFilterRel(cluster, RelTraitSet.createEmpty(), null,
         condition);
@@ -221,8 +221,8 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     RexNode rexNode;
     BeamSqlExpression exp;
     rexNode = rexBuilder.makeCall(fn, Arrays.asList(
-        rexBuilder.makeBigintLiteral(new BigDecimal(1L)),
-        rexBuilder.makeBigintLiteral(new BigDecimal(1L))
+        rexBuilder.makeBigintLiteral(BigDecimal.ONE),
+        rexBuilder.makeBigintLiteral(BigDecimal.ONE)
     ));
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
 
@@ -415,7 +415,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
         Arrays.<RexNode>asList(
             rexBuilder.makeDateLiteral(calendar),
             rexBuilder.makeIntervalLiteral(
-                new BigDecimal(10),
+                BigDecimal.TEN,
                 new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.DAY, SqlParserPos.ZERO))
         )
     );
@@ -425,9 +425,9 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     // * for intervals
     rexNode = rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY,
         Arrays.<RexNode>asList(
-            rexBuilder.makeExactLiteral(new BigDecimal(1)),
+            rexBuilder.makeExactLiteral(BigDecimal.ONE),
             rexBuilder.makeIntervalLiteral(
-                new BigDecimal(10),
+                BigDecimal.TEN,
                 new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.DAY, SqlParserPos.ZERO))
         )
     );

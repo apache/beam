@@ -53,7 +53,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     List<BeamRecord> recordsInTableB = new ArrayList<>();
     BeamRecord row1 = new BeamRecord(rowTypeInTableB
-            , 1, 1.0, 0, new BigDecimal(1));
+            , 1, 1.0, 0, BigDecimal.ONE);
     recordsInTableB.add(row1);
 
     BeamRecord row2 = new BeamRecord(rowTypeInTableB
@@ -73,7 +73,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     recordsInTableB.add(row5);
 
     BeamRecord row6 = new BeamRecord(rowTypeInTableB
-            , 10, 10.0, 0, new BigDecimal(10));
+            , 10, 10.0, 0, BigDecimal.TEN);
     recordsInTableB.add(row6);
 
     BeamRecord row7 = new BeamRecord(rowTypeInTableB

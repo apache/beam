@@ -33,7 +33,7 @@ public class BeamSqlMathFunctionsIntegrationTest
   private static final byte BYTE_VALUE = 1;
   private static final double DOUBLE_VALUE = 1.0;
   private static final float FLOAT_VALUE = 1.0f;
-  private static final BigDecimal DECIMAL_VALUE = new BigDecimal(1);
+  private static final BigDecimal DECIMAL_VALUE = BigDecimal.ONE;
 
   @Test
   public void testAbs() throws Exception{
