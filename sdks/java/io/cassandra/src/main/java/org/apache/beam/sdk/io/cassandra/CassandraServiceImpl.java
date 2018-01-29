@@ -274,8 +274,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
             new TokenRange(
                 row.getLong("partitions_count"),
                 row.getLong("mean_partition_size"),
-                row.getLong("range_start"),
-                row.getLong("range_end"));
+                Long.parseLong(row.getString("range_start")),
+                Long.parseLong(row.getString("range_end")));
         tokenRanges.add(tokenRange);
       }
       // The table may not contain the estimates yet
