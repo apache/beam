@@ -1407,7 +1407,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "Valid object instance must be of type 'tuple'. Instead, "
         "an instance of 'float' was received.")
 
-  def test_pipline_runtime_checking_violation_with_side_inputs_decorator(self):
+  def test_pipeline_runtime_checking_violation_with_side_inputs_decorator(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
@@ -1427,7 +1427,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "Expected an instance of <type 'int'>, "
         "instead found 1.0, an instance of <type 'float'>.")
 
-  def test_pipline_runtime_checking_violation_with_side_inputs_via_method(self):
+  def test_pipeline_runtime_checking_violation_with_side_inputs_via_method(self):  # pylint: disable=line-too-long
     self.p._options.view_as(TypeOptions).runtime_type_check = True
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
@@ -2061,6 +2061,18 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p._options.view_as(TypeOptions).pipeline_type_check = True
     x = self.p | 'C2' >> beam.Create([1, 2, 3, 4])
     self.assertEqual(int, x.element_type)
+
+  def test_eager_execution(self):
+    doubled = [1, 2, 3, 4] | beam.Map(lambda x: 2 * x)
+    self.assertEqual([2, 4, 6, 8], doubled)
+
+  def test_eager_execution_tagged_outputs(self):
+    result = [1, 2, 3, 4] | beam.Map(
+        lambda x: pvalue.TaggedOutput('bar', 2 * x)).with_outputs('bar')
+    self.assertEqual([2, 4, 6, 8], result.bar)
+    with self.assertRaises(KeyError,
+                           msg='Tag \'foo\' is not a defined output tag'):
+      result.foo
 
 
 if __name__ == '__main__':
