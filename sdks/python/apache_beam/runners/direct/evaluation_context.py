@@ -155,7 +155,6 @@ class EvaluationContext(object):
     self._side_inputs_container = _SideInputsContainer(views)
     self._pending_unblocked_tasks = []
     self._counter_factory = counters.CounterFactory()
-    self._cache = None
     self._metrics = DirectMetrics()
 
     self._lock = threading.Lock()
@@ -169,22 +168,9 @@ class EvaluationContext(object):
         transform_keyed_states[consumer] = {}
     return transform_keyed_states
 
-  def use_pvalue_cache(self, cache):
-    assert not self._cache
-    self._cache = cache
-
   def metrics(self):
     # TODO. Should this be made a @property?
     return self._metrics
-
-  @property
-  def has_cache(self):
-    return self._cache is not None
-
-  def append_to_cache(self, applied_ptransform, tag, elements):
-    with self._lock:
-      assert self._cache
-      self._cache.append(applied_ptransform, tag, elements)
 
   def is_root_transform(self, applied_ptransform):
     return applied_ptransform in self._root_transforms
