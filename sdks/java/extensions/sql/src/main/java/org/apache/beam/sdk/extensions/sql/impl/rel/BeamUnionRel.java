@@ -26,7 +26,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Union;
@@ -71,10 +70,6 @@ public class BeamUnionRel extends Union implements BeamRelNode {
     this.delegate = new BeamSetOperatorRelBase(this,
         BeamSetOperatorRelBase.OpType.UNION,
         inputs, all);
-  }
-
-  public BeamUnionRel(RelInput input) {
-    super(input);
   }
 
   @Override public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
