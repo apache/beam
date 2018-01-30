@@ -795,8 +795,11 @@ class AppliedPTransform(object):
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):
         si.pvalue = pcoll
       result.side_inputs = tuple(result.transform.side_inputs)
-    result.parts = [
-        context.transforms.get_by_id(id) for id in proto.subtransforms]
+    result.parts = []
+    for transform_id in proto.subtransforms:
+      part = context.transforms.get_by_id(transform_id)
+      part.parent = result
+      result.parts.append(part)
     result.outputs = {
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
         for tag, id in proto.outputs.items()}
