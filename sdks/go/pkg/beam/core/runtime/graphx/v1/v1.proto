@@ -214,3 +214,19 @@ message MultiEdge {
     }
     repeated Outbound outbound = 3;
 }
+
+// InjectPayload is the payload for the built-in Inject function.
+message InjectPayload {
+    int32 n = 1;
+}
+
+// TransformPayload represents the full payload for transforms, both
+// user defined and built-in.
+message TransformPayload {
+    // urn is included here. It is also present in the model pipeline, but
+    // not when submitting through Dataflow yet.
+    string urn = 1;
+
+    MultiEdge edge = 2;
+    InjectPayload inject = 3;
+}

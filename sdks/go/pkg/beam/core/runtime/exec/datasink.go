@@ -65,8 +65,9 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 	if err := EncodeWindowedValueHeader(c, value.Timestamp, &b); err != nil {
 		return err
 	}
+
 	if err := n.enc.Encode(value, &b); err != nil {
-		return err
+		return fmt.Errorf("failed to encode element %v with coder %v: %v", value, n.enc, err)
 	}
 
 	if _, err := n.w.Write(b.Bytes()); err != nil {

@@ -44,6 +44,7 @@ const (
 	// SDK constants
 
 	urnCustomCoder = "urn:beam:go:coders:custom:v1"
+	urnCoGBKList   = "urn:beam:go:coders:cogbklist:v1" // CoGBK representation. Not a coder.
 )
 
 // MarshalCoders marshals a list of coders into model coders.
@@ -86,6 +87,18 @@ func NewCoderUnmarshaller(m map[string]*pb.Coder) *CoderUnmarshaller {
 	}
 }
 
+func (b *CoderUnmarshaller) Coders(ids []string) ([]*coder.Coder, error) {
+	coders := make([]*coder.Coder, len(ids))
+	for i, id := range ids {
+		c, err := b.Coder(id)
+		if err != nil {
+			return nil, err
+		}
+		coders[i] = c
+	}
+	return coders, nil
+}
+
 // Coder unmarshals a coder with the given id.
 func (b *CoderUnmarshaller) Coder(id string) (*coder.Coder, error) {
 	if c, exists := b.coders[id]; exists {
@@ -98,7 +111,7 @@ func (b *CoderUnmarshaller) Coder(id string) (*coder.Coder, error) {
 
 	ret, err := b.makeCoder(c)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal coder %v: %v", id, err)
 	}
 
 	b.coders[id] = ret
@@ -162,6 +175,22 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 			id = elm.GetComponentCoderIds()[0]
 			kind = coder.CoGBK
 			root = typex.CoGBKType
+
+			// TODO(BEAM-490): If CoGBK with > 1 input, handle as special GBK. We expect
+			// it to be encoded as CoGBK<K,LP<CoGBKList<V,W,..>>>. Remove this handling once
+			// CoGBK has a first-class representation.
+
+			if ids, ok := b.isCoGBKList(id); ok {
+				// CoGBK<K,V,W,..>
+
+				values, err := b.Coders(ids)
+				if err != nil {
+					return nil, err
+				}
+
+				t := typex.New(root, append([]typex.FullType{key.T}, coder.Types(values)...)...)
+				return &coder.Coder{Kind: kind, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
+			}
 		}
 
 		value, err := b.Coder(id)
@@ -169,10 +198,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 			return nil, err
 		}
 
-		// TODO: if value is union coder
-
 		t := typex.New(root, key.T, value.T)
-
 		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
 
 	case urnLengthPrefixCoder:
@@ -248,6 +274,24 @@ func (b *CoderUnmarshaller) peek(id string) (*pb.Coder, error) {
 	return c, nil
 }
 
+func (b *CoderUnmarshaller) isCoGBKList(id string) ([]string, bool) {
+	elm, err := b.peek(id)
+	if err != nil {
+		return nil, false
+	}
+	if elm.GetSpec().GetSpec().GetUrn() != urnLengthPrefixCoder {
+		return nil, false
+	}
+	elm2, err := b.peek(elm.GetComponentCoderIds()[0])
+	if err != nil {
+		return nil, false
+	}
+	if elm2.GetSpec().GetSpec().GetUrn() != urnCoGBKList {
+		return nil, false
+	}
+	return elm2.GetComponentCoderIds(), true
+}
+
 // CoderMarshaller incrementally builds a compact model representation of a set
 // of coders. Identical coders are shared.
 type CoderMarshaller struct {
@@ -292,7 +336,16 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 
 	case coder.CoGBK:
 		comp := b.AddMulti(c.Components)
-		stream := b.internBuiltInCoder(urnStreamCoder, comp[1])
+
+		value := comp[1]
+		if len(comp) > 2 {
+			// TODO(BEAM-490): don't inject union coder for CoGBK.
+
+			union := b.internBuiltInCoder(urnCoGBKList, comp[1:]...)
+			value = b.internBuiltInCoder(urnLengthPrefixCoder, union)
+		}
+
+		stream := b.internBuiltInCoder(urnStreamCoder, value)
 		return b.internBuiltInCoder(urnKVCoder, comp[0], stream)
 
 	case coder.WindowedValue:

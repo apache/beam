@@ -20,6 +20,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
@@ -38,9 +39,10 @@ const (
 
 	// SDK constants
 
-	// TODO: use "urn:beam:go:transform:dofn:v1" when the Dataflow runner
+	// TODO: remove URNJavaDoFN when the Dataflow runner
 	// uses the model pipeline and no longer falls back to Java.
-	URNDoFn = "urn:beam:dofn:javasdk:0.1"
+	URNJavaDoFn = "urn:beam:dofn:javasdk:0.1"
+	URNDoFn     = "urn:beam:go:transform:dofn:v1"
 )
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
@@ -167,6 +169,10 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 		return id
 	}
 
+	if edge.Edge.Op == graph.CoGBK && len(edge.Edge.Input) > 1 {
+		return m.expandCoGBK(edge)
+	}
+
 	inputs := make(map[string]string)
 	for i, in := range edge.Edge.Input {
 		m.addNode(in.From)
@@ -176,13 +182,6 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 	for i, out := range edge.Edge.Output {
 		m.addNode(out.To)
 		outputs[fmt.Sprintf("i%v", i)] = nodeID(out.To)
-	}
-
-	if edge.Edge.Op == graph.CoGBK && len(edge.Edge.Input) > 1 {
-		// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
-		// CoGBK with multiple PCollections into injection and flatten w/ a union coder.
-
-		// panic("NYI")
 	}
 
 	transform := &pb.PTransform{
@@ -196,6 +195,98 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) string {
 	return id
 }
 
+func (m *marshaller) expandCoGBK(edge NamedEdge) string {
+	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
+	// CoGBK with multiple PCollections as described in cogbk.go.
+
+	// TODO(herohde) 1/26/2018: we should make the expanded GBK a composite if we care
+	// about correctly computing input/output in the enclosing Scope.
+
+	id := edgeID(edge.Edge)
+	kvCoderID := m.coders.Add(MakeKVUnionCoder(edge.Edge))
+	gbkCoderID := m.coders.Add(MakeGBKUnionCoder(edge.Edge))
+
+	inputs := make(map[string]string)
+	for i, in := range edge.Edge.Input {
+		m.addNode(in.From)
+
+		out := fmt.Sprintf("%v_inject%v", nodeID(in.From), i)
+		m.addPCollection(out, kvCoderID)
+
+		// Inject(i)
+
+		injectID := fmt.Sprintf("%v_inject%v", id, i)
+		payload := &pb.ParDoPayload{
+			DoFn: &pb.SdkFunctionSpec{
+				Spec: &pb.FunctionSpec{
+					Urn: URNInject,
+					Payload: protox.MustEncode(&v1.TransformPayload{
+						Urn:    URNInject,
+						Inject: &v1.InjectPayload{N: (int32)(i)},
+					}),
+				},
+				EnvironmentId: m.addDefaultEnv(),
+			},
+		}
+		inject := &pb.PTransform{
+			UniqueName: injectID,
+			Spec: &pb.FunctionSpec{
+				Urn:     URNParDo,
+				Payload: protox.MustEncode(payload),
+			},
+			Inputs:  map[string]string{"i0": nodeID(in.From)},
+			Outputs: map[string]string{"i0": out},
+		}
+		m.transforms[injectID] = inject
+
+		inputs[fmt.Sprintf("i%v", i)] = out
+	}
+
+	// Flatten
+
+	out := fmt.Sprintf("%v_flatten", nodeID(edge.Edge.Output[0].To))
+	m.addPCollection(out, kvCoderID)
+
+	flattenID := fmt.Sprintf("%v_flatten", id)
+	flatten := &pb.PTransform{
+		UniqueName: flattenID,
+		Spec:       &pb.FunctionSpec{Urn: URNFlatten},
+		Inputs:     inputs,
+		Outputs:    map[string]string{"i0": out},
+	}
+	m.transforms[flattenID] = flatten
+
+	// CoGBK
+
+	gbkOut := fmt.Sprintf("%v_out", nodeID(edge.Edge.Output[0].To))
+	m.addPCollection(gbkOut, gbkCoderID)
+
+	gbk := &pb.PTransform{
+		UniqueName: edge.Name,
+		Spec:       m.makePayload(edge.Edge),
+		Inputs:     map[string]string{"i0": out},
+		Outputs:    map[string]string{"i0": gbkOut},
+	}
+	m.transforms[id] = gbk
+
+	// Expand
+
+	m.addNode(edge.Edge.Output[0].To)
+
+	expandID := fmt.Sprintf("%v_expand", id)
+	expand := &pb.PTransform{
+		UniqueName: expandID,
+		Spec: &pb.FunctionSpec{
+			Urn:     URNExpand,
+			Payload: protox.MustEncode(&v1.TransformPayload{Urn: URNExpand}),
+		},
+		Inputs:  map[string]string{"i0": out},
+		Outputs: map[string]string{"i0": nodeID(edge.Edge.Output[0].To)},
+	}
+	m.transforms[expandID] = expand
+	return id
+}
+
 func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
 	switch edge.Op {
 	case graph.Impulse:
@@ -205,7 +296,7 @@ func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
 		payload := &pb.ParDoPayload{
 			DoFn: &pb.SdkFunctionSpec{
 				Spec: &pb.FunctionSpec{
-					Urn:     URNDoFn,
+					Urn:     URNJavaDoFn,
 					Payload: []byte(mustEncodeMultiEdgeBase64(edge)),
 				},
 				EnvironmentId: m.addDefaultEnv(),
@@ -232,12 +323,14 @@ func (m *marshaller) addNode(n *graph.Node) string {
 	if _, exists := m.pcollections[id]; exists {
 		return id
 	}
-
 	// TODO(herohde) 11/15/2017: expose UniqueName to user. Handle unbounded and windowing.
+	return m.addPCollection(id, m.coders.Add(n.Coder))
+}
 
+func (m *marshaller) addPCollection(id, cid string) string {
 	col := &pb.PCollection{
 		UniqueName:          id,
-		CoderId:             m.coders.Add(n.Coder),
+		CoderId:             cid,
 		IsBounded:           pb.IsBounded_BOUNDED,
 		WindowingStrategyId: m.addWindowingStrategy(window.NewGlobalWindow()),
 	}
@@ -290,7 +383,10 @@ func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to serialize %v: %v", edge, err))
 	}
-	return protox.MustEncodeBase64(ref)
+	return protox.MustEncodeBase64(&v1.TransformPayload{
+		Urn:  URNDoFn,
+		Edge: ref,
+	})
 }
 
 func nodeID(n *graph.Node) string {
