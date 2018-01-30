@@ -2820,6 +2820,51 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
 
+  @Ignore(
+      "https://issues.apache.org/jira/browse/BEAM-2791, "
+          + "https://issues.apache.org/jira/browse/BEAM-2535")
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
+  public void testEventTimeTimerLoop() {
+    final String stateId = "count";
+    final String timerId = "timer";
+    final int loopCount = 5;
+
+    DoFn<KV<String, Integer>, Integer> fn =
+        new DoFn<KV<String, Integer>, Integer>() {
+
+          @TimerId(timerId)
+          private final TimerSpec loopSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @StateId(stateId)
+          private final StateSpec<ValueState<Integer>> countSpec = StateSpecs.value();
+
+          @ProcessElement
+          public void processElement(
+              @StateId(stateId) ValueState<Integer> countState, @TimerId(timerId) Timer loopTimer) {
+            loopTimer.offset(Duration.millis(1)).setRelative();
+          }
+
+          @OnTimer(timerId)
+          public void onLoopTimer(
+              OnTimerContext ctx,
+              @StateId(stateId) ValueState<Integer> countState,
+              @TimerId(timerId) Timer loopTimer) {
+            int count = MoreObjects.firstNonNull(countState.read(), 0);
+            if (count < loopCount) {
+              ctx.output(count);
+              countState.write(count + 1);
+              loopTimer.offset(Duration.millis(1)).setRelative();
+            }
+          }
+        };
+
+    PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 42))).apply(ParDo.of(fn));
+
+    PAssert.that(output).containsInAnyOrder(0, 1, 2, 3, 4);
+    pipeline.run();
+  }
+
   /**
    * Tests that event time timers for multiple keys both fire. This particularly exercises
    * implementations that may GC in ways not simply governed by the watermark.
