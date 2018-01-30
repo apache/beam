@@ -34,6 +34,8 @@ from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
+from apache_beam.metrics.cells import GaugeCell
+from apache_beam.metrics.metricbase import MetricName
 from apache_beam.portability.api import beam_fn_api_pb2
 
 
@@ -151,12 +153,16 @@ class MetricsContainer(object):
     self.step_name = step_name
     self.counters = defaultdict(lambda: CounterCell())
     self.distributions = defaultdict(lambda: DistributionCell())
+    self.gauges = defaultdict(lambda: GaugeCell())
 
   def get_counter(self, metric_name):
     return self.counters[metric_name]
 
   def get_distribution(self, metric_name):
     return self.distributions[metric_name]
+
+  def get_gauge(self, metric_name):
+    return self.gauges[metric_name]
 
   def _get_updates(self, filter=None):
     """Return cumulative values of metrics filtered according to a lambda.
@@ -175,7 +181,11 @@ class MetricsContainer(object):
                      for k, v in self.distributions.items()
                      if filter(v)}
 
-    return MetricUpdates(counters, distributions)
+    gauges = {MetricKey(self.step_name, k): v.get_cumulative()
+              for k, v in self.gauges.items()
+              if filter(v)}
+
+    return MetricUpdates(counters, distributions, gauges)
 
   def get_updates(self):
     """Return cumulative values of metrics that changed since the last commit.
@@ -203,7 +213,9 @@ class MetricsContainer(object):
         [beam_fn_api_pb2.Metrics.User(
             metric_name=k.to_runner_api(),
             distribution_data=v.get_cumulative().to_runner_api())
-         for k, v in self.distributions.items()])
+         for k, v in self.distributions.items()]
+        #TODO(pabloem): Add gauge metrics.
+    )
 
 
 class ScopedMetricsContainer(object):
@@ -232,12 +244,14 @@ class MetricUpdates(object):
   For Distribution metrics, it is DistributionData, and for Counter metrics,
   it's an int.
   """
-  def __init__(self, counters=None, distributions=None):
+  def __init__(self, counters=None, distributions=None, gauges=None):
     """Create a MetricUpdates object.
 
     Args:
       counters: Dictionary of MetricKey:MetricUpdate updates.
       distributions: Dictionary of MetricKey:MetricUpdate objects.
+      gauges: Dictionary of MetricKey:MetricUpdate objects.
     """
     self.counters = counters or {}
     self.distributions = distributions or {}
+    self.gauges = gauges or {}

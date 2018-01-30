@@ -80,6 +80,8 @@ class RunnerTest(unittest.TestCase):
         count.inc()
 
       def process(self, element):
+        gauge = Metrics.gauge(self.__class__, 'latest_element')
+        gauge.set(element)
         count = Metrics.counter(self.__class__, 'elements')
         count.inc()
         distro = Metrics.distribution(self.__class__, 'element_dist')
@@ -110,6 +112,7 @@ class RunnerTest(unittest.TestCase):
             MetricResult(
                 MetricKey('Do', MetricName(namespace, 'finished_bundles')),
                 1, 1)))
+
     hc.assert_that(
         metrics['distributions'],
         hc.contains_inanyorder(
@@ -117,6 +120,13 @@ class RunnerTest(unittest.TestCase):
                 MetricKey('Do', MetricName(namespace, 'element_dist')),
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
+
+    gauge_result = metrics['gauges'][0]
+    hc.assert_that(
+        gauge_result.key,
+        hc.equal_to(MetricKey('Do', MetricName(namespace, 'latest_element'))))
+    hc.assert_that(gauge_result.committed.value, hc.equal_to(5))
+    hc.assert_that(gauge_result.attempted.value, hc.equal_to(5))
 
   def test_run_api(self):
     my_metric = Metrics.counter('namespace', 'my_metric')
