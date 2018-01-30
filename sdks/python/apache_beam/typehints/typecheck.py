@@ -37,7 +37,6 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
-from apache_beam.typehints.typehints import check_constraint
 
 
 class AbstractDoFnWrapper(DoFn):
@@ -111,7 +110,6 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
   def __init__(self, dofn, type_hints, label=None):
     super(TypeCheckWrapperDoFn, self).__init__(dofn)
-    self.dofn = dofn
     self._process_fn = self.dofn._process_argspec_fn()
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types
@@ -184,7 +182,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
 
 class TypeCheckCombineFn(core.CombineFn):
-  """A wrapper around a DoFn which performs type-checking of input and output.
+  """A wrapper around a CombineFn performing type-checking of input and output.
   """
 
   def __init__(self, combinefn, type_hints, label=None):
@@ -200,7 +198,8 @@ class TypeCheckCombineFn(core.CombineFn):
     if self._input_type_hint:
       try:
         _check_instance_type(
-            self._input_type_hint[0][0].tuple_types[1], element, 'element', True)
+            self._input_type_hint[0][0].tuple_types[1], element, 'element',
+            True)
       except TypeCheckError as e:
         error_msg = ('Runtime type violation detected within %s: '
                      '%s' % (self._label, e))
@@ -230,20 +229,25 @@ class TypeCheckVisitor(pipeline.PipelineVisitor):
   def enter_composite_transform(self, applied_transform):
     if isinstance(applied_transform.transform, core.CombinePerKey):
       self._in_combine = True
-      applied_transform.transform.fn = TypeCheckCombineFn(
+      self._wrapped_fn = applied_transform.transform.fn = TypeCheckCombineFn(
           applied_transform.transform.fn,
           applied_transform.transform.get_type_hints(),
           applied_transform.full_label)
+
   def leave_composite_transform(self, applied_transform):
     if isinstance(applied_transform.transform, core.CombinePerKey):
       self._in_combine = False
 
   def visit_transform(self, applied_transform):
     transform = applied_transform.transform
-    if isinstance(transform, core.ParDo) and not self._in_combine:
-      transform.fn = OutputCheckWrapperDoFn(
-          TypeCheckWrapperDoFn(
-              transform.fn,
-              transform.get_type_hints(),
-              applied_transform.full_label),
-          applied_transform.full_label)
+    if isinstance(transform, core.ParDo):
+      if self._in_combine:
+        if isinstance(transform.fn, core.CombineValuesDoFn):
+          transform.fn.combinefn = self._wrapped_fn
+      else:
+        transform.fn = transform.dofn = OutputCheckWrapperDoFn(
+            TypeCheckWrapperDoFn(
+                transform.fn,
+                transform.get_type_hints(),
+                applied_transform.full_label),
+            applied_transform.full_label)
