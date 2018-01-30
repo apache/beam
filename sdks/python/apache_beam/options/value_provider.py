@@ -78,17 +78,24 @@ class RuntimeValueProvider(ValueProvider):
   def is_accessible(self):
     return RuntimeValueProvider.runtime_options is not None
 
+  @classmethod
+  def get_value(cls, option_name, value_type=None, default_value=None):
+    candidate = RuntimeValueProvider.runtime_options.get(option_name)
+    if candidate and value_type:
+      return value_type(candidate)
+    elif candidate:
+      return candidate
+    else:
+      return default_value
+
   def get(self):
     if RuntimeValueProvider.runtime_options is None:
       raise error.RuntimeValueProviderError(
           '%s.get() not called from a runtime context' % self)
 
-    candidate = RuntimeValueProvider.runtime_options.get(self.option_name)
-    if candidate:
-      value = self.value_type(candidate)
-    else:
-      value = self.default_value
-    return value
+    return RuntimeValueProvider.get_value(self.option_name,
+                                          self.value_type,
+                                          self.default_value)
 
   @classmethod
   def set_runtime_options(cls, pipeline_options):
