@@ -211,10 +211,10 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         // There will only be one due to the check above.
         RunnerApi.PCollection mainInput = pCollections.get(
             Iterables.getOnlyElement(pTransform.getInputsMap().values()));
-        inputCoder = (Coder<InputT>) rehydratedComponents.getCoder(
-            mainInput.getCoderId());
-        windowingStrategy = (WindowingStrategy) rehydratedComponents.getWindowingStrategy(
-            mainInput.getWindowingStrategyId());
+        inputCoder = (Coder<InputT>) rehydratedComponents.getCoder(mainInput.getCoderId());
+        windowingStrategy =
+            (WindowingStrategy)
+                rehydratedComponents.getWindowingStrategy(mainInput.getWindowingStrategyId());
       } catch (InvalidProtocolBufferException exn) {
         throw new IllegalArgumentException("Malformed ParDoPayload", exn);
       } catch (IOException exn) {

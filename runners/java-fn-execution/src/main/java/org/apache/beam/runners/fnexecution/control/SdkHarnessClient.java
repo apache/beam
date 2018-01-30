@@ -24,6 +24,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -31,11 +32,17 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.util.WindowedValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A high-level client for an SDK harness.
@@ -44,6 +51,7 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
  * CloseableFnDataReceiver}, which handle lower-level gRPC message wrangling.
  */
 public class SdkHarnessClient {
+  private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessClient.class);
 
   /**
    * A supply of unique identifiers, used internally. These must be unique across all Fn API
@@ -63,18 +71,22 @@ public class SdkHarnessClient {
     }
   }
 
-
   /**
    * A processor capable of creating bundles for some registered {@link ProcessBundleDescriptor}.
    */
-  public class BundleProcessor {
+  public class BundleProcessor<T> {
     private final String processBundleDescriptorId;
     private final Future<RegisterResponse> registrationFuture;
 
+    private final RemoteInputDestination<WindowedValue<T>> remoteInput;
+
     private BundleProcessor(
-        String processBundleDescriptorId, Future<RegisterResponse> registrationFuture) {
+        String processBundleDescriptorId,
+        Future<RegisterResponse> registrationFuture,
+        RemoteInputDestination<WindowedValue<T>> remoteInput) {
       this.processBundleDescriptorId = processBundleDescriptorId;
       this.registrationFuture = registrationFuture;
+      this.remoteInput = remoteInput;
     }
 
     public Future<RegisterResponse> getRegistrationFuture() {
@@ -87,28 +99,9 @@ public class SdkHarnessClient {
      * <p>The input channels for the returned {@link ActiveBundle} are derived from the instructions
      * in the {@link BeamFnApi.ProcessBundleDescriptor}.
      */
-    public ActiveBundle newBundle() {
+    public ActiveBundle<T> newBundle(
+        Map<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers) {
       String bundleId = idGenerator.getId();
-
-      // TODO: acquire an input receiver from appropriate FnDataService
-      CloseableFnDataReceiver dataReceiver =
-          new CloseableFnDataReceiver() {
-            @Override
-            public void close() throws Exception {
-              throw new UnsupportedOperationException(
-                  String.format(
-                      "Placeholder %s cannot be closed.",
-                      CloseableFnDataReceiver.class.getSimpleName()));
-            }
-
-            @Override
-            public void accept(Object input) throws Exception {
-              throw new UnsupportedOperationException(
-                  String.format(
-                      "Placeholder %s cannot accept data.",
-                      CloseableFnDataReceiver.class.getSimpleName()));
-            }
-          };
 
       final ListenableFuture<BeamFnApi.InstructionResponse> genericResponse =
           fnApiControlClient.handle(
@@ -118,14 +111,39 @@ public class SdkHarnessClient {
                       BeamFnApi.ProcessBundleRequest.newBuilder()
                           .setProcessBundleDescriptorReference(processBundleDescriptorId))
                   .build());
+      LOG.debug(
+          "Sent {} with ID {} for {} with ID {}",
+          ProcessBundleRequest.class.getSimpleName(),
+          bundleId,
+          ProcessBundleDescriptor.class.getSimpleName(),
+          processBundleDescriptorId);
 
       ListenableFuture<BeamFnApi.ProcessBundleResponse> specificResponse =
-          Futures.transform(
-              genericResponse,
-              InstructionResponse::getProcessBundle,
-              MoreExecutors.directExecutor());
+          Futures.transform(genericResponse, InstructionResponse::getProcessBundle);
+      Map<BeamFnApi.Target, InboundDataClient> outputClients = new HashMap<>();
+      for (Map.Entry<BeamFnApi.Target, RemoteOutputReceiver<?>> targetReceiver :
+          outputReceivers.entrySet()) {
+        InboundDataClient outputClient =
+            attachReceiver(
+                bundleId,
+                targetReceiver.getKey(),
+                (RemoteOutputReceiver) targetReceiver.getValue());
+        outputClients.put(targetReceiver.getKey(), outputClient);
+      }
 
-      return ActiveBundle.create(bundleId, specificResponse, dataReceiver);
+      CloseableFnDataReceiver<WindowedValue<T>> dataReceiver =
+          fnApiDataService.send(
+              LogicalEndpoint.of(bundleId, remoteInput.getTarget()), remoteInput.getCoder());
+
+      return ActiveBundle.create(bundleId, specificResponse, dataReceiver, outputClients);
+    }
+
+    private <OutputT> InboundDataClient attachReceiver(
+        String bundleId,
+        BeamFnApi.Target target,
+        RemoteOutputReceiver<WindowedValue<OutputT>> receiver) {
+      return fnApiDataService.receive(
+          LogicalEndpoint.of(bundleId, target), receiver.getCoder(), receiver.getReceiver());
     }
   }
 
@@ -136,23 +154,31 @@ public class SdkHarnessClient {
 
     public abstract Future<BeamFnApi.ProcessBundleResponse> getBundleResponse();
 
-    public abstract CloseableFnDataReceiver<InputT> getInputReceiver();
+    public abstract CloseableFnDataReceiver<WindowedValue<InputT>> getInputReceiver();
+    public abstract Map<BeamFnApi.Target, InboundDataClient> getOutputClients();
 
     public static <InputT> ActiveBundle<InputT> create(
         String bundleId,
         Future<BeamFnApi.ProcessBundleResponse> response,
-        CloseableFnDataReceiver<InputT> dataReceiver) {
-      return new AutoValue_SdkHarnessClient_ActiveBundle<>(bundleId, response, dataReceiver);
+        CloseableFnDataReceiver<WindowedValue<InputT>> dataReceiver,
+        Map<BeamFnApi.Target, InboundDataClient> outputClients) {
+      return new AutoValue_SdkHarnessClient_ActiveBundle<>(
+          bundleId, response, dataReceiver, outputClients);
     }
   }
 
   private final IdGenerator idGenerator;
   private final FnApiControlClient fnApiControlClient;
+  private final FnDataService fnApiDataService;
 
   private final Cache<String, BundleProcessor> clientProcessors =
       CacheBuilder.newBuilder().build();
 
-  private SdkHarnessClient(FnApiControlClient fnApiControlClient, IdGenerator idGenerator) {
+  private SdkHarnessClient(
+      FnApiControlClient fnApiControlClient,
+      FnDataService fnApiDataService,
+      IdGenerator idGenerator) {
+    this.fnApiDataService = fnApiDataService;
     this.idGenerator = idGenerator;
     this.fnApiControlClient = fnApiControlClient;
   }
@@ -162,19 +188,27 @@ public class SdkHarnessClient {
    * that these correspond to the same SDK harness, so control plane and data plane messages can be
    * correctly associated.
    */
-  public static SdkHarnessClient usingFnApiClient(FnApiControlClient fnApiControlClient) {
-    return new SdkHarnessClient(fnApiControlClient, new CountingIdGenerator());
+  public static SdkHarnessClient usingFnApiClient(
+      FnApiControlClient fnApiControlClient, FnDataService fnApiDataService) {
+    return new SdkHarnessClient(fnApiControlClient, fnApiDataService, new CountingIdGenerator());
   }
 
   public SdkHarnessClient withIdGenerator(IdGenerator idGenerator) {
-    return new SdkHarnessClient(fnApiControlClient, idGenerator);
+    return new SdkHarnessClient(fnApiControlClient, fnApiDataService, idGenerator);
   }
 
-  public BundleProcessor getProcessor(final BeamFnApi.ProcessBundleDescriptor descriptor) {
+  public <T> BundleProcessor<T> getProcessor(
+      final BeamFnApi.ProcessBundleDescriptor descriptor,
+      final RemoteInputDestination<WindowedValue<T>> remoteInputDesination) {
     try {
       return clientProcessors.get(
           descriptor.getId(),
-              () -> register(Collections.singleton(descriptor)).get(descriptor.getId()));
+          () ->
+              (BundleProcessor)
+                  register(
+                          Collections.singletonMap(
+                              descriptor, (RemoteInputDestination) remoteInputDesination))
+                      .get(descriptor.getId()));
     } catch (ExecutionException e) {
       throw new RuntimeException(e);
     }
@@ -186,8 +220,10 @@ public class SdkHarnessClient {
    * <p>A client may block on the result future, but may also proceed without blocking.
    */
   public Map<String, BundleProcessor> register(
-      Iterable<BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors) {
+      Map<BeamFnApi.ProcessBundleDescriptor, RemoteInputDestination<WindowedValue<?>>>
+          processBundleDescriptors) {
 
+    LOG.debug("Registering {}", processBundleDescriptors.keySet());
     // TODO: validate that all the necessary data endpoints are known
     ListenableFuture<BeamFnApi.InstructionResponse> genericResponse =
         fnApiControlClient.handle(
@@ -195,7 +231,7 @@ public class SdkHarnessClient {
                 .setInstructionId(idGenerator.getId())
                 .setRegister(
                     BeamFnApi.RegisterRequest.newBuilder()
-                        .addAllProcessBundleDescriptor(processBundleDescriptors)
+                        .addAllProcessBundleDescriptor(processBundleDescriptors.keySet())
                         .build())
                 .build());
 
@@ -203,10 +239,14 @@ public class SdkHarnessClient {
         Futures.transform(
             genericResponse, InstructionResponse::getRegister,
             MoreExecutors.directExecutor());
-    for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor : processBundleDescriptors) {
+    for (Map.Entry<ProcessBundleDescriptor, RemoteInputDestination<WindowedValue<?>>>
+        descriptorInputEntry : processBundleDescriptors.entrySet()) {
       clientProcessors.put(
-          processBundleDescriptor.getId(),
-          new BundleProcessor(processBundleDescriptor.getId(), registerResponseFuture));
+          descriptorInputEntry.getKey().getId(),
+          new BundleProcessor<Object>(
+              descriptorInputEntry.getKey().getId(),
+              registerResponseFuture,
+              (RemoteInputDestination) descriptorInputEntry.getValue()));
     }
 
     return clientProcessors.asMap();
