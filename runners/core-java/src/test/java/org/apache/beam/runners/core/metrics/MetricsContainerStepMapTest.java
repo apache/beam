@@ -154,7 +154,8 @@ public class MetricsContainerStepMapTest {
     thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("This runner does not currently support committed metrics results.");
 
-    assertDistribution(DISTRIBUTION_NAME, step1res, STEP1, DistributionResult.ZERO, true);
+    assertDistribution(
+        DISTRIBUTION_NAME, step1res, STEP1, DistributionResult.IDENTITY_ELEMENT, true);
   }
 
   @Test
