@@ -1,0 +1,7 @@
+apache\_beam\.io\.filesystems module
+====================================
+
+.. automodule:: apache_beam.io.filesystems
+    :members:
+    :undoc-members:
+    :show-inheritance:
