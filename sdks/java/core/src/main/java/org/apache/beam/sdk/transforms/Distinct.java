@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.transforms;
 
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.values.KV;
@@ -161,8 +163,11 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
       if (representativeType != null) {
         withKeys = withKeys.withKeyType(representativeType);
       }
+
+      PCollection<KV<IdT, T>> keyed = in.apply("KeyByRepresentativeValue", withKeys);
+      KvCoder<IdT, T> keyedCoder = (KvCoder<IdT, T>) keyed.getCoder();
       PCollection<KV<IdT, T>> combined =
-          in.apply("KeyByRepresentativeValue", withKeys)
+          keyed
               .apply(
                   "OneValuePerKey",
                   Combine.perKey(
@@ -171,7 +176,15 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
                         public T apply(T left, T right) {
                           return left;
                         }
-                      }));
+                      }))
+              // When there is no input, the combine outputs null. This can occur when the input
+              // is in discarding mode with speculative triggers consuming all input prior to
+              // on-time or GC firing. There is no reason that the input coder would necessarily
+              // support nulls.
+              .setCoder(
+                  KvCoder.of(
+                      keyedCoder.getKeyCoder(), NullableCoder.of(keyedCoder.getValueCoder())));
+
       return combined.apply(
           "KeepFirstPane",
           ParDo.of(

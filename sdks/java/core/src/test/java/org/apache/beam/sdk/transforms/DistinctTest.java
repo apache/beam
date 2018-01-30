@@ -27,12 +27,14 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
@@ -234,6 +236,41 @@ public class DistinctTest {
                     .withRepresentativeType(TypeDescriptor.of(Integer.class)));
 
     PAssert.that(distinctValues).containsInAnyOrder(KV.of(1, "k1"), KV.of(2, "k2"), KV.of(3, "k3"));
+    triggeredDistinctRepresentativePipeline.run();
+  }
+
+  /**
+   * Regression test: when all values are emitted by a speculative trigger, caused a null KV when
+   * the on-time firing occurred.
+   */
+  @Test
+  @Category({NeedsRunner.class, UsesTestStream.class})
+  public void testTriggeredDistinctRepresentativeValuesEmpty() {
+    Instant base = new Instant(0);
+    TestStream<KV<Integer, String>> values =
+        TestStream.create(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of()))
+            .advanceWatermarkTo(base)
+            .addElements(TimestampedValue.of(KV.of(1, "k1"), base))
+            .advanceProcessingTime(Duration.standardMinutes(1))
+            .advanceWatermarkToInfinity();
+
+    PCollection<KV<Integer, String>> distinctValues =
+        triggeredDistinctRepresentativePipeline
+            .apply(values)
+            .apply(
+                Window.<KV<Integer, String>>into(FixedWindows.of(Duration.standardMinutes(1)))
+                    .triggering(
+                        AfterWatermark.pastEndOfWindow()
+                            .withEarlyFirings(
+                                AfterProcessingTime.pastFirstElementInPane()
+                                    .plusDelayOf(Duration.standardSeconds(30))))
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes())
+            .apply(
+                Distinct.withRepresentativeValueFn(new Keys<Integer>())
+                    .withRepresentativeType(TypeDescriptor.of(Integer.class)));
+
+    PAssert.that(distinctValues).containsInAnyOrder(KV.of(1, "k1"));
     triggeredDistinctRepresentativePipeline.run();
   }
 }
