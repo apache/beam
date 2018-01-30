@@ -46,14 +46,14 @@ class TestMetricsContainer(unittest.TestCase):
         counter = Metrics.counter('ns', 'name')
         counter.inc(3)
         self.assertEqual(
-            c2.get_cumulative().counters.items(),
+            list(c2.get_cumulative().counters.items()),
             [(MetricKey('myinternalstep', MetricName('ns', 'name')), 3)])
 
       self.assertEqual(c1, MetricsEnvironment.current_container())
       counter = Metrics.counter('ns', 'name')
       counter.inc(4)
       self.assertEqual(
-          c1.get_cumulative().counters.items(),
+          list(c1.get_cumulative().counters.items()),
           [(MetricKey('mystep', MetricName('ns', 'name')), 6)])
 
   def test_add_to_counter(self):
@@ -115,11 +115,11 @@ class TestMetricsEnvironment(unittest.TestCase):
     MetricsEnvironment.unset_current_container()
 
     self.assertEqual(
-        c1.get_cumulative().counters.items(),
+        list(c1.get_cumulative().counters.items()),
         [(MetricKey('step1', MetricName('ns', 'name')), 1)])
 
     self.assertEqual(
-        c2.get_cumulative().counters.items(),
+        list(c2.get_cumulative().counters.items()),
         [(MetricKey('step2', MetricName('ns', 'name')), 3)])
 
   def test_no_container(self):
