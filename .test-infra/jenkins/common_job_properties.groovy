@@ -274,6 +274,17 @@ class common_job_properties {
         // Launch performance test.
         shell(".env/bin/python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
+
+    // Temporarily run PerfKit jobs on few workers that doesn't have permission issues.
+    context.parameters {
+        nodeParam('TEST_HOST') {
+            description('select test host as either beam4, 6 or 7')
+            defaultNodes(['beam4', 'beam6', 'beam7'])
+            allowedNodes(['beam4', 'beam6', 'beam7'])
+            trigger('multiSelectionDisallowed')
+            eligibility('IgnoreOfflineNodeEligibility')
+        }
+    }
   }
 
   /**
