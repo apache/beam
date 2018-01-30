@@ -789,8 +789,8 @@ class AppliedPTransform(object):
         si.pvalue = pcoll
       result.side_inputs = tuple(result.transform.side_inputs)
     result.parts = []
-    for id in proto.subtransforms:
-      part = context.transforms.get_by_id(id)
+    for transform_id in proto.subtransforms:
+      part = context.transforms.get_by_id(transform_id)
       part.parent = result
       result.parts.append(part)
     result.outputs = {
