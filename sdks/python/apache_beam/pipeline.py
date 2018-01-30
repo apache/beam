@@ -175,9 +175,7 @@ class Pipeline(object):
     for part in applied_transform.parts:
       if part.full_label in self.applied_labels:
         self.applied_labels.remove(part.full_label)
-      if part.parts:
-        for part2 in part.parts:
-          self._remove_labels_recursively(part2)
+        self._remove_labels_recursively(part)
 
   def _replace(self, override):
 
@@ -194,47 +192,73 @@ class Pipeline(object):
       def __init__(self, pipeline):
         self.pipeline = pipeline
 
-      def _replace_if_needed(self, transform_node):
-        if matcher(transform_node):
+      def _replace_if_needed(self, original_transform_node):
+        if matcher(original_transform_node):
+          assert isinstance(original_transform_node, AppliedPTransform)
           replacement_transform = override.get_replacement_transform(
-              transform_node.transform)
-          inputs = transform_node.inputs
+              original_transform_node.transform)
+
+          replacement_transform_node = AppliedPTransform(
+              original_transform_node.parent, replacement_transform,
+              original_transform_node.full_label,
+              original_transform_node.inputs)
+
+          # Transform execution could depend on order in which nodes are
+          # considered. Hence we insert the replacement transform node to same
+          # index as the original transform node. Note that this operation
+          # removes the original transform node.
+          if original_transform_node.parent:
+            assert isinstance(original_transform_node.parent, AppliedPTransform)
+            parent_parts = original_transform_node.parent.parts
+            parent_parts[parent_parts.index(original_transform_node)] = (
+                replacement_transform_node)
+          else:
+            # Original transform has to be a root.
+            roots = self.pipeline.transforms_stack[0].parts
+            assert original_transform_node in roots
+            roots[roots.index(original_transform_node)] = (
+                replacement_transform_node)
+
+          inputs = replacement_transform_node.inputs
           # TODO:  Support replacing PTransforms with multiple inputs.
           if len(inputs) > 1:
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single input. Tried to replace input of '
                 'AppliedPTransform %r that has %d inputs',
-                transform_node, len(inputs))
-          transform_node.transform = replacement_transform
-          self.pipeline.transforms_stack.append(transform_node)
+                original_transform_node, len(inputs))
+
+          # We have to add the new AppliedTransform to the stack before expand()
+          # and pop it out later to make sure that parts get added correctly.
+          self.pipeline.transforms_stack.append(replacement_transform_node)
 
           # Keeping the same label for the replaced node but recursively
-          # removing labels of child transforms since they will be replaced
-          # during the expand below.
-          self.pipeline._remove_labels_recursively(transform_node)
+          # removing labels of child transforms of original transform since they
+          # will be replaced during the expand below. This is needed in case
+          # the replacement contains children that have labels that conflicts
+          # with labels of the children of the original.
+          self.pipeline._remove_labels_recursively(original_transform_node)
 
           new_output = replacement_transform.expand(inputs[0])
-          if new_output.producer is None:
-            # When current transform is a primitive, we set the producer here.
-            new_output.producer = transform_node
+          replacement_transform_node.add_output(new_output)
 
           # We only support replacing transforms with a single output with
           # another transform that produces a single output.
           # TODO: Support replacing PTransforms with multiple outputs.
-          if (len(transform_node.outputs) > 1 or
-              not isinstance(transform_node.outputs[None], PCollection) or
+          if (len(original_transform_node.outputs) > 1 or
+              not isinstance(
+                  original_transform_node.outputs[None], PCollection) or
               not isinstance(new_output, PCollection)):
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single output. Tried to replace output of '
                 'AppliedPTransform %r with %r.'
-                , transform_node, new_output)
+                , original_transform_node, new_output)
 
           # Recording updated outputs. This cannot be done in the same visitor
           # since if we dynamically update output type here, we'll run into
           # errors when visiting child nodes.
-          output_map[transform_node.outputs[None]] = new_output
+          output_map[original_transform_node.outputs[None]] = new_output
 
           self.pipeline.transforms_stack.pop()
 
