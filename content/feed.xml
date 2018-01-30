@@ -2192,8 +2192,8 @@ from the Mobile Gaming example series.&lt;/p&gt;
 
 &lt;h2 id=&quot;leaderboard-and-the-mobile-gaming-example&quot;&gt;LeaderBoard and the Mobile Gaming Example&lt;/h2&gt;
 
-&lt;p&gt;&lt;a href=&quot;https://github.com/apache/beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177&quot;&gt;LeaderBoard&lt;/a&gt;
-is part of the &lt;a href=&quot;https://github.com/apache/beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam mobile gaming examples&lt;/a&gt;
+&lt;p&gt;&lt;a href=&quot;https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java#L177&quot;&gt;LeaderBoard&lt;/a&gt;
+is part of the &lt;a href=&quot;https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete/game&quot;&gt;Beam mobile gaming examples&lt;/a&gt;
 (and &lt;a href=&quot;/get-started/mobile-gaming-example/&quot;&gt;walkthroughs&lt;/a&gt;)
 which produces a continuous accounting of user and team scores. User scores are
 calculated over the lifetime of the program, while team scores are calculated

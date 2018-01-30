@@ -1391,10 +1391,9 @@ followed by a <code class="highlighter-rouge">ParDo</code> to consume the result
 and format data from each collection.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">CoGbkResult</span><span class="o">&gt;&gt;</span> <span class="n">results</span> <span class="o">=</span>
-    <span class="n">KeyedPCollectionTuple</span>
-    <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">emailsTag</span><span class="o">,</span> <span class="n">emails</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">phonesTag</span><span class="o">,</span> <span class="n">phones</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">CoGroupByKey</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">create</span><span class="o">());</span>
+    <span class="n">KeyedPCollectionTuple</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">emailsTag</span><span class="o">,</span> <span class="n">emails</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">phonesTag</span><span class="o">,</span> <span class="n">phones</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">CoGroupByKey</span><span class="o">.</span><span class="na">create</span><span class="o">());</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">contactLines</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
   <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">CoGbkResult</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
