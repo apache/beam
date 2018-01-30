@@ -274,14 +274,11 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-extensions-sql</artifactId>
-      <scope>compile</scope>
-      <version>${parent.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
-      <version>${apache.commons.lang.version}</version>
       <scope>runtime</scope>
     </dependency>
   </dependencies>
