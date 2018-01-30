@@ -29,13 +29,24 @@ Available classes:
 - MetricsContainer - Holds the metrics of a single step and a single
     unit-of-commit (bundle).
 """
-import threading
+import logging
 from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.runners.worker import statesampler
+
+
+class MetricsContextException(Exception):
+  """statesampler is not set up to provide global context.
+
+  Metrics relies on statesampler to provide its global context. If any metrics
+  operation is attempted without the global context set up, this exception will
+  be thrown.
+  """
+  pass
 
 
 class MetricKey(object):
@@ -110,48 +121,37 @@ class MetricResult(object):
         self.key, str(self.committed), str(self.attempted))
 
 
-class _MetricsEnvironment(object):
-  """Holds the MetricsContainer for every thread and other metric information.
+class MetricsEnvironment(object):
+  """Holds the MetricsContainer for every step.
 
   This class is not meant to be instantiated, instead being used to keep
   track of global state.
   """
-  def __init__(self):
-    self.METRICS_SUPPORTED = False
-    self._METRICS_SUPPORTED_LOCK = threading.Lock()
-    self.PER_THREAD = threading.local()
-    self.set_container_stack()
+  METRICS_SUPPORTED = False
 
-  def set_container_stack(self):
-    if not hasattr(self.PER_THREAD, 'container'):
-      self.PER_THREAD.container = []
+  @classmethod
+  def set_metrics_supported(cls, supported):
+    cls.METRICS_SUPPORTED = supported
 
-  def container_stack(self):
-    self.set_container_stack()
-    return self.PER_THREAD.container
+  @classmethod
+  def register_container(cls, step_name, container):
+    """Register container to a step name."""
+    current_tracker = statesampler.EXECUTION_STATE_TRACKERS.current_tracker()
+    if not current_tracker:
+      raise MetricsContextException(
+          'No context manager set for Metrics.')
+    current_tracker.metrics_container_registry[step_name] = container
 
-  def set_metrics_supported(self, supported):
-    self.set_container_stack()
-    with self._METRICS_SUPPORTED_LOCK:
-      self.METRICS_SUPPORTED = supported
-
-  def current_container(self):
-    self.set_container_stack()
-    index = len(self.PER_THREAD.container) - 1
-    if index < 0:
+  @classmethod
+  def current_container(cls):
+    current_tracker = statesampler.EXECUTION_STATE_TRACKERS.current_tracker()
+    if not current_tracker:
+      logging.warn('No context manager is set for Metrics')
       return None
-    return self.PER_THREAD.container[index]
-
-  def set_current_container(self, container):
-    self.set_container_stack()
-    self.PER_THREAD.container.append(container)
-
-  def unset_current_container(self):
-    self.set_container_stack()
-    self.PER_THREAD.container.pop()
-
-
-MetricsEnvironment = _MetricsEnvironment()
+    current_step_name = current_tracker.current_state().name.step_name
+    container = current_tracker.metrics_container_registry.get(
+        current_step_name)
+    return container
 
 
 class MetricsContainer(object):
@@ -217,25 +217,6 @@ class MetricsContainer(object):
          for k, v in self.distributions.items()])
 
 
-class ScopedMetricsContainer(object):
-
-  def __init__(self, container=None):
-    self._stack = MetricsEnvironment.container_stack()
-    self._container = container
-
-  def enter(self):
-    self._stack.append(self._container)
-
-  def exit(self):
-    self._stack.pop()
-
-  def __enter__(self):
-    self.enter()
-
-  def __exit__(self, type, value, traceback):
-    self.exit()
-
-
 class MetricUpdates(object):
   """Contains updates for several metrics.
 
@@ -252,3 +233,17 @@ class MetricUpdates(object):
     """
     self.counters = counters or {}
     self.distributions = distributions or {}
+
+
+class ScopedMetricsContainer(object):
+  def enter(self):
+    pass
+
+  def exit(self):
+    pass
+
+  def __enter__(self):
+    self.enter()
+
+  def __exit__(self, type, value, traceback):
+    self.exit()

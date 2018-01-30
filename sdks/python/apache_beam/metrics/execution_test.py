@@ -21,9 +21,9 @@ from apache_beam.metrics.cells import CellCommitState
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metricbase import MetricName
+from apache_beam.runners.worker import statesampler
 
 
 class TestMetricsContainer(unittest.TestCase):
@@ -34,14 +34,20 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertTrue(MetricName('namespace', 'name') in mc.counters)
 
   def test_scoped_container(self):
-    c1 = MetricsContainer('mystep')
-    c2 = MetricsContainer('myinternalstep')
-    with ScopedMetricsContainer(c1):
+    state_tracker = statesampler.simple_tracker()
+    s1 = 'mystep'
+    s2 = 'myinternalstep'
+    c1 = MetricsContainer(s1)
+    MetricsEnvironment.register_container(s1, c1)
+    c2 = MetricsContainer(s2)
+    MetricsEnvironment.register_container(s2, c2)
+
+    with state_tracker.scoped_state(s1, 'any'):
       self.assertEqual(c1, MetricsEnvironment.current_container())
       counter = Metrics.counter('ns', 'name')
       counter.inc(2)
 
-      with ScopedMetricsContainer(c2):
+      with state_tracker.scoped_state(s2, 'any'):
         self.assertEqual(c2, MetricsEnvironment.current_container())
         counter = Metrics.counter('ns', 'name')
         counter.inc(3)
@@ -101,30 +107,6 @@ class TestMetricsContainer(unittest.TestCase):
     self.assertEqual(len(cumulative.distributions), 10)
     self.assertEqual(set(dirty_values + clean_values),
                      set([v for _, v in cumulative.counters.items()]))
-
-
-class TestMetricsEnvironment(unittest.TestCase):
-  def test_uses_right_container(self):
-    c1 = MetricsContainer('step1')
-    c2 = MetricsContainer('step2')
-    counter = Metrics.counter('ns', 'name')
-    MetricsEnvironment.set_current_container(c1)
-    counter.inc()
-    MetricsEnvironment.set_current_container(c2)
-    counter.inc(3)
-    MetricsEnvironment.unset_current_container()
-
-    self.assertEqual(
-        c1.get_cumulative().counters.items(),
-        [(MetricKey('step1', MetricName('ns', 'name')), 1)])
-
-    self.assertEqual(
-        c2.get_cumulative().counters.items(),
-        [(MetricKey('step2', MetricName('ns', 'name')), 3)])
-
-  def test_no_container(self):
-    self.assertEqual(MetricsEnvironment.current_container(),
-                     None)
 
 
 if __name__ == '__main__':

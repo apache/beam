@@ -27,5 +27,3 @@ cdef class MetricsContainer(object):
 cdef class ScopedMetricsContainer(object):
   cpdef enter(self)
   cpdef exit(self)
-  cdef list _stack
-  cdef MetricsContainer _container

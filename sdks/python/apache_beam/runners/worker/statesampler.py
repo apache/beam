@@ -16,9 +16,11 @@
 #
 
 # This module is experimental. No backwards-compatibility guarantees.
-from collections import namedtuple
+import collections
+import threading
 
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 try:
@@ -29,7 +31,23 @@ except ImportError:
   FAST_SAMPLER = False
 
 
-StateSamplerInfo = namedtuple(
+class ExecutionStateTrackers(threading.local):
+  """ Per-thread StateSampler that acts as a context manager. """
+  def __init__(self):
+    super(ExecutionStateTrackers, self).__init__()
+    self._current_tracker = None
+
+  def current_tracker(self):
+    return self._current_tracker
+
+  def set_tracker(self, tracker):
+    self._current_tracker = tracker
+
+
+EXECUTION_STATE_TRACKERS = ExecutionStateTrackers()
+
+
+StateSamplerInfo = collections.namedtuple(
     'StateSamplerInfo',
     ['state_name', 'transition_count', 'time_since_transition'])
 
@@ -46,12 +64,23 @@ class StateSampler(statesampler_impl.StateSampler):
     self._prefix = prefix
     self._counter_factory = counter_factory
     self._states_by_name = {}
+    self._registered = False
     self.sampling_period_ms = sampling_period_ms
+
+    # This keeps track of the MetricsContainer instances of the work item
+    # tracked by this sampler.
+    self.metrics_container_registry = {}
+    self.register()
     super(StateSampler, self).__init__(sampling_period_ms)
 
   def stop_if_still_running(self):
     if self.started and not self.finished:
       self.stop()
+
+  def register(self):
+    """Register the StateSampler as context manager for the current thread."""
+    EXECUTION_STATE_TRACKERS.set_tracker(self)
+    self._registered = True
 
   def get_info(self):
     """Returns StateSamplerInfo with transition statistics."""
@@ -61,6 +90,7 @@ class StateSampler(statesampler_impl.StateSampler):
         self.time_since_transition)
 
   def scoped_state(self, step_name, state_name, io_target=None):
+    """Get the ScopedState for a step and state, or create a new one."""
     counter_name = CounterName(state_name + '-msecs',
                                stage_name=self._prefix,
                                step_name=step_name,
@@ -79,3 +109,18 @@ class StateSampler(statesampler_impl.StateSampler):
     for state in self._states_by_name.values():
       state_msecs = int(1e-6 * state.nsecs)
       state.counter.update(state_msecs - state.counter.value())
+
+
+def simple_tracker():
+  """Create, register and return a simple StateSampler."""
+  sampler = StateSampler('', CounterFactory())
+  sampler.register()
+  return sampler
+
+
+def make_full_tracker(prefix, counter_factory,
+                      sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
+  """Create, register and return a StateSampler."""
+  sampler = StateSampler(prefix, counter_factory, sampling_period_ms)
+  sampler.register()
+  return sampler

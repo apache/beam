@@ -26,7 +26,6 @@ import sys
 import traceback
 
 from apache_beam.internal import util
-from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import core
@@ -440,13 +439,11 @@ class DoFnRunner(Receiver):
       step_name: the name of this step
       logging_context: a LoggingContext object
       state: handle for accessing DoFn state
-      scoped_metrics_container: Context switcher for metrics container
+      scoped_metrics_container: Context switcher for metrics. Deprecated.
     """
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
 
-    self.scoped_metrics_container = (
-        scoped_metrics_container or ScopedMetricsContainer())
     self.step_name = step_name
     self.logging_context = logging_context or LoggingContext()
     self.context = DoFnContext(step_name, state=state)
@@ -468,24 +465,20 @@ class DoFnRunner(Receiver):
   def process(self, windowed_value):
     try:
       self.logging_context.enter()
-      self.scoped_metrics_container.enter()
       self.do_fn_invoker.invoke_process(windowed_value)
     except BaseException as exn:
       self._reraise_augmented(exn)
     finally:
-      self.scoped_metrics_container.exit()
       self.logging_context.exit()
 
   def _invoke_bundle_method(self, bundle_method):
     try:
       self.logging_context.enter()
-      self.scoped_metrics_container.enter()
       self.context.set_element(None)
       bundle_method()
     except BaseException as exn:
       self._reraise_augmented(exn)
     finally:
-      self.scoped_metrics_container.exit()
       self.logging_context.exit()
 
   def start(self):

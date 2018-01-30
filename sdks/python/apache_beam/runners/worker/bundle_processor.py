@@ -187,7 +187,7 @@ class BundleProcessor(object):
     # TODO(robertwb): Figure out the correct prefix to use for output counters
     # from StateSampler.
     self.counter_factory = counters.CounterFactory()
-    self.state_sampler = statesampler.StateSampler(
+    self.state_sampler = statesampler.make_full_tracker(
         'fnapi-step-%s' % self.process_bundle_descriptor.id,
         self.counter_factory)
     self.ops = self.create_execution_tree(self.process_bundle_descriptor)
