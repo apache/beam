@@ -911,9 +911,9 @@ public class KafkaIO {
     @VisibleForTesting
     static final String METRIC_NAMESPACE = "KafkaIOReader";
     @VisibleForTesting
-    static final String CHECKPOINT_MARK_COMMITS_METRIC = "checkpointMarkCommits";
-    private static final String CHECKPOINT_MARK_COMMIT_SKIPS_METRIC = "checkpointMarkCommitSkips";
-
+    static final String CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC = "checkpointMarkCommitsEnqueued";
+    private static final String CHECKPOINT_MARK_COMMITS_SKIPPED_METRIC =
+      "checkpointMarkCommitsSkipped";
 
     private final UnboundedKafkaSource<K, V> source;
     private final String name;
@@ -932,11 +932,11 @@ public class KafkaIO {
     private final Counter bytesReadBySplit;
     private final Gauge backlogBytesOfSplit;
     private final Gauge backlogElementsOfSplit;
-    private final Counter checkpointMarkCommits = Metrics.counter(
-      METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_METRIC);
+    private final Counter checkpointMarkCommitsEnqueued = Metrics.counter(
+      METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC);
     // Checkpoint marks skipped in favor of newer mark (only the latest needs to be committed).
-    private final Counter checkpointMarkCommitSkips = Metrics.counter(
-      METRIC_NAMESPACE, CHECKPOINT_MARK_COMMIT_SKIPS_METRIC);
+    private final Counter checkpointMarkCommitsSkipped = Metrics.counter(
+      METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_SKIPPED_METRIC);
 
     /**
      * The poll timeout while reading records from Kafka.
@@ -1130,7 +1130,6 @@ public class KafkaIO {
             p -> new OffsetAndMetadata(p.getNextOffset())
           ))
       );
-      checkpointMarkCommits.inc();
     }
 
     /**
@@ -1142,8 +1141,9 @@ public class KafkaIO {
      */
     void finalizeCheckpointMarkAsync(KafkaCheckpointMark checkpointMark) {
       if (finalizedCheckpointMark.getAndSet(checkpointMark) != null) {
-        checkpointMarkCommitSkips.inc();
+        checkpointMarkCommitsSkipped.inc();
       }
+      checkpointMarkCommitsEnqueued.inc();
     }
 
     private void nextBatch() {

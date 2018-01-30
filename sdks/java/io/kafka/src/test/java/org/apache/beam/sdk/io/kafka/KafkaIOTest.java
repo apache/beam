@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -714,6 +715,19 @@ public class KafkaIOTest {
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
     assertThat(backlogBytesMetrics.gauges(), IsIterableWithSize.iterableWithSize(1));
+
+    // Check checkpointMarkCommitsEnqueued metric.
+    MetricQueryResults commitsEnqueuedMetrics =
+        result.metrics().queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(
+                    MetricNameFilter.named(
+                        KafkaIO.UnboundedKafkaReader.METRIC_NAMESPACE,
+                        KafkaIO.UnboundedKafkaReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC))
+                .build());
+
+    assertThat(commitsEnqueuedMetrics.counters(), IsIterableWithSize.iterableWithSize(1));
+    assertThat(commitsEnqueuedMetrics.counters().iterator().next().attempted(), greaterThan(0L));
   }
 
   @Test
