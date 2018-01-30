@@ -102,7 +102,8 @@ public class ShardRecordsIteratorTest {
   }
 
   @Test
-  public void goesThroughAvailableRecords() throws IOException, TransientKinesisException {
+  public void goesThroughAvailableRecords()
+      throws IOException, TransientKinesisException, KinesisShardClosedException {
     when(firstResult.getRecords()).thenReturn(asList(a, b, c));
     when(secondResult.getRecords()).thenReturn(singletonList(d));
     when(thirdResult.getRecords()).thenReturn(Collections.emptyList());
@@ -131,7 +132,8 @@ public class ShardRecordsIteratorTest {
   }
 
   @Test
-  public void refreshesExpiredIterator() throws IOException, TransientKinesisException {
+  public void refreshesExpiredIterator()
+      throws IOException, TransientKinesisException, KinesisShardClosedException {
     when(firstResult.getRecords()).thenReturn(singletonList(a));
     when(secondResult.getRecords()).thenReturn(singletonList(b));
 
