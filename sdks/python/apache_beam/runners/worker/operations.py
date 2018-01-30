@@ -28,6 +28,7 @@ from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
@@ -286,6 +287,10 @@ class DoOperation(Operation):
     # provided directly.
     assert self.side_input_maps is None
 
+    # Get experiments active in the worker to check for side input metrics exp.
+    experiments = set(RuntimeValueProvider(
+        'experiments', str, '').get().split(','))
+
     # We will read the side inputs in the order prescribed by the
     # tags_and_types argument because this is exactly the order needed to
     # replace the ArgumentPlaceholder objects in the args/kwargs of the DoFn
@@ -294,7 +299,7 @@ class DoOperation(Operation):
     # Note that for each tag there could be several read operations in the
     # specification. This can happen for instance if the source has been
     # sharded into several files.
-    for side_tag, view_class, view_options in tags_and_types:
+    for i, (side_tag, view_class, view_options) in enumerate(tags_and_types):
       sources = []
       # Using the side_tag in the lambda below will trigger a pylint warning.
       # However in this case it is fine because the lambda is used right away
@@ -306,7 +311,19 @@ class DoOperation(Operation):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
-      iterator_fn = sideinputs.get_iterator_fn_for_sources(sources)
+        # The tracking of time spend reading and bytes read from side inputs is
+        # behind an experiment flag to test its performance impact.
+        if 'sideinput_io_metrics' in experiments:
+          si_counter = opcounters.SideInputReadCounter(
+              self.counter_factory,
+              self.state_sampler,
+              declaring_step=self.operation_name,
+              # Inputs are 1-indexed, so we add 1 to i in the side input id
+              input_index=i + 1)
+        else:
+          si_counter = opcounters.TransformIOCounter()
+      iterator_fn = sideinputs.get_iterator_fn_for_sources(
+          sources, read_counter=si_counter)
 
       # Backwards compatibility for pre BEAM-733 SDKs.
       if isinstance(view_options, tuple):

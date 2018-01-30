@@ -36,6 +36,8 @@ runtime profile to be produced.
 """
 import threading
 
+from apache_beam.utils.counters import CounterName
+
 cimport cython
 from cpython cimport pythread
 from libc.stdint cimport int32_t, int64_t
@@ -94,7 +96,8 @@ cdef class StateSampler(object):
     self.current_state_index = 0
     self.time_since_transition = 0
     self.state_transition_count = 0
-    unknown_state = ScopedState(self, 'unknown', self.current_state_index)
+    unknown_state = ScopedState(
+        self, CounterName('unknown'), self.current_state_index)
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
     self.scoped_states_by_index = [unknown_state]
     pythread.PyThread_release_lock(self.lock)
