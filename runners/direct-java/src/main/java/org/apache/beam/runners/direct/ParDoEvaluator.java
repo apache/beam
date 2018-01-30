@@ -179,7 +179,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       Iterable<WindowedValue<InputT>> unprocessed = fnRunner.processElementInReadyWindows(element);
       unprocessedElements.addAll(unprocessed);
     } catch (Exception e) {
-      throw UserCodeException.wrap(e);
+      throw UserCodeException.wrap(transform.getFullName(), e);
     }
   }
 

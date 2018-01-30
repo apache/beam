@@ -26,6 +26,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.HashMultimap;
@@ -125,8 +126,19 @@ public class Pipeline {
     /**
      * Wraps {@code cause} into a {@link PipelineExecutionException}.
      */
+    public static PipelineExecutionException wrap(String transformName, Throwable cause) {
+      if (Strings.isNullOrEmpty(transformName)) {
+        return new PipelineExecutionException(cause);
+      }
+      return new PipelineExecutionException(
+          "Exception occurred while executing transform " + transformName, cause);
+    }
     public PipelineExecutionException(Throwable cause) {
       super(cause);
+    }
+
+    private PipelineExecutionException(String message, Throwable cause) {
+      super(message, cause);
     }
   }
 
@@ -314,7 +326,7 @@ public class Pipeline {
       // is caused by the caught UserCodeException, thereby splicing
       // out all the stack frames in between the PipelineRunner itself
       // and where the worker calls into the user's code.
-      throw new PipelineExecutionException(e.getCause());
+      throw PipelineExecutionException.wrap(e.getTransformName(), e.getCause());
     }
   }
 

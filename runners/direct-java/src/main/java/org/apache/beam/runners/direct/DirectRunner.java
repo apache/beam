@@ -202,7 +202,8 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
       try {
         result.waitUntilFinish();
       } catch (UserCodeException userException) {
-        throw new PipelineExecutionException(userException.getCause());
+        throw PipelineExecutionException
+            .wrap(userException.getTransformName(), userException.getCause());
       } catch (Throwable t) {
         if (t instanceof RuntimeException) {
           throw (RuntimeException) t;
@@ -336,7 +337,7 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
           // Emulates the behavior of Pipeline#run(), where a stack trace caused by a
           // UserCodeException is truncated and replaced with the stack starting at the call to
           // waitToFinish
-          throw new Pipeline.PipelineExecutionException(uce.getCause());
+          throw Pipeline.PipelineExecutionException.wrap(uce.getTransformName(), uce.getCause());
         } catch (Exception e) {
           if (e instanceof InterruptedException) {
             Thread.currentThread().interrupt();
