@@ -25,12 +25,14 @@ a cell's updates have been committed.
 """
 
 import threading
+import time
 
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
+from apache_beam.metrics.metricbase import Gauge
 from apache_beam.portability.api import beam_fn_api_pb2
 
-__all__ = ['DistributionResult']
+__all__ = ['DistributionResult', 'GaugeResult']
 
 
 class CellCommitState(object):
@@ -167,7 +169,7 @@ class DistributionCell(Distribution, MetricCell):
   """
   def __init__(self, *args):
     super(DistributionCell, self).__init__(*args)
-    self.data = DistributionData(0, 0, None, None)
+    self.data = DistributionAggregator.zero()
 
   def combine(self, other):
     result = DistributionCell()
@@ -195,6 +197,40 @@ class DistributionCell(Distribution, MetricCell):
       return self.data.get_cumulative()
 
 
+class GaugeCell(Gauge, MetricCell):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Tracks the current value and delta for a gauge metric.
+
+  Each cell tracks the state of a metric independently per cntext per bundle.
+  Therefore, each metric has a different cell in each bundle, that is later
+  aggregated.
+
+  This class is thread safe.
+  """
+  def __init__(self, *args):
+    super(GaugeCell, self).__init__(*args)
+    self.data = GaugeAggregator.zero()
+
+  def combine(self, other):
+    result = GaugeCell()
+    result.data = self.data.combine(other.data)
+    return result
+
+  def set(self, value):
+    value = int(value)
+    with self._lock:
+      self.commit.after_modification()
+      # Set the value directly without checking timestamp, because
+      # this value is naturally the latest value.
+      self.data.value = value
+      self.data.timestamp = time.time()
+
+  def get_cumulative(self):
+    with self._lock:
+      return self.data.get_cumulative()
+
+
 class DistributionResult(object):
   """The result of a Distribution metric.
   """
@@ -203,6 +239,9 @@ class DistributionResult(object):
 
   def __eq__(self, other):
     return self.data == other.data
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
 
   def __repr__(self):
     return '<DistributionResult(sum={}, count={}, min={}, max={})>'.format(
@@ -238,6 +277,74 @@ class DistributionResult(object):
     return float(self.data.sum)/self.data.count
 
 
+class GaugeResult(object):
+  def __init__(self, data):
+    self.data = data
+
+  def __eq__(self, other):
+    return self.data == other.data
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
+  def __repr__(self):
+    return '<GaugeResult(value={}, timestamp={})>'.format(
+        self.value,
+        self.timestamp)
+
+  @property
+  def value(self):
+    return self.data.value
+
+  @property
+  def timestamp(self):
+    return self.data.timestamp
+
+
+class GaugeData(object):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  The data structure that holds data about a gauge metric.
+
+  Gauge metrics are restricted to integers only.
+
+  This object is not thread safe, so it's not supposed to be modified
+  by other than the GaugeCell that contains it.
+  """
+  def __init__(self, value, timestamp=None):
+    self.value = value
+    self.timestamp = timestamp if timestamp is not None else time.time()
+
+  def __eq__(self, other):
+    return self.value == other.value and self.timestamp == other.timestamp
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
+  def __repr__(self):
+    return '<GaugeData(value={}, timestamp={})>'.format(
+        self.value,
+        self.timestamp)
+
+  def get_cumulative(self):
+    return GaugeData(self.value, self.timestamp)
+
+  def combine(self, other):
+    if other is None:
+      return self
+
+    if other.timestamp > self.timestamp:
+      return other
+    else:
+      return self
+
+  @staticmethod
+  def singleton(value):
+    return GaugeData(value)
+
+  #TODO(pabloem) - Add to_runner_api, and from_runner_api
+
+
 class DistributionData(object):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -260,7 +367,7 @@ class DistributionData(object):
             self.min == other.min and
             self.max == other.max)
 
-  def __neq__(self, other):
+  def __ne__(self, other):
     return not self.__eq__(other)
 
   def __repr__(self):
@@ -321,7 +428,8 @@ class CounterAggregator(MetricAggregator):
 
   Values aggregated should be ``int`` objects.
   """
-  def zero(self):
+  @staticmethod
+  def zero():
     return 0
 
   def combine(self, x, y):
@@ -338,7 +446,8 @@ class DistributionAggregator(MetricAggregator):
 
   Values aggregated should be ``DistributionData`` objects.
   """
-  def zero(self):
+  @staticmethod
+  def zero():
     return DistributionData(0, 0, None, None)
 
   def combine(self, x, y):
@@ -346,3 +455,22 @@ class DistributionAggregator(MetricAggregator):
 
   def result(self, x):
     return DistributionResult(x.get_cumulative())
+
+
+class GaugeAggregator(MetricAggregator):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Aggregator for Gauge metric data during pipeline execution.
+
+  Values aggregated should be ``GaugeData`` objects.
+  """
+  @staticmethod
+  def zero():
+    return GaugeData(None, timestamp=0)
+
+  def combine(self, x, y):
+    result = x.combine(y)
+    return result
+
+  def result(self, x):
+    return GaugeResult(x.get_cumulative())
