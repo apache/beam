@@ -1157,7 +1157,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   private NexmarkQuery getNexmarkQuery() {
     List<NexmarkQuery> queries = createQueries();
 
-    if (options.getQuery() >= queries.size()) {
+    if (configuration.query >= queries.size()) {
       throw new UnsupportedOperationException(
           "Query " + options.getQuery()
           + " is not implemented yet");
