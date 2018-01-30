@@ -241,8 +241,9 @@ class DataflowRunner(PipelineRunner):
                   "Found %s for %s" % (element_type, pcoll))
           pcoll.element_type = coerce_to_kv_type(input_type)
           key_type, value_type = pcoll.element_type.tuple_types
-          transform_node.outputs[None].element_type = typehints.KV[
-              key_type, typehints.Iterable[value_type]]
+          if transform_node.outputs:
+            transform_node.outputs[None].element_type = typehints.KV[
+                key_type, typehints.Iterable[value_type]]
 
     return GroupByKeyInputVisitor()
 
