@@ -23,6 +23,7 @@ context.
 Cells depend on a 'dirty-bit' in the CellCommitState class that tracks whether
 a cell's updates have been committed.
 """
+from __future__ import division
 
 import threading
 
@@ -235,7 +236,7 @@ class DistributionResult(object):
     """
     if self.data.count == 0:
       return None
-    return float(self.data.sum)/self.data.count
+    return self.data.sum / self.data.count
 
 
 class DistributionData(object):

@@ -110,6 +110,7 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.List[typehints.Union[int, float]],
         lambda xs: [x for x in xs],
         [typehints.Tuple[int, float]])
+    # TODO(luke-zhu): This test fails in Python 3
     self.assertReturnType(
         typehints.List[typehints.Tuple[str, int]],
         lambda kvs: [(kvs[0], v) for v in kvs[1]],
