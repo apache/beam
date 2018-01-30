@@ -37,7 +37,9 @@ public abstract class DistributionResult {
     return (1.0 * sum()) / count();
   }
 
-  public static final DistributionResult ZERO = create(0, 0, Long.MAX_VALUE, Long.MIN_VALUE);
+  /** The IDENTITY_ELEMENT is used to start accumulating distributions. */
+  public static final DistributionResult IDENTITY_ELEMENT =
+      create(0, 0, Long.MAX_VALUE, Long.MIN_VALUE);
 
   public static DistributionResult create(long sum, long count, long min, long max) {
     return new AutoValue_DistributionResult(sum, count, min, max);
