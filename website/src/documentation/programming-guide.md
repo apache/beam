@@ -876,7 +876,7 @@ data contains names and phone numbers.
 </span>
 
 ```java
-{% github_sample /apache/beam/blob/master/examples/java8/src/test/java/org/apache/beam/examples/website_snippets/SnippetsTest.java tag:CoGroupByKeyTupleInputs
+{% github_sample /apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java tag:CoGroupByKeyTupleInputs
 %}```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_group_by_key_cogroupbykey_tuple_inputs
@@ -886,7 +886,7 @@ After `CoGroupByKey`, the resulting data contains all data associated with each
 unique key from any of the input collections.
 
 ```java
-{% github_sample /apache/beam/blob/master/examples/java8/src/test/java/org/apache/beam/examples/website_snippets/SnippetsTest.java tag:CoGroupByKeyTupleOutputs
+{% github_sample /apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java tag:CoGroupByKeyTupleOutputs
 %}```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_group_by_key_cogroupbykey_tuple_outputs
@@ -897,7 +897,7 @@ followed by a `ParDo` to consume the result. Then, the code uses tags to look up
 and format data from each collection.
 
 ```java
-{% github_sample /apache/beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/website_snippets/Snippets.java tag:CoGroupByKeyTuple
+{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CoGroupByKeyTuple
 %}```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_group_by_key_cogroupbykey_tuple
@@ -906,7 +906,7 @@ and format data from each collection.
 The formatted data looks like this:
 
 ```java
-{% github_sample /apache/beam/blob/master/examples/java8/src/test/java/org/apache/beam/examples/website_snippets/SnippetsTest.java tag:CoGroupByKeyTupleFormattedOutputs
+{% github_sample /apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java tag:CoGroupByKeyTupleFormattedOutputs
 %}```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_group_by_key_cogroupbykey_tuple_formatted_outputs
