@@ -511,6 +511,20 @@ class RunnerApiTest(unittest.TestCase):
     p.to_runner_api()
     self.assertEqual(MyPTransform.pickle_count[0], 20)
 
+  def test_parent_pointer(self):
+    class MyPTransform(beam.PTransform):
+
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+    p = beam.Pipeline()
+    p | MyPTransform()  # pylint: disable=expression-not-assigned
+    p = Pipeline.from_runner_api(Pipeline.to_runner_api(p), None, None)
+    self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
+    self.assertEquals(p.transforms_stack[0].parts[0].parent,
+                      p.transforms_stack[0])
+
 
 class DirectRunnerRetryTests(unittest.TestCase):
 
