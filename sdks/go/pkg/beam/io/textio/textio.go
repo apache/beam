@@ -173,6 +173,10 @@ func (w *writeFileFn) ProcessElement(line string) error {
 	return err
 }
 
+// TODO(herohde) 1/29/2018: we need to write the object as a side input instead
+// or similar. We may never call Teardown for non-local runners and FinishBundle
+// doesn't have the right granularity.
+
 func (w *writeFileFn) Teardown() error {
 	defer w.fs.Close()
 

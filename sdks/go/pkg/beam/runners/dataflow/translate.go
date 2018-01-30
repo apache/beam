@@ -27,10 +27,20 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
+)
+
+const (
+	impulseKind = "CreateCollection"
+	parDoKind   = "ParallelDo"
+	flattenKind = "Flatten"
+	gbkKind     = "GroupByKey"
+
+	sideInputKind = "CollectionToSingleton"
 )
 
 // translate translates a Graph into a sequence of Dataflow steps. The step
@@ -53,6 +63,15 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 
 	var steps []*df.Step
 	for _, edge := range edges {
+		if edge.Op == graph.CoGBK && len(edge.Input) > 1 {
+			expanded, err := expandCoGBK(nodes, edge)
+			if err != nil {
+				return nil, err
+			}
+			steps = append(steps, expanded...)
+			continue
+		}
+
 		kind, prop, err := translateEdge(edge)
 		if err != nil {
 			return nil, err
@@ -78,7 +97,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 
 				side := &df.Step{
 					Name: fmt.Sprintf("view%v_%v", edge.ID(), i),
-					Kind: "CollectionToSingleton",
+					Kind: sideInputKind,
 					Properties: newMsg(properties{
 						ParallelInput: ref,
 						OutputInfo: []output{{
@@ -135,6 +154,127 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 	return steps, nil
 }
 
+func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.Step, error) {
+	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
+	// CoGBK with multiple PCollections as described in graphx/cogbk.go.
+
+	kvCoder, err := graphx.EncodeCoderRef(graphx.MakeKVUnionCoder(edge))
+	if err != nil {
+		return nil, err
+	}
+	gbkCoder, err := graphx.EncodeCoderRef(graphx.MakeGBKUnionCoder(edge))
+	if err != nil {
+		return nil, err
+	}
+
+	var steps []*df.Step
+
+	var inputs []*outputReference
+	for i, in := range edge.Input {
+		// Inject(i)
+
+		injectID := fmt.Sprintf("%v_inject%v", edge.ID(), i)
+		out := newOutputReference(injectID, "out")
+
+		inject := &df.Step{
+			Name: injectID,
+			Kind: parDoKind,
+			Properties: newMsg(properties{
+				ParallelInput: nodes[in.From.ID()],
+				SerializedFn: makeSerializedFnPayload(&v1.TransformPayload{
+					Urn:    graphx.URNInject,
+					Inject: &v1.InjectPayload{N: (int32)(i)},
+				}),
+				OutputInfo: []output{{
+					UserName:   out.OutputName,
+					OutputName: out.OutputName,
+					Encoding:   kvCoder,
+				}},
+				UserName: buildName(edge.Scope(), injectID),
+			}),
+		}
+
+		inputs = append(inputs, out)
+		steps = append(steps, inject)
+	}
+
+	// Flatten
+
+	flattenID := fmt.Sprintf("%v_flatten", edge.ID())
+	out := newOutputReference(flattenID, "out")
+
+	flatten := &df.Step{
+		Name: flattenID,
+		Kind: flattenKind,
+		Properties: newMsg(properties{
+			Inputs: inputs,
+			OutputInfo: []output{{
+				UserName:   out.OutputName,
+				OutputName: out.OutputName,
+				Encoding:   kvCoder,
+			}},
+			UserName: buildName(edge.Scope(), flattenID),
+		}),
+	}
+	steps = append(steps, flatten)
+
+	// GBK
+
+	gbkID := fmt.Sprintf("%v_expand", edge.ID())
+	gbkOut := newOutputReference(gbkID, "out")
+
+	w := edge.Input[0].From.Window()
+	sfn, err := encodeSerializedFn(translateWindow(w))
+	if err != nil {
+		return nil, err
+	}
+
+	gbk := &df.Step{
+		Name: gbkID,
+		Kind: gbkKind,
+		Properties: newMsg(properties{
+			ParallelInput: out,
+			OutputInfo: []output{{
+				UserName:   gbkOut.OutputName,
+				OutputName: gbkOut.OutputName,
+				Encoding:   gbkCoder,
+			}},
+			UserName:                buildName(edge.Scope(), "group"),
+			DisallowCombinerLifting: true,
+			SerializedFn:            sfn,
+		}),
+	}
+	steps = append(steps, gbk)
+
+	// Expand
+
+	ref := nodes[edge.Output[0].To.ID()]
+	coder, err := graphx.EncodeCoderRef(edge.Output[0].To.Coder)
+	if err != nil {
+		return nil, err
+	}
+
+	expand := &df.Step{
+		Name: stepID(edge.ID()), // the successor references this name.
+		Kind: parDoKind,
+		Properties: newMsg(properties{
+			ParallelInput: gbkOut,
+			OutputInfo: []output{{
+				UserName:   ref.OutputName,
+				OutputName: ref.OutputName,
+				Encoding:   coder,
+			}},
+			UserName: buildName(edge.Scope(), "expand"),
+			SerializedFn: makeSerializedFnPayload(&v1.TransformPayload{
+				Urn: graphx.URNExpand,
+			}),
+		}),
+	}
+	steps = append(steps, expand)
+
+	return steps, nil
+}
+
 // TODO(herohde) 5/16/2017: we might need to robustly encode the index into the
 // name, so that we can infer the ordering from the names in the harness.
 
@@ -176,32 +316,23 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 
 		// log.Printf("Impulse data: %v", url.QueryEscape(value))
 
-		return "CreateCollection", properties{
+		return impulseKind, properties{
 			UserName: buildName(edge.Scope(), "create"),
 			Element:  []string{url.QueryEscape(value)},
 		}, nil
 
 	case graph.ParDo:
-		fn, err := serializeFn(edge)
-		if err != nil {
-			return "", properties{}, err
-		}
-		return "ParallelDo", properties{
+		return parDoKind, properties{
 			UserName:     buildName(edge.Scope(), edge.DoFn.Name()),
-			SerializedFn: fn,
+			SerializedFn: serializeFn(edge),
 		}, nil
 
 	case graph.Combine:
-		fn, err := serializeFn(edge)
-		if err != nil {
-			return "", properties{}, err
-		}
-
 		// TODO(flaviocf) 8/08/2017: When combiners are supported, change "ParallelDo" to
 		// "CombineValues", encode accumulator coder and pass it as a property "Encoding".
-		return "ParallelDo", properties{
+		return parDoKind, properties{
 			UserName:     buildName(edge.Scope(), edge.CombineFn.Name()),
-			SerializedFn: fn,
+			SerializedFn: serializeFn(edge),
 		}, nil
 
 	case graph.CoGBK:
@@ -210,14 +341,14 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		if err != nil {
 			return "", properties{}, err
 		}
-		return "GroupByKey", properties{
+		return gbkKind, properties{
 			UserName:                buildName(edge.Scope(), "group"), // TODO: user-defined
 			DisallowCombinerLifting: true,
 			SerializedFn:            sfn,
 		}, nil
 
 	case graph.Flatten:
-		return "Flatten", properties{
+		return flattenKind, properties{
 			UserName: buildName(edge.Scope(), "flatten"), // TODO: user-defined
 		}, nil
 
@@ -228,12 +359,19 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 
 // serializeFn encodes and then base64-encodes a MultiEdge. Dataflow requires
 // serialized functions to be base64 encoded.
-func serializeFn(edge *graph.MultiEdge) (string, error) {
+func serializeFn(edge *graph.MultiEdge) string {
 	ref, err := graphx.EncodeMultiEdge(edge)
 	if err != nil {
-		return "", fmt.Errorf("Failed to serialize %v: %v", edge, err)
+		panic(fmt.Errorf("failed to serialize %v: %v", edge, err))
 	}
-	return protox.EncodeBase64(ref)
+	return makeSerializedFnPayload(&v1.TransformPayload{
+		Urn:  graphx.URNDoFn,
+		Edge: ref,
+	})
+}
+
+func makeSerializedFnPayload(payload *v1.TransformPayload) string {
+	return protox.MustEncodeBase64(payload)
 }
 
 // buildName computes a Dataflow composite name understood by the Dataflow UI,

@@ -253,11 +253,10 @@ type kvEncoder struct {
 }
 
 func (c *kvEncoder) Encode(val FullValue, w io.Writer) error {
-	if err := c.fst.Encode(FullValue{Elm: val.Elm}, w); err != nil {
+	if err := c.fst.Encode(convertIfNeeded(val.Elm), w); err != nil {
 		return err
 	}
-	return c.snd.Encode(FullValue{Elm: val.Elm2}, w)
-
+	return c.snd.Encode(convertIfNeeded(val.Elm2), w)
 }
 
 type kvDecoder struct {
@@ -310,4 +309,11 @@ func DecodeWindowedValueHeader(c *coder.Coder, r io.Reader) (typex.EventTime, er
 		return typex.EventTime(time.Time{}), err
 	}
 	return t, nil
+}
+
+func convertIfNeeded(v interface{}) FullValue {
+	if fv, ok := v.(FullValue); ok {
+		return fv
+	}
+	return FullValue{Elm: v}
 }

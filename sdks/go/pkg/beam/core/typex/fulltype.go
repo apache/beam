@@ -114,7 +114,7 @@ func New(t reflect.Type, components ...FullType) FullType {
 			if len(components) != 2 {
 				panic("Invalid number of components for KV")
 			}
-			if isAnyComposite(components) {
+			if isAnyNonKVComposite(components) {
 				panic("Invalid to nest composites inside KV")
 			}
 			return &tree{class, t, components}
@@ -130,7 +130,7 @@ func New(t reflect.Type, components ...FullType) FullType {
 			if len(components) < 2 {
 				panic("Invalid number of components for CoGBK")
 			}
-			if isAnyComposite(components) {
+			if isAnyNonKVComposite(components) {
 				panic("Invalid to nest composites inside CoGBK")
 			}
 			return &tree{class, t, components}
@@ -142,9 +142,15 @@ func New(t reflect.Type, components ...FullType) FullType {
 	}
 }
 
-func isAnyComposite(list []FullType) bool {
+// NOTE(herohde) 1/26/2018: we allow nested KV types and coders to support the
+// CoGBK translation (using KV<K,KV<int,[]byte>> to encode keyed raw union values)
+// and potentially other uses. We do not have a reasonable way to emit nested KV
+// values, so user functions are still limited to non-nested KVs. Universally-typed
+// KV-values might be simple to allow, for example.
+
+func isAnyNonKVComposite(list []FullType) bool {
 	for _, t := range list {
-		if t.Class() == Composite {
+		if t.Class() == Composite && t.Type() != KVType {
 			return true
 		}
 	}

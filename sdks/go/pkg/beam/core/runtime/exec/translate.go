@@ -65,7 +65,7 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 			if err != nil {
 				return nil, err
 			}
-			u.Coder, err = b.makeCoder(pid)
+			u.Coder, err = b.makeCoderForPCollection(pid)
 			if err != nil {
 				return nil, err
 			}
@@ -169,7 +169,7 @@ func (b *builder) makePCollections(out []string) ([]Node, error) {
 	return ret, nil
 }
 
-func (b *builder) makeCoder(id string) (*coder.Coder, error) {
+func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, error) {
 	col, ok := b.desc.GetPcollections()[id]
 	if !ok {
 		return nil, fmt.Errorf("pcollection %v not found", id)
@@ -250,12 +250,12 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	var u Node
 	switch urn {
-	case graphx.URNParDo, graphx.URNDoFn:
+	case graphx.URNParDo, graphx.URNJavaDoFn:
 		var data string
 		if urn == graphx.URNParDo {
 			var pardo pb.ParDoPayload
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("invalid ParDo payload for %v: %v", transform, err)
 			}
 			data = string(pardo.GetDoFn().GetSpec().GetPayload())
 		} else {
@@ -263,54 +263,92 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			// case here, for now, so that the harness can use this logic.
 
 			data = string(payload)
-
 		}
 
-		var me v1.MultiEdge
-		if err := protox.DecodeBase64(data, &me); err != nil {
-			return nil, err
-		}
-		op, fn, in, _, err := graphx.DecodeMultiEdge(&me)
-		if err != nil {
-			return nil, err
+		// TODO(herohde) 1/28/2018: Once we're fully off the old way,
+		// we can simply switch on the ParDo DoFn URN directly.
+
+		var tp v1.TransformPayload
+		if err := protox.DecodeBase64(data, &tp); err != nil {
+			return nil, fmt.Errorf("invalid transform payload for %v: %v", transform, err)
 		}
 
-		switch op {
-		case graph.ParDo:
-			n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
-			n.Fn, err = graph.AsDoFn(fn)
+		switch tp.GetUrn() {
+		case graphx.URNDoFn:
+			op, fn, in, _, err := graphx.DecodeMultiEdge(tp.GetEdge())
 			if err != nil {
 				return nil, err
 			}
-			if len(in) == 1 {
+
+			switch op {
+			case graph.ParDo:
+				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
+				n.Fn, err = graph.AsDoFn(fn)
+				if err != nil {
+					return nil, err
+				}
+				if len(in) == 1 {
+					u = n
+					break
+				}
+
+				panic("NYI: side input")
+
+			case graph.Combine:
+				n := &Combine{UID: b.idgen.New(), Out: out[0]}
+				n.Fn, err = graph.AsCombineFn(fn)
+				if err != nil {
+					return nil, err
+				}
+
+				// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
+				// instead of inferring it here?
+
+				c, err := b.makeCoderForPCollection(from)
+				if err != nil {
+					return nil, err
+				}
+
+				n.IsPerKey = coder.IsWCoGBK(c)
+				n.UsesKey = typex.IsWKV(in[0].Type)
+
 				u = n
-				break
+
+			default:
+				panic(fmt.Sprintf("Opcode should be one of ParDo or Combine, but it is: %v", op))
 			}
 
-			panic("NYI: side input")
-
-		case graph.Combine:
-			n := &Combine{UID: b.idgen.New(), Out: out[0]}
-			n.Fn, err = graph.AsCombineFn(fn)
+		case graphx.URNInject:
+			c, err := b.makeCoderForPCollection(from)
 			if err != nil {
 				return nil, err
 			}
+			if !coder.IsWKV(c) {
+				return nil, fmt.Errorf("unexpected inject coder: %v", c)
+			}
+			u = &Inject{UID: b.idgen.New(), N: (int)(tp.Inject.N), ValueEncoder: MakeElementEncoder(coder.SkipW(c).Components[1]), Out: out[0]}
 
-			// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
-			// instead of inferring it here?
-
-			c, err := b.makeCoder(from)
+		case graphx.URNExpand:
+			var pid string
+			for _, id := range transform.GetOutputs() {
+				pid = id
+			}
+			c, err := b.makeCoderForPCollection(pid)
 			if err != nil {
 				return nil, err
 			}
+			if !coder.IsWCoGBK(c) {
+				return nil, fmt.Errorf("unexpected expand coder: %v", c)
+			}
 
-			n.IsPerKey = coder.IsWCoGBK(c)
-			n.UsesKey = typex.IsWKV(in[0].Type)
-
-			u = n
+			var decoders []ElementDecoder
+			for _, dc := range coder.SkipW(c).Components[1:] {
+				decoders = append(decoders, MakeElementDecoder(dc))
+			}
+			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
 
 		default:
-			panic(fmt.Sprintf("Opcode should be one of ParDo or Combine, but it is: %v", op))
+			return nil, fmt.Errorf("unexpected payload: %v", tp)
 		}
 
 	case urnDataSink:
@@ -324,7 +362,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		for key, pid := range transform.GetInputs() {
 			sink.Target = Target{ID: id.to, Name: key}
 
-			sink.Coder, err = b.makeCoder(pid)
+			sink.Coder, err = b.makeCoderForPCollection(pid)
 			if err != nil {
 				return nil, err
 			}

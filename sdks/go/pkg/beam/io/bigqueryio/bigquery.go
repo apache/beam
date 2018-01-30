@@ -36,6 +36,11 @@ import (
 // writeSizeLimit is the maximum number of rows allowed by BQ in a write.
 const writeRowLimit = 10000
 
+func init() {
+	beam.RegisterType(reflect.TypeOf((*queryFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*writeFn)(nil)).Elem())
+}
+
 // QualifiedTableName is a fully qualified name of a bigquery table.
 type QualifiedTableName struct {
 	// Project is the Google Cloud project ID.
