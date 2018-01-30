@@ -1,0 +1,7 @@
+apache\_beam\.io\.hadoopfilesystem module
+=========================================
+
+.. automodule:: apache_beam.io.hadoopfilesystem
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,422 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.vcfio module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.io package" href="apache_beam.io.html"/>
+        <link rel="next" title="apache_beam.metrics package" href="apache_beam.metrics.html"/>
+        <link rel="prev" title="apache_beam.io.tfrecordio module" href="apache_beam.io.tfrecordio.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.avroio.html">apache_beam.io.avroio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.concat_source.html">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsink.html">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsource.html">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystem.html">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystems.html">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.hadoopfilesystem.html">apache_beam.io.hadoopfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.iobase.html">apache_beam.io.iobase module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.localfilesystem.html">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.range_trackers.html">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.restriction_trackers.html">apache_beam.io.restriction_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.source_test_utils.html">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.textio.html">apache_beam.io.textio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.tfrecordio.html">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.io.vcfio module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.io.html">apache_beam.io package</a> &raquo;</li>
+        
+      <li>apache_beam.io.vcfio module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.io.vcfio.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.io.vcfio">
+<span id="apache-beam-io-vcfio-module"></span><h1>apache_beam.io.vcfio module<a class="headerlink" href="#module-apache_beam.io.vcfio" title="Permalink to this headline">¶</a></h1>
+<p>A source for reading from VCF files (version 4.x).</p>
+<p>The 4.2 spec is available at <a class="reference external" href="https://samtools.github.io/hts-specs/VCFv4.2.pdf">https://samtools.github.io/hts-specs/VCFv4.2.pdf</a>.</p>
+<dl class="class">
+<dt id="apache_beam.io.vcfio.VariantInfo">
+<em class="property">class </em><code class="descclassname">apache_beam.io.vcfio.</code><code class="descname">VariantInfo</code><span class="sig-paren">(</span><em>data</em>, <em>field_count</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.io.vcfio.VariantInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">tuple</span></code></p>
+<p>Create new instance of VariantInfo(data, field_count)</p>
+<dl class="attribute">
+<dt id="apache_beam.io.vcfio.VariantInfo.data">
+<code class="descname">data</code><a class="headerlink" href="#apache_beam.io.vcfio.VariantInfo.data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.vcfio.VariantInfo.field_count">
+<code class="descname">field_count</code><a class="headerlink" href="#apache_beam.io.vcfio.VariantInfo.field_count" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.vcfio.MalformedVcfRecord">
+<em class="property">class </em><code class="descclassname">apache_beam.io.vcfio.</code><code class="descname">MalformedVcfRecord</code><span class="sig-paren">(</span><em>file_name</em>, <em>line</em><span class="sig-paren">)</span><a class="headerlink" href="#apache_beam.io.vcfio.MalformedVcfRecord" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">tuple</span></code></p>
+<p>Create new instance of MalformedVcfRecord(file_name, line)</p>
+<dl class="attribute">
+<dt id="apache_beam.io.vcfio.MalformedVcfRecord.file_name">
+<code class="descname">file_name</code><a class="headerlink" href="#apache_beam.io.vcfio.MalformedVcfRecord.file_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.vcfio.MalformedVcfRecord.line">
+<code class="descname">line</code><a class="headerlink" href="#apache_beam.io.vcfio.MalformedVcfRecord.line" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.vcfio.Variant">
+<em class="property">class </em><code class="descclassname">apache_beam.io.vcfio.</code><code class="descname">Variant</code><span class="sig-paren">(</span><em>reference_name=None</em>, <em>start=None</em>, <em>end=None</em>, <em>reference_bases=None</em>, <em>alternate_bases=None</em>, <em>names=None</em>, <em>quality=None</em>, <em>filters=None</em>, <em>info=None</em>, <em>calls=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/vcfio.html#Variant"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.vcfio.Variant" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A class to store info about a genomic variant.</p>
+<p>Each object corresponds to a single record in a VCF file.</p>
+<p>Initialize the <a class="reference internal" href="#apache_beam.io.vcfio.Variant" title="apache_beam.io.vcfio.Variant"><code class="xref py py-class docutils literal"><span class="pre">Variant</span></code></a> object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>reference_name</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – The reference on which this variant occurs
+(such as <cite>chr20</cite> or <cite>X</cite>). .</li>
+<li><strong>start</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) – The position at which this variant occurs (0-based).
+Corresponds to the first base of the string of reference bases.</li>
+<li><strong>end</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a>) – The end position (0-based) of this variant. Corresponds to the
+first base after the last base in the reference allele.</li>
+<li><strong>reference_bases</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – The reference bases for this variant.</li>
+<li><strong>alternate_bases</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>]</em>) – The bases that appear instead of the
+reference bases.</li>
+<li><strong>names</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>]</em>) – Names for the variant, for example a RefSNP ID.</li>
+<li><strong>quality</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#float" title="(in Python v2.7)"><em>float</em></a>) – Phred-scaled quality score (-10log10 prob(call is wrong))
+Higher values imply better quality.</li>
+<li><strong>filters</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a><em>]</em>) – A list of filters (normally quality filters) this
+variant has failed. <cite>PASS</cite> indicates this variant has passed all
+filters.</li>
+<li><strong>info</strong> (<a class="reference external" href="https://docs.python.org/2/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) – A map of additional variant information. The key is specified
+in the VCF record and the value is of type <code class="docutils literal"><span class="pre">VariantInfo</span></code>.</li>
+<li><strong>calls</strong> (list of <a class="reference internal" href="#apache_beam.io.vcfio.VariantCall" title="apache_beam.io.vcfio.VariantCall"><code class="xref py py-class docutils literal"><span class="pre">VariantCall</span></code></a>) – The variant calls for this variant.
+Each one represents the determination of genotype with respect to this
+variant.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.vcfio.VariantCall">
+<em class="property">class </em><code class="descclassname">apache_beam.io.vcfio.</code><code class="descname">VariantCall</code><span class="sig-paren">(</span><em>name=None</em>, <em>genotype=None</em>, <em>phaseset=None</em>, <em>info=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/vcfio.html#VariantCall"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.vcfio.VariantCall" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A class to store info about a variant call.</p>
+<p>A call represents the determination of genotype with respect to a particular
+variant. It may include associated information such as quality and phasing.</p>
+<p>Initialize the <a class="reference internal" href="#apache_beam.io.vcfio.VariantCall" title="apache_beam.io.vcfio.VariantCall"><code class="xref py py-class docutils literal"><span class="pre">VariantCall</span></code></a> object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – The name of the call.</li>
+<li><strong>genotype</strong> (<em>List</em><em>[</em><a class="reference external" href="https://docs.python.org/2/library/functions.html#int" title="(in Python v2.7)"><em>int</em></a><em>]</em>) – The genotype of this variant call as specified by
+the VCF schema. The values are either <cite>0</cite> representing the reference,
+or a 1-based index into alternate bases. Ordering is only important if
+<cite>phaseset</cite> is present. If a genotype is not called (that is, a <cite>.</cite> is
+present in the GT string), -1 is used</li>
+<li><strong>phaseset</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – If this field is present, this variant call’s genotype
+ordering implies the phase of the bases and is consistent with any other
+variant calls in the same reference sequence which have the same
+phaseset value. If the genotype data was phased but no phase set was
+specified, this field will be set to <cite>*</cite>.</li>
+<li><strong>info</strong> (<a class="reference external" href="https://docs.python.org/2/library/stdtypes.html#dict" title="(in Python v2.7)"><em>dict</em></a>) – A map of additional variant call information. The key is
+specified in the VCF record and the type of the value is specified by
+the VCF header FORMAT.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.vcfio.ReadFromVcf">
+<em class="property">class </em><code class="descclassname">apache_beam.io.vcfio.</code><code class="descname">ReadFromVcf</code><span class="sig-paren">(</span><em>file_pattern=None</em>, <em>compression_type='auto'</em>, <em>validate=True</em>, <em>allow_malformed_records=False</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/vcfio.html#ReadFromVcf"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.vcfio.ReadFromVcf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> for reading VCF
+files.</p>
+<p>Parses VCF files (version 4) using PyVCF library. If file_pattern specifies
+multiple files, then the header from each file is used separately to parse
+the content. However, the output will be a PCollection of
+<a class="reference internal" href="#apache_beam.io.vcfio.Variant" title="apache_beam.io.vcfio.Variant"><code class="xref py py-class docutils literal"><span class="pre">Variant</span></code></a> (or <a class="reference internal" href="#apache_beam.io.vcfio.MalformedVcfRecord" title="apache_beam.io.vcfio.MalformedVcfRecord"><code class="xref py py-class docutils literal"><span class="pre">MalformedVcfRecord</span></code></a> for failed reads) objects.</p>
+<p>Initialize the <a class="reference internal" href="#apache_beam.io.vcfio.ReadFromVcf" title="apache_beam.io.vcfio.ReadFromVcf"><code class="xref py py-class docutils literal"><span class="pre">ReadFromVcf</span></code></a> transform.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>file_pattern</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – The file path to read from either as a single file or
+a glob pattern.</li>
+<li><strong>compression_type</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)"><em>str</em></a>) – Used to handle compressed input files.
+Typical value is <a class="reference internal" href="apache_beam.io.filesystem.html#apache_beam.io.filesystem.CompressionTypes.AUTO" title="apache_beam.io.filesystem.CompressionTypes.AUTO"><code class="xref py py-attr docutils literal"><span class="pre">CompressionTypes.AUTO</span></code></a>, in which case the
+underlying file_path’s extension will be used to detect the compression.</li>
+<li><strong>validate</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – flag to verify that the files exist during the pipeline
+creation time.</li>
+<li><strong>allow_malformed_records</strong> (<a class="reference external" href="https://docs.python.org/2/library/functions.html#bool" title="(in Python v2.7)"><em>bool</em></a>) – determines if failed VCF
+record reads will be tolerated. Failed record reads will result in a
+<a class="reference internal" href="#apache_beam.io.vcfio.MalformedVcfRecord" title="apache_beam.io.vcfio.MalformedVcfRecord"><code class="xref py py-class docutils literal"><span class="pre">MalformedVcfRecord</span></code></a> being returned from the read of the record
+rather than a <a class="reference internal" href="#apache_beam.io.vcfio.Variant" title="apache_beam.io.vcfio.Variant"><code class="xref py py-class docutils literal"><span class="pre">Variant</span></code></a>.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.io.vcfio.ReadFromVcf.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pvalue</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/vcfio.html#ReadFromVcf.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.vcfio.ReadFromVcf.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.metrics.html" class="btn btn-neutral float-right" title="apache_beam.metrics package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.io.tfrecordio.html" class="btn btn-neutral" title="apache_beam.io.tfrecordio module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

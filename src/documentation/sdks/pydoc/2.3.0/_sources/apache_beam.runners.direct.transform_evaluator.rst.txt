@@ -1,0 +1,7 @@
+apache\_beam\.runners\.direct\.transform\_evaluator module
+==========================================================
+
+.. automodule:: apache_beam.runners.direct.transform_evaluator
+    :members:
+    :undoc-members:
+    :show-inheritance:
