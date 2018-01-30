@@ -26,6 +26,9 @@ import org.apache.spark.AccumulatorParam;
  * Metrics accumulator param.
  */
 class MetricsAccumulatorParam implements AccumulatorParam<MetricsContainerStepMap> {
+
+  private static final MetricsContainerStepMap ZERO = new MetricsContainerStepMap();
+
   @Override
   public MetricsContainerStepMap addAccumulator(
       MetricsContainerStepMap c1,
@@ -43,6 +46,6 @@ class MetricsAccumulatorParam implements AccumulatorParam<MetricsContainerStepMa
 
   @Override
   public MetricsContainerStepMap zero(MetricsContainerStepMap initialValue) {
-    return new MetricsContainerStepMap();
+    return ZERO;
   }
 }

@@ -25,6 +25,8 @@ import org.apache.spark.AccumulatorParam;
  */
 public class AggAccumParam implements AccumulatorParam<NamedAggregators> {
 
+  private static final NamedAggregators ZERO = new NamedAggregators();
+
   @Override
   public NamedAggregators addAccumulator(NamedAggregators current, NamedAggregators added) {
     return current.merge(added);
@@ -37,6 +39,6 @@ public class AggAccumParam implements AccumulatorParam<NamedAggregators> {
 
   @Override
   public NamedAggregators zero(NamedAggregators initialValue) {
-    return new NamedAggregators();
+    return ZERO;
   }
 }
