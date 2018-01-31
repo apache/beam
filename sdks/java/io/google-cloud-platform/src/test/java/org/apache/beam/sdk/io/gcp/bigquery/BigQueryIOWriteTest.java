@@ -48,7 +48,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -209,10 +208,10 @@ public class BigQueryIOWriteTest implements Serializable {
 
     final PCollectionView<List<String>> sideInput1 =
         p.apply("Create SideInput 1", Create.of("a", "b", "c").withCoder(StringUtf8Coder.of()))
-            .apply("asList", View.<String>asList());
+            .apply("asList", View.asList());
     final PCollectionView<Map<String, String>> sideInput2 =
         p.apply("Create SideInput2", Create.of(KV.of("a", "a"), KV.of("b", "b"), KV.of("c", "c")))
-            .apply("AsMap", View.<String, String>asMap());
+            .apply("AsMap", View.asMap());
 
     final List<String> allUsernames = ImmutableList.of("bill", "bob", "randolph");
     List<String> userList = Lists.newArrayList();
@@ -220,20 +219,15 @@ public class BigQueryIOWriteTest implements Serializable {
     // WriteGroupedRecordsToFiles.
     for (int i = 0; i < BatchLoads.DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE * 10; ++i) {
       // Every user has 10 nicknames.
-      for (int j = 0; j < 1; ++j) {
+      for (int j = 0; j < 10; ++j) {
         String nickname = allUsernames.get(
             ThreadLocalRandom.current().nextInt(allUsernames.size()));
         userList.add(nickname + i);
       }
     }
-    PCollection<String> users = p.apply("CreateUsers", Create.of(userList))
-        .apply(Window.into(new PartitionedGlobalWindows<>(
-            new SerializableFunction<String, String>() {
-              @Override
-              public String apply(String arg) {
-                return arg;
-              }
-            })));
+    PCollection<String> users =
+        p.apply("CreateUsers", Create.of(userList))
+            .apply(Window.into(new PartitionedGlobalWindows<>(arg -> arg)));
 
     if (streaming) {
       users = users.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
@@ -250,17 +244,14 @@ public class BigQueryIOWriteTest implements Serializable {
             .withMaxFileSize(10)
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
             .withFormatFunction(
-                new SerializableFunction<String, TableRow>() {
-                  @Override
-                  public TableRow apply(String user) {
-                    Matcher matcher = userPattern.matcher(user);
-                    if (matcher.matches()) {
-                      return new TableRow()
-                          .set("name", matcher.group(1))
-                          .set("id", Integer.valueOf(matcher.group(2)));
-                    }
-                    throw new RuntimeException("Unmatching element " + user);
+                user -> {
+                  Matcher matcher = userPattern.matcher(user);
+                  if (matcher.matches()) {
+                    return new TableRow()
+                        .set("name", matcher.group(1))
+                        .set("id", Integer.valueOf(matcher.group(2)));
                   }
+                  throw new RuntimeException("Unmatching element " + user);
                 })
             .to(
                 new StringIntegerDestinations() {
@@ -314,16 +305,13 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     Map<Integer, List<TableRow>> expectedTableRows = Maps.newHashMap();
-    for (int i = 0; i < userList.size(); ++i) {
-      Matcher matcher = userPattern.matcher(userList.get(i));
+    for (String anUserList : userList) {
+      Matcher matcher = userPattern.matcher(anUserList);
       checkState(matcher.matches());
       String nickname = matcher.group(1);
       int userid = Integer.valueOf(matcher.group(2));
-      List<TableRow> expected = expectedTableRows.get(userid);
-      if (expected == null) {
-        expected = Lists.newArrayList();
-        expectedTableRows.put(userid, expected);
-      }
+      List<TableRow> expected =
+              expectedTableRows.computeIfAbsent(userid, k -> Lists.newArrayList());
       expected.add(new TableRow().set("name", nickname).set("id", userid));
     }
 
@@ -424,7 +412,7 @@ public class BigQueryIOWriteTest implements Serializable {
             ImmutableList.of(new ErrorProto().setReason("timeout")));
 
     fakeDatasetService.failOnInsert(
-        ImmutableMap.<TableRow, List<TableDataInsertAllResponse.InsertErrors>>of(
+        ImmutableMap.of(
             row1, ImmutableList.of(ephemeralError, ephemeralError),
             row2, ImmutableList.of(ephemeralError, ephemeralError)));
 
@@ -463,7 +451,7 @@ public class BigQueryIOWriteTest implements Serializable {
             ImmutableList.of(new ErrorProto().setReason("invalidQuery")));
 
     fakeDatasetService.failOnInsert(
-        ImmutableMap.<TableRow, List<TableDataInsertAllResponse.InsertErrors>>of(
+        ImmutableMap.of(
             row1, ImmutableList.of(ephemeralError, ephemeralError),
             row2, ImmutableList.of(ephemeralError, ephemeralError, persistentError)));
 
@@ -668,14 +656,8 @@ public class BigQueryIOWriteTest implements Serializable {
 
     // Create a windowing strategy that puts the input into five different windows depending on
     // record value.
-    WindowFn<Integer, PartitionedGlobalWindow> windowFn = new PartitionedGlobalWindows(
-        new SerializableFunction<Integer, String>() {
-          @Override
-          public String apply(Integer i) {
-            return Integer.toString(i % 5);
-          }
-        }
-    );
+    WindowFn<Integer, PartitionedGlobalWindow> windowFn =
+        new PartitionedGlobalWindows<>(i -> Integer.toString(i % 5));
 
     final Map<Integer, TableDestination> targetTables = Maps.newHashMap();
     Map<String, String> schemas = Maps.newHashMap();
@@ -693,15 +675,12 @@ public class BigQueryIOWriteTest implements Serializable {
     }
 
     SerializableFunction<ValueInSingleWindow<Integer>, TableDestination> tableFunction =
-        new SerializableFunction<ValueInSingleWindow<Integer>, TableDestination>() {
-          @Override
-          public TableDestination apply(ValueInSingleWindow<Integer> input) {
-            PartitionedGlobalWindow window = (PartitionedGlobalWindow) input.getWindow();
-            // Check that we can access the element as well here and that it matches the window.
-            checkArgument(window.value.equals(Integer.toString(input.getValue() % 5)),
-                "Incorrect element");
-            return targetTables.get(input.getValue() % 5);
-          }
+        input -> {
+          PartitionedGlobalWindow window = (PartitionedGlobalWindow) input.getWindow();
+          // Check that we can access the element as well here and that it matches the window.
+          checkArgument(
+              window.value.equals(Integer.toString(input.getValue() % 5)), "Incorrect element");
+          return targetTables.get(input.getValue() % 5);
         };
 
     PCollection<Integer> input = p.apply("CreateSource", Create.of(inserts));
@@ -710,21 +689,18 @@ public class BigQueryIOWriteTest implements Serializable {
     }
 
     PCollectionView<Map<String, String>> schemasView =
-        p.apply("CreateSchemaMap", Create.of(schemas))
-            .apply("ViewSchemaAsMap", View.<String, String>asMap());
+        p.apply("CreateSchemaMap", Create.of(schemas)).apply("ViewSchemaAsMap", View.asMap());
 
-    input.apply(Window.into(windowFn))
-        .apply(BigQueryIO.<Integer>write()
-            .to(tableFunction)
-            .withFormatFunction(new SerializableFunction<Integer, TableRow>() {
-              @Override
-              public TableRow apply(Integer i) {
-                return new TableRow().set("name", "number" + i).set("number", i);
-              }})
-            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-            .withSchemaFromView(schemasView)
-            .withTestServices(fakeBqServices)
-            .withoutValidation());
+    input
+        .apply(Window.into(windowFn))
+        .apply(
+            BigQueryIO.<Integer>write()
+                .to(tableFunction)
+                .withFormatFunction(i -> new TableRow().set("name", "number" + i).set("number", i))
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withSchemaFromView(schemasView)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
     p.run();
 
     for (int i = 0; i < 5; ++i) {
@@ -793,7 +769,7 @@ public class BigQueryIOWriteTest implements Serializable {
   public void testWriteWithMissingSchemaFromView() throws Exception {
     PCollectionView<Map<String, String>> view =
         p.apply("Create schema view", Create.of(KV.of("foo", "bar"), KV.of("bar", "boo")))
-            .apply(View.<String, String>asMap());
+            .apply(View.asMap());
     p.apply(Create.empty(TableRowJsonCoder.of()))
         .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
             .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
@@ -810,13 +786,7 @@ public class BigQueryIOWriteTest implements Serializable {
     p.apply(Create.<TableRow>of(new TableRow().set("foo", "bar")))
         .apply(
             BigQueryIO.writeTableRows()
-                .to(
-                    new SerializableFunction<ValueInSingleWindow<TableRow>, TableDestination>() {
-                      @Override
-                      public TableDestination apply(ValueInSingleWindow<TableRow> input) {
-                        return null;
-                      }
-                    })
+                .to(input -> null)
                 .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
                 .withTestServices(fakeBqServices)
                 .withoutValidation());
@@ -1060,11 +1030,8 @@ public class BigQueryIOWriteTest implements Serializable {
     Map<String, List<String>> filenamesPerTable = Maps.newHashMap();
     for (int i = 0; i < numTables; ++i) {
       String tableName = String.format("project-id:dataset-id.tables%05d", i);
-      List<String> filenames = filenamesPerTable.get(tableName);
-      if (filenames == null) {
-        filenames = Lists.newArrayList();
-        filenamesPerTable.put(tableName, filenames);
-      }
+      List<String> filenames =
+          filenamesPerTable.computeIfAbsent(tableName, k -> Lists.newArrayList());
       for (int j = 0; j < numFilesPerTable; ++j) {
         String fileName = String.format("%s_files%05d", tableName, j);
         filenames.add(fileName);
@@ -1081,7 +1048,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     String tempFilePrefix = testFolder.newFolder("BigQueryIOTest").getAbsolutePath();
     PCollectionView<String> tempFilePrefixView =
-        p.apply(Create.of(tempFilePrefix)).apply(View.<String>asSingleton());
+        p.apply(Create.of(tempFilePrefix)).apply(View.asSingleton());
 
     WritePartition<TableDestination> writePartition =
         new WritePartition<>(
@@ -1111,11 +1078,8 @@ public class BigQueryIOWriteTest implements Serializable {
     for (KV<ShardedKey<TableDestination>, List<String>> partition : partitions) {
       String table = partition.getKey().getKey().getTableSpec();
       partitionsResult.add(partition.getKey());
-      List<String> tableFilesResult = filesPerTableResult.get(table);
-      if (tableFilesResult == null) {
-        tableFilesResult = Lists.newArrayList();
-        filesPerTableResult.put(table, tableFilesResult);
-      }
+      List<String> tableFilesResult =
+          filesPerTableResult.computeIfAbsent(table, k -> Lists.newArrayList());
       tableFilesResult.addAll(partition.getValue());
     }
 
@@ -1192,10 +1156,9 @@ public class BigQueryIOWriteTest implements Serializable {
 
     PCollection<KV<ShardedKey<String>, List<String>>> writeTablesInput =
         p.apply(Create.of(partitions));
-    PCollectionView<String> jobIdTokenView = p
-        .apply("CreateJobId", Create.of("jobId"))
-        .apply(View.<String>asSingleton());
-    List<PCollectionView<?>> sideInputs = ImmutableList.<PCollectionView<?>>of(jobIdTokenView);
+    PCollectionView<String> jobIdTokenView =
+        p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
+    List<PCollectionView<?>> sideInputs = ImmutableList.of(jobIdTokenView);
 
     WriteTables<String> writeTables =
         new WriteTables<>(
@@ -1212,18 +1175,15 @@ public class BigQueryIOWriteTest implements Serializable {
 
     PAssert.thatMultimap(writeTablesOutput)
         .satisfies(
-            new SerializableFunction<Map<TableDestination, Iterable<String>>, Void>() {
-              @Override
-              public Void apply(Map<TableDestination, Iterable<String>> input) {
-                assertEquals(input.keySet(), expectedTempTables.keySet());
-                for (Map.Entry<TableDestination, Iterable<String>> entry : input.entrySet()) {
-                  @SuppressWarnings("unchecked")
-                  String[] expectedValues = Iterables.toArray(
-                      expectedTempTables.get(entry.getKey()), String.class);
-                  assertThat(entry.getValue(), containsInAnyOrder(expectedValues));
-                }
-                return null;
+            input -> {
+              assertEquals(input.keySet(), expectedTempTables.keySet());
+              for (Map.Entry<TableDestination, Iterable<String>> entry : input.entrySet()) {
+                @SuppressWarnings("unchecked")
+                String[] expectedValues =
+                    Iterables.toArray(expectedTempTables.get(entry.getKey()), String.class);
+                assertThat(entry.getValue(), containsInAnyOrder(expectedValues));
               }
+              return null;
             });
     p.run();
   }
@@ -1281,10 +1241,8 @@ public class BigQueryIOWriteTest implements Serializable {
       }
     }
 
-
-    PCollectionView<String> jobIdTokenView = p
-        .apply("CreateJobId", Create.of("jobId"))
-        .apply(View.<String>asSingleton());
+    PCollectionView<String> jobIdTokenView =
+        p.apply("CreateJobId", Create.of("jobId")).apply(View.asSingleton());
 
     WriteRename writeRename =
         new WriteRename(
@@ -1359,11 +1317,7 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   private static void testNumFiles(File tempDir, int expectedNumFiles) {
-    assertEquals(expectedNumFiles, tempDir.listFiles(new FileFilter() {
-      @Override
-      public boolean accept(File pathname) {
-        return pathname.isFile();
-      }}).length);
+    assertEquals(expectedNumFiles, tempDir.listFiles(File::isFile).length);
   }
 
   @Test

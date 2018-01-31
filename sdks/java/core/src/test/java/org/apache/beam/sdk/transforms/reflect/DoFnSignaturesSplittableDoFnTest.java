@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -84,8 +83,13 @@ public class DoFnSignaturesSplittableDoFnTest {
             });
 
     assertTrue(signature.isSplittable());
-    assertTrue(Iterables.any(signature.extraParameters(),
-        Predicates.instanceOf(DoFnSignature.Parameter.RestrictionTrackerParameter.class)));
+    assertTrue(
+        signature
+            .extraParameters()
+            .stream()
+            .anyMatch(
+                Predicates.instanceOf(DoFnSignature.Parameter.RestrictionTrackerParameter.class)
+                    ::apply));
     assertEquals(SomeRestrictionTracker.class, signature.trackerT().getRawType());
   }
 

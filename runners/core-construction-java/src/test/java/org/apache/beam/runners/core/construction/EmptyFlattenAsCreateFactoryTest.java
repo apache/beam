@@ -31,12 +31,10 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
-import org.apache.beam.sdk.values.TupleTag;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,11 +57,11 @@ public class EmptyFlattenAsCreateFactoryTest {
   public void getInputEmptySucceeds() {
     PTransformReplacement<PCollectionList<Long>, PCollection<Long>> replacement =
         factory.getReplacementTransform(
-            AppliedPTransform.<PCollectionList<Long>, PCollection<Long>, PCollections<Long>>of(
+            AppliedPTransform.of(
                 "nonEmptyInput",
-                Collections.<TupleTag<?>, PValue>emptyMap(),
-                Collections.<TupleTag<?>, PValue>emptyMap(),
-                Flatten.<Long>pCollections(),
+                Collections.emptyMap(),
+                Collections.emptyMap(),
+                Flatten.pCollections(),
                 pipeline));
     assertThat(replacement.getInput().getAll(), emptyIterable());
   }
@@ -77,11 +75,11 @@ public class EmptyFlattenAsCreateFactoryTest {
     thrown.expectMessage(nonEmpty.expand().toString());
     thrown.expectMessage(EmptyFlattenAsCreateFactory.class.getSimpleName());
     factory.getReplacementTransform(
-        AppliedPTransform.<PCollectionList<Long>, PCollection<Long>, Flatten.PCollections<Long>>of(
+        AppliedPTransform.of(
             "nonEmptyInput",
             nonEmpty.expand(),
-            Collections.<TupleTag<?>, PValue>emptyMap(),
-            Flatten.<Long>pCollections(),
+            Collections.emptyMap(),
+            Flatten.pCollections(),
             pipeline));
   }
 
@@ -93,7 +91,7 @@ public class EmptyFlattenAsCreateFactoryTest {
 
     assertThat(
         mapping,
-        Matchers.<PValue, ReplacementOutput>hasEntry(
+        Matchers.hasEntry(
             replacement,
             ReplacementOutput.of(
                 TaggedPValue.ofExpandedValue(original),
@@ -108,13 +106,12 @@ public class EmptyFlattenAsCreateFactoryTest {
         empty.apply(
             factory
                 .getReplacementTransform(
-                    AppliedPTransform
-                        .<PCollectionList<Long>, PCollection<Long>, Flatten.PCollections<Long>>of(
-                            "nonEmptyInput",
-                            Collections.<TupleTag<?>, PValue>emptyMap(),
-                            Collections.<TupleTag<?>, PValue>emptyMap(),
-                            Flatten.<Long>pCollections(),
-                            pipeline))
+                    AppliedPTransform.of(
+                        "nonEmptyInput",
+                        Collections.emptyMap(),
+                        Collections.emptyMap(),
+                        Flatten.pCollections(),
+                        pipeline))
                 .getTransform());
     PAssert.that(emptyFlattened).empty();
     pipeline.run();

@@ -37,12 +37,7 @@ public class AdvancingPhaserTest {
     final AdvancingPhaser phaser = new AdvancingPhaser(1);
     int currentPhase = phaser.getPhase();
     ExecutorService service = Executors.newSingleThreadExecutor();
-    service.submit(new Runnable() {
-      @Override
-      public void run() {
-        phaser.arrive();
-      }
-    });
+    service.submit((Runnable) phaser::arrive);
     phaser.awaitAdvance(currentPhase);
     assertFalse(phaser.isTerminated());
     service.shutdown();

@@ -137,11 +137,8 @@ class GroupByKeyOnlyEvaluatorFactory implements TransformEvaluatorFactory {
             exn);
       }
       GroupingKey<K> groupingKey = new GroupingKey<>(key, encodedKey);
-      List<WindowedValue<V>> values = groupingMap.get(groupingKey);
-      if (values == null) {
-        values = new ArrayList<>();
-        groupingMap.put(groupingKey, values);
-      }
+      List<WindowedValue<V>> values =
+          groupingMap.computeIfAbsent(groupingKey, k -> new ArrayList<>());
       values.add(element.withValue(kv.getValue()));
     }
 

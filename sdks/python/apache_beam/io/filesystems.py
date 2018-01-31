@@ -42,6 +42,17 @@ class FileSystems(object):
   """
   URI_SCHEMA_PATTERN = re.compile('(?P<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*')
 
+  _pipeline_options = None
+
+  @classmethod
+  def set_options(cls, pipeline_options):
+    """Set filesystem options.
+
+    Args:
+      pipeline_options: Instance of ``PipelineOptions``.
+    """
+    cls._options = pipeline_options
+
   @staticmethod
   def get_scheme(path):
     match_result = FileSystems.URI_SCHEMA_PATTERN.match(path.strip())
@@ -60,7 +71,7 @@ class FileSystems(object):
       if len(systems) == 0:
         raise ValueError('Unable to get the Filesystem for path %s' % path)
       elif len(systems) == 1:
-        return systems[0]()
+        return systems[0](pipeline_options=FileSystems._pipeline_options)
       else:
         raise ValueError('Found more than one filesystem for path %s' % path)
     except ValueError:

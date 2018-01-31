@@ -41,13 +41,13 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.util.NanoClock;
-import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.Storage.Objects.Get;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.security.PrivateKey;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.hamcrest.Matchers;
@@ -105,11 +105,12 @@ public class RetryHttpRequestInitializerTest {
     // Retry initializer will pass through to credential, since we can have
     // only a single HttpRequestInitializer, and we use multiple Credential
     // types in the SDK, not all of which allow for retry configuration.
-    RetryHttpRequestInitializer initializer = new RetryHttpRequestInitializer(
-        new MockNanoClock(), new Sleeper() {
-          @Override
-          public void sleep(long millis) throws InterruptedException {}
-        }, Arrays.asList(418 /* I'm a teapot */), mockHttpResponseInterceptor);
+    RetryHttpRequestInitializer initializer =
+        new RetryHttpRequestInitializer(
+            new MockNanoClock(),
+            millis -> {},
+            Arrays.asList(418 /* I'm a teapot */),
+            mockHttpResponseInterceptor);
     storage = new Storage.Builder(lowLevelTransport, jsonFactory, initializer)
         .setApplicationName("test").build();
   }
@@ -255,6 +256,7 @@ public class RetryHttpRequestInitializerTest {
    */
   @Test
   public void testIOExceptionHandlerIsInvokedOnTimeout() throws Exception {
+    FastNanoClockAndSleeper fakeClockAndSleeper = new FastNanoClockAndSleeper();
     // Counts the number of calls to execute the HTTP request.
     final AtomicLong executeCount = new AtomicLong();
 
@@ -273,10 +275,16 @@ public class RetryHttpRequestInitializerTest {
           }
         }).build();
 
-    // A sample HTTP request to Google Cloud Storage that uses both default Transport and default
-    // RetryHttpInitializer.
-    Storage storage = new Storage.Builder(
-        transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()).build();
+    // A sample HTTP request to Google Cloud Storage that uses both a default Transport and
+    // effectively a default RetryHttpRequestInitializer (same args as default with fake
+    // clock/sleeper).
+    Storage storage =
+        new Storage.Builder(
+                transport,
+                Transport.getJsonFactory(),
+                new RetryHttpRequestInitializer(
+                    fakeClockAndSleeper, fakeClockAndSleeper, Collections.emptyList(), null))
+            .build();
 
     Get getRequest = storage.objects().get("gs://fake", "file");
 
@@ -284,7 +292,7 @@ public class RetryHttpRequestInitializerTest {
       getRequest.execute();
       fail();
     } catch (Throwable e) {
-      assertThat(e, Matchers.<Throwable>instanceOf(SocketTimeoutException.class));
+      assertThat(e, Matchers.instanceOf(SocketTimeoutException.class));
       assertEquals(1 + defaultNumberOfRetries, executeCount.get());
       expectedLogs.verifyWarn("performed 10 retries due to IOExceptions");
     }

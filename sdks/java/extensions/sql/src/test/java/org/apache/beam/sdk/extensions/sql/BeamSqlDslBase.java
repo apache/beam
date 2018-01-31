@@ -113,7 +113,7 @@ public class BeamSqlDslBase {
 
     BeamRecord row1 = new BeamRecord(rowTypeInTableA
         , 1, 1000L, Short.valueOf("1"), Byte.valueOf("1"), 1.0f, 1.0, "string_row1"
-        , FORMAT.parse("2017-01-01 01:01:03"), 0, new BigDecimal(1));
+        , FORMAT.parse("2017-01-01 01:01:03"), 0, BigDecimal.ONE);
     rows.add(row1);
 
     BeamRecord row2 = new BeamRecord(rowTypeInTableA

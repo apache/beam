@@ -55,11 +55,11 @@ public class FileBasedIOITHelper {
     return String.format("%s_%s", filenamePrefix, new Date().getTime());
   }
 
-  public static String getExpectedHashForLineCount(Long lineCount) {
-    Map<Long, String> expectedHashes = ImmutableMap.of(
-        100_000L, "4c8bb3b99dcc59459b20fefba400d446",
-        1_000_000L, "9796db06e7a7960f974d5a91164afff1",
-        100_000_000L, "6ce05f456e2fdc846ded2abd0ec1de95"
+  public static String getExpectedHashForLineCount(int lineCount) {
+    Map<Integer, String> expectedHashes = ImmutableMap.of(
+        100_000, "4c8bb3b99dcc59459b20fefba400d446",
+        1_000_000, "9796db06e7a7960f974d5a91164afff1",
+        100_000_000, "6ce05f456e2fdc846ded2abd0ec1de95"
     );
 
     String hash = expectedHashes.get(lineCount);

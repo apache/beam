@@ -230,23 +230,18 @@ public class TransformHierarchyTest implements Serializable {
 
     TaggedPValue taggedReplacement = TaggedPValue.ofExpandedValue(replacementOutput);
     Map<PValue, ReplacementOutput> replacementOutputs =
-        Collections.<PValue, ReplacementOutput>singletonMap(
+        Collections.singletonMap(
             replacementOutput,
-            ReplacementOutput.of(
-                TaggedPValue.ofExpandedValue(originalOutput),
-                taggedReplacement));
+            ReplacementOutput.of(TaggedPValue.ofExpandedValue(originalOutput), taggedReplacement));
     hierarchy.replaceOutputs(replacementOutputs);
 
     assertThat(replacement.getInputs(), equalTo(original.getInputs()));
     assertThat(replacement.getEnclosingNode(), equalTo(original.getEnclosingNode()));
     assertThat(replacement.getEnclosingNode(), equalTo(enclosing));
-    assertThat(
-        replacement.getTransform(), Matchers.<PTransform<?, ?>>equalTo(replacementTransform));
+    assertThat(replacement.getTransform(), Matchers.equalTo(replacementTransform));
     // THe tags of the replacement transform are matched to the appropriate PValues of the original
-    assertThat(
-        replacement.getOutputs().keySet(),
-        Matchers.<TupleTag<?>>contains(taggedReplacement.getTag()));
-    assertThat(replacement.getOutputs().values(), Matchers.<PValue>contains(originalOutput));
+    assertThat(replacement.getOutputs().keySet(), Matchers.contains(taggedReplacement.getTag()));
+    assertThat(replacement.getOutputs().values(), Matchers.contains(originalOutput));
     hierarchy.popNode();
   }
 
@@ -304,20 +299,19 @@ public class TransformHierarchyTest implements Serializable {
     Entry<TupleTag<?>, PValue>
         replacementLongs = Iterables.getOnlyElement(replacementOutput.expand().entrySet());
     hierarchy.replaceOutputs(
-        Collections.<PValue, ReplacementOutput>singletonMap(
+        Collections.singletonMap(
             replacementOutput.get(longs),
             ReplacementOutput.of(
                 TaggedPValue.ofExpandedValue(output),
                 TaggedPValue.of(replacementLongs.getKey(), replacementLongs.getValue()))));
 
     assertThat(
-        replacementParNode.getOutputs().keySet(),
-        Matchers.<TupleTag<?>>contains(replacementLongs.getKey()));
-    assertThat(replacementParNode.getOutputs().values(), Matchers.<PValue>contains(output));
+        replacementParNode.getOutputs().keySet(), Matchers.contains(replacementLongs.getKey()));
+    assertThat(replacementParNode.getOutputs().values(), Matchers.contains(output));
     assertThat(
         compositeNode.getOutputs().keySet(),
         equalTo(replacementOutput.get(longs).expand().keySet()));
-    assertThat(compositeNode.getOutputs().values(), Matchers.<PValue>contains(output));
+    assertThat(compositeNode.getOutputs().values(), Matchers.contains(output));
     hierarchy.popNode();
   }
 
@@ -350,7 +344,7 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.finishSpecifyingInput();
     assertThat(hierarchy.getCurrent(), equalTo(compositeNode));
     assertThat(compositeNode.getInputs().entrySet(), Matchers.empty());
-    assertThat(compositeNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(create));
+    assertThat(compositeNode.getTransform(), Matchers.equalTo(create));
     // Not yet set
     assertThat(compositeNode.getOutputs().entrySet(), Matchers.emptyIterable());
     assertThat(compositeNode.getEnclosingNode().isRootNode(), is(true));
@@ -360,14 +354,14 @@ public class TransformHierarchyTest implements Serializable {
     hierarchy.finishSpecifyingInput();
     hierarchy.setOutput(created);
     hierarchy.popNode();
-    assertThat(primitiveNode.getOutputs().values(), Matchers.<PValue>containsInAnyOrder(created));
+    assertThat(primitiveNode.getOutputs().values(), Matchers.containsInAnyOrder(created));
     assertThat(primitiveNode.getInputs().entrySet(), Matchers.emptyIterable());
-    assertThat(primitiveNode.getTransform(), Matchers.<PTransform<?, ?>>equalTo(read));
+    assertThat(primitiveNode.getTransform(), Matchers.equalTo(read));
     assertThat(primitiveNode.getEnclosingNode(), equalTo(compositeNode));
 
     hierarchy.setOutput(created);
     // The composite is listed as outputting a PValue created by the contained primitive
-    assertThat(compositeNode.getOutputs().values(), Matchers.<PValue>containsInAnyOrder(created));
+    assertThat(compositeNode.getOutputs().values(), Matchers.containsInAnyOrder(created));
     // The producer of that PValue is still the primitive in which it is first output
     assertThat(hierarchy.getProducer(created), equalTo(primitiveNode));
     hierarchy.popNode();
@@ -403,7 +397,7 @@ public class TransformHierarchyTest implements Serializable {
 
     assertThat(visitedCompositeNodes, containsInAnyOrder(root, compositeNode));
     assertThat(visitedPrimitiveNodes, containsInAnyOrder(primitiveNode, otherPrimitive));
-    assertThat(visitedValuesInVisitor, Matchers.<PValue>containsInAnyOrder(created, mapped));
+    assertThat(visitedValuesInVisitor, Matchers.containsInAnyOrder(created, mapped));
     assertThat(visitedValuesInVisitor, equalTo(visitedValues));
   }
 
@@ -467,7 +461,7 @@ public class TransformHierarchyTest implements Serializable {
     Entry<TupleTag<?>, PValue> replacementLongs =
         Iterables.getOnlyElement(replacementOutput.expand().entrySet());
     hierarchy.replaceOutputs(
-        Collections.<PValue, ReplacementOutput>singletonMap(
+        Collections.singletonMap(
             replacementOutput.get(longs),
             ReplacementOutput.of(
                 TaggedPValue.ofExpandedValue(output),
@@ -497,7 +491,7 @@ public class TransformHierarchyTest implements Serializable {
      */
     assertThat(visitedCompositeNodes, containsInAnyOrder(root, compositeNode));
     assertThat(visitedPrimitiveNodes, containsInAnyOrder(upstreamNode, replacementParNode));
-    assertThat(visitedValues, Matchers.<PValue>containsInAnyOrder(upstream, output));
+    assertThat(visitedValues, Matchers.containsInAnyOrder(upstream, output));
   }
 
   @Test
@@ -522,7 +516,7 @@ public class TransformHierarchyTest implements Serializable {
 
           @Override
           public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-            return Collections.<TupleTag<?>, PValue>singletonMap(twoTag, two);
+            return Collections.singletonMap(twoTag, two);
           }
         };
     hierarchy.pushNode("consumes_both", one, multiConsumer);
@@ -643,7 +637,7 @@ public class TransformHierarchyTest implements Serializable {
 
           @Override
           public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-            return Collections.<TupleTag<?>, PValue>singletonMap(twoTag, two);
+            return Collections.singletonMap(twoTag, two);
           }
         });
     hierarchy.setOutput(done);

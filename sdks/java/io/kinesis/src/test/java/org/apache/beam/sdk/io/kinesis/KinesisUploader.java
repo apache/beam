@@ -25,9 +25,9 @@ import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
-import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,7 +52,7 @@ public class KinesisUploader {
       List<PutRecordsRequestEntry> allRecords = new ArrayList<>();
       for (String row : partition) {
         allRecords.add(new PutRecordsRequestEntry().
-            withData(ByteBuffer.wrap(row.getBytes(Charsets.UTF_8))).
+            withData(ByteBuffer.wrap(row.getBytes(StandardCharsets.UTF_8))).
             withPartitionKey(Integer.toString(row.hashCode()))
 
         );

@@ -63,7 +63,6 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.ssl.SSLContexts;
@@ -317,12 +316,8 @@ public class ElasticsearchIO {
         credentialsProvider.setCredentials(
             AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
         restClientBuilder.setHttpClientConfigCallback(
-            new RestClientBuilder.HttpClientConfigCallback() {
-              public HttpAsyncClientBuilder customizeHttpClient(
-                  HttpAsyncClientBuilder httpAsyncClientBuilder) {
-                return httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
-              }
-            });
+            httpAsyncClientBuilder ->
+                httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
       }
       if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
         try {
@@ -335,13 +330,8 @@ public class ElasticsearchIO {
               .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy()).build();
           final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
           restClientBuilder.setHttpClientConfigCallback(
-              new RestClientBuilder.HttpClientConfigCallback() {
-            @Override
-            public HttpAsyncClientBuilder customizeHttpClient(
-                HttpAsyncClientBuilder httpClientBuilder) {
-              return httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy);
-            }
-          });
+              httpClientBuilder ->
+                  httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
         } catch (Exception e) {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }
@@ -665,10 +655,7 @@ public class ElasticsearchIO {
         HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
         Response response =
             restClient.performRequest(
-                "GET",
-                "/_search/scroll",
-                Collections.<String, String>emptyMap(),
-                scrollEntity);
+                "GET", "/_search/scroll", Collections.emptyMap(), scrollEntity);
         JsonNode searchResult = parseResponse(response);
         updateScrollId(searchResult);
         return readNextBatchAndReturnFirstDocument(searchResult);
@@ -708,11 +695,7 @@ public class ElasticsearchIO {
       String requestBody = String.format("{\"scroll_id\" : [\"%s\"]}", scrollId);
       HttpEntity entity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
       try {
-        restClient.performRequest(
-            "DELETE",
-            "/_search/scroll",
-            Collections.<String, String>emptyMap(),
-            entity);
+        restClient.performRequest("DELETE", "/_search/scroll", Collections.emptyMap(), entity);
       } finally {
         if (restClient != null) {
           restClient.close();
@@ -866,12 +849,7 @@ public class ElasticsearchIO {
                 spec.getConnectionConfiguration().getType());
         HttpEntity requestBody =
             new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
-        response =
-            restClient.performRequest(
-                "POST",
-                endPoint,
-                Collections.<String, String>emptyMap(),
-                requestBody);
+        response = restClient.performRequest("POST", endPoint, Collections.emptyMap(), requestBody);
         checkForErrors(response, backendVersion);
       }
 

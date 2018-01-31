@@ -34,6 +34,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -686,13 +687,9 @@ public class TextIO {
 
     /** Like {@link #to(String)}. */
     public TypedWrite<UserT, DestinationT> to(ValueProvider<String> outputPrefix) {
-      return toResource(NestedValueProvider.of(outputPrefix,
-          new SerializableFunction<String, ResourceId>() {
-            @Override
-            public ResourceId apply(String input) {
-              return FileBasedSink.convertToFileResourceIfPossible(input);
-            }
-          }));
+      return toResource(
+          NestedValueProvider.of(
+              outputPrefix, FileBasedSink::convertToFileResourceIfPossible));
     }
 
     /**
@@ -915,7 +912,12 @@ public class TextIO {
               getFilenamePrefix(),
               getDestinationFunction());
       checkArgument(
-          1 == Iterables.size(Iterables.filter(allToArgs, Predicates.notNull())),
+          1
+              == Iterables.size(
+                  allToArgs
+                      .stream()
+                      .filter(Predicates.notNull()::apply)
+                      .collect(Collectors.toList())),
           "Exactly one of filename policy, dynamic destinations, filename prefix, or destination "
               + "function must be set");
 
@@ -982,7 +984,7 @@ public class TextIO {
     @VisibleForTesting TypedWrite<String, ?> inner;
 
     Write() {
-      this(TextIO.<String>writeCustomType());
+      this(TextIO.writeCustomType());
     }
 
     Write(TypedWrite<String, ?> inner) {
@@ -992,36 +994,33 @@ public class TextIO {
     /** See {@link TypedWrite#to(String)}. */
     public Write to(String filenamePrefix) {
       return new Write(
-          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.<String>identity()));
+          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ResourceId)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write to(ResourceId filenamePrefix) {
       return new Write(
-          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.<String>identity()));
+          inner.to(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(ValueProvider)}. */
     public Write to(ValueProvider<String> outputPrefix) {
-      return new Write(
-          inner.to(outputPrefix).withFormatFunction(SerializableFunctions.<String>identity()));
+      return new Write(inner.to(outputPrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#toResource(ValueProvider)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write toResource(ValueProvider<ResourceId> filenamePrefix) {
       return new Write(
-          inner
-              .toResource(filenamePrefix)
-              .withFormatFunction(SerializableFunctions.<String>identity()));
+          inner.toResource(filenamePrefix).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#to(FilenamePolicy)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write to(FilenamePolicy filenamePolicy) {
       return new Write(
-          inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.<String>identity()));
+          inner.to(filenamePolicy).withFormatFunction(SerializableFunctions.identity()));
     }
 
     /**
@@ -1050,7 +1049,7 @@ public class TextIO {
       return new Write(
           inner
               .to(destinationFunction, emptyDestination)
-              .withFormatFunction(SerializableFunctions.<String>identity()));
+              .withFormatFunction(SerializableFunctions.identity()));
     }
 
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */

@@ -56,6 +56,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -72,23 +73,31 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class BeamFnDataWriteRunnerTest {
 
-  private static final BeamFnApi.RemoteGrpcPort PORT_SPEC = BeamFnApi.RemoteGrpcPort.newBuilder()
-      .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance()).build();
-  private static final RunnerApi.FunctionSpec FUNCTION_SPEC = RunnerApi.FunctionSpec.newBuilder()
-      .setPayload(PORT_SPEC.toByteString()).build();
-  private static final String CODER_ID = "string-coder-id";
-  private static final Coder<WindowedValue<String>> CODER =
-      WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-  private static final RunnerApi.Coder CODER_SPEC;
+  private static final String ELEM_CODER_ID = "string-coder-id";
+  private static final Coder<String> ELEM_CODER = StringUtf8Coder.of();
+  private static final String WIRE_CODER_ID = "windowed-string-coder-id";
+  private static final Coder<WindowedValue<String>> WIRE_CODER =
+      WindowedValue.getFullCoder(ELEM_CODER, GlobalWindow.Coder.INSTANCE);
+  private static final RunnerApi.Coder WIRE_CODER_SPEC;
   private static final RunnerApi.Components COMPONENTS;
-  private static final String URN = "urn:org.apache.beam:sink:runner:0.1";
+
+  private static final BeamFnApi.RemoteGrpcPort PORT_SPEC =
+      BeamFnApi.RemoteGrpcPort.newBuilder()
+          .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance())
+          .setCoderId(WIRE_CODER_ID)
+          .build();
 
   static {
     try {
-      MessageWithComponents coderAndComponents = CoderTranslation.toProto(CODER);
-      CODER_SPEC = coderAndComponents.getCoder();
+      MessageWithComponents coderAndComponents = CoderTranslation.toProto(WIRE_CODER);
+      WIRE_CODER_SPEC = coderAndComponents.getCoder();
       COMPONENTS =
-          coderAndComponents.getComponents().toBuilder().putCoders(CODER_ID, CODER_SPEC).build();
+          coderAndComponents
+              .getComponents()
+              .toBuilder()
+              .putCoders(WIRE_CODER_ID, WIRE_CODER_SPEC)
+              .putCoders(ELEM_CODER_ID, CoderTranslation.toProto(ELEM_CODER).getCoder())
+              .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
     }
@@ -109,21 +118,14 @@ public class BeamFnDataWriteRunnerTest {
   @Test
   public void testCreatingAndProcessingBeamFnDataWriteRunner() throws Exception {
     String bundleId = "57L";
-    String inputId = "100L";
 
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
-        .setUrn("urn:org.apache.beam:sink:runner:0.1")
-        .setPayload(PORT_SPEC.toByteString())
-        .build();
-
-    RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
-        .setSpec(functionSpec)
-        .putInputs(inputId, "inputPC")
-        .build();
+    String localInputId = "inputPC";
+    RunnerApi.PTransform pTransform =
+        RemoteGrpcPortWrite.writeToPort(localInputId, PORT_SPEC).toPTransform();
 
     new BeamFnDataWriteRunner.Factory<String>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
@@ -132,8 +134,8 @@ public class BeamFnDataWriteRunnerTest {
         "ptransformId",
         pTransform,
         Suppliers.ofInstance(bundleId)::get,
-        ImmutableMap.of("inputPC",
-            RunnerApi.PCollection.newBuilder().setCoderId(CODER_ID).build()),
+        ImmutableMap.of(localInputId,
+            RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()),
         COMPONENTS.getCodersMap(),
         COMPONENTS.getWindowingStrategiesMap(),
         consumers,
@@ -164,14 +166,19 @@ public class BeamFnDataWriteRunnerTest {
     Iterables.getOnlyElement(startFunctions).run();
     verify(mockBeamFnDataClient).send(
         eq(PORT_SPEC.getApiServiceDescriptor()),
-        eq(LogicalEndpoint.of(bundleId, BeamFnApi.Target.newBuilder()
-            .setPrimitiveTransformReference("ptransformId")
-            .setName(inputId)
-            .build())),
-        eq(CODER));
+        eq(
+            LogicalEndpoint.of(
+                bundleId,
+                BeamFnApi.Target.newBuilder()
+                    .setPrimitiveTransformReference("ptransformId")
+                    // The local input name is arbitrary, so use whatever the
+                    // RemoteGrpcPortWrite uses
+                    .setName(Iterables.getOnlyElement(pTransform.getInputsMap().keySet()))
+                    .build())),
+        eq(WIRE_CODER));
 
-    assertThat(consumers.keySet(), containsInAnyOrder("inputPC"));
-    Iterables.getOnlyElement(consumers.get("inputPC")).accept(valueInGlobalWindow("TestValue"));
+    assertThat(consumers.keySet(), containsInAnyOrder(localInputId));
+    Iterables.getOnlyElement(consumers.get(localInputId)).accept(valueInGlobalWindow("TestValue"));
     assertThat(outputValues, contains(valueInGlobalWindow("TestValue")));
     outputValues.clear();
 
@@ -192,10 +199,9 @@ public class BeamFnDataWriteRunnerTest {
         Matchers.<Coder<WindowedValue<String>>>any())).thenReturn(valuesA).thenReturn(valuesB);
     AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataWriteRunner<String> writeRunner = new BeamFnDataWriteRunner<>(
-        FUNCTION_SPEC,
+        RemoteGrpcPortWrite.writeToPort("myWrite", PORT_SPEC).toPTransform(),
         bundleId::get,
-        OUTPUT_TARGET,
-        CODER_SPEC,
+        OUTPUT_TARGET, WIRE_CODER_SPEC,
         COMPONENTS.getCodersMap(),
         mockBeamFnDataClient);
 
@@ -205,7 +211,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient).send(
         eq(PORT_SPEC.getApiServiceDescriptor()),
         eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
-        eq(CODER));
+        eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("ABC"));
     writeRunner.consume(valueInGlobalWindow("DEF"));
@@ -223,7 +229,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient).send(
         eq(PORT_SPEC.getApiServiceDescriptor()),
         eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
-        eq(CODER));
+        eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("GHI"));
     writeRunner.consume(valueInGlobalWindow("JKL"));
@@ -256,7 +262,9 @@ public class BeamFnDataWriteRunnerTest {
     for (Registrar registrar :
         ServiceLoader.load(Registrar.class)) {
       if (registrar instanceof BeamFnDataWriteRunner.Registrar) {
-        assertThat(registrar.getPTransformRunnerFactories(), IsMapContaining.hasKey(URN));
+        assertThat(
+            registrar.getPTransformRunnerFactories(),
+            IsMapContaining.hasKey(RemoteGrpcPortWrite.URN));
         return;
       }
     }

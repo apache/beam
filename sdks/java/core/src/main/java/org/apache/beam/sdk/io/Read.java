@@ -146,7 +146,7 @@ public class Read {
      * records.
      */
     public BoundedReadFromUnboundedSource<T> withMaxNumRecords(long maxNumRecords) {
-      return new BoundedReadFromUnboundedSource<T>(source, maxNumRecords, null);
+      return new BoundedReadFromUnboundedSource<>(source, maxNumRecords, null);
     }
 
     /**
@@ -155,7 +155,7 @@ public class Read {
      * of time to read for.  Each split of the source will read for this much time.
      */
     public BoundedReadFromUnboundedSource<T> withMaxReadTime(Duration maxReadTime) {
-      return new BoundedReadFromUnboundedSource<T>(source, Long.MAX_VALUE, maxReadTime);
+      return new BoundedReadFromUnboundedSource<>(source, Long.MAX_VALUE, maxReadTime);
     }
 
     @Override

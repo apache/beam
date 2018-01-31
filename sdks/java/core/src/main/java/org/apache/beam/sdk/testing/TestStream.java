@@ -76,7 +76,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
     private final Instant currentWatermark;
 
     private Builder(Coder<T> coder) {
-      this(coder, ImmutableList.<Event<T>>of(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+      this(coder, ImmutableList.of(), BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
 
     private Builder(Coder<T> coder, ImmutableList<Event<T>> events, Instant currentWatermark) {
@@ -128,7 +128,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
               .addAll(events)
               .add(ElementEvent.add(element, elements))
               .build();
-      return new Builder<T>(coder, newEvents, currentWatermark);
+      return new Builder<>(coder, newEvents, currentWatermark);
     }
 
     /**
@@ -151,9 +151,9 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
       ImmutableList<Event<T>> newEvents =
           ImmutableList.<Event<T>>builder()
               .addAll(events)
-              .add(WatermarkEvent.<T>advanceTo(newWatermark))
+              .add(WatermarkEvent.advanceTo(newWatermark))
               .build();
-      return new Builder<T>(coder, newEvents, newWatermark);
+      return new Builder<>(coder, newEvents, newWatermark);
     }
 
     /**
@@ -170,9 +170,9 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
       ImmutableList<Event<T>> newEvents =
           ImmutableList.<Event<T>>builder()
               .addAll(events)
-              .add(ProcessingTimeEvent.<T>advanceBy(amount))
+              .add(ProcessingTimeEvent.advanceBy(amount))
               .build();
-      return new Builder<T>(coder, newEvents, currentWatermark);
+      return new Builder<>(coder, newEvents, currentWatermark);
     }
 
     /**
@@ -183,7 +183,7 @@ public final class TestStream<T> extends PTransform<PBegin, PCollection<T>> {
       ImmutableList<Event<T>> newEvents =
           ImmutableList.<Event<T>>builder()
               .addAll(events)
-              .add(WatermarkEvent.<T>advanceTo(BoundedWindow.TIMESTAMP_MAX_VALUE))
+              .add(WatermarkEvent.advanceTo(BoundedWindow.TIMESTAMP_MAX_VALUE))
               .build();
       return new TestStream<>(coder, newEvents);
     }

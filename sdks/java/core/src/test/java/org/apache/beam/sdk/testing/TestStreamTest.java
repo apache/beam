@@ -32,7 +32,6 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -93,10 +92,12 @@ public class TestStreamTest implements Serializable {
                 .withLateFirings(AfterPane.elementCountAtLeast(1)))
             .accumulatingFiredPanes()
             .withAllowedLateness(Duration.standardMinutes(5), ClosingBehavior.FIRE_ALWAYS));
-    PCollection<Integer> triggered = windowed.apply(WithKeys.<Integer, Integer>of(1))
-        .apply(GroupByKey.<Integer, Integer>create())
-        .apply(Values.<Iterable<Integer>>create())
-        .apply(Flatten.<Integer>iterables());
+    PCollection<Integer> triggered =
+        windowed
+            .apply(WithKeys.of(1))
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(Flatten.iterables());
     PCollection<Long> count =
         windowed.apply(Combine.globally(Count.<Integer>combineFn()).withoutDefaults());
     PCollection<Integer> sum = windowed.apply(Sum.integersGlobally().withoutDefaults());
@@ -110,26 +111,22 @@ public class TestStreamTest implements Serializable {
         .containsInAnyOrder(1, 2, 3);
     PAssert.that(count)
         .inWindow(window)
-        .satisfies(new SerializableFunction<Iterable<Long>, Void>() {
-          @Override
-          public Void apply(Iterable<Long> input) {
-            for (Long count : input) {
-              assertThat(count, allOf(greaterThanOrEqualTo(3L), lessThanOrEqualTo(5L)));
-            }
-            return null;
-          }
-        });
+        .satisfies(
+            input -> {
+              for (Long count1 : input) {
+                assertThat(count1, allOf(greaterThanOrEqualTo(3L), lessThanOrEqualTo(5L)));
+              }
+              return null;
+            });
     PAssert.that(sum)
         .inWindow(window)
-        .satisfies(new SerializableFunction<Iterable<Integer>, Void>() {
-          @Override
-          public Void apply(Iterable<Integer> input) {
-            for (Integer sum : input) {
-              assertThat(sum, allOf(greaterThanOrEqualTo(6), lessThanOrEqualTo(15)));
-            }
-            return null;
-          }
-        });
+        .satisfies(
+            input -> {
+              for (Integer sum1 : input) {
+                assertThat(sum1, allOf(greaterThanOrEqualTo(6), lessThanOrEqualTo(15)));
+              }
+              return null;
+            });
 
     p.run();
   }
@@ -185,10 +182,10 @@ public class TestStreamTest implements Serializable {
                             .withLateFirings(Never.ever()))
                     .discardingFiredPanes()
                     .withAllowedLateness(allowedLateness))
-            .apply(WithKeys.<Integer, String>of(1))
-            .apply(GroupByKey.<Integer, String>create())
-            .apply(Values.<Iterable<String>>create())
-            .apply(Flatten.<String>iterables());
+            .apply(WithKeys.of(1))
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(Flatten.iterables());
 
     IntervalWindow window = windowFn.assignWindow(new Instant(100));
     PAssert.that(values)
@@ -219,14 +216,17 @@ public class TestStreamTest implements Serializable {
 
     FixedWindows windowFn = FixedWindows.of(Duration.millis(1000L));
     Duration allowedLateness = Duration.millis(5000L);
-    PCollection<String> values = p.apply(stream)
-        .apply(Window.<String>into(windowFn).triggering(DefaultTrigger.of())
-            .discardingFiredPanes()
-            .withAllowedLateness(allowedLateness))
-        .apply(WithKeys.<Integer, String>of(1))
-        .apply(GroupByKey.<Integer, String>create())
-        .apply(Values.<Iterable<String>>create())
-        .apply(Flatten.<String>iterables());
+    PCollection<String> values =
+        p.apply(stream)
+            .apply(
+                Window.<String>into(windowFn)
+                    .triggering(DefaultTrigger.of())
+                    .discardingFiredPanes()
+                    .withAllowedLateness(allowedLateness))
+            .apply(WithKeys.of(1))
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(Flatten.iterables());
 
     PAssert.that(values).inWindow(windowFn.assignWindow(lateElementTimestamp)).empty();
     PAssert.that(values)
@@ -250,11 +250,11 @@ public class TestStreamTest implements Serializable {
     FixedWindows windows = FixedWindows.of(Duration.standardHours(6));
     PCollection<String> windowedValues =
         p.apply(stream)
-            .apply(Window.<String>into(windows))
-            .apply(WithKeys.<Integer, String>of(1))
-            .apply(GroupByKey.<Integer, String>create())
-            .apply(Values.<Iterable<String>>create())
-            .apply(Flatten.<String>iterables());
+            .apply(Window.into(windows))
+            .apply(WithKeys.of(1))
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(Flatten.iterables());
 
     PAssert.that(windowedValues)
         .inWindow(windows.assignWindow(endOfGlobalWindow))

@@ -129,7 +129,7 @@ public class DataflowMetricsTest {
     job.jobId = JOB_ID;
 
     JobMetrics jobMetrics = new JobMetrics();
-    jobMetrics.setMetrics(ImmutableList.<MetricUpdate>of());
+    jobMetrics.setMetrics(ImmutableList.of());
     DataflowClient dataflowClient = mock(DataflowClient.class);
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 

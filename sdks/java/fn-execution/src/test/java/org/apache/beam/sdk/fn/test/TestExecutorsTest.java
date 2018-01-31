@@ -45,12 +45,7 @@ public class TestExecutorsTest {
             new Statement() {
               @Override
               public void evaluate() throws Throwable {
-                testService.submit(new Runnable() {
-                  @Override
-                  public void run() {
-                    taskRan.set(true);
-                  }
-                });
+                testService.submit(() -> taskRan.set(true));
               }
             },
             null)
@@ -71,12 +66,7 @@ public class TestExecutorsTest {
               new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                  testService.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                      taskToRun();
-                    }
-                  });
+                  testService.submit(this::taskToRun);
                 }
 
                 private void taskToRun() {
@@ -138,12 +128,7 @@ public class TestExecutorsTest {
               new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                  testService.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                      taskToRun();
-                    }
-                  });
+                  testService.submit(this::taskToRun);
                   throw exceptionToThrow;
                 }
 

@@ -128,7 +128,7 @@ public interface ValueProvider<T> extends Serializable {
      */
     public static <T, X> NestedValueProvider<T, X> of(
         ValueProvider<X> value, SerializableFunction<X, T> translator) {
-      NestedValueProvider<T, X> factory = new NestedValueProvider<T, X>(value, translator);
+      NestedValueProvider<T, X> factory = new NestedValueProvider<>(value, translator);
       return factory;
     }
 

@@ -338,8 +338,8 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
         StateTag<BagState<T>> address,
         StateNamespace namespace,
         Coder<T> coder) {
-      super(address.getId(), namespace.stringKey(), ListCoder.of(coder),
-          new KeyGroupBagCombiner<T>());
+      super(
+          address.getId(), namespace.stringKey(), ListCoder.of(coder), new KeyGroupBagCombiner<>());
       this.namespace = namespace;
       this.address = address;
     }
@@ -357,7 +357,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
     @Override
     public Iterable<T> read() {
       Iterable<T> result = extractOutput();
-      return result != null ? result : Collections.<T>emptyList();
+      return result != null ? result : Collections.emptyList();
     }
 
     @Override

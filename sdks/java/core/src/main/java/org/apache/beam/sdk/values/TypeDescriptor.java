@@ -159,7 +159,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
    * Returns a {@link TypeDescriptor} representing the given type.
    */
   public static <T> TypeDescriptor<T> of(Class<T> type) {
-    return new SimpleTypeDescriptor<>(TypeToken.<T>of(type));
+    return new SimpleTypeDescriptor<>(TypeToken.of(type));
   }
 
   /**

@@ -39,7 +39,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
@@ -150,14 +149,14 @@ public class BeamTextCSVTableTest {
   }
 
   private RelProtoDataType buildRowType() {
-    return new RelProtoDataType() {
-
-      @Override public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder().add("id", SqlTypeName.INTEGER).add("order_id", SqlTypeName.BIGINT)
-            .add("price", SqlTypeName.FLOAT).add("amount", SqlTypeName.DOUBLE)
-            .add("user_name", SqlTypeName.VARCHAR).build();
-      }
-    };
+    return a0 ->
+        a0.builder()
+            .add("id", SqlTypeName.INTEGER)
+            .add("order_id", SqlTypeName.BIGINT)
+            .add("price", SqlTypeName.FLOAT)
+            .add("amount", SqlTypeName.DOUBLE)
+            .add("user_name", SqlTypeName.VARCHAR)
+            .build();
   }
 
   private static RelDataType buildRelDataType() {

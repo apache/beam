@@ -173,7 +173,7 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
   private Set<Integer> ignoredResponseCodes = new HashSet<>(DEFAULT_IGNORED_RESPONSE_CODES);
 
   public RetryHttpRequestInitializer() {
-    this(Collections.<Integer>emptyList());
+    this(Collections.emptyList());
   }
 
   /**

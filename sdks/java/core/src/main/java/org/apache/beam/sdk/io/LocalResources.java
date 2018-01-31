@@ -25,7 +25,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
  * Helper functions for producing a {@link ResourceId} that references a local file or directory.
@@ -47,12 +46,7 @@ public final class LocalResources {
 
   public static ValueProvider<ResourceId>
   fromString(ValueProvider<String> resourceProvider, final boolean isDirectory) {
-    return NestedValueProvider.of(resourceProvider, new SerializableFunction<String, ResourceId>() {
-      @Override
-      public ResourceId apply(String input) {
-        return fromString(input, isDirectory);
-      }
-    });
+    return NestedValueProvider.of(resourceProvider, input -> fromString(input, isDirectory));
   }
 
   private LocalResources() {} // prevent instantiation

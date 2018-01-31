@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampT
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
-import java.text.ParseException;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TFRecordIO;
@@ -67,7 +66,7 @@ import org.junit.runners.JUnit4;
 public class TFRecordIOIT {
 
   private static String filenamePrefix;
-  private static Long numberOfTextLines;
+  private static Integer numberOfTextLines;
   private static Compression compressionType;
 
   @Rule
@@ -77,7 +76,7 @@ public class TFRecordIOIT {
   public TestPipeline readPipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws ParseException {
+  public static void setup() {
     IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
@@ -108,18 +107,22 @@ public class TFRecordIOIT {
     writePipeline.run().waitUntilFinish();
 
     String filenamePattern = createFilenamePattern();
-    PCollection<String> consolidatedHashcode = readPipeline
-        .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
-        .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
-        .apply("Calculate hashcode", Combine.globally(new HashingFn()))
-        .apply(Reshuffle.<String>viaRandomKey());
+    PCollection<String> consolidatedHashcode =
+        readPipeline
+            .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
+            .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
+            .apply("Calculate hashcode", Combine.globally(new HashingFn()))
+            .apply(Reshuffle.viaRandomKey());
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    readPipeline.apply(Create.of(filenamePattern))
-        .apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-        .withSideInputs(consolidatedHashcode.apply(View.<String>asSingleton())));
+    readPipeline
+        .apply(Create.of(filenamePattern))
+        .apply(
+            "Delete test files",
+            ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+                .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
     readPipeline.run().waitUntilFinish();
   }
 

@@ -28,9 +28,7 @@ matrixJob('beam_PostCommit_Java_JDK_Versions_Test') {
   // Set JDK versions.
   axes {
     label('label', 'beam')
-    jdk('JDK 1.7 (latest)',
-        'OpenJDK 7 (on Ubuntu only)',
-        'OpenJDK 8 (on Ubuntu only)')
+    jdk('OpenJDK 8 (on Ubuntu only)')
   }
 
   // Sets that this is a PostCommit job.

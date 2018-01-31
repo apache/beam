@@ -19,16 +19,13 @@
 package org.apache.beam.runners.gearpump.translators;
 
 import com.google.common.collect.Lists;
-
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
 import org.apache.beam.runners.gearpump.translators.io.ValuesSource;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
-
 import org.apache.beam.sdk.values.PValue;
 import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
 import org.apache.gearpump.streaming.dsl.javaapi.JavaStream;
@@ -54,7 +51,7 @@ public class FlattenPCollectionsTranslator<T> implements
         // duplicate edges are not allowed in Gearpump graph
         // so we route through a dummy node
         if (unique.contains(collection)) {
-          inputStream = inputStream.map(new DummyFunction<T>(), "dummy");
+          inputStream = inputStream.map(new DummyFunction<>(), "dummy");
         }
 
         merged = merged.merge(inputStream, 1, transform.getName());

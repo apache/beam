@@ -19,8 +19,6 @@
 package org.apache.beam.runners.spark;
 
 import com.google.common.base.Joiner;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -80,12 +78,13 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
   }
 
   private boolean shouldDebug(final TransformHierarchy.Node node) {
-    return node == null || !Iterables.any(transforms, new Predicate<NativeTransform>() {
-      @Override
-      public boolean apply(NativeTransform debugTransform) {
-        return debugTransform.getNode().equals(node) && debugTransform.isComposite();
-      }
-    }) && shouldDebug(node.getEnclosingNode());
+    return node == null
+        || !transforms
+                .stream()
+                .anyMatch(
+                    debugTransform ->
+                        debugTransform.getNode().equals(node) && debugTransform.isComposite())
+            && shouldDebug(node.getEnclosingNode());
   }
 
   @Override

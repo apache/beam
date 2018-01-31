@@ -92,21 +92,17 @@ public class SplittableDoFnOperator<
 
     checkState(doFn instanceof ProcessFn);
 
-    StateInternalsFactory<String> stateInternalsFactory = new StateInternalsFactory<String>() {
-      @Override
-      public StateInternals stateInternalsForKey(String key) {
-        //this will implicitly be keyed by the key of the incoming
-        // element or by the key of a firing timer
-        return (StateInternals) keyedStateInternals;
-      }
-    };
-    TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
-      @Override
-      public TimerInternals timerInternalsForKey(String key) {
-        //this will implicitly be keyed like the StateInternalsFactory
-        return timerInternals;
-      }
-    };
+    StateInternalsFactory<String> stateInternalsFactory =
+        key -> {
+          // this will implicitly be keyed by the key of the incoming
+          // element or by the key of a firing timer
+          return (StateInternals) keyedStateInternals;
+        };
+    TimerInternalsFactory<String> timerInternalsFactory =
+        key -> {
+          // this will implicitly be keyed like the StateInternalsFactory
+          return timerInternals;
+        };
 
     executorService = Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory());
 
@@ -146,10 +142,11 @@ public class SplittableDoFnOperator<
 
   @Override
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
-    doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
-        KeyedWorkItems.<String, KV<InputT, RestrictionT>>timersWorkItem(
-            (String) keyedStateInternals.getKey(),
-            Collections.singletonList(timer.getNamespace()))));
+    doFnRunner.processElement(
+        WindowedValue.valueInGlobalWindow(
+            KeyedWorkItems.timersWorkItem(
+                (String) keyedStateInternals.getKey(),
+                Collections.singletonList(timer.getNamespace()))));
   }
 
   @Override

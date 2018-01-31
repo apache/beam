@@ -195,13 +195,9 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       startPipeline =
           executorService.submit(
-              new Runnable() {
-
-                @Override
-                public void run() {
-                  LOG.info("Starting streaming pipeline execution.");
-                  jssc.start();
-                }
+              () -> {
+                LOG.info("Starting streaming pipeline execution.");
+                jssc.start();
               });
       executorService.shutdown();
 
@@ -219,14 +215,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
       startPipeline =
           executorService.submit(
-              new Runnable() {
-
-                @Override
-                public void run() {
-                  pipeline.traverseTopologically(new Evaluator(translator, evaluationContext));
-                  evaluationContext.computeOutputs();
-                  LOG.info("Batch pipeline execution complete.");
-                }
+              () -> {
+                pipeline.traverseTopologically(new Evaluator(translator, evaluationContext));
+                evaluationContext.computeOutputs();
+                LOG.info("Batch pipeline execution complete.");
               });
       executorService.shutdown();
 

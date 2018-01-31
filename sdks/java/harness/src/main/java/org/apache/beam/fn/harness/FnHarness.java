@@ -104,6 +104,20 @@ public class FnHarness {
     }
     StreamObserverFactory streamObserverFactory =
         HarnessStreamObserverFactories.fromOptions(options);
+    main(
+        options,
+        loggingApiServiceDescriptor,
+        controlApiServiceDescriptor,
+        channelFactory,
+        streamObserverFactory);
+  }
+
+  public static void main(
+      PipelineOptions options,
+      Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
+      ManagedChannelFactory channelFactory,
+      StreamObserverFactory streamObserverFactory) {
     try (BeamFnLoggingClient logging = new BeamFnLoggingClient(
         options,
         loggingApiServiceDescriptor,

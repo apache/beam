@@ -231,15 +231,12 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
             outputPc,
             GlobalWindow.INSTANCE,
             outputPc.getWindowingStrategy(),
-            new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  mark.finalizeCheckpoint();
-                } catch (IOException e) {
-                  throw new RuntimeException(
-                      "Couldn't finalize checkpoint after the end of the Global Window", e);
-                }
+            () -> {
+              try {
+                mark.finalizeCheckpoint();
+              } catch (IOException e) {
+                throw new RuntimeException(
+                    "Couldn't finalize checkpoint after the end of the Global Window", e);
               }
             });
       }
@@ -316,7 +313,7 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
         initialShards.add(
             evaluationContext
                 .<UnboundedSourceShard<T, ?>>createRootBundle()
-                .add(WindowedValue.<UnboundedSourceShard<T, ?>>valueInGlobalWindow(shard))
+                .add(WindowedValue.valueInGlobalWindow(shard))
                 .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
       }
       return initialShards.build();

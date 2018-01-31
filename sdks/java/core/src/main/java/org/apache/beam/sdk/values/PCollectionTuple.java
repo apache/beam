@@ -181,7 +181,7 @@ public class PCollectionTuple implements PInput, POutput {
   final Map<TupleTag<?>, PCollection<?>> pcollectionMap;
 
   PCollectionTuple(Pipeline pipeline) {
-    this(pipeline, new LinkedHashMap<TupleTag<?>, PCollection<?>>());
+    this(pipeline, new LinkedHashMap<>());
   }
 
   PCollectionTuple(Pipeline pipeline,
@@ -236,7 +236,7 @@ public class PCollectionTuple implements PInput, POutput {
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return ImmutableMap.<TupleTag<?>, PValue>copyOf(pcollectionMap);
+    return ImmutableMap.copyOf(pcollectionMap);
   }
 
   @Override

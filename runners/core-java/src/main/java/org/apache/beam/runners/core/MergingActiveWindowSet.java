@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -84,13 +83,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   public void cleanupTemporaryWindows() {
     // All NEW windows can be forgotten since they must have ended up being merged into
     // some other ACTIVE window.
-    Iterator<Map.Entry<W, Set<W>>> iter = activeWindowToStateAddressWindows.entrySet().iterator();
-    while (iter.hasNext()) {
-      Map.Entry<W, Set<W>> entry = iter.next();
-      if (entry.getValue().isEmpty()) {
-        iter.remove();
-      }
-    }
+    activeWindowToStateAddressWindows.entrySet().removeIf(entry -> entry.getValue().isEmpty());
   }
 
   @Override
@@ -130,7 +123,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
   public void ensureWindowExists(W window) {
     if (!activeWindowToStateAddressWindows.containsKey(window)) {
       // Add window as NEW.
-      activeWindowToStateAddressWindows.put(window, new LinkedHashSet<W>());
+      activeWindowToStateAddressWindows.put(window, new LinkedHashSet<>());
     }
   }
 
@@ -404,7 +397,7 @@ public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWi
     } else {
       for (Map.Entry<W, Set<W>> entry : multimap.entrySet()) {
         if (entry.getValue() == null) {
-          entry.setValue(new LinkedHashSet<W>());
+          entry.setValue(new LinkedHashSet<>());
         }
       }
       return multimap;

@@ -65,12 +65,12 @@ public class TupleTagTest {
   }
 
   private TupleTag<Object> createNonstaticTupleTag() {
-    return new TupleTag<Object>();
+    return new TupleTag<>();
   }
 
   @Test
   public void testNonstaticTupleTag() {
-    assertNotEquals(new TupleTag<Object>().getId(), new TupleTag<Object>().getId());
+    assertNotEquals(new TupleTag<>().getId(), new TupleTag<>().getId());
     assertNotEquals(createNonstaticTupleTag(), createNonstaticTupleTag());
 
     TupleTag<Object> tag = createNonstaticTupleTag();

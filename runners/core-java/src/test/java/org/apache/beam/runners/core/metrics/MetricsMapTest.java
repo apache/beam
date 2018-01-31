@@ -34,6 +34,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
 /**
  * Tests for {@link MetricsMap}.
  */
@@ -41,12 +42,7 @@ import org.junit.runners.JUnit4;
 public class MetricsMapTest {
 
   public MetricsMap<String, AtomicLong> metricsMap =
-      new MetricsMap<>(new MetricsMap.Factory<String, AtomicLong>() {
-    @Override
-    public AtomicLong createInstance(String unusedKey) {
-      return new AtomicLong();
-    }
-  });
+      new MetricsMap<>(unusedKey -> new AtomicLong());
 
   @Test
   public void testCreateSeparateInstances() {

@@ -58,7 +58,7 @@ public class CreatePCollectionViewTranslationTest {
     // is not vacuous.
     @Parameters(name = "{index}: {0}")
     public static Iterable<CreatePCollectionView<?, ?>> data() {
-      return ImmutableList.<CreatePCollectionView<?, ?>>of(
+      return ImmutableList.of(
           CreatePCollectionView.of(
               PCollectionViews.singletonView(
                   testPCollection,
@@ -67,9 +67,7 @@ public class CreatePCollectionViewTranslationTest {
                   null,
                   StringUtf8Coder.of())),
           CreatePCollectionView.of(
-              PCollectionViews.listView(
-                  testPCollection,
-                  testPCollection.getWindowingStrategy())));
+              PCollectionViews.listView(testPCollection, testPCollection.getWindowingStrategy())));
     }
 
     @Parameter(0)
@@ -101,8 +99,7 @@ public class CreatePCollectionViewTranslationTest {
               SerializableUtils.deserializeFromByteArray(
                   payload.getPayload().toByteArray(), PCollectionView.class.getSimpleName());
 
-      assertThat(
-          deserializedView, Matchers.<PCollectionView<?>>equalTo(createViewTransform.getView()));
+      assertThat(deserializedView, Matchers.equalTo(createViewTransform.getView()));
     }
 
     @Test
@@ -129,8 +126,7 @@ public class CreatePCollectionViewTranslationTest {
                   payload.getPayload().toByteArray(),
                   PCollectionView.class.getSimpleName());
 
-      assertThat(
-          deserializedView, Matchers.<PCollectionView<?>>equalTo(createViewTransform.getView()));
+      assertThat(deserializedView, Matchers.equalTo(createViewTransform.getView()));
     }
   }
 }

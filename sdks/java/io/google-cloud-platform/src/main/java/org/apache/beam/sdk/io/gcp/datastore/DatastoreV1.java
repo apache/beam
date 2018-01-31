@@ -631,7 +631,7 @@ public class DatastoreV1 {
 
       return inputQuery
           .apply("Split", ParDo.of(new SplitQueryFn(v1Options, getNumQuerySplits())))
-          .apply("Reshuffle", Reshuffle.<Query>viaRandomKey())
+          .apply("Reshuffle", Reshuffle.viaRandomKey())
           .apply("Read", ParDo.of(new ReadFn(v1Options)));
     }
 
@@ -890,7 +890,7 @@ public class DatastoreV1 {
         QueryResultBatch currentBatch = null;
 
         while (moreResults) {
-          Query.Builder queryBuilder = query.toBuilder().clone();
+          Query.Builder queryBuilder = query.toBuilder();
           queryBuilder.setLimit(Int32Value.newBuilder().setValue(
               Math.min(userLimit, QUERY_BATCH_LIMIT)));
 

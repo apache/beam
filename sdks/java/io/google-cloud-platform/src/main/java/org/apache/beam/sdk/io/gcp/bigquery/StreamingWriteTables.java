@@ -91,17 +91,20 @@ public class StreamingWriteTables extends PTransform<
     // performed by Reshuffle.
     TupleTag<Void> mainOutputTag = new TupleTag<>("mainOutput");
     TupleTag<TableRow> failedInsertsTag = new TupleTag<>("failedInserts");
-    PCollectionTuple tuple = tagged
-        .apply(Reshuffle.<ShardedKey<String>, TableRowInfo>of())
-        // Put in the global window to ensure that DynamicDestinations side inputs are accessed
-        // correctly.
-        .apply("GlobalWindow",
-            Window.<KV<ShardedKey<String>, TableRowInfo>>into(new GlobalWindows())
-            .triggering(DefaultTrigger.of()).discardingFiredPanes())
-        .apply("StreamingWrite",
-            ParDo.of(
-                new StreamingWriteFn(bigQueryServices, retryPolicy, failedInsertsTag))
-            .withOutputTags(mainOutputTag, TupleTagList.of(failedInsertsTag)));
+    PCollectionTuple tuple =
+        tagged
+            .apply(Reshuffle.of())
+            // Put in the global window to ensure that DynamicDestinations side inputs are accessed
+            // correctly.
+            .apply(
+                "GlobalWindow",
+                Window.<KV<ShardedKey<String>, TableRowInfo>>into(new GlobalWindows())
+                    .triggering(DefaultTrigger.of())
+                    .discardingFiredPanes())
+            .apply(
+                "StreamingWrite",
+                ParDo.of(new StreamingWriteFn(bigQueryServices, retryPolicy, failedInsertsTag))
+                    .withOutputTags(mainOutputTag, TupleTagList.of(failedInsertsTag)));
     PCollection<TableRow> failedInserts = tuple.get(failedInsertsTag);
     failedInserts.setCoder(TableRowJsonCoder.of());
     return WriteResult.in(input.getPipeline(), failedInsertsTag, failedInserts);

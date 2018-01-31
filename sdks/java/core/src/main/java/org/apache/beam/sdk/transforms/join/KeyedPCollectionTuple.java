@@ -215,7 +215,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
   private final Pipeline pipeline;
 
   KeyedPCollectionTuple(Pipeline pipeline) {
-    this(pipeline, new ArrayList<TaggedKeyedPCollection<K, ?>>(), TupleTagList.empty(), null);
+    this(pipeline, new ArrayList<>(), TupleTagList.empty(), null);
   }
 
   KeyedPCollectionTuple(

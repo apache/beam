@@ -52,10 +52,6 @@ directory for some common and useful patterns like joining, filtering, and combi
 The [complete](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete)
 directory contains a few realistic end-to-end pipelines.
 
-See the
-[Java 8](https://github.com/apache/beam/tree/master/examples/java8/src/main/java/org/apache/beam/examples)
-examples as well. This directory includes a Java 8 version of the
-MinimalWordCount example, as well as series of examples in a simple 'mobile
-gaming' domain. This series introduces some advanced concepts and provides
-additional examples of using Java 8 syntax. Other than usage of Java 8 lambda
-expressions, the concepts that are used apply equally well in Java 7.
+See the other examples as well. This directory includes a Java 8 version of the
+MinimalWordCount example, as well as a series of examples in a simple 'mobile
+gaming' domain. This series introduces some advanced concepts.

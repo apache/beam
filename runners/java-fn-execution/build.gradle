@@ -27,23 +27,26 @@ description = "Apache Beam :: Runners :: Java Fn Execution"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
+evaluationDependsOn(":sdks:java:fn-execution")
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-model-parent:beam-model-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":model:fn-execution", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:fn-execution", configuration: "shadow")
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.grpc_netty
   shadow library.java.slf4j_api
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution").sourceSets.test.output
+  testCompile project(":sdks:java:fn-execution").sourceSets.test.output
+  testCompile project(":sdks:java:harness")
+  testCompile project(path: ":runners:core-construction-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
+  testCompile library.java.slf4j_simple
 }
 
 task packageTests(type: Jar) {

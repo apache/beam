@@ -48,8 +48,8 @@ public class BigDecimalCoderTest {
           new BigDecimal(Double.MIN_VALUE),
           new BigDecimal(-10.5),
           new BigDecimal(-1),
-          new BigDecimal(0),
-          new BigDecimal(1),
+          BigDecimal.ZERO,
+          BigDecimal.ONE,
           new BigDecimal(13.258),
           new BigDecimal(Double.MAX_VALUE),
           new BigDecimal(Double.MAX_VALUE).multiply(BigDecimal.TEN));

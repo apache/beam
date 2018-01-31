@@ -22,7 +22,6 @@ import static org.hamcrest.Matchers.anyOf;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
-import com.google.common.base.Supplier;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -52,7 +51,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
-import javax.annotation.Nonnull;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.StringDescription;
@@ -122,13 +120,7 @@ public class ApiSurface {
   public static Matcher<ApiSurface> containsOnlyPackages(final Set<String> packageNames) {
 
     final Function<String, Matcher<Class<?>>> packageNameToClassMatcher =
-        new Function<String, Matcher<Class<?>>>() {
-
-          @Override
-          public Matcher<Class<?>> apply(@Nonnull final String packageName) {
-            return classesInPackage(packageName);
-          }
-        };
+        ApiSurface::classesInPackage;
 
     final ImmutableSet<Matcher<Class<?>>> classesInPackages =
         FluentIterable.from(packageNames).transform(packageNameToClassMatcher).toSet();
@@ -181,33 +173,17 @@ public class ApiSurface {
         // <helper_lambdas>
 
         final Function<Matcher<Class<?>>, String> toMessage =
-            new Function<Matcher<Class<?>>, String>() {
-
-              @Override
-              public String apply(@Nonnull final Matcher<Class<?>> abandonedClassMacther) {
-                final StringDescription description = new StringDescription();
-                description.appendText("No ");
-                abandonedClassMacther.describeTo(description);
-                return description.toString();
-              }
+            abandonedClassMacther -> {
+              final StringDescription description = new StringDescription();
+              description.appendText("No ");
+              abandonedClassMacther.describeTo(description);
+              return description.toString();
             };
 
         final Predicate<Matcher<Class<?>>> matchedByExposedClasses =
-            new Predicate<Matcher<Class<?>>>() {
-
-              @Override
-              public boolean apply(@Nonnull final Matcher<Class<?>> classMatcher) {
-                return FluentIterable.from(checkedApiSurface.getExposedClasses())
-                    .anyMatch(
-                        new Predicate<Class<?>>() {
-
-                          @Override
-                          public boolean apply(@Nonnull final Class<?> aClass) {
-                            return classMatcher.matches(aClass);
-                          }
-                        });
-              }
-            };
+            classMatcher ->
+                FluentIterable.from(checkedApiSurface.getExposedClasses())
+                    .anyMatch(classMatcher::matches);
 
         // </helper_lambdas>
 
@@ -220,7 +196,7 @@ public class ApiSurface {
         final ImmutableList<String> messages =
             FluentIterable.from(abandonedClassMatchers)
                 .transform(toMessage)
-                .toSortedList(Ordering.<String>natural());
+                .toSortedList(Ordering.natural());
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
@@ -239,33 +215,13 @@ public class ApiSurface {
 
         /* <helper_lambdas> */
 
-        final Function<Class<?>, List<Class<?>>> toExposure =
-            new Function<Class<?>, List<Class<?>>>() {
-
-              @Override
-              public List<Class<?>> apply(@Nonnull final Class<?> aClass) {
-                return checkedApiSurface.getAnyExposurePath(aClass);
-              }
-            };
+        final Function<Class<?>, List<Class<?>>> toExposure = checkedApiSurface::getAnyExposurePath;
 
         final Maps.EntryTransformer<Class<?>, List<Class<?>>, String> toMessage =
-            new Maps.EntryTransformer<Class<?>, List<Class<?>>, String>() {
+            (aClass, exposure) ->
+                aClass + " exposed via:\n\t\t" + Joiner.on("\n\t\t").join(exposure);
 
-              @Override
-              public String transformEntry(
-                  @Nonnull final Class<?> aClass, @Nonnull final List<Class<?>> exposure) {
-                return aClass + " exposed via:\n\t\t" + Joiner.on("\n\t\t").join(exposure);
-              }
-            };
-
-        final Predicate<Class<?>> disallowed =
-            new Predicate<Class<?>>() {
-
-              @Override
-              public boolean apply(@Nonnull final Class<?> aClass) {
-                return !classIsAllowed(aClass, allowedClasses);
-              }
-            };
+        final Predicate<Class<?>> disallowed = aClass -> !classIsAllowed(aClass, allowedClasses);
 
         /* </helper_lambdas> */
 
@@ -277,7 +233,7 @@ public class ApiSurface {
 
         final ImmutableList<String> messages =
             FluentIterable.from(Maps.transformEntries(exposures, toMessage).values())
-                .toSortedList(Ordering.<String>natural());
+                .toSortedList(Ordering.natural());
 
         if (!messages.isEmpty()) {
           mismatchDescription.appendText(
@@ -323,7 +279,7 @@ public class ApiSurface {
   /** Returns an empty {@link ApiSurface}. */
   public static ApiSurface empty() {
     LOG.debug("Returning an empty ApiSurface");
-    return new ApiSurface(Collections.<Class<?>>emptySet(), Collections.<Pattern>emptySet());
+    return new ApiSurface(Collections.emptySet(), Collections.emptySet());
   }
 
   /** Returns an {@link ApiSurface} object representing the given package and all subpackages. */
@@ -524,13 +480,7 @@ public class ApiSurface {
     visited = Sets.newHashSet();
     exposedToExposers =
         Multimaps.newSetMultimap(
-            Maps.<Class<?>, Collection<Class<?>>>newHashMap(),
-            new Supplier<Set<Class<?>>>() {
-              @Override
-              public Set<Class<?>> get() {
-                return Sets.newHashSet();
-              }
-            });
+            Maps.<Class<?>, Collection<Class<?>>>newHashMap(), Sets::newHashSet);
 
     for (Class<?> clazz : rootClasses) {
       addExposedTypes(clazz, null);

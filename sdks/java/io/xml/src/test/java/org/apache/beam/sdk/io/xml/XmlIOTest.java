@@ -97,16 +97,16 @@ public class XmlIOTest {
     switch(method) {
       case SINK_AND_READ_FILES:
         PCollection<Bird> writeThenRead =
-            mainPipeline.apply(Create.of(birds))
+            mainPipeline
+                .apply(Create.of(birds))
                 .apply(
                     FileIO.<Bird>write()
-                        .via(
-                            XmlIO.sink(Bird.class).withRootElement("birds").withCharset(charset))
+                        .via(XmlIO.sink(Bird.class).withRootElement("birds").withCharset(charset))
                         .to(tmpFolder.getRoot().getAbsolutePath())
                         .withPrefix("birds")
                         .withSuffix(".xml"))
                 .getPerDestinationOutputFilenames()
-                .apply(Values.<String>create())
+                .apply(Values.create())
                 .apply(FileIO.matchAll())
                 .apply(FileIO.readMatches())
                 .apply(

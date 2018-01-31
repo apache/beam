@@ -82,7 +82,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
   // in core-construction
   @VisibleForTesting
   static final ImmutableSet<Class<? extends Coder>> KNOWN_ATOMIC_CODERS =
-      ImmutableSet.<Class<? extends Coder>>of(
+      ImmutableSet.of(
           BigDecimalCoder.class,
           BigEndianIntegerCoder.class,
           BigEndianLongCoder.class,

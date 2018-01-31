@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 public class ReifyAsIterable<T> extends PTransform<PCollection<T>, PCollection<Iterable<T>>> {
   @Override
   public PCollection<Iterable<T>> expand(PCollection<T> input) {
-    final PCollectionView<Iterable<T>> view = input.apply(View.<T>asIterable());
+    final PCollectionView<Iterable<T>> view = input.apply(View.asIterable());
     return input
         .getPipeline()
         .apply(Create.of((Void) null).withCoder(VoidCoder.of()))

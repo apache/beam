@@ -28,8 +28,8 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -176,7 +176,7 @@ public class MonitoringUtil {
       }
     }
 
-    Collections.sort(allMessages, new TimeStampComparator());
+    allMessages.sort(new TimeStampComparator());
     return allMessages;
   }
 
@@ -195,9 +195,9 @@ public class MonitoringUtil {
       // that has the project name replaced with project id.
       return String.format(
           "https://console.cloud.google.com/dataflow/jobsDetail/locations/%s/jobs/%s?project=%s",
-          URLEncoder.encode(regionId, "UTF-8"),
-          URLEncoder.encode(jobId, "UTF-8"),
-          URLEncoder.encode(projectName, "UTF-8"));
+          URLEncoder.encode(regionId, StandardCharsets.UTF_8.name()),
+          URLEncoder.encode(jobId, StandardCharsets.UTF_8.name()),
+          URLEncoder.encode(projectName, StandardCharsets.UTF_8.name()));
     } catch (UnsupportedEncodingException e) {
       // Should never happen.
       throw new AssertionError("UTF-8 encoding is not supported by the environment", e);
@@ -214,8 +214,9 @@ public class MonitoringUtil {
     }
 
     // Assemble cancel command from optional prefix and project/job parameters.
-    return String.format("%s%s jobs --project=%s cancel %s",
-        dataflowApiOverridePrefix, GCLOUD_DATAFLOW_PREFIX, options.getProject(), jobId);
+    return String.format("%s%s jobs --project=%s cancel --region=%s %s",
+        dataflowApiOverridePrefix, GCLOUD_DATAFLOW_PREFIX, options.getProject(),
+        options.getRegion(), jobId);
   }
 
   public static State toState(String stateName) {
