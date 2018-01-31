@@ -30,9 +30,11 @@ from apache_beam.testing.test_stream import WatermarkEvent
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
+from apache_beam.transforms import window
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -244,6 +246,84 @@ class TestStreamTest(unittest.TestCase):
     p.run()
     # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
     self.assertEqual([('k', ['a'])], result)
+
+  def test_basic_execution_sideinputs_batch(self):
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    global result     # pylint: disable=global-variable-undefined
+    result = []
+
+    def recorded_elements(elem):
+      result.append(elem)
+      return elem
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+
+    main_stream = (p
+                   | 'main TestStream' >> TestStream()
+                   .advance_watermark_to(10)
+                   .add_elements(['e']))
+    side = (p
+            | beam.Create([2, 1, 4])
+            | beam.Map(lambda t: window.TimestampedValue(t, t)))
+
+    class RecordFn(beam.DoFn):
+      def process(self,
+                  elm=beam.DoFn.ElementParam,
+                  ts=beam.DoFn.TimestampParam,
+                  side=beam.DoFn.SideInputParam):
+        yield (elm, ts, side)
+
+    records = (main_stream     # pylint: disable=unused-variable
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side))
+               | beam.Map(recorded_elements))
+    p.run()
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    self.assertEqual([('e', Timestamp(10), [2, 1, 4])], result)
+
+  def test_basic_execution_sideinputs(self):
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    global result     # pylint: disable=global-variable-undefined
+    result = []
+
+    def recorded_elements(elem):
+      result.append(elem)
+      return elem
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+
+    main_stream = (p
+                   | 'main TestStream' >> TestStream()
+                   .advance_watermark_to(10)
+                   .add_elements(['e'])
+                   .advance_processing_time(11))
+    side_stream = (p
+                   | 'side TestStream' >> TestStream()
+                   .add_elements([window.TimestampedValue(2, 2)])
+                   .add_elements([window.TimestampedValue(1, 1)])
+                   .add_elements([window.TimestampedValue(4, 4)]))
+
+    class RecordFn(beam.DoFn):
+      def process(self,
+                  elm=beam.DoFn.ElementParam,
+                  ts=beam.DoFn.TimestampParam,
+                  side=beam.DoFn.SideInputParam):
+        yield (elm, ts, side)
+
+    records = (main_stream        # pylint: disable=unused-variable
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream))
+               | beam.Map(recorded_elements))
+
+    p.run()
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    self.assertEqual([('e', Timestamp(10), [2, 1, 4])], result)
 
 
 if __name__ == '__main__':
