@@ -140,11 +140,14 @@ public class SqlQuery3Test {
       String personState,
       long auctionId) {
 
-    return new BeamRecord(
-        RESULT_RECORD_TYPE,
-        personName,
-        personCity,
-        personState,
-        auctionId);
+    return
+        BeamRecord
+            .withRecordType(RESULT_RECORD_TYPE)
+            .addValues(
+                personName,
+                personCity,
+                personState,
+                auctionId)
+            .build();
   }
 }

@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.values;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -25,69 +28,63 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
 
 /**
  * {@link BeamRecord} is an immutable tuple-like type to represent one element in a
  * {@link PCollection}. The fields are described with a {@link BeamRecordType}.
  *
- * <p>By default, {@link BeamRecordType} only contains the name for each field. It
- * can be extended to support more sophisticated validation by overwriting
- * {@link BeamRecordType#validateValueType(int, Object)}.
- *
- * <p>A Coder {@link BeamRecordCoder} is provided, which wraps the Coder for each data field.
+ * <p>{@link BeamRecordType} contains the names for each field and the coder for the whole
+ * record, {see @link BeamRecordType#getRecordCoder()}.
  */
 @Experimental
-public class BeamRecord implements Serializable {
-  //immutable list of field values.
-  private List<Object> dataValues;
-  private BeamRecordType dataType;
+@AutoValue
+public abstract class BeamRecord implements Serializable {
 
   /**
-   * Creates a BeamRecord.
-   * @param dataType type of the record
-   * @param rawDataValues values of the record, record's size must match size of
-   *                      the {@code BeamRecordType}, or can be null, if it is null
-   *                      then every field is null.
+   * Creates a {@link BeamRecord} from the list of values and {@link #getRecordType()}.
    */
-  public BeamRecord(BeamRecordType dataType, List<Object> rawDataValues) {
-    if (dataType.getFieldNames().size() != rawDataValues.size()) {
-      throw new IllegalArgumentException(
-          "Field count in BeamRecordType(" + dataType.getFieldNames().size()
-              + ") and rawDataValues(" + rawDataValues.size() + ") must match!");
-    }
+  public static <T> Collector<T, List<Object>, BeamRecord> toRecord(
+      BeamRecordType recordType) {
 
-    this.dataType = dataType;
-    this.dataValues = new ArrayList<>(dataType.getFieldCount());
-
-    for (int idx = 0; idx < dataType.getFieldCount(); ++idx) {
-      dataValues.add(null);
-    }
-
-    for (int idx = 0; idx < dataType.getFieldCount(); ++idx) {
-      addField(idx, rawDataValues.get(idx));
-    }
+    return Collector.of(
+        () -> new ArrayList<>(recordType.getFieldCount()),
+        List::add,
+        (left, right) -> {
+          left.addAll(right);
+          return left;
+        },
+        values -> BeamRecord.withRecordType(recordType).addValues(values).build());
   }
 
   /**
-   * see {@link #BeamRecord(BeamRecordType, List)}.
+   * Creates a new record filled with nulls.
    */
-  public BeamRecord(BeamRecordType dataType, Object... rawdataValues) {
-    this(dataType, Arrays.asList(rawdataValues));
-  }
-
-  private void addField(int index, Object fieldValue) {
-    dataType.validateValueType(index, fieldValue);
-    dataValues.set(index, fieldValue);
+  public static BeamRecord nullRecord(BeamRecordType recordType) {
+    return
+        BeamRecord
+            .withRecordType(recordType)
+            .addValues(Collections.nCopies(recordType.getFieldCount(), null))
+            .build();
   }
 
   /**
-   * Get value by field name.
+   * Get value by field name, {@link ClassCastException} is thrown
+   * if type doesn't match.
    */
-  public Object getFieldValue(String fieldName) {
-    return getFieldValue(dataType.getFieldNames().indexOf(fieldName));
+  public <T> T getValue(String fieldName) {
+    return getValue(getRecordType().indexOf(fieldName));
+  }
+
+  /**
+   * Get value by field index, {@link ClassCastException} is thrown
+   * if type doesn't match.
+   */
+  @Nullable
+  public <T> T getValue(int fieldIdx) {
+    return (T) getValues().get(fieldIdx);
   }
 
   /**
@@ -95,7 +92,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Byte getByte(String fieldName) {
-    return (Byte) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -103,7 +100,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Short getShort(String fieldName) {
-    return (Short) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -111,7 +108,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Integer getInteger(String fieldName) {
-    return (Integer) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -119,7 +116,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Float getFloat(String fieldName) {
-    return (Float) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -127,7 +124,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Double getDouble(String fieldName) {
-    return (Double) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -135,7 +132,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Long getLong(String fieldName) {
-    return (Long) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -143,7 +140,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public String getString(String fieldName) {
-    return (String) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -151,7 +148,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Date getDate(String fieldName) {
-    return (Date) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -159,7 +156,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public GregorianCalendar getGregorianCalendar(String fieldName) {
-    return (GregorianCalendar) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -167,7 +164,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public BigDecimal getBigDecimal(String fieldName) {
-    return (BigDecimal) getFieldValue(fieldName);
+    return getValue(fieldName);
   }
 
   /**
@@ -175,13 +172,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Boolean getBoolean(String fieldName) {
-    return (Boolean) getFieldValue(fieldName);
-  }
-
-  /** Get value by field index. */
-  @Nullable
-  public Object getFieldValue(int fieldIdx) {
-    return dataValues.get(fieldIdx);
+    return getValue(fieldName);
   }
 
   /**
@@ -189,7 +180,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Byte getByte(int idx) {
-    return (Byte) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -197,7 +188,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Short getShort(int idx) {
-    return (Short) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -205,7 +196,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Integer getInteger(int idx) {
-    return (Integer) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -213,7 +204,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Float getFloat(int idx) {
-    return (Float) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -221,7 +212,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Double getDouble(int idx) {
-    return (Double) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -229,7 +220,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Long getLong(int idx) {
-    return (Long) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -237,7 +228,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public String getString(int idx) {
-    return (String) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -245,7 +236,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Date getDate(int idx) {
-    return (Date) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -253,7 +244,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public GregorianCalendar getGregorianCalendar(int idx) {
-    return (GregorianCalendar) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -261,7 +252,7 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public BigDecimal getBigDecimal(int idx) {
-    return (BigDecimal) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
@@ -269,51 +260,66 @@ public class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public Boolean getBoolean(int idx) {
-    return (Boolean) getFieldValue(idx);
+    return getValue(idx);
   }
 
   /**
    * Return the size of data fields.
    */
   public int getFieldCount() {
-    return dataValues.size();
+    return getValues().size();
   }
 
   /**
    * Return the list of data values.
    */
-  public List<Object> getDataValues() {
-    return Collections.unmodifiableList(dataValues);
-  }
+  public abstract List<Object> getValues();
 
   /**
    * Return {@link BeamRecordType} which describes the fields.
    */
-  public BeamRecordType getDataType() {
-    return dataType;
+  public abstract BeamRecordType getRecordType();
+
+  /**
+   * Creates a record builder with specified {@link #getRecordType()}.
+   * {@link Builder#build()} will throw an {@link IllegalArgumentException} if number of fields
+   * in {@link #getRecordType()} does not match the number of fields specified.
+   */
+  public static Builder withRecordType(BeamRecordType recordType) {
+    return
+        new AutoValue_BeamRecord.Builder(recordType);
   }
 
-  @Override
-  public String toString() {
-    return "BeamRecord [dataValues=" + dataValues + ", dataType=" + dataType + "]";
-  }
+  /**
+   * Builder for {@link BeamRecord}.
+   */
+  public static class Builder {
+    private List<Object> values = new ArrayList<>();
+    private BeamRecordType type;
 
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) {
-      return true;
+    Builder(BeamRecordType type) {
+      this.type = type;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
-      return false;
-    }
-    BeamRecord other = (BeamRecord) obj;
-    return toString().equals(other.toString());
-  }
 
-  @Override public int hashCode() {
-    return 31 * getDataType().hashCode() + getDataValues().hashCode();
+    public Builder addValues(List<Object> values) {
+      this.values.addAll(values);
+      return this;
+    }
+
+    public Builder addValues(Object ... values) {
+      return addValues(Arrays.asList(values));
+    }
+
+    public BeamRecord build() {
+      checkNotNull(type);
+
+      if (type.getFieldCount() != values.size()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Field count in BeamRecordType (%s) and values (%s) must match",
+                type.fieldNames(), values));
+      }
+      return new AutoValue_BeamRecord(values, type);
+    }
   }
 }

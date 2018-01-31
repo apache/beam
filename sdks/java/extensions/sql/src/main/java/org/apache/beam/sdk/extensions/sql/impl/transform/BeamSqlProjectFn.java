@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
-import java.util.ArrayList;
+import static java.util.stream.Collectors.toList;
+
 import java.util.List;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
@@ -28,16 +30,15 @@ import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
- *
  * {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step.
- *
  */
 public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
   private BeamRecordType outputRowType;
 
-  public BeamSqlProjectFn(String stepName, BeamSqlExpressionExecutor executor,
+  public BeamSqlProjectFn(
+      String stepName, BeamSqlExpressionExecutor executor,
       BeamRecordType outputRowType) {
     super();
     this.stepName = stepName;
@@ -53,15 +54,24 @@ public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
     BeamRecord inputRow = c.element();
-    List<Object> results = executor.execute(inputRow, window);
-    List<Object> fieldsValue = new ArrayList<>(results.size());
-    for (int idx = 0; idx < results.size(); ++idx) {
-      fieldsValue.add(
-          BeamTableUtils.autoCastField(outputRowType.getFieldCoder(idx), results.get(idx)));
-    }
-    BeamRecord outRow = new BeamRecord(outputRowType, fieldsValue);
+    List<Object> rawResultValues = executor.execute(inputRow, window);
 
-    c.output(outRow);
+    List<Object> castResultValues =
+        IntStream
+            .range(0, outputRowType.getFieldCount())
+            .mapToObj(i -> castField(rawResultValues, i))
+            .collect(toList());
+
+    c.output(
+        BeamRecord
+            .withRecordType(outputRowType)
+            .addValues(castResultValues)
+            .build());
+  }
+
+  private Object castField(List<Object> resultValues, int i) {
+    return BeamTableUtils
+        .autoCastField(outputRowType.getFieldCoder(i), resultValues.get(i));
   }
 
   @Teardown

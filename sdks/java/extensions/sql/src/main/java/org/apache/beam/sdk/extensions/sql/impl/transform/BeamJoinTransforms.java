@@ -18,6 +18,10 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.values.BeamRecord.toRecord;
+import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -48,37 +52,40 @@ public class BeamJoinTransforms {
    */
   public static class ExtractJoinFields
       extends SimpleFunction<BeamRecord, KV<BeamRecord, BeamRecord>> {
-    private final boolean isLeft;
-    private final List<Pair<Integer, Integer>> joinColumns;
+    private final List<Integer> joinColumns;
 
     public ExtractJoinFields(boolean isLeft, List<Pair<Integer, Integer>> joinColumns) {
-      this.isLeft = isLeft;
-      this.joinColumns = joinColumns;
+      this.joinColumns =
+          joinColumns
+              .stream()
+              .map(pair -> isLeft ? pair.left : pair.right)
+              .collect(toList());
     }
 
-    @Override public KV<BeamRecord, BeamRecord> apply(BeamRecord input) {
-      // build the type
-      // the name of the join field is not important
-      List<String> names = new ArrayList<>(joinColumns.size());
-      List<Coder> types = new ArrayList<>(joinColumns.size());
-      for (int i = 0; i < joinColumns.size(); i++) {
-        names.add("c" + i);
-        types.add(isLeft
-            ? input.getDataType().getFieldCoder(joinColumns.get(i).getKey())
-            : input.getDataType().getFieldCoder(joinColumns.get(i).getValue()));
-      }
-      BeamRecordType type = new BeamRecordType(names, types);
+    @Override
+    public KV<BeamRecord, BeamRecord> apply(BeamRecord input) {
+      BeamRecordType recordType =
+          joinColumns
+              .stream()
+              .map(fieldIndex -> toField(input.getRecordType(), fieldIndex))
+              .collect(toRecordType());
 
-      // build the row
-      List<Object> fieldValues = new ArrayList<>(joinColumns.size());
-      for (Pair<Integer, Integer> joinColumn : joinColumns) {
-        fieldValues.add(input
-                .getFieldValue(isLeft ? joinColumn.getKey() : joinColumn.getValue()));
-      }
-      return KV.of(new BeamRecord(type, fieldValues), input);
+      BeamRecord beamRecord =
+          joinColumns
+              .stream()
+              .map(input::getValue)
+              .collect(toRecord(recordType));
+
+      return KV.of(beamRecord, input);
+    }
+
+    private BeamRecordType.Field toField(BeamRecordType recordType, Integer fieldIndex) {
+      return BeamRecordType.newField(
+          "c" + fieldIndex,
+          //recordType.getFieldName(fieldIndex),
+          recordType.getFieldCoder(fieldIndex));
     }
   }
-
 
   /**
    * A {@code DoFn} which implement the sideInput-JOIN.
@@ -148,17 +155,19 @@ public class BeamJoinTransforms {
   private static BeamRecord combineTwoRowsIntoOneHelper(BeamRecord leftRow, BeamRecord rightRow) {
     // build the type
     List<String> names = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
-    names.addAll(leftRow.getDataType().getFieldNames());
-    names.addAll(rightRow.getDataType().getFieldNames());
+    names.addAll(leftRow.getRecordType().getFieldNames());
+    names.addAll(rightRow.getRecordType().getFieldNames());
 
     List<Coder> types = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
-    types.addAll(leftRow.getDataType().getRecordCoder().getCoders());
-    types.addAll(rightRow.getDataType().getRecordCoder().getCoders());
-    BeamRecordType type = new BeamRecordType(names, types);
+    types.addAll(leftRow.getRecordType().getRecordCoder().getCoders());
+    types.addAll(rightRow.getRecordType().getRecordCoder().getCoders());
+    BeamRecordType type = BeamRecordType.fromNamesAndCoders(names, types);
 
-    List<Object> fieldValues = new ArrayList<>(leftRow.getDataValues());
-    fieldValues.addAll(rightRow.getDataValues());
-    return new BeamRecord(type, fieldValues);
+    return BeamRecord
+            .withRecordType(type)
+            .addValues(leftRow.getValues())
+            .addValues(rightRow.getValues())
+            .build();
   }
 
   /**
@@ -191,21 +200,21 @@ public class BeamJoinTransforms {
           factJoinIdx.add(((RexInputRef) ((RexCall) rexNode).getOperands().get(0)).getIndex());
           int lkpJoinIdx = ((RexInputRef) ((RexCall) rexNode).getOperands().get(1)).getIndex()
               - factTableColSize;
-          lkpJoinFieldsName.add(lkpRowType.getFieldNameByIndex(lkpJoinIdx));
+          lkpJoinFieldsName.add(lkpRowType.getFieldName(lkpJoinIdx));
           lkpJoinFieldsType.add(lkpRowType.getFieldCoder(lkpJoinIdx));
         }
       } else if ("=".equals(call.getOperator().getName())) {
         factJoinIdx.add(((RexInputRef) call.getOperands().get(0)).getIndex());
         int lkpJoinIdx = ((RexInputRef) call.getOperands().get(1)).getIndex()
             - factTableColSize;
-        lkpJoinFieldsName.add(lkpRowType.getFieldNameByIndex(lkpJoinIdx));
+        lkpJoinFieldsName.add(lkpRowType.getFieldName(lkpJoinIdx));
         lkpJoinFieldsType.add(lkpRowType.getFieldCoder(lkpJoinIdx));
       } else {
         throw new UnsupportedOperationException(
             "Operator " + call.getOperator().getName() + " is not supported in join condition");
       }
 
-      joinSubsetType = new BeamRecordType(lkpJoinFieldsName, lkpJoinFieldsType);
+      joinSubsetType = BeamRecordType.fromNamesAndCoders(lkpJoinFieldsName, lkpJoinFieldsType);
     }
 
     @Override
@@ -222,11 +231,17 @@ public class BeamJoinTransforms {
         }
 
         private BeamRecord extractJoinSubRow(BeamRecord factRow) {
-          List<Object> joinSubsetValues = new ArrayList<>();
-          for (int i : factJoinIdx) {
-            joinSubsetValues.add(factRow.getFieldValue(i));
-          }
-          return new BeamRecord(joinSubsetType, joinSubsetValues);
+          List<Object> joinSubsetValues =
+              factJoinIdx
+                  .stream()
+                  .map(factRow::getValue)
+                  .collect(toList());
+
+          return
+              BeamRecord
+                  .withRecordType(joinSubsetType)
+                  .addValues(joinSubsetValues)
+                  .build();
         }
 
       }));

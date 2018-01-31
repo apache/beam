@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
+import static org.apache.beam.sdk.values.BeamRecord.toRecord;
+import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
+
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -24,6 +28,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -80,15 +85,17 @@ public class BeamAggregationTransforms implements Serializable{
     public void processElement(ProcessContext c, BoundedWindow window) {
       KV<BeamRecord, BeamRecord> kvRecord = c.element();
       List<Object> fieldValues = new ArrayList<>();
-      fieldValues.addAll(kvRecord.getKey().getDataValues());
-      fieldValues.addAll(kvRecord.getValue().getDataValues());
+      fieldValues.addAll(kvRecord.getKey().getValues());
+      fieldValues.addAll(kvRecord.getValue().getValues());
 
       if (windowStartFieldIdx != -1) {
         fieldValues.add(windowStartFieldIdx, ((IntervalWindow) window).start().toDate());
       }
 
-      BeamRecord outRecord = new BeamRecord(outRowType, fieldValues);
-      c.output(outRecord);
+      c.output(BeamRecord
+                   .withRecordType(outRowType)
+                   .addValues(fieldValues)
+                   .build());
     }
   }
 
@@ -110,25 +117,22 @@ public class BeamAggregationTransforms implements Serializable{
 
     @Override
     public BeamRecord apply(BeamRecord input) {
-      BeamRecordType typeOfKey = exTypeOfKeyRecord(input.getDataType());
+      BeamRecordType typeOfKey = exTypeOfKeyRecord(input.getRecordType());
 
-      List<Object> fieldValues = new ArrayList<>(groupByKeys.size());
-      for (Integer groupByKey : groupByKeys) {
-        fieldValues.add(input.getFieldValue(groupByKey));
-      }
-
-      BeamRecord keyOfRecord = new BeamRecord(typeOfKey, fieldValues);
-      return keyOfRecord;
+      return groupByKeys
+          .stream()
+          .map(input::getValue)
+          .collect(toRecord(typeOfKey));
     }
 
     private BeamRecordType exTypeOfKeyRecord(BeamRecordType dataType) {
-      List<String> fieldNames = new ArrayList<>();
-      List<Coder> fieldTypes = new ArrayList<>();
-      for (int idx : groupByKeys) {
-        fieldNames.add(dataType.getFieldNameByIndex(idx));
-        fieldTypes.add(dataType.getFieldCoder(idx));
-      }
-      return new BeamRecordType(fieldNames, fieldTypes);
+      return
+          groupByKeys
+              .stream()
+              .map(i -> BeamRecordType.newField(
+                  dataType.getFieldName(i),
+                  dataType.getFieldCoder(i)))
+              .collect(toRecordType());
     }
   }
 
@@ -161,8 +165,8 @@ public class BeamAggregationTransforms implements Serializable{
     public AggregationAdaptor(List<AggregateCall> aggregationCalls, BeamRecordType sourceRowType) {
       aggregators = new ArrayList<>();
       sourceFieldExps = new ArrayList<>();
-      List<String> outFieldsName = new ArrayList<>();
-      List<Coder> outFieldsType = new ArrayList<>();
+      ImmutableList.Builder<BeamRecordType.Field> fields = ImmutableList.builder();
+
       for (AggregateCall call : aggregationCalls) {
         if (call.getArgList().size() == 2) {
           /**
@@ -186,9 +190,8 @@ public class BeamAggregationTransforms implements Serializable{
           sourceFieldExps.add(sourceExp);
         }
 
-        outFieldsName.add(call.name);
         SqlTypeCoder outFieldType = CalciteUtils.toCoder(call.type.getSqlTypeName());
-        outFieldsType.add(outFieldType);
+        fields.add(BeamRecordType.newField(call.name, outFieldType));
 
         switch (call.getAggregation().getName()) {
           case "COUNT":
@@ -240,7 +243,7 @@ public class BeamAggregationTransforms implements Serializable{
           break;
         }
       }
-      finalRowType = new BeamRecordType(outFieldsName, outFieldsType);
+      finalRowType = fields.build().stream().collect(toRecordType());
     }
 
     @Override
@@ -294,12 +297,15 @@ public class BeamAggregationTransforms implements Serializable{
 
     @Override
     public BeamRecord extractOutput(AggregationAccumulator accumulator) {
-      List<Object> fieldValues = new ArrayList<>(aggregators.size());
-      for (int idx = 0; idx < aggregators.size(); ++idx) {
-        fieldValues
-            .add(aggregators.get(idx).extractOutput(accumulator.accumulatorElements.get(idx)));
-      }
-      return new BeamRecord(finalRowType, fieldValues);
+      return
+          IntStream
+              .range(0, aggregators.size())
+              .mapToObj(idx -> getAggregatorOutput(accumulator, idx))
+              .collect(toRecord(finalRowType));
+    }
+
+    private Object getAggregatorOutput(AggregationAccumulator accumulator, int idx) {
+      return aggregators.get(idx).extractOutput(accumulator.accumulatorElements.get(idx));
     }
 
     @Override
