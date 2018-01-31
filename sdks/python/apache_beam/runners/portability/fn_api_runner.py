@@ -192,6 +192,11 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_pipeline(self, pipeline):
     MetricsEnvironment.set_metrics_supported(False)
+    # This is sometimes needed if type checking is disabled
+    # to enforce that the inputs (and outputs) of GroupByKey operations
+    # are known to be KVs.
+    from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
+    pipeline.visit(DataflowRunner.group_by_key_input_visitor())
     return self.run_via_runner_api(pipeline.to_runner_api())
 
   def run_via_runner_api(self, pipeline_proto):
