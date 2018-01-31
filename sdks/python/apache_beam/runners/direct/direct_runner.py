@@ -32,6 +32,7 @@ from apache_beam import typehints
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import PCollection
 from apache_beam.runners.direct.bundle_factory import BundleFactory
@@ -108,6 +109,9 @@ class DirectRunner(PipelineRunner):
     self._ptransform_overrides = _get_transform_overrides()
 
   def apply_CombinePerKey(self, transform, pcoll):
+    if pcoll.pipeline._options.view_as(TypeOptions).runtime_type_check:
+      # TODO(robertwb): This can be reenabled once expansion happens after run.
+      return transform.expand(pcoll)
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
     # with resolving imports when they are at top.
     # pylint: disable=wrong-import-position

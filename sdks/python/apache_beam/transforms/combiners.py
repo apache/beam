@@ -137,7 +137,7 @@ class CountCombineFn(core.CombineFn):
     return accumulator + 1
 
   def add_inputs(self, accumulator, elements):
-    return accumulator + len(elements)
+    return accumulator + len(list(elements))
 
   def merge_accumulators(self, accumulators):
     return sum(accumulators)
