@@ -120,6 +120,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.allowedLateness = windowingStrategy.getAllowedLateness();
   }
 
+  public DoFn<InputT, OutputT> getFn() {
+    return fn;
+  }
+
   @Override
   public void startBundle() {
     // This can contain user code. Wrap it in case it throws an exception.
