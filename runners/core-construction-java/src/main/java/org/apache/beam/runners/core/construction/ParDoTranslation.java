@@ -498,7 +498,7 @@ public class ParDoTranslation {
     return builder.build();
   }
 
-  private static SdkFunctionSpec translateViewFn(ViewFn<?, ?> viewFn, SdkComponents components) {
+  public static SdkFunctionSpec translateViewFn(ViewFn<?, ?> viewFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
         .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
         .setSpec(
@@ -526,7 +526,7 @@ public class ParDoTranslation {
     return payload.getSplittable();
   }
 
-  private static SdkFunctionSpec translateWindowMappingFn(
+  public static SdkFunctionSpec translateWindowMappingFn(
       WindowMappingFn<?> windowMappingFn, SdkComponents components) {
     return SdkFunctionSpec.newBuilder()
         .setEnvironmentId(components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
