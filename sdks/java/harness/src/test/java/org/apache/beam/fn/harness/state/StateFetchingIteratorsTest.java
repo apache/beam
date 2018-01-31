@@ -91,7 +91,7 @@ public class StateFetchingIteratorsTest {
                     .build());
           };
       Iterator<ByteString> byteStrings =
-          new LazyBlockingStateFetchingIterator(fakeStateClient, StateRequest::newBuilder);
+          new LazyBlockingStateFetchingIterator(fakeStateClient, StateRequest.getDefaultInstance());
       assertArrayEquals(expected, Iterators.toArray(byteStrings, Object.class));
     }
   }

@@ -23,12 +23,10 @@ import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.stream.DataStreams;
 
@@ -46,62 +44,76 @@ import org.apache.beam.sdk.fn.stream.DataStreams;
  */
 public class BagUserState<T> {
   private final BeamFnStateClient beamFnStateClient;
-  private final String stateId;
-  private final Coder<T> coder;
-  private final Supplier<Builder> partialRequestSupplier;
+  private final StateRequest request;
+  private final Coder<T> valueCoder;
   private Iterable<T> oldValues;
   private ArrayList<T> newValues;
-  private List<T> unmodifiableNewValues;
   private boolean isClosed;
 
   public BagUserState(
       BeamFnStateClient beamFnStateClient,
+      String instructionId,
+      String ptransformId,
       String stateId,
-      Coder<T> coder,
-      Supplier<Builder> partialRequestSupplier) {
+      ByteString encodedWindow,
+      ByteString encodedKey,
+      Coder<T> valueCoder) {
     this.beamFnStateClient = beamFnStateClient;
-    this.stateId = stateId;
-    this.coder = coder;
-    this.partialRequestSupplier = partialRequestSupplier;
+    this.valueCoder = valueCoder;
+
+    StateRequest.Builder requestBuilder = StateRequest.newBuilder();
+    requestBuilder
+        .setInstructionReference(instructionId)
+        .getStateKeyBuilder()
+        .getBagUserStateBuilder()
+        .setPtransformId(ptransformId)
+        .setUserStateId(stateId)
+        .setWindow(encodedWindow)
+        .setKey(encodedKey);
+    request = requestBuilder.build();
+
     this.oldValues = new LazyCachingIteratorToIterable<>(
-        new DataStreams.DataStreamDecoder(coder,
+        new DataStreams.DataStreamDecoder(valueCoder,
             DataStreams.inbound(
-                StateFetchingIterators.usingPartialRequestWithStateKey(
+                StateFetchingIterators.forFirstChunk(
                     beamFnStateClient,
-                    partialRequestSupplier))));
+                    request))));
     this.newValues = new ArrayList<>();
-    this.unmodifiableNewValues = Collections.unmodifiableList(newValues);
   }
 
   public Iterable<T> get() {
     checkState(!isClosed,
-        "Bag user state is no longer usable because it is closed for %s", stateId);
-    // If we were cleared we should disregard old values.
+        "Bag user state is no longer usable because it is closed for %s", request.getStateKey());
     if (oldValues == null) {
-      return unmodifiableNewValues;
+      // If we were cleared we should disregard old values.
+      return Iterables.limit(Collections.unmodifiableList(newValues), newValues.size());
+    } else if (newValues.isEmpty()) {
+      // If we have no new values then just return the old values.
+      return oldValues;
     }
-    return Iterables.concat(oldValues, unmodifiableNewValues);
+    return Iterables.concat(oldValues,
+        Iterables.limit(Collections.unmodifiableList(newValues), newValues.size()));
   }
 
   public void append(T t) {
     checkState(!isClosed,
-        "Bag user state is no longer usable because it is closed for %s", stateId);
+        "Bag user state is no longer usable because it is closed for %s", request.getStateKey());
     newValues.add(t);
   }
 
   public void clear() {
     checkState(!isClosed,
-        "Bag user state is no longer usable because it is closed for %s", stateId);
+        "Bag user state is no longer usable because it is closed for %s", request.getStateKey());
     oldValues = null;
-    newValues.clear();
+    newValues = new ArrayList<>();
   }
 
   public void asyncClose() throws Exception {
     checkState(!isClosed,
-        "Bag user state is no longer usable because it is closed for %s", stateId);
+        "Bag user state is no longer usable because it is closed for %s", request.getStateKey());
     if (oldValues == null) {
       beamFnStateClient.handle(
-          partialRequestSupplier.get()
+          request.toBuilder()
               .setClear(StateClearRequest.getDefaultInstance()),
           new CompletableFuture<>());
     }
@@ -109,10 +121,10 @@ public class BagUserState<T> {
       ByteString.Output out = ByteString.newOutput();
       for (T newValue : newValues) {
         // TODO: Replace with chunking output stream
-        coder.encode(newValue, out);
+        valueCoder.encode(newValue, out);
       }
       beamFnStateClient.handle(
-          partialRequestSupplier.get()
+          request.toBuilder()
               .setAppend(StateAppendRequest.newBuilder().setData(out.toByteString())),
           new CompletableFuture<>());
     }
