@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -146,6 +147,7 @@ public class KinesisReaderTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-3317")
   public void watermarkAdvancesWhenEnoughRecordsReadRecently()
       throws IOException, TransientKinesisException {
     Instant now = Instant.now();
