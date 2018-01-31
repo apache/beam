@@ -226,21 +226,29 @@ In the release branch, update the Python SDK version to the release version (e.g
 
 1. Update archetypes:
    [example](https://github.com/apache/beam/commit/d375cfa126fd7be9eeeec34f39c2b9b856f324bf)
-1. Update runner specific configurations:
+2. Update runner specific configurations:
    [example](https://github.com/apache/beam/commit/f572328ce23e70adee8001e3d10f1479bd9a380d)
+
+### Start a snapshot build
+
+Start a build of [the nightly snapshot](https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/).
+Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version
+from the `master` branch. Once the release branch is cut, these SNAPSHOT versions are no longer found,
+so builds will be broken until a new snapshot is available.
 
 ### Checklist to proceed to the next step
 
 1. Release Manager’s GPG key is published to `dist.apache.org`
-1. Release Manager’s GPG key is configured in `git` configuration
-1. Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus
-1. Release Manager’s Nexus User Token is configured in `settings.xml`
-1. JIRA release item for the subsequent release has been created
-1. There are no release blocking JIRA issues
-1. Release Notes in JIRA have been audited and adjusted
-1. Combined javadoc has the appropriate contents.
-1. Release branch has been created
-1. Originating branch has the version information updated to the new version
+2. Release Manager’s GPG key is configured in `git` configuration
+3. Release Manager has `org.apache.beam` listed under `Staging Profiles` in Nexus
+4. Release Manager’s Nexus User Token is configured in `settings.xml`
+5. JIRA release item for the subsequent release has been created
+6. There are no release blocking JIRA issues
+7. Release Notes in JIRA have been audited and adjusted
+8. Combined javadoc has the appropriate contents.
+9. Release branch has been created
+10. Originating branch has the version information updated to the new version
+11. Nightly snapshot is in progress (do revisit it continually)
 
 **********
 
