@@ -278,6 +278,7 @@ message Metrics {
     // the actual watermarks.
     map<string, int64> watermarks = 3;
 
+    repeated User user = 4;
     // TODO: Define other transform level system metrics.
   }
 
@@ -285,10 +286,7 @@ message Metrics {
   message User {
 
     // A key for identifying a metric at the most granular level.
-    message MetricKey {
-      // The step, if any, this metric is associated with.
-      string step = 1;
-
+    message MetricName {
       // (Required): The namespace of this metric.
       string namespace = 2;
 
@@ -310,7 +308,7 @@ message Metrics {
     }
 
     // (Required) The identifier for this metric.
-    MetricKey key = 1;
+    MetricName metric_name = 1;
 
     // (Required) The data for this metric.
     oneof data {
@@ -320,7 +318,6 @@ message Metrics {
   }
 
   map<string, PTransform> ptransforms = 1;
-  repeated User user = 2;
 }
 
 message ProcessBundleProgressResponse {

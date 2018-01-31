@@ -271,10 +271,7 @@ class BundleProcessor(object):
         ptransforms={
             transform_id:
             self._fix_output_tags(transform_id, op.progress_metrics())
-            for transform_id, op in self.ops.items()},
-        user=sum(
-            [op.metrics_container.to_runner_api() for op in self.ops.values()],
-            []))
+            for transform_id, op in self.ops.items()})
 
   def _fix_output_tags(self, transform_id, metrics):
     # Outputs are still referred to by index, not by name, in many Operations.

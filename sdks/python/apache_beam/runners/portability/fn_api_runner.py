@@ -1182,15 +1182,18 @@ class FnApiMetrics(metrics.metric.MetricResults):
     self._counters = {}
     self._distributions = {}
     for step_metric in step_metrics.values():
-      for proto in step_metric.user:
-        key = metrics.execution.MetricKey.from_runner_api(proto.key)
-        if proto.HasField('counter_data'):
-          self._counters[key] = proto.counter_data.value
-        elif proto.HasField('distribution_data'):
-          self._distributions[
-              key] = metrics.cells.DistributionResult(
-                  metrics.cells.DistributionData.from_runner_api(
-                      proto.distribution_data))
+      for ptransform_id, ptransform in step_metric.ptransforms.items():
+        for proto in ptransform.user:
+          key = metrics.execution.MetricKey(
+              ptransform_id,
+              metrics.metricbase.MetricName.from_runner_api(proto.metric_name))
+          if proto.HasField('counter_data'):
+            self._counters[key] = proto.counter_data.value
+          elif proto.HasField('distribution_data'):
+            self._distributions[
+                key] = metrics.cells.DistributionResult(
+                    metrics.cells.DistributionData.from_runner_api(
+                        proto.distribution_data))
 
   def query(self, filter=None):
     counters = [metrics.execution.MetricResult(k, v, v)
