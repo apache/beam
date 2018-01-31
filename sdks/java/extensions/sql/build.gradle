@@ -48,6 +48,7 @@ dependencies {
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
   compile "com.alibaba:fastjson:1.2.12"
   compileOnly library.java.findbugs_jsr305
+  compileOnly library.java.findbugs_annotations
   shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow project(path: ":sdks:java:extensions:join-library", configuration: "shadow")
   shadow library.java.slf4j_api
