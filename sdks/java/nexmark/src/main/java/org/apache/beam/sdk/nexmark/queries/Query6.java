@@ -40,8 +40,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 
 /**
- * Query 6, 'Average Selling Price by Seller'. Select the average selling price over the
- * last 10 closed auctions by the same seller. In CQL syntax:
+ * Query 6, 'Average Selling Price by Seller'. Select the average selling price over the last 10
+ * closed auctions by the same seller. In CQL syntax:
  *
  * <pre>{@code
  * SELECT Istream(AVG(Q.final), Q.seller)

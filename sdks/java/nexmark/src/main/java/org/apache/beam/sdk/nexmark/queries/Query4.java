@@ -50,13 +50,14 @@ import org.joda.time.Duration;
  * }</pre>
  *
  * <p>For extra spiciness our implementation differs slightly from the above:
+ *
  * <ul>
- * <li>We select both the average winning price and the category.
- * <li>We don't bother joining with a static category table, since it's contents are never used.
- * <li>We only consider bids which are above the auction's reserve price.
- * <li>We accept the highest-price, earliest valid bid as the winner.
- * <li>We calculate the averages oven a sliding window of size {@code windowSizeSec} and
- * period {@code windowPeriodSec}.
+ *   <li>We select both the average winning price and the category.
+ *   <li>We don't bother joining with a static category table, since it's contents are never used.
+ *   <li>We only consider bids which are above the auction's reserve price.
+ *   <li>We accept the highest-price, earliest valid bid as the winner.
+ *   <li>We calculate the averages oven a sliding window of size {@code windowSizeSec} and period
+ *       {@code windowPeriodSec}.
  * </ul>
  */
 public class Query4 extends NexmarkQuery {
@@ -74,8 +75,8 @@ public class Query4 extends NexmarkQuery {
             .apply(new WinningBids(name + ".WinningBids", configuration));
 
     // Monitor winning bids
-    winningBids = winningBids.apply(name + ".WinningBidsMonitor",
-            winningBidsMonitor.getTransform());
+    winningBids =
+        winningBids.apply(name + ".WinningBidsMonitor", winningBidsMonitor.getTransform());
 
     return winningBids
         // Key the winning bid price by the auction category.
