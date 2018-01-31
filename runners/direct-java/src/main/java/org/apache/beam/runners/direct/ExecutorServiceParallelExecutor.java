@@ -25,6 +25,7 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -34,6 +35,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.local.ExecutionDriver;
 import org.apache.beam.runners.local.ExecutionDriver.DriverState;
@@ -272,17 +274,41 @@ final class ExecutorServiceParallelExecutor
       return;
     }
     LOG.debug("Pipeline has terminated. Shutting down.");
-    pipelineState.compareAndSet(State.RUNNING, newState);
+
+    final Collection<Exception> errors = new ArrayList<>();
     // Stop accepting new work before shutting down the executor. This ensures that thread don't try
     // to add work to the shutdown executor.
-    serialExecutorServices.invalidateAll();
-    serialExecutorServices.cleanUp();
-    parallelExecutorService.shutdown();
-    executorService.shutdown();
+    try {
+      serialExecutorServices.invalidateAll();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
+      serialExecutorServices.cleanUp();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
+      parallelExecutorService.shutdown();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
+    try {
+      executorService.shutdown();
+    } catch (final RuntimeException re) {
+      errors.add(re);
+    }
     try {
       registry.cleanup();
-    } catch (Exception e) {
-      visibleUpdates.failed(e);
+    } catch (final Exception e) {
+      errors.add(e);
+    }
+    pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
+    if (!errors.isEmpty()) {
+      throw new IllegalStateException(
+        "Error" + (errors.size() == 1 ? "" : "s") + " during executor shutdown:\n"
+        + errors.stream().map(Exception::getMessage)
+          .collect(Collectors.joining("\n- ", "- ", "")));
     }
   }
 
