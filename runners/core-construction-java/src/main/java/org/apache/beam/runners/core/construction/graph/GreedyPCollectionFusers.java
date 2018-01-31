@@ -41,10 +41,10 @@ class GreedyPCollectionFusers {
           .put(
               PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
               GreedyPCollectionFusers::canFuseAssignWindows)
-          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, GreedyPCollectionFusers::canFuseFlatten)
+          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, GreedyPCollectionFusers::canAlwaysFuse)
           .put(
-              PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
-              GreedyPCollectionFusers::canFuseGroupByKey)
+              PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, GreedyPCollectionFusers::cannotFuse)
+          .put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, GreedyPCollectionFusers::cannotFuse)
           .build();
   private static final FusibilityChecker DEFAULT_FUSIBILITY_CHECKER =
       GreedyPCollectionFusers::unknownTransformFusion;
@@ -62,6 +62,9 @@ class GreedyPCollectionFusers {
               PTransformTranslation.FLATTEN_TRANSFORM_URN, GreedyPCollectionFusers::noCompatibility)
           .put(
               PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
+              GreedyPCollectionFusers::noCompatibility)
+          .put(
+              PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
               GreedyPCollectionFusers::noCompatibility)
           .build();
   private static final CompatibilityChecker DEFAULT_COMPATIBILITY_CHECKER =
@@ -212,19 +215,17 @@ class GreedyPCollectionFusers {
    *       the stages that could not fuse with those consumers.
    * </ol>
    */
-  private static boolean canFuseFlatten(
+  private static boolean canAlwaysFuse(
       @SuppressWarnings("unused") PTransformNode flatten,
       @SuppressWarnings("unused") ExecutableStage stage,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
     return true;
   }
 
-  private static boolean canFuseGroupByKey(
-      @SuppressWarnings("unused") PTransformNode gbk,
+  private static boolean cannotFuse(
+      @SuppressWarnings("unused") PTransformNode cannotFuse,
       @SuppressWarnings("unused") ExecutableStage stage,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
-    // GroupByKeys are runner-implemented only. PCollections consumed by a GroupByKey must be
-    // materialized.
     return false;
   }
 
