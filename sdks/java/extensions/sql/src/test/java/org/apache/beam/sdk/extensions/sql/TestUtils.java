@@ -20,11 +20,14 @@ package org.apache.beam.sdk.extensions.sql;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.values.BeamRecord.toRecord;
+import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.TestStream;
@@ -69,7 +72,7 @@ public class TestUtils {
    * Convenient way to build a list of {@code BeamSqlRow}s.
    *
    * <p>You can use it like this:
-   *
+
    * <pre>{@code
    * TestUtils.RowsBuilder.of(
    *   Types.INTEGER, "order_id",
@@ -115,6 +118,7 @@ public class TestUtils {
      * TestUtils.RowsBuilder.of(
      *   beamRecordSqlType
      * )}</pre>
+     *
      * @beamSQLRowType the record type.
      */
     public static RowsBuilder of(final BeamRecordType beamRowType) {
@@ -205,7 +209,7 @@ public class TestUtils {
       checkArgument(rows.size() > 0);
 
       if (type == null) {
-        type = rows.get(0).getDataType();
+        type = rows.get(0).getRecordType();
       }
 
       TestStream.Builder<BeamRecord> values = TestStream.create(type.getRecordCoder());
@@ -239,15 +243,16 @@ public class TestUtils {
    * }</pre>
    */
   public static BeamRecordType buildBeamSqlRowType(Object... args) {
-    List<Coder> types = new ArrayList<>();
-    List<String> names = new ArrayList<>();
+    return
+        Stream
+            .iterate(0, i -> i + 2)
+            .limit(args.length / 2)
+            .map(i -> toRecordField(args, i))
+            .collect(toRecordType());
+  }
 
-    for (int i = 0; i < args.length - 1; i += 2) {
-      types.add((Coder) args[i]);
-      names.add((String) args[i + 1]);
-    }
-
-    return new BeamRecordType(names, types);
+  private static BeamRecordType.Field toRecordField(Object[] args, int i) {
+    return BeamRecordType.newField((String) args[i + 1], (Coder) args[i]);
   }
 
   /**
@@ -265,10 +270,11 @@ public class TestUtils {
    * }</pre>
    */
   public static List<BeamRecord> buildRows(BeamRecordType type, List<?> rowsValues) {
-    return Lists
-        .partition(rowsValues, type.getFieldCount())
-        .stream()
-        .map(values -> new BeamRecord(type, values.toArray()))
-        .collect(toList());
+    return
+        Lists
+            .partition(rowsValues, type.getFieldCount())
+            .stream()
+            .map(values -> values.stream().collect(toRecord(type)))
+            .collect(toList());
   }
 }

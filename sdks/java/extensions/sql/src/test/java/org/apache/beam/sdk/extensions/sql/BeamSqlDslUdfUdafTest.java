@@ -41,7 +41,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         .withIntegerField("squaresum")
         .build();
 
-    BeamRecord record = new BeamRecord(resultType, 0, 30);
+    BeamRecord record = BeamRecord.withRecordType(resultType).addValues(0, 30).build();
 
     String sql1 = "SELECT f_int2, squaresum1(f_int) AS `squaresum`"
         + " FROM PCOLLECTION GROUP BY f_int2";
@@ -70,7 +70,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         .withIntegerField("cubicvalue")
         .build();
 
-    BeamRecord record = new BeamRecord(resultType, 2, 8);
+    BeamRecord record = BeamRecord.withRecordType(resultType).addValues(2, 8).build();
 
     String sql1 = "SELECT f_int, cubic1(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<BeamRecord> result1 =

@@ -19,13 +19,13 @@
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.values.BeamRecord.toRecord;
 
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -46,7 +46,7 @@ public final class BeamTableUtils {
       CSVFormat csvFormat,
       String line,
       BeamRecordType beamRecordType) {
-    List<Object> fieldsValue = new ArrayList<>(beamRecordType.getFieldCount());
+
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
@@ -56,24 +56,24 @@ public final class BeamTableUtils {
             "Expect %d fields, but actually %d",
             beamRecordType.getFieldCount(), rawRecord.size()
         ));
-      } else {
-        for (int idx = 0; idx < beamRecordType.getFieldCount(); idx++) {
-          String raw = rawRecord.get(idx);
-          fieldsValue.add(
-              autoCastField(beamRecordType.getFieldCoder(idx), raw));
-        }
       }
+
+      return
+          IntStream
+              .range(0, beamRecordType.getFieldCount())
+              .mapToObj(idx -> autoCastField(beamRecordType.getFieldCoder(idx), rawRecord.get(idx)))
+              .collect(toRecord(beamRecordType));
+
     } catch (IOException e) {
       throw new IllegalArgumentException("decodeRecord failed!", e);
     }
-    return new BeamRecord(beamRecordType, fieldsValue);
   }
 
   public static String beamRecord2CsvLine(BeamRecord row, CSVFormat csvFormat) {
     StringWriter writer = new StringWriter();
     try (CSVPrinter printer = csvFormat.print(writer)) {
       for (int i = 0; i < row.getFieldCount(); i++) {
-        printer.print(row.getFieldValue(i).toString());
+        printer.print(row.getValue(i).toString());
       }
       printer.println();
     } catch (IOException e) {

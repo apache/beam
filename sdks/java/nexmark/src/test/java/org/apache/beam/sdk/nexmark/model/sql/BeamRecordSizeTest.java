@@ -22,12 +22,10 @@ import static org.hamcrest.core.IsEqual.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -61,25 +59,26 @@ public class BeamRecordSizeTest {
       .withVarcharField("f_varchar")
       .build();
 
-  private static final List<Object> VALUES =
-      ImmutableList.of(
-          (byte) 1,
-          (short) 2,
-          (int) 3,
-          (long) 4,
-          (float) 5.12,
-          (double) 6.32,
-          new BigDecimal(7),
-          false,
-          new GregorianCalendar(2019, 03, 02),
-          new Date(10L),
-          new Date(11L),
-          "12",
-          "13");
-
   private static final long RECORD_SIZE = 91L;
 
-  private static final BeamRecord RECORD = new BeamRecord(RECORD_TYPE, VALUES);
+  private static final BeamRecord RECORD =
+      BeamRecord
+          .withRecordType(RECORD_TYPE)
+          .addValues(
+              (byte) 1,
+              (short) 2,
+              (int) 3,
+              (long) 4,
+              (float) 5.12,
+              (double) 6.32,
+              new BigDecimal(7),
+              false,
+              new GregorianCalendar(2019, 03, 02),
+              new Date(10L),
+              new Date(11L),
+              "12",
+              "13")
+          .build();
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
   @Rule public ExpectedException thrown = ExpectedException.none();
@@ -92,7 +91,8 @@ public class BeamRecordSizeTest {
   @Test
   public void testParDoConvertsToRecordSize() throws Exception {
     PCollection<BeamRecord> records = testPipeline.apply(
-        TestStream.create(RECORD_TYPE.getRecordCoder())
+        TestStream
+            .create(RECORD_TYPE.getRecordCoder())
             .addElements(RECORD)
             .advanceWatermarkToInfinity());
 

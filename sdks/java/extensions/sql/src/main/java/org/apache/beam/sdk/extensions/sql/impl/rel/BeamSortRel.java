@@ -193,11 +193,11 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
-        SqlTypeName fieldType = CalciteUtils.getFieldCalciteType(row1.getDataType(), fieldIndex);
+        SqlTypeName fieldType = CalciteUtils.getFieldCalciteType(row1.getRecordType(), fieldIndex);
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
-        boolean isValue1Null = (row1.getFieldValue(fieldIndex) == null);
-        boolean isValue2Null = (row2.getFieldValue(fieldIndex) == null);
+        boolean isValue1Null = (row1.getValue(fieldIndex) == null);
+        boolean isValue2Null = (row2.getValue(fieldIndex) == null);
         if (isValue1Null && isValue2Null) {
           continue;
         } else if (isValue1Null && !isValue2Null) {
@@ -215,8 +215,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             case VARCHAR:
             case DATE:
             case TIMESTAMP:
-              Comparable v1 = (Comparable) row1.getFieldValue(fieldIndex);
-              Comparable v2 = (Comparable) row2.getFieldValue(fieldIndex);
+              Comparable v1 = (Comparable) row1.getValue(fieldIndex);
+              Comparable v2 = (Comparable) row2.getValue(fieldIndex);
               fieldRet = v1.compareTo(v2);
               break;
             default:
