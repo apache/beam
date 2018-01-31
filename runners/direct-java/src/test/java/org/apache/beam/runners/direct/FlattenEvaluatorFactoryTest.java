@@ -41,15 +41,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link FlattenEvaluatorFactory}.
- */
+/** Tests for {@link FlattenEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class FlattenEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
   public void testFlattenInMemoryEvaluator() throws Exception {
@@ -59,10 +56,8 @@ public class FlattenEvaluatorFactoryTest {
 
     PCollection<Integer> flattened = list.apply(Flatten.pCollections());
 
-    CommittedBundle<Integer> leftBundle =
-        bundleFactory.createBundle(left).commit(Instant.now());
-    CommittedBundle<Integer> rightBundle =
-        bundleFactory.createBundle(right).commit(Instant.now());
+    CommittedBundle<Integer> leftBundle = bundleFactory.createBundle(left).commit(Instant.now());
+    CommittedBundle<Integer> rightBundle = bundleFactory.createBundle(right).commit(Instant.now());
 
     EvaluationContext context = mock(EvaluationContext.class);
 
@@ -141,5 +136,4 @@ public class FlattenEvaluatorFactoryTest {
         leftSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattendProducer));
   }
-
 }
