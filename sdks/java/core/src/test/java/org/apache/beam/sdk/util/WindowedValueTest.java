@@ -46,12 +46,14 @@ public class WindowedValueTest {
   @Test
   public void testWindowedValueCoder() throws CoderException {
     Instant timestamp = new Instant(1234);
-    WindowedValue<String> value = WindowedValue.of(
-        "abc",
-        new Instant(1234),
-        Arrays.asList(new IntervalWindow(timestamp, timestamp.plus(1000)),
-                      new IntervalWindow(timestamp.plus(1000), timestamp.plus(2000))),
-        PaneInfo.NO_FIRING);
+    WindowedValue<String> value =
+        WindowedValue.of(
+            "abc",
+            new Instant(1234),
+            Arrays.asList(
+                new IntervalWindow(timestamp, timestamp.plus(1000)),
+                new IntervalWindow(timestamp.plus(1000), timestamp.plus(2000))),
+            PaneInfo.NO_FIRING);
 
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
@@ -67,8 +69,8 @@ public class WindowedValueTest {
 
   @Test
   public void testFullWindowedValueCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(WindowedValue.getFullCoder(
-        GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(
+        WindowedValue.getFullCoder(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
