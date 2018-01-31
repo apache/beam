@@ -19,7 +19,6 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
@@ -133,11 +132,8 @@ class SideInputContainer {
     Map<BoundedWindow, Collection<WindowedValue<?>>> valuesPerWindow = new HashMap<>();
     for (WindowedValue<?> value : values) {
       for (BoundedWindow window : value.getWindows()) {
-        Collection<WindowedValue<?>> windowValues = valuesPerWindow.get(window);
-        if (windowValues == null) {
-          windowValues = new ArrayList<>();
-          valuesPerWindow.put(window, windowValues);
-        }
+        Collection<WindowedValue<?>> windowValues =
+            valuesPerWindow.computeIfAbsent(window, k -> new ArrayList<>());
         windowValues.add(value);
       }
     }
@@ -212,7 +208,7 @@ class SideInputContainer {
     public void run() {
       // The requested window has closed without producing elements, so reflect that in
       // the PCollectionView. If set has already been called, will do nothing.
-      contents.compareAndSet(null, Collections.<WindowedValue<?>>emptyList());
+      contents.compareAndSet(null, Collections.emptyList());
     }
 
     @Override
@@ -258,19 +254,16 @@ class SideInputContainer {
           view,
           window);
       // Safe covariant cast since we know that the view only contains KVs.
-      @SuppressWarnings("unchecked") Iterable<KV<?, ?>> elements = Iterables.transform(
-          (Iterable<WindowedValue<KV<?, ?>>>) viewContents.getUnchecked(
-              PCollectionViewWindow.of(view, window)).get(),
-          new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
-            @Override
-            public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
-              return windowedValue.getValue();
-            }
-          });
+      @SuppressWarnings("unchecked")
+      Iterable<KV<?, ?>> elements =
+          Iterables.transform(
+              (Iterable<WindowedValue<KV<?, ?>>>)
+                  viewContents.getUnchecked(PCollectionViewWindow.of(view, window)).get(),
+                  WindowedValue::getValue);
 
       ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
       Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-      return viewFn.apply(
+      return (T) viewFn.apply(
           InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
     }
 

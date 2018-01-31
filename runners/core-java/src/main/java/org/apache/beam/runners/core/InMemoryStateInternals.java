@@ -126,13 +126,13 @@ public class InMemoryStateInternals<K> implements StateInternals {
     @Override
     public <T> ValueState<T> bindValue(
         StateTag<ValueState<T>> address, Coder<T> coder) {
-      return new InMemoryValue<T>();
+      return new InMemoryValue<>();
     }
 
     @Override
     public <T> BagState<T> bindBag(
         final StateTag<BagState<T>> address, Coder<T> elemCoder) {
-      return new InMemoryBag<T>();
+      return new InMemoryBag<>();
     }
 
     @Override

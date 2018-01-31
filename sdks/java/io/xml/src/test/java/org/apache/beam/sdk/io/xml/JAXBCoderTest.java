@@ -138,24 +138,21 @@ public class JAXBCoderTest {
       final TestType elem = new TestType("abc", i);
       final int index = i;
       executor.execute(
-          new Runnable() {
-            @Override
-            public void run() {
-              ready.countDown();
-              try {
-                start.await();
-              } catch (InterruptedException e) {
-              }
-
-              try {
-                byte[] encoded = CoderUtils.encodeToByteArray(coder, elem);
-                assertEquals(
-                    new TestType("abc", index), CoderUtils.decodeFromByteArray(coder, encoded));
-              } catch (Throwable e) {
-                thrown.compareAndSet(null, e);
-              }
-              done.countDown();
+          () -> {
+            ready.countDown();
+            try {
+              start.await();
+            } catch (InterruptedException e) {
             }
+
+            try {
+              byte[] encoded = CoderUtils.encodeToByteArray(coder, elem);
+              assertEquals(
+                  new TestType("abc", index), CoderUtils.decodeFromByteArray(coder, encoded));
+            } catch (Throwable e) {
+              thrown.compareAndSet(null, e);
+            }
+            done.countDown();
           });
     }
     ready.await();

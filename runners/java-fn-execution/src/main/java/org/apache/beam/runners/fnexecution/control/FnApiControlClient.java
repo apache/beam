@@ -128,7 +128,15 @@ class FnApiControlClient implements Closeable {
       SettableFuture<BeamFnApi.InstructionResponse> completableFuture =
           outstandingRequests.remove(response.getInstructionId());
       if (completableFuture != null) {
-        completableFuture.set(response);
+        if (response.getError().isEmpty()) {
+          completableFuture.set(response);
+        } else {
+          completableFuture.setException(
+              new RuntimeException(String.format(
+                  "Error received from SDK harness for instruction %s: %s",
+                  response.getInstructionId(),
+                  response.getError())));
+        }
       }
     }
 

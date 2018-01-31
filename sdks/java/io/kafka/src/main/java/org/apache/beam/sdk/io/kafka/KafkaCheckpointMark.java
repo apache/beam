@@ -21,6 +21,8 @@ import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+
+import org.apache.avro.reflect.AvroIgnore;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -34,10 +36,15 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   private List<PartitionMark> partitions;
 
+  @AvroIgnore
+  private KafkaIO.UnboundedKafkaReader<?, ?> reader; // Non-null when offsets need to be committed.
+
   private KafkaCheckpointMark() {} // for Avro
 
-  public KafkaCheckpointMark(List<PartitionMark> partitions) {
+  public KafkaCheckpointMark(List<PartitionMark> partitions,
+                             KafkaIO.UnboundedKafkaReader<?, ?> reader) {
     this.partitions = partitions;
+    this.reader = reader;
   }
 
   public List<PartitionMark> getPartitions() {
@@ -46,10 +53,13 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
 
   @Override
   public void finalizeCheckpoint() throws IOException {
-    /* nothing to do */
-
-    // We might want to support committing offset in Kafka for better resume point when the job
-    // is restarted (checkpoint is not available for job restarts).
+    if (reader != null) {
+      // Is it ok to commit asynchronously, or should we wait till this (or newer) is committed?
+      // Often multiple marks would be finalized at once, since we only need to finalize the latest,
+      // it is better to wait a little while. Currently maximum is delay same as KAFKA_POLL_TIMEOUT
+      // in the reader (1 second).
+      reader.finalizeCheckpointMarkAsync(this);
+    }
   }
 
   @Override

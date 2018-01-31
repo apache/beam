@@ -251,8 +251,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       PCollection<KV<BeamRecord, BeamRecord>> leftRows,
       PCollection<KV<BeamRecord, BeamRecord>> rightRows,
       BeamRecord rightNullRow, boolean swapped) {
-    final PCollectionView<Map<BeamRecord, Iterable<BeamRecord>>> rowsView = rightRows
-        .apply(View.<BeamRecord, BeamRecord>asMultimap());
+    final PCollectionView<Map<BeamRecord, Iterable<BeamRecord>>> rowsView =
+        rightRows.apply(View.asMultimap());
 
     PCollection<BeamRecord> ret = leftRows
         .apply(ParDo.of(new BeamJoinTransforms.SideInputJoinDoFn(

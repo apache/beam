@@ -105,15 +105,18 @@ public class Distinct<T> extends PTransform<PCollection<T>,
   public PCollection<T> expand(PCollection<T> in) {
     validateWindowStrategy(in.getWindowingStrategy());
     PCollection<KV<T, Void>> combined =
-        in.apply("KeyByElement", MapElements.via(
-            new SimpleFunction<T, KV<T, Void>>() {
-              @Override
-              public KV<T, Void> apply(T element) {
-                return KV.of(element, (Void) null);
-              }
-            }))
-            .apply("DropValues",
-                Combine.<T, Void>perKey(
+        in.apply(
+                "KeyByElement",
+                MapElements.via(
+                    new SimpleFunction<T, KV<T, Void>>() {
+                      @Override
+                      public KV<T, Void> apply(T element) {
+                        return KV.of(element, (Void) null);
+                      }
+                    }))
+            .apply(
+                "DropValues",
+                Combine.perKey(
                     new SerializableFunction<Iterable<Void>, Void>() {
                       @Override
                       @Nullable
@@ -160,15 +163,17 @@ public class Distinct<T> extends PTransform<PCollection<T>,
       if (representativeType != null) {
         withKeys = withKeys.withKeyType(representativeType);
       }
-      PCollection<KV<IdT, T>> combined = in
-          .apply("KeyByRepresentativeValue", withKeys)
-          .apply("OneValuePerKey", Combine.<IdT, T, T>perKey(
-              new Combine.BinaryCombineFn<T>() {
-                @Override
-                public T apply(T left, T right) {
-                  return left;
-                }
-              }));
+      PCollection<KV<IdT, T>> combined =
+          in.apply("KeyByRepresentativeValue", withKeys)
+              .apply(
+                  "OneValuePerKey",
+                  Combine.perKey(
+                      new Combine.BinaryCombineFn<T>() {
+                        @Override
+                        public T apply(T left, T right) {
+                          return left;
+                        }
+                      }));
         return combined.apply("KeepFirstPane", ParDo.of(new DoFn<KV<IdT, T>, T>() {
           @ProcessElement
           public void processElement(ProcessContext c) {

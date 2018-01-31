@@ -33,7 +33,7 @@ public class NullSideInputReader implements SideInputReader {
   private Set<PCollectionView<?>> views;
 
   public static NullSideInputReader empty() {
-    return new NullSideInputReader(Collections.<PCollectionView<?>>emptySet());
+    return new NullSideInputReader(Collections.emptySet());
   }
 
   public static NullSideInputReader of(Iterable<? extends PCollectionView<?>> views) {

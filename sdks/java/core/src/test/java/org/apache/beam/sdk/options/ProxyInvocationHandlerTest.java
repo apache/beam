@@ -96,7 +96,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testPropertySettingAndGetting() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     Simple proxy = handler.as(Simple.class);
     proxy.setString("OBJECT");
     proxy.setOptionEnabled(true);
@@ -130,7 +130,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testGettingJLSDefaults() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     JLSDefaults proxy = handler.as(JLSDefaults.class);
     assertFalse(proxy.getBoolean());
     assertEquals('\0', proxy.getChar());
@@ -208,7 +208,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testAnnotationDefaults() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     DefaultAnnotations proxy = handler.as(DefaultAnnotations.class);
     assertTrue(proxy.getBoolean());
     assertEquals('a', proxy.getChar());
@@ -226,10 +226,10 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testEqualsAndHashCode() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     Simple proxy = handler.as(Simple.class);
     JLSDefaults sameAsProxy = proxy.as(JLSDefaults.class);
-    ProxyInvocationHandler handler2 = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler2 = new ProxyInvocationHandler(Maps.newHashMap());
     Simple proxy2 = handler2.as(Simple.class);
     JLSDefaults sameAsProxy2 = proxy2.as(JLSDefaults.class);
 
@@ -248,7 +248,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testToString() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
     proxy.setString("stringValue");
     DefaultAnnotations proxy2 = proxy.as(DefaultAnnotations.class);
@@ -261,7 +261,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testToStringAfterDeserializationContainsJsonEntries() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
     Long optionsId = proxy.getOptionsId();
     proxy.setString("stringValue");
@@ -276,7 +276,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testToStringAfterDeserializationContainsOverriddenEntries() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     StringWithDefault proxy = handler.as(StringWithDefault.class);
     Long optionsId = proxy.getOptionsId();
     proxy.setString("stringValue");
@@ -303,7 +303,7 @@ public class ProxyInvocationHandlerTest {
         + "org.apache.beam.sdk.options.ProxyInvocationHandlerTest$UnknownMethod.unknownMethod()] "
         + "invoked with args [null].");
 
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     handler.invoke(handler, UnknownMethod.class.getMethod("unknownMethod"), null);
   }
 
@@ -315,7 +315,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testSubClassStoresSuperInterfaceValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SubClass extended = handler.as(SubClass.class);
 
     extended.setString("parentValue");
@@ -324,7 +324,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testUpCastRetainsSuperInterfaceValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SubClass extended = handler.as(SubClass.class);
 
     extended.setString("parentValue");
@@ -334,7 +334,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testUpCastRetainsSubClassValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SubClass extended = handler.as(SubClass.class);
 
     extended.setExtended("subClassValue");
@@ -350,7 +350,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testAsSiblingRetainsSuperInterfaceValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SubClass extended = handler.as(SubClass.class);
 
     extended.setString("parentValue");
@@ -368,7 +368,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testMethodConflictProvidesSameValue() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     MethodConflict methodConflict = handler.as(MethodConflict.class);
 
     methodConflict.setString("conflictValue");
@@ -390,7 +390,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testDeepMethodConflictProvidesSameValue() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     DeepMethodConflict deepMethodConflict = handler.as(DeepMethodConflict.class);
 
     // Tests overriding an already overridden method
@@ -414,7 +414,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testDisjointSiblingsShareValues() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SimpleSibling proxy = handler.as(SimpleSibling.class);
     proxy.setString("siblingValue");
     assertEquals("siblingValue", proxy.getString());
@@ -427,7 +427,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testSiblingMethodConflict() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     SiblingMethodConflict siblingMethodConflict = handler.as(SiblingMethodConflict.class);
     siblingMethodConflict.setString("siblingValue");
     assertEquals("siblingValue", siblingMethodConflict.getString());
@@ -445,7 +445,7 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testPartialMethodConflictProvidesSameValue() throws Exception {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     PartialMethodConflict partialMethodConflict = handler.as(PartialMethodConflict.class);
 
     // Tests overriding a getter property that is only partially bound
@@ -1026,13 +1026,13 @@ public class ProxyInvocationHandlerTest {
 
   @Test
   public void testOptionsAreNotSerializable() {
-    expectedException.expectCause(Matchers.<Throwable>instanceOf(NotSerializableException.class));
+    expectedException.expectCause(Matchers.instanceOf(NotSerializableException.class));
     SerializableUtils.clone(new CapturesOptions());
   }
 
   @Test
   public void testGetOptionNameFromMethod() throws NoSuchMethodException {
-    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.newHashMap());
     handler.as(BaseOptions.class);
     assertEquals("foo", handler.getOptionName(BaseOptions.class.getMethod("getFoo")));
   }

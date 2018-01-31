@@ -39,7 +39,6 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -75,8 +74,7 @@ public class StatefulDoFnRunnerTest {
   private InMemoryTimerInternals timerInternals;
 
   private static StateNamespace windowNamespace(IntervalWindow window) {
-    return StateNamespaces.<IntervalWindow>window(
-        (Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder(), window);
+    return StateNamespaces.window((Coder) WINDOWING_STRATEGY.getWindowFn().windowCoder(), window);
   }
 
   @Before
@@ -117,9 +115,12 @@ public class StatefulDoFnRunnerTest {
     runner.processElement(
         WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
 
-
-    long droppedValues = container.getCounter(MetricName.named(StatefulDoFnRunner.class,
-        StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER)).getCumulative().longValue();
+    long droppedValues =
+        container
+            .getCounter(
+                MetricName.named(
+                    StatefulDoFnRunner.class, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER))
+            .getCumulative();
     assertEquals(1L, droppedValues);
 
     runner.finishBundle();
@@ -201,7 +202,7 @@ public class StatefulDoFnRunnerTest {
         NullSideInputReader.empty(),
         null,
         null,
-        Collections.<TupleTag<?>>emptyList(),
+        Collections.emptyList(),
         mockStepContext,
         WINDOWING_STRATEGY);
   }

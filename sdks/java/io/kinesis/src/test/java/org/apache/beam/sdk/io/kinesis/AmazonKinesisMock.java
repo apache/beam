@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.transform;
 import static java.lang.Integer.parseInt;
 import static java.lang.Math.min;
@@ -25,6 +24,8 @@ import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode
 
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.ResponseMetadata;
+import com.amazonaws.http.HttpResponse;
+import com.amazonaws.http.SdkHttpMetadata;
 import com.amazonaws.regions.Region;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
@@ -77,11 +78,11 @@ import com.amazonaws.services.kinesis.model.StreamDescription;
 import com.amazonaws.services.kinesis.model.UpdateShardCountRequest;
 import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
 import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
-import com.google.common.base.Function;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 import org.mockito.Mockito;
@@ -140,21 +141,12 @@ class AmazonKinesisMock implements AmazonKinesis {
 
     @Override
     public AmazonKinesis getKinesisClient() {
-      return new AmazonKinesisMock(transform(shardedData,
-          new Function<List<TestData>, List<Record>>() {
-
-            @Override
-            public List<Record> apply(@Nullable List<TestData> testDatas) {
-              return transform(testDatas, new Function<TestData, Record>() {
-
-                @Override
-                public Record apply(@Nullable TestData testData) {
-                  return testData.convertToRecord();
-                }
-              });
-            }
-          }), numberOfRecordsPerGet);
-
+      return new AmazonKinesisMock(
+          shardedData
+              .stream()
+              .map(testDatas -> transform(testDatas, TestData::convertToRecord))
+              .collect(Collectors.toList()),
+          numberOfRecordsPerGet);
     }
 
     @Override
@@ -210,14 +202,21 @@ class AmazonKinesisMock implements AmazonKinesis {
     }
     boolean hasMoreShards = nextShardId + 1 < shardedData.size();
 
-    List<Shard> shards = newArrayList();
+    List<Shard> shards = new ArrayList<>();
     if (nextShardId < shardedData.size()) {
       shards.add(new Shard().withShardId(Integer.toString(nextShardId)));
     }
 
-    return new DescribeStreamResult().withStreamDescription(
-        new StreamDescription().withHasMoreShards(hasMoreShards).withShards(shards)
-    );
+    HttpResponse response = new HttpResponse(null, null);
+    response.setStatusCode(200);
+    DescribeStreamResult result = new DescribeStreamResult();
+    result.setSdkHttpMetadata(SdkHttpMetadata.from(response));
+    result.withStreamDescription(
+        new StreamDescription()
+            .withHasMoreShards(hasMoreShards)
+            .withShards(shards)
+            .withStreamName(streamName));
+    return result;
   }
 
   @Override
@@ -273,8 +272,7 @@ class AmazonKinesisMock implements AmazonKinesis {
 
   @Override
   public DescribeStreamResult describeStream(String streamName) {
-
-    throw new RuntimeException("Not implemented");
+    return describeStream(streamName, null);
   }
 
   @Override

@@ -26,12 +26,10 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.PartitionKey;
 import com.datastax.driver.mapping.annotations.Table;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
@@ -42,7 +40,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -98,8 +95,7 @@ public class CassandraIOIT implements Serializable {
         .withEntity(Scientist.class)
         .withCoder(SerializableCoder.of(Scientist.class)));
 
-    PAssert.thatSingleton(output.apply("Count scientist", Count.<Scientist>globally()))
-        .isEqualTo(1000L);
+    PAssert.thatSingleton(output.apply("Count scientist", Count.globally())).isEqualTo(1000L);
 
     PCollection<KV<String, Integer>> mapped =
         output.apply(
@@ -112,18 +108,14 @@ public class CassandraIOIT implements Serializable {
                 }
             )
         );
-    PAssert.that(mapped.apply("Count occurrences per scientist", Count.<String, Integer>perKey()))
+    PAssert.that(mapped.apply("Count occurrences per scientist", Count.perKey()))
         .satisfies(
-            new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
-              @Override
-              public Void apply(Iterable<KV<String, Long>> input) {
-                for (KV<String, Long> element : input) {
-                  assertEquals(element.getKey(), 1000 / 10, element.getValue().longValue());
-                }
-                return null;
+            input -> {
+              for (KV<String, Long> element : input) {
+                assertEquals(element.getKey(), 1000 / 10, element.getValue().longValue());
               }
-            }
-        );
+              return null;
+            });
 
     pipeline.run().waitUntilFinish();
   }

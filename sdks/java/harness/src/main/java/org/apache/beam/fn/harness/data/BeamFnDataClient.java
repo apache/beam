@@ -18,11 +18,12 @@
 
 package org.apache.beam.fn.harness.data;
 
-import java.util.concurrent.CompletableFuture;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -42,8 +43,8 @@ public interface BeamFnDataClient {
    *
    * <p>The receiver is not required to be thread safe.
    */
-  <T> CompletableFuture<Void> receive(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+  <T> InboundDataClient receive(
+      ApiServiceDescriptor apiServiceDescriptor,
       LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> receiver);

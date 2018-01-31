@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -92,5 +93,18 @@ public class RehydratedComponentsTest {
     assertThat(
         rehydratedComponents.getWindowingStrategy(id),
         theInstance((WindowingStrategy) rehydratedStrategy));
+  }
+
+  @Test
+  public void testEnvironment() {
+    SdkComponents sdkComponents = SdkComponents.create();
+    Environment env = Environment.newBuilder().setUrl("java_test").build();
+    String id = sdkComponents.registerEnvironment(env);
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forComponents(sdkComponents.toComponents());
+
+    Environment rehydratedEnv = rehydratedComponents.getEnvironment(id);
+    assertThat(rehydratedEnv, equalTo(env));
+    assertThat(rehydratedComponents.getEnvironment(id), theInstance(rehydratedEnv));
   }
 }

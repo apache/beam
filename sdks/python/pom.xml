@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-parent</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.4.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -226,8 +226,10 @@
                 <configuration>
                   <executable>${python.user.base}/bin/tox</executable>
                   <arguments>
-                    <argument>-e</argument>
-                    <argument>ALL</argument>
+                    <!-- Environments that are only defined in envlist will be triggered. New
+                         environments will be excluded by default unless explicitly added to
+                         envlist.-->
+                    <argument>envlist</argument>
                     <argument>-c</argument>
                     <argument>tox.ini</argument>
                   </arguments>

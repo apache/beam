@@ -26,6 +26,8 @@ import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.clouddebugger.v2.Clouddebugger;
 import com.google.api.services.clouddebugger.v2.model.Debuggee;
@@ -63,7 +65,6 @@ import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
@@ -122,7 +123,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
@@ -137,6 +137,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -193,6 +194,17 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting
   static final String PIPELINE_FILE_NAME = "pipeline.pb";
+
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  /**
+   * Use an {@link ObjectMapper} configured with any {@link Module}s in the class path allowing
+   * for user specified configuration injection into the ObjectMapper. This supports user custom
+   * types on {@link PipelineOptions}.
+   */
+  private static final ObjectMapper MAPPER_WITH_MODULES = new ObjectMapper().registerModules(
+      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+
 
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
@@ -519,7 +531,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           if (tracking && node.getTransform() instanceof CreatePCollectionView) {
             checkState(
                 viewTransformRef.compareAndSet(null, (CreatePCollectionView) node.getTransform()),
-                "Found more then one instance of a CreatePCollectionView when "
+                "Found more than one instance of a CreatePCollectionView when "
                     + "attempting to replace %s, found [%s, %s]",
                 replacement, viewTransformRef.get(), node.getTransform());
           }
@@ -648,11 +660,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     List<DataflowPackage> packages = options.getStager().stageDefaultFiles();
 
-    byte[] serializedProtoPipeline = PipelineTranslation.toProto(pipeline).toByteArray();
-    LOG.info("Staging pipeline description to {}", options.getStagingLocation());
-    DataflowPackage stagedPipeline =
-        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
-
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried
     // attempts to create a job. Specifically, if the service returns a job with
@@ -669,13 +676,26 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     maybeRegisterDebuggee(dataflowOptions, requestId);
 
-    // Set the location of the staged pipeline; this must happen before
-    // translation, because that is where the JSON pipeline options are set up
-    dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
-
     JobSpecification jobSpecification =
         translator.translate(pipeline, this, packages);
+
+    // Stage the pipeline, retrieving the staged pipeline path, then update
+    // the options on the new job
+    // TODO: add an explicit `pipeline` parameter to the submission instead of pipeline options
+    LOG.info("Staging pipeline description to {}", options.getStagingLocation());
+    byte[] serializedProtoPipeline = jobSpecification.getPipelineProto().toByteArray();
+    DataflowPackage stagedPipeline =
+        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
+    dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
+
     Job newJob = jobSpecification.getJob();
+    try {
+      newJob.getEnvironment().setSdkPipelineOptions(
+          MAPPER.readValue(MAPPER_WITH_MODULES.writeValueAsBytes(options), Map.class));
+    } catch (IOException e) {
+      throw new IllegalArgumentException(
+          "PipelineOptions specified failed to serialize to JSON.", e);
+    }
     newJob.setClientRequestId(requestId);
 
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
@@ -829,7 +849,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       majorVersion = runnerInfo.getLegacyEnvironmentMajorVersion();
       jobType = options.isStreaming() ? "STREAMING" : "JAVA_BATCH_AUTOSCALING";
     }
-    return ImmutableMap.<String, Object>of(
+    return ImmutableMap.of(
         PropertyNames.ENVIRONMENT_VERSION_MAJOR_KEY, majorVersion,
         PropertyNames.ENVIRONMENT_VERSION_JOB_TYPE_KEY, jobType);
   }
@@ -1063,7 +1083,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             byteArrayToJsonString(
                 serializeToByteArray(new IdentityMessageFn())));
       }
-      stepContext.addOutput(context.getOutput(transform));
+      stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
     }
   }
 
@@ -1277,7 +1297,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
           stepContext.addInput(PropertyNames.FORMAT, "pubsub");
           stepContext.addInput(PropertyNames.PUBSUB_SUBSCRIPTION, "_starting_signal/");
-          stepContext.addOutput(context.getOutput(transform));
+          stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
         } else {
           StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
           stepContext.addInput(PropertyNames.FORMAT, "impulse");
@@ -1293,7 +1313,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           }
           stepContext.addInput(
               PropertyNames.IMPULSE_ELEMENT, byteArrayToJsonString(encodedImpulse));
-          stepContext.addOutput(context.getOutput(transform));
+          stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
         }
       }
     }
@@ -1339,11 +1359,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       source.validate();
 
       if (source.requiresDeduping()) {
-        return Pipeline.applyTransform(input, new ReadWithIds<>(source))
-            .apply(new Deduplicate<T>());
+        return Pipeline.applyTransform(input, new ReadWithIds<>(source)).apply(new Deduplicate<>());
       } else {
         return Pipeline.applyTransform(input, new ReadWithIds<>(source))
-            .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<T>()));
+            .apply("StripIds", ParDo.of(new ValueWithRecordId.StripIdsDoFn<>()));
       }
     }
 
@@ -1410,22 +1429,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PCollection<T> expand(PCollection<ValueWithRecordId<T>> input) {
       return input
-          .apply(WithKeys.of(new SerializableFunction<ValueWithRecordId<T>, Integer>() {
-            @Override
-            public Integer apply(ValueWithRecordId<T> value) {
-              return Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS;
-            }
-          }))
+          .apply(WithKeys.of(value -> Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS))
           // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
-          .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
-          .apply("StripIds", ParDo.of(
-              new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  c.output(c.element().getValue().getValue());
-                }
-              }));
+          .apply(Reshuffle.of())
+          .apply(
+              "StripIds",
+              ParDo.of(
+                  new DoFn<KV<Integer, ValueWithRecordId<T>>, T>() {
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      c.output(c.element().getValue().getValue());
+                    }
+                  }));
     }
   }
 
@@ -1508,7 +1524,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                     }
                   }))
           .setCoder((Coder<BoundedSource<T>>) SerializableCoder.of((Class) BoundedSource.class))
-          .apply(Reshuffle.<BoundedSource<T>>viaRandomKey())
+          .apply(Reshuffle.viaRandomKey())
           .apply(
               ParDo.of(
                   new DoFn<BoundedSource<T>, T>() {

@@ -24,11 +24,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Optional;
-
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -41,11 +39,12 @@ public class SqlTypeUtilsTest {
   private static final BigDecimal DECIMAL_THREE = new BigDecimal(3);
   private static final BigDecimal DECIMAL_FOUR = new BigDecimal(4);
 
-  private static final List<BeamSqlExpression> EXPRESSIONS = Arrays.<BeamSqlExpression> asList(
-      BeamSqlPrimitive.of(SqlTypeName.INTERVAL_DAY, DECIMAL_THREE),
-      BeamSqlPrimitive.of(SqlTypeName.INTERVAL_MONTH, DECIMAL_FOUR),
-      BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4),
-      BeamSqlPrimitive.of(SqlTypeName.INTEGER, 5));
+  private static final List<BeamSqlExpression> EXPRESSIONS =
+      Arrays.asList(
+          BeamSqlPrimitive.of(SqlTypeName.INTERVAL_DAY, DECIMAL_THREE),
+          BeamSqlPrimitive.of(SqlTypeName.INTERVAL_MONTH, DECIMAL_FOUR),
+          BeamSqlPrimitive.of(SqlTypeName.INTEGER, 4),
+          BeamSqlPrimitive.of(SqlTypeName.INTEGER, 5));
 
   @Test public void testFindExpressionOfType_success() {
     Optional<BeamSqlExpression> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.INTEGER);

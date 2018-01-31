@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(javaVersion: 1.8)
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Gearpump"
 
@@ -27,15 +27,15 @@ dependencies {
   compile library.java.guava
   compileOnly "com.typesafe:config:1.3.0"
   compileOnly "org.scala-lang:scala-library:2.11.8"
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":runners:core-java", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
   shadow "org.apache.gearpump:gearpump-core_2.11:$gearpump_version"
   shadow "org.apache.gearpump:gearpump-streaming_2.11:$gearpump_version"
   shadow library.java.joda_time
   shadow library.java.jackson_annotations
   shadow library.java.findbugs_jsr305
-  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.jackson_databind

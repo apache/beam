@@ -63,7 +63,6 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.channels.Channels;
 import java.nio.channels.Pipe;
-import java.nio.channels.Pipe.SinkChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -96,8 +95,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /** Tests for {@link PackageUtil}. */
 @RunWith(JUnit4.class)
@@ -261,7 +258,8 @@ public class PackageUtilTest {
 
     assertThat(target.getName(), RegexMatcher.matches("file-" + HASH_PATTERN + ".txt"));
     assertThat(target.getLocation(), equalTo(STAGING_PATH + target.getName()));
-    assertThat(new LineReader(Channels.newReader(pipe.source(), "UTF-8")).readLine(),
+    assertThat(new LineReader(Channels.newReader(pipe.source(),
+        StandardCharsets.UTF_8.name())).readLine(),
         equalTo(contents));
   }
 
@@ -274,12 +272,7 @@ public class PackageUtilTest {
             new FileNotFoundException("some/path"))));
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
-        .thenAnswer(new Answer<SinkChannel>() {
-          @Override
-          public SinkChannel answer(InvocationOnMock invocation) throws Throwable {
-            return Pipe.open().sink();
-          }
-        });
+        .thenAnswer(invocation -> Pipe.open().sink());
 
     List<DataflowPackage> targets =
         defaultPackageUtil.stageClasspathElements(

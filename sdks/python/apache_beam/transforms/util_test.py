@@ -190,8 +190,8 @@ class ReshuffleTest(unittest.TestCase):
     pipeline = TestPipeline()
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
     result = (pipeline
-              | 'start' >> beam.Create(data)
-              | 'reshuffle' >> beam.Reshuffle())
+              | beam.Create(data)
+              | beam.Reshuffle())
     assert_that(result, equal_to(data))
     pipeline.run()
 
@@ -201,11 +201,10 @@ class ReshuffleTest(unittest.TestCase):
     expected_result = [(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]
 
     after_gbk = (pipeline
-                 | 'start' >> beam.Create(data)
-                 | 'group_by_key' >> beam.GroupByKey())
+                 | beam.Create(data)
+                 | beam.GroupByKey())
     assert_that(after_gbk, equal_to(expected_result), label='after_gbk')
-    after_reshuffle = (after_gbk
-                       | 'reshuffle' >> beam.Reshuffle())
+    after_reshuffle = after_gbk | beam.Reshuffle()
     assert_that(after_reshuffle, equal_to(expected_result),
                 label='after_reshuffle')
     pipeline.run()
@@ -223,8 +222,7 @@ class ReshuffleTest(unittest.TestCase):
                                                                    timestamp)))
     assert_that(before_reshuffle, equal_to(expected_result),
                 label='before_reshuffle', reify_windows=True)
-    after_reshuffle = (before_reshuffle
-                       | 'reshuffle' >> beam.Reshuffle())
+    after_reshuffle = before_reshuffle | beam.Reshuffle()
     assert_that(after_reshuffle, equal_to(expected_result),
                 label='after_reshuffle', reify_windows=True)
     pipeline.run()
@@ -245,8 +243,7 @@ class ReshuffleTest(unittest.TestCase):
                         | 'group_by_key' >> beam.GroupByKey())
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle', reify_windows=True)
-    after_reshuffle = (before_reshuffle
-                       | 'reshuffle' >> beam.Reshuffle())
+    after_reshuffle = before_reshuffle | beam.Reshuffle()
     assert_that(after_reshuffle, equal_to(expected_data),
                 label='after reshuffle', reify_windows=True)
     pipeline.run()
@@ -273,12 +270,10 @@ class ReshuffleTest(unittest.TestCase):
                         | 'window' >> beam.WindowInto(Sessions(gap_size=2)))
     assert_that(before_reshuffle, equal_to(expected_windows),
                 label='before_reshuffle', reify_windows=True)
-    after_reshuffle = (before_reshuffle
-                       | 'reshuffle' >> beam.Reshuffle())
+    after_reshuffle = before_reshuffle | beam.Reshuffle()
     assert_that(after_reshuffle, equal_to(expected_windows),
                 label='after_reshuffle', reify_windows=True)
-    after_group = (after_reshuffle
-                   | 'group_by_key' >> beam.GroupByKey())
+    after_group = after_reshuffle | beam.GroupByKey()
     assert_that(after_group, equal_to(expected_merged_windows),
                 label='after_group', reify_windows=True)
     pipeline.run()
@@ -288,13 +283,12 @@ class ReshuffleTest(unittest.TestCase):
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
     expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
     before_reshuffle = (pipeline
-                        | 'start' >> beam.Create(data)
-                        | 'window' >> beam.WindowInto(GlobalWindows())
-                        | 'group_by_key' >> beam.GroupByKey())
+                        | beam.Create(data)
+                        | beam.WindowInto(GlobalWindows())
+                        | beam.GroupByKey())
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle')
-    after_reshuffle = (before_reshuffle
-                       | 'reshuffle' >> beam.Reshuffle())
+    after_reshuffle = before_reshuffle | beam.Reshuffle()
     assert_that(after_reshuffle, equal_to(expected_data),
                 label='after reshuffle')
     pipeline.run()
@@ -305,14 +299,13 @@ class ReshuffleTest(unittest.TestCase):
     window_size = 2
     expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])] * window_size
     before_reshuffle = (pipeline
-                        | 'start' >> beam.Create(data)
-                        | 'window' >> beam.WindowInto(SlidingWindows(
+                        | beam.Create(data)
+                        | beam.WindowInto(SlidingWindows(
                             size=window_size, period=1))
-                        | 'group_by_key' >> beam.GroupByKey())
+                        | beam.GroupByKey())
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle')
-    after_reshuffle = (before_reshuffle
-                       | 'reshuffle' >> beam.Reshuffle())
+    after_reshuffle = before_reshuffle | beam.Reshuffle()
     # If Reshuffle applies the sliding window function a second time there
     # should be extra values for each key.
     assert_that(after_reshuffle, equal_to(expected_data),
@@ -326,13 +319,12 @@ class ReshuffleTest(unittest.TestCase):
     data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
     expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
     before_reshuffle = (pipeline
-                        | 'start' >> beam.Create(data)
-                        | 'window' >> beam.WindowInto(GlobalWindows())
-                        | 'group_by_key' >> beam.GroupByKey())
+                        | beam.Create(data)
+                        | beam.WindowInto(GlobalWindows())
+                        | beam.GroupByKey())
     assert_that(before_reshuffle, equal_to(expected_data),
                 label='before_reshuffle')
-    after_reshuffle = (before_reshuffle
-                       | 'reshuffle' >> beam.Reshuffle())
+    after_reshuffle = before_reshuffle | beam.Reshuffle()
     assert_that(after_reshuffle, equal_to(expected_data),
                 label='after reshuffle')
     pipeline.run()

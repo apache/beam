@@ -44,7 +44,7 @@ public final class WriteResult implements POutput {
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return ImmutableMap.<TupleTag<?>, PValue>of(failedInsertsTag, failedInserts);
+    return ImmutableMap.of(failedInsertsTag, failedInserts);
   }
 
   private WriteResult(

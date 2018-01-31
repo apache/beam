@@ -78,7 +78,7 @@ class ReifyTimestamps {
       extends PTransform<PCollection<? extends KV<K, V>>, PCollection<KV<K, TimestampedValue<V>>>> {
     @Override
     public PCollection<KV<K, TimestampedValue<V>>> expand(PCollection<? extends KV<K, V>> input) {
-      return input.apply(new RemoveWildcard<KV<K, V>>()).apply(Reify.<K, V>timestampsInValue());
+      return input.apply(new RemoveWildcard<KV<K, V>>()).apply(Reify.timestampsInValue());
     }
   }
 
@@ -88,7 +88,7 @@ class ReifyTimestamps {
     public PCollection<KV<K, V>> expand(PCollection<? extends KV<K, TimestampedValue<V>>> input) {
       return input
           .apply(new RemoveWildcard<KV<K, TimestampedValue<V>>>())
-          .apply(Reify.<K, V>extractTimestampsFromValues());
+          .apply(Reify.extractTimestampsFromValues());
     }
   }
 }

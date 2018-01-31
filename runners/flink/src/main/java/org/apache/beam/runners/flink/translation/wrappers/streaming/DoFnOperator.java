@@ -99,7 +99,6 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
 import org.joda.time.Instant;
@@ -348,14 +347,10 @@ public class DoFnOperator<InputT, OutputT>
 
     // Schedule timer to check timeout of finish bundle.
     long bundleCheckPeriod = (maxBundleTimeMills + 1) / 2;
-    checkFinishBundleTimer = getProcessingTimeService().scheduleAtFixedRate(
-        new ProcessingTimeCallback() {
-          @Override
-          public void onProcessingTime(long timestamp) throws Exception {
-            checkInvokeFinishBundleByTime();
-          }
-        },
-        bundleCheckPeriod, bundleCheckPeriod);
+    checkFinishBundleTimer =
+        getProcessingTimeService()
+            .scheduleAtFixedRate(
+                timestamp -> checkInvokeFinishBundleByTime(), bundleCheckPeriod, bundleCheckPeriod);
 
     pushbackDoFnRunner =
         SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
@@ -863,7 +858,7 @@ public class DoFnOperator<InputT, OutputT>
       if (!openBuffer) {
         emit(tag, value);
       } else {
-        bufferState.add(KV.<Integer, WindowedValue<?>>of(tagsToIds.get(tag), value));
+        bufferState.add(KV.of(tagsToIds.get(tag), value));
       }
     }
 
@@ -918,7 +913,7 @@ public class DoFnOperator<InputT, OutputT>
       Integer id = VarIntCoder.of().decode(in);
       Coder<WindowedValue<?>> coder = idsToCoders.get(id);
       WindowedValue<?> value = coder.decode(in);
-      return KV.<Integer, WindowedValue<?>>of(id, value);
+      return KV.of(id, value);
     }
 
     @Override
@@ -951,12 +946,13 @@ public class DoFnOperator<InputT, OutputT>
     @SuppressWarnings("unchecked")
     public MultiOutputOutputManagerFactory(
         TupleTag<OutputT> mainTag, Coder<WindowedValue<OutputT>> mainCoder) {
-      this(mainTag,
-          new HashMap<TupleTag<?>, OutputTag<WindowedValue<?>>>(),
+      this(
+          mainTag,
+          new HashMap<>(),
           ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
-              .put(mainTag, (Coder) mainCoder).build(),
-          ImmutableMap.<TupleTag<?>, Integer>builder()
-              .put(mainTag, 0).build());
+              .put(mainTag, (Coder) mainCoder)
+              .build(),
+          ImmutableMap.<TupleTag<?>, Integer>builder().put(mainTag, 0).build());
     }
 
     public MultiOutputOutputManagerFactory(

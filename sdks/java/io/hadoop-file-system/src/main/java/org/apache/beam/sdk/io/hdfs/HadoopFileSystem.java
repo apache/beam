@@ -80,8 +80,7 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       try {
         FileStatus[] fileStatuses = fileSystem.globStatus(new Path(spec));
         if (fileStatuses == null) {
-          resultsBuilder.add(MatchResult.create(Status.NOT_FOUND,
-                  Collections.<Metadata>emptyList()));
+          resultsBuilder.add(MatchResult.create(Status.NOT_FOUND, Collections.emptyList()));
           continue;
         }
 

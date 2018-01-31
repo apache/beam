@@ -25,6 +25,7 @@ import unittest
 
 from apache_beam.io import hadoopfilesystem
 from apache_beam.io.filesystem import BeamIOError
+from apache_beam.options.pipeline_options import PipelineOptions
 
 
 class FakeFile(StringIO.StringIO):
@@ -166,7 +167,8 @@ class HadoopFileSystemTest(unittest.TestCase):
   def setUp(self):
     self._fake_hdfs = FakeHdfs()
     hadoopfilesystem.HDFileSystem = lambda *args, **kwargs: self._fake_hdfs
-    self.fs = hadoopfilesystem.HadoopFileSystem()
+    pipeline_options = PipelineOptions()
+    self.fs = hadoopfilesystem.HadoopFileSystem(pipeline_options)
     self.tmpdir = 'hdfs://test_dir'
 
     for filename in ['old_file1', 'old_file2']:

@@ -297,7 +297,7 @@ public class GlobalWatermarkHolder {
     public Map<Integer, SparkWatermarks> load(@Nonnull String key) throws Exception {
       final BlockManager blockManager = SparkEnv.get().blockManager();
       final Map<Integer, SparkWatermarks> watermarks = fetchSparkWatermarks(blockManager);
-      return watermarks != null ? watermarks : Maps.<Integer, SparkWatermarks>newHashMap();
+      return watermarks != null ? watermarks : Maps.newHashMap();
     }
   }
 

@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.state;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Iterables;
@@ -72,5 +73,18 @@ public class LazyCachingIteratorToIterableTest {
 
     thrown.expect(NoSuchElementException.class);
     iterator1.next();
+  }
+
+  @Test
+  public void testEqualsAndHashCode() {
+    Iterable<String> iterA = new LazyCachingIteratorToIterable<>(Iterators.forArray("A", "B", "C"));
+    Iterable<String> iterB = new LazyCachingIteratorToIterable<>(Iterators.forArray("A", "B", "C"));
+    Iterable<String> iterC = new LazyCachingIteratorToIterable<>(Iterators.forArray());
+    Iterable<String> iterD = new LazyCachingIteratorToIterable<>(Iterators.forArray());
+    assertEquals(iterA, iterB);
+    assertEquals(iterC, iterD);
+    assertNotEquals(iterA, iterC);
+    assertEquals(iterA.hashCode(), iterB.hashCode());
+    assertEquals(iterC.hashCode(), iterD.hashCode());
   }
 }

@@ -126,71 +126,33 @@ public final class TranslationUtils {
 
   /** Transform a pair stream into a value stream. */
   public static <T1, T2> JavaDStream<T2> dStreamValues(JavaPairDStream<T1, T2> pairDStream) {
-    return pairDStream.map(
-        new Function<Tuple2<T1, T2>, T2>() {
-          @Override
-          public T2 call(Tuple2<T1, T2> v1) throws Exception {
-            return v1._2();
-          }
-        });
+    return pairDStream.map(Tuple2::_2);
   }
 
   /** {@link KV} to pair function. */
   public static <K, V> PairFunction<KV<K, V>, K, V> toPairFunction() {
-    return new PairFunction<KV<K, V>, K, V>() {
-      @Override
-      public Tuple2<K, V> call(KV<K, V> kv) {
-        return new Tuple2<>(kv.getKey(), kv.getValue());
-      }
-    };
+    return kv -> new Tuple2<>(kv.getKey(), kv.getValue());
   }
 
   /** {@link KV} to pair flatmap function. */
   public static <K, V> PairFlatMapFunction<Iterator<KV<K, V>>, K, V> toPairFlatMapFunction() {
-    return new PairFlatMapFunction<Iterator<KV<K, V>>, K, V>() {
-      @Override
-      public Iterator<Tuple2<K, V>> call(final Iterator<KV<K, V>> itr) {
-        final Iterator<Tuple2<K, V>> outputItr =
-            Iterators.transform(
-                itr,
-                new com.google.common.base.Function<KV<K, V>, Tuple2<K, V>>() {
-
-                  @Override
-                  public Tuple2<K, V> apply(KV<K, V> kv) {
-                    return new Tuple2<>(kv.getKey(), kv.getValue());
-                  }
-                });
-        return outputItr;
-      }
+    return itr -> {
+      final Iterator<Tuple2<K, V>> outputItr =
+          Iterators.transform(itr, kv -> new Tuple2<>(kv.getKey(), kv.getValue()));
+      return outputItr;
     };
   }
 
   /** A pair to {@link KV} function . */
   static <K, V> Function<Tuple2<K, V>, KV<K, V>> fromPairFunction() {
-    return new Function<Tuple2<K, V>, KV<K, V>>() {
-      @Override
-      public KV<K, V> call(Tuple2<K, V> t2) {
-        return KV.of(t2._1(), t2._2());
-      }
-    };
+    return t2 -> KV.of(t2._1(), t2._2());
   }
 
   /** A pair to {@link KV} flatmap function . */
   static <K, V> FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>> fromPairFlatMapFunction() {
-    return new FlatMapFunction<Iterator<Tuple2<K, V>>, KV<K, V>>() {
-      @Override
-      public Iterator<KV<K, V>> call(Iterator<Tuple2<K, V>> itr) {
-        final Iterator<KV<K, V>> outputItr =
-            Iterators.transform(
-                itr,
-                new com.google.common.base.Function<Tuple2<K, V>, KV<K, V>>() {
-                  @Override
-                  public KV<K, V> apply(Tuple2<K, V> t2) {
-                    return KV.of(t2._1(), t2._2());
-                  }
-                });
-        return outputItr;
-      }
+    return itr -> {
+      final Iterator<KV<K, V>> outputItr = Iterators.transform(itr, t2 -> KV.of(t2._1(), t2._2()));
+      return outputItr;
     };
   }
 
@@ -198,23 +160,14 @@ public final class TranslationUtils {
   public static <K, V>
       PairFunction<WindowedValue<KV<K, V>>, K, WindowedValue<KV<K, V>>>
           toPairByKeyInWindowedValue() {
-    return new PairFunction<WindowedValue<KV<K, V>>, K, WindowedValue<KV<K, V>>>() {
-      @Override
-      public Tuple2<K, WindowedValue<KV<K, V>>> call(WindowedValue<KV<K, V>> windowedKv)
-          throws Exception {
-        return new Tuple2<>(windowedKv.getValue().getKey(), windowedKv);
-      }
-    };
+    return windowedKv -> new Tuple2<>(windowedKv.getValue().getKey(), windowedKv);
   }
 
   /** Extract window from a {@link KV} with {@link WindowedValue} value. */
   static <K, V> Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>> toKVByWindowInValue() {
-    return new Function<KV<K, WindowedValue<V>>, WindowedValue<KV<K, V>>>() {
-      @Override
-      public WindowedValue<KV<K, V>> call(KV<K, WindowedValue<V>> kv) throws Exception {
-        WindowedValue<V> wv = kv.getValue();
-        return wv.withValue(KV.of(kv.getKey(), wv.getValue()));
-      }
+    return kv -> {
+      WindowedValue<V> wv = kv.getValue();
+      return wv.withValue(KV.of(kv.getKey(), wv.getValue()));
     };
   }
 
@@ -268,9 +221,7 @@ public final class TranslationUtils {
       for (PCollectionView<?> view : views) {
         SideInputBroadcast helper = pviews.getPCollectionView(view, context);
         WindowingStrategy<?, ?> windowingStrategy = view.getWindowingStrategyInternal();
-        sideInputs.put(
-            view.getTagInternal(),
-            KV.<WindowingStrategy<?, ?>, SideInputBroadcast<?>>of(windowingStrategy, helper));
+        sideInputs.put(view.getTagInternal(), KV.of(windowingStrategy, helper));
       }
       return sideInputs;
     }
@@ -315,11 +266,8 @@ public final class TranslationUtils {
   }
 
   public static <T> VoidFunction<T> emptyVoidFunction() {
-    return new VoidFunction<T>() {
-      @Override
-      public void call(T t) throws Exception {
-        // Empty implementation.
-      }
+    return t -> {
+      // Empty implementation.
     };
   }
 
@@ -337,26 +285,18 @@ public final class TranslationUtils {
    */
   public static <T, K, V> PairFlatMapFunction<Iterator<T>, K, V> pairFunctionToPairFlatMapFunction(
       final PairFunction<T, K, V> pairFunction) {
-    return new PairFlatMapFunction<Iterator<T>, K, V>() {
-
-      @Override
-      public Iterator<Tuple2<K, V>> call(Iterator<T> itr) throws Exception {
-        final Iterator<Tuple2<K, V>> outputItr =
-            Iterators.transform(
-                itr,
-                new com.google.common.base.Function<T, Tuple2<K, V>>() {
-
-                  @Override
-                  public Tuple2<K, V> apply(T t) {
-                    try {
-                      return pairFunction.call(t);
-                    } catch (Exception e) {
-                      throw new RuntimeException(e);
-                    }
-                  }
-                });
-        return outputItr;
-      }
+    return itr -> {
+      final Iterator<Tuple2<K, V>> outputItr =
+          Iterators.transform(
+              itr,
+              t -> {
+                try {
+                  return pairFunction.call(t);
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
+      return outputItr;
     };
   }
 
@@ -374,26 +314,18 @@ public final class TranslationUtils {
   public static <InputT, OutputT>
       FlatMapFunction<Iterator<InputT>, OutputT> functionToFlatMapFunction(
           final Function<InputT, OutputT> func) {
-    return new FlatMapFunction<Iterator<InputT>, OutputT>() {
-
-      @Override
-      public Iterator<OutputT> call(Iterator<InputT> itr) throws Exception {
-        final Iterator<OutputT> outputItr =
-            Iterators.transform(
-                itr,
-                new com.google.common.base.Function<InputT, OutputT>() {
-
-                  @Override
-                  public OutputT apply(InputT t) {
-                    try {
-                      return func.call(t);
-                    } catch (Exception e) {
-                      throw new RuntimeException(e);
-                    }
-                  }
-                });
-        return outputItr;
-      }
+    return itr -> {
+      final Iterator<OutputT> outputItr =
+          Iterators.transform(
+              itr,
+              t -> {
+                try {
+                  return func.call(t);
+                } catch (Exception e) {
+                  throw new RuntimeException(e);
+                }
+              });
+      return outputItr;
     };
   }
 
@@ -427,15 +359,11 @@ public final class TranslationUtils {
    */
   public static PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, byte[]>
       getTupleTagEncodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
-    return new PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, byte[]>() {
-
-      @Override public Tuple2<TupleTag<?>, byte[]>
-      call(Tuple2<TupleTag<?>, WindowedValue<?>> tuple2) throws Exception {
-        TupleTag<?> tupleTag = tuple2._1;
-        WindowedValue<?> windowedValue = tuple2._2;
-        return new Tuple2<TupleTag<?>, byte[]>
-            (tupleTag, CoderHelpers.toByteArray(windowedValue, coderMap.get(tupleTag)));
-      }
+    return tuple2 -> {
+      TupleTag<?> tupleTag = tuple2._1;
+      WindowedValue<?> windowedValue = tuple2._2;
+      return new Tuple2<>(
+          tupleTag, CoderHelpers.toByteArray(windowedValue, coderMap.get(tupleTag)));
     };
   }
 
@@ -446,15 +374,11 @@ public final class TranslationUtils {
    * */
   public static PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>
       getTupleTagDecodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
-    return new PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>() {
-
-      @Override public Tuple2<TupleTag<?>, WindowedValue<?>>
-      call(Tuple2<TupleTag<?>, byte[]> tuple2) throws Exception {
-        TupleTag<?> tupleTag = tuple2._1;
-        byte[] windowedByteValue = tuple2._2;
-        return new Tuple2<TupleTag<?>, WindowedValue<?>>
-            (tupleTag, CoderHelpers.fromByteArray(windowedByteValue, coderMap.get(tupleTag)));
-      }
+    return tuple2 -> {
+      TupleTag<?> tupleTag = tuple2._1;
+      byte[] windowedByteValue = tuple2._2;
+      return new Tuple2<>(
+          tupleTag, CoderHelpers.fromByteArray(windowedByteValue, coderMap.get(tupleTag)));
     };
   }
 

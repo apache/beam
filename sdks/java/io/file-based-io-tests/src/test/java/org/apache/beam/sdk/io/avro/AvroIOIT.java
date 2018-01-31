@@ -75,7 +75,7 @@ public class AvroIOIT {
       + "}");
 
   private static String filenamePrefix;
-  private static Long numberOfTextLines;
+  private static Integer numberOfTextLines;
 
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
@@ -91,20 +91,23 @@ public class AvroIOIT {
   @Test
   public void writeThenReadAll() {
 
-    PCollection<String> testFilenames = pipeline
-        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-        .apply("Produce text lines",
-            ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
-        .apply(
-            "Produce Avro records",
-            ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
-        .setCoder(AvroCoder.of(AVRO_SCHEMA))
-        .apply(
-            "Write Avro records to files",
-            AvroIO.writeGenericRecords(AVRO_SCHEMA).to(filenamePrefix)
-                .withOutputFilenames().withSuffix(".avro"))
-        .getPerDestinationOutputFilenames().apply(Values.<String>create())
-        .apply(Reshuffle.<String>viaRandomKey());
+    PCollection<String> testFilenames =
+        pipeline
+            .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+            .apply(
+                "Produce text lines",
+                ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
+            .apply("Produce Avro records", ParDo.of(new DeterministicallyConstructAvroRecordsFn()))
+            .setCoder(AvroCoder.of(AVRO_SCHEMA))
+            .apply(
+                "Write Avro records to files",
+                AvroIO.writeGenericRecords(AVRO_SCHEMA)
+                    .to(filenamePrefix)
+                    .withOutputFilenames()
+                    .withSuffix(".avro"))
+            .getPerDestinationOutputFilenames()
+            .apply(Values.create())
+            .apply(Reshuffle.viaRandomKey());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
@@ -114,8 +117,10 @@ public class AvroIOIT {
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFilenames.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
-        .withSideInputs(consolidatedHashcode.apply(View.<String>asSingleton())));
+    testFilenames.apply(
+        "Delete test files",
+        ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+            .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
   }

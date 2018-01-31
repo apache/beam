@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
@@ -145,8 +144,7 @@ public class DataflowPipelineJob implements PipelineResult {
     this.dataflowClient = dataflowClient;
     this.jobId = jobId;
     this.dataflowOptions = dataflowOptions;
-    this.transformStepNames = HashBiMap.create(
-        firstNonNull(transformStepNames, ImmutableMap.<AppliedPTransform<?, ?, ?>, String>of()));
+    this.transformStepNames = HashBiMap.create(firstNonNull(transformStepNames, ImmutableMap.of()));
     this.dataflowMetrics = new DataflowMetrics(this, this.dataflowClient);
   }
 
@@ -237,14 +235,13 @@ public class DataflowPipelineJob implements PipelineResult {
     // the run method (which produces the job) could fail or be Ctrl-C'd before it had returned a
     // job. The display of the command to cancel the job is best-effort anyways -- RPC's could fail,
     // etc. If the user wants to verify the job was cancelled they should look at the job status.
-    Thread shutdownHook = new Thread() {
-      @Override
-      public void run() {
-        LOG.warn("Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
-            + "To cancel the job in the cloud, run:\n> {}",
-            MonitoringUtil.getGcloudCancelCommand(dataflowOptions, getJobId()));
-      }
-    };
+    Thread shutdownHook =
+        new Thread(
+            () ->
+                LOG.warn(
+                    "Job is already running in Google Cloud Platform, Ctrl-C will not cancel it.\n"
+                        + "To cancel the job in the cloud, run:\n> {}",
+                    MonitoringUtil.getGcloudCancelCommand(dataflowOptions, getJobId())));
 
     try {
       Runtime.getRuntime().addShutdownHook(shutdownHook);
@@ -399,46 +396,47 @@ public class DataflowPipelineJob implements PipelineResult {
     // externally almost concurrently to calling cancel(), but at least it
     // makes it possible to safely call cancel() multiple times and from
     // multiple threads in one program.
-    FutureTask<State> tentativeCancelTask = new FutureTask<>(new Callable<State>() {
-      @Override
-      public State call() throws Exception {
-        Job content = new Job();
-        content.setProjectId(getProjectId());
-        content.setId(jobId);
-        content.setRequestedState("JOB_STATE_CANCELLED");
-        try {
-          Job job = dataflowClient.updateJob(jobId, content);
-          return MonitoringUtil.toState(job.getCurrentState());
-        } catch (IOException e) {
-          State state = getState();
-          if (state.isTerminal()) {
-            LOG.warn("Cancel failed because job is already terminated. State is {}", state);
-            return state;
-          } else if (e.getMessage().contains("has terminated")) {
-            // This handles the case where the getState() call above returns RUNNING but the cancel
-            // was rejected because the job is in fact done. Hopefully, someday we can delete this
-            // code if there is better consistency between the State and whether Cancel succeeds.
-            //
-            // Example message:
-            //    Workflow modification failed. Causes: (7603adc9e9bff51e): Cannot perform
-            //    operation 'cancel' on Job: 2017-04-01_22_50_59-9269855660514862348. Job has
-            //    terminated in state SUCCESS: Workflow job: 2017-04-01_22_50_59-9269855660514862348
-            //    succeeded.
-            LOG.warn("Cancel failed because job is already terminated.", e);
-            return state;
-          } else {
-            String errorMsg = String.format(
-                "Failed to cancel job in state %s, "
-                    + "please go to the Developers Console to cancel it manually: %s",
-                state,
-                MonitoringUtil.getJobMonitoringPageURL(
-                    getProjectId(), getRegion(), getJobId()));
-            LOG.warn(errorMsg);
-            throw new IOException(errorMsg, e);
-          }
-        }
-      }
-    });
+    FutureTask<State> tentativeCancelTask =
+        new FutureTask<>(
+            () -> {
+              Job content = new Job();
+              content.setProjectId(getProjectId());
+              content.setId(jobId);
+              content.setRequestedState("JOB_STATE_CANCELLED");
+              try {
+                Job job = dataflowClient.updateJob(jobId, content);
+                return MonitoringUtil.toState(job.getCurrentState());
+              } catch (IOException e) {
+                State state = getState();
+                if (state.isTerminal()) {
+                  LOG.warn("Cancel failed because job is already terminated. State is {}", state);
+                  return state;
+                } else if (e.getMessage().contains("has terminated")) {
+                  // This handles the case where the getState() call above returns RUNNING but the
+                  // cancel was rejected because the job is in fact done. Hopefully, someday we can
+                  // delete this code if there is better consistency between the State and whether
+                  // Cancel succeeds.
+                  //
+                  // Example message:
+                  //    Workflow modification failed. Causes: (7603adc9e9bff51e): Cannot perform
+                  //    operation 'cancel' on Job: 2017-04-01_22_50_59-9269855660514862348. Job has
+                  //    terminated in state SUCCESS: Workflow job:
+                  //    2017-04-01_22_50_59-9269855660514862348 succeeded.
+                  LOG.warn("Cancel failed because job is already terminated.", e);
+                  return state;
+                } else {
+                  String errorMsg =
+                      String.format(
+                          "Failed to cancel job in state %s, "
+                              + "please go to the Developers Console to cancel it manually: %s",
+                          state,
+                          MonitoringUtil.getJobMonitoringPageURL(
+                              getProjectId(), getRegion(), getJobId()));
+                  LOG.warn(errorMsg);
+                  throw new IOException(errorMsg, e);
+                }
+              }
+            });
     if (cancelState.compareAndSet(null, tentativeCancelTask)) {
       // This thread should perform cancellation, while others will
       // only wait for the result.

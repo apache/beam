@@ -62,12 +62,12 @@ class DirectGroupByKey<K, V>
 
     // By default, implement GroupByKey via a series of lower-level operations.
     return input
-        .apply(new DirectGroupByKeyOnly<K, V>())
+        .apply(new DirectGroupByKeyOnly<>())
 
         // Group each key's values by window, merging windows as needed.
         .apply(
             "GroupAlsoByWindow",
-            new DirectGroupAlsoByWindow<K, V>(inputWindowingStrategy, outputWindowingStrategy));
+            new DirectGroupAlsoByWindow<>(inputWindowingStrategy, outputWindowingStrategy));
   }
 
   static final class DirectGroupByKeyOnly<K, V>

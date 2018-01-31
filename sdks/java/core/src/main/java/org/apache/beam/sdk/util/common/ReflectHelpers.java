@@ -72,37 +72,20 @@ public class ReflectHelpers {
   };
 
   /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_NAME =
-      new Function<Class<?>, String>() {
-    @Override
-    public String apply(@Nonnull Class<?> input) {
-      return input.getName();
-    }
-  };
+  public static final Function<Class<?>, String> CLASS_NAME = Class::getName;
 
   /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_SIMPLE_NAME =
-      new Function<Class<?>, String>() {
-    @Override
-    public String apply(@Nonnull Class<?> input) {
-      return input.getSimpleName();
-    }
-  };
+  public static final Function<Class<?>, String> CLASS_SIMPLE_NAME = Class::getSimpleName;
 
-  /**
-   * A {@link Function} that returns a concise string for a {@link Annotation}.
-   */
+  /** A {@link Function} that returns a concise string for a {@link Annotation}. */
   public static final Function<Annotation, String> ANNOTATION_FORMATTER =
-      new Function<Annotation, String>() {
-        @Override
-        public String apply(@Nonnull Annotation annotation) {
-          String annotationName = annotation.annotationType().getName();
-          String annotationNameWithoutPackage =
-              annotationName.substring(annotationName.lastIndexOf('.') + 1).replace('$', '.');
-          String annotationToString = annotation.toString();
-          String values = annotationToString.substring(annotationToString.indexOf('('));
-          return String.format("%s%s", annotationNameWithoutPackage, values);
-        }
+      annotation -> {
+        String annotationName = annotation.annotationType().getName();
+        String annotationNameWithoutPackage =
+            annotationName.substring(annotationName.lastIndexOf('.') + 1).replace('$', '.');
+        String annotationToString = annotation.toString();
+        String values = annotationToString.substring(annotationToString.indexOf('('));
+        return String.format("%s%s", annotationNameWithoutPackage, values);
       };
 
   /** A {@link Function} that formats types. */
@@ -192,13 +175,8 @@ public class ReflectHelpers {
    */
   public static Iterable<Method> getClosureOfMethodsOnInterfaces(
       Iterable<? extends Class<?>> interfaces) {
-    return FluentIterable.from(interfaces).transformAndConcat(
-        new Function<Class<?>, Iterable<Method>>() {
-          @Override
-          public Iterable<Method> apply(@Nonnull Class<?> input) {
-            return getClosureOfMethodsOnInterface(input);
-          }
-    });
+    return FluentIterable.from(interfaces)
+        .transformAndConcat(ReflectHelpers::getClosureOfMethodsOnInterface);
   }
 
   /**
@@ -223,12 +201,12 @@ public class ReflectHelpers {
 
   /**
    * Finds the appropriate {@code ClassLoader} to be used by the
-   * {@link ServiceLoader#load} call, which by default would use the context
+   * {@link ServiceLoader#load} call, which by default would use the proposed
    * {@code ClassLoader}, which can be null. The fallback is as follows: context
    * ClassLoader, class ClassLoader and finaly the system ClassLoader.
    */
-  public static ClassLoader findClassLoader() {
-    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+  public static ClassLoader findClassLoader(final ClassLoader proposed) {
+    ClassLoader classLoader = proposed;
     if (classLoader == null) {
       classLoader = ReflectHelpers.class.getClassLoader();
     }
@@ -236,5 +214,15 @@ public class ReflectHelpers {
       classLoader = ClassLoader.getSystemClassLoader();
     }
     return classLoader;
+  }
+
+  /**
+   * Finds the appropriate {@code ClassLoader} to be used by the
+   * {@link ServiceLoader#load} call, which by default would use the context
+   * {@code ClassLoader}, which can be null. The fallback is as follows: context
+   * ClassLoader, class ClassLoader and finaly the system ClassLoader.
+   */
+  public static ClassLoader findClassLoader() {
+    return findClassLoader(Thread.currentThread().getContextClassLoader());
   }
 }

@@ -144,14 +144,12 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     final ApexPipelineTranslator translator = new ApexPipelineTranslator(options);
     final AtomicReference<DAG> apexDAG = new AtomicReference<>();
 
-    StreamingApplication apexApp = new StreamingApplication() {
-      @Override
-      public void populateDAG(DAG dag, Configuration conf) {
-        apexDAG.set(dag);
-        dag.setAttribute(DAGContext.APPLICATION_NAME, options.getApplicationName());
-        translator.translate(pipeline, dag);
-      }
-    };
+    StreamingApplication apexApp =
+        (dag, conf) -> {
+          apexDAG.set(dag);
+          dag.setAttribute(DAGContext.APPLICATION_NAME, options.getApplicationName());
+          translator.translate(pipeline, dag);
+        };
 
     Properties configProperties = new Properties();
     try {
@@ -271,8 +269,8 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       input
-          .apply(ParDo.of(new WrapAsList<T>()))
-          .apply(CreateApexPCollectionView.<List<T>, T>of(transform.getView()));
+          .apply(ParDo.of(new WrapAsList<>()))
+          .apply(CreateApexPCollectionView.of(transform.getView()));
       return input;
     }
 
@@ -309,7 +307,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
     public PCollection<T> expand(PCollection<T> input) {
       return ((PCollection<T>)
               input.apply(Combine.globally(new Concatenate<T>()).withoutDefaults()))
-          .apply(CreateApexPCollectionView.<T, Iterable<T>>of(view));
+          .apply(CreateApexPCollectionView.of(view));
     }
 
     @Override
@@ -329,7 +327,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
                   transform) {
         return PTransformReplacement.of(
             PTransformReplacements.getSingletonMainInput(transform),
-            new StreamingViewAsIterable<T>(transform.getTransform().getView()));
+            new StreamingViewAsIterable<>(transform.getTransform().getView()));
       }
     }
   }

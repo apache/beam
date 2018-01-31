@@ -115,20 +115,22 @@ public class DirectMetricsTest {
   @SuppressWarnings("unchecked")
   @Test
   public void testApplyAttemptedCountersQueryOneNamespace() {
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
-            MetricUpdate.create(MetricKey.create("step1", NAME3), 8L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
-    ));
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
-            MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
-    ));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
+                MetricUpdate.create(MetricKey.create("step1", NAME3), 8L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
+                MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
 
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addNameFilter(inNamespace("ns1")).build());
@@ -147,18 +149,22 @@ public class DirectMetricsTest {
   @SuppressWarnings("unchecked")
   @Test
   public void testApplyAttemptedQueryCompositeScope() {
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
-            MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()));
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 12L),
-            MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
+                MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 12L),
+                MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
 
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addStep("Outer1").build());
@@ -178,20 +184,22 @@ public class DirectMetricsTest {
   @SuppressWarnings("unchecked")
   @Test
   public void testPartialScopeMatchingInMetricsQuery() {
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner1", NAME1), 5L),
-            MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner2", NAME1), 8L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
-    ));
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Top2/Outer1/Inner1", NAME1), 12L),
-            MetricUpdate.create(MetricKey.create("Top1/Outer2/Inner2", NAME1), 18L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
-    ));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner1", NAME1), 5L),
+                MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner2", NAME1), 8L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("Top2/Outer1/Inner1", NAME1), 12L),
+                MetricUpdate.create(MetricKey.create("Top1/Outer2/Inner2", NAME1), 18L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
 
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addStep("Top1/Outer1").build());

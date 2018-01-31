@@ -70,15 +70,12 @@ import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.Matchers;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
-import org.joda.time.ReadableInstant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link UnboundedReadEvaluatorFactory}.
@@ -112,12 +109,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   @Test
   public void generatesInitialSplits() throws Exception {
-    when(context.createRootBundle()).thenAnswer(new Answer<UncommittedBundle<?>>() {
-      @Override
-      public UncommittedBundle<?> answer(InvocationOnMock invocation) throws Throwable {
-        return bundleFactory.createRootBundle();
-      }
-    });
+    when(context.createRootBundle()).thenAnswer(invocation -> bundleFactory.createRootBundle());
 
     int numSplits = 5;
     Collection<CommittedBundle<?>> initialInputs =
@@ -138,7 +130,7 @@ public class UnboundedReadEvaluatorFactoryTest {
       WindowedValue<UnboundedSourceShard<Long, ?>> shard =
           Iterables.getOnlyElement(shardBundle.getElements());
       assertThat(shard.getTimestamp(), equalTo(BoundedWindow.TIMESTAMP_MIN_VALUE));
-      assertThat(shard.getWindows(), Matchers.<BoundedWindow>contains(GlobalWindow.INSTANCE));
+      assertThat(shard.getWindows(), Matchers.contains(GlobalWindow.INSTANCE));
       UnboundedSource<Long, ?> shardSource = shard.getValue().getSource();
       readItems.addAll(
           SourceTestUtils.readNItemsFromUnstartedReader(
@@ -169,13 +161,10 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     WindowedValue<? super UnboundedSourceShard<Long, ?>> residual =
         Iterables.getOnlyElement(result.getUnprocessedElements());
-    assertThat(
-        residual.getTimestamp(), Matchers.<ReadableInstant>lessThan(DateTime.now().toInstant()));
+    assertThat(residual.getTimestamp(), Matchers.lessThan(DateTime.now().toInstant()));
     UnboundedSourceShard<Long, ?> residualShard =
         (UnboundedSourceShard<Long, ?>) residual.getValue();
-    assertThat(
-        residualShard.getSource(),
-        Matchers.<UnboundedSource<Long, ?>>equalTo(inputShard.getSource()));
+    assertThat(residualShard.getSource(), Matchers.equalTo(inputShard.getSource()));
     assertThat(residualShard.getCheckpoint(), not(nullValue()));
     assertThat(
         output.commit(Instant.now()).getElements(),
@@ -227,9 +216,7 @@ public class UnboundedReadEvaluatorFactoryTest {
             Iterables.getOnlyElement(result.getUnprocessedElements());
     secondEvaluator.processElement(residual);
     secondEvaluator.finishBundle();
-    assertThat(
-        secondOutput.commit(Instant.now()).getElements(),
-        Matchers.<WindowedValue<Long>>emptyIterable());
+    assertThat(secondOutput.commit(Instant.now()).getElements(), Matchers.emptyIterable());
   }
 
   @Test
@@ -273,17 +260,14 @@ public class UnboundedReadEvaluatorFactoryTest {
 
     // Sanity check that nothing was output (The test would have to run for more than a day to do
     // so correctly.)
-    assertThat(
-        secondOutput.commit(Instant.now()).getElements(),
-        Matchers.<WindowedValue<Long>>emptyIterable());
+    assertThat(secondOutput.commit(Instant.now()).getElements(), Matchers.emptyIterable());
 
     // Test that even though the reader produced no outputs, there is still a residual shard with
     // the updated watermark.
     WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>> unprocessed =
         (WindowedValue<UnboundedSourceShard<Long, TestCheckpointMark>>)
             Iterables.getOnlyElement(secondResult.getUnprocessedElements());
-    assertThat(
-        unprocessed.getTimestamp(), Matchers.<ReadableInstant>greaterThan(residual.getTimestamp()));
+    assertThat(unprocessed.getTimestamp(), Matchers.greaterThan(residual.getTimestamp()));
     assertThat(unprocessed.getValue().getExistingReader(), not(nullValue()));
   }
 

@@ -82,7 +82,7 @@ public class FlinkMergingNonShuffleReduceFunction<
     }
 
     reduceRunner.combine(
-        new AbstractFlinkCombineRunner.CompleteFlinkCombiner<K, InputT, AccumT, OutputT>(combineFn),
+        new AbstractFlinkCombineRunner.CompleteFlinkCombiner<>(combineFn),
         windowingStrategy,
         sideInputReader,
         options,

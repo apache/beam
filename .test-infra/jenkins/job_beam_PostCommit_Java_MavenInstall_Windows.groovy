@@ -29,7 +29,7 @@ mavenJob('beam_PostCommit_Java_MavenInstall_Windows') {
   common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 100, 'Windows')
 
   // Set Maven parameters. Note the usage of the Windows Maven installation
-  common_job_properties.setMavenConfig(delegate, 'Maven 3.3.3 (Windows)')
+  common_job_properties.setMavenConfig(delegate, 'Maven 3.5.2 (Windows)')
 
   // Sets that this is a PostCommit job.
   // TODO(BEAM-1042, BEAM-1045, BEAM-2269, BEAM-2299) Turn notifications back on once fixed.

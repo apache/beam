@@ -19,7 +19,6 @@ package org.apache.beam.sdk.nexmark.queries;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
@@ -75,7 +74,7 @@ public class Query6 extends NexmarkQuery {
     @Override
     public List<Bid> addInput(List<Bid> accumulator, Bid input) {
       accumulator.add(input);
-      Collections.sort(accumulator, Bid.ASCENDING_TIME_THEN_PRICE);
+      accumulator.sort(Bid.ASCENDING_TIME_THEN_PRICE);
       if (accumulator.size() > maxNumBids) {
         accumulator.remove(0);
       }
@@ -88,7 +87,7 @@ public class Query6 extends NexmarkQuery {
       for (List<Bid> accumulator : accumulators) {
         result.addAll(accumulator);
       }
-      Collections.sort(result, Bid.ASCENDING_TIME_THEN_PRICE);
+      result.sort(Bid.ASCENDING_TIME_THEN_PRICE);
       if (result.size() > maxNumBids) {
         result = Lists.newArrayList(result.listIterator(result.size() - maxNumBids));
       }
@@ -118,8 +117,10 @@ public class Query6 extends NexmarkQuery {
         .apply(new WinningBids(name + ".WinningBids", configuration))
 
         // Key the winning bid by the seller id.
-        .apply(name + ".Rekey",
-            ParDo.of(new DoFn<AuctionBid, KV<Long, Bid>>() {
+        .apply(
+            name + ".Rekey",
+            ParDo.of(
+                new DoFn<AuctionBid, KV<Long, Bid>>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     Auction auction = c.element().auction;
@@ -136,11 +137,13 @@ public class Query6 extends NexmarkQuery {
                 .withAllowedLateness(Duration.ZERO))
 
         // Find the average of last 10 winning bids for each seller.
-        .apply(Combine.<Long, Bid, Long>perKey(new MovingMeanSellingPrice(10)))
+        .apply(Combine.perKey(new MovingMeanSellingPrice(10)))
 
         // Project into our datatype.
-        .apply(name + ".Select",
-            ParDo.of(new DoFn<KV<Long, Long>, SellerPrice>() {
+        .apply(
+            name + ".Select",
+            ParDo.of(
+                new DoFn<KV<Long, Long>, SellerPrice>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
                     c.output(new SellerPrice(c.element().getKey(), c.element().getValue()));

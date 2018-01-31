@@ -65,7 +65,7 @@ public class HadoopFileSystemOptionsTest {
   public void testDefaultUnsetEnvHdfsConfiguration() {
     HadoopFileSystemOptions.ConfigurationLocator projectFactory =
             spy(new HadoopFileSystemOptions.ConfigurationLocator());
-    when(projectFactory.getEnvironment()).thenReturn(ImmutableMap.<String, String>of());
+    when(projectFactory.getEnvironment()).thenReturn(ImmutableMap.of());
     assertNull(projectFactory.create(PipelineOptionsFactory.create()));
   }
 
