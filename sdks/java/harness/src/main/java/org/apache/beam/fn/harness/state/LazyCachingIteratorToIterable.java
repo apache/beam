@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -68,5 +69,21 @@ class LazyCachingIteratorToIterable<T> implements Iterable<T> {
       position += 1;
       return rval;
     }
+  }
+
+  @Override
+  public int hashCode() {
+    return iterator.hasNext() ? iterator.next().hashCode() : -1789023489;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    return obj instanceof Iterable
+        && Iterables.elementsEqual(this, (Iterable) obj);
+  }
+
+  @Override
+  public String toString() {
+    return Iterables.toString(this);
   }
 }
