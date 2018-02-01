@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
 public class UrnUtils {
 
   private static final String STANDARD_URNS_PATH = "/org/apache/beam/model/common_urns.md";
-  private static final Pattern URN_REGEX = Pattern.compile("\\bbeam:\\S+:v[0-9.]+");
+  private static final Pattern URN_REGEX = Pattern.compile("\\b(urn:)?beam:\\S+:v[0-9.]+");
   private static final Set<String> COMMON_URNS = extractUrnsFromPath(STANDARD_URNS_PATH);
 
   private static Set<String> extractUrnsFromPath(String path) {
