@@ -81,7 +81,7 @@ public class SourceRDD {
         BoundedSource<T> source,
         SerializablePipelineOptions options,
         String stepName) {
-      super(sc, NIL, JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
+      super(sc, NIL, JavaSparkContext$.MODULE$.fakeClassTag());
       this.source = source;
       this.options = options;
       // the input parallelism is determined by Spark's scheduler backend.
@@ -305,8 +305,7 @@ public class SourceRDD {
         SerializablePipelineOptions options,
         MicrobatchSource<T, CheckpointMarkT> microbatchSource,
         int initialNumPartitions) {
-      super(sc, NIL,
-          JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
+      super(sc, NIL, JavaSparkContext$.MODULE$.fakeClassTag());
       this.options = options;
       this.microbatchSource = microbatchSource;
       this.partitioner = new HashPartitioner(initialNumPartitions);

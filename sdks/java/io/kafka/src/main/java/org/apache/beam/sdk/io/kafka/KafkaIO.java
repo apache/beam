@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.cache.Cache;
@@ -33,8 +32,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalCause;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -48,7 +45,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -66,6 +62,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -283,8 +281,8 @@ public class KafkaIO {
    */
   public static Read<byte[], byte[]> readBytes() {
     return new AutoValue_KafkaIO_Read.Builder<byte[], byte[]>()
-        .setTopics(new ArrayList<String>())
-        .setTopicPartitions(new ArrayList<TopicPartition>())
+        .setTopics(new ArrayList<>())
+        .setTopicPartitions(new ArrayList<>())
         .setKeyDeserializer(ByteArrayDeserializer.class)
         .setValueDeserializer(ByteArrayDeserializer.class)
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
@@ -301,11 +299,12 @@ public class KafkaIO {
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
-        .setTopics(new ArrayList<String>())
-        .setTopicPartitions(new ArrayList<TopicPartition>())
+        .setTopics(new ArrayList<>())
+        .setTopicPartitions(new ArrayList<>())
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
+        .setCommitOffsetsInFinalizeEnabled(false)
         .build();
   }
 
@@ -348,6 +347,7 @@ public class KafkaIO {
     @Nullable abstract Duration getMaxReadTime();
 
     @Nullable abstract Instant getStartReadTime();
+    abstract boolean isCommitOffsetsInFinalizeEnabled();
 
     abstract Builder<K, V> toBuilder();
 
@@ -368,6 +368,7 @@ public class KafkaIO {
       abstract Builder<K, V> setMaxNumRecords(long maxNumRecords);
       abstract Builder<K, V> setMaxReadTime(Duration maxReadTime);
       abstract Builder<K, V> setStartReadTime(Instant startReadTime);
+      abstract Builder<K, V> setCommitOffsetsInFinalizeEnabled(boolean commitOffsetInFinalize);
 
       abstract Read<K, V> build();
     }
@@ -377,8 +378,7 @@ public class KafkaIO {
      */
     public Read<K, V> withBootstrapServers(String bootstrapServers) {
       return updateConsumerProperties(
-          ImmutableMap.<String, Object>of(
-              ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     /**
@@ -488,7 +488,7 @@ public class KafkaIO {
      * Mainly used for tests and demo applications.
      */
     public Read<K, V> withMaxNumRecords(long maxNumRecords) {
-      return toBuilder().setMaxNumRecords(maxNumRecords).setMaxReadTime(null).build();
+      return toBuilder().setMaxNumRecords(maxNumRecords).build();
     }
 
     /**
@@ -516,7 +516,7 @@ public class KafkaIO {
      * applications.
      */
     public Read<K, V> withMaxReadTime(Duration maxReadTime) {
-      return toBuilder().setMaxNumRecords(Long.MAX_VALUE).setMaxReadTime(maxReadTime).build();
+      return toBuilder().setMaxReadTime(maxReadTime).build();
     }
 
     /**
@@ -563,15 +563,27 @@ public class KafkaIO {
      * for more description.
      */
     public Read<K, V> withReadCommitted() {
-      return updateConsumerProperties(
-        ImmutableMap.<String, Object>of("isolation.level", "read_committed"));
+      return updateConsumerProperties(ImmutableMap.of("isolation.level", "read_committed"));
+    }
+
+    /**
+     * Finalized offsets are committed to Kafka. See {@link CheckpointMark#finalizeCheckpoint()}.
+     * It helps with minimizing gaps or duplicate processing of records while restarting a pipeline
+     * from scratch. But it does not provide hard processing guarantees. There
+     * could be a short delay to commit after {@link CheckpointMark#finalizeCheckpoint()} is
+     * invoked, as reader might be blocked on reading from Kafka. Note that it is independent of
+     * 'AUTO_COMMIT' Kafka consumer configuration. Usually either this or AUTO_COMMIT in Kafka
+     * consumer is enabled, but not both.
+     */
+    public Read<K, V> commitOffsetsInFinalize() {
+      return toBuilder().setCommitOffsetsInFinalizeEnabled(true).build();
     }
 
     /**
      * Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata.
      */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
-      return new TypedWithoutMetadata<K, V>(this);
+      return new TypedWithoutMetadata<>(this);
     }
 
     @Override
@@ -589,6 +601,16 @@ public class KafkaIO {
                 + "current version of Kafka Client is " + AppInfoParser.getVersion()
                 + ". If you are building with maven, set \"kafka.clients.version\" "
                 + "maven property to 0.10.1.0 or newer.");
+      }
+      if (isCommitOffsetsInFinalizeEnabled()) {
+        checkArgument(getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG) != null,
+          "commitOffsetsInFinalize() is enabled, but group.id in Kafka consumer config "
+              + "is not set. Offset management requires group.id.");
+        if (Boolean.TRUE.equals(
+          getConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG))) {
+          LOG.warn("'{}' in consumer config is enabled even though commitOffsetsInFinalize() "
+              + "is set. You need only one of them.", ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG);
+        }
       }
 
       // Infer key/value coders if not specified explicitly
@@ -619,10 +641,10 @@ public class KafkaIO {
 
       PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
-      if (getMaxNumRecords() < Long.MAX_VALUE) {
-        transform = unbounded.withMaxNumRecords(getMaxNumRecords());
-      } else if (getMaxReadTime() != null) {
-        transform = unbounded.withMaxReadTime(getMaxReadTime());
+      if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
+        transform = unbounded
+            .withMaxReadTime(getMaxReadTime())
+            .withMaxNumRecords(getMaxNumRecords());
       }
 
       return input.getPipeline().apply(transform);
@@ -636,18 +658,13 @@ public class KafkaIO {
     @VisibleForTesting
     UnboundedSource<KafkaRecord<K, V>, KafkaCheckpointMark> makeSource() {
 
-      return new UnboundedKafkaSource<K, V>(this, -1);
+      return new UnboundedKafkaSource<>(this, -1);
     }
 
     // utility method to convert KafkRecord<K, V> to user KV<K, V> before applying user functions
     private static <KeyT, ValueT, OutT> SerializableFunction<KafkaRecord<KeyT, ValueT>, OutT>
     unwrapKafkaAndThen(final SerializableFunction<KV<KeyT, ValueT>, OutT> fn) {
-      return new SerializableFunction<KafkaRecord<KeyT, ValueT>, OutT>() {
-        @Override
-        public OutT apply(KafkaRecord<KeyT, ValueT> record) {
-          return fn.apply(record.getKV());
-        }
-      };
+      return record -> fn.apply(record.getKV());
     }
     ///////////////////////////////////////////////////////////////////////////////////////
 
@@ -663,9 +680,11 @@ public class KafkaIO {
 
     // set config defaults
     private static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
-        ImmutableMap.<String, Object>of(
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
+        ImmutableMap.of(
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+            ByteArrayDeserializer.class.getName(),
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+            ByteArrayDeserializer.class.getName(),
 
             // Use large receive buffer. Once KAFKA-3135 is fixed, this _may_ not be required.
             // with default value of of 32K, It takes multiple seconds between successful polls.
@@ -674,22 +693,19 @@ public class KafkaIO {
             // about half of the time select() inside kafka consumer waited for 20-30ms, though
             // the server had lots of data in tcp send buffers on its side. Compared to default,
             // this setting increased throughput increased by many fold (3-4x).
-            ConsumerConfig.RECEIVE_BUFFER_CONFIG, 512 * 1024,
+            ConsumerConfig.RECEIVE_BUFFER_CONFIG,
+            512 * 1024,
 
             // default to latest offset when we are not resuming.
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest",
+            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+            "latest",
             // disable auto commit of offsets. we don't require group_id. could be enabled by user.
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+            false);
 
     // default Kafka 0.9 Consumer supplier.
     private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
-      KAFKA_CONSUMER_FACTORY_FN =
-        new SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>() {
-          @Override
-          public Consumer<byte[], byte[]> apply(Map<String, Object> config) {
-            return new KafkaConsumer<>(config);
-          }
-        };
+        KAFKA_CONSUMER_FACTORY_FN = KafkaConsumer::new;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -815,16 +831,12 @@ public class KafkaIO {
         }
       }
 
-      Collections.sort(partitions, new Comparator<TopicPartition>() {
-        @Override
-        public int compare(TopicPartition tp1, TopicPartition tp2) {
-          return ComparisonChain
-              .start()
-              .compare(tp1.topic(), tp2.topic())
-              .compare(tp1.partition(), tp2.partition())
-              .result();
-        }
-      });
+      partitions.sort(
+          (tp1, tp2) ->
+              ComparisonChain.start()
+                  .compare(tp1.topic(), tp2.topic())
+                  .compare(tp1.partition(), tp2.partition())
+                  .result());
 
       checkArgument(desiredNumSplits > 0);
       checkState(partitions.size() > 0,
@@ -834,7 +846,7 @@ public class KafkaIO {
       List<List<TopicPartition>> assignments = new ArrayList<>(numSplits);
 
       for (int i = 0; i < numSplits; i++) {
-        assignments.add(new ArrayList<TopicPartition>());
+        assignments.add(new ArrayList<>());
       }
       for (int i = 0; i < partitions.size(); i++) {
         assignments.get(i % numSplits).add(partitions.get(i));
@@ -851,7 +863,7 @@ public class KafkaIO {
         result.add(
             new UnboundedKafkaSource<>(
                 spec.toBuilder()
-                    .setTopics(Collections.<String>emptyList())
+                    .setTopics(Collections.emptyList())
                     .setTopicPartitions(assignedToSplit)
                     .build(),
                 i));
@@ -866,13 +878,12 @@ public class KafkaIO {
       if (spec.getTopicPartitions().isEmpty()) {
         LOG.warn("Looks like generateSplits() is not called. Generate single split.");
         try {
-          return new UnboundedKafkaReader<K, V>(
-              split(1, options).get(0), checkpointMark);
+          return new UnboundedKafkaReader<>(split(1, options).get(0), checkpointMark);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
       }
-      return new UnboundedKafkaReader<K, V>(this, checkpointMark);
+      return new UnboundedKafkaReader<>(this, checkpointMark);
     }
 
     @Override
@@ -893,7 +904,16 @@ public class KafkaIO {
     }
   }
 
-  private static class UnboundedKafkaReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
+  @VisibleForTesting
+  static class UnboundedKafkaReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
+    // package private, accessed in KafkaCheckpointMark.finalizeCheckpoint.
+
+    @VisibleForTesting
+    static final String METRIC_NAMESPACE = "KafkaIOReader";
+    @VisibleForTesting
+    static final String CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC = "checkpointMarkCommitsEnqueued";
+    private static final String CHECKPOINT_MARK_COMMITS_SKIPPED_METRIC =
+      "checkpointMarkCommitsSkipped";
 
     private final UnboundedKafkaSource<K, V> source;
     private final String name;
@@ -912,9 +932,25 @@ public class KafkaIO {
     private final Counter bytesReadBySplit;
     private final Gauge backlogBytesOfSplit;
     private final Gauge backlogElementsOfSplit;
+    private final Counter checkpointMarkCommitsEnqueued = Metrics.counter(
+      METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC);
+    // Checkpoint marks skipped in favor of newer mark (only the latest needs to be committed).
+    private final Counter checkpointMarkCommitsSkipped = Metrics.counter(
+      METRIC_NAMESPACE, CHECKPOINT_MARK_COMMITS_SKIPPED_METRIC);
 
+    /**
+     * The poll timeout while reading records from Kafka.
+     * If option to commit reader offsets in to Kafka in
+     * {@link KafkaCheckpointMark#finalizeCheckpoint()} is enabled, it would be delayed until
+     * this poll returns. It should be reasonably low as a result.
+     * At the same time it probably can't be very low like 10 millis, I am not sure how it affects
+     * when the latency is high. Probably good to experiment. Often multiple marks would be
+     * finalized in a batch, it it reduce finalization overhead to wait a short while and finalize
+     * only the last checkpoint mark.
+     */
     private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
-    private static final Duration NEW_RECORDS_POLL_TIMEOUT = Duration.millis(10);
+    private static final Duration RECORDS_DEQUEUE_POLL_TIMEOUT = Duration.millis(10);
+    private static final Duration RECORDS_ENQUEUE_POLL_TIMEOUT = Duration.millis(100);
 
     // Use a separate thread to read Kafka messages. Kafka Consumer does all its work including
     // network I/O inside poll(). Polling only inside #advance(), especially with a small timeout
@@ -923,6 +959,7 @@ public class KafkaIO {
     private final ExecutorService consumerPollThread = Executors.newSingleThreadExecutor();
     private final SynchronousQueue<ConsumerRecords<byte[], byte[]>> availableRecordsQueue =
         new SynchronousQueue<>();
+    private AtomicReference<KafkaCheckpointMark> finalizedCheckpointMark = new AtomicReference<>();
     private AtomicBoolean closed = new AtomicBoolean(false);
 
     // Backlog support :
@@ -1019,13 +1056,12 @@ public class KafkaIO {
       this.name = "Reader-" + source.id;
 
       List<TopicPartition> partitions = source.spec.getTopicPartitions();
-      partitionStates = ImmutableList.copyOf(Lists.transform(partitions,
-          new Function<TopicPartition, PartitionState>() {
-            @Override
-            public PartitionState apply(TopicPartition tp) {
-              return new PartitionState(tp, UNINITIALIZED_OFFSET);
-            }
-        }));
+      partitionStates =
+          ImmutableList.copyOf(
+              partitions
+                  .stream()
+                  .map(tp -> new PartitionState(tp, UNINITIALIZED_OFFSET))
+                  .collect(Collectors.toList()));
 
       if (checkpointMark != null) {
         // a) verify that assigned and check-pointed partitions match exactly
@@ -1056,12 +1092,21 @@ public class KafkaIO {
     }
 
     private void consumerPollLoop() {
-      // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue
+      // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
+
+      ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
       while (!closed.get()) {
         try {
-          ConsumerRecords<byte[], byte[]> records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
-          if (!records.isEmpty() && !closed.get()) {
-            availableRecordsQueue.put(records); // blocks until dequeued.
+          if (records.isEmpty()) {
+            records = consumer.poll(KAFKA_POLL_TIMEOUT.getMillis());
+          } else if (availableRecordsQueue.offer(records,
+                                                 RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(),
+                                                 TimeUnit.MILLISECONDS)) {
+            records = ConsumerRecords.empty();
+          }
+          KafkaCheckpointMark checkpointMark = finalizedCheckpointMark.getAndSet(null);
+          if (checkpointMark != null) {
+            commitCheckpointMark(checkpointMark);
           }
         } catch (InterruptedException e) {
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
@@ -1074,13 +1119,40 @@ public class KafkaIO {
       LOG.info("{}: Returning from consumer pool loop", this);
     }
 
+    private void commitCheckpointMark(KafkaCheckpointMark checkpointMark) {
+      consumer.commitSync(
+        checkpointMark
+          .getPartitions()
+          .stream()
+          .filter(p -> p.getNextOffset() != UNINITIALIZED_OFFSET)
+          .collect(Collectors.toMap(
+            p -> new TopicPartition(p.getTopic(), p.getPartition()),
+            p -> new OffsetAndMetadata(p.getNextOffset())
+          ))
+      );
+    }
+
+    /**
+     * Enqueue checkpoint mark to be committed to Kafka. This does not block until
+     * it is committed. There could be a delay of up to KAFKA_POLL_TIMEOUT (1 second).
+     * Any checkpoint mark enqueued earlier is dropped in favor of this checkpoint mark.
+     * Documentation for {@link CheckpointMark#finalizeCheckpoint()} says these are finalized
+     * in order. Only the latest offsets need to be committed.
+     */
+    void finalizeCheckpointMarkAsync(KafkaCheckpointMark checkpointMark) {
+      if (finalizedCheckpointMark.getAndSet(checkpointMark) != null) {
+        checkpointMarkCommitsSkipped.inc();
+      }
+      checkpointMarkCommitsEnqueued.inc();
+    }
+
     private void nextBatch() {
       curBatch = Collections.emptyIterator();
 
       ConsumerRecords<byte[], byte[]> records;
       try {
         // poll available records, wait (if necessary) up to the specified timeout.
-        records = availableRecordsQueue.poll(NEW_RECORDS_POLL_TIMEOUT.getMillis(),
+        records = availableRecordsQueue.poll(RECORDS_DEQUEUE_POLL_TIMEOUT.getMillis(),
                                              TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
@@ -1149,11 +1221,7 @@ public class KafkaIO {
       // Unfortunately it can block forever in case of network issues like incorrect ACLs.
       // Initialize partition in a separate thread and cancel it if takes longer than a minute.
       for (final PartitionState pState : partitionStates) {
-        Future<?> future =  consumerPollThread.submit(new Runnable() {
-          public void run() {
-            setupInitialOffset(pState);
-          }
-        });
+        Future<?> future = consumerPollThread.submit(() -> setupInitialOffset(pState));
 
         try {
           // Timeout : 1 minute OR 2 * Kafka consumer request timeout if it is set.
@@ -1181,13 +1249,7 @@ public class KafkaIO {
 
       // Start consumer read loop.
       // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
-      consumerPollThread.submit(
-          new Runnable() {
-            @Override
-            public void run() {
-              consumerPollLoop();
-            }
-          });
+      consumerPollThread.submit(this::consumerPollLoop);
 
       // offsetConsumer setup :
 
@@ -1203,12 +1265,7 @@ public class KafkaIO {
       consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
 
       offsetFetcherThread.scheduleAtFixedRate(
-          new Runnable() {
-            @Override
-            public void run() {
-              updateLatestOffsets();
-            }
-          }, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
+          this::updateLatestOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
 
       nextBatch();
       return advance();
@@ -1341,17 +1398,14 @@ public class KafkaIO {
     @Override
     public CheckpointMark getCheckpointMark() {
       reportBacklog();
-      return new KafkaCheckpointMark(ImmutableList.copyOf(// avoid lazy (consumedOffset can change)
-          Lists.transform(partitionStates,
-              new Function<PartitionState, PartitionMark>() {
-                @Override
-                public PartitionMark apply(PartitionState p) {
-                  return new PartitionMark(p.topicPartition.topic(),
-                                           p.topicPartition.partition(),
-                                           p.nextOffset);
-                }
-              }
-          )));
+      return new KafkaCheckpointMark(
+              partitionStates.stream()
+                      .map((p) -> new PartitionMark(p.topicPartition.topic(),
+                              p.topicPartition.partition(),
+                              p.nextOffset))
+                      .collect(Collectors.toList()),
+              source.spec.isCommitOffsetsInFinalizeEnabled() ? this : null
+      );
     }
 
     @Override
@@ -1486,8 +1540,7 @@ public class KafkaIO {
      */
     public Write<K, V> withBootstrapServers(String bootstrapServers) {
       return updateProducerProperties(
-          ImmutableMap.<String, Object>of(
-              ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     /**
@@ -1649,8 +1702,7 @@ public class KafkaIO {
 
     // set config defaults
     private static final Map<String, Object> DEFAULT_PRODUCER_PROPERTIES =
-        ImmutableMap.<String, Object>of(
-            ProducerConfig.RETRIES_CONFIG, 3);
+        ImmutableMap.of(ProducerConfig.RETRIES_CONFIG, 3);
 
     /**
      * A set of properties that are not required or don't make sense for our producer.
@@ -1690,15 +1742,17 @@ public class KafkaIO {
     @Override
     public PDone expand(PCollection<V> input) {
       return input
-        .apply("Kafka values with default key",
-          MapElements.via(new SimpleFunction<V, KV<K, V>>() {
-            @Override
-            public KV<K, V> apply(V element) {
-              return KV.of(null, element);
-            }
-          }))
-        .setCoder(KvCoder.of(new NullOnlyCoder<K>(), input.getCoder()))
-        .apply(kvWriteTransform);
+          .apply(
+              "Kafka values with default key",
+              MapElements.via(
+                  new SimpleFunction<V, KV<K, V>>() {
+                    @Override
+                    public KV<K, V> apply(V element) {
+                      return KV.of(null, element);
+                    }
+                  }))
+          .setCoder(KvCoder.of(new NullOnlyCoder<>(), input.getCoder()))
+          .apply(kvWriteTransform);
     }
 
     @Override
@@ -1729,7 +1783,7 @@ public class KafkaIO {
       if (spec.getProducerFactoryFn() != null) {
         producer = spec.getProducerFactoryFn().apply(producerConfig);
       } else {
-        producer = new KafkaProducer<K, V>(producerConfig);
+        producer = new KafkaProducer<>(producerConfig);
       }
     }
 
@@ -1739,8 +1793,7 @@ public class KafkaIO {
 
       KV<K, V> kv = ctx.element();
       producer.send(
-          new ProducerRecord<K, V>(spec.getTopic(), kv.getKey(), kv.getValue()),
-          new SendCallback());
+          new ProducerRecord<>(spec.getTopic(), kv.getKey(), kv.getValue()), new SendCallback());
 
       elementsWritten.inc();
     }
@@ -1927,16 +1980,19 @@ public class KafkaIO {
       checkState(numShards > 0, "Could not set number of shards");
 
       return input
-          .apply(Window.<KV<K, V>>into(new GlobalWindows()) // Everything into global window.
-                     .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-                     .discardingFiredPanes())
-          .apply(String.format("Shuffle across %d shards", numShards),
-                 ParDo.of(new EOSReshard<K, V>(numShards)))
-          .apply("Persist sharding", GroupByKey.<Integer, KV<K, V>>create())
-          .apply("Assign sequential ids", ParDo.of(new EOSSequencer<K, V>()))
-          .apply("Persist ids", GroupByKey.<Integer, KV<Long, KV<K, V>>>create())
-          .apply(String.format("Write to Kafka topic '%s'", spec.getTopic()),
-                 ParDo.of(new KafkaEOWriter<>(spec, input.getCoder())));
+          .apply(
+              Window.<KV<K, V>>into(new GlobalWindows()) // Everything into global window.
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .discardingFiredPanes())
+          .apply(
+              String.format("Shuffle across %d shards", numShards),
+              ParDo.of(new EOSReshard<>(numShards)))
+          .apply("Persist sharding", GroupByKey.create())
+          .apply("Assign sequential ids", ParDo.of(new EOSSequencer<>()))
+          .apply("Persist ids", GroupByKey.create())
+          .apply(
+              String.format("Write to Kafka topic '%s'", spec.getTopic()),
+              ParDo.of(new KafkaEOWriter<>(spec, input.getCoder())));
     }
   }
 
@@ -2111,7 +2167,7 @@ public class KafkaIO {
             // might be problematic in extreme cases. Might need to improve it in future.
 
             List<KV<Long, KV<K, V>>> buffered = Lists.newArrayList(oooBufferState.read());
-            Collections.sort(buffered, new KV.OrderByKey<Long, KV<K, V>>());
+            buffered.sort(new KV.OrderByKey<>());
 
             LOG.info("{} : merging {} buffered records (min buffered id is {}).",
                      shard, buffered.size(), minBufferedId);
@@ -2120,8 +2176,9 @@ public class KafkaIO {
             minBufferedIdState.clear();
             minBufferedId = Long.MAX_VALUE;
 
-            iter = Iterators.mergeSorted(ImmutableList.of(iter, buffered.iterator()),
-                                         new KV.OrderByKey<Long, KV<K, V>>());
+            iter =
+                Iterators.mergeSorted(
+                    ImmutableList.of(iter, buffered.iterator()), new KV.OrderByKey<>());
           }
         }
 
@@ -2332,30 +2389,28 @@ public class KafkaIO {
       private final Cache<Integer, ShardWriter<K, V>> cache;
 
       ShardWriterCache() {
-        this.cache = CacheBuilder
-            .newBuilder()
-            .expireAfterWrite(IDLE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            .removalListener(new RemovalListener<Integer, ShardWriter<K, V>>() {
-              @Override
-              public void onRemoval(RemovalNotification<Integer, ShardWriter<K, V>> notification) {
-                if (notification.getCause() != RemovalCause.EXPLICIT) {
-                  ShardWriter writer = notification.getValue();
-                  LOG.info("{} : Closing idle shard writer {} after 1 minute of idle time.",
-                           writer.shard, writer.producerName);
-                  writer.producer.close();
-                }
-              }
-            }).build();
+        this.cache =
+            CacheBuilder.newBuilder()
+                .expireAfterWrite(IDLE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                .<Integer, ShardWriter<K, V>>removalListener(
+                    notification -> {
+                      if (notification.getCause() != RemovalCause.EXPLICIT) {
+                        ShardWriter writer = notification.getValue();
+                        LOG.info(
+                            "{} : Closing idle shard writer {} after 1 minute of idle time.",
+                            writer.shard,
+                            writer.producerName);
+                        writer.producer.close();
+                      }
+                    })
+                .build();
 
         // run cache.cleanUp() every 10 seconds.
         SCHEDULED_CLEAN_UP_THREAD.scheduleAtFixedRate(
-            new Runnable() {
-              @Override
-              public void run() {
-                cache.cleanUp();
-              }
-            },
-            CLEAN_UP_CHECK_INTERVAL_MS, CLEAN_UP_CHECK_INTERVAL_MS, TimeUnit.MILLISECONDS);
+            cache::cleanUp,
+            CLEAN_UP_CHECK_INTERVAL_MS,
+            CLEAN_UP_CHECK_INTERVAL_MS,
+            TimeUnit.MILLISECONDS);
       }
 
       ShardWriter<K, V> removeIfPresent(int shard) {
@@ -2404,9 +2459,10 @@ public class KafkaIO {
         ProducerSpEL.ENABLE_IDEMPOTENCE_CONFIG, true,
         ProducerSpEL.TRANSACTIONAL_ID_CONFIG, producerName));
 
-    Producer<K, V> producer = spec.getProducerFactoryFn() != null
-      ? spec.getProducerFactoryFn().apply((producerConfig))
-      : new KafkaProducer<K, V>(producerConfig);
+    Producer<K, V> producer =
+        spec.getProducerFactoryFn() != null
+            ? spec.getProducerFactoryFn().apply((producerConfig))
+            : new KafkaProducer<>(producerConfig);
 
     ProducerSpEL.initTransactions(producer);
     return producer;

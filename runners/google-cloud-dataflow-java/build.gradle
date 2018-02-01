@@ -28,15 +28,15 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
-evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
-evaluationDependsOn(":beam-model-parent:beam-model-fn-execution")
+evaluationDependsOn(":sdks:java:io:google-cloud-platform")
+evaluationDependsOn(":sdks:java:extensions:google-cloud-platform-core")
+evaluationDependsOn(":model:fn-execution")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-    'dataflow.legacy_environment_major_version' : '6',
+    'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '1',
-    'dataflow.container_version' : 'beam-master-20171113'
+    'dataflow.container_version' : 'beam-master-20180122'
   ]
 }
 
@@ -48,11 +48,11 @@ test {
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
   shadow library.java.google_api_client
   shadow library.java.google_http_client
   shadow library.java.google_http_client_jackson2
@@ -71,10 +71,10 @@ dependencies {
   shadow library.java.slf4j_api
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
-  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
-  testCompile project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output
+  testCompile project(":sdks:java:io:google-cloud-platform").sourceSets.test.output
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(":sdks:java:extensions:google-cloud-platform-core").sourceSets.test.output
+  testCompile project(":model:fn-execution").sourceSets.test.output
   testCompile library.java.guava_testlib
   testCompile library.java.slf4j_jdk14
   testCompile library.java.mockito_core

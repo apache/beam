@@ -52,12 +52,12 @@ class HadoopFileSystem(FileSystem):
   Uses client library :class:`hdfs3.core.HDFileSystem`.
   """
 
-  def __init__(self):
+  def __init__(self, pipeline_options):
     """Initializes a connection to HDFS.
 
     Connection configuration is done using :doc:`hdfs`.
     """
-    super(HadoopFileSystem, self).__init__()
+    super(HadoopFileSystem, self).__init__(pipeline_options)
     self._hdfs_client = HDFileSystem()
 
   @classmethod

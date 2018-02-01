@@ -401,12 +401,7 @@ public class PCollectionViews {
         ViewFn<PrimitiveViewT, ViewT> viewFn,
         WindowMappingFn<W> windowMappingFn,
         WindowingStrategy<?, W> windowingStrategy) {
-      this(
-          pCollection,
-          new TupleTag<PrimitiveViewT>(),
-          viewFn,
-          windowMappingFn,
-          windowingStrategy);
+      this(pCollection, new TupleTag<>(), viewFn, windowMappingFn, windowingStrategy);
     }
 
     @Override
@@ -472,7 +467,7 @@ public class PCollectionViews {
 
     @Override
     public Map<TupleTag<?>, PValue> expand() {
-      return Collections.<TupleTag<?>, PValue>singletonMap(tag, pCollection);
+      return Collections.singletonMap(tag, pCollection);
     }
   }
 }

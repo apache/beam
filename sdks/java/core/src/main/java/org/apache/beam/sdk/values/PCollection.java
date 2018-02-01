@@ -232,7 +232,7 @@ public class PCollection<T> extends PValueBase implements PValue {
 
   @Override
   public final Map<TupleTag<?>, PValue> expand() {
-    return Collections.<TupleTag<?>, PValue>singletonMap(tag, this);
+    return Collections.singletonMap(tag, this);
   }
 
   /**
@@ -372,7 +372,7 @@ public class PCollection<T> extends PValueBase implements PValue {
       WindowingStrategy<?, ?> windowingStrategy,
       IsBounded isBounded,
       @Nullable Coder<T> coder) {
-    PCollection<T> res = new PCollection<T>(pipeline, windowingStrategy, isBounded);
+    PCollection<T> res = new PCollection<>(pipeline, windowingStrategy, isBounded);
     if (coder != null) {
       res.setCoder(coder);
     }

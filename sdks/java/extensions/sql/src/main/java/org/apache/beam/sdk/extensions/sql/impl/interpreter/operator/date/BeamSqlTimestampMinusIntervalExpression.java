@@ -59,7 +59,7 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
 
   @Override
   public BeamSqlPrimitive evaluate(BeamRecord row, BoundedWindow window) {
-    DateTime date = new DateTime(opValueEvaluated(0, row, window));
+    DateTime date = new DateTime((Object) opValueEvaluated(0, row, window));
     Period period = intervalToPeriod(op(1).evaluate(row, window));
 
     Date subtractionResult = date.minus(period).toDate();

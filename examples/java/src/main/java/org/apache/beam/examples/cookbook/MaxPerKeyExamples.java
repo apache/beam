@@ -107,8 +107,7 @@ public class MaxPerKeyExamples {
           ParDo.of(new ExtractTempFn()));
 
       // month, mean_temp... => <month, max mean temp>...
-      PCollection<KV<Integer, Double>> tempMaxes =
-          temps.apply(Max.<Integer>doublesPerKey());
+      PCollection<KV<Integer, Double>> tempMaxes = temps.apply(Max.doublesPerKey());
 
       // <month, max>... => row...
       PCollection<TableRow> results = tempMaxes.apply(

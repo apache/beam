@@ -334,8 +334,8 @@ public class TriggerExample {
 
     @Override
     public PCollection<TableRow> expand(PCollection<KV<String, Integer>> flowInfo) {
-      PCollection<KV<String, Iterable<Integer>>> flowPerFreeway = flowInfo
-          .apply(GroupByKey.<String, Integer>create());
+      PCollection<KV<String, Iterable<Integer>>> flowPerFreeway =
+          flowInfo.apply(GroupByKey.create());
 
       PCollection<KV<String, String>> results = flowPerFreeway.apply(ParDo.of(
           new DoFn<KV<String, Iterable<Integer>>, KV<String, String>>() {

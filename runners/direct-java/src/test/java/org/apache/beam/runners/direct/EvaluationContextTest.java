@@ -101,8 +101,8 @@ public class EvaluationContextTest {
         DirectRunner.fromOptions(PipelineOptionsFactory.create());
 
     created = p.apply(Create.of(1, 2, 3));
-    downstream = created.apply(WithKeys.<String, Integer>of("foo"));
-    view = created.apply(View.<Integer>asIterable());
+    downstream = created.apply(WithKeys.of("foo"));
+    view = created.apply(View.asIterable());
     unbounded = p.apply(GenerateSequence.from(0));
 
     p.replaceAll(runner.defaultTransformOverrides());
@@ -156,8 +156,7 @@ public class EvaluationContextTest {
     }
     viewWriter.add((Iterable) valuesBuilder.build());
 
-    SideInputReader reader =
-        context.createSideInputReader(ImmutableList.<PCollectionView<?>>of(view));
+    SideInputReader reader = context.createSideInputReader(ImmutableList.of(view));
     assertThat(reader.get(view, window), containsInAnyOrder(1));
     assertThat(reader.get(view, second), containsInAnyOrder(2));
 
@@ -172,7 +171,7 @@ public class EvaluationContextTest {
     viewWriter.add((Iterable) overwrittenValuesBuilder.build());
     assertThat(reader.get(view, second), containsInAnyOrder(2));
     // The cached value is served in the earlier reader
-    reader = context.createSideInputReader(ImmutableList.<PCollectionView<?>>of(view));
+    reader = context.createSideInputReader(ImmutableList.of(view));
     assertThat(reader.get(view, second), containsInAnyOrder(4444));
   }
 
@@ -191,7 +190,7 @@ public class EvaluationContextTest {
         ImmutableListBundleFactory.create()
             .createKeyedBundle(StructuralKey.of("foo", StringUtf8Coder.of()), created)
             .commit(Instant.now()),
-        ImmutableList.<TimerData>of(),
+        ImmutableList.of(),
         StepTransformResult.withoutHold(createdProducer)
             .withState(stepContext.commitState())
             .build());
@@ -283,7 +282,7 @@ public class EvaluationContextTest {
 
     context.handleResult(
         context.createKeyedBundle(myKey, created).commit(Instant.now()),
-        ImmutableList.<TimerData>of(),
+        ImmutableList.of(),
         stateResult);
 
     DirectExecutionContext afterResultContext =
@@ -297,13 +296,7 @@ public class EvaluationContextTest {
   @Test
   public void callAfterOutputMustHaveBeenProducedAfterEndOfWatermarkCallsback() throws Exception {
     final CountDownLatch callLatch = new CountDownLatch(1);
-    Runnable callback =
-        new Runnable() {
-          @Override
-          public void run() {
-            callLatch.countDown();
-          }
-        };
+    Runnable callback = callLatch::countDown;
 
     // Should call back after the end of the global window
     context.scheduleAfterOutputWouldBeProduced(
@@ -313,14 +306,14 @@ public class EvaluationContextTest {
         StepTransformResult.withHold(createdProducer, new Instant(0))
             .build();
 
-    context.handleResult(null, ImmutableList.<TimerData>of(), result);
+    context.handleResult(null, ImmutableList.of(), result);
     // Difficult to demonstrate that we took no action in a multithreaded world; poll for a bit
     // will likely be flaky if this logic is broken
     assertThat(callLatch.await(500L, TimeUnit.MILLISECONDS), is(false));
 
     TransformResult<?> finishedResult =
         StepTransformResult.withoutHold(createdProducer).build();
-    context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
+    context.handleResult(null, ImmutableList.of(), finishedResult);
     context.forceRefresh();
     // Obtain the value via blocking call
     assertThat(callLatch.await(1, TimeUnit.SECONDS), is(true));
@@ -330,17 +323,11 @@ public class EvaluationContextTest {
   public void callAfterOutputMustHaveBeenProducedAlreadyAfterCallsImmediately() throws Exception {
     TransformResult<?> finishedResult =
         StepTransformResult.withoutHold(createdProducer).build();
-    context.handleResult(null, ImmutableList.<TimerData>of(), finishedResult);
+    context.handleResult(null, ImmutableList.of(), finishedResult);
 
     final CountDownLatch callLatch = new CountDownLatch(1);
     context.extractFiredTimers();
-    Runnable callback =
-        new Runnable() {
-          @Override
-          public void run() {
-            callLatch.countDown();
-          }
-        };
+    Runnable callback = callLatch::countDown;
     context.scheduleAfterOutputWouldBeProduced(
         downstream, GlobalWindow.INSTANCE, WindowingStrategy.globalDefault(), callback);
     assertThat(callLatch.await(1, TimeUnit.SECONDS), is(true));
@@ -351,7 +338,7 @@ public class EvaluationContextTest {
     TransformResult<?> holdResult =
         StepTransformResult.withHold(createdProducer, new Instant(0))
             .build();
-    context.handleResult(null, ImmutableList.<TimerData>of(), holdResult);
+    context.handleResult(null, ImmutableList.of(), holdResult);
 
     StructuralKey<?> key = StructuralKey.of("foo".length(), VarIntCoder.of());
     TimerData toFire =
@@ -366,7 +353,7 @@ public class EvaluationContextTest {
     assertThat(context.extractFiredTimers(), emptyIterable());
     context.handleResult(
         context.createKeyedBundle(key, created).commit(Instant.now()),
-        ImmutableList.<TimerData>of(),
+        ImmutableList.of(),
         timerResult);
 
     // timer hasn't fired
@@ -375,12 +362,10 @@ public class EvaluationContextTest {
     TransformResult<?> advanceResult =
         StepTransformResult.withoutHold(createdProducer).build();
     // Should cause the downstream timer to fire
-    context.handleResult(null, ImmutableList.<TimerData>of(), advanceResult);
+    context.handleResult(null, ImmutableList.of(), advanceResult);
 
     Collection<FiredTimers> fired = context.extractFiredTimers();
-    assertThat(
-        Iterables.getOnlyElement(fired).getKey(),
-        Matchers.<StructuralKey<?>>equalTo(key));
+    assertThat(Iterables.getOnlyElement(fired).getKey(), Matchers.equalTo(key));
 
     FiredTimers firedForKey = Iterables.getOnlyElement(fired);
     // Contains exclusively the fired timer
@@ -397,8 +382,7 @@ public class EvaluationContextTest {
         context.createKeyedBundle(
             key,
             downstream).commit(Instant.now());
-    assertThat(keyedBundle.getKey(),
-        Matchers.<StructuralKey<?>>equalTo(key));
+    assertThat(keyedBundle.getKey(), Matchers.equalTo(key));
   }
 
   @Test
@@ -406,9 +390,7 @@ public class EvaluationContextTest {
     assertThat(context.isDone(unboundedProducer), is(false));
 
     context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(unboundedProducer).build());
+        null, ImmutableList.of(), StepTransformResult.withoutHold(unboundedProducer).build());
     context.extractFiredTimers();
     assertThat(context.isDone(unboundedProducer), is(true));
   }
@@ -422,7 +404,7 @@ public class EvaluationContextTest {
     CommittedResult handleResult =
         context.handleResult(
             null,
-            ImmutableList.<TimerData>of(),
+            ImmutableList.of(),
             StepTransformResult.<Integer>withoutHold(createdProducer)
                 .addOutput(rootBundle)
                 .build());
@@ -430,16 +412,12 @@ public class EvaluationContextTest {
     CommittedBundle<Integer> committedBundle =
         (CommittedBundle<Integer>) Iterables.getOnlyElement(handleResult.getOutputs());
     context.handleResult(
-        null,
-        ImmutableList.<TimerData>of(),
-        StepTransformResult.withoutHold(unboundedProducer).build());
+        null, ImmutableList.of(), StepTransformResult.withoutHold(unboundedProducer).build());
     assertThat(context.isDone(), is(false));
 
     for (AppliedPTransform<?, ?, ?> consumers : graph.getPerElementConsumers(created)) {
       context.handleResult(
-          committedBundle,
-          ImmutableList.<TimerData>of(),
-          StepTransformResult.withoutHold(consumers).build());
+          committedBundle, ImmutableList.of(), StepTransformResult.withoutHold(consumers).build());
     }
     context.extractFiredTimers();
     assertThat(context.isDone(), is(true));

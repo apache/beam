@@ -273,8 +273,8 @@ public class AvroCoder<T> extends CustomCoder<T> {
           @Override
           public DatumReader<T> initialValue() {
             return myCoder.getType().equals(GenericRecord.class)
-                ? new GenericDatumReader<T>(myCoder.getSchema())
-                : new ReflectDatumReader<T>(
+                ? new GenericDatumReader<>(myCoder.getSchema())
+                : new ReflectDatumReader<>(
                     myCoder.getSchema(), myCoder.getSchema(), myCoder.reflectData.get());
           }
         };
@@ -286,8 +286,8 @@ public class AvroCoder<T> extends CustomCoder<T> {
           @Override
           public DatumWriter<T> initialValue() {
             return myCoder.getType().equals(GenericRecord.class)
-                ? new GenericDatumWriter<T>(myCoder.getSchema())
-                : new ReflectDatumWriter<T>(myCoder.getSchema(), myCoder.reflectData.get());
+                ? new GenericDatumWriter<>(myCoder.getSchema())
+                : new ReflectDatumWriter<>(myCoder.getSchema(), myCoder.reflectData.get());
           }
         };
   }

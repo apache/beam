@@ -24,7 +24,6 @@ import com.google.common.collect.ImmutableList;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
@@ -179,10 +178,6 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   }
 
   private static Callable<Path> filesTempDirectory() {
-    return new Callable<Path>() {
-      public Path call() throws IOException {
-        return Files.createTempDirectory("reference-runner-staging");
-      }
-    };
+    return () -> Files.createTempDirectory("reference-runner-staging");
   }
 }

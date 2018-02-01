@@ -95,9 +95,8 @@ public class TopWikipediaSessions {
     @Override
     public PCollection<KV<String, Long>> expand(PCollection<String> actions) {
       return actions
-          .apply(Window.<String>into(Sessions.withGapDuration(Duration.standardHours(1))))
-
-          .apply(Count.<String>perElement());
+          .apply(Window.into(Sessions.withGapDuration(Duration.standardHours(1))))
+          .apply(Count.perElement());
     }
   }
 
@@ -108,15 +107,11 @@ public class TopWikipediaSessions {
       extends PTransform<PCollection<KV<String, Long>>, PCollection<List<KV<String, Long>>>> {
     @Override
     public PCollection<List<KV<String, Long>>> expand(PCollection<KV<String, Long>> sessions) {
+      SerializableComparator<KV<String, Long>> comparator =
+          (o1, o2) -> Long.compare(o1.getValue(), o2.getValue());
       return sessions
-        .apply(Window.<KV<String, Long>>into(CalendarWindows.months(1)))
-
-          .apply(Top.of(1, new SerializableComparator<KV<String, Long>>() {
-                    @Override
-                    public int compare(KV<String, Long> o1, KV<String, Long> o2) {
-                      return Long.compare(o1.getValue(), o2.getValue());
-                    }
-                  }).withoutDefaults());
+          .apply(Window.into(CalendarWindows.months(1)))
+          .apply(Top.of(1, comparator).withoutDefaults());
     }
   }
 

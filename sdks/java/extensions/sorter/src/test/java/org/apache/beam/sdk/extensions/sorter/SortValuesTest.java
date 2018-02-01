@@ -61,12 +61,11 @@ public class SortValuesTest {
 
     // Group by Key, bringing <SecondaryKey, Value> pairs for the same Key together.
     PCollection<KV<String, Iterable<KV<String, Integer>>>> grouped =
-        input.apply(GroupByKey.<String, KV<String, Integer>>create());
+        input.apply(GroupByKey.create());
 
     // For every Key, sort the iterable of <SecondaryKey, Value> pairs by SecondaryKey.
     PCollection<KV<String, Iterable<KV<String, Integer>>>> groupedAndSorted =
-        grouped.apply(
-            SortValues.<String, String, Integer>create(BufferedExternalSorter.options()));
+        grouped.apply(SortValues.create(BufferedExternalSorter.options()));
 
     PAssert.that(groupedAndSorted)
         .satisfies(new AssertThatHasExpectedContentsForTestSecondaryKeySorting());

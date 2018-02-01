@@ -430,8 +430,7 @@ public class ParDo {
    */
   public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new SingleOutput<InputT, OutputT>(
-        fn, Collections.<PCollectionView<?>>emptyList(), displayDataForFn(fn));
+    return new SingleOutput<>(fn, Collections.emptyList(), displayDataForFn(fn));
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
@@ -580,6 +579,9 @@ public class ParDo {
    */
   public static class SingleOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+
+    private static final String MAIN_OUTPUT_TAG = "output";
+
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
@@ -638,7 +640,7 @@ public class ParDo {
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
       finishSpecifyingStateSpecs(fn, registry, input.getCoder());
-      TupleTag<OutputT> mainOutput = new TupleTag<>();
+      TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
       try {
@@ -687,6 +689,11 @@ public class ParDo {
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
+    }
+
+    @Override
+    public String toString() {
+      return fn.toString();
     }
   }
 
@@ -767,13 +774,14 @@ public class ParDo {
         validateStateApplicableForInput(fn, input);
       }
 
-      PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
-          input.getPipeline(),
-          TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
-          // TODO
-          Collections.<TupleTag<?>, Coder<?>>emptyMap(),
-          input.getWindowingStrategy(),
-          input.isBounded());
+      PCollectionTuple outputs =
+          PCollectionTuple.ofPrimitiveOutputsInternal(
+              input.getPipeline(),
+              TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
+              // TODO
+              Collections.emptyMap(),
+              input.getWindowingStrategy(),
+              input.isBounded());
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       for (PCollection<?> out : outputs.getAll().values()) {
@@ -830,6 +838,11 @@ public class ParDo {
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
+    }
+
+    @Override
+    public String toString() {
+      return fn.toString();
     }
   }
 

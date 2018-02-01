@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Iterator;
-
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -63,7 +62,6 @@ import org.joda.time.Instant;
 import scala.Tuple2;
 import scala.runtime.BoxedUnit;
 
-
 /**
  * A "composite" InputDStream implementation for {@link UnboundedSource}s.
  *
@@ -92,9 +90,10 @@ public class SparkUnboundedSource {
         new SourceDStream<>(jssc.ssc(), source, rc, maxRecordsPerBatch);
 
     JavaPairInputDStream<Source<T>, CheckpointMarkT> inputDStream =
-        JavaPairInputDStream$.MODULE$.fromInputDStream(sourceDStream,
-            JavaSparkContext$.MODULE$.<Source<T>>fakeClassTag(),
-                JavaSparkContext$.MODULE$.<CheckpointMarkT>fakeClassTag());
+        JavaPairInputDStream$.MODULE$.fromInputDStream(
+            sourceDStream,
+            JavaSparkContext$.MODULE$.fakeClassTag(),
+            JavaSparkContext$.MODULE$.fakeClassTag());
 
     // call mapWithState to read from a checkpointable sources.
     JavaMapWithStateDStream<Source<T>, CheckpointMarkT, Tuple2<byte[], Instant>,
@@ -170,7 +169,7 @@ public class SparkUnboundedSource {
         int inputDStreamId,
         String sourceName,
         String stepName) {
-      super(parent.ssc(), JavaSparkContext$.MODULE$.<BoxedUnit>fakeClassTag());
+      super(parent.ssc(), JavaSparkContext$.MODULE$.fakeClassTag());
       this.parent = parent;
       this.inputDStreamId = inputDStreamId;
       this.sourceName = sourceName;
@@ -241,14 +240,11 @@ public class SparkUnboundedSource {
     private void report(Time batchTime, long count, SparkWatermarks sparkWatermark) {
       // metadata - #records read and a description.
       scala.collection.immutable.Map<String, Object> metadata =
-          new scala.collection.immutable.Map.Map1<String, Object>(
+          new scala.collection.immutable.Map.Map1<>(
               StreamInputInfo.METADATA_KEY_DESCRIPTION(),
               String.format(
                   "Read %d records with observed watermarks %s, from %s for batch time: %s",
-                  count,
-                  sparkWatermark == null ? "N/A" : sparkWatermark,
-                  sourceName,
-                  batchTime));
+                  count, sparkWatermark == null ? "N/A" : sparkWatermark, sourceName, batchTime));
       StreamInputInfo streamInputInfo = new StreamInputInfo(inputDStreamId, count, metadata);
       ssc().scheduler().inputInfoTracker().reportInfo(batchTime, streamInputInfo);
     }

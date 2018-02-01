@@ -40,6 +40,6 @@ class DirectGBKIntoKeyedWorkItemsOverrideFactory<KeyT, InputT>
               transform) {
     return PTransformReplacement.of(
         PTransformReplacements.getSingletonMainInput(transform),
-        new DirectGroupByKey.DirectGroupByKeyOnly<KeyT, InputT>());
+        new DirectGroupByKey.DirectGroupByKeyOnly<>());
   }
 }

@@ -287,7 +287,7 @@ public class CreateTest {
     thrown.expectMessage("Create.empty(TypeDescriptor)");
     thrown.expectMessage("withCoder(Coder)");
     thrown.expectMessage("withType(TypeDescriptor)");
-    p.apply(Create.timestamped(new ArrayList<TimestampedValue<Object>>()));
+    p.apply(Create.timestamped(new ArrayList<>()));
   }
 
   @Test
@@ -297,9 +297,11 @@ public class CreateTest {
         Matchers.containsString("Unable to infer a coder"));
 
     // Create won't infer a default coder in this case.
-    PCollection<Record> c = p.apply(Create.timestamped(
-        TimestampedValue.of(new Record(), new Instant(0)),
-        TimestampedValue.<Record>of(new Record2(), new Instant(0))));
+    PCollection<Record> c =
+        p.apply(
+            Create.timestamped(
+                TimestampedValue.of(new Record(), new Instant(0)),
+                TimestampedValue.of(new Record2(), new Instant(0))));
 
     p.run();
 
@@ -311,8 +313,8 @@ public class CreateTest {
     Coder<Record> coder = new RecordCoder();
     Create.TimestampedValues<Record> values =
         Create.timestamped(
-            TimestampedValue.of(new Record(), new Instant(0)),
-            TimestampedValue.<Record>of(new Record2(), new Instant(0)))
+                TimestampedValue.of(new Record(), new Instant(0)),
+                TimestampedValue.of(new Record2(), new Instant(0)))
             .withCoder(coder);
     assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
@@ -323,8 +325,8 @@ public class CreateTest {
     p.getCoderRegistry().registerCoderForClass(Record.class, coder);
     Create.TimestampedValues<Record> values =
         Create.timestamped(
-            TimestampedValue.of(new Record(), new Instant(0)),
-            TimestampedValue.<Record>of(new Record2(), new Instant(0)))
+                TimestampedValue.of(new Record(), new Instant(0)),
+                TimestampedValue.of(new Record2(), new Instant(0)))
             .withType(new TypeDescriptor<Record>() {});
     assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
@@ -368,14 +370,7 @@ public class CreateTest {
             p.apply(
                 "Static nested",
                 Create.ofProvider(
-                    NestedValueProvider.of(
-                        StaticValueProvider.of("foo"),
-                        new SerializableFunction<String, String>() {
-                          @Override
-                          public String apply(String input) {
-                            return input + "bar";
-                          }
-                        }),
+                    NestedValueProvider.of(StaticValueProvider.of("foo"), input -> input + "bar"),
                     StringUtf8Coder.of())))
         .containsInAnyOrder("foobar");
     PAssert.that(
@@ -445,8 +440,7 @@ public class CreateTest {
   @Test
   public void testSourceSplitVoid() throws Exception {
     CreateSource<Void> source =
-        CreateSource.fromIterable(
-            Lists.<Void>newArrayList(null, null, null, null, null), VoidCoder.of());
+        CreateSource.fromIterable(Lists.newArrayList(null, null, null, null, null), VoidCoder.of());
     PipelineOptions options = PipelineOptionsFactory.create();
     List<? extends BoundedSource<Void>> splitSources = source.split(3, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splitSources, options);
@@ -455,7 +449,7 @@ public class CreateTest {
   @Test
   public void testSourceSplitEmpty() throws Exception {
     CreateSource<Integer> source =
-        CreateSource.fromIterable(ImmutableList.<Integer>of(), BigEndianIntegerCoder.of());
+        CreateSource.fromIterable(ImmutableList.of(), BigEndianIntegerCoder.of());
     PipelineOptions options = PipelineOptionsFactory.create();
     List<? extends BoundedSource<Integer>> splitSources = source.split(12, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(source, splitSources, options);

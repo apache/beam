@@ -48,15 +48,14 @@ import org.junit.runners.JUnit4;
 public class GenerateSequenceTest {
   public static void addCountingAsserts(PCollection<Long> input, long start, long end) {
     // Count == numElements
-    PAssert.thatSingleton(input.apply("Count", Count.<Long>globally())).isEqualTo(end - start);
+    PAssert.thatSingleton(input.apply("Count", Count.globally())).isEqualTo(end - start);
     // Unique count == numElements
-    PAssert.thatSingleton(
-            input.apply(Distinct.<Long>create()).apply("UniqueCount", Count.<Long>globally()))
+    PAssert.thatSingleton(input.apply(Distinct.create()).apply("UniqueCount", Count.globally()))
         .isEqualTo(end - start);
     // Min == start
-    PAssert.thatSingleton(input.apply("Min", Min.<Long>globally())).isEqualTo(start);
+    PAssert.thatSingleton(input.apply("Min", Min.globally())).isEqualTo(start);
     // Max == end-1
-    PAssert.thatSingleton(input.apply("Max", Max.<Long>globally())).isEqualTo(end - 1);
+    PAssert.thatSingleton(input.apply("Max", Max.globally())).isEqualTo(end - 1);
   }
 
   @Rule public TestPipeline p = TestPipeline.create();
@@ -153,7 +152,7 @@ public class GenerateSequenceTest {
     PCollection<Long> diffs =
         input
             .apply("TimestampDiff", ParDo.of(new ElementValueDiff()))
-            .apply("DistinctTimestamps", Distinct.<Long>create());
+            .apply("DistinctTimestamps", Distinct.create());
     // This assert also confirms that diffs only has one unique value.
     PAssert.thatSingleton(diffs).isEqualTo(0L);
 
@@ -163,13 +162,7 @@ public class GenerateSequenceTest {
   @Test
   public void testUnboundedDisplayData() {
     Duration maxReadTime = Duration.standardHours(5);
-    SerializableFunction<Long, Instant> timestampFn =
-        new SerializableFunction<Long, Instant>() {
-          @Override
-          public Instant apply(Long input) {
-            return Instant.now();
-          }
-        };
+    SerializableFunction<Long, Instant> timestampFn = input -> Instant.now();
 
     PTransform<?, ?> input =
         GenerateSequence.from(0).to(1234).withMaxReadTime(maxReadTime).withTimestampFn(timestampFn);

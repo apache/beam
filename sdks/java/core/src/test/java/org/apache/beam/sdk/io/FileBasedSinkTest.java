@@ -193,10 +193,10 @@ public class FileBasedSinkTest {
 
     List<FileResult<Void>> fileResults = new ArrayList<>();
     // Create temporary output bundles and output File objects.
-    for (int i = 0; i < numFiles; i++) {
+    for (File temporaryFile : temporaryFiles) {
       fileResults.add(
-          new FileResult<Void>(
-              LocalResources.fromFile(temporaryFiles.get(i), false),
+          new FileResult<>(
+              LocalResources.fromFile(temporaryFile, false),
               UNKNOWN_SHARDNUM,
               GlobalWindow.INSTANCE,
               PaneInfo.ON_TIME_AND_ONLY_FIRING,
@@ -253,7 +253,7 @@ public class FileBasedSinkTest {
       outputFiles.add(outputFile);
     }
 
-    writeOp.removeTemporaryFiles(Collections.<ResourceId>emptySet(), true);
+    writeOp.removeTemporaryFiles(Collections.emptySet(), true);
 
     for (int i = 0; i < numFiles; i++) {
       File temporaryFile = temporaryFiles.get(i);
@@ -293,7 +293,7 @@ public class FileBasedSinkTest {
           .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED);
       resultsToFinalFilenames.add(
           KV.of(
-              new FileResult<Void>(
+              new FileResult<>(
                   LocalResources.fromFile(inputTmpFile, false),
                   UNKNOWN_SHARDNUM,
                   GlobalWindow.INSTANCE,
@@ -363,12 +363,13 @@ public class FileBasedSinkTest {
     try {
       List<FileResult<Void>> results = Lists.newArrayList();
       for (int i = 0; i < 3; ++i) {
-        results.add(new FileResult<Void>(
-            root.resolve("temp" + i, StandardResolveOptions.RESOLVE_FILE),
-            1 /* shard - should be different, but is the same */,
-            GlobalWindow.INSTANCE,
-            PaneInfo.ON_TIME_AND_ONLY_FIRING,
-            null));
+        results.add(
+            new FileResult<>(
+                root.resolve("temp" + i, StandardResolveOptions.RESOLVE_FILE),
+                1 /* shard - should be different, but is the same */,
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                null));
       }
       writeOp.finalizeDestination(null, GlobalWindow.INSTANCE, 5 /* numShards */, results);
       fail("Should have failed.");
@@ -419,7 +420,7 @@ public class FileBasedSinkTest {
         new BufferedReader(
             new InputStreamReader(
                 new BZip2CompressorInputStream(new FileInputStream(file)),
-                StandardCharsets.UTF_8.name())),
+                StandardCharsets.UTF_8)),
         "abc",
         "123");
   }
@@ -432,7 +433,7 @@ public class FileBasedSinkTest {
     assertReadValues(
         new BufferedReader(
             new InputStreamReader(
-                new GZIPInputStream(new FileInputStream(file)), StandardCharsets.UTF_8.name())),
+                new GZIPInputStream(new FileInputStream(file)), StandardCharsets.UTF_8)),
         "abc",
         "123");
   }
@@ -447,7 +448,7 @@ public class FileBasedSinkTest {
         new BufferedReader(
             new InputStreamReader(
                 new DeflateCompressorInputStream(new FileInputStream(file)),
-                StandardCharsets.UTF_8.name())),
+                StandardCharsets.UTF_8)),
         "abc",
         "123");
   }
@@ -460,7 +461,7 @@ public class FileBasedSinkTest {
     // Read uncompressed data back in using standard API.
     assertReadValues(
         new BufferedReader(
-            new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8.name())),
+            new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)),
         "abc",
         "123");
   }

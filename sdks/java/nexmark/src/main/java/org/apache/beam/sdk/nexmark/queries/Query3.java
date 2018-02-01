@@ -39,7 +39,6 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
@@ -96,16 +95,7 @@ public class Query3 extends NexmarkQuery {
             .apply(JUST_NEW_AUCTIONS)
 
             // We only want auctions in category 10.
-            .apply(
-                name + ".InCategory",
-                Filter.by(
-                    new SerializableFunction<Auction, Boolean>() {
-
-                      @Override
-                      public Boolean apply(Auction auction) {
-                        return auction.category == 10;
-                      }
-                    }))
+            .apply(name + ".InCategory", Filter.by(auction -> auction.category == 10))
 
             // Key auctions by their seller id.
             .apply("AuctionBySeller", AUCTION_BY_SELLER);
@@ -119,15 +109,10 @@ public class Query3 extends NexmarkQuery {
             .apply(
                 name + ".InState",
                 Filter.by(
-                    new SerializableFunction<Person, Boolean>() {
-
-                      @Override
-                      public Boolean apply(Person person) {
-                        return person.state.equals("OR")
+                    person ->
+                        person.state.equals("OR")
                             || person.state.equals("ID")
-                            || person.state.equals("CA");
-                      }
-                    }))
+                            || person.state.equals("CA")))
 
             // Key people by their id.
             .apply("PersonById", PERSON_BY_ID);
@@ -138,7 +123,7 @@ public class Query3 extends NexmarkQuery {
     KeyedPCollectionTuple.of(AUCTION_TAG, auctionsBySellerId)
         .and(PERSON_TAG, personsById)
         // group auctions and persons by personId
-        .apply(CoGroupByKey.<Long>create())
+        .apply(CoGroupByKey.create())
         .apply(name + ".Join", ParDo.of(joinDoFn))
 
         // Project what we want.

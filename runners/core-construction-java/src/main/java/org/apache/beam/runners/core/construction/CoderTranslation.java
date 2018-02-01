@@ -30,20 +30,12 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.LengthPrefixCoder;
-import org.apache.beam.sdk.coders.StructuredCoder;
-import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 public class CoderTranslation {
@@ -51,35 +43,30 @@ public class CoderTranslation {
   // TODO: standardize such things
   public static final String JAVA_SERIALIZED_CODER_URN = "urn:beam:coders:javasdk:0.1";
 
-  // The URNs for coders which are shared across languages
   @VisibleForTesting
-  static final BiMap<Class<? extends StructuredCoder>, String> KNOWN_CODER_URNS =
-      ImmutableBiMap.<Class<? extends StructuredCoder>, String>builder()
-          .put(ByteArrayCoder.class, "urn:beam:coders:bytes:0.1")
-          .put(KvCoder.class, "urn:beam:coders:kv:0.1")
-          .put(VarLongCoder.class, "urn:beam:coders:varint:0.1")
-          .put(IntervalWindowCoder.class, "urn:beam:coders:interval_window:0.1")
-          .put(IterableCoder.class, "urn:beam:coders:stream:0.1")
-          .put(LengthPrefixCoder.class, "urn:beam:coders:length_prefix:0.1")
-          .put(GlobalWindow.Coder.class, "urn:beam:coders:global_window:0.1")
-          .put(FullWindowedValueCoder.class, "urn:beam:coders:windowed_value:0.1")
-          .build();
+  static final BiMap<Class<? extends Coder>, String> KNOWN_CODER_URNS = loadCoderURNs();
 
   @VisibleForTesting
-  static final Map<Class<? extends StructuredCoder>, CoderTranslator<? extends StructuredCoder>>
-      KNOWN_TRANSLATORS =
-          ImmutableMap
-              .<Class<? extends StructuredCoder>, CoderTranslator<? extends StructuredCoder>>
-                  builder()
-              .put(ByteArrayCoder.class, CoderTranslators.atomic(ByteArrayCoder.class))
-              .put(VarLongCoder.class, CoderTranslators.atomic(VarLongCoder.class))
-              .put(IntervalWindowCoder.class, CoderTranslators.atomic(IntervalWindowCoder.class))
-              .put(GlobalWindow.Coder.class, CoderTranslators.atomic(GlobalWindow.Coder.class))
-              .put(KvCoder.class, CoderTranslators.kv())
-              .put(IterableCoder.class, CoderTranslators.iterable())
-              .put(LengthPrefixCoder.class, CoderTranslators.lengthPrefix())
-              .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
-              .build();
+  static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> KNOWN_TRANSLATORS =
+      loadTranslators();
+
+  private static BiMap<Class<? extends Coder>, String> loadCoderURNs() {
+    ImmutableBiMap.Builder<Class<? extends Coder>, String> coderUrns = ImmutableBiMap.builder();
+    for (CoderTranslatorRegistrar registrar : ServiceLoader.load(CoderTranslatorRegistrar.class)) {
+      coderUrns.putAll(registrar.getCoderURNs());
+    }
+    return coderUrns.build();
+  }
+
+  private static Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> loadTranslators() {
+    ImmutableMap.Builder<Class<? extends Coder>, CoderTranslator<? extends Coder>> translators =
+        ImmutableMap.builder();
+    for (CoderTranslatorRegistrar coderTranslatorRegistrar :
+        ServiceLoader.load(CoderTranslatorRegistrar.class)) {
+      translators.putAll(coderTranslatorRegistrar.getCoderTranslators());
+    }
+    return translators.build();
+  }
 
   public static RunnerApi.MessageWithComponents toProto(Coder<?> coder) throws IOException {
     SdkComponents components = SdkComponents.create();
@@ -91,7 +78,7 @@ public class CoderTranslation {
   }
 
   public static RunnerApi.Coder toProto(
-      Coder<?> coder, @SuppressWarnings("unused") SdkComponents components) throws IOException {
+      Coder<?> coder, SdkComponents components) throws IOException {
     if (KNOWN_CODER_URNS.containsKey(coder.getClass())) {
       return toKnownCoder(coder, components);
     }
@@ -100,22 +87,16 @@ public class CoderTranslation {
 
   private static RunnerApi.Coder toKnownCoder(Coder<?> coder, SdkComponents components)
       throws IOException {
-    checkArgument(
-        coder instanceof StructuredCoder,
-        "A Known %s must implement %s, but %s of class %s does not",
-        Coder.class.getSimpleName(),
-        StructuredCoder.class.getSimpleName(),
-        coder,
-        coder.getClass().getName());
-    StructuredCoder<?> stdCoder = (StructuredCoder<?>) coder;
-    CoderTranslator translator = KNOWN_TRANSLATORS.get(stdCoder.getClass());
+    CoderTranslator translator = KNOWN_TRANSLATORS.get(coder.getClass());
     List<String> componentIds = registerComponents(coder, translator, components);
     return RunnerApi.Coder.newBuilder()
         .addAllComponentCoderIds(componentIds)
         .setSpec(
             SdkFunctionSpec.newBuilder()
                 .setSpec(
-                    FunctionSpec.newBuilder().setUrn(KNOWN_CODER_URNS.get(stdCoder.getClass()))))
+                    FunctionSpec.newBuilder()
+                        .setUrn(KNOWN_CODER_URNS.get(coder.getClass()))
+                        .setPayload(ByteString.copyFrom(translator.getPayload(coder)))))
         .build();
   }
 
@@ -142,8 +123,7 @@ public class CoderTranslation {
         .build();
   }
 
-  public static Coder<?> fromProto(
-      RunnerApi.Coder protoCoder, RehydratedComponents components)
+  public static Coder<?> fromProto(RunnerApi.Coder protoCoder, RehydratedComponents components)
       throws IOException {
     String coderSpecUrn = protoCoder.getSpec().getSpec().getUrn();
     if (coderSpecUrn.equals(JAVA_SERIALIZED_CODER_URN)) {
@@ -160,24 +140,20 @@ public class CoderTranslation {
       Coder<?> innerCoder = components.getCoder(componentId);
       coderComponents.add(innerCoder);
     }
-    Class<? extends StructuredCoder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
+    Class<? extends Coder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
     CoderTranslator<?> translator = KNOWN_TRANSLATORS.get(coderType);
     checkArgument(
         translator != null,
         "Unknown Coder URN %s. Known URNs: %s",
         coderUrn,
         KNOWN_CODER_URNS.values());
-    return translator.fromComponents(coderComponents);
+    return translator.fromComponents(
+        coderComponents, coder.getSpec().getSpec().getPayload().toByteArray());
   }
 
   private static Coder<?> fromCustomCoder(RunnerApi.Coder protoCoder) throws IOException {
     return (Coder<?>)
         SerializableUtils.deserializeFromByteArray(
-            protoCoder
-                .getSpec()
-                .getSpec()
-                .getPayload()
-                .toByteArray(),
-            "Custom Coder Bytes");
+            protoCoder.getSpec().getSpec().getPayload().toByteArray(), "Custom Coder Bytes");
   }
 }

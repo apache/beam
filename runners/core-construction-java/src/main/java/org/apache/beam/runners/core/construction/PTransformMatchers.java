@@ -295,17 +295,14 @@ public class PTransformMatchers {
   }
 
   public static PTransformMatcher createViewWithViewFn(final Class<? extends ViewFn> viewFnType) {
-    return new PTransformMatcher() {
-      @Override
-      public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        if (!(application.getTransform() instanceof CreatePCollectionView)) {
-          return false;
-        }
-        CreatePCollectionView<?, ?> createView =
-            (CreatePCollectionView<?, ?>) application.getTransform();
-        ViewFn<?, ?> viewFn = createView.getView().getViewFn();
-        return viewFn.getClass().equals(viewFnType);
+    return application -> {
+      if (!(application.getTransform() instanceof CreatePCollectionView)) {
+        return false;
       }
+      CreatePCollectionView<?, ?> createView =
+          (CreatePCollectionView<?, ?>) application.getTransform();
+      ViewFn<?, ?> viewFn = createView.getView().getViewFn();
+      return viewFn.getClass().equals(viewFnType);
     };
   }
 
@@ -356,24 +353,20 @@ public class PTransformMatchers {
   }
 
   public static PTransformMatcher writeWithRunnerDeterminedSharding() {
-    return new PTransformMatcher() {
-      @Override
-      public boolean matches(AppliedPTransform<?, ?, ?> application) {
-        if (WRITE_FILES_TRANSFORM_URN.equals(
-            PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
-          try {
-            return WriteFilesTranslation.isRunnerDeterminedSharding(
-                (AppliedPTransform) application);
-          } catch (IOException exc) {
-            throw new RuntimeException(
-                String.format(
-                    "Transform with URN %s failed to parse: %s",
-                    WRITE_FILES_TRANSFORM_URN, application.getTransform()),
-                exc);
-          }
+    return application -> {
+      if (WRITE_FILES_TRANSFORM_URN.equals(
+          PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
+        try {
+          return WriteFilesTranslation.isRunnerDeterminedSharding((AppliedPTransform) application);
+        } catch (IOException exc) {
+          throw new RuntimeException(
+              String.format(
+                  "Transform with URN %s failed to parse: %s",
+                  WRITE_FILES_TRANSFORM_URN, application.getTransform()),
+              exc);
         }
-        return false;
       }
+      return false;
     };
   }
 }

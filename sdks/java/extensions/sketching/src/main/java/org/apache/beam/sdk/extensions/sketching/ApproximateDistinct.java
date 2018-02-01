@@ -22,11 +22,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
 import com.google.auto.value.AutoValue;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -233,7 +231,7 @@ public final class ApproximateDistinct {
   /**
    * Implementation of {@link #globally()}.
    *
-   * @param <InputT>
+   * @param <InputT> the type of the elements in the input {@link PCollection}
    */
   @AutoValue
   public abstract static class GloballyDistinct<InputT>
@@ -274,7 +272,7 @@ public final class ApproximateDistinct {
           .apply(
               "Compute HyperLogLog Structure",
               Combine.globally(
-                  ApproximateDistinctFn.<InputT>create(input.getCoder())
+                  ApproximateDistinctFn.create(input.getCoder())
                       .withPrecision(this.precision())
                       .withSparseRepresentation(this.sparsePrecision())))
           .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.globally()));
@@ -284,8 +282,8 @@ public final class ApproximateDistinct {
   /**
    * Implementation of {@link #perKey()}.
    *
-   * @param <K>
-   * @param <V>
+   * @param <K> type of the keys mapping the elements
+   * @param <V> type of the values being combined per key
    */
   @AutoValue
   public abstract static class PerKeyDistinct<K, V>
@@ -325,11 +323,11 @@ public final class ApproximateDistinct {
       KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
       return input
           .apply(
-              Combine.<K, V, HyperLogLogPlus>perKey(
-                  ApproximateDistinctFn.<V>create(inputCoder.getValueCoder())
+              Combine.perKey(
+                  ApproximateDistinctFn.create(inputCoder.getValueCoder())
                       .withPrecision(this.precision())
                       .withSparseRepresentation(this.sparsePrecision())))
-          .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.<K>perKey()));
+          .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.perKey()));
     }
   }
 
@@ -362,7 +360,8 @@ public final class ApproximateDistinct {
       try {
         coder.verifyDeterministic();
       } catch (Coder.NonDeterministicException e) {
-        throw new IllegalArgumentException("Coder is not deterministic ! " + e.getMessage(), e);
+        throw new IllegalArgumentException("Coder must be deterministic to perform this sketch."
+                + e.getMessage(), e);
       }
       return new ApproximateDistinctFn<>(12, 0, coder);
     }

@@ -242,7 +242,7 @@ public class TransformHierarchy {
   public Set<PValue> visit(PipelineVisitor visitor) {
     finishSpecifying();
     Set<PValue> visitedValues = new HashSet<>();
-    root.visit(visitor, visitedValues, new HashSet<Node>(), new HashSet<Node>());
+    root.visit(visitor, visitedValues, new HashSet<>(), new HashSet<>());
     return visitedValues;
   }
 
@@ -388,8 +388,8 @@ public class TransformHierarchy {
       this.enclosingNode = enclosingNode;
       this.transform = transform;
       this.fullName = fullName;
-      this.inputs = inputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : inputs;
-      this.outputs = outputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : outputs;
+      this.inputs = inputs == null ? Collections.emptyMap() : inputs;
+      this.outputs = outputs == null ? Collections.emptyMap() : outputs;
     }
 
     /**
@@ -567,7 +567,7 @@ public class TransformHierarchy {
 
     /** Returns the transform output, in expanded form. */
     public Map<TupleTag<?>, PValue> getOutputs() {
-      return outputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : outputs;
+      return outputs == null ? Collections.emptyMap() : outputs;
     }
 
     /**

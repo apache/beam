@@ -168,7 +168,7 @@ public class HBaseIOTest {
     // Exception will be thrown by read.expand() when read is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
-    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<Result>());
+    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<>());
   }
 
   /** Tests that when reading from an empty table, the read succeeds. */
@@ -176,7 +176,7 @@ public class HBaseIOTest {
   public void testReadingEmptyTable() throws Exception {
     final String table = "TEST-EMPTY-TABLE";
     createTable(table);
-    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<Result>());
+    runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<>());
   }
 
   @Test
@@ -373,7 +373,7 @@ public class HBaseIOTest {
         .apply(HBaseIO.write().withConfiguration(conf).withTableId(table));
 
     thrown.expect(Pipeline.PipelineExecutionException.class);
-    thrown.expectCause(Matchers.<Throwable>instanceOf(IllegalArgumentException.class));
+    thrown.expectCause(Matchers.instanceOf(IllegalArgumentException.class));
     thrown.expectMessage("No columns to insert");
     p.run().waitUntilFinish();
   }
@@ -473,7 +473,7 @@ public class HBaseIOTest {
   private void runReadTestLength(HBaseIO.Read read, long numElements) {
     final String transformId = read.getTableId() + "_" + read.getKeyRange();
     PCollection<Result> rows = p.apply("Read" + transformId, read);
-    PAssert.thatSingleton(rows.apply("Count" + transformId, Count.<Result>globally()))
+    PAssert.thatSingleton(rows.apply("Count" + transformId, Count.globally()))
         .isEqualTo(numElements);
     p.run().waitUntilFinish();
   }

@@ -116,7 +116,7 @@ public class CombineTranslationTest {
     public void testToFromProtoWithSideInputs() throws Exception {
       PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3));
       final PCollectionView<Iterable<String>> sideInput =
-          pipeline.apply(Create.of("foo")).apply(View.<String>asIterable());
+          pipeline.apply(Create.of("foo")).apply(View.asIterable());
       CombineFnWithContext<Integer, int[], Integer> combineFn = new TestCombineFnWithContext();
       input.apply(Combine.globally(combineFn).withSideInputs(sideInput).withoutDefaults());
       final AtomicReference<AppliedPTransform<?, ?, Combine.PerKey<?, ?, ?>>> combine =

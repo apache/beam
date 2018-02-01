@@ -30,8 +30,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
@@ -87,14 +85,15 @@ public class BeamKafkaCSVTableTest {
   }
 
   private static BeamRecordSqlType genRowType() {
-    return CalciteUtils.toBeamRowType(new RelProtoDataType() {
-
-      @Override public RelDataType apply(RelDataTypeFactory a0) {
-        return a0.builder().add("order_id", SqlTypeName.BIGINT)
-            .add("site_id", SqlTypeName.INTEGER)
-            .add("price", SqlTypeName.DOUBLE).build();
-      }
-    }.apply(BeamQueryPlanner.TYPE_FACTORY));
+    return CalciteUtils.toBeamRowType(
+        ((RelProtoDataType)
+                a0 ->
+                    a0.builder()
+                        .add("order_id", SqlTypeName.BIGINT)
+                        .add("site_id", SqlTypeName.INTEGER)
+                        .add("price", SqlTypeName.DOUBLE)
+                        .build())
+            .apply(BeamQueryPlanner.TYPE_FACTORY));
   }
 
   private static class String2KvBytes extends DoFn<String, KV<byte[], byte[]>>

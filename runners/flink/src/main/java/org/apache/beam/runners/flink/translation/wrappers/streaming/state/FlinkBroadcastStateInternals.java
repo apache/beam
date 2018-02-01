@@ -394,7 +394,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     @Override
     public Iterable<T> read() {
       List<T> result = readInternal();
-      return result != null ? result : Collections.<T>emptyList();
+      return result != null ? result : Collections.emptyList();
     }
 
     @Override

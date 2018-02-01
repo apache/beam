@@ -138,7 +138,7 @@ public class SplittableParDoViaKeyedWorkItems {
     @Override
     public PCollectionTuple expand(PCollection<KV<String, KV<InputT, RestrictionT>>> input) {
       return input
-          .apply(new GBKIntoKeyedWorkItems<String, KV<InputT, RestrictionT>>())
+          .apply(new GBKIntoKeyedWorkItems<>())
           .setCoder(
               KeyedWorkItemCoder.of(
                   StringUtf8Coder.of(),

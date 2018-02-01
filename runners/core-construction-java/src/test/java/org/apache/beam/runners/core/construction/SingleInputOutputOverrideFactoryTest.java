@@ -83,7 +83,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
         factory.mapOutputs(output.expand(), reappliedOutput);
     assertThat(
         replacementMap,
-        Matchers.<PValue, ReplacementOutput>hasEntry(
+        Matchers.hasEntry(
             reappliedOutput,
             ReplacementOutput.of(
                 TaggedPValue.ofExpandedValue(output),

@@ -79,8 +79,7 @@ public class WindowedValueTest {
   @Test
   public void testExplodeWindowsInNoWindowsEmptyIterable() {
     WindowedValue<String> value =
-        WindowedValue.of(
-            "foo", Instant.now(), ImmutableList.<BoundedWindow>of(), PaneInfo.NO_FIRING);
+        WindowedValue.of("foo", Instant.now(), ImmutableList.of(), PaneInfo.NO_FIRING);
 
     assertThat(value.explodeWindows(), emptyIterable());
   }

@@ -223,8 +223,7 @@ public class ArtifactServiceStager {
   @AutoValue
   abstract static class StagingResult {
     static StagingResult success(Set<ArtifactMetadata> metadata) {
-      return new AutoValue_ArtifactServiceStager_StagingResult(
-          metadata, Collections.<File, Throwable>emptyMap());
+      return new AutoValue_ArtifactServiceStager_StagingResult(metadata, Collections.emptyMap());
     }
 
     static StagingResult failure(Map<File, Throwable> failures) {

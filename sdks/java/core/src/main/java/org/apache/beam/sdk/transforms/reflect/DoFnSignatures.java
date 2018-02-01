@@ -24,7 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.AnnotatedElement;
@@ -108,11 +107,7 @@ public class DoFnSignatures {
 
   /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
   public static synchronized <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
-    DoFnSignature signature = signatureCache.get(fn);
-    if (signature == null) {
-      signatureCache.put(fn, signature = parseSignature(fn));
-    }
-    return signature;
+    return signatureCache.computeIfAbsent(fn, k -> parseSignature(fn));
   }
 
   /**
@@ -184,14 +179,14 @@ public class DoFnSignatures {
 
     /** Indicates whether a {@link RestrictionTrackerParameter} is known in this context. */
     public boolean hasRestrictionTrackerParameter() {
-      return Iterables.any(
-          extraParameters, Predicates.instanceOf(RestrictionTrackerParameter.class));
+      return extraParameters
+          .stream()
+          .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
 
     /** Indicates whether a {@link WindowParameter} is known in this context. */
     public boolean hasWindowParameter() {
-      return Iterables.any(
-          extraParameters, Predicates.instanceOf(WindowParameter.class));
+      return extraParameters.stream().anyMatch(Predicates.instanceOf(WindowParameter.class)::apply);
     }
 
     /**
@@ -199,8 +194,9 @@ public class DoFnSignatures {
      * known in this context.
      */
     public boolean hasPipelineOptionsParamter() {
-      return Iterables.any(
-          extraParameters, Predicates.instanceOf(Parameter.PipelineOptionsParameter.class));
+      return extraParameters
+          .stream()
+          .anyMatch(Predicates.instanceOf(Parameter.PipelineOptionsParameter.class)::apply);
     }
 
     /** The window type, if any, used by this method. */
@@ -944,8 +940,8 @@ public class DoFnSignatures {
   @Nullable
   private static TypeDescriptor<?> getTrackerType(TypeDescriptor<?> fnClass, Method method) {
     Type[] params = method.getGenericParameterTypes();
-    for (int i = 0; i < params.length; i++) {
-      TypeDescriptor<?> paramT = fnClass.resolveType(params[i]);
+    for (Type param : params) {
+      TypeDescriptor<?> paramT = fnClass.resolveType(param);
       if (RestrictionTracker.class.isAssignableFrom(paramT.getRawType())) {
         return paramT;
       }
@@ -957,8 +953,8 @@ public class DoFnSignatures {
   private static TypeDescriptor<? extends BoundedWindow> getWindowType(
       TypeDescriptor<?> fnClass, Method method) {
     Type[] params = method.getGenericParameterTypes();
-    for (int i = 0; i < params.length; i++) {
-      TypeDescriptor<?> paramT = fnClass.resolveType(params[i]);
+    for (Type param : params) {
+      TypeDescriptor<?> paramT = fnClass.resolveType(param);
       if (BoundedWindow.class.isAssignableFrom(paramT.getRawType())) {
         return (TypeDescriptor<? extends BoundedWindow>) paramT;
       }
@@ -1175,23 +1171,9 @@ public class DoFnSignatures {
     MemberT[] getMembers(Class<?> clazz);
   }
 
-  // Class::getDeclaredMethods for Java 7
-  private static final MemberGetter<Method> GET_METHODS =
-      new MemberGetter<Method>() {
-        @Override
-        public Method[] getMembers(Class<?> clazz) {
-          return clazz.getDeclaredMethods();
-        }
-      };
+  private static final MemberGetter<Method> GET_METHODS = Class::getDeclaredMethods;
 
-  // Class::getDeclaredFields for Java 7
-  private static final MemberGetter<Field> GET_FIELDS =
-      new MemberGetter<Field>() {
-        @Override
-        public Field[] getMembers(Class<?> clazz) {
-          return clazz.getDeclaredFields();
-        }
-      };
+  private static final MemberGetter<Field> GET_FIELDS = Class::getDeclaredFields;
 
   private static <MemberT extends AnnotatedElement>
       Collection<MemberT> declaredMembersWithAnnotation(
@@ -1381,4 +1363,51 @@ public class DoFnSignatures {
       }
     }
   }
+
+  public static StateSpec<?> getStateSpecOrThrow(
+      StateDeclaration stateDeclaration, DoFn<?, ?> target) {
+    try {
+      Object fieldValue = stateDeclaration.field().get(target);
+      checkState(
+          fieldValue instanceof StateSpec,
+          "Malformed %s class %s: state declaration field %s does not have type %s.",
+          DoFn.class.getSimpleName(),
+          target.getClass().getName(),
+          stateDeclaration.field().getName(),
+          StateSpec.class);
+
+      return (StateSpec<?>) stateDeclaration.field().get(target);
+    } catch (IllegalAccessException exc) {
+      throw new RuntimeException(
+          String.format(
+              "Malformed %s class %s: state declaration field %s is not accessible.",
+              DoFn.class.getSimpleName(),
+              target.getClass().getName(),
+              stateDeclaration.field().getName()));
+    }
+  }
+
+  public static TimerSpec getTimerSpecOrThrow(
+      TimerDeclaration timerDeclaration, DoFn<?, ?> target) {
+    try {
+      Object fieldValue = timerDeclaration.field().get(target);
+      checkState(
+          fieldValue instanceof TimerSpec,
+          "Malformed %s class %s: timer declaration field %s does not have type %s.",
+          DoFn.class.getSimpleName(),
+          target.getClass().getName(),
+          timerDeclaration.field().getName(),
+          TimerSpec.class);
+
+      return (TimerSpec) timerDeclaration.field().get(target);
+    } catch (IllegalAccessException exc) {
+      throw new RuntimeException(
+          String.format(
+              "Malformed %s class %s: timer declaration field %s is not accessible.",
+              DoFn.class.getSimpleName(),
+              target.getClass().getName(),
+              timerDeclaration.field().getName()));
+    }
+  }
+
 }

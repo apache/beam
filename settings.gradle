@@ -16,159 +16,65 @@
  * limitations under the License.
  */
 
-rootProject.name = 'beam-parent'
-include ':beam-sdks-java-build-tools'
-include ':beam-model-parent:beam-model-pipeline'
-include ':beam-model-parent:beam-model-job-management'
-include ':beam-model-parent:beam-model-fn-execution'
-include ':beam-model-parent'
-include ':beam-sdks-parent:beam-sdks-go'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-amqp'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-cassandra'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-common'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-2'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-5'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-common'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-file-system'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-input-format'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-jdk1.8-tests'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hbase'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hcatalog'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-jdbc'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-jms'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kinesis'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-mongodb'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-mqtt'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-redis'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-solr'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-tika'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-file-based-io-tests'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-xml'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-starter'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-examples'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-examples-java8'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-json-jackson'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-join-library'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-protobuf'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-sorter'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-sql'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-nexmark'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-harness'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-container'
-include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-java8tests'
-include ':beam-sdks-parent:beam-sdks-java-parent'
-include ':beam-sdks-parent:beam-sdks-python:beam-sdks-python-container'
-include ':beam-sdks-parent:beam-sdks-python'
-include ':beam-sdks-parent'
-include ':beam-runners-parent:beam-java-fn-execution'
-include ':beam-runners-parent:beam-runners-core-construction-java'
-include ':beam-runners-parent:beam-runners-core-java'
-include ':beam-runners-parent:beam-local-artifact-service-java'
-include ':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-java'
-include ':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-job-orchestrator'
-include ':beam-runners-parent:beam-runners-reference-parent'
-include ':beam-runners-parent:beam-runners-direct-java'
-include ':beam-runners-parent:beam-runners-flink_2.11'
-include ':beam-runners-parent:beam-runners-google-cloud-dataflow-java'
-include ':beam-runners-parent:beam-runners-local-java-core'
-include ':beam-runners-parent:beam-runners-spark'
-include ':beam-runners-parent:beam-runners-apex'
-include ':beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcemd'
-include ':beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcsproxy'
-include ':beam-runners-parent:beam-runners-gcp-parent'
-include ':beam-runners-parent:beam-runners-gearpump'
-include ':beam-runners-parent'
-include ':beam-examples-parent:beam-examples-java'
-include ':beam-examples-parent:beam-examples-java8'
-include ':beam-examples-parent'
-include ':beam-sdks-java-javadoc'
-
-project(':beam-sdks-java-build-tools').projectDir = "$rootDir/sdks/java/build-tools" as File
-project(':beam-model-parent:beam-model-pipeline').projectDir = "$rootDir/model/pipeline" as File
-project(':beam-model-parent:beam-model-job-management').projectDir = "$rootDir/model/job-management" as File
-project(':beam-model-parent:beam-model-fn-execution').projectDir = "$rootDir/model/fn-execution" as File
-project(':beam-model-parent').projectDir = "$rootDir/model" as File
-project(':beam-sdks-parent:beam-sdks-go').projectDir = "$rootDir/sdks/go" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core').projectDir = "$rootDir/sdks/java/core" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution').projectDir = "$rootDir/sdks/java/fn-execution" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-amqp').projectDir = "$rootDir/sdks/java/io/amqp" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-cassandra').projectDir = "$rootDir/sdks/java/io/cassandra" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common').projectDir = "$rootDir/sdks/java/io/common" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch').projectDir = "$rootDir/sdks/java/io/elasticsearch" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-common').projectDir = "$rootDir/sdks/java/io/elasticsearch-tests/elasticsearch-tests-common" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-2').projectDir = "$rootDir/sdks/java/io/elasticsearch-tests/elasticsearch-tests-2" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-5').projectDir = "$rootDir/sdks/java/io/elasticsearch-tests/elasticsearch-tests-5" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent').projectDir = "$rootDir/sdks/java/io/elasticsearch-tests" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform').projectDir = "$rootDir/sdks/java/io/google-cloud-platform" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-common').projectDir = "$rootDir/sdks/java/io/hadoop-common" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-file-system').projectDir = "$rootDir/sdks/java/io/hadoop-file-system" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-input-format').projectDir = "$rootDir/sdks/java/io/hadoop/input-format" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-jdk1.8-tests').projectDir = "$rootDir/sdks/java/io/hadoop/jdk1.8-tests" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent').projectDir = "$rootDir/sdks/java/io/hadoop" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hbase').projectDir = "$rootDir/sdks/java/io/hbase" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hcatalog').projectDir = "$rootDir/sdks/java/io/hcatalog" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-jdbc').projectDir = "$rootDir/sdks/java/io/jdbc" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-jms').projectDir = "$rootDir/sdks/java/io/jms" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka').projectDir = "$rootDir/sdks/java/io/kafka" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kinesis').projectDir = "$rootDir/sdks/java/io/kinesis" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-mongodb').projectDir = "$rootDir/sdks/java/io/mongodb" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-mqtt').projectDir = "$rootDir/sdks/java/io/mqtt" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-redis').projectDir = "$rootDir/sdks/java/io/redis" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-solr').projectDir = "$rootDir/sdks/java/io/solr" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-tika').projectDir = "$rootDir/sdks/java/io/tika" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-file-based-io-tests').projectDir = "$rootDir/sdks/java/io/file-based-io-tests" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-xml').projectDir = "$rootDir/sdks/java/io/xml" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent').projectDir = "$rootDir/sdks/java/io" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-starter').projectDir = "$rootDir/sdks/java/maven-archetypes/starter" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-examples').projectDir = "$rootDir/sdks/java/maven-archetypes/examples" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-examples-java8').projectDir = "$rootDir/sdks/java/maven-archetypes/examples-java8" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent').projectDir = "$rootDir/sdks/java/maven-archetypes" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core').projectDir = "$rootDir/sdks/java/extensions/google-cloud-platform-core" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-json-jackson').projectDir = "$rootDir/sdks/java/extensions/jackson" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-join-library').projectDir = "$rootDir/sdks/java/extensions/join-library" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-protobuf').projectDir = "$rootDir/sdks/java/extensions/protobuf" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-sorter').projectDir = "$rootDir/sdks/java/extensions/sorter" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-sql').projectDir = "$rootDir/sdks/java/extensions/sql" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent').projectDir = "$rootDir/sdks/java/extensions" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-nexmark').projectDir = "$rootDir/sdks/java/nexmark" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-harness').projectDir = "$rootDir/sdks/java/harness" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-container').projectDir = "$rootDir/sdks/java/container" as File
-project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-java8tests').projectDir = "$rootDir/sdks/java/java8tests" as File
-project(':beam-sdks-parent:beam-sdks-java-parent').projectDir = "$rootDir/sdks/java" as File
-project(':beam-sdks-parent:beam-sdks-python:beam-sdks-python-container').projectDir = "$rootDir/sdks/python/container" as File
-project(':beam-sdks-parent:beam-sdks-python').projectDir = "$rootDir/sdks/python" as File
-project(':beam-sdks-parent').projectDir = "$rootDir/sdks" as File
-project(':beam-runners-parent:beam-java-fn-execution').projectDir = "$rootDir/runners/java-fn-execution" as File
-project(':beam-runners-parent:beam-runners-core-construction-java').projectDir = "$rootDir/runners/core-construction-java" as File
-project(':beam-runners-parent:beam-runners-core-java').projectDir = "$rootDir/runners/core-java" as File
-project(':beam-runners-parent:beam-local-artifact-service-java').projectDir = "$rootDir/runners/local-artifact-service-java" as File
-project(':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-java').projectDir = "$rootDir/runners/reference/java" as File
-project(':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-job-orchestrator').projectDir = "$rootDir/runners/reference/job-server" as File
-project(':beam-runners-parent:beam-runners-reference-parent').projectDir = "$rootDir/runners/reference" as File
-project(':beam-runners-parent:beam-runners-direct-java').projectDir = "$rootDir/runners/direct-java" as File
-project(':beam-runners-parent:beam-runners-flink_2.11').projectDir = "$rootDir/runners/flink" as File
-project(':beam-runners-parent:beam-runners-google-cloud-dataflow-java').projectDir = "$rootDir/runners/google-cloud-dataflow-java" as File
-project(':beam-runners-parent:beam-runners-local-java-core').projectDir = "$rootDir/runners/local-java" as File
-project(':beam-runners-parent:beam-runners-spark').projectDir = "$rootDir/runners/spark" as File
-project(':beam-runners-parent:beam-runners-apex').projectDir = "$rootDir/runners/apex" as File
-project(':beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcemd').projectDir = "$rootDir/runners/gcp/gcemd" as File
-project(':beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcsproxy').projectDir = "$rootDir/runners/gcp/gcsproxy" as File
-project(':beam-runners-parent:beam-runners-gcp-parent').projectDir = "$rootDir/runners/gcp" as File
-project(':beam-runners-parent:beam-runners-gearpump').projectDir = "$rootDir/runners/gearpump" as File
-project(':beam-runners-parent').projectDir = "$rootDir/runners" as File
-project(':beam-examples-parent:beam-examples-java').projectDir = "$rootDir/examples/java" as File
-project(':beam-examples-parent:beam-examples-java8').projectDir = "$rootDir/examples/java8" as File
-project(':beam-examples-parent').projectDir = "$rootDir/examples" as File
-project(':beam-sdks-java-javadoc').projectDir = "$rootDir/sdks/java/javadoc" as File
+include ":examples:java"
+include ":model:fn-execution"
+include ":model:job-management"
+include ":model:pipeline"
+include ":runners:apex"
+include ":runners:core-construction-java"
+include ":runners:core-java"
+include ":runners:direct-java"
+include ":runners:flink"
+include ":runners:gcp:gcemd"
+include ":runners:gcp:gcsproxy"
+include ":runners:gearpump"
+include ":runners:google-cloud-dataflow-java"
+include ":runners:java-fn-execution"
+include ":runners:local-artifact-service-java"
+include ":runners:local-java"
+include ":runners:reference:java"
+include ":runners:reference:job-server"
+include ":runners:spark"
+include ":sdks:go"
+include ":sdks:java:build-tools"
+include ":sdks:java:container"
+include ":sdks:java:core"
+include ":sdks:java:extensions:google-cloud-platform-core"
+include ":sdks:java:extensions:jackson"
+include ":sdks:java:extensions:join-library"
+include ":sdks:java:extensions:protobuf"
+include ":sdks:java:extensions:sorter"
+include ":sdks:java:extensions:sql"
+include ":sdks:java:fn-execution"
+include ":sdks:java:harness"
+include ":sdks:java:io:amazon-web-services"
+include ":sdks:java:io:amqp"
+include ":sdks:java:io:cassandra"
+include ":sdks:java:io:common"
+include ":sdks:java:io:elasticsearch"
+include ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-2"
+include ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-5"
+include ":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common"
+include ":sdks:java:io:file-based-io-tests"
+include ":sdks:java:io:google-cloud-platform"
+include ":sdks:java:io:hadoop-common"
+include ":sdks:java:io:hadoop-file-system"
+include ":sdks:java:io:hadoop-input-format"
+include ":sdks:java:io:hbase"
+include ":sdks:java:io:hcatalog"
+include ":sdks:java:io:jdbc"
+include ":sdks:java:io:jms"
+include ":sdks:java:io:kafka"
+include ":sdks:java:io:kinesis"
+include ":sdks:java:io:mongodb"
+include ":sdks:java:io:mqtt"
+include ":sdks:java:io:redis"
+include ":sdks:java:io:solr"
+include ":sdks:java:io:tika"
+include ":sdks:java:io:xml"
+include ":sdks:java:java8tests"
+include ":sdks:java:maven-archetypes:examples"
+include ":sdks:java:maven-archetypes:starter"
+include ":sdks:java:nexmark"
+include ":sdks:python"
+include ":sdks:python:container"

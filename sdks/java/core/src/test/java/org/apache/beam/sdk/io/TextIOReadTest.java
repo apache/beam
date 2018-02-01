@@ -561,7 +561,7 @@ public class TextIOReadTest {
     @Test
     @Category(NeedsRunner.class)
     public void testZipCompressedReadWithNoEntries() throws Exception {
-      File file = createZipFile(new ArrayList<String>(), tempFolder, "empty zip file");
+      File file = createZipFile(new ArrayList<>(), tempFolder, "empty zip file");
       assertReadingCompressedFileMatchesExpected(file, ZIP, EMPTY, p);
       p.run();
     }
@@ -593,14 +593,14 @@ public class TextIOReadTest {
     @Category(NeedsRunner.class)
     public void testZipCompressedReadWithComplexEmptyAndPresentEntries() throws Exception {
       File file =
-        createZipFile(
-          new ArrayList<String>(),
-          tempFolder,
-          "complex empty and present entries",
-          new String[] {"cat"},
-          new String[] {},
-          new String[] {},
-          new String[] {"dog"});
+          createZipFile(
+              new ArrayList<>(),
+              tempFolder,
+              "complex empty and present entries",
+              new String[] {"cat"},
+              new String[] {},
+              new String[] {},
+              new String[] {"dog"});
 
       assertReadingCompressedFileMatchesExpected(
         file, ZIP, Arrays.asList("cat", "dog"), p);
@@ -851,7 +851,7 @@ public class TextIOReadTest {
                   .from(basePath.resolve("*").toString())
                   .watchForNewFiles(
                       Duration.millis(100),
-                      Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                      Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
 
       PAssert.that(lines).containsInAnyOrder("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
       p.run();

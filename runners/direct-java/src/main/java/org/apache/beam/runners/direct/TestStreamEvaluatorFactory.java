@@ -175,7 +175,7 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       try {
         return PTransformReplacement.of(
             transform.getPipeline().begin(),
-            new DirectTestStream<T>(runner, TestStreamTranslation.getTestStream(transform)));
+            new DirectTestStream<>(runner, TestStreamTranslation.getTestStream(transform)));
       } catch (IOException exc) {
         throw new RuntimeException(
             String.format(

@@ -176,13 +176,13 @@ public class BeamSqlDslJoinTest {
   }
 
   private PCollection<BeamRecord> queryFromOrderTables(String sql) {
-    return PCollectionTuple
-        .of(
-            new TupleTag<BeamRecord>("ORDER_DETAILS1"),
-            ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER)
-        )
-        .and(new TupleTag<BeamRecord>("ORDER_DETAILS2"),
-            ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER)
-        ).apply("join", BeamSql.queryMulti(sql)).setCoder(RESULT_CODER);
+    return PCollectionTuple.of(
+            new TupleTag<>("ORDER_DETAILS1"),
+            ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER))
+        .and(
+            new TupleTag<>("ORDER_DETAILS2"),
+            ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
+        .apply("join", BeamSql.queryMulti(sql))
+        .setCoder(RESULT_CODER);
   }
 }

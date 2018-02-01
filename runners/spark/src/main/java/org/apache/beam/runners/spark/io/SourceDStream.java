@@ -39,8 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
-
-
 /**
  * A {@link SourceDStream} is an {@link InputDStream} of {@link SourceRDD.Unbounded}s.
  *
@@ -83,7 +81,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
       UnboundedSource<T, CheckpointMarkT> unboundedSource,
       SerializablePipelineOptions options,
       Long boundMaxRecords) {
-    super(ssc, JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
+    super(ssc, JavaSparkContext$.MODULE$.fakeClassTag());
     this.unboundedSource = unboundedSource;
     this.options = options;
 

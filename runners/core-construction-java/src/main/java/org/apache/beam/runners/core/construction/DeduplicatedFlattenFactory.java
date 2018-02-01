@@ -53,7 +53,7 @@ public class DeduplicatedFlattenFactory<T>
       AppliedPTransform<PCollectionList<T>, PCollection<T>, PCollections<T>> transform) {
     return PTransformReplacement.of(
         getInput(transform.getInputs(), transform.getPipeline()),
-        new FlattenWithoutDuplicateInputs<T>());
+        new FlattenWithoutDuplicateInputs<>());
   }
 
   /**
@@ -95,11 +95,11 @@ public class DeduplicatedFlattenFactory<T>
           PCollection<T> duplicated =
               instanceEntry
                   .getKey()
-                  .apply(duplicationName, ParDo.of(new DuplicateFn<T>(instanceEntry.getValue())));
+                  .apply(duplicationName, ParDo.of(new DuplicateFn<>(instanceEntry.getValue())));
           output = output.and(duplicated);
         }
       }
-      return output.apply(Flatten.<T>pCollections());
+      return output.apply(Flatten.pCollections());
     }
   }
 

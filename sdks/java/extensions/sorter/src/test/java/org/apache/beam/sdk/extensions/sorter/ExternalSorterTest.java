@@ -26,7 +26,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import org.apache.beam.sdk.extensions.sorter.SorterTestUtils.SorterGenerator;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -90,13 +89,9 @@ public class ExternalSorterTest {
   @Test
   public void testRandom() throws Exception {
     SorterTestUtils.testRandom(
-        new SorterGenerator() {
-          @Override
-          public Sorter generateSorter() throws Exception {
-            return ExternalSorter.create(new ExternalSorter.Options()
-                .setTempLocation(tmpLocation.toString()));
-          }
-        },
+        () ->
+            ExternalSorter.create(
+                new ExternalSorter.Options().setTempLocation(tmpLocation.toString())),
         1,
         1000000);
   }

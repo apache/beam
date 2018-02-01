@@ -78,7 +78,8 @@ public class WriteFilesTranslation {
             Map<String, SideInput> sideInputs = new HashMap<>();
             for (PCollectionView<?> view :
                 transform.getSink().getDynamicDestinations().getSideInputs()) {
-              sideInputs.put(view.getTagInternal().getId(), ParDoTranslation.toProto(view));
+              sideInputs.put(
+                  view.getTagInternal().getId(), ParDoTranslation.translateView(view, components));
             }
             return sideInputs;
           }
@@ -155,7 +156,7 @@ public class WriteFilesTranslation {
               "no input with tag %s",
               entry.getKey());
       views.add(
-          ParDoTranslation.viewFromProto(
+          PCollectionViewTranslation.viewFromProto(
               entry.getValue(),
               entry.getKey(),
               originalPCollection,
@@ -190,10 +191,7 @@ public class WriteFilesTranslation {
           transform)
       throws IOException {
     return WriteFilesPayload.parseFrom(
-        PTransformTranslation.toProto(
-                transform,
-                Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
-                SdkComponents.create())
+        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create())
             .getSpec()
             .getPayload());
   }
@@ -302,8 +300,7 @@ public class WriteFilesTranslation {
     @Override
     public Map<Class<? extends PTransform>, TransformPayloadTranslator>
         getTransformPayloadTranslators() {
-      return Collections.<Class<? extends PTransform>, TransformPayloadTranslator>singletonMap(
-          WriteFiles.CONCRETE_CLASS, new WriteFilesTranslator());
+      return Collections.singletonMap(WriteFiles.CONCRETE_CLASS, new WriteFilesTranslator());
     }
 
     @Override

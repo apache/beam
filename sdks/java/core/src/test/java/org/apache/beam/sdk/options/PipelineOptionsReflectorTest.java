@@ -151,10 +151,7 @@ public class PipelineOptionsReflectorTest {
   @Test
   public void testMultipleInputInterfaces() {
     Set<Class<? extends PipelineOptions>> interfaces =
-        ImmutableSet.<Class<? extends PipelineOptions>>of(
-          BaseOptions.class,
-          ExtendOptions1.class,
-          ExtendOptions2.class);
+        ImmutableSet.of(BaseOptions.class, ExtendOptions1.class, ExtendOptions2.class);
 
     Set<PipelineOptionSpec> props = PipelineOptionsReflector.getOptionSpecs(interfaces);
 

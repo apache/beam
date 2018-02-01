@@ -35,7 +35,6 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import javax.xml.bind.ValidationEvent;
 import javax.xml.bind.ValidationEventHandler;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -501,12 +500,10 @@ public class XmlSourceTest {
     File file = tempFolder.newFile("trainXMLSmall");
     Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
 
-    ValidationEventHandler validationEventHandler = new ValidationEventHandler() {
-      @Override
-      public boolean handleEvent(ValidationEvent event) {
-        throw new RuntimeException("MyCustomValidationEventHandler failure mesage");
-      }
-    };
+    ValidationEventHandler validationEventHandler =
+        event -> {
+          throw new RuntimeException("MyCustomValidationEventHandler failure mesage");
+        };
 
     BoundedSource<WrongTrainType> source =
         XmlIO.<WrongTrainType>read()

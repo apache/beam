@@ -20,24 +20,16 @@ package org.apache.beam.runners.direct;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
-import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
-import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateInternalsFactory;
-import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.runners.core.TimerInternalsFactory;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -45,9 +37,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -122,22 +112,9 @@ class SplittableProcessElementsEvaluatorFactory<
                 processFn,
                 fnManager);
 
-    processFn.setStateInternalsFactory(
-        new StateInternalsFactory<String>() {
-          @SuppressWarnings({"unchecked", "rawtypes"})
-          @Override
-          public StateInternals stateInternalsForKey(String key) {
-            return (StateInternals) stepContext.stateInternals();
-          }
-        });
+    processFn.setStateInternalsFactory(key -> (StateInternals) stepContext.stateInternals());
 
-    processFn.setTimerInternalsFactory(
-        new TimerInternalsFactory<String>() {
-          @Override
-          public TimerInternals timerInternalsForKey(String key) {
-            return stepContext.timerInternals();
-          }
-        });
+    processFn.setTimerInternalsFactory(key -> stepContext.timerInternals());
 
     OutputWindowedValue<OutputT> outputWindowedValue =
         new OutputWindowedValue<OutputT>() {
@@ -164,8 +141,7 @@ class SplittableProcessElementsEvaluatorFactory<
           }
         };
     processFn.setProcessElementInvoker(
-        new OutputAndTimeBoundedSplittableProcessElementInvoker<
-            InputT, OutputT, RestrictionT, TrackerT>(
+        new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             transform.getFn(),
             evaluationContext.getPipelineOptions(),
             outputWindowedValue,
@@ -190,34 +166,26 @@ class SplittableProcessElementsEvaluatorFactory<
   private static <InputT, OutputT, RestrictionT>
       ParDoEvaluator.DoFnRunnerFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
           processFnRunnerFactory() {
-    return new ParDoEvaluator.DoFnRunnerFactory<
-        KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>() {
-      @Override
-      public PushbackSideInputDoFnRunner<
-          KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
-      createRunner(
-          PipelineOptions options,
-          DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> fn,
-          List<PCollectionView<?>> sideInputs,
-          ReadyCheckingSideInputReader sideInputReader,
-          OutputManager outputManager,
-          TupleTag<OutputT> mainOutputTag,
-          List<TupleTag<?>> additionalOutputTags,
-          DirectExecutionContext.DirectStepContext stepContext,
-          WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy) {
-        ProcessFn<InputT, OutputT, RestrictionT, ?> processFn =
-            (ProcessFn) fn;
-        return DoFnRunners.newProcessFnRunner(
-            processFn,
-            options,
-            sideInputs,
-            sideInputReader,
-            outputManager,
-            mainOutputTag,
-            additionalOutputTags,
-            stepContext,
-            windowingStrategy);
-      }
+    return (options,
+        fn,
+        sideInputs,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        windowingStrategy) -> {
+      ProcessFn<InputT, OutputT, RestrictionT, ?> processFn = (ProcessFn) fn;
+      return DoFnRunners.newProcessFnRunner(
+          processFn,
+          options,
+          sideInputs,
+          sideInputReader,
+          outputManager,
+          mainOutputTag,
+          additionalOutputTags,
+          stepContext,
+          windowingStrategy);
     };
   }
 }

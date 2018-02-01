@@ -115,8 +115,7 @@ public class BigQueryTornadoes {
           ParDo.of(new ExtractTornadoesFn()));
 
       // month... => <month,count>...
-      PCollection<KV<Integer, Long>> tornadoCounts =
-          tornadoes.apply(Count.<Integer>perElement());
+      PCollection<KV<Integer, Long>> tornadoCounts = tornadoes.apply(Count.perElement());
 
       // <month,count>... => row...
       PCollection<TableRow> results = tornadoCounts.apply(

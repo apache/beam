@@ -68,7 +68,7 @@ class WriteWithShardingFactory<InputT, DestinationT>
       WriteFiles<InputT, DestinationT, ?> replacement =
           WriteFiles.to(WriteFilesTranslation.getSink(transform))
               .withSideInputs(WriteFilesTranslation.getDynamicDestinationSideInputs(transform))
-              .withSharding(new LogElementShardsWithDrift<InputT>());
+              .withSharding(new LogElementShardsWithDrift<>());
       if (WriteFilesTranslation.isWindowedWrites(transform)) {
         replacement = replacement.withWindowedWrites();
       }
@@ -93,10 +93,10 @@ class WriteWithShardingFactory<InputT, DestinationT>
     @Override
     public PCollectionView<Integer> expand(PCollection<T> records) {
       return records
-          .apply(Window.<T>into(new GlobalWindows()))
-          .apply("CountRecords", Count.<T>globally())
+          .apply(Window.into(new GlobalWindows()))
+          .apply("CountRecords", Count.globally())
           .apply("GenerateShardCount", ParDo.of(new CalculateShardsFn()))
-          .apply(View.<Integer>asSingleton());
+          .apply(View.asSingleton());
     }
   }
 

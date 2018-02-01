@@ -84,8 +84,8 @@ public class AfterWatermarkStateMachine {
         TriggerStateMachine earlyTrigger, TriggerStateMachine lateTrigger) {
       super(
           lateTrigger == null
-              ? ImmutableList.<TriggerStateMachine>of(earlyTrigger)
-              : ImmutableList.<TriggerStateMachine>of(earlyTrigger, lateTrigger));
+              ? ImmutableList.of(earlyTrigger)
+              : ImmutableList.of(earlyTrigger, lateTrigger));
       this.earlyTrigger = checkNotNull(earlyTrigger, "earlyTrigger should not be null");
       this.lateTrigger = lateTrigger;
     }

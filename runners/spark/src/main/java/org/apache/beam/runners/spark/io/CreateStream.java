@@ -37,7 +37,6 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
-
 /**
  * Create an input stream from Queue. For SparkRunner tests only.
  *
@@ -168,7 +167,7 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
    * Adds an empty batch.
    */
   public CreateStream<T> emptyBatch() {
-    batches.offer(Collections.<TimestampedValue<T>>emptyList());
+    batches.offer(Collections.emptyList());
     return this;
   }
 

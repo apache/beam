@@ -19,7 +19,6 @@ package org.apache.beam.sdk.extensions.sql;
 
 import java.sql.Types;
 import java.util.Arrays;
-import java.util.Iterator;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -53,9 +52,8 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     String sql2 = "SELECT f_int2, squaresum2(f_int) AS `squaresum`"
         + " FROM PCOLLECTION GROUP BY f_int2";
     PCollection<BeamRecord> result2 =
-        PCollectionTuple.of(new TupleTag<BeamRecord>("PCOLLECTION"), boundedInput1)
-        .apply("testUdaf2",
-            BeamSql.queryMulti(sql2).withUdaf("squaresum2", new SquareSum()));
+        PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
+            .apply("testUdaf2", BeamSql.queryMulti(sql2).withUdaf("squaresum2", new SquareSum()));
     PAssert.that(result2).containsInAnyOrder(record);
 
     pipeline.run().waitUntilFinish();
@@ -79,9 +77,8 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
     String sql2 = "SELECT f_int, cubic2(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<BeamRecord> result2 =
-        PCollectionTuple.of(new TupleTag<BeamRecord>("PCOLLECTION"), boundedInput1)
-        .apply("testUdf2",
-            BeamSql.queryMulti(sql2).withUdf("cubic2", new CubicIntegerFn()));
+        PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
+            .apply("testUdf2", BeamSql.queryMulti(sql2).withUdf("cubic2", new CubicIntegerFn()));
     PAssert.that(result2).containsInAnyOrder(record);
 
     pipeline.run().waitUntilFinish();
@@ -104,9 +101,8 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     @Override
     public Integer mergeAccumulators(Iterable<Integer> accumulators) {
       int v = 0;
-      Iterator<Integer> ite = accumulators.iterator();
-      while (ite.hasNext()) {
-        v += ite.next();
+      for (Integer accumulator : accumulators) {
+        v += accumulator;
       }
       return v;
     }

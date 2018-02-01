@@ -43,7 +43,6 @@ from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.utils import urns
 from apache_beam.utils import windowed_value
 
 __all__ = [
@@ -411,9 +410,10 @@ class BatchElements(PTransform):
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
   """
+
   def __init__(self,
                min_batch_size=1,
-               max_batch_size=1000,
+               max_batch_size=10000,
                target_batch_overhead=.05,
                target_batch_duration_secs=1,
                clock=time.time):
@@ -467,11 +467,6 @@ class _IdentityWindowFn(NonMergingWindowFn):
   def get_window_coder(self):
     return self._window_coder
 
-  def to_runner_api_parameter(self, unused_context):
-    pass  # Overridden by register_pickle_urn below.
-
-  urns.RunnerApiFn.register_pickle_urn(urns.RESHUFFLE_TRANSFORM)
-
 
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, V])
@@ -497,6 +492,8 @@ class ReshufflePerKey(PTransform):
             (element[0], element[1].value), element[1].timestamp, [window])
 
     windowing_saved = pcoll.windowing
+    # The linter is confused.
+    # pylint: disable=abstract-class-instantiated
     result = (pcoll
               | ParDo(ReifyTimestamps())
               | 'IdentityWindow' >> WindowInto(
