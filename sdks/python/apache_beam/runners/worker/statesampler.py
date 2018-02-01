@@ -16,8 +16,7 @@
 #
 
 # This module is experimental. No backwards-compatibility guarantees.
-from collections import namedtuple
-
+from apache_beam.runners.worker.statesamplerinfo import StateSamplerInfo
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 
@@ -27,11 +26,6 @@ try:
 except ImportError:
   from apache_beam.runners.worker import statesampler_slow as statesampler_impl
   FAST_SAMPLER = False
-
-
-StateSamplerInfo = namedtuple(
-    'StateSamplerInfo',
-    ['state_name', 'transition_count', 'time_since_transition'])
 
 
 # Default period for sampling current state of pipeline execution.

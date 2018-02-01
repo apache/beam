@@ -17,6 +17,8 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+from apache_beam.runners.worker.statesamplerinfo import StateSamplerInfo
+
 
 class StateSampler(object):
 
