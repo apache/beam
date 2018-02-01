@@ -23,9 +23,9 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.junit.Test;
@@ -52,7 +52,7 @@ public class FnApiControlClientPoolServiceTest {
 
     // Check that the client is wired up to the request channel
     String id = "fakeInstruction";
-    ListenableFuture<BeamFnApi.InstructionResponse> responseFuture =
+    CompletionStage<BeamFnApi.InstructionResponse> responseFuture =
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
     verify(requestObserver).onNext(any(BeamFnApi.InstructionRequest.class));
     assertThat(responseFuture.isDone(), is(false));
