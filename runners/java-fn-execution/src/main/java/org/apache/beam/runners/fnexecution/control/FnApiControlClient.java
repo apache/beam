@@ -17,13 +17,13 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.slf4j.Logger;
@@ -40,13 +40,13 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This low-level client is responsible only for correlating requests with responses.
  */
-class FnApiControlClient implements Closeable {
+public class FnApiControlClient implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClient.class);
 
   // All writes to this StreamObserver need to be synchronized.
   private final StreamObserver<BeamFnApi.InstructionRequest> requestReceiver;
   private final ResponseStreamObserver responseObserver = new ResponseStreamObserver();
-  private final Map<String, SettableFuture<BeamFnApi.InstructionResponse>> outstandingRequests;
+  private final Map<String, CompletableFuture<BeamFnApi.InstructionResponse>> outstandingRequests;
   private volatile boolean isClosed;
 
   private FnApiControlClient(StreamObserver<BeamFnApi.InstructionRequest> requestReceiver) {
@@ -66,16 +66,16 @@ class FnApiControlClient implements Closeable {
     return new FnApiControlClient(requestObserver);
   }
 
-  public synchronized ListenableFuture<BeamFnApi.InstructionResponse> handle(
+  public synchronized CompletionStage<BeamFnApi.InstructionResponse> handle(
       BeamFnApi.InstructionRequest request) {
     LOG.debug("Sending InstructionRequest {}", request);
-    SettableFuture<BeamFnApi.InstructionResponse> resultFuture = SettableFuture.create();
+    CompletableFuture<BeamFnApi.InstructionResponse> resultFuture = new CompletableFuture<>();
     outstandingRequests.put(request.getInstructionId(), resultFuture);
     requestReceiver.onNext(request);
     return resultFuture;
   }
 
-  StreamObserver<BeamFnApi.InstructionResponse> asResponseObserver() {
+  public StreamObserver<BeamFnApi.InstructionResponse> asResponseObserver() {
     return responseObserver;
   }
 
@@ -91,7 +91,7 @@ class FnApiControlClient implements Closeable {
     }
 
     // Make a copy of the map to make the view of the outstanding requests consistent.
-    Map<String, SettableFuture<BeamFnApi.InstructionResponse>> outstandingRequestsCopy =
+    Map<String, CompletableFuture<BeamFnApi.InstructionResponse>> outstandingRequestsCopy =
         new ConcurrentHashMap<>(outstandingRequests);
     outstandingRequests.clear();
     isClosed = true;
@@ -107,9 +107,9 @@ class FnApiControlClient implements Closeable {
         "{} closed, clearing outstanding requests {}",
         FnApiControlClient.class.getSimpleName(),
         outstandingRequestsCopy);
-    for (SettableFuture<BeamFnApi.InstructionResponse> outstandingRequest :
+    for (CompletableFuture<BeamFnApi.InstructionResponse> outstandingRequest :
         outstandingRequestsCopy.values()) {
-      outstandingRequest.setException(cause);
+      outstandingRequest.completeExceptionally(cause);
     }
   }
 
@@ -125,13 +125,13 @@ class FnApiControlClient implements Closeable {
     @Override
     public void onNext(BeamFnApi.InstructionResponse response) {
       LOG.debug("Received InstructionResponse {}", response);
-      SettableFuture<BeamFnApi.InstructionResponse> completableFuture =
+      CompletableFuture<BeamFnApi.InstructionResponse> responseFuture =
           outstandingRequests.remove(response.getInstructionId());
-      if (completableFuture != null) {
+      if (responseFuture != null) {
         if (response.getError().isEmpty()) {
-          completableFuture.set(response);
+          responseFuture.complete(response);
         } else {
-          completableFuture.setException(
+          responseFuture.completeExceptionally(
               new RuntimeException(String.format(
                   "Error received from SDK harness for instruction %s: %s",
                   response.getInstructionId(),

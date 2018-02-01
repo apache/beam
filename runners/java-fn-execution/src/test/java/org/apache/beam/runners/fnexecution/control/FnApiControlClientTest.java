@@ -24,8 +24,8 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -81,7 +81,7 @@ public class FnApiControlClientTest {
   @Test
   public void testRequestError() throws Exception {
     String id = "instructionId";
-    ListenableFuture<InstructionResponse> responseFuture =
+    CompletionStage<InstructionResponse> responseFuture =
         client.handle(InstructionRequest.newBuilder().setInstructionId(id).build());
     String error = "Oh no an error!";
     client
@@ -102,7 +102,7 @@ public class FnApiControlClientTest {
     String id = "actualInstruction";
     String unknownId = "unknownInstruction";
 
-    ListenableFuture<BeamFnApi.InstructionResponse> responseFuture =
+    CompletionStage<BeamFnApi.InstructionResponse> responseFuture =
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
 
     client
