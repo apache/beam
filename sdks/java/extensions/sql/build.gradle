@@ -67,7 +67,7 @@ dependencies {
 // so we have one location for the FMPP task to parse.
 task copyFmppTemplatesFromSrc(type: Copy) {
   from "src/main/codegen"
-  into "build/templates-fmpp/codegen"
+  into "${project.buildDir}/templates-fmpp/codegen"
 }
 task copyFmppTemplatesFromCalciteCore(type: Copy) {
   dependsOn configurations.fmppTemplates
