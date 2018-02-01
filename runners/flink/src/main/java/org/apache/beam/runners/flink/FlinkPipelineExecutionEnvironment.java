@@ -93,13 +93,14 @@ class FlinkPipelineExecutionEnvironment {
       throw new RuntimeException(e);
     }
 
-    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options.isStreaming()));
-
     PipelineTranslationOptimizer optimizer =
         new PipelineTranslationOptimizer(TranslationMode.BATCH, options);
 
     optimizer.translate(pipeline);
     TranslationMode translationMode = optimizer.getTranslationMode();
+
+    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(
+        translationMode == TranslationMode.STREAMING));
 
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
