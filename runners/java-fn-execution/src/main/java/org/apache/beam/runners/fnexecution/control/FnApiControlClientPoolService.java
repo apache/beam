@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A Fn API control service which adds incoming SDK harness connections to a pool. */
-public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
+class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
     implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
@@ -39,6 +39,9 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   /**
    * Creates a new {@link FnApiControlClientPoolService} which will enqueue and vend new SDK harness
    * connections.
+   *
+   * <p>Clients placed into the {@code clientPool} are owned by whichever consumer owns the pool.
+   * That consumer is responsible for closing the clients when they are no longer needed.
    */
   public static FnApiControlClientPoolService offeringClientsToPool(
       BlockingQueue<FnApiControlClient> clientPool) {
@@ -68,6 +71,6 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
 
   @Override
   public void close() throws Exception {
-    // TODO: terminate existing clients.
+    // The clients in the pool are owned by the consumer, which is responsible for closing them
   }
 }

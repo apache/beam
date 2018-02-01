@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
  * <p>This provides a Java-friendly wrapper around {@link FnApiControlClient} and {@link
  * CloseableFnDataReceiver}, which handle lower-level gRPC message wrangling.
  */
-public class SdkHarnessClient {
+public class SdkHarnessClient implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(SdkHarnessClient.class);
 
   /**
@@ -250,6 +250,11 @@ public class SdkHarnessClient {
     }
 
     return clientProcessors.asMap();
+  }
+
+  @Override
+  public void close() throws Exception {
+    this.fnApiControlClient.close();
   }
 
   /**
