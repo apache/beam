@@ -19,7 +19,6 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"reflect"
 	"strings"
@@ -135,55 +134,54 @@ func Write(s beam.Scope, filename string, col beam.PCollection) {
 	s = s.Scope("textio.Write")
 
 	validateScheme(filename)
-	beam.ParDo0(s, &writeFileFn{Filename: filename}, col)
+
+	// NOTE(BEAM-3579): We may never call Teardown for non-local runners and
+	// FinishBundle doesn't have the right granularity. We therefore
+	// perform a GBK with a fixed key to get all values in a single invocation.
+
+	pre := beam.ParDo(s, addFixedKey, col)
+	post := beam.GroupByKey(s, pre)
+	beam.ParDo0(s, &writeFileFn{Filename: filename}, post)
+}
+
+func addFixedKey(elm beam.T) (int, beam.T) {
+	return 0, elm
 }
 
 type writeFileFn struct {
 	Filename string `json:"filename"`
-
-	fs     FileSystem
-	fd     io.WriteCloser
-	writer *bufio.Writer
 }
 
-func (w *writeFileFn) Setup(ctx context.Context) error {
+func (w *writeFileFn) ProcessElement(ctx context.Context, _ int, lines func(*string) bool) error {
 	fs, err := newFileSystem(ctx, w.Filename)
 	if err != nil {
 		return err
 	}
+	defer fs.Close()
+
 	fd, err := fs.OpenWrite(ctx, w.Filename)
 	if err != nil {
 		fs.Close()
 		return err
 	}
+	buf := bufio.NewWriterSize(fd, 1<<20)
 
 	log.Infof(ctx, "Writing to %v", w.Filename)
 
-	w.fs = fs
-	w.fd = fd
-	w.writer = bufio.NewWriterSize(fd, 1<<20)
-	return nil
-}
+	var line string
+	for lines(&line) {
+		if _, err := buf.WriteString(line); err != nil {
+			return err
+		}
+		if _, err := buf.Write([]byte{'\n'}); err != nil {
+			return err
+		}
+	}
 
-func (w *writeFileFn) ProcessElement(line string) error {
-	if _, err := w.writer.WriteString(line); err != nil {
+	if err := buf.Flush(); err != nil {
 		return err
 	}
-	_, err := w.writer.Write([]byte{'\n'})
-	return err
-}
-
-// TODO(herohde) 1/29/2018: we need to write the object as a side input instead
-// or similar. We may never call Teardown for non-local runners and FinishBundle
-// doesn't have the right granularity.
-
-func (w *writeFileFn) Teardown() error {
-	defer w.fs.Close()
-
-	if err := w.writer.Flush(); err != nil {
-		return err
-	}
-	return w.fd.Close()
+	return fd.Close()
 }
 
 // Immediate reads a local file at pipeline construction-time and embeds the
