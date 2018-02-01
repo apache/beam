@@ -33,16 +33,21 @@ func CombinePerKey(s Scope, combinefn interface{}, col PCollection, opts ...Opti
 	return Must(TryCombinePerKey(s, combinefn, col, opts...))
 }
 
+// addFixedKeyFn forces all elements to a single key.
+func addFixedKeyFn(elm T) (int, T) {
+	return 0, elm
+}
+
 // TryCombine attempts to insert a global Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
 func TryCombine(s Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
-	side, _, err := validate(s, col, opts)
+	pre := ParDo(s, addFixedKeyFn, col)
+	post, err := TryCombinePerKey(s, combinefn, pre, opts...)
 	if err != nil {
 		return PCollection{}, err
 	}
-	ValidateNonCompositeType(col)
-	return combine(s, combinefn, col, side)
+	return DropKey(s, post), nil
 }
 
 // TryCombinePerKey attempts to insert a per-key Combine transform into the pipeline. It may fail
