@@ -26,7 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.SettableFuture;
 import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import java.io.IOException;
@@ -34,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -76,6 +76,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow.Coder;
+import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
@@ -107,7 +108,7 @@ public class SdkHarnessClientTest {
     String descriptorId1 = "descriptor1";
     String descriptorId2 = "descriptor2";
 
-    SettableFuture<BeamFnApi.InstructionResponse> registerResponseFuture = SettableFuture.create();
+    CompletableFuture<InstructionResponse> registerResponseFuture = new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
         .thenReturn(registerResponseFuture);
 
@@ -146,10 +147,10 @@ public class SdkHarnessClientTest {
 
     ProcessBundleDescriptor descriptor =
         ProcessBundleDescriptor.newBuilder().setId(descriptorId1).build();
-    SettableFuture<BeamFnApi.InstructionResponse> processBundleResponseFuture =
-        SettableFuture.create();
+    CompletableFuture<InstructionResponse> processBundleResponseFuture =
+        new CompletableFuture<>();
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(SettableFuture.<InstructionResponse>create())
+        .thenReturn(new CompletableFuture<>())
         .thenReturn(processBundleResponseFuture);
 
     FullWindowedValueCoder<String> coder =
@@ -169,9 +170,9 @@ public class SdkHarnessClientTest {
     // Currently there are no fields so there's nothing to check. This test is formulated
     // to match the pattern it should have if/when the response is meaningful.
     BeamFnApi.ProcessBundleResponse response = BeamFnApi.ProcessBundleResponse.getDefaultInstance();
-    processBundleResponseFuture.set(
+    processBundleResponseFuture.complete(
         BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response).build());
-    activeBundle.getBundleResponse().get();
+    MoreFutures.get(activeBundle.getBundleResponse());
   }
 
   @Test
@@ -248,7 +249,7 @@ public class SdkHarnessClientTest {
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("bar"));
       bundleInputReceiver.accept(WindowedValue.valueInGlobalWindow("baz"));
     }
-    activeBundle.getBundleResponse().get();
+    MoreFutures.get(activeBundle.getBundleResponse());
     for (InboundDataClient outputClient : activeBundle.getOutputClients().values()) {
       outputClient.awaitCompletion();
     }
