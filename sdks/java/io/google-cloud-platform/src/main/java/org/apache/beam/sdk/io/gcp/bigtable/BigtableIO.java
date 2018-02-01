@@ -716,6 +716,7 @@ public class BigtableIO {
       public void finishBundle() throws Exception {
         bigtableWriter.flush();
         checkForFailures();
+        LOG.debug("Wrote {} records", recordsWritten);
       }
 
       @Teardown
