@@ -322,8 +322,8 @@ class TestReadFromTFRecordSource(TestTFRecordSource):
 class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
 
   def create_inputs(self):
-    input_array = [[random.random() - 0.5 for _ in xrange(15)]
-                   for _ in xrange(12)]
+    input_array = [[random.random() - 0.5 for _ in range(15)]
+                   for _ in range(12)]
     memfile = cStringIO.StringIO()
     pickle.dump(input_array, memfile)
     return memfile.getvalue()
