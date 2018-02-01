@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;

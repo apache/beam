@@ -467,9 +467,9 @@ public class FileBasedSinkTest {
   }
 
   private void assertReadValues(final BufferedReader br, String... values) throws IOException {
-    try (final BufferedReader _br = br) {
+    try (final BufferedReader lbr = br) {
       for (String value : values) {
-        assertEquals(String.format("Line should read '%s'", value), value, _br.readLine());
+        assertEquals(String.format("Line should read '%s'", value), value, lbr.readLine());
       }
     }
   }
