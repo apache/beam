@@ -81,10 +81,8 @@ class RuntimeValueProvider(ValueProvider):
   @classmethod
   def get_value(cls, option_name, value_type, default_value):
     candidate = RuntimeValueProvider.runtime_options.get(option_name)
-    if candidate and value_type:
+    if candidate:
       return value_type(candidate)
-    elif candidate:
-      return candidate
     else:
       return default_value
 
