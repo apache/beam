@@ -17,7 +17,10 @@
  */
 package org.apache.beam.runners.flink;
 
-import org.apache.beam.sdk.io.Read;
+import org.apache.beam.model.pipeline.v1.RunnerApi.IsBounded.Enum;
+import org.apache.beam.runners.core.construction.ReadTranslation;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PValue;
@@ -34,10 +37,13 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
   private TranslationMode translationMode;
 
   private final FlinkPipelineOptions options;
+  private final Pipeline pipeline;
 
-  public PipelineTranslationOptimizer(TranslationMode defaultMode, FlinkPipelineOptions options) {
+  public PipelineTranslationOptimizer(TranslationMode defaultMode, FlinkPipelineOptions options,
+      Pipeline pipeline) {
     this.translationMode = defaultMode;
     this.options = options;
+    this.pipeline = pipeline;
   }
 
   public TranslationMode getTranslationMode() {
@@ -60,8 +66,10 @@ class PipelineTranslationOptimizer extends FlinkPipelineTranslator {
 
   @Override
   public void visitPrimitiveTransform(TransformHierarchy.Node node) {
+    AppliedPTransform<?, ?, ?> appliedPTransform = node.toAppliedPTransform(pipeline);
     Class<? extends PTransform> transformClass = node.getTransform().getClass();
-    if (transformClass == Read.Unbounded.class) {
+
+    if (ReadTranslation.isBounded(appliedPTransform) == Enum.UNBOUNDED) {
       LOG.info("Found {}. Switching to streaming execution.", transformClass);
       translationMode = TranslationMode.STREAMING;
     }
