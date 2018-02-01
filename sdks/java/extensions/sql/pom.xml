@@ -38,6 +38,12 @@
     <calcite.version>1.13.0</calcite.version>
     <avatica.version>1.10.0</avatica.version>
     <mockito.version>1.9.5</mockito.version>
+    
+    <!-- charset that calcite will use for the tables in the tests -->
+    <!-- need to setup as system property prior to running any tests
+         or some of the tests may fail as calcite will init itself
+         with it's default of ISO-8859-1 -->
+    <calcite.charset>UTF-16LE</calcite.charset>
   </properties>
 
   <profiles>
@@ -203,7 +209,12 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-        <argLine>-da</argLine> <!-- disable assert in Calcite converter validation -->
+          <argLine>-da</argLine> <!-- disable assert in Calcite converter validation -->
+          <systemPropertyVariables>
+            <saffron.default.charset>${calcite.charset}</saffron.default.charset>
+            <saffron.default.nationalcharset>${calcite.charset}</saffron.default.nationalcharset>
+            <saffron.default.collation.name>${calcite.charset}$en_US</saffron.default.collation.name>
+          </systemPropertyVariables>
         </configuration>
       </plugin>
 
