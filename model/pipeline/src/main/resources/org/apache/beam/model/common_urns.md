@@ -25,7 +25,9 @@ URNs used in the Beam portability APIs.
 
 ## Core Transforms
 
-### beam:transform:pardo:v1
+### urn:beam:transform:pardo:v1
+
+TODO(BEAM-3595): Change this to beam:transform:pardo:v1.
 
 Represents Beam's parallel do operation.
 
@@ -71,13 +73,21 @@ the SDK understands the last three combine helper operations.
 
 ## WindowFns
 
-### beam:windowfn:global_windows:v1
+### beam:windowfn:global_windows:v0.1
 
-### beam:windowfn:fixed_windows:v1
+TODO(BEAM-3595): Change this to beam:windowfn:global_windows:v1
 
-### beam:windowfn:sliding_windows:v1
+### beam:windowfn:fixed_windows:v0.1
 
-### beam:windowfn:session_windows:v1
+TODO(BEAM-3595): Change this to beam:windowfn:fixed_windows:v1
+
+### beam:windowfn:sliding_windows:v0.1
+
+TODO(BEAM-3595): Change this to beam:windowfn:sliding_windows:v1
+
+### beam:windowfn:session_windows:v0.1
+
+TODO(BEAM-3595): Change this to beam:windowfn:session_windows:v1
 
 
 ## Coders

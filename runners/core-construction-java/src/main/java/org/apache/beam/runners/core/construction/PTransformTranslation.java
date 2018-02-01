@@ -53,7 +53,7 @@ import org.apache.beam.sdk.values.TupleTag;
 public class PTransformTranslation {
 
   public static final String PAR_DO_TRANSFORM_URN =
-      validateCommonUrn("beam:transform:pardo:v1");
+      validateCommonUrn("urn:beam:transform:pardo:v1");
   public static final String FLATTEN_TRANSFORM_URN =
       validateCommonUrn("beam:transform:flatten:v1");
   public static final String GROUP_BY_KEY_TRANSFORM_URN =
