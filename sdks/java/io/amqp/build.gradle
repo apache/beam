@@ -36,10 +36,3 @@ dependencies {
   testCompile library.java.activemq_amqp
   testCompile library.java.activemq_junit
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

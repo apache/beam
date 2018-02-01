@@ -201,6 +201,13 @@ ext.applyJavaNature = {
     useJUnit { }
   }
 
+  // Ensure that tests are packaged and part of the artifact set.
+  task packageTests(type: Jar) {
+    classifier = 'tests'
+    from sourceSets.test.output
+  }
+  artifacts.archives packageTests
+
   // Configures annotation processing for commonly used annotation processors
   // across all Java projects.
   apply plugin: "net.ltgt.apt"
@@ -312,6 +319,9 @@ ext.applyJavaNature = {
       }
       testCompile.extendsFrom shadowTest
     }
+
+    // Ensure that shaded classes are part of the artifact set.
+    artifacts.archives shadowJar
 
     // TODO: Figure out how to create ShadowJar task for testShadowJar here
     // that is extendable within each sub-project with any additional includes.

@@ -47,10 +47,3 @@ dependencies {
   testCompile group: "org.apache.derby", name: "derbyclient", version:"10.12.1.1"
   testCompile group: "org.apache.derby", name: "derbynet", version:"10.12.1.1"
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests
