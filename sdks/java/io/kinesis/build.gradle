@@ -48,10 +48,3 @@ dependencies {
   testCompile library.java.slf4j_jdk14
   testCompile "org.assertj:assertj-core:2.5.0"
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

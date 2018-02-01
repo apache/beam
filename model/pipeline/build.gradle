@@ -25,10 +25,3 @@ description = "Apache Beam :: Model :: Pipeline"
 dependencies {
   shadow library.java.protobuf_java
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

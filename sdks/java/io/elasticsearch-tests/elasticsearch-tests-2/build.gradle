@@ -53,10 +53,3 @@ dependencies {
   testCompile library.java.guava
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests
