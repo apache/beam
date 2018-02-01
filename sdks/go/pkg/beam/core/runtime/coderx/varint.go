@@ -23,7 +23,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -56,8 +55,23 @@ func NewVarUintZ(t reflect.Type) (*coder.CustomCoder, error) {
 }
 
 func encVarIntZ(v typex.T) []byte {
+	var val int64
+	switch n := v.(type) {
+	case int:
+		val = int64(n)
+	case int8:
+		val = int64(n)
+	case int16:
+		val = int64(n)
+	case int32:
+		val = int64(n)
+	case int64:
+		val = n
+	default:
+		panic(fmt.Sprintf("received unknown value type: want a signed integer:, got %T", n))
+	}
 	ret := make([]byte, binary.MaxVarintLen64)
-	size := binary.PutVarint(ret, reflect.ValueOf(v).Convert(reflectx.Int64).Interface().(int64))
+	size := binary.PutVarint(ret, val)
 	return ret[:size]
 }
 
@@ -66,12 +80,40 @@ func decVarIntZ(t reflect.Type, data []byte) (typex.T, error) {
 	if size <= 0 {
 		return nil, fmt.Errorf("invalid varintz encoding for: %v", data)
 	}
-	return reflect.ValueOf(n).Convert(t).Interface(), nil
+	switch t.Kind() {
+	case reflect.Int:
+		return int(n), nil
+	case reflect.Int8:
+		return int8(n), nil
+	case reflect.Int16:
+		return int16(n), nil
+	case reflect.Int32:
+		return int32(n), nil
+	case reflect.Int64:
+		return n, nil
+	default:
+		panic(fmt.Sprintf("unreachable statement: expected a signed integer, got %v", t))
+	}
 }
 
 func encVarUintZ(v typex.T) []byte {
+	var val uint64
+	switch n := v.(type) {
+	case uint:
+		val = uint64(n)
+	case uint8:
+		val = uint64(n)
+	case uint16:
+		val = uint64(n)
+	case uint32:
+		val = uint64(n)
+	case uint64:
+		val = n
+	default:
+		panic(fmt.Sprintf("received unknown value type: want an unsigned integer:, got %T", n))
+	}
 	ret := make([]byte, binary.MaxVarintLen64)
-	size := binary.PutUvarint(ret, reflect.ValueOf(v).Convert(reflectx.Uint64).Interface().(uint64))
+	size := binary.PutUvarint(ret, val)
 	return ret[:size]
 }
 
@@ -80,5 +122,18 @@ func decVarUintZ(t reflect.Type, data []byte) (typex.T, error) {
 	if size <= 0 {
 		return nil, fmt.Errorf("invalid varuintz encoding for: %v", data)
 	}
-	return reflect.ValueOf(n).Convert(t).Interface(), nil
+	switch t.Kind() {
+	case reflect.Uint:
+		return uint(n), nil
+	case reflect.Uint8:
+		return uint8(n), nil
+	case reflect.Uint16:
+		return uint16(n), nil
+	case reflect.Uint32:
+		return uint32(n), nil
+	case reflect.Uint64:
+		return n, nil
+	default:
+		panic(fmt.Sprintf("unreachable statement: expected an unsigned integer, got %v", t))
+	}
 }
