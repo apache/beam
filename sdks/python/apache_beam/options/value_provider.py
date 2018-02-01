@@ -79,7 +79,7 @@ class RuntimeValueProvider(ValueProvider):
     return RuntimeValueProvider.runtime_options is not None
 
   @classmethod
-  def get_value(cls, option_name, value_type=None, default_value=None):
+  def get_value(cls, option_name, value_type, default_value):
     candidate = RuntimeValueProvider.runtime_options.get(option_name)
     if candidate and value_type:
       return value_type(candidate)
