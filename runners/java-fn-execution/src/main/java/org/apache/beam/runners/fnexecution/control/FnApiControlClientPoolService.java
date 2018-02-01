@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A Fn API control service which adds incoming SDK harness connections to a pool. */
-class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
+public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
     implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import io.grpc.Status;
@@ -25,7 +27,11 @@ import io.grpc.stub.StreamObserver;
 import java.io.Closeable;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.sdk.fn.stream.SynchronizedStreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,17 +46,17 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This low-level client is responsible only for correlating requests with responses.
  */
-class FnApiControlClient implements Closeable {
+public class FnApiControlClient implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClient.class);
 
   // All writes to this StreamObserver need to be synchronized.
   private final StreamObserver<BeamFnApi.InstructionRequest> requestReceiver;
   private final ResponseStreamObserver responseObserver = new ResponseStreamObserver();
-  private final Map<String, SettableFuture<BeamFnApi.InstructionResponse>> outstandingRequests;
-  private volatile boolean isClosed;
+  private final ConcurrentMap<String, SettableFuture<InstructionResponse>> outstandingRequests;
+  private AtomicBoolean isClosed = new AtomicBoolean(false);
 
   private FnApiControlClient(StreamObserver<BeamFnApi.InstructionRequest> requestReceiver) {
-    this.requestReceiver = requestReceiver;
+    this.requestReceiver = SynchronizedStreamObserver.wrapping(requestReceiver);
     this.outstandingRequests = new ConcurrentHashMap<>();
   }
 
@@ -66,16 +72,21 @@ class FnApiControlClient implements Closeable {
     return new FnApiControlClient(requestObserver);
   }
 
-  public synchronized ListenableFuture<BeamFnApi.InstructionResponse> handle(
+  public ListenableFuture<BeamFnApi.InstructionResponse> handle(
       BeamFnApi.InstructionRequest request) {
     LOG.debug("Sending InstructionRequest {}", request);
     SettableFuture<BeamFnApi.InstructionResponse> resultFuture = SettableFuture.create();
-    outstandingRequests.put(request.getInstructionId(), resultFuture);
+    SettableFuture<InstructionResponse> previousResponseFuture =
+        outstandingRequests.put(request.getInstructionId(), resultFuture);
+    checkArgument(
+        previousResponseFuture == null,
+        "Tried to handle multiple instructions with the same ID %s",
+        request.getInstructionId());
     requestReceiver.onNext(request);
     return resultFuture;
   }
 
-  StreamObserver<BeamFnApi.InstructionResponse> asResponseObserver() {
+  public StreamObserver<BeamFnApi.InstructionResponse> asResponseObserver() {
     return responseObserver;
   }
 
@@ -85,8 +96,8 @@ class FnApiControlClient implements Closeable {
   }
 
   /** Closes this client and terminates any outstanding requests exceptionally. */
-  private synchronized void closeAndTerminateOutstandingRequests(Throwable cause) {
-    if (isClosed) {
+  private void closeAndTerminateOutstandingRequests(Throwable cause) {
+    if (isClosed.getAndSet(true)) {
       return;
     }
 
@@ -94,7 +105,6 @@ class FnApiControlClient implements Closeable {
     Map<String, SettableFuture<BeamFnApi.InstructionResponse>> outstandingRequestsCopy =
         new ConcurrentHashMap<>(outstandingRequests);
     outstandingRequests.clear();
-    isClosed = true;
 
     if (outstandingRequestsCopy.isEmpty()) {
       requestReceiver.onCompleted();
