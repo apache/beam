@@ -58,6 +58,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -607,6 +608,110 @@ public class DoFnOperatorTest {
 
     testHarness.close();
 
+  }
+
+  @Test
+  public void testTimersRestore() throws Exception {
+    final Instant timerTimestamp = new Instant(1000);
+    final String outputMessage = "Timer fired";
+
+    WindowingStrategy<Object, IntervalWindow> windowingStrategy =
+        WindowingStrategy.of(FixedWindows.of(new Duration(10_000)));
+
+    DoFn<Integer, String> fn = new DoFn<Integer, String>() {
+      private static final String EVENT_TIMER_ID = "eventTimer";
+
+      @TimerId(EVENT_TIMER_ID)
+      private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      @ProcessElement
+      public void processElement(ProcessContext context, @TimerId(EVENT_TIMER_ID) Timer timer) {
+        timer.set(timerTimestamp);
+      }
+
+      @OnTimer(EVENT_TIMER_ID)
+      public void onEventTime(OnTimerContext context) {
+        assertEquals(
+            "Timer timestamp must match set timestamp.", timerTimestamp, context.timestamp());
+        context.outputWithTimestamp(outputMessage, context.timestamp());
+      }
+    };
+
+    WindowedValue.FullWindowedValueCoder<Integer> inputCoder =
+        WindowedValue.getFullCoder(
+            VarIntCoder.of(),
+            windowingStrategy.getWindowFn().windowCoder());
+
+    WindowedValue.FullWindowedValueCoder<String> outputCoder =
+        WindowedValue.getFullCoder(
+            StringUtf8Coder.of(),
+            windowingStrategy.getWindowFn().windowCoder());
+
+
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+    final CoderTypeSerializer<WindowedValue<String>> outputSerializer = new CoderTypeSerializer<>(
+        outputCoder);
+
+    OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
+        createTestHarness(windowingStrategy, fn, inputCoder, outputCoder, outputTag);
+
+    testHarness.setup(outputSerializer);
+
+    testHarness.open();
+
+    testHarness.processWatermark(0);
+
+    IntervalWindow window1 = new IntervalWindow(new Instant(0), Duration.millis(10_000));
+
+    // this should register a timer
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValue.of(13, new Instant(0), window1, PaneInfo.NO_FIRING)));
+
+    assertThat(
+        this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        emptyIterable());
+
+    // snapshot and restore
+    final OperatorStateHandles snapshot = testHarness.snapshot(0, 0);
+    testHarness.close();
+
+    testHarness = createTestHarness(windowingStrategy, fn, inputCoder, outputCoder, outputTag);
+    testHarness.setup(outputSerializer);
+    testHarness.initializeState(snapshot);
+    testHarness.open();
+
+    // this must fire the timer
+    testHarness.processWatermark(timerTimestamp.getMillis() + 1);
+
+    assertThat(
+        this.<String>stripStreamRecordFromWindowedValue(testHarness.getOutput()),
+        contains(
+            WindowedValue.of(
+                outputMessage, new Instant(timerTimestamp), window1, PaneInfo.NO_FIRING)));
+
+    testHarness.close();
+  }
+
+  private OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>>
+  createTestHarness(WindowingStrategy<Object, IntervalWindow> windowingStrategy,
+      DoFn<Integer, String> fn, FullWindowedValueCoder<Integer> inputCoder,
+      FullWindowedValueCoder<String> outputCoder, TupleTag<String> outputTag) throws Exception {
+    DoFnOperator<Integer, String> doFnOperator =
+        new DoFnOperator<>(
+            fn,
+            "stepName",
+            inputCoder,
+            outputTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
+            windowingStrategy,
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            VarIntCoder.of() /* key coder */);
+
+    return new KeyedOneInputStreamOperatorTestHarness<>(
+        doFnOperator, WindowedValue::getValue, new CoderTypeInformation<>(VarIntCoder.of()));
   }
 
   /**
