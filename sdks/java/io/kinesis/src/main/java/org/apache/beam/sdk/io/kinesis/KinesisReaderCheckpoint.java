@@ -21,12 +21,10 @@ import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.partition;
 
 import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.beam.sdk.io.UnboundedSource;
 
 /**

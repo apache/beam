@@ -19,9 +19,7 @@ package org.apache.beam.sdk.io.amqp;
 
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
-
 import java.util.List;
-
 import org.apache.beam.sdk.coders.CoderProvider;
 import org.apache.beam.sdk.coders.CoderProviderRegistrar;
 import org.apache.beam.sdk.coders.CoderProviders;

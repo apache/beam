@@ -20,7 +20,6 @@ package org.apache.beam.sdk.nexmark.queries;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
-
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.values.TimestampedValue;
 
