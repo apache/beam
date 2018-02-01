@@ -41,10 +41,3 @@ dependencies {
   shadowTest library.java.junit
   shadowTest library.java.slf4j_jdk14
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

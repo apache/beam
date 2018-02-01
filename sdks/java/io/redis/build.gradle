@@ -32,10 +32,3 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile "com.github.kstyrc:embedded-redis:0.6"
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

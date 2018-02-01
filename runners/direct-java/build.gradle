@@ -69,10 +69,3 @@ shadowJar {
   relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
   relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

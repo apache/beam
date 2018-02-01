@@ -33,10 +33,3 @@ dependencies {
   shadow "org.apache.httpcomponents:httpclient:4.5.2"
   testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

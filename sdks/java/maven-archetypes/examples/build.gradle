@@ -24,10 +24,3 @@ description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
 dependencies {
   shadow project(path: ":examples:java", configuration: "shadow")
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests
