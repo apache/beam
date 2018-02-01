@@ -37,7 +37,7 @@ abstract class StubTriggerStateMachine extends TriggerStateMachine {
   }
 
   protected StubTriggerStateMachine() {
-    super(Lists.<TriggerStateMachine>newArrayList());
+    super(Lists.newArrayList());
   }
 
   @Override

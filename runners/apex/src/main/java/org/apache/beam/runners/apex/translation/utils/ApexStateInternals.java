@@ -446,11 +446,8 @@ public class ApexStateInternals<K> implements StateInternals {
       } catch (CoderException e) {
         throw new RuntimeException(e);
       }
-      HashBasedTable<String, String, byte[]> stateTable = perKeyState.get(keyBytes);
-      if (stateTable == null) {
-        stateTable = HashBasedTable.create();
-        perKeyState.put(keyBytes, stateTable);
-      }
+      HashBasedTable<String, String, byte[]> stateTable =
+          perKeyState.computeIfAbsent(keyBytes, k -> HashBasedTable.create());
       return new ApexStateInternals<>(key, stateTable);
     }
 
@@ -463,7 +460,7 @@ public class ApexStateInternals<K> implements StateInternals {
     private static final long serialVersionUID = 1L;
 
     public <K> ApexStateInternalsFactory<K> newStateInternalsFactory(Coder<K> keyCoder) {
-      return new ApexStateInternalsFactory<K>(keyCoder);
+      return new ApexStateInternalsFactory<>(keyCoder);
     }
   }
 

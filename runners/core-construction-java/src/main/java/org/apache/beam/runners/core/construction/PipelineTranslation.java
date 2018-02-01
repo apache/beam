@@ -49,8 +49,12 @@ import org.apache.beam.sdk.values.TupleTag;
 /** Utilities for going to/from Runner API pipelines. */
 public class PipelineTranslation {
 
-  public static RunnerApi.Pipeline toProto(final Pipeline pipeline) {
-    final SdkComponents components = SdkComponents.create();
+  public static RunnerApi.Pipeline toProto(Pipeline pipeline) {
+    return toProto(pipeline, SdkComponents.create());
+  }
+
+  public static RunnerApi.Pipeline toProto(
+      final Pipeline pipeline, final SdkComponents components) {
     final Collection<String> rootIds = new HashSet<>();
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -81,8 +85,7 @@ public class PipelineTranslation {
             children.put(node.getEnclosingNode(), node.toAppliedPTransform(pipeline));
             try {
               components.registerPTransform(
-                  node.toAppliedPTransform(pipeline),
-                  Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+                  node.toAppliedPTransform(pipeline), Collections.emptyList());
             } catch (IOException e) {
               throw new IllegalStateException(e);
             }
@@ -177,7 +180,7 @@ public class PipelineTranslation {
       PCollection<?> pCollection =
           (PCollection<?>) checkNotNull(rehydratedInputs.get(new TupleTag<>(localName)));
       views.add(
-          ParDoTranslation.viewFromProto(
+          PCollectionViewTranslation.viewFromProto(
               sideInput, localName, pCollection, transformProto, rehydratedComponents));
     }
     return PCollectionViews.toAdditionalInputs(views);

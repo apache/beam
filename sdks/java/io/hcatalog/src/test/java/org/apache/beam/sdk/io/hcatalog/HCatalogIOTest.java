@@ -134,7 +134,7 @@ public class HCatalogIOTest implements Serializable {
                 .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
                 .withDatabase(TEST_DATABASE)
                 .withTable(TEST_TABLE)
-                .withPartition(new java.util.HashMap<String, String>())
+                .withPartition(new java.util.HashMap<>())
                 .withBatchSize(512L));
     defaultPipeline.run();
 

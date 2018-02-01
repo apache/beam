@@ -211,46 +211,44 @@ public class UnboundedSourceWrapperTest {
       // with the outer Thread
       final AtomicBoolean seenWatermark = new AtomicBoolean(false);
 
-      Thread sourceThread = new Thread() {
-        @Override
-        public void run() {
-          try {
-            testHarness.open();
-            sourceOperator.run(checkpointLock,
-                new TestStreamStatusMaintainer(),
-                new Output<StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
+      Thread sourceThread =
+          new Thread(
+              () -> {
+                try {
+                  testHarness.open();
+                  sourceOperator.run(
+                      checkpointLock,
+                      new TestStreamStatusMaintainer(),
+                      new Output<
+                          StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>>() {
 
-                  @Override
-                  public void emitWatermark(Watermark watermark) {
-                    if (watermark.getTimestamp() >= numElements / 2) {
-                      seenWatermark.set(true);
-                    }
-                  }
+                        @Override
+                        public void emitWatermark(Watermark watermark) {
+                          if (watermark.getTimestamp() >= numElements / 2) {
+                            seenWatermark.set(true);
+                          }
+                        }
 
-                  @Override
-                  public <X> void collect(OutputTag<X> outputTag, StreamRecord<X> streamRecord) {
-                  }
+                        @Override
+                        public <X> void collect(
+                            OutputTag<X> outputTag, StreamRecord<X> streamRecord) {}
 
-                  @Override
-                  public void emitLatencyMarker(LatencyMarker latencyMarker) {
-                  }
+                        @Override
+                        public void emitLatencyMarker(LatencyMarker latencyMarker) {}
 
-                  @Override
-                  public void collect(StreamRecord<WindowedValue<
-                      ValueWithRecordId<KV<Integer, Integer>>>> windowedValueStreamRecord) {
-                  }
+                        @Override
+                        public void collect(
+                            StreamRecord<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>>
+                                windowedValueStreamRecord) {}
 
-                  @Override
-                  public void close() {
-
-                  }
-                });
-          } catch (Exception e) {
-            System.out.println("Caught exception: " + e);
-            caughtExceptions.add(e);
-          }
-        }
-      };
+                        @Override
+                        public void close() {}
+                      });
+                } catch (Exception e) {
+                  System.out.println("Caught exception: " + e);
+                  caughtExceptions.add(e);
+                }
+              });
 
       sourceThread.start();
 

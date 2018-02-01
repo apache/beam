@@ -848,8 +848,8 @@ public class PipelineOptionsFactoryTest {
     assertEquals(Short.valueOf((short) 300), options.getShort());
     assertEquals(Integer.valueOf(100000), options.getInt());
     assertEquals(Long.valueOf(123890123890L), options.getLong());
-    assertEquals(Float.valueOf(55.5f), options.getFloat(), 0.0f);
-    assertEquals(Double.valueOf(12.3), options.getDouble(), 0.0);
+    assertEquals(55.5f, options.getFloat(), 0.0f);
+    assertEquals(12.3, options.getDouble(), 0.0);
     assertEquals("stringValue", options.getString());
     assertTrue(options.getEmptyString().isEmpty());
     assertEquals(PipelineOptionsFactoryTest.class, options.getClassValue());
@@ -1713,7 +1713,7 @@ public class PipelineOptionsFactoryTest {
   public static class RegisteredTestRunnerRegistrar implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(RegisteredTestRunner.class);
+      return ImmutableList.of(RegisteredTestRunner.class);
     }
   }
 
@@ -1729,7 +1729,7 @@ public class PipelineOptionsFactoryTest {
   public static class RegisteredTestOptionsRegistrar implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(RegisteredTestOptions.class);
+      return ImmutableList.of(RegisteredTestOptions.class);
     }
   }
 

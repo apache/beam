@@ -51,7 +51,8 @@ public class BeamSqlCaseExpression extends BeamSqlExpression {
 
   @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
     for (int i = 0; i < operands.size() - 1; i += 2) {
-      if (opValueEvaluated(i, inputRow, window)) {
+      Boolean wasOpEvaluated = opValueEvaluated(i, inputRow, window);
+      if (wasOpEvaluated != null && wasOpEvaluated) {
         return BeamSqlPrimitive.of(
             outputType,
             opValueEvaluated(i + 1, inputRow, window)

@@ -133,11 +133,8 @@ public class WinningBidsSimulator extends AbstractSimulator<Event, AuctionBid> {
     Map<Long, List<Long>> toBeRetired = new TreeMap<>();
     for (Map.Entry<Long, Auction> entry : openAuctions.entrySet()) {
       if (entry.getValue().expires <= timestamp) {
-        List<Long> idsAtTime = toBeRetired.get(entry.getValue().expires);
-        if (idsAtTime == null) {
-          idsAtTime = new ArrayList<>();
-          toBeRetired.put(entry.getValue().expires, idsAtTime);
-        }
+        List<Long> idsAtTime =
+            toBeRetired.computeIfAbsent(entry.getValue().expires, k -> new ArrayList<>());
         idsAtTime.add(entry.getKey());
       }
     }

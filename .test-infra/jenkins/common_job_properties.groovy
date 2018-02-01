@@ -166,7 +166,7 @@ class common_job_properties {
   }
 
   // Sets common config for Maven jobs.
-  static void setMavenConfig(context, String mavenInstallation='Maven 3.3.3') {
+  static void setMavenConfig(context, String mavenInstallation='Maven 3.5.2') {
     context.mavenInstallation(mavenInstallation)
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
@@ -260,14 +260,19 @@ class common_job_properties {
     context.steps {
         // Clean up environment.
         shell('rm -rf PerfKitBenchmarker')
+        shell('rm -rf .env')
+
+        // create new VirtualEnv, inherit already existing packages
+        shell('virtualenv .env --system-site-packages')
+
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
         // Install Perfkit benchmark requirements.
-        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
+        shell('.env/bin/pip install -r PerfKitBenchmarker/requirements.txt')
         // Install job requirements for Python SDK.
-        shell('pip install --user -e ' + common_job_properties.checkoutDir + '/sdks/python/[gcp,test]')
+        shell('.env/bin/pip install -e ' + common_job_properties.checkoutDir + '/sdks/python/[gcp,test]')
         // Launch performance test.
-        shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
+        shell(".env/bin/python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
   }
 

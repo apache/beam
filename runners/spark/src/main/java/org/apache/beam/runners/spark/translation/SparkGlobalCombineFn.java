@@ -18,13 +18,13 @@
 
 package org.apache.beam.runners.spark.translation;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.transforms.CombineWithContext;
@@ -38,8 +38,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
-
-
 
 /**
  * A {@link org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn}
@@ -254,16 +252,14 @@ public class SparkGlobalCombineFn<InputT, AccumT, OutputT> extends SparkAbstract
   }
 
   Iterable<WindowedValue<OutputT>> extractOutput(Iterable<WindowedValue<AccumT>> wvas) {
-    return Iterables.transform(wvas,
-        new Function<WindowedValue<AccumT>, WindowedValue<OutputT>>() {
-          @Nullable
-          @Override
-          public WindowedValue<OutputT> apply(@Nullable WindowedValue<AccumT> wva) {
-            if (wva == null) {
-              return null;
-            }
-            return wva.withValue(combineFn.extractOutput(wva.getValue(), ctxtForInput(wva)));
-          }
-        });
+    return StreamSupport.stream(wvas.spliterator(), false)
+        .map(
+            wva -> {
+              if (wva == null) {
+                return null;
+              }
+              return wva.withValue(combineFn.extractOutput(wva.getValue(), ctxtForInput(wva)));
+            })
+        .collect(Collectors.toList());
   }
 }

@@ -51,10 +51,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -67,6 +69,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TaggedPValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -118,6 +122,63 @@ public class PipelineTest {
   }
 
   @Test
+  public void testConflictingNames() {
+    final PipelineOptions options = TestPipeline.testingPipelineOptions();
+    final Pipeline p = Pipeline.create(options);
+
+    // Check pipeline runner correctly catches user errors.
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage(new BaseMatcher<String>() { // more readable than a regex
+      @Override
+      public void describeTo(final Description description) {
+        description.appendText("validates the conflicting instances are "
+                + "listed into the exception message");
+      }
+
+      @Override
+      public boolean matches(final Object o) {
+        /*
+          example value (first 2 lines are a single one):
+
+          Pipeline update will not be possible because the following transforms do not have stable
+          unique names: ParDo(Anonymous)2.
+
+          Conflicting instances:
+          - name=ParDo(Anonymous):
+              - org.apache.beam.sdk.PipelineTest$3@75d2da2d
+              - org.apache.beam.sdk.PipelineTest$2@4278284b
+
+          You can fix it adding a name when you call apply(): pipeline.apply(<name>, <transform>).
+         */
+        final String sanitized = String.class.cast(o)
+                                     .replaceAll("\\$[\\p{Alnum}]+@[\\p{Alnum}]+", "\\$x@y");
+        return sanitized.contains(
+              "Conflicting instances:\n"
+              + "- name=ParDo(Anonymous):\n"
+              + "    - org.apache.beam.sdk.PipelineTest$x@y\n"
+              + "    - org.apache.beam.sdk.PipelineTest$x@y\n\n"
+              + "You can fix it adding a name when you call apply(): "
+              + "pipeline.apply(<name>, <transform>).");
+      }
+    });
+    p.apply(Create.of("a"))
+     // 2 anonymous classes are conflicting
+     .apply(ParDo.of(new DoFn<String, String>() {
+       @ProcessElement
+       public void onElement(final ProcessContext ctx) {
+         ctx.output(ctx.element());
+       }
+     }))
+     .apply(ParDo.of(new DoFn<String, String>() {
+       @ProcessElement
+       public void onElement(final ProcessContext ctx) {
+         // no-op
+       }
+     }));
+    p.run();
+  }
+
+  @Test
   public void testPipelineUserExceptionHandling() {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     options.setRunner(TestPipelineRunnerThrowingUserException.class);
@@ -156,13 +217,12 @@ public class PipelineTest {
     PTransform<PCollection<? extends String>, PCollection<String>> myTransform =
         addSuffix("+");
 
-    PCollection<String> input = pipeline.apply(Create.<String>of(ImmutableList.of("a", "b")));
+    PCollection<String> input = pipeline.apply(Create.of(ImmutableList.of("a", "b")));
 
     PCollection<String> left = input.apply("Left1", myTransform).apply("Left2", myTransform);
     PCollection<String> right = input.apply("Right", myTransform);
 
-    PCollection<String> both = PCollectionList.of(left).and(right)
-        .apply(Flatten.<String>pCollections());
+    PCollection<String> both = PCollectionList.of(left).and(right).apply(Flatten.pCollections());
 
     PAssert.that(both).containsInAnyOrder("a++", "b++", "a+", "b+");
 
@@ -229,9 +289,8 @@ public class PipelineTest {
   @Category(ValidatesRunner.class)
   public void testIdentityTransform() throws Exception {
 
-    PCollection<Integer> output = pipeline
-        .apply(Create.<Integer>of(1, 2, 3, 4))
-        .apply("IdentityTransform", new IdentityTransform<PCollection<Integer>>());
+    PCollection<Integer> output =
+        pipeline.apply(Create.of(1, 2, 3, 4)).apply("IdentityTransform", new IdentityTransform<>());
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
@@ -251,14 +310,12 @@ public class PipelineTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testTupleProjectionTransform() throws Exception {
-    PCollection<Integer> input = pipeline
-        .apply(Create.<Integer>of(1, 2, 3, 4));
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4));
 
-    TupleTag<Integer> tag = new TupleTag<Integer>();
+    TupleTag<Integer> tag = new TupleTag<>();
     PCollectionTuple tuple = PCollectionTuple.of(tag, input);
 
-    PCollection<Integer> output = tuple
-        .apply("ProjectTag", new TupleProjectionTransform<Integer>(tag));
+    PCollection<Integer> output = tuple.apply("ProjectTag", new TupleProjectionTransform<>(tag));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
@@ -284,13 +341,11 @@ public class PipelineTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testTupleInjectionTransform() throws Exception {
-    PCollection<Integer> input = pipeline
-        .apply(Create.<Integer>of(1, 2, 3, 4));
+    PCollection<Integer> input = pipeline.apply(Create.of(1, 2, 3, 4));
 
-    TupleTag<Integer> tag = new TupleTag<Integer>();
+    TupleTag<Integer> tag = new TupleTag<>();
 
-    PCollectionTuple output = input
-        .apply("ProjectTag", new TupleInjectionTransform<Integer>(tag));
+    PCollectionTuple output = input.apply("ProjectTag", new TupleInjectionTransform<>(tag));
 
     PAssert.that(output.get(tag)).containsInAnyOrder(1, 2, 3, 4);
     pipeline.run();
@@ -328,20 +383,10 @@ public class PipelineTest {
     pipeline.replaceAll(
         ImmutableList.of(
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof GenerateSequence;
-                  }
-                },
+                application -> application.getTransform() instanceof GenerateSequence,
                 new GenerateSequenceToCreateOverride()),
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof Create.Values;
-                  }
-                },
+                application -> application.getTransform() instanceof Create.Values,
                 new CreateValuesToEmptyFlattenOverride())));
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -352,10 +397,8 @@ public class PipelineTest {
                   node.getTransform().getClass(),
                   not(
                       anyOf(
-                          Matchers.<Class<? extends PTransform>>equalTo(
-                              GenerateSequence.class),
-                          Matchers.<Class<? extends PTransform>>equalTo(
-                              Create.Values.class))));
+                          Matchers.equalTo(GenerateSequence.class),
+                          Matchers.equalTo(Create.Values.class))));
             }
             return CompositeBehavior.ENTER_TRANSFORM;
           }
@@ -376,20 +419,10 @@ public class PipelineTest {
     pipeline.replaceAll(
         ImmutableList.of(
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof Create.Values;
-                  }
-                },
+                application -> application.getTransform() instanceof Create.Values,
                 new CreateValuesToEmptyFlattenOverride()),
             PTransformOverride.of(
-                new PTransformMatcher() {
-                  @Override
-                  public boolean matches(AppliedPTransform<?, ?, ?> application) {
-                    return application.getTransform() instanceof GenerateSequence;
-                  }
-                },
+                application -> application.getTransform() instanceof GenerateSequence,
                 new GenerateSequenceToCreateOverride())));
   }
 
@@ -423,7 +456,7 @@ public class PipelineTest {
       @Override
       public Map<PValue, ReplacementOutput> mapOutputs(
           Map<TupleTag<?>, PValue> outputs, PCollection<Integer> newOutput) {
-        return Collections.<PValue, ReplacementOutput>singletonMap(
+        return Collections.singletonMap(
             newOutput,
             ReplacementOutput.of(
                 TaggedPValue.ofExpandedValue(Iterables.getOnlyElement(outputs.values())),
@@ -478,7 +511,7 @@ public class PipelineTest {
       Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
       Map.Entry<TupleTag<?>, PValue> replacement =
           Iterables.getOnlyElement(newOutput.expand().entrySet());
-      return Collections.<PValue, ReplacementOutput>singletonMap(
+      return Collections.singletonMap(
           newOutput,
           ReplacementOutput.of(
               TaggedPValue.of(original.getKey(), original.getValue()),
@@ -490,7 +523,7 @@ public class PipelineTest {
     @Override
     public PCollection<T> expand(PBegin input) {
       PCollectionList<T> empty = PCollectionList.empty(input.getPipeline());
-      return empty.apply(Flatten.<T>pCollections());
+      return empty.apply(Flatten.pCollections());
     }
   }
 
@@ -510,7 +543,7 @@ public class PipelineTest {
       Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
       Map.Entry<TupleTag<?>, PValue> replacement =
           Iterables.getOnlyElement(newOutput.expand().entrySet());
-      return Collections.<PValue, ReplacementOutput>singletonMap(
+      return Collections.singletonMap(
           newOutput,
           ReplacementOutput.of(
               TaggedPValue.of(original.getKey(), original.getValue()),

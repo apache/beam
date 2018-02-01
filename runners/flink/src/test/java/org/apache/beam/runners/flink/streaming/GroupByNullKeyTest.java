@@ -88,41 +88,47 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
     Pipeline p = FlinkTestPipeline.createForStreaming();
 
     PCollection<String> output =
-      p.apply(Create.of(Arrays.asList(
-          KV.<Integer, String>of(0, "user1"),
-          KV.<Integer, String>of(1, "user1"),
-          KV.<Integer, String>of(2, "user1"),
-          KV.<Integer, String>of(10, "user2"),
-          KV.<Integer, String>of(1, "user2"),
-          KV.<Integer, String>of(15000, "user2"),
-          KV.<Integer, String>of(12000, "user2"),
-          KV.<Integer, String>of(25000, "user3"))))
-          .apply(ParDo.of(new ExtractUserAndTimestamp()))
-          .apply(Window.<String>into(FixedWindows.of(Duration.standardHours(1)))
-              .triggering(AfterWatermark.pastEndOfWindow())
-              .withAllowedLateness(Duration.ZERO)
-              .discardingFiredPanes())
-
-          .apply(ParDo.of(new DoFn<String, KV<Void, String>>() {
-            @ProcessElement
-            public void processElement(ProcessContext c) throws Exception {
-              String elem = c.element();
-              c.output(KV.<Void, String>of(null, elem));
-            }
-          }))
-          .apply(GroupByKey.<Void, String>create())
-          .apply(ParDo.of(new DoFn<KV<Void, Iterable<String>>, String>() {
-            @ProcessElement
-            public void processElement(ProcessContext c) throws Exception {
-              KV<Void, Iterable<String>> elem = c.element();
-              StringBuilder str = new StringBuilder();
-              str.append("k: " + elem.getKey() + " v:");
-              for (String v : elem.getValue()) {
-                str.append(" " + v);
-              }
-              c.output(str.toString());
-            }
-          }));
+        p.apply(
+                Create.of(
+                    Arrays.asList(
+                        KV.of(0, "user1"),
+                        KV.of(1, "user1"),
+                        KV.of(2, "user1"),
+                        KV.of(10, "user2"),
+                        KV.of(1, "user2"),
+                        KV.of(15000, "user2"),
+                        KV.of(12000, "user2"),
+                        KV.of(25000, "user3"))))
+            .apply(ParDo.of(new ExtractUserAndTimestamp()))
+            .apply(
+                Window.<String>into(FixedWindows.of(Duration.standardHours(1)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes())
+            .apply(
+                ParDo.of(
+                    new DoFn<String, KV<Void, String>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        String elem = c.element();
+                        c.output(KV.of(null, elem));
+                      }
+                    }))
+            .apply(GroupByKey.create())
+            .apply(
+                ParDo.of(
+                    new DoFn<KV<Void, Iterable<String>>, String>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) throws Exception {
+                        KV<Void, Iterable<String>> elem = c.element();
+                        StringBuilder str = new StringBuilder();
+                        str.append("k: " + elem.getKey() + " v:");
+                        for (String v : elem.getValue()) {
+                          str.append(" " + v);
+                        }
+                        c.output(str.toString());
+                      }
+                    }));
     output.apply(TextIO.write().to(resultPath));
     p.run();
   }

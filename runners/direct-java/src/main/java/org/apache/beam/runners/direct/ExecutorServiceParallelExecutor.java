@@ -22,7 +22,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -125,14 +124,10 @@ final class ExecutorServiceParallelExecutor
   }
 
   private RemovalListener<StepAndKey, TransformExecutorService> shutdownExecutorServiceListener() {
-    return new RemovalListener<StepAndKey, TransformExecutorService>() {
-      @Override
-      public void onRemoval(
-          RemovalNotification<StepAndKey, TransformExecutorService> notification) {
-        TransformExecutorService service = notification.getValue();
-        if (service != null) {
-          service.shutdown();
-        }
+    return notification -> {
+      TransformExecutorService service = notification.getValue();
+      if (service != null) {
+        service.shutdown();
       }
     };
   }

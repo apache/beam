@@ -29,7 +29,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -60,7 +59,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -85,12 +83,11 @@ public class ParDoTranslationTest {
     public static TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
     private static PCollectionView<Long> singletonSideInput =
-        p.apply("GenerateSingleton", GenerateSequence.from(0L).to(1L))
-            .apply(View.<Long>asSingleton());
+        p.apply("GenerateSingleton", GenerateSequence.from(0L).to(1L)).apply(View.asSingleton());
     private static PCollectionView<Map<Long, Iterable<String>>> multimapSideInput =
         p.apply("CreateMultimap", Create.of(KV.of(1L, "foo"), KV.of(1L, "bar"), KV.of(2L, "spam")))
             .setCoder(KvCoder.of(VarLongCoder.of(), StringUtf8Coder.of()))
-            .apply(View.<Long, String>asMultimap());
+            .apply(View.asMultimap());
 
     private static PCollection<KV<Long, String>> mainInput =
         p.apply(
@@ -98,24 +95,22 @@ public class ParDoTranslationTest {
 
     @Parameters(name = "{index}: {0}")
     public static Iterable<ParDo.MultiOutput<?, ?>> data() {
-      return ImmutableList.<ParDo.MultiOutput<?, ?>>of(
-          ParDo.of(new DropElementsFn()).withOutputTags(new TupleTag<Void>(), TupleTagList.empty()),
+      return ImmutableList.of(
+          ParDo.of(new DropElementsFn()).withOutputTags(new TupleTag<>(), TupleTagList.empty()),
           ParDo.of(new DropElementsFn())
-              .withOutputTags(new TupleTag<Void>(), TupleTagList.empty())
+              .withOutputTags(new TupleTag<>(), TupleTagList.empty())
               .withSideInputs(singletonSideInput, multimapSideInput),
           ParDo.of(new DropElementsFn())
               .withOutputTags(
-                  new TupleTag<Void>(),
+                  new TupleTag<>(),
                   TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {}))
               .withSideInputs(singletonSideInput, multimapSideInput),
           ParDo.of(new DropElementsFn())
               .withOutputTags(
-                  new TupleTag<Void>(),
+                  new TupleTag<>(),
                   TupleTagList.of(new TupleTag<byte[]>() {}).and(new TupleTag<Integer>() {})),
-      ParDo.of(new SplittableDropElementsFn())
-          .withOutputTags(
-              new TupleTag<Void>(),
-              TupleTagList.empty()));
+          ParDo.of(new SplittableDropElementsFn())
+              .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
     }
 
     @Parameter(0)
@@ -124,12 +119,11 @@ public class ParDoTranslationTest {
     @Test
     public void testToAndFromProto() throws Exception {
       SdkComponents components = SdkComponents.create();
-      ParDoPayload payload = ParDoTranslation.toProto(parDo, components);
+      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, components);
 
-      assertThat(ParDoTranslation.getDoFn(payload), Matchers.<DoFn<?, ?>>equalTo(parDo.getFn()));
+      assertThat(ParDoTranslation.getDoFn(payload), Matchers.equalTo(parDo.getFn()));
       assertThat(
-          ParDoTranslation.getMainOutputTag(payload),
-          Matchers.<TupleTag<?>>equalTo(parDo.getMainOutputTag()));
+          ParDoTranslation.getMainOutputTag(payload), Matchers.equalTo(parDo.getMainOutputTag()));
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
@@ -161,23 +155,20 @@ public class ParDoTranslationTest {
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
-            ParDoTranslation.viewFromProto(
+            PCollectionViewTranslation.viewFromProto(
                 sideInput,
                 view.getTagInternal().getId(),
                 view.getPCollection(),
                 protoTransform,
                 rehydratedComponents);
-        assertThat(restoredView.getTagInternal(),
-            Matchers.<TupleTag<?>>equalTo(view.getTagInternal()));
+        assertThat(restoredView.getTagInternal(), Matchers.equalTo(view.getTagInternal()));
         assertThat(restoredView.getViewFn(), instanceOf(view.getViewFn().getClass()));
         assertThat(
             restoredView.getWindowMappingFn(), instanceOf(view.getWindowMappingFn().getClass()));
         assertThat(
             restoredView.getWindowingStrategyInternal(),
-            Matchers.<WindowingStrategy<?, ?>>equalTo(
-                view.getWindowingStrategyInternal().fixDefaults()));
-        assertThat(restoredView.getCoderInternal(),
-            Matchers.<Coder<?>>equalTo(view.getCoderInternal()));
+            Matchers.equalTo(view.getWindowingStrategyInternal().fixDefaults()));
+        assertThat(restoredView.getCoderInternal(), Matchers.equalTo(view.getCoderInternal()));
       }
       String mainInputId = sdkComponents.registerPCollection(mainInput);
       assertThat(
@@ -208,7 +199,8 @@ public class ParDoTranslationTest {
     public void testStateSpecToFromProto() throws Exception {
       // Encode
       SdkComponents sdkComponents = SdkComponents.create();
-      RunnerApi.StateSpec stateSpecProto = ParDoTranslation.toProto(stateSpec, sdkComponents);
+      RunnerApi.StateSpec stateSpecProto =
+          ParDoTranslation.translateStateSpec(stateSpec, sdkComponents);
 
       // Decode
       RehydratedComponents rehydratedComponents =
@@ -216,7 +208,7 @@ public class ParDoTranslationTest {
       StateSpec<?> deserializedStateSpec =
           ParDoTranslation.fromProto(stateSpecProto, rehydratedComponents);
 
-      assertThat(stateSpec, Matchers.<StateSpec<?>>equalTo(deserializedStateSpec));
+      assertThat(stateSpec, Matchers.equalTo(deserializedStateSpec));
     }
   }
 

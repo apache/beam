@@ -70,8 +70,8 @@ final class ReadEvaluatorFactory implements TransformEvaluatorFactory {
     private final BoundedReadEvaluatorFactory.InputProvider<T> boundedInputProvider;
 
     InputProvider(EvaluationContext context) {
-      this.unboundedInputProvider = new UnboundedReadEvaluatorFactory.InputProvider<T>(context);
-      this.boundedInputProvider = new BoundedReadEvaluatorFactory.InputProvider<T>(context);
+      this.unboundedInputProvider = new UnboundedReadEvaluatorFactory.InputProvider<>(context);
+      this.boundedInputProvider = new BoundedReadEvaluatorFactory.InputProvider<>(context);
     }
 
     @Override

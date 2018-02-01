@@ -73,8 +73,8 @@ public class CommittedResultTest implements Serializable {
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.<CommittedBundle<?>>absent(),
-            Collections.<CommittedBundle<?>>emptyList(),
+            Optional.absent(),
+            Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
     assertThat(result.getTransform(), Matchers.<AppliedPTransform<?, ?, ?>>equalTo(transform));
@@ -90,11 +90,10 @@ public class CommittedResultTest implements Serializable {
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
             Optional.of(bundle),
-            Collections.<CommittedBundle<?>>emptyList(),
+            Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(result.getUnprocessedInputs().get(),
-        Matchers.<CommittedBundle<?>>equalTo(bundle));
+    assertThat(result.getUnprocessedInputs().get(), Matchers.equalTo(bundle));
   }
 
   @Test
@@ -102,14 +101,11 @@ public class CommittedResultTest implements Serializable {
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.<CommittedBundle<?>>absent(),
-            Collections.<CommittedBundle<?>>emptyList(),
+            Optional.absent(),
+            Collections.emptyList(),
             EnumSet.noneOf(OutputType.class));
 
-    assertThat(
-        result.getUnprocessedInputs(),
-        Matchers.<Optional<? extends CommittedBundle<?>>>equalTo(
-            Optional.<CommittedBundle<?>>absent()));
+    assertThat(result.getUnprocessedInputs(), Matchers.equalTo(Optional.absent()));
   }
 
   @Test
@@ -135,7 +131,7 @@ public class CommittedResultTest implements Serializable {
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),
-            Optional.<CommittedBundle<?>>absent(),
+            Optional.absent(),
             outputs,
             EnumSet.of(OutputType.BUNDLE, OutputType.PCOLLECTION_VIEW));
 

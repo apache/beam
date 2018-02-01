@@ -59,8 +59,6 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for {@link SideInputContainer}.
@@ -115,15 +113,12 @@ public class SideInputContainerTest {
   public void setup() {
     MockitoAnnotations.initMocks(this);
 
-    PCollection<Integer> create =
-        pipeline.apply("forBaseCollection", Create.<Integer>of(1, 2, 3, 4));
+    PCollection<Integer> create = pipeline.apply("forBaseCollection", Create.of(1, 2, 3, 4));
 
-    mapView =
-        create.apply("forKeyTypes", WithKeys.<String, Integer>of("foo"))
-            .apply("asMapView", View.<String, Integer>asMap());
+    mapView = create.apply("forKeyTypes", WithKeys.of("foo")).apply("asMapView", View.asMap());
 
     singletonView = create.apply("forCombinedTypes", Mean.<Integer>globally().asSingletonView());
-    iterableView = create.apply("asIterableView", View.<Integer>asIterable());
+    iterableView = create.apply("asIterableView", View.asIterable());
 
     container = SideInputContainer.create(
         context, ImmutableList.of(iterableView, mapView, singletonView));
@@ -149,9 +144,7 @@ public class SideInputContainerTest {
     container.write(mapView, valuesBuilder.build());
 
     Map<String, Integer> viewContents =
-        container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
-            .get(mapView, FIRST_WINDOW);
+        container.createReaderForViews(ImmutableList.of(mapView)).get(mapView, FIRST_WINDOW);
     assertThat(viewContents, hasEntry("one", 1));
     assertThat(viewContents, hasEntry("two", 2));
     assertThat(viewContents.size(), is(2));
@@ -177,9 +170,7 @@ public class SideInputContainerTest {
     container.write(mapView, valuesBuilder.build());
 
     Map<String, Integer> viewContents =
-        container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
-            .get(mapView, SECOND_WINDOW);
+        container.createReaderForViews(ImmutableList.of(mapView)).get(mapView, SECOND_WINDOW);
     assertThat(viewContents, hasEntry("one", 1));
     assertThat(viewContents, hasEntry("two", 2));
     assertThat(viewContents.size(), is(2));
@@ -195,9 +186,7 @@ public class SideInputContainerTest {
     container.write(mapView, overwriteValuesBuilder.build());
 
     Map<String, Integer> overwrittenViewContents =
-        container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
-            .get(mapView, SECOND_WINDOW);
+        container.createReaderForViews(ImmutableList.of(mapView)).get(mapView, SECOND_WINDOW);
     assertThat(overwrittenViewContents, hasEntry("three", 3));
     assertThat(overwrittenViewContents.size(), is(1));
   }
@@ -211,22 +200,20 @@ public class SideInputContainerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("not ready");
 
-    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
-        .get(mapView, GlobalWindow.INSTANCE);
+    container.createReaderForViews(ImmutableList.of(mapView)).get(mapView, GlobalWindow.INSTANCE);
   }
 
   @Test
   public void withViewsForViewNotInContainerFails() {
     PCollection<KV<String, String>> input =
         pipeline.apply(Create.empty(new TypeDescriptor<KV<String, String>>() {}));
-    PCollectionView<Map<String, Iterable<String>>> newView =
-        input.apply(View.<String, String>asMultimap());
+    PCollectionView<Map<String, Iterable<String>>> newView = input.apply(View.asMultimap());
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("unknown views");
     thrown.expectMessage(newView.toString());
 
-    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(newView));
+    container.createReaderForViews(ImmutableList.of(newView));
   }
 
   @Test
@@ -234,7 +221,8 @@ public class SideInputContainerTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("unknown view: " + iterableView.toString());
 
-    container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
+    container
+        .createReaderForViews(ImmutableList.of(mapView))
         .get(iterableView, GlobalWindow.INSTANCE);
   }
 
@@ -258,12 +246,12 @@ public class SideInputContainerTest {
     container.write(singletonView, valuesBuilder.build());
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+            .createReaderForViews(ImmutableList.of(singletonView))
             .get(singletonView, FIRST_WINDOW),
         equalTo(2.875));
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+            .createReaderForViews(ImmutableList.of(singletonView))
             .get(singletonView, SECOND_WINDOW),
         equalTo(4.125));
   }
@@ -282,7 +270,7 @@ public class SideInputContainerTest {
 
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(iterableView))
+            .createReaderForViews(ImmutableList.of(iterableView))
             .get(iterableView, FIRST_WINDOW),
         contains(44, 44));
   }
@@ -300,12 +288,12 @@ public class SideInputContainerTest {
     container.write(singletonView, valuesBuilder.build());
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+            .createReaderForViews(ImmutableList.of(singletonView))
             .get(singletonView, FIRST_WINDOW),
         equalTo(2.875));
     assertThat(
         container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
+            .createReaderForViews(ImmutableList.of(singletonView))
             .get(singletonView, SECOND_WINDOW),
         equalTo(2.875));
   }
@@ -332,9 +320,7 @@ public class SideInputContainerTest {
     immediatelyInvokeCallback(mapView, SECOND_WINDOW);
 
     Map<String, Integer> viewContents =
-        container
-            .createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView))
-            .get(mapView, SECOND_WINDOW);
+        container.createReaderForViews(ImmutableList.of(mapView)).get(mapView, SECOND_WINDOW);
 
     assertThat(viewContents, hasEntry("one", 1));
     assertThat(viewContents, hasEntry("two", 2));
@@ -346,9 +332,7 @@ public class SideInputContainerTest {
     immediatelyInvokeCallback(mapView, SECOND_WINDOW);
     Future<Map<String, Integer>> mapFuture =
         getFutureOfView(
-            container.createReaderForViews(ImmutableList.<PCollectionView<?>>of(mapView)),
-            mapView,
-            SECOND_WINDOW);
+            container.createReaderForViews(ImmutableList.of(mapView)), mapView, SECOND_WINDOW);
 
     assertThat(mapFuture.get().isEmpty(), is(true));
   }
@@ -359,8 +343,7 @@ public class SideInputContainerTest {
    */
   @Test
   public void isReadyInEmptyReaderThrows() {
-    ReadyCheckingSideInputReader reader =
-        container.createReaderForViews(ImmutableList.<PCollectionView<?>>of());
+    ReadyCheckingSideInputReader reader = container.createReaderForViews(ImmutableList.of());
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("does not contain");
     thrown.expectMessage(ImmutableList.of().toString());
@@ -452,14 +435,11 @@ public class SideInputContainerTest {
    */
   private void immediatelyInvokeCallback(PCollectionView<?> view, BoundedWindow window) {
     doAnswer(
-            new Answer<Void>() {
-              @Override
-              public Void answer(InvocationOnMock invocation) throws Throwable {
-                Object callback = invocation.getArguments()[3];
-                Runnable callbackRunnable = (Runnable) callback;
-                callbackRunnable.run();
-                return null;
-              }
+            invocation -> {
+              Object callback = invocation.getArguments()[3];
+              Runnable callbackRunnable = (Runnable) callback;
+              callbackRunnable.run();
+              return null;
             })
         .when(context)
         .scheduleAfterOutputWouldBeProduced(
@@ -478,28 +458,26 @@ public class SideInputContainerTest {
       PCollectionView<?> view, BoundedWindow window, final CountDownLatch onComplete) {
     final CountDownLatch runLatch = new CountDownLatch(1);
     doAnswer(
-        new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock invocation) throws Throwable {
-            Object callback = invocation.getArguments()[3];
-            final Runnable callbackRunnable = (Runnable) callback;
-            Executors.newSingleThreadExecutor().submit(new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
-                    fail("Run latch didn't count down within timeout");
-                  }
-                  callbackRunnable.run();
-                  onComplete.countDown();
-                } catch (InterruptedException e) {
-                  fail("Unexpectedly interrupted while waiting for latch to be counted down");
-                }
-              }
-            });
-            return null;
-          }
-        })
+            invocation -> {
+              Object callback = invocation.getArguments()[3];
+              final Runnable callbackRunnable = (Runnable) callback;
+              Executors.newSingleThreadExecutor()
+                  .submit(
+                      () -> {
+                        try {
+                          if (!runLatch.await(1500L, TimeUnit.MILLISECONDS)) {
+                            fail("Run latch didn't count down within timeout");
+                          }
+                          callbackRunnable.run();
+                          onComplete.countDown();
+                        } catch (InterruptedException e) {
+                          fail(
+                              "Unexpectedly interrupted while waiting for latch "
+                                  + "to be counted down");
+                        }
+                      });
+              return null;
+            })
         .when(context)
         .scheduleAfterOutputWouldBeProduced(
             Mockito.eq(view),
@@ -511,12 +489,7 @@ public class SideInputContainerTest {
 
   private <ValueT> Future<ValueT> getFutureOfView(final SideInputReader myReader,
       final PCollectionView<ValueT> view, final BoundedWindow window) {
-    Callable<ValueT> callable = new Callable<ValueT>() {
-      @Override
-      public ValueT call() throws Exception {
-        return myReader.get(view, window);
-      }
-    };
+    Callable<ValueT> callable = () -> myReader.get(view, window);
     return Executors.newSingleThreadExecutor().submit(callable);
   }
 }

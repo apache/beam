@@ -31,7 +31,7 @@ test {
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.google_http_client_jackson2
   shadow library.java.google_auth_library_oauth2_http
   shadow library.java.google_api_client
@@ -48,7 +48,7 @@ dependencies {
   shadow library.java.jackson_databind
   shadow library.java.hamcrest_core
   shadow library.java.junit
-  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.guava_testlib
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14

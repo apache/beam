@@ -35,7 +35,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 
-
 /**
  * Spark runner process context processes Spark partitions using Beam's {@link DoFnRunner}.
  */
@@ -83,12 +82,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   private Iterable<OutputT> getOutputIterable(
       final Iterator<WindowedValue<FnInputT>> iter,
       final DoFnRunner<FnInputT, FnOutputT> doFnRunner) {
-    return new Iterable<OutputT>() {
-      @Override
-      public Iterator<OutputT> iterator() {
-        return new ProcCtxtIterator(iter, doFnRunner);
-      }
-    };
+    return () -> new ProcCtxtIterator(iter, doFnRunner);
   }
 
   interface SparkOutputManager<T> extends OutputManager, Iterable<T> {

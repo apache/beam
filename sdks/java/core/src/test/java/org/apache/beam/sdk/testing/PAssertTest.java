@@ -201,13 +201,11 @@ public class PAssertTest implements Serializable {
           new NotSerializableObject())
             .withCoder(NotSerializableObjectCoder.of()));
 
-    PAssert.that(pcollection).satisfies(
-        new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
-          @Override
-          public Void apply(Iterable<NotSerializableObject> contents) {
-            return null; // no problem!
-          }
-        });
+    PAssert.that(pcollection)
+        .satisfies(
+            contents -> {
+              return null; // no problem!
+            });
 
     pipeline.run();
   }
@@ -220,31 +218,29 @@ public class PAssertTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testWindowedSerializablePredicate() throws Exception {
-    PCollection<NotSerializableObject> pcollection = pipeline
-        .apply(Create.timestamped(
-            TimestampedValue.of(new NotSerializableObject(), new Instant(250L)),
-            TimestampedValue.of(new NotSerializableObject(), new Instant(500L)))
-            .withCoder(NotSerializableObjectCoder.of()))
-        .apply(Window.<NotSerializableObject>into(FixedWindows.of(Duration.millis(300L))));
+    PCollection<NotSerializableObject> pcollection =
+        pipeline
+            .apply(
+                Create.timestamped(
+                        TimestampedValue.of(new NotSerializableObject(), new Instant(250L)),
+                        TimestampedValue.of(new NotSerializableObject(), new Instant(500L)))
+                    .withCoder(NotSerializableObjectCoder.of()))
+            .apply(Window.into(FixedWindows.of(Duration.millis(300L))));
 
     PAssert.that(pcollection)
         .inWindow(new IntervalWindow(new Instant(0L), new Instant(300L)))
-        .satisfies(new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
-          @Override
-          public Void apply(Iterable<NotSerializableObject> contents) {
-            assertThat(Iterables.isEmpty(contents), is(false));
-            return null; // no problem!
-          }
-        });
+        .satisfies(
+            contents -> {
+              assertThat(Iterables.isEmpty(contents), is(false));
+              return null; // no problem!
+            });
     PAssert.that(pcollection)
         .inWindow(new IntervalWindow(new Instant(300L), new Instant(600L)))
-        .satisfies(new SerializableFunction<Iterable<NotSerializableObject>, Void>() {
-          @Override
-          public Void apply(Iterable<NotSerializableObject> contents) {
-            assertThat(Iterables.isEmpty(contents), is(false));
-            return null; // no problem!
-          }
-        });
+        .satisfies(
+            contents -> {
+              assertThat(Iterables.isEmpty(contents), is(false));
+              return null; // no problem!
+            });
 
     pipeline.run();
   }
@@ -323,9 +319,12 @@ public class PAssertTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testWindowedIsEqualTo() throws Exception {
     PCollection<Integer> pcollection =
-        pipeline.apply(Create.timestamped(TimestampedValue.of(43, new Instant(250L)),
-            TimestampedValue.of(22, new Instant(-250L))))
-            .apply(Window.<Integer>into(FixedWindows.of(Duration.millis(500L))));
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of(43, new Instant(250L)),
+                    TimestampedValue.of(22, new Instant(-250L))))
+            .apply(Window.into(FixedWindows.of(Duration.millis(500L))));
     PAssert.thatSingleton(pcollection)
         .inOnlyPane(new IntervalWindow(new Instant(0L), new Instant(500L)))
         .isEqualTo(43);
@@ -411,13 +410,18 @@ public class PAssertTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void testWindowedContainsInAnyOrder() throws Exception {
     PCollection<Integer> pcollection =
-        pipeline.apply(Create.timestamped(TimestampedValue.of(1, new Instant(100L)),
-            TimestampedValue.of(2, new Instant(200L)),
-            TimestampedValue.of(3, new Instant(300L)),
-            TimestampedValue.of(4, new Instant(400L))))
-            .apply(Window.<Integer>into(SlidingWindows.of(Duration.millis(200L))
-                .every(Duration.millis(100L))
-                .withOffset(Duration.millis(50L))));
+        pipeline
+            .apply(
+                Create.timestamped(
+                    TimestampedValue.of(1, new Instant(100L)),
+                    TimestampedValue.of(2, new Instant(200L)),
+                    TimestampedValue.of(3, new Instant(300L)),
+                    TimestampedValue.of(4, new Instant(400L))))
+            .apply(
+                Window.into(
+                    SlidingWindows.of(Duration.millis(200L))
+                        .every(Duration.millis(100L))
+                        .withOffset(Duration.millis(50L))));
 
     PAssert.that(pcollection)
         .inWindow(new IntervalWindow(new Instant(-50L), new Instant(150L))).containsInAnyOrder(1);
@@ -505,8 +509,8 @@ public class PAssertTest implements Serializable {
     // This check should return a failure.
     SuccessOrFailure res = PAssert.doChecks(
         PAssert.PAssertionSite.capture("Captured assertion message."),
-        new Integer(10),
-        new MatcherCheckerFn(SerializableMatchers.contains(new Integer(11))));
+            10,
+        new MatcherCheckerFn(SerializableMatchers.contains(11)));
 
     String stacktrace = Throwables.getStackTraceAsString(res.assertionError());
     assertEquals(res.isSuccess(), false);

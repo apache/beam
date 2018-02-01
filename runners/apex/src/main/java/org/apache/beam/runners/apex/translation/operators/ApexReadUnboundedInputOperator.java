@@ -97,7 +97,7 @@ public class ApexReadUnboundedInputOperator<OutputT, CheckpointMarkT
       if (traceTuples) {
         LOG.debug("\nemitting watermark {}\n", mark);
       }
-      output.emit(ApexStreamTuple.WatermarkTuple.<WindowedValue<OutputT>>of(mark));
+      output.emit(ApexStreamTuple.WatermarkTuple.of(mark));
     }
   }
 

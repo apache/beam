@@ -21,9 +21,9 @@ import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode
 
 import com.amazonaws.services.kinesis.clientlibrary.types.ExtendedSequenceNumber;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
-import com.google.common.base.Charsets;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
@@ -72,7 +72,7 @@ public class KinesisRecord {
    * @return unique id of the record based on its position in the stream
    */
   public byte[] getUniqueId() {
-    return getExtendedSequenceNumber().toString().getBytes(Charsets.UTF_8);
+    return getExtendedSequenceNumber().toString().getBytes(StandardCharsets.UTF_8);
   }
 
   public Instant getReadTime() {

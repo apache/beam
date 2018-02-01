@@ -21,11 +21,13 @@ import io.grpc.stub.StreamObserver;
 import java.util.concurrent.BlockingQueue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.runners.fnexecution.FnService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A Fn API control service which adds incoming SDK harness connections to a pool. */
-public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase {
+public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase
+    implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
   private final BlockingQueue<FnApiControlClient> clientPool;
@@ -62,5 +64,10 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       throw new RuntimeException(e);
     }
     return newClient.asResponseObserver();
+  }
+
+  @Override
+  public void close() throws Exception {
+    // TODO: terminate existing clients.
   }
 }

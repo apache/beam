@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-extensions-parent</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.4.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -87,8 +87,8 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
+          <source>1.8</source>
+          <target>1.8</target>
           <useIncrementalCompilation>false</useIncrementalCompilation>
           <compilerArgs>
             <!-- Generated calcite code has some deprecation warning -->
@@ -122,7 +122,6 @@
              it under ${project.build.directory} where all freemarker templates are. -->
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>2.8</version>
         <executions>
           <execution>
             <id>unpack-parser-template</id>
@@ -166,7 +165,7 @@
             </goals>
             <configuration>
               <cfgFile>${project.build.directory}/codegen/config.fmpp</cfgFile>
-              <outputDirectory>target/generated-sources</outputDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/fmpp</outputDirectory>
               <templateDirectory>${project.build.directory}/codegen/templates</templateDirectory>
             </configuration>
           </execution>
@@ -176,7 +175,6 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
-        <version>1.9</version>
         <executions>
           <execution>
             <id>add-generated-sources</id>
@@ -186,7 +184,7 @@
             </goals>
             <configuration>
               <sources>
-                <source>${project.build.directory}/generated-sources</source>
+                <source>${project.build.directory}/generated-sources/java</source>
               </sources>
             </configuration>
           </execution>
@@ -211,7 +209,7 @@
               </includes>
               <lookAhead>2</lookAhead>
               <isStatic>false</isStatic>
-              <outputDirectory>${project.build.directory}/generated-sources/</outputDirectory>
+              <outputDirectory>${project.build.directory}/generated-sources/java</outputDirectory>
             </configuration>
           </execution>
         </executions>
@@ -344,6 +342,11 @@
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.github.stephenc.findbugs</groupId>
+      <artifactId>findbugs-annotations</artifactId>
     </dependency>
 
     <dependency>

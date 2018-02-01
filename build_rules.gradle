@@ -29,17 +29,30 @@
 //
 // For example, see applyJavaNature below.
 
-
 println "Applying build_rules.gradle to $project.name"
 
 /*************************************************************************************************/
 // Apply common properties/repositories and tasks to all projects.
 
-group = "org.apache.beam"
+// Gradle determines project uniqueness based upon the project group and its name.
+// We use the project.path as the group name to make this mapping unique since
+// we have a few projects with the same name.
+group = project.path
 version = "2.3.0-SNAPSHOT"
 
 // Define the default set of repositories for all builds.
 repositories {
+  maven { url offlineRepositoryRoot }
+
+  // To run gradle in offline mode, one must first invoke
+  // 'updateOfflineRepository' to create an offline repo
+  // inside the root project directory. See the application
+  // of the offline repo plugin within build_rules.gradle
+  // for further details.
+  if (gradle.startParameter.isOffline()) {
+    return
+  }
+
   mavenLocal()
   mavenCentral()
   jcenter()
@@ -70,12 +83,44 @@ apply plugin: "project-report"
 // See https://github.com/mmalohlava/gradle-visteg for further details.
 apply plugin: "cz.malohlava.visteg"
 
+// Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
+// repository. This offline repository satisfies all Gradle build dependencies and Java
+// project dependencies. The offline repository is placed within $rootDir/offline-repo
+// but can be overridden by specifying the 'offlineRepositoryRoot' Gradle option.
+// Note that parallel build must be disabled when executing 'updateOfflineRepository'
+// by specifying '-Dorg.gradle.parallel=false', see
+// https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
+apply plugin: "io.pry.gradle.offline_dependencies"
+
+offlineDependencies {
+  repositories {
+    maven { url offlineRepositoryRoot }
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+    maven { url "https://plugins.gradle.org/m2/" }
+    maven { url "http://repo.spring.io/plugins-release" }
+  }
+
+  includeSources = false
+  includeJavadocs = false
+  includeIvyXmls = false
+}
+
 /*************************************************************************************************/
 
+// Returns a string representing the relocated path to be used with the shadow plugin when
+// given a suffix such as "com.google.common".
+ext.getJavaRelocatedPath = { String suffix ->
+  return "org.apache.beam"
+    + (project.path + ":" + project.name).replace(":", ".").replace("-", "_")
+    + ".repackaged."
+    + suffix;
+}
 
 // A class defining the set of configurable properties accepted by applyJavaNature
 class JavaNatureConfiguration {
-  double javaVersion = 1.7        // Controls the JDK source language and target compatibility
+  double javaVersion = 1.8        // Controls the JDK source language and target compatibility
   boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
   boolean enableShadow = true     // Controls whether the shadow plugin is enabled and configured
 }
@@ -138,6 +183,7 @@ ext.applyJavaNature = {
   targetCompatibility = configuration.javaVersion
   tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
+    options.compilerArgs += ["-Xlint:all","-Xlint:-options","-Xlint:-cast","-Xlint:-deprecation","-Xlint:-processing","-Xlint:-rawtypes","-Xlint:-serial","-Xlint:-try","-Xlint:-unchecked","-Xlint:-varargs","-parameters"]
   }
 
   // Configure the default test tasks set of tests executed
@@ -192,6 +238,13 @@ ext.applyJavaNature = {
     maxErrors = 0
   }
 
+  // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
+  // connects the apt-eclipse plugin to update the eclipse project files
+  // with the instructions needed to run apt within eclipse to handle the AutoValue
+  // and additional annotations
+  apply plugin: 'eclipse'
+  apply plugin: "net.ltgt.apt-eclipse"
+
   // Enables a plugin which can apply code formatting to source.
   // TODO: Should this plugin be enabled for all projects?
   apply plugin: "com.diffplug.gradle.spotless"
@@ -226,7 +279,7 @@ ext.applyJavaNature = {
   // is expected to be used for the different Gradle configurations.
   //
   // TODO: Enforce all relocations are always performed to:
-  // "org.apache.beam." + project.name.replace("-", ".") + ".repackaged."
+  // getJavaRelocatedPath(package_suffix) where package_suffix is something like "com.google.commmon"
   if (configuration.enableShadow) {
     apply plugin: 'com.github.johnrengelman.shadow'
 
@@ -238,7 +291,7 @@ ext.applyJavaNature = {
         exclude(".*")
         include(dependency(library.java.guava))
       }
-      relocate("com.google.common", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.common") {
+      relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
         // com.google.common is too generic, need to exclude guava-testlib
         exclude "com.google.common.collect.testing.**"
         exclude "com.google.common.escape.testing.**"
@@ -297,7 +350,6 @@ ext.applyJavaNature = {
       force library.java.values()
     }
   }
-
 }
 
 /*************************************************************************************************/
@@ -314,11 +366,11 @@ ext.applyGoNature = {
   // TODO: Figure out how to do this by automatically figuring out the task dependency DAG
   // based upon task type.
   List<String> goProjects = [
-      ":beam-sdks-parent:beam-sdks-go",
-      ":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcemd",
-      ":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcsproxy",
-      ":beam-sdks-parent:beam-sdks-python:beam-sdks-python-container",
-      ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-container",
+      ":sdks:go",
+      ":runners:gcp:gcemd",
+      ":runners:gcp:gcsproxy",
+      ":sdks:python:container",
+      ":sdks:java:container",
   ]
   if (!goProjects.contains(project.path)) {
     throw new GradleException(project.path + " has not been defined within the list of well known go projects within build_rules.gradle.")
@@ -336,7 +388,6 @@ ext.applyGoNature = {
     }
   }
 }
-
 
 /*************************************************************************************************/
 
@@ -389,3 +440,5 @@ ext.applyAvroNature = {
   println "applyAvroNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.commercehub.gradle.plugin.avro"
 }
+
+

@@ -18,10 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret;
 
-import com.google.common.base.Function;
-
-import javax.annotation.Nonnull;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -34,11 +30,10 @@ public abstract class IntegerReinterpretConversions {
       ReinterpretConversion.builder()
           .from(SqlTypeName.INT_TYPES)
           .to(SqlTypeName.BIGINT)
-          .convert(new Function<BeamSqlPrimitive, BeamSqlPrimitive>() {
-            @Override
-            public BeamSqlPrimitive apply(@Nonnull BeamSqlPrimitive beamSqlPrimitive) {
-              Long value = ((Number) beamSqlPrimitive.getValue()).longValue();
-              return BeamSqlPrimitive.of(SqlTypeName.BIGINT, value);
-            }
-          }).build();
+          .convert(
+              beamSqlPrimitive -> {
+                Long value = ((Number) beamSqlPrimitive.getValue()).longValue();
+                return BeamSqlPrimitive.of(SqlTypeName.BIGINT, value);
+              })
+          .build();
 }

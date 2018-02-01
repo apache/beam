@@ -86,12 +86,7 @@ public class PubsubUnboundedSourceTest {
 
   private void setupOneMessage(Iterable<IncomingMessage> incoming) {
     now = new AtomicLong(REQ_TIME);
-    clock = new Clock() {
-      @Override
-      public long currentTimeMillis() {
-        return now.get();
-      }
-    };
+    clock = () -> now.get();
     factory = PubsubTestClient.createFactoryForPull(clock, SUBSCRIPTION, ACK_TIMEOUT_S, incoming);
     PubsubUnboundedSource source =
         new PubsubUnboundedSource(
@@ -120,7 +115,7 @@ public class PubsubUnboundedSourceTest {
 
   @Test
   public void checkpointCoderIsSane() throws Exception {
-    setupOneMessage(ImmutableList.<IncomingMessage>of());
+    setupOneMessage(ImmutableList.of());
     CoderProperties.coderSerializable(primSource.getCheckpointMarkCoder());
     // Since we only serialize/deserialize the 'notYetReadIds', and we don't want to make
     // equals on checkpoints ignore those fields, we'll test serialization and deserialization

@@ -31,12 +31,7 @@ import org.junit.runners.model.Statement;
  */
 public class TestExecutors {
   public static TestExecutorService from(final ExecutorService staticExecutorService) {
-    return from(new Supplier<ExecutorService>() {
-      @Override
-      public ExecutorService get() {
-        return staticExecutorService;
-      }
-    });
+    return from(() -> staticExecutorService);
   }
 
   public static TestExecutorService from(Supplier<ExecutorService> executorServiceSuppler) {

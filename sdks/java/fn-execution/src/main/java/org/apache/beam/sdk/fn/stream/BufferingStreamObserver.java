@@ -59,14 +59,7 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
     this.bufferSize = bufferSize;
     this.queue = new LinkedBlockingDeque<>(bufferSize);
     this.outboundObserver = outboundObserver;
-    this.queueDrainer =
-        executor.submit(
-            new Runnable() {
-              @Override
-              public void run() {
-                drainQueue();
-              }
-            });
+    this.queueDrainer = executor.submit(this::drainQueue);
   }
 
   private void drainQueue() {

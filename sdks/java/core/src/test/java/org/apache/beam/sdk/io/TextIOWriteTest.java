@@ -49,6 +49,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -288,27 +290,45 @@ public class TextIOWriteTest {
 
     String[] aElements =
         Iterables.toArray(
-            Iterables.transform(
-                Iterables.filter(
-                    elements,
-                    Predicates.compose(new StartsWith("a"), new ExtractWriteDestination())),
-                Functions.toStringFunction()),
+            StreamSupport.stream(
+                    elements
+                        .stream()
+                        .filter(
+                            Predicates.compose(new StartsWith("a"), new ExtractWriteDestination())
+                                ::apply)
+                        .collect(Collectors.toList())
+                        .spliterator(),
+                    false)
+                .map(Functions.toStringFunction()::apply)
+                .collect(Collectors.toList()),
             String.class);
     String[] bElements =
         Iterables.toArray(
-            Iterables.transform(
-                Iterables.filter(
-                    elements,
-                    Predicates.compose(new StartsWith("b"), new ExtractWriteDestination())),
-                Functions.toStringFunction()),
+            StreamSupport.stream(
+                    elements
+                        .stream()
+                        .filter(
+                            Predicates.compose(new StartsWith("b"), new ExtractWriteDestination())
+                                ::apply)
+                        .collect(Collectors.toList())
+                        .spliterator(),
+                    false)
+                .map(Functions.toStringFunction()::apply)
+                .collect(Collectors.toList()),
             String.class);
     String[] cElements =
         Iterables.toArray(
-            Iterables.transform(
-                Iterables.filter(
-                    elements,
-                    Predicates.compose(new StartsWith("c"), new ExtractWriteDestination())),
-                Functions.toStringFunction()),
+            StreamSupport.stream(
+                    elements
+                        .stream()
+                        .filter(
+                            Predicates.compose(new StartsWith("c"), new ExtractWriteDestination())
+                                ::apply)
+                        .collect(Collectors.toList())
+                        .spliterator(),
+                    false)
+                .map(Functions.toStringFunction()::apply)
+                .collect(Collectors.toList()),
             String.class);
     assertOutputFiles(
         aElements,
@@ -389,8 +409,7 @@ public class TextIOWriteTest {
     }
 
     WriteFilesResult<Void> result = input.apply(write);
-    PAssert.that(result.getPerDestinationOutputFilenames()
-        .apply("GetFilenames", Values.<String>create()))
+    PAssert.that(result.getPerDestinationOutputFilenames().apply("GetFilenames", Values.create()))
         .satisfies(new MatchesFilesystem(baseFilename));
     p.run();
 
@@ -452,8 +471,7 @@ public class TextIOWriteTest {
                     .toList()));
 
     assertThat(actualElements, containsInAnyOrder(expectedElements.toArray()));
-
-    assertTrue(Iterables.all(actual, haveProperHeaderAndFooter(header, footer)));
+    assertTrue(actual.stream().allMatch(haveProperHeaderAndFooter(header, footer)::apply));
   }
 
   private static List<String> readLinesFromFile(File f) throws IOException {
@@ -491,13 +509,10 @@ public class TextIOWriteTest {
 
   private static Predicate<List<String>> haveProperHeaderAndFooter(
       final String header, final String footer) {
-    return new Predicate<List<String>>() {
-      @Override
-      public boolean apply(List<String> fileLines) {
-        int last = fileLines.size() - 1;
-        return (header == null || fileLines.get(0).equals(header))
-            && (footer == null || fileLines.get(last).equals(footer));
-      }
+    return fileLines -> {
+      int last = fileLines.size() - 1;
+      return (header == null || fileLines.get(0).equals(header))
+          && (footer == null || fileLines.get(last).equals(footer));
     };
   }
 
@@ -670,7 +685,7 @@ public class TextIOWriteTest {
                     .withWindowedWrites()
                     .<Void>withOutputFilenames())
             .getPerDestinationOutputFilenames()
-            .apply(Values.<String>create());
+            .apply(Values.create());
 
     PAssert.that(filenames.apply(TextIO.readAll())).containsInAnyOrder("0", "1", "2");
 
@@ -690,7 +705,7 @@ public class TextIOWriteTest {
                         .via(TextIO.sink())
                         .withIgnoreWindowing())
                 .getPerDestinationOutputFilenames()
-                .apply(Values.<String>create())
+                .apply(Values.create())
                 .apply(TextIO.readAll()))
         .containsInAnyOrder(data);
 

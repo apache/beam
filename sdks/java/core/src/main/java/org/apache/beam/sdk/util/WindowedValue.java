@@ -700,7 +700,7 @@ public abstract class WindowedValue<T> {
 
     @Override
     public List<? extends Coder<?>> getComponents() {
-      return Arrays.<Coder<?>>asList(valueCoder, windowCoder);
+      return Arrays.asList(valueCoder, windowCoder);
     }
   }
 

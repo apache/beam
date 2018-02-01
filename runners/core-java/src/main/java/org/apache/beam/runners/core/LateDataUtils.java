@@ -17,11 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -77,43 +74,37 @@ public class LateDataUtils {
     return FluentIterable.from(elements)
         .transformAndConcat(
             // Explode windows to filter out expired ones
-            new Function<WindowedValue<V>, Iterable<WindowedValue<V>>>() {
-              @Override
-              public Iterable<WindowedValue<V>> apply(@Nullable WindowedValue<V> input) {
-                if (input == null) {
-                  return null;
-                }
-                return input.explodeWindows();
+            input -> {
+              if (input == null) {
+                return null;
               }
+              return input.explodeWindows();
             })
         .filter(
-            new Predicate<WindowedValue<V>>() {
-              @Override
-              public boolean apply(@Nullable WindowedValue<V> input) {
-                if (input == null) {
-                  // drop null elements.
-                  return false;
-                }
-                BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
-                boolean expired =
-                    window
-                        .maxTimestamp()
-                        .plus(windowingStrategy.getAllowedLateness())
-                        .isBefore(timerInternals.currentInputWatermarkTime());
-                if (expired) {
-                  // The element is too late for this window.
-                  droppedDueToLateness.inc();
-                  WindowTracing.debug(
-                      "GroupAlsoByWindow: Dropping element at {} for key: {}; "
-                          + "window: {} since it is too far behind inputWatermark: {}",
-                      input.getTimestamp(),
-                      key,
-                      window,
-                      timerInternals.currentInputWatermarkTime());
-                }
-                // Keep the element if the window is not expired.
-                return !expired;
+            input -> {
+              if (input == null) {
+                // drop null elements.
+                return false;
               }
+              BoundedWindow window = Iterables.getOnlyElement(input.getWindows());
+              boolean expired =
+                  window
+                      .maxTimestamp()
+                      .plus(windowingStrategy.getAllowedLateness())
+                      .isBefore(timerInternals.currentInputWatermarkTime());
+              if (expired) {
+                // The element is too late for this window.
+                droppedDueToLateness.inc();
+                WindowTracing.debug(
+                    "GroupAlsoByWindow: Dropping element at {} for key: {}; "
+                        + "window: {} since it is too far behind inputWatermark: {}",
+                    input.getTimestamp(),
+                    key,
+                    window,
+                    timerInternals.currentInputWatermarkTime());
+              }
+              // Keep the element if the window is not expired.
+              return !expired;
             });
   }
 }

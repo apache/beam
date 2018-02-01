@@ -42,7 +42,7 @@ public class AfterAllStateMachine extends TriggerStateMachine {
    */
   @SafeVarargs
   public static TriggerStateMachine of(TriggerStateMachine... triggers) {
-    return new AfterAllStateMachine(Arrays.<TriggerStateMachine>asList(triggers));
+    return new AfterAllStateMachine(Arrays.asList(triggers));
   }
 
   public static TriggerStateMachine of(Iterable<? extends TriggerStateMachine> triggers) {

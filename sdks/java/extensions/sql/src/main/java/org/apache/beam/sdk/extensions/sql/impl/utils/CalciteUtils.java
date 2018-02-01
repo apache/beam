@@ -99,15 +99,12 @@ public class CalciteUtils {
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
   public static RelProtoDataType toCalciteRowType(final BeamRecordSqlType that) {
-    return new RelProtoDataType() {
-      @Override
-      public RelDataType apply(RelDataTypeFactory a) {
-        RelDataTypeFactory.FieldInfoBuilder builder = a.builder();
-        for (int idx = 0; idx < that.getFieldNames().size(); ++idx) {
-          builder.add(that.getFieldNameByIndex(idx), toCalciteType(that.getFieldTypeByIndex(idx)));
-        }
-        return builder.build();
+    return a -> {
+      RelDataTypeFactory.FieldInfoBuilder builder = a.builder();
+      for (int idx = 0; idx < that.getFieldNames().size(); ++idx) {
+        builder.add(that.getFieldNameByIndex(idx), toCalciteType(that.getFieldTypeByIndex(idx)));
       }
+      return builder.build();
     };
   }
 }

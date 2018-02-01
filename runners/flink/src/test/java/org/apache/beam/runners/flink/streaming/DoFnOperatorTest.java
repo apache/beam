@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.Function;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -95,12 +94,12 @@ public class DoFnOperatorTest {
   @Before
   public void setUp() {
     PCollection<String> pc = Pipeline.create().apply(Create.of("1"));
-    view1 = pc
-        .apply(Window.<String>into(FixedWindows.of(new Duration(WINDOW_MSECS_1))))
-        .apply(View.<String>asIterable());
-    view2 = pc
-        .apply(Window.<String>into(FixedWindows.of(new Duration(WINDOW_MSECS_2))))
-        .apply(View.<String>asIterable());
+    view1 =
+        pc.apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_1))))
+            .apply(View.asIterable());
+    view2 =
+        pc.apply(Window.into(FixedWindows.of(new Duration(WINDOW_MSECS_2))))
+            .apply(View.asIterable());
   }
 
   @Test
@@ -111,18 +110,19 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
-        new IdentityDoFn<String>(),
-        "stepName",
-        coder,
-        outputTag,
-        Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-        WindowingStrategy.globalDefault(),
-        new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        null);
+    DoFnOperator<String, String> doFnOperator =
+        new DoFnOperator<>(
+            new IdentityDoFn<>(),
+            "stepName",
+            coder,
+            outputTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -166,19 +166,20 @@ public class DoFnOperatorTest {
             .put(additionalOutput2, 2)
             .build();
 
-    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
-        new MultiOutputDoFn(additionalOutput1, additionalOutput2),
-        "stepName",
-        coder,
-        mainOutput,
-        ImmutableList.<TupleTag<?>>of(additionalOutput1, additionalOutput2),
-        new DoFnOperator.MultiOutputOutputManagerFactory(
-            mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds),
-        WindowingStrategy.globalDefault(),
-        new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        null);
+    DoFnOperator<String, String> doFnOperator =
+        new DoFnOperator<>(
+            new MultiOutputDoFn(additionalOutput1, additionalOutput2),
+            "stepName",
+            coder,
+            mainOutput,
+            ImmutableList.of(additionalOutput1, additionalOutput2),
+            new DoFnOperator.MultiOutputOutputManagerFactory(
+                mainOutput, tagsToOutputTags, tagsToCoders, tagsToIds),
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -260,29 +261,23 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<Integer, String> doFnOperator = new DoFnOperator<>(
-        fn,
-        "stepName",
-        inputCoder,
-        outputTag,
-        Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
-        windowingStrategy,
-        new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        VarIntCoder.of() /* key coder */);
+    DoFnOperator<Integer, String> doFnOperator =
+        new DoFnOperator<>(
+            fn,
+            "stepName",
+            inputCoder,
+            outputTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
+            windowingStrategy,
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            VarIntCoder.of() /* key coder */);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
-            doFnOperator,
-            new KeySelector<WindowedValue<Integer>, Integer>() {
-              @Override
-              public Integer getKey(WindowedValue<Integer> integerWindowedValue) throws Exception {
-                return integerWindowedValue.getValue();
-              }
-            },
-            new CoderTypeInformation<>(VarIntCoder.of()));
+            doFnOperator, WindowedValue::getValue, new CoderTypeInformation<>(VarIntCoder.of()));
 
     testHarness.setup(new CoderTypeSerializer<>(outputCoder));
 
@@ -347,29 +342,23 @@ public class DoFnOperatorTest {
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-    DoFnOperator<Integer, String> doFnOperator = new DoFnOperator<>(
-        fn,
-        "stepName",
-        inputCoder,
-        outputTag,
-        Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
-        windowingStrategy,
-        new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        VarIntCoder.of() /* key coder */);
+    DoFnOperator<Integer, String> doFnOperator =
+        new DoFnOperator<>(
+            fn,
+            "stepName",
+            inputCoder,
+            outputTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, outputCoder),
+            windowingStrategy,
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            VarIntCoder.of() /* key coder */);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
-            doFnOperator,
-            new KeySelector<WindowedValue<Integer>, Integer>() {
-              @Override
-              public Integer getKey(WindowedValue<Integer> integerWindowedValue) throws Exception {
-                return integerWindowedValue.getValue();
-              }
-            },
-            new CoderTypeInformation<>(VarIntCoder.of()));
+            doFnOperator, WindowedValue::getValue, new CoderTypeInformation<>(VarIntCoder.of()));
 
     testHarness.open();
 
@@ -465,28 +454,21 @@ public class DoFnOperatorTest {
             "stepName",
             coder,
             outputTag,
-            Collections.<TupleTag<?>>emptyList(),
+            Collections.emptyList(),
             new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
             windowingStrategy,
-            new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-            Collections.<PCollectionView<?>>emptyList(), /* side inputs */
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             StringUtf8Coder.of() /* key coder */);
 
     KeyedOneInputStreamOperatorTestHarness<
-        String,
-        WindowedValue<KV<String, Integer>>,
-        WindowedValue<KV<String, Integer>>> testHarness =
-        new KeyedOneInputStreamOperatorTestHarness<>(
-            doFnOperator,
-            new KeySelector<WindowedValue<KV<String, Integer>>, String>() {
-              @Override
-              public String getKey(
-                  WindowedValue<KV<String, Integer>> kvWindowedValue) throws Exception {
-                return kvWindowedValue.getValue().getKey();
-              }
-            },
-            new CoderTypeInformation<>(StringUtf8Coder.of()));
+            String, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                doFnOperator,
+                kvWindowedValue -> kvWindowedValue.getValue().getKey(),
+                new CoderTypeInformation<>(StringUtf8Coder.of()));
 
     testHarness.open();
 
@@ -557,18 +539,19 @@ public class DoFnOperatorTest {
       keyCoder = StringUtf8Coder.of();
     }
 
-    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
-        new IdentityDoFn<String>(),
-        "stepName",
-        coder,
-        outputTag,
-        Collections.<TupleTag<?>>emptyList(),
-        new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
-        WindowingStrategy.globalDefault(),
-        sideInputMapping, /* side-input mapping */
-        ImmutableList.<PCollectionView<?>>of(view1, view2), /* side inputs */
-        PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-        keyCoder);
+    DoFnOperator<String, String> doFnOperator =
+        new DoFnOperator<>(
+            new IdentityDoFn<>(),
+            "stepName",
+            coder,
+            outputTag,
+            Collections.emptyList(),
+            new DoFnOperator.MultiOutputOutputManagerFactory<>(outputTag, coder),
+            WindowingStrategy.globalDefault(),
+            sideInputMapping, /* side-input mapping */
+            ImmutableList.of(view1, view2), /* side inputs */
+            PipelineOptionsFactory.as(FlinkPipelineOptions.class),
+            keyCoder);
 
     TwoInputStreamOperatorTestHarness<WindowedValue<String>, RawUnionValue, WindowedValue<String>>
         testHarness = new TwoInputStreamOperatorTestHarness<>(doFnOperator);
@@ -666,18 +649,19 @@ public class DoFnOperatorTest {
             outputTag,
             WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
 
-    DoFnOperator<String, String> doFnOperator = new DoFnOperator<>(
-        doFn,
-        "stepName",
-        windowedValueCoder,
-        outputTag,
-        Collections.<TupleTag<?>>emptyList(),
-        outputManagerFactory,
-        WindowingStrategy.globalDefault(),
-        new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-        options,
-        null);
+    DoFnOperator<String, String> doFnOperator =
+        new DoFnOperator<>(
+            doFn,
+            "stepName",
+            windowedValueCoder,
+            outputTag,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
@@ -703,18 +687,19 @@ public class DoFnOperatorTest {
 
     testHarness.close();
 
-    DoFnOperator<String, String> newDoFnOperator = new DoFnOperator<>(
-        doFn,
-        "stepName",
-        windowedValueCoder,
-        outputTag,
-        Collections.<TupleTag<?>>emptyList(),
-        outputManagerFactory,
-        WindowingStrategy.globalDefault(),
-        new HashMap<Integer, PCollectionView<?>>(), /* side-input mapping */
-        Collections.<PCollectionView<?>>emptyList(), /* side inputs */
-        options,
-        null);
+    DoFnOperator<String, String> newDoFnOperator =
+        new DoFnOperator<>(
+            doFn,
+            "stepName",
+            windowedValueCoder,
+            outputTag,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            null);
 
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> newHarness =
         new OneInputStreamOperatorTestHarness<>(newDoFnOperator);
@@ -743,41 +728,40 @@ public class DoFnOperatorTest {
   private <T> Iterable<WindowedValue<T>> stripStreamRecordFromWindowedValue(
       Iterable<Object> input) {
 
-    return FluentIterable.from(input).filter(new Predicate<Object>() {
-      @Override
-      public boolean apply(@Nullable Object o) {
-        return o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue;
-      }
-    }).transform(new Function<Object, WindowedValue<T>>() {
-      @Nullable
-      @Override
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      public WindowedValue<T> apply(@Nullable Object o) {
-        if (o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue) {
-          return (WindowedValue) ((StreamRecord) o).getValue();
-        }
-        throw new RuntimeException("unreachable");
-      }
-    });
+    return FluentIterable.from(input)
+        .filter(
+            o ->
+                o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue)
+        .transform(
+            new Function<Object, WindowedValue<T>>() {
+              @Nullable
+              @Override
+              @SuppressWarnings({"unchecked", "rawtypes"})
+              public WindowedValue<T> apply(@Nullable Object o) {
+                if (o instanceof StreamRecord
+                    && ((StreamRecord) o).getValue() instanceof WindowedValue) {
+                  return (WindowedValue) ((StreamRecord) o).getValue();
+                }
+                throw new RuntimeException("unreachable");
+              }
+            });
   }
 
   private Iterable<WindowedValue<String>> stripStreamRecord(Iterable<?> input) {
-    return FluentIterable.from(input).filter(new Predicate<Object>() {
-      @Override
-      public boolean apply(@Nullable Object o) {
-        return o instanceof StreamRecord;
-      }
-    }).transform(new Function<Object, WindowedValue<String>>() {
-      @Nullable
-      @Override
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      public WindowedValue<String> apply(@Nullable Object o) {
-        if (o instanceof StreamRecord) {
-          return (WindowedValue<String>) ((StreamRecord) o).getValue();
-        }
-        throw new RuntimeException("unreachable");
-      }
-    });
+    return FluentIterable.from(input)
+        .filter(o -> o instanceof StreamRecord)
+        .transform(
+            new Function<Object, WindowedValue<String>>() {
+              @Nullable
+              @Override
+              @SuppressWarnings({"unchecked", "rawtypes"})
+              public WindowedValue<String> apply(@Nullable Object o) {
+                if (o instanceof StreamRecord) {
+                  return (WindowedValue<String>) ((StreamRecord) o).getValue();
+                }
+                throw new RuntimeException("unreachable");
+              }
+            });
   }
 
   private static class MultiOutputDoFn extends DoFn<String, String> {

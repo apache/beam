@@ -49,8 +49,8 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.fn.harness.data.BeamFnDataInboundObserver"/>
-    <Method name="accept"/>
+    <Class name="org.apache.beam.sdk.fn.data.BeamFnDataInboundObserver"/>
+    <Method name="receive"/>
     <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
     <!--
     Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
@@ -67,6 +67,17 @@
     https://github.com/findbugsproject/findbugs/issues/79
     -->
   </Match>
+
+  <Match>
+    <Class name="org.apache.beam.fn.harness.data.CompletableFutureInboundDataClient"/>
+    <Method name="complete"/>
+    <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
+    <!--
+    Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
+    https://github.com/findbugsproject/findbugs/issues/79
+    -->
+  </Match>
+
 
   <Match>
     <Class name="org.apache.beam.sdk.coders.AvroCoder$SerializableSchemaSupplier"/>
@@ -330,12 +341,6 @@
     <Method name="compareTo"/>
     <Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
     <!--[BEAM-410] Class defines compareTo(...) and uses Object.equals()-->
-  </Match>
-  <Match>
-    <Class name="org.apache.beam.sdk.transforms.Mean$CountSum"/>
-    <Method name="equals"/>
-    <Bug pattern="FE_FLOATING_POINT_EQUALITY"/>
-    <!--[BEAM-413] Test for floating point equality-->
   </Match>
   <Match>
     <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedCombineFn"/>

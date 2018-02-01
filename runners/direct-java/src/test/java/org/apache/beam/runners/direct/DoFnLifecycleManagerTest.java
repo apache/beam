@@ -162,7 +162,7 @@ public class DoFnLifecycleManagerTest {
       removeFutures.add(executor.submit(new TeardownFnCallable(mgr, removeSignal)));
     }
     removeSignal.countDown();
-    assertThat(mgr.removeAll(), Matchers.<Exception>emptyIterable());
+    assertThat(mgr.removeAll(), Matchers.emptyIterable());
     for (Future<Void> removed : removeFutures) {
       // Should not have thrown an exception.
       removed.get();

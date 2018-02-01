@@ -41,7 +41,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -192,31 +191,29 @@ public class FileIOTest implements Serializable {
                 .filepattern(basePath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
         p.apply(Create.of(basePath.resolve("*").toString()))
             .apply(
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
 
     Thread writer =
-        new Thread() {
-          @Override
-          public void run() {
-            try {
-              Thread.sleep(1000);
-              Files.write(basePath.resolve("first"), new byte[42]);
-              Thread.sleep(300);
-              Files.write(basePath.resolve("second"), new byte[37]);
-              Thread.sleep(300);
-              Files.write(basePath.resolve("third"), new byte[99]);
-            } catch (IOException | InterruptedException e) {
-              throw new RuntimeException(e);
-            }
-          }
-        };
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(1000);
+                Files.write(basePath.resolve("first"), new byte[42]);
+                Thread.sleep(300);
+                Files.write(basePath.resolve("second"), new byte[37]);
+                Thread.sleep(300);
+                Files.write(basePath.resolve("third"), new byte[99]);
+              } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            });
     writer.start();
 
     List<MatchResult.Metadata> expected =
@@ -254,20 +251,17 @@ public class FileIOTest implements Serializable {
         Arrays.asList(decompressedAuto, decompressedDefault, decompressedUncompressed)) {
       PAssert.thatSingleton(c)
           .satisfies(
-              new SerializableFunction<FileIO.ReadableFile, Void>() {
-                @Override
-                public Void apply(FileIO.ReadableFile input) {
-                  assertEquals(path, input.getMetadata().resourceId().toString());
-                  assertEquals("Hello world".length(), input.getMetadata().sizeBytes());
-                  assertEquals(Compression.UNCOMPRESSED, input.getCompression());
-                  assertTrue(input.getMetadata().isReadSeekEfficient());
-                  try {
-                    assertEquals("Hello world", input.readFullyAsUTF8String());
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                  return null;
+              input -> {
+                assertEquals(path, input.getMetadata().resourceId().toString());
+                assertEquals("Hello world".length(), input.getMetadata().sizeBytes());
+                assertEquals(Compression.UNCOMPRESSED, input.getCompression());
+                assertTrue(input.getMetadata().isReadSeekEfficient());
+                try {
+                  assertEquals("Hello world", input.readFullyAsUTF8String());
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
                 }
+                return null;
               });
     }
 
@@ -283,20 +277,17 @@ public class FileIOTest implements Serializable {
         Arrays.asList(compressionAuto, compressionDefault, compressionGzip)) {
       PAssert.thatSingleton(c)
           .satisfies(
-              new SerializableFunction<FileIO.ReadableFile, Void>() {
-                @Override
-                public Void apply(FileIO.ReadableFile input) {
-                  assertEquals(pathGZ, input.getMetadata().resourceId().toString());
-                  assertFalse(input.getMetadata().sizeBytes() == "Hello world".length());
-                  assertEquals(Compression.GZIP, input.getCompression());
-                  assertFalse(input.getMetadata().isReadSeekEfficient());
-                  try {
-                    assertEquals("Hello world", input.readFullyAsUTF8String());
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                  return null;
+              input -> {
+                assertEquals(pathGZ, input.getMetadata().resourceId().toString());
+                assertFalse(input.getMetadata().sizeBytes() == "Hello world".length());
+                assertEquals(Compression.GZIP, input.getCompression());
+                assertFalse(input.getMetadata().isReadSeekEfficient());
+                try {
+                  assertEquals("Hello world", input.readFullyAsUTF8String());
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
                 }
+                return null;
               });
     }
 

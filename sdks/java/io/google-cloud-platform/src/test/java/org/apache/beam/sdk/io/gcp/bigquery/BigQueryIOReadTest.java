@@ -708,14 +708,14 @@ public class BigQueryIOReadTest implements Serializable {
     PCollection<Integer> output =
         p.apply(Create.of(1, 2, 3))
             .apply(
-                new PassThroughThenCleanup<Integer>(
+                new PassThroughThenCleanup<>(
                     new PassThroughThenCleanup.CleanupOperation() {
                       @Override
                       void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {
                         // no-op
                       }
                     },
-                    p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
+                    p.apply("Create1", Create.of("")).apply(View.asSingleton())));
 
     PAssert.that(output).containsInAnyOrder(1, 2, 3);
 
@@ -727,14 +727,14 @@ public class BigQueryIOReadTest implements Serializable {
 
     p.apply(Create.empty(VarIntCoder.of()))
         .apply(
-            new PassThroughThenCleanup<Integer>(
+            new PassThroughThenCleanup<>(
                 new PassThroughThenCleanup.CleanupOperation() {
                   @Override
                   void cleanup(PassThroughThenCleanup.ContextContainer c) throws Exception {
                     throw new RuntimeException("cleanup executed");
                   }
                 },
-                p.apply("Create1", Create.of("")).apply(View.<String>asSingleton())));
+                p.apply("Create1", Create.of("")).apply(View.asSingleton())));
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("cleanup executed");
@@ -772,6 +772,7 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testCoderInference() {
+    // Lambdas erase too much type information - use an anonymous class here.
     SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>> parseFn =
         new SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>>() {
           @Override

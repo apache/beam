@@ -161,10 +161,9 @@ class SdkHarness(object):
   def _request_process_bundle_progress(self, request):
 
     def task():
-      self._execute(
-          lambda: self._instruction_id_vs_worker[
-              request.instruction_id].do_instruction(request),
-          request)
+      self._execute(lambda: self._instruction_id_vs_worker[getattr(
+          request, request.WhichOneof('request')
+      ).instruction_reference].do_instruction(request), request)
 
     self._progress_thread_pool.submit(task)
 
@@ -266,7 +265,7 @@ class GrpcStateHandler(object):
             state_key=state_key,
             get=beam_fn_api_pb2.StateGetRequest()))
     if response.get.continuation_token:
-      raise NotImplementedErrror
+      raise NotImplementedError
     return response.get.data
 
   def blocking_append(self, state_key, data, instruction_reference):

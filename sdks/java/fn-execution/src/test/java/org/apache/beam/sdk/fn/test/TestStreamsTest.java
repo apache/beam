@@ -36,27 +36,18 @@ public class TestStreamsTest {
   @Test
   public void testOnNextIsCalled() {
     final AtomicBoolean onNextWasCalled = new AtomicBoolean();
-    TestStreams.withOnNext(new Consumer<Boolean>() {
-      @Override
-      public void accept(Boolean item) {
-        onNextWasCalled.set(item);
-      }
-    }).build().onNext(true);
+    TestStreams.withOnNext(onNextWasCalled::set).build().onNext(true);
     assertTrue(onNextWasCalled.get());
   }
 
   @Test
   public void testIsReadyIsCalled() {
     final AtomicBoolean isReadyWasCalled = new AtomicBoolean();
-    assertFalse(TestStreams.withOnNext(null)
-        .withIsReady(new Supplier<Boolean>() {
-          @Override
-          public Boolean get() {
-            return isReadyWasCalled.getAndSet(true);
-          }
-        })
-        .build()
-        .isReady());
+    assertFalse(
+        TestStreams.withOnNext(null)
+            .withIsReady(() -> isReadyWasCalled.getAndSet(true))
+            .build()
+            .isReady());
     assertTrue(isReadyWasCalled.get());
   }
 
@@ -64,12 +55,7 @@ public class TestStreamsTest {
   public void testOnCompletedIsCalled() {
     final AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
     TestStreams.withOnNext(null)
-        .withOnCompleted(new Runnable() {
-          @Override
-          public void run() {
-            onCompletedWasCalled.set(true);
-          }
-        })
+        .withOnCompleted(() -> onCompletedWasCalled.set(true))
         .build()
         .onCompleted();
     assertTrue(onCompletedWasCalled.get());
@@ -80,12 +66,7 @@ public class TestStreamsTest {
     RuntimeException throwable = new RuntimeException();
     final AtomicBoolean onErrorWasCalled = new AtomicBoolean();
     TestStreams.withOnNext(null)
-        .withOnError(new Runnable() {
-          @Override
-          public void run() {
-            onErrorWasCalled.set(true);
-          }
-        })
+        .withOnError(() -> onErrorWasCalled.set(true))
         .build()
         .onError(throwable);
     assertTrue(onErrorWasCalled.get());
@@ -96,14 +77,9 @@ public class TestStreamsTest {
     RuntimeException throwable = new RuntimeException();
     final Collection<Throwable> onErrorWasCalled = new ArrayList<>();
     TestStreams.withOnNext(null)
-        .withOnError(new Consumer<Throwable>() {
-          @Override
-          public void accept(Throwable item) {
-            onErrorWasCalled.add(item);
-          }
-        })
+        .withOnError(onErrorWasCalled::add)
         .build()
         .onError(throwable);
-    assertThat(onErrorWasCalled, Matchers.<Throwable>contains(throwable));
+    assertThat(onErrorWasCalled, Matchers.contains(throwable));
   }
 }

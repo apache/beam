@@ -179,11 +179,12 @@ class PTransformTest(unittest.TestCase):
     pipeline.run()
 
   @attr('ValidatesRunner')
-  def test_read_from_text_metrics(self):
+  def test_read_metrics(self):
     from apache_beam.examples.snippets.snippets import CountingSource
 
     class CounterDoFn(beam.DoFn):
       def __init__(self):
+        # This counter is unused.
         self.received_records = Metrics.counter(self.__class__,
                                                 'receivedRecords')
 
@@ -194,6 +195,7 @@ class PTransformTest(unittest.TestCase):
     (pipeline | Read(CountingSource(100)) | beam.ParDo(CounterDoFn()))
     res = pipeline.run()
     res.wait_until_finish()
+    # This counter is defined in snippets.CountingSource.
     metric_results = res.metrics().query(MetricsFilter()
                                          .with_name('recordsRead'))
     outputs_counter = metric_results['counters'][0]
@@ -532,6 +534,24 @@ class PTransformTest(unittest.TestCase):
       {'l': 'test'} | beam.Flatten()
     with self.assertRaises(TypeError):
       set([1, 2, 3]) | beam.Flatten()
+
+  @attr('ValidatesRunner')
+  def test_flatten_multiple_pcollections_having_multiple_consumers(self):
+    pipeline = TestPipeline()
+    input = pipeline | 'Start' >> beam.Create(['AA', 'BBB', 'CC'])
+
+    def split_even_odd(element):
+      tag = 'even_length' if len(element) % 2 == 0 else 'odd_length'
+      return pvalue.TaggedOutput(tag, element)
+
+    even_length, odd_length = (input | beam.Map(split_even_odd)
+                               .with_outputs('even_length', 'odd_length'))
+    merged = (even_length, odd_length) | 'Flatten' >> beam.Flatten()
+
+    assert_that(merged, equal_to(['AA', 'BBB', 'CC']))
+    assert_that(even_length, equal_to(['AA', 'CC']), label='assert:even')
+    assert_that(odd_length, equal_to(['BBB']), label='assert:odd')
+    pipeline.run()
 
   def test_co_group_by_key_on_list(self):
     pipeline = TestPipeline()
@@ -1387,7 +1407,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "Valid object instance must be of type 'tuple'. Instead, "
         "an instance of 'float' was received.")
 
-  def test_pipline_runtime_checking_violation_with_side_inputs_decorator(self):
+  def test_pipeline_runtime_checking_violation_with_side_inputs_decorator(self):
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
     self.p._options.view_as(TypeOptions).runtime_type_check = True
 
@@ -1407,7 +1427,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         "Expected an instance of <type 'int'>, "
         "instead found 1.0, an instance of <type 'float'>.")
 
-  def test_pipline_runtime_checking_violation_with_side_inputs_via_method(self):
+  def test_pipeline_runtime_checking_violation_with_side_inputs_via_method(self):  # pylint: disable=line-too-long
     self.p._options.view_as(TypeOptions).runtime_type_check = True
     self.p._options.view_as(TypeOptions).pipeline_type_check = False
 
@@ -2041,6 +2061,18 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.p._options.view_as(TypeOptions).pipeline_type_check = True
     x = self.p | 'C2' >> beam.Create([1, 2, 3, 4])
     self.assertEqual(int, x.element_type)
+
+  def test_eager_execution(self):
+    doubled = [1, 2, 3, 4] | beam.Map(lambda x: 2 * x)
+    self.assertEqual([2, 4, 6, 8], doubled)
+
+  def test_eager_execution_tagged_outputs(self):
+    result = [1, 2, 3, 4] | beam.Map(
+        lambda x: pvalue.TaggedOutput('bar', 2 * x)).with_outputs('bar')
+    self.assertEqual([2, 4, 6, 8], result.bar)
+    with self.assertRaises(KeyError,
+                           msg='Tag \'foo\' is not a defined output tag'):
+      result.foo
 
 
 if __name__ == '__main__':

@@ -72,7 +72,7 @@ public class StateSpecs {
   public static <InputT, AccumT, OutputT>
       StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
           CombineFn<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningStateSpec<InputT, AccumT, OutputT>(null, combineFn);
+    return new CombiningStateSpec<>(null, combineFn);
   }
 
   /**
@@ -90,7 +90,7 @@ public class StateSpecs {
   public static <InputT, AccumT, OutputT>
       StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
           CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningWithContextStateSpec<InputT, AccumT, OutputT>(null, combineFn);
+    return new CombiningWithContextStateSpec<>(null, combineFn);
   }
 
   /**
@@ -212,13 +212,13 @@ public class StateSpecs {
   private static <InputT, AccumT, OutputT>
   StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
+    return new CombiningStateSpec<>(accumCoder, combineFn);
   }
 
   private static <InputT, AccumT, OutputT>
   StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
       Coder<AccumT> accumCoder, CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningWithContextStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
+    return new CombiningWithContextStateSpec<>(accumCoder, combineFn);
   }
 
   /**
@@ -394,7 +394,7 @@ public class StateSpecs {
     }
 
     private StateSpec<BagState<AccumT>> asBagSpec() {
-      return new BagStateSpec<AccumT>(accumCoder);
+      return new BagStateSpec<>(accumCoder);
     }
   }
 
@@ -474,7 +474,7 @@ public class StateSpecs {
     }
 
     private StateSpec<BagState<AccumT>> asBagSpec() {
-      return new BagStateSpec<AccumT>(accumCoder);
+      return new BagStateSpec<>(accumCoder);
     }
   }
 

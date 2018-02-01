@@ -356,7 +356,7 @@ class DataflowMetrics extends MetricResults {
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
         T committed, T attempted) {
-      return new AutoValue_DataflowMetrics_DataflowMetricResult<T>(
+      return new AutoValue_DataflowMetrics_DataflowMetricResult<>(
           name, scope, committed, attempted);
     }
   }

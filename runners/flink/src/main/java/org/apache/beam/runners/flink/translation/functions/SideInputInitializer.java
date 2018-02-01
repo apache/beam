@@ -19,12 +19,11 @@ package org.apache.beam.runners.flink.translation.functions;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -67,11 +66,8 @@ public class SideInputInitializer<ViewT>
     for (WindowedValue<KV<?, ?>> value
         : (Iterable<WindowedValue<KV<?, ?>>>) (Iterable) inputValues) {
       for (BoundedWindow window: value.getWindows()) {
-        List<WindowedValue<KV<?, ?>>> windowedValues = partitionedElements.get(window);
-        if (windowedValues == null) {
-          windowedValues = new ArrayList<>();
-          partitionedElements.put(window, windowedValues);
-        }
+        List<WindowedValue<KV<?, ?>>> windowedValues =
+            partitionedElements.computeIfAbsent(window, k -> new ArrayList<>());
         windowedValues.add(value);
       }
     }
@@ -83,15 +79,18 @@ public class SideInputInitializer<ViewT>
 
       ViewFn<MultimapView, ViewT> viewFn = (ViewFn<MultimapView, ViewT>) view.getViewFn();
       Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
-      resultMap.put(elements.getKey(), viewFn.apply(InMemoryMultimapSideInputView.fromIterable(
-          keyCoder,
-          (Iterable) Iterables.transform(elements.getValue(),
-              new Function<WindowedValue<KV<?, ?>>, KV<?, ?>>() {
-                @Override
-                public KV<?, ?> apply(WindowedValue<KV<?, ?>> windowedValue) {
-                  return windowedValue.getValue();
-                }
-              }))));
+      resultMap.put(
+          elements.getKey(),
+          (ViewT)
+              viewFn.apply(
+                  InMemoryMultimapSideInputView.fromIterable(
+                      keyCoder,
+                      (Iterable)
+                          elements
+                              .getValue()
+                              .stream()
+                              .map(WindowedValue::getValue)
+                              .collect(Collectors.toList()))));
     }
 
     return resultMap;
