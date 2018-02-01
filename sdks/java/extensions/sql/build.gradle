@@ -116,11 +116,3 @@ shadowJar {
   // module.
   relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
 }
-
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

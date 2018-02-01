@@ -43,13 +43,6 @@ dependencies {
   testCompile library.java.hamcrest_core
 }
 
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
 test {
   jvmArgs "-da"
 }
-
-artifacts.archives packageTests

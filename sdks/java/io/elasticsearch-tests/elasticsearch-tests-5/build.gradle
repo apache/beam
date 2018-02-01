@@ -70,10 +70,3 @@ dependencies {
   testCompile library.java.junit
   testCompile "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests
