@@ -825,7 +825,7 @@ public class BigtableIOTest {
         .apply("write", defaultWrite.withTableId(table));
     p.run();
 
-    logged.verifyInfo("Wrote 1 records");
+    logged.verifyDebug("Wrote 1 records");
 
     assertEquals(1, service.tables.size());
     assertNotNull(service.getTable(table));
