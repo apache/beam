@@ -161,7 +161,8 @@ def generate_common_urns():
   if src_time > out_time:
     print 'Regenerating common_urns module.'
     urns = {}
-    for m in re.finditer(r'\bbeam:(\S+):(\S+):(v\S+)', open(src).read()):
+    for m in re.finditer(
+        r'\b(?:urn:)?beam:(\S+):(\S+):(v\S+)', open(src).read()):
       kind, name, version = m.groups()
       var_name = name.upper() + '_' + kind.upper()
       if var_name in urns:
