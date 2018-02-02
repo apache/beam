@@ -39,7 +39,7 @@ def argsRelease = ["--ver=${verRelease}", "--repourl=${repoRelease}"]
 
 // For dataflow runner
 def cloudProject = project.findProperty('cloudProject') ?: 'apache-beam-testing'
-def cloudBucket = project.findProperty('cloudBucket') ?: 'gs://temp-storage-for-end-to-end-tests/quickstart'
+def cloudBucket = project.findProperty('cloudBucket') ?: 'temp-storage-for-end-to-end-tests/quickstart'
 def argsProject = ["--project=${cloudProject}", "--bucket=${cloudBucket}"]
 
 task runQuickstartJavaDirectNightly (dependsOn: 'classes', type: JavaExec) {
