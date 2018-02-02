@@ -158,7 +158,7 @@ class DownloaderStream(io.RawIOBase):
 
 
 class UploaderStream(io.RawIOBase):
-  """Provides a stream interface for Downloader objects."""
+  """Provides a stream interface for Uploader objects."""
 
   def __init__(self, uploader, mode='w'):
     """Initializes the stream.
@@ -170,6 +170,9 @@ class UploaderStream(io.RawIOBase):
     self._uploader = uploader
     self.mode = mode
     self._position = 0
+
+  def tell(self):
+    return self._position
 
   def write(self, b):
     """Write bytes from b.

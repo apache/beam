@@ -100,7 +100,6 @@ import apache_beam as beam
 intersphinx_mapping = {
   'python': ('https://docs.python.org/2', None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/latest/', None),
-  'hdfs3': ('https://hdfs3.readthedocs.io/en/latest/', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference
