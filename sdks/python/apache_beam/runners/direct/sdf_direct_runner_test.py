@@ -25,6 +25,7 @@ import apache_beam as beam
 from apache_beam import DoFn
 from apache_beam.io import filebasedsource_test
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -146,6 +147,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
     assert len(expected_data) > 0
 
     with TestPipeline(runner='DirectRunner') as p:
+      p.options.view_as(StandardOptions).streaming = True
       pc1 = (p
              | 'Create1' >> beam.Create(file_names)
              | 'SDF' >> beam.ParDo(ReadFiles(resume_count)))
@@ -206,6 +208,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
 
   def test_sdf_with_windowed_timestamped_input(self):
     with TestPipeline(runner='DirectRunner') as p:
+      p.options.view_as(StandardOptions).streaming = True
       result = (p
                 | beam.Create([1, 3, 5, 10])
                 | beam.FlatMap(lambda t: [TimestampedValue(('A', t), t),
@@ -222,6 +225,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
 
   def test_sdf_with_side_inputs(self):
     with TestPipeline(runner='DirectRunner') as p:
+      p.options.view_as(StandardOptions).streaming = True
       result = (p
                 | 'create_main' >> beam.Create(['1', '3', '5'])
                 | beam.ParDo(ExpandStrings(), side=['1', '3']))
