@@ -52,7 +52,7 @@ func DecodeType(data string) (reflect.Type, error) {
 }
 
 // EncodeFn encodes a function and parameter types as a string. The function
-// symbol must be resolvable via the runtime.SymbolResolver. The types must
+// symbol must be resolvable via the runtime.GlobalSymbolResolver. The types must
 // be encodable.
 func EncodeFn(fn reflectx.Func) (string, error) {
 	u, err := funcx.New(fn)
@@ -67,7 +67,7 @@ func EncodeFn(fn reflectx.Func) (string, error) {
 }
 
 // DecodeFn encodes a function. The function symbol must be resolvable via the
-// runtime.SymbolResolver. The parameter types must be encodable.
+// runtime.GlobalSymbolResolver. The parameter types must be encodable.
 func DecodeFn(data string) (reflectx.Func, error) {
 	var ref v1.UserFn
 	if err := protox.DecodeBase64(data, &ref); err != nil {
@@ -81,7 +81,7 @@ func DecodeFn(data string) (reflectx.Func, error) {
 }
 
 // EncodeCoder encodes a coder as a string. Any custom coder function
-// symbol must be resolvable via the runtime.SymbolResolver. The types must
+// symbol must be resolvable via the runtime.GlobalSymbolResolver. The types must
 // be encodable.
 func EncodeCoder(c *coder.Coder) (string, error) {
 	ref, err := EncodeCoderRef(c)
@@ -96,7 +96,7 @@ func EncodeCoder(c *coder.Coder) (string, error) {
 }
 
 // DecodeCoder decodes a coder. Any custom coder function symbol must be
-// resolvable via the runtime.SymbolResolver. The types must be encodable.
+// resolvable via the runtime.GlobalSymbolResolver. The types must be encodable.
 func DecodeCoder(data string) (*coder.Coder, error) {
 	decoded, err := base64.StdEncoding.DecodeString(data)
 	if err != nil {

@@ -20,73 +20,7 @@ import (
 	"io"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
-
-var (
-	// Fixed-sized custom coders for integers.
-
-	Uint32 *CustomCoder
-	Int32  *CustomCoder
-	Uint64 *CustomCoder
-	Int64  *CustomCoder
-)
-
-func init() {
-	var err error
-	Uint32, err = NewCustomCoder("uint32", reflectx.Uint32, encUint32, decUint32)
-	if err != nil {
-		panic(err)
-	}
-	Int32, err = NewCustomCoder("int32", reflectx.Int32, encInt32, decInt32)
-	if err != nil {
-		panic(err)
-	}
-	Uint64, err = NewCustomCoder("uint64", reflectx.Uint64, encUint64, decUint64)
-	if err != nil {
-		panic(err)
-	}
-	Int64, err = NewCustomCoder("int64", reflectx.Int64, encInt64, decInt64)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func encUint32(v uint32) []byte {
-	ret := make([]byte, 4)
-	binary.BigEndian.PutUint32(ret, v)
-	return ret
-}
-
-func decUint32(data []byte) uint32 {
-	return binary.BigEndian.Uint32(data)
-}
-
-func encInt32(v int32) []byte {
-	return encUint32(uint32(v))
-}
-
-func decInt32(data []byte) int32 {
-	return int32(decUint32(data))
-}
-
-func encUint64(v uint64) []byte {
-	ret := make([]byte, 8)
-	binary.BigEndian.PutUint64(ret, v)
-	return ret
-}
-
-func decUint64(data []byte) uint64 {
-	return binary.BigEndian.Uint64(data)
-}
-
-func encInt64(v int64) []byte {
-	return encUint64(uint64(v))
-}
-
-func decInt64(data []byte) int64 {
-	return int64(decUint64(data))
-}
 
 // EncodeUint64 encodes an uint64 in big endian format.
 func EncodeUint64(value uint64, w io.Writer) error {

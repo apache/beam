@@ -15,6 +15,13 @@
 
 package beam
 
+func init() {
+	RegisterFunction(dropKeyFn)
+	RegisterFunction(dropValueFn)
+	RegisterFunction(swapKVFn)
+	RegisterFunction(explodeFn)
+}
+
 // We have some freedom to create various utilities, users can use depending on
 // preferences. One point of keeping Pipeline transformation functions plain Go
 // functions is that such utilities are more readily possible.
