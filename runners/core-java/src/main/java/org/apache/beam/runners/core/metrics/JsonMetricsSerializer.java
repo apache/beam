@@ -18,12 +18,8 @@
 
 package org.apache.beam.runners.core.metrics;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import java.io.IOException;
+import com.google.common.collect.Iterables;
+import java.util.Locale;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -32,82 +28,80 @@ import org.apache.beam.sdk.metrics.MetricResult;
 /** Serialize metrics into json representation to be pushed to a backend. */
 public class JsonMetricsSerializer implements MetricsSerializer<String> {
 
-  private final ObjectMapper objectMapper = new ObjectMapper();
+  @Override public String serializeMetrics(MetricQueryResults metricQueryResults) throws Exception {
+    StringBuffer json = new StringBuffer();
+    json.append("{");
+    json.append("\"counters\":[");
 
-  @Override
-  public String serializeMetrics(MetricQueryResults metricResults) throws Exception {
-    SimpleModule module = new SimpleModule();
-    module.addSerializer(MetricQueryResults.class, new MetricQueryResultsSerializer());
-    objectMapper.registerModule(module);
-    return objectMapper.writeValueAsString(metricResults);
-  }
-
-  private static class MetricQueryResultsSerializer extends StdSerializer<MetricQueryResults> {
-
-    public MetricQueryResultsSerializer() {
-      super(MetricQueryResults.class);
+    int i = 0;
+    for (MetricResult<Long> result : metricQueryResults.counters()) {
+      i++;
+      json.append("{");
+      String name = result.name().namespace() + "/" + result.name().name();
+      json.append(String.format("\"name\":\"%s\",", name));
+      String step = result.step();
+      json.append(String.format("\"step\":\"%s\",", step));
+      Long attempted = result.attempted();
+      json.append(String.format("\"attempted\":%d", attempted));
+      json.append("}");
+      if (i < Iterables.size(metricQueryResults.counters())) {
+        json.append(",");
+      }
     }
+    json.append("]");
+    json.append(",");
+    json.append("\"distributions\":[");
+    i = 0;
+    for (MetricResult<DistributionResult> result : metricQueryResults.distributions()) {
+      i++;
+      json.append("{");
+      String name = result.name().namespace() + "/" + result.name().name();
+      json.append(String.format("\"name\":\"%s\",", name));
+      String step = result.step();
+      json.append(String.format("\"step\":\"%s\",", step));
+      DistributionResult attempted = result.attempted();
+      json.append("\"attempted\":");
+      json.append("{");
 
-    @Override
-    public void serialize(
-        MetricQueryResults metricQueryResults,
-        JsonGenerator jsonGenerator,
-        SerializerProvider serializerProvider)
-        throws IOException {
-      jsonGenerator.writeStartObject();
+      json.append(String.format("\"min\":%d,", attempted.min()));
+      json.append(String.format("\"max\":%d,", attempted.max()));
+      json.append(String.format("\"sum\":%d,", attempted.sum()));
+      json.append(String.format("\"count\":%d,", attempted.count()));
+      json.append(String.format(Locale.ROOT, "\"mean\":%.3f", attempted.mean()));
+      json.append("}");
 
-      jsonGenerator.writeArrayFieldStart("counters");
-      for (MetricResult<Long> result : metricQueryResults.counters()){
-        jsonGenerator.writeStartObject();
-        String name = result.name().namespace() + "/"  + result.name().name();
-        jsonGenerator.writeStringField("name", name);
-        String step = result.step();
-        jsonGenerator.writeStringField("step", step);
-        Long attempted = result.attempted();
-        jsonGenerator.writeNumberField("attempted", attempted);
-        jsonGenerator.writeEndObject();
+      json.append("}");
+      if (i < Iterables.size(metricQueryResults.distributions())) {
+        json.append(",");
       }
-      jsonGenerator.writeEndArray();
-
-      jsonGenerator.writeArrayFieldStart("distributions");
-      for (MetricResult<DistributionResult> result : metricQueryResults.distributions()){
-        jsonGenerator.writeStartObject();
-        String name = result.name().namespace() + "/"  + result.name().name();
-        jsonGenerator.writeStringField("name", name);
-        String step = result.step();
-        jsonGenerator.writeStringField("step", step);
-        DistributionResult attempted = result.attempted();
-        jsonGenerator.writeFieldName("attempted");
-        jsonGenerator.writeStartObject();
-        jsonGenerator.writeNumberField("min", attempted.min());
-        jsonGenerator.writeNumberField("max", attempted.max());
-        jsonGenerator.writeNumberField("sum", attempted.sum());
-        jsonGenerator.writeNumberField("count", attempted.count());
-        jsonGenerator.writeNumberField("mean", attempted.mean());
-        jsonGenerator.writeEndObject();
-
-        jsonGenerator.writeEndObject();
-      }
-      jsonGenerator.writeEndArray();
-
-      jsonGenerator.writeArrayFieldStart("gauges");
-      for (MetricResult<GaugeResult> result : metricQueryResults.gauges()){
-        jsonGenerator.writeStartObject();
-        String name = result.name().namespace() + "/"  + result.name().name();
-        jsonGenerator.writeStringField("name", name);
-        String step = result.step();
-        jsonGenerator.writeStringField("step", step);
-        GaugeResult attempted = result.attempted();
-        jsonGenerator.writeFieldName("attempted");
-        jsonGenerator.writeStartObject();
-        jsonGenerator.writeNumberField("value", attempted.value());
-        jsonGenerator.writeStringField("timestamp", attempted.timestamp().toString());
-        jsonGenerator.writeEndObject();
-        jsonGenerator.writeEndObject();
-      }
-      jsonGenerator.writeEndArray();
-
-      jsonGenerator.writeEndObject();
     }
+    json.append("]");
+    json.append(",");
+    json.append("\"gauges\":[");
+    i = 0;
+    for (MetricResult<GaugeResult> result : metricQueryResults.gauges()) {
+      i++;
+      json.append("{");
+      String name = result.name().namespace() + "/" + result.name().name();
+      json.append(String.format("\"name\":\"%s\",", name));
+      String step = result.step();
+      json.append(String.format("\"step\":\"%s\",", step));
+      GaugeResult attempted = result.attempted();
+      json.append("\"attempted\":");
+      json.append("{");
+
+      json.append(String.format("\"value\":%d,", attempted.value()));
+      json.append(String.format("\"timestamp\":\"%s\"", attempted.timestamp().toString()));
+      json.append("}");
+
+      json.append("}");
+      if (i < Iterables.size(metricQueryResults.gauges())) {
+        json.append(",");
+      }
+    }
+    json.append("]");
+
+    json.append("}");
+    return json.toString();
   }
 }
