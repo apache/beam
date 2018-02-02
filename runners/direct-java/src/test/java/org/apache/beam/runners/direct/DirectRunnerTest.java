@@ -478,15 +478,15 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testUnencodableOutputElement() throws Exception {
     Pipeline p = getPipeline();
-    PCollection<Long> pcollection =
-        p.apply(Create.of((Void) null)).apply(ParDo.of(new DoFn<Void, Long>() {
+    PCollection<Long> pcollection = p.apply(Create.of((Void) null))
+        .apply("Generate step", ParDo.of(new DoFn<Void, Long>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
             c.output(null);
           }
         })).setCoder(VarLongCoder.of());
     pcollection
-        .apply(
+        .apply("Unreachable",
             ParDo.of(
                 new DoFn<Long, Long>() {
                   @ProcessElement
@@ -495,8 +495,36 @@ public class DirectRunnerTest implements Serializable {
                   }
                 }));
 
-    thrown.expectCause(isA(CoderException.class));
-    thrown.expectMessage("cannot encode a null Long");
+    thrown.expectCause(
+        new ThrowableMessageMatcher<CoderException>(equalTo("cannot encode a null Long")));
+    thrown.expectMessage("Exception occurred while executing transform Generate step");
+    p.run();
+  }
+
+  @Test
+  public void testUserException() throws Exception {
+    Pipeline p = getPipeline();
+    PCollection<Long> pcollection = p.apply("Step 1", Create.of(1))
+        .apply("Step 2", ParDo.of(new DoFn<Integer, Long>() {
+          @ProcessElement
+          public void processElement(ProcessContext c) {
+            throw new IllegalStateException("Custom exception element " + c.element());
+          }
+        })).setCoder(VarLongCoder.of());
+    pcollection
+        .apply("Unreachable",
+            ParDo.of(
+                new DoFn<Long, Long>() {
+                  @ProcessElement
+                  public void unreachable(ProcessContext c) {
+                    fail("Pipeline should fail to encode a null Long in VarLongCoder");
+                  }
+                }));
+
+    thrown.expectCause(
+        new ThrowableMessageMatcher<IllegalArgumentException>(equalTo("Custom exception "
+            + "element 1")));
+    thrown.expectMessage("Exception occurred while executing transform Step 2");
     p.run();
   }
 

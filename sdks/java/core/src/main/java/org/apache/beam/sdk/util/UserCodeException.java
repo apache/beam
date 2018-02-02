@@ -39,7 +39,7 @@ public class UserCodeException extends RuntimeException {
       if (Strings.isNullOrEmpty(step)) {
         return underlying;
       }
-      return new UserCodeException(underlying.getTransformName(), underlying.getCause());
+      return new UserCodeException(step, underlying.getCause());
     }
     return new UserCodeException(step, t);
   }
