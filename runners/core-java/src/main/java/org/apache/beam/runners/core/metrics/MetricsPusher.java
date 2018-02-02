@@ -150,7 +150,10 @@ public class MetricsPusher implements Serializable {
     }
   }
 
-  private static class MetricsPushException extends Exception{
+  /**
+   * Exception related to MetricsPusher to wrap technical exceptions
+   */
+  public static class MetricsPushException extends Exception{
     MetricsPushException(Throwable cause) {
       super(cause);
     }

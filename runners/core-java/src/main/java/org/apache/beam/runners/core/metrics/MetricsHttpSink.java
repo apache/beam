@@ -18,20 +18,19 @@
 
 package org.apache.beam.runners.core.metrics;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
+import java.io.DataOutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import javax.xml.ws.http.HTTPException;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
 public class MetricsHttpSink extends MetricsSink<String> {
-  private final String url;
+  private final String urlString;
 
-  /** @param url the URL of the endpoint */
-  public MetricsHttpSink(String url) {
-    this.url = url;
+  /** @param urlString the URL of the endpoint */
+  public MetricsHttpSink(String urlString) {
+      this.urlString = urlString;
   }
 
   @Override
@@ -41,12 +40,23 @@ public class MetricsHttpSink extends MetricsSink<String> {
 
   @Override
   protected void writeSerializedMetrics(String metrics) throws Exception {
-    HttpPost httpPost = new HttpPost(url);
-    HttpEntity entity = new StringEntity(metrics);
-    httpPost.setHeader("Content-Type", "application/json");
-    httpPost.setEntity(entity);
-    try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-      try (CloseableHttpResponse execute = httpClient.execute(httpPost)) {}
+    URL url = new URL(urlString);
+    byte[] postData = metrics.getBytes(StandardCharsets.UTF_8);
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setDoOutput(true);
+    connection.setInstanceFollowRedirects(false);
+    connection.setRequestMethod("POST");
+    connection.setRequestProperty("Content-Type", "application/json");
+    connection.setRequestProperty("charset", "utf-8");
+    connection.setRequestProperty("Content-Length", Integer.toString(postData.length));
+    connection.setUseCaches(false);
+    try (DataOutputStream connectionOuputStream =
+        new DataOutputStream(connection.getOutputStream())) {
+      connectionOuputStream.write(postData);
+    }
+    int responseCode = connection.getResponseCode();
+    if (responseCode != 200){
+      throw new MetricsPusher.MetricsPushException(new HTTPException(responseCode));
     }
   }
 }
