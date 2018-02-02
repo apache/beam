@@ -27,6 +27,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+func init() {
+	RegisterFunction(makePartitionFn)
+}
+
 var (
 	sig = &funcx.Signature{Args: []reflect.Type{TType}, Return: []reflect.Type{reflectx.Int}} // T -> int
 )

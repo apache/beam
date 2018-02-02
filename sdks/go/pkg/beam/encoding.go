@@ -63,14 +63,14 @@ func (w *EncodedType) UnmarshalJSON(buf []byte) error {
 }
 
 // EncodeFunc encodes a function and parameter types as a string. The function
-// symbol must be resolvable via the runtime.SymbolResolver. The types must
+// symbol must be resolvable via the runtime.GlobalSymbolResolver. The types must
 // be encodable.
 func EncodeFunc(fn reflectx.Func) (string, error) {
 	return graphx.EncodeFn(fn)
 }
 
 // DecodeFunc encodes a function as a string. The function symbol must be
-// resolvable via the runtime.SymbolResolver. The parameter types must
+// resolvable via the runtime.GlobalSymbolResolver. The parameter types must
 // be encodable.
 func DecodeFunc(data string) (reflectx.Func, error) {
 	return graphx.DecodeFn(data)
@@ -104,14 +104,14 @@ func (w *EncodedFunc) UnmarshalJSON(buf []byte) error {
 }
 
 // EncodeCoder encodes a coder as a string. Any custom coder function
-// symbol must be resolvable via the runtime.SymbolResolver. The types must
+// symbol must be resolvable via the runtime.GlobalSymbolResolver. The types must
 // be encodable.
 func EncodeCoder(c Coder) (string, error) {
 	return graphx.EncodeCoder(c.coder)
 }
 
 // DecodeCoder decodes a coder. Any custom coder function symbol must be
-// resolvable via the runtime.SymbolResolver. The types must be encodable.
+// resolvable via the runtime.GlobalSymbolResolver. The types must be encodable.
 func DecodeCoder(data string) (Coder, error) {
 	c, err := graphx.DecodeCoder(data)
 	if err != nil {

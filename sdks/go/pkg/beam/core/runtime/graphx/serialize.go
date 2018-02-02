@@ -207,11 +207,10 @@ func encodeFn(u *graph.Fn) (*v1.Fn, error) {
 
 func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 	if u.Dynfn != nil {
-		ptr, err := runtime.SymbolResolver.Sym2Addr(u.Dynfn.Gen)
+		gen, err := runtime.ResolveFunction(u.Dynfn.Gen, genFnType)
 		if err != nil {
 			return nil, fmt.Errorf("bad symbol %v: %v", u.Dynfn.Gen, err)
 		}
-		gen := reflectx.LoadFunction(ptr, genFnType)
 
 		t, err := decodeType(u.Dynfn.Type)
 		if err != nil {
@@ -266,15 +265,11 @@ func DecodeUserFn(ref *v1.UserFn) (*funcx.Fn, error) {
 		return nil, err
 	}
 
-	ptr, err := runtime.SymbolResolver.Sym2Addr(ref.Name)
+	fn, err := runtime.ResolveFunction(ref.Name, t)
 	if err != nil {
 		return nil, fmt.Errorf("decode: failed to find symbol %v: %v", ref.Name, err)
 	}
-	ret, err := funcx.New(reflectx.MakeFunc(reflectx.LoadFunction(ptr, t)))
-	if err != nil {
-		return nil, err
-	}
-	return ret, nil
+	return funcx.New(reflectx.MakeFunc(fn))
 }
 
 func encodeFullType(t typex.FullType) (*v1.FullType, error) {

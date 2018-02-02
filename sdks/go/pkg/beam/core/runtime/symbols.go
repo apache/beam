@@ -16,74 +16,78 @@
 package runtime
 
 import (
+	"fmt"
 	"os"
+	"reflect"
 	"sync"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/symtab"
 )
 
-// TODO(wcn): not happy with these names. if inspiration strikes, changes welcome!
-
-// SymbolResolution is the interface that should be implemented
-// in order to override the default behavior for symbol resolution.
-type SymbolResolution interface {
-	// Sym2Addr returns the address pointer for a given symbol.
-	Sym2Addr(string) (uintptr, error)
-}
-
-// SymbolResolver is exported to allow unit tests to supply a resolver function.
-// This is needed since the default symbol resolution process uses the DWARF
-// tables in the executable, which unfortunately are not made available
-// by default in "go test" builds. Unit tests that need symbol resolution
-// should pass in an appropriate fake.
-var SymbolResolver SymbolResolution
+var (
+	Resolver SymbolResolver
+	cache    = make(map[string]interface{})
+	mu       sync.Mutex
+)
 
 func init() {
 	// First try the Linux location, since it's the most reliable.
 	if r, err := symtab.New("/proc/self/exe"); err == nil {
-		SymbolResolver = NewSymbolCache(r)
+		Resolver = r
 		return
 	}
-	// For other OS's this works in most cases we need. If it doesn't, log
-	// an error and keep going.
+	// For other OS's this works in most cases we need.
 	if r, err := symtab.New(os.Args[0]); err == nil {
-		SymbolResolver = NewSymbolCache(r)
+		Resolver = r
 		return
 	}
-	SymbolResolver = panicResolver(false)
+	Resolver = failResolver(false)
 }
 
-// SymbolCache added a caching layer over any SymbolResolution.
-type SymbolCache struct {
-	resolver SymbolResolution
-	cache    map[string]uintptr
-	mu       sync.Mutex
+// SymbolResolver resolves a symbol to an unsafe address.
+type SymbolResolver interface {
+	// Sym2Addr returns the address pointer for a given symbol.
+	Sym2Addr(string) (uintptr, error)
 }
 
-// NewSymbolCache adds caching to the given symbol resolver.
-func NewSymbolCache(r SymbolResolution) SymbolResolution {
-	return &SymbolCache{resolver: r, cache: make(map[string]uintptr)}
-}
-
-func (c *SymbolCache) Sym2Addr(sym string) (uintptr, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if p, exists := c.cache[sym]; exists {
-		return p, nil
+// RegisterFunction allows function registration. It is beneficial for performance
+// and is needed for functions -- such as custom coders -- serialized during unit
+// tests, where the underlying symbol table is not available. It should be called
+// in init() only. Returns the external key for the function.
+func RegisterFunction(fn interface{}) {
+	if initialized {
+		panic("Init hooks have already run. Register function during init() instead.")
 	}
 
-	p, err := c.resolver.Sym2Addr(sym)
+	key := reflectx.FunctionName(fn)
+	if _, exists := cache[key]; exists {
+		panic(fmt.Sprintf("Function %v already registred", key))
+	}
+	cache[key] = fn
+}
+
+// ResolveFunction resolves the runtime value of a given function by symbol name
+// and type.
+func ResolveFunction(name string, t reflect.Type) (interface{}, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if val, exists := cache[name]; exists {
+		return val, nil
+	}
+
+	ptr, err := Resolver.Sym2Addr(name)
 	if err != nil {
 		return 0, err
 	}
-
-	c.cache[sym] = p
-	return p, nil
+	val := reflectx.LoadFunction(ptr, t)
+	cache[name] = val
+	return val, nil
 }
 
-type panicResolver bool
+type failResolver bool
 
-func (p panicResolver) Sym2Addr(name string) (uintptr, error) {
-	panic("Attempted call to panicResolver.Sym2Addr(): if this happened from a unit test, you need to supply a fake symbol resolver.")
+func (p failResolver) Sym2Addr(name string) (uintptr, error) {
+	return 0, fmt.Errorf("%v not found. Use runtime.RegisterFunction in unit tests", name)
 }

@@ -30,6 +30,8 @@ import (
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*writeFileFn)(nil)).Elem())
+	beam.RegisterFunction(readFn)
+	beam.RegisterFunction(expandFn)
 }
 
 // Read reads a set of file and returns the lines as a PCollection<string>. The

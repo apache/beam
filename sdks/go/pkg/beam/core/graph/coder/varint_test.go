@@ -17,10 +17,7 @@ package coder
 
 import (
 	"bytes"
-	"reflect"
 	"testing"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 func TestEncodeDecodeVarUint64(t *testing.T) {
@@ -92,67 +89,6 @@ func TestEncodeDecodeVarInt(t *testing.T) {
 		}
 		if actual != test.value {
 			t.Errorf("DecodeVarInt(<%v>) = %v, want %v", test.value, actual, test.value)
-		}
-	}
-}
-
-func TestVarIntZ(t *testing.T) {
-	tests := []interface{}{
-		int(1),
-		int(-1),
-		int8(8),
-		int8(-8),
-		int16(16),
-		int16(-16),
-		int32(32),
-		int32(-32),
-		int64(64),
-		int64(-64),
-	}
-
-	for _, v := range tests {
-		typ := reflect.ValueOf(v).Type()
-
-		data := encVarIntZ(v)
-		result, err := decVarIntZ(typ, data)
-		if err != nil {
-			t.Fatalf("dec(enc(%v)) failed: %v", v, err)
-		}
-
-		if v != result {
-			t.Errorf("dec(enc(%v)) = %v, want id", v, result)
-		}
-		resultT := reflectx.UnderlyingType(reflect.ValueOf(result)).Type()
-		if resultT != typ {
-			t.Errorf("type(dec(enc(%v))) = %v, want id", typ, resultT)
-		}
-	}
-}
-
-func TestVarUintZ(t *testing.T) {
-	tests := []interface{}{
-		uint(1),
-		uint8(8),
-		uint16(16),
-		uint32(32),
-		uint64(64),
-	}
-
-	for _, v := range tests {
-		typ := reflect.ValueOf(v).Type()
-
-		data := encVarUintZ(v)
-		result, err := decVarUintZ(typ, data)
-		if err != nil {
-			t.Fatalf("dec(enc(%v)) failed: %v", v, err)
-		}
-
-		if v != result {
-			t.Errorf("dec(enc(%v)) = %v, want id", v, result)
-		}
-		resultT := reflectx.UnderlyingType(reflect.ValueOf(result)).Type()
-		if resultT != typ {
-			t.Errorf("type(dec(enc(%v))) = %v, want id", typ, resultT)
 		}
 	}
 }
