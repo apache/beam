@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -30,11 +31,19 @@ import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -310,9 +319,9 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   private void runHopWindow(PCollection<BeamRecord> input) throws Exception {
     String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-        + " HOP_START(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE) AS `window_start`"
+        + " HOP_START(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR) AS `window_start`"
         + " FROM PCOLLECTION"
-        + " GROUP BY f_int2, HOP(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE)";
+        + " GROUP BY f_int2, HOP(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR)";
     PCollection<BeamRecord> result =
         input.apply("testHopWindow", BeamSql.query(sql));
 
@@ -396,5 +405,136 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         boundedInput1.apply("testUnsupportedDistinct", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testUnsupportedGlobalWindowWithDefaultTrigger() {
+    exceptions.expect(IllegalStateException.class);
+    exceptions.expectCause(isA(UnsupportedOperationException.class));
+
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    PCollection<BeamRecord> input = unboundedInput1
+        .apply("unboundedInput1.globalWindow",
+               Window.<BeamRecord> into(new GlobalWindows()).triggering(DefaultTrigger.of()));
+
+    String sql = "SELECT f_int2, COUNT(*) AS `size` FROM PCOLLECTION GROUP BY f_int2";
+
+    input.apply("testUnsupportedGlobalWindows", BeamSql.query(sql));
+  }
+
+  @Test
+  public void testSupportsGlobalWindowWithCustomTrigger() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
+
+    BeamRecordSqlType type =
+        BeamRecordSqlType
+            .builder()
+            .withIntegerField("f_intGroupingKey")
+            .withIntegerField("f_intValue")
+            .withTimestampField("f_timestamp")
+            .build();
+
+    Object[] rows = new Object[]{
+        0, 1, startTime.plusSeconds(0).toDate(),
+        0, 2, startTime.plusSeconds(1).toDate(),
+        0, 3, startTime.plusSeconds(2).toDate(),
+        0, 4, startTime.plusSeconds(3).toDate(),
+        0, 5, startTime.plusSeconds(4).toDate(),
+        0, 6, startTime.plusSeconds(6).toDate()
+    };
+
+    PCollection<BeamRecord> input =
+        createTestPCollection(type, rows, "f_timestamp")
+            .apply(Window
+                       .<BeamRecord>into(new GlobalWindows())
+                       .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(2)))
+                       .discardingFiredPanes()
+                       .withOnTimeBehavior(Window.OnTimeBehavior.FIRE_IF_NON_EMPTY));
+
+    String sql =
+        "SELECT SUM(f_intValue) AS `sum` FROM PCOLLECTION GROUP BY f_intGroupingKey";
+
+    PCollection<BeamRecord> result = input.apply("sql", BeamSql.query(sql));
+
+    assertEquals(new GlobalWindows(), result.getWindowingStrategy().getWindowFn());
+    PAssert
+        .that(result)
+        .containsInAnyOrder(
+            rowsWithSingleIntField("sum", Arrays.asList(3, 7, 11)));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testSupportsNonGlobalWindowWithCustomTrigger() {
+    DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
+
+    BeamRecordSqlType type =
+        BeamRecordSqlType
+            .builder()
+            .withIntegerField("f_intGroupingKey")
+            .withIntegerField("f_intValue")
+            .withTimestampField("f_timestamp")
+            .build();
+
+    Object[] rows = new Object[]{
+        0, 1, startTime.plusSeconds(0).toDate(),
+        0, 2, startTime.plusSeconds(1).toDate(),
+        0, 3, startTime.plusSeconds(2).toDate(),
+        0, 4, startTime.plusSeconds(3).toDate(),
+        0, 5, startTime.plusSeconds(4).toDate(),
+        0, 6, startTime.plusSeconds(6).toDate()
+    };
+
+    PCollection<BeamRecord> input =
+        createTestPCollection(type, rows, "f_timestamp")
+            .apply(Window
+                       .<BeamRecord>into(
+                           FixedWindows.of(Duration.standardSeconds(3)))
+                       .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(2)))
+                       .discardingFiredPanes()
+                       .withAllowedLateness(Duration.ZERO)
+                       .withOnTimeBehavior(Window.OnTimeBehavior.FIRE_IF_NON_EMPTY));
+
+    String sql =
+        "SELECT SUM(f_intValue) AS `sum` FROM PCOLLECTION GROUP BY f_intGroupingKey";
+
+    PCollection<BeamRecord> result = input.apply("sql", BeamSql.query(sql));
+
+    assertEquals(
+        FixedWindows.of(Duration.standardSeconds(3)),
+        result.getWindowingStrategy().getWindowFn());
+
+    PAssert
+        .that(result)
+        .containsInAnyOrder(
+            rowsWithSingleIntField("sum", Arrays.asList(3, 3, 9, 6)));
+
+    pipeline.run();
+  }
+
+  private List<BeamRecord> rowsWithSingleIntField(String fieldName, List<Integer> values) {
+    return
+        TestUtils
+            .rowsBuilderOf(BeamRecordSqlType.builder().withIntegerField(fieldName).build())
+            .addRows(values)
+            .getRows();
+  }
+
+  private PCollection<BeamRecord> createTestPCollection(
+      BeamRecordSqlType type,
+      Object[] rows,
+      String timestampField) {
+    return
+        TestUtils
+            .rowsBuilderOf(type)
+            .addRows(rows)
+            .getPCollectionBuilder()
+            .inPipeline(pipeline)
+            .withTimestampField(timestampField)
+            .buildUnbounded();
   }
 }

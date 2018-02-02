@@ -17,26 +17,31 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rule.AggregateWindowField;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
@@ -51,52 +56,55 @@ import org.joda.time.Duration;
 
 /**
  * {@link BeamRelNode} to replace a {@link Aggregate} node.
- *
  */
 public class BeamAggregationRel extends Aggregate implements BeamRelNode {
-  private int windowFieldIdx = -1;
-  private WindowFn<BeamRecord, BoundedWindow> windowFn;
-  private Trigger trigger;
-  private Duration allowedLatence = Duration.ZERO;
+  private final int windowFieldIndex;
+  private Optional<AggregateWindowField> windowField;
 
-  public BeamAggregationRel(RelOptCluster cluster, RelTraitSet traits
-      , RelNode child, boolean indicator,
-      ImmutableBitSet groupSet, List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls
-      , WindowFn windowFn, Trigger trigger, int windowFieldIdx, Duration allowedLatence) {
+  public BeamAggregationRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      RelNode child,
+      boolean indicator,
+      ImmutableBitSet groupSet,
+      List<ImmutableBitSet> groupSets,
+      List<AggregateCall> aggCalls,
+      Optional<AggregateWindowField> windowField) {
+
     super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
-    this.windowFn = windowFn;
-    this.trigger = trigger;
-    this.windowFieldIdx = windowFieldIdx;
-    this.allowedLatence = allowedLatence;
+    this.windowField = windowField;
+    this.windowFieldIndex = windowField.map(AggregateWindowField::fieldIndex).orElse(-1);
   }
 
   @Override
-  public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
+  public PCollection<BeamRecord> buildBeamPipeline(
+      PCollectionTuple inputPCollections,
+      BeamSqlEnv sqlEnv) throws Exception {
+
     RelNode input = getInput();
     String stageName = BeamSqlRelUtils.getStageName(this) + "_";
 
     PCollection<BeamRecord> upstream =
         BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
-    if (windowFieldIdx != -1) {
+    if (windowField.isPresent()) {
       upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
-          .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx))
+          .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
           .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
           .setCoder(upstream.getCoder());
     }
 
-    PCollection<BeamRecord> windowStream = upstream.apply(stageName + "window",
-        Window.into(windowFn)
-        .triggering(trigger)
-        .withAllowedLateness(allowedLatence)
-        .accumulatingFiredPanes());
+    PCollection<BeamRecord> windowedStream =
+        windowField.isPresent()
+            ? upstream.apply(stageName + "window", Window.into(windowField.get().windowFn()))
+            : upstream;
+
+    validateWindowIsSupported(windowedStream);
 
     BeamRecordCoder keyCoder = exKeyFieldsSchema(input.getRowType()).getRecordCoder();
-    PCollection<KV<BeamRecord, BeamRecord>> exCombineByStream = windowStream.apply(
+    PCollection<KV<BeamRecord, BeamRecord>> exCombineByStream = windowedStream.apply(
         stageName + "exCombineBy",
         WithKeys
-            .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(
-                windowFieldIdx, groupSet)))
+            .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(windowFieldIndex, groupSet)))
         .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
 
 
@@ -111,12 +119,40 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                         getAggCallList(), CalciteUtils.toBeamRowType(input.getRowType()))))
             .setCoder(KvCoder.of(keyCoder, aggCoder));
 
-    PCollection<BeamRecord> mergedStream = aggregatedStream.apply(stageName + "mergeRecord",
-        ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(
-            CalciteUtils.toBeamRowType(getRowType()), getAggCallList(), windowFieldIdx)));
+    PCollection<BeamRecord> mergedStream = aggregatedStream.apply(
+        stageName + "mergeRecord",
+        ParDo.of(
+            new BeamAggregationTransforms.MergeAggregationRecord(
+                CalciteUtils.toBeamRowType(getRowType()),
+                getAggCallList(),
+                windowFieldIndex)));
     mergedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
 
     return mergedStream;
+  }
+
+
+  /**
+   * Performs the same check as {@link GroupByKey}, provides more context in exception.
+   *
+   * <p>Verifies that the input PCollection is bounded, or that there is windowing/triggering being
+   * used. Without this, the watermark (at end of global window) will never be reached.
+   *
+   * <p>Throws {@link UnsupportedOperationException} if validation fails.
+   */
+  private void validateWindowIsSupported(PCollection<BeamRecord> upstream) {
+    WindowingStrategy<?, ?> windowingStrategy = upstream.getWindowingStrategy();
+    if (windowingStrategy.getWindowFn() instanceof GlobalWindows
+        && windowingStrategy.getTrigger() instanceof DefaultTrigger
+        && upstream.isBounded() != BOUNDED) {
+
+      throw new UnsupportedOperationException(
+          "Please explicitly specify windowing in SQL query using HOP/TUMBLE/SESSION functions "
+              + "(default trigger will be used in this case). "
+              + "Unbounded input with global windowing and default trigger is not supported "
+              + "in Beam SQL aggregations. "
+              + "See GroupByKey section in Beam Programming Guide");
+    }
   }
 
   /**
@@ -126,8 +162,9 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     BeamRecordSqlType inputRowType = CalciteUtils.toBeamRowType(relDataType);
     List<String> fieldNames = new ArrayList<>();
     List<Integer> fieldTypes = new ArrayList<>();
+    int windowFieldIndex = windowField.map(AggregateWindowField::fieldIndex).orElse(-1);
     for (int i : groupSet.asList()) {
-      if (i != windowFieldIdx) {
+      if (i != windowFieldIndex) {
         fieldNames.add(inputRowType.getFieldNameByIndex(i));
         fieldTypes.add(inputRowType.getFieldTypeByIndex(i));
       }
@@ -150,27 +187,18 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public Aggregate copy(RelTraitSet traitSet, RelNode input, boolean indicator
+  public Aggregate copy(
+      RelTraitSet traitSet, RelNode input, boolean indicator
       , ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
     return new BeamAggregationRel(getCluster(), traitSet, input, indicator
-        , groupSet, groupSets, aggCalls, windowFn, trigger, windowFieldIdx, allowedLatence);
-  }
-
-  public void setWindowFn(WindowFn windowFn) {
-    this.windowFn = windowFn;
-  }
-
-  public void setTrigger(Trigger trigger) {
-    this.trigger = trigger;
+        , groupSet, groupSets, aggCalls, windowField);
   }
 
   public RelWriter explainTerms(RelWriter pw) {
     // We skip the "groups" element if it is a singleton of "group".
     pw.item("group", groupSet)
-        .itemIf("window", windowFn, windowFn != null)
-        .itemIf("trigger", trigger, trigger != null)
-        .itemIf("event_time", windowFieldIdx, windowFieldIdx != -1)
+        .itemIf("window", windowField.orElse(null), windowField.isPresent())
         .itemIf("groups", groupSets, getGroupType() != Group.SIMPLE)
         .itemIf("indicator", indicator, indicator)
         .itemIf("aggs", aggCalls, pw.nest());
