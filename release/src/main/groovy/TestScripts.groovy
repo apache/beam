@@ -33,6 +33,7 @@ class TestScripts {
      static String repoUrl
      static String ver
      static String project
+     static String bucket
    }
 
    def TestScripts(String[] args) {
@@ -40,6 +41,7 @@ class TestScripts {
      cli.ver(args:1, 'SDL Version')
      cli.repourl(args:1, 'Repository URL')
      cli.project(args:1, 'Google Cloud Project')
+     cli.bucket(args:1, 'Google Cloud Storage Bucket')
      def options = cli.parse(args)
      var.repoUrl = options.repourl
      var.ver = options.ver
@@ -47,7 +49,9 @@ class TestScripts {
      println "Version: ${var.ver}"
      if (options.project) {
        var.project = options.project
+       var.bucket = options.bucket
        println "Project: ${var.project}"
+       println "Storage bucket: ${var.bucket}"
      }
    }
 
@@ -56,11 +60,11 @@ class TestScripts {
    }
 
    def project() {
-     return "alan-jenkins-test"
+     return var.project
    }
 
    def gsloc() {
-      return "alan-dataflow-release"
+      return var.bucket
     }
 
    // Both documents the overal scenario and creates a clean temp directory
