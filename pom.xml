@@ -1462,7 +1462,6 @@
               <arg>-Xlint:-try</arg>
               <arg>-Xlint:-unchecked</arg>
               <arg>-Xlint:-varargs</arg>
-	      <arg>-parameters</arg>
               <!-- Uncomment the following args to display more warnings. -->
               <!-- -Xmaxwarns -->
               <!-- 10000 -->
@@ -1482,6 +1481,7 @@
               <configuration>
                 <compilerArgs>
                   <arg>${compiler.default.pkginfo.flag}</arg>
+                  <arg>-parameters</arg>
                 </compilerArgs>
                 <excludes>
                   <exclude>${compiler.default.exclude}</exclude>
