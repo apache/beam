@@ -29,6 +29,7 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*printFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*printKVFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*printGBKFn)(nil)))
+	beam.RegisterFunction(discardFn)
 }
 
 // Print prints out all data. Use with care.

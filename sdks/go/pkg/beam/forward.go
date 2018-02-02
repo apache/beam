@@ -42,6 +42,14 @@ func RegisterType(t reflect.Type) {
 	runtime.RegisterType(t)
 }
 
+// RegisterFunction allows function registration. It is beneficial for performance
+// and is needed for functions -- such as custom coders -- serialized during unit
+// tests, where the underlying symbol table is not available. It should be called
+// in init() only. Returns the external key for the function.
+func RegisterFunction(fn interface{}) {
+	runtime.RegisterFunction(fn)
+}
+
 // RegisterInit registers an Init hook. Hooks are expected to be able to
 // figure out whether they apply on their own, notably if invoked in a remote
 // execution environment. They are all executed regardless of the runner.
