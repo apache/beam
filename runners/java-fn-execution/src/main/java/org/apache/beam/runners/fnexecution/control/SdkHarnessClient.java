@@ -119,7 +119,10 @@ public class SdkHarnessClient implements AutoCloseable {
           processBundleDescriptorId);
 
       ListenableFuture<BeamFnApi.ProcessBundleResponse> specificResponse =
-          Futures.transform(genericResponse, InstructionResponse::getProcessBundle);
+          Futures.transform(
+              genericResponse,
+              InstructionResponse::getProcessBundle,
+              MoreExecutors.directExecutor());
       Map<BeamFnApi.Target, InboundDataClient> outputClients = new HashMap<>();
       for (Map.Entry<BeamFnApi.Target, RemoteOutputReceiver<?>> targetReceiver :
           outputReceivers.entrySet()) {
@@ -237,7 +240,8 @@ public class SdkHarnessClient implements AutoCloseable {
 
     ListenableFuture<RegisterResponse> registerResponseFuture =
         Futures.transform(
-            genericResponse, InstructionResponse::getRegister,
+            genericResponse,
+            InstructionResponse::getRegister,
             MoreExecutors.directExecutor());
     for (Map.Entry<ProcessBundleDescriptor, RemoteInputDestination<WindowedValue<?>>>
         descriptorInputEntry : processBundleDescriptors.entrySet()) {
