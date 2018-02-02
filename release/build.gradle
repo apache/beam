@@ -24,9 +24,42 @@ repositories {
 
 dependencies {
     compile 'org.codehaus.groovy:groovy-all:2.4.13'
+    compile 'commons-cli:commons-cli:1.2'
 }
 
-task runQuickstartJavaDirect (dependsOn: 'classes', type: JavaExec) {
+// Nightly releases
+def verNightly = project.findProperty('ver') ?: '2.4.0-SNAPSHOT'
+def repoNightly = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+def argsNightly = ["--ver=${verNightly}", "--repourl=${repoNightly}"]
+
+// External releases
+def verRelease = project.findProperty('ver') ?: '2.3.0'
+def repoRelease = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/orgapachebeam-1026'
+def argsRelease = ["--ver=${verRelease}", "--repourl=${repoRelease}"]
+
+// For dataflow runner
+def argsProject = ["--project=${project.findProperty('cloudProject') ?: 'apache-beam-testing'}"]
+
+task runQuickstartJavaDirectNightly (dependsOn: 'classes', type: JavaExec) {
     main = 'quickstart-java-direct'
     classpath = sourceSets.main.runtimeClasspath
+    args argsNightly
+}
+
+task runQuickstartJavaDirectRelease (dependsOn: 'classes', type: JavaExec) {
+    main = 'quickstart-java-direct'
+    classpath = sourceSets.main.runtimeClasspath
+    args argsRelease
+}
+
+task runQuickstartJavaDataflowNightly (dependsOn: 'classes', type: JavaExec) {
+    main = 'quickstart-java-dataflow'
+    classpath = sourceSets.main.runtimeClasspath
+    args argsNightly + argsProject
+}
+
+task runQuickstartJavaDataflowRelease (dependsOn: 'classes', type: JavaExec) {
+    main = 'quickstart-java-dataflow'
+    classpath = sourceSets.main.runtimeClasspath
+    args argsRelease + argsProject
 }

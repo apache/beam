@@ -20,10 +20,10 @@
 t = new TestScripts(args)
 
 /*
- * Run the direct quickstart from https://beam.apache.org/get-started/quickstart-java/
+ * Run the dataflow quickstart from https://beam.apache.org/get-started/quickstart-java/
  */
 
-t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
+t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
 
   t.intent 'Gets the WordCount Example Code'
     // Generate a maven project from the snapshot repository
@@ -46,13 +46,17 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
     t.run "ls src/main/java/org/apache/beam/examples/"
     t.see "WordCount.java"
 
-  t.intent 'Runs the WordCount Code with Direct runner'
+  t.intent 'Runs the WordCount Code with Dataflow runner'
 
-    // Run the workcount example with the direct runner
+    // Run the workcount example with the dataflow runner
     t.run """mvn compile exec:java \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
-      -Dexec.args="--inputFile=pom.xml --output=counts" \
-      -Pdirect-runner"""
+      -Dexec.args="--runner=DataflowRunner \
+                   --project=${t.project()} \
+                   --gcpTempLocation=gs://${t.gsloc()}/tmp \
+                   --output=gs://${t.gsloc()}/count \
+                   --inputFile=gs://apache-beam-samples/shakespeare/*" \
+                    -Pdataflow-runner"""
 
     // Verify text from the pom.xml input file
     t.run "grep Foundation counts*"
