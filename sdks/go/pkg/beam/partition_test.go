@@ -24,10 +24,10 @@ import (
 )
 
 func init() {
-	ptest.RegisterFn(identity)
-	ptest.RegisterFn(identityMinus2)
-	ptest.RegisterFn(mod2)
-	ptest.RegisterFn(less3)
+	beam.RegisterFunction(identity)
+	beam.RegisterFunction(identityMinus2)
+	beam.RegisterFunction(mod2)
+	beam.RegisterFunction(less3)
 }
 
 func identity(n int) int { return n }

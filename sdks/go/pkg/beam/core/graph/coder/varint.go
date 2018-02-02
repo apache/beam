@@ -16,70 +16,14 @@
 package coder
 
 import (
-	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
-	"reflect"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // ErrVarIntTooLong indicates a data corruption issue that needs special
 // handling by callers of decode. TODO(herohde): have callers perform
 // this special handling.
 var ErrVarIntTooLong = errors.New("varint too long")
-
-// NewVarIntZ returns a varint coder for the given integer type. It uses a zig-zag scheme,
-// which is _different_ from the Beam standard coding scheme.
-func NewVarIntZ(t reflect.Type) (*CustomCoder, error) {
-	switch t.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return NewCustomCoder("varintz", t, encVarIntZ, decVarIntZ)
-	default:
-		return nil, fmt.Errorf("not a signed integer type: %v", t)
-	}
-}
-
-// NewVarUintZ returns a uvarint coder for the given integer type. It uses a zig-zag scheme,
-// which is _different_ from the Beam standard coding scheme.
-func NewVarUintZ(t reflect.Type) (*CustomCoder, error) {
-	switch t.Kind() {
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return NewCustomCoder("varuintz", t, encVarUintZ, decVarUintZ)
-	default:
-		return nil, fmt.Errorf("not a unsigned integer type: %v", t)
-	}
-}
-
-func encVarIntZ(v typex.T) []byte {
-	ret := make([]byte, binary.MaxVarintLen64)
-	size := binary.PutVarint(ret, reflect.ValueOf(v).Convert(reflectx.Int64).Interface().(int64))
-	return ret[:size]
-}
-
-func decVarIntZ(t reflect.Type, data []byte) (typex.T, error) {
-	n, size := binary.Varint(data)
-	if size <= 0 {
-		return nil, fmt.Errorf("invalid varintz encoding for: %v", data)
-	}
-	return reflect.ValueOf(n).Convert(t).Interface(), nil
-}
-
-func encVarUintZ(v typex.T) []byte {
-	ret := make([]byte, binary.MaxVarintLen64)
-	size := binary.PutUvarint(ret, reflect.ValueOf(v).Convert(reflectx.Uint64).Interface().(uint64))
-	return ret[:size]
-}
-
-func decVarUintZ(t reflect.Type, data []byte) (typex.T, error) {
-	n, size := binary.Uvarint(data)
-	if size <= 0 {
-		return nil, fmt.Errorf("invalid varuintz encoding for: %v", data)
-	}
-	return reflect.ValueOf(n).Convert(t).Interface(), nil
-}
 
 // EncodeVarUint64 encodes an uint64.
 func EncodeVarUint64(value uint64, w io.Writer) error {

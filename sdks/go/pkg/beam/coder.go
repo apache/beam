@@ -22,9 +22,15 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
+
+func init() {
+	RegisterFunction(JSONDec)
+	RegisterFunction(JSONEnc)
+}
 
 // Coder defines how to encode and decode values of type 'A' into byte streams.
 // Coders are attached to PCollections of the same type. For PCollections
@@ -86,13 +92,13 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 	case typex.Concrete, typex.Container:
 		switch t.Type() {
 		case reflectx.Int, reflectx.Int8, reflectx.Int16, reflectx.Int32, reflectx.Int64:
-			c, err := coder.NewVarIntZ(t.Type())
+			c, err := coderx.NewVarIntZ(t.Type())
 			if err != nil {
 				return nil, err
 			}
 			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
 		case reflectx.Uint, reflectx.Uint8, reflectx.Uint16, reflectx.Uint32, reflectx.Uint64:
-			c, err := coder.NewVarUintZ(t.Type())
+			c, err := coderx.NewVarUintZ(t.Type())
 			if err != nil {
 				return nil, err
 			}
