@@ -48,19 +48,25 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
 
   t.intent 'Runs the WordCount Code with Dataflow runner'
 
+    // Remove any count files
+    t.run """gsutil rm gs://${t.gsloc()}/count* || echo 'No files'"""
+
     // Run the workcount example with the dataflow runner
     t.run """mvn compile exec:java \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--runner=DataflowRunner \
                    --project=${t.project()} \
                    --gcpTempLocation=gs://${t.gsloc()}/tmp \
-                   --output=gs://${t.gsloc()}/count \
+                   --output=gs://${t.gsloc()}/counts \
                    --inputFile=gs://apache-beam-samples/shakespeare/*" \
                     -Pdataflow-runner"""
 
-    // Verify text from the pom.xml input file
-    t.run "grep Foundation counts*"
-    t.see "Foundation: 1"
+    // Verify wordcount text
+    t.run """gsutil cat gs://${t.gsloc()}/count* | grep Montague:"""
+    t.see "Montague: 47"
+
+    // Remove count files
+    t.run """gsutil rm gs://${t.gsloc()}/count*"""
 
     // Clean up
     t.done()
