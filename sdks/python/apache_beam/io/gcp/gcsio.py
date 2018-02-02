@@ -516,7 +516,6 @@ class GcsUploader(Uploader):
     self._path = path
     self._bucket, self._name = parse_gcs_path(path)
     self._mime_type = mime_type
-    self._last_error = None
 
     # Set up communication with child thread.
     parent_conn, child_conn = multiprocessing.Pipe()
