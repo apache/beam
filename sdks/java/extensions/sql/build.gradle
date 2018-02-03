@@ -91,7 +91,7 @@ task generateFmppSources {
   }
 }
 
-// IntelliJ is happier when the directories are in the path, so we manually set this up
+// Match the output directory for generated code with the package, to be more tool-friendly
 def generateFmppJavaccRoot = "${generateFmppOutputDir}/javacc"
 def generatedJavaccSourceDir = "${project.buildDir}/generated/javacc"
 def generatedJavaccPackageDir = "${generatedJavaccSourceDir}/org/apache/beam/sdk/extensions/sql/impl/parser/impl"

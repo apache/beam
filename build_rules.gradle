@@ -67,7 +67,7 @@ repositories {
   maven { url "https://repository.apache.org/content/repositories/releases" }
 }
 
-// Help IntelliJ - specific hints are in their natures
+// Apply a plugin which enables configuring projects imported into Intellij.
 apply plugin: "idea"
 
 // Provide code coverage
@@ -374,7 +374,7 @@ ext.applyJavaNature = {
       sourceDirs += file(aptGeneratedMain)
       generatedSourceDirs += file(aptGeneratedMain)
 
-      sourceDirs += file(aptGeneratedTest)
+      testSourceDirs += file(aptGeneratedTest)
       generatedSourceDirs += file(aptGeneratedTest)
     }
   }
@@ -422,7 +422,7 @@ ext.applyGoNature = {
       // which is a path baked into golang
       excludeDirs += file("${project.path}/vendor")
 
-      // Don't know what is in here, but it isn't our source
+      // gogradle's private working directory
       excludeDirs += file("${project.path}/.gogradle")
     }
   }
@@ -479,13 +479,13 @@ ext.applyGrpcNature = {
       sourceDirs += file(generatedProtoMainJavaDir)
       generatedSourceDirs += file(generatedProtoMainJavaDir)
 
-      sourceDirs += file(generatedProtoTestJavaDir)
+      testSourceDirs += file(generatedProtoTestJavaDir)
       generatedSourceDirs += file(generatedProtoTestJavaDir)
 
       sourceDirs += file(generatedProtoMainJavaDir)
       generatedSourceDirs += file(generatedGrpcMainJavaDir)
 
-      sourceDirs += file(generatedGrpcTestJavaDir)
+      testSourceDirs += file(generatedGrpcTestJavaDir)
       generatedSourceDirs += file(generatedGrpcTestJavaDir)
     }
   }
