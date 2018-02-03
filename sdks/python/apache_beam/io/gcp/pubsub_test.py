@@ -22,7 +22,7 @@ import unittest
 
 import hamcrest as hc
 
-from apache_beam import Map
+import apache_beam as beam
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
 from apache_beam.io.gcp.pubsub import WriteStringsToPubSub
 from apache_beam.io.gcp.pubsub import _PubSubPayloadSink
@@ -43,14 +43,14 @@ except ImportError:
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
-class TestReadStringsFromPubSub(unittest.TestCase):
+class TestReadStringsFromPubSubOverride(unittest.TestCase):
   def test_expand_with_topic(self):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
              | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
                                      None, 'a_label')
-             | Map(lambda x: x))
+             | beam.Map(lambda x: x))
     # Ensure that the output type is str.
     self.assertEqual(unicode, pcoll.element_type)
 
@@ -74,7 +74,7 @@ class TestReadStringsFromPubSub(unittest.TestCase):
              | ReadStringsFromPubSub(
                  None, 'projects/fakeprj/subscriptions/a_subscription',
                  'a_label')
-             | Map(lambda x: x))
+             | beam.Map(lambda x: x))
     # Ensure that the output type is str
     self.assertEqual(unicode, pcoll.element_type)
 
@@ -110,7 +110,7 @@ class TestWriteStringsToPubSub(unittest.TestCase):
     pcoll = (p
              | ReadStringsFromPubSub('projects/fakeprj/topics/baz')
              | WriteStringsToPubSub('projects/fakeprj/topics/a_topic')
-             | Map(lambda x: x))
+             | beam.Map(lambda x: x))
 
     # Apply the necessary PTransformOverrides.
     overrides = _get_transform_overrides(p.options)

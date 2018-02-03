@@ -563,8 +563,8 @@ class _CurriedFn(core.CombineFn):
 def curry_combine_fn(fn, args, kwargs):
   if not args and not kwargs:
     return fn
-
-  return _CurriedFn(fn, args, kwargs)
+  else:
+    return _CurriedFn(fn, args, kwargs)
 
 
 class PhasedCombineFnExecutor(object):

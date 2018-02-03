@@ -117,11 +117,9 @@ def _get_transform_overrides(pipeline_options):
   from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
 
   class CombinePerKeyOverride(PTransformOverride):
-    def get_matcher(self):
-      def _matcher(applied_ptransform):
-        if isinstance(applied_ptransform.transform, CombinePerKey):
-          return True
-      return _matcher
+    def matches(self, applied_ptransform):
+      if isinstance(applied_ptransform.transform, CombinePerKey):
+        return True
 
     def get_replacement_transform(self, transform):
       # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
@@ -134,11 +132,9 @@ def _get_transform_overrides(pipeline_options):
         return transform
 
   class StreamingGroupByKeyOverride(PTransformOverride):
-    def get_matcher(self):
-      def _matcher(applied_ptransform):
-        # Note: we match the exact class, since we replace it with a subclass.
-        return applied_ptransform.transform.__class__ == _GroupByKeyOnly
-      return _matcher
+    def matches(self, applied_ptransform):
+      # Note: we match the exact class, since we replace it with a subclass.
+      return applied_ptransform.transform.__class__ == _GroupByKeyOnly
 
     def get_replacement_transform(self, transform):
       # Use specialized streaming implementation.
@@ -149,11 +145,9 @@ def _get_transform_overrides(pipeline_options):
       return transform
 
   class StreamingGroupAlsoByWindowOverride(PTransformOverride):
-    def get_matcher(self):
-      def _matcher(applied_ptransform):
-        # Note: we match the exact class, since we replace it with a subclass.
-        return applied_ptransform.transform.__class__ == _GroupAlsoByWindow
-      return _matcher
+    def matches(self, applied_ptransform):
+      # Note: we match the exact class, since we replace it with a subclass.
+      return applied_ptransform.transform.__class__ == _GroupAlsoByWindow
 
     def get_replacement_transform(self, transform):
       # Use specialized streaming implementation.
@@ -165,7 +159,7 @@ def _get_transform_overrides(pipeline_options):
 
   overrides = [SplittableParDoOverride(),
                ProcessKeyedElementsViaKeyedWorkItemsOverride(),
-               CombinePerKeyOverride(),]
+               CombinePerKeyOverride()]
 
   # Add streaming overrides, if necessary.
   if pipeline_options.view_as(StandardOptions).streaming:
@@ -173,73 +167,73 @@ def _get_transform_overrides(pipeline_options):
     overrides.append(StreamingGroupAlsoByWindowOverride())
 
   # Add PubSub overrides, if PubSub is available.
-  pubsub = None
   try:
-    from apache_beam.io.gcp import pubsub
+    from apache_beam.io.gcp import pubsub as unused_pubsub
+    overrides += _get_pubsub_transform_overrides(pipeline_options)
   except ImportError:
     pass
-  if pubsub:
-    class ReadStringsFromPubSubOverride(PTransformOverride):
-      def get_matcher(self):
-        def _matcher(applied_ptransform):
-          return isinstance(applied_ptransform.transform,
-                            pubsub.ReadStringsFromPubSub)
-        return _matcher
-
-      def get_replacement_transform(self, transform):
-        if not pipeline_options.view_as(StandardOptions).streaming:
-          raise Exception('PubSub I/O is only available in streaming mode '
-                          '(use the --streaming flag).')
-        return _DirectReadStringsFromPubSub(transform._source)
-
-    class WriteStringsToPubSubOverride(PTransformOverride):
-      def get_matcher(self):
-        def _matcher(applied_ptransform):
-          return isinstance(applied_ptransform.transform,
-                            pubsub.WriteStringsToPubSub)
-        return _matcher
-
-      def get_replacement_transform(self, transform):
-        if not pipeline_options.view_as(StandardOptions).streaming:
-          raise Exception('PubSub I/O is only available in streaming mode '
-                          '(use the --streaming flag).')
-
-        class _DirectWriteToPubSub(beam.DoFn):
-          _topic = None
-
-          def __init__(self, project, topic_name):
-            self.project = project
-            self.topic_name = topic_name
-
-          def start_bundle(self):
-            if self._topic is None:
-              self._topic = pubsub.Client(project=self.project).topic(
-                  self.topic_name)
-            self._buffer = []
-
-          def process(self, elem):
-            self._buffer.append(elem.encode('utf-8'))
-            if len(self._buffer) >= 100:
-              self._flush()
-
-          def finish_bundle(self):
-            self._flush()
-
-          def _flush(self):
-            if self._buffer:
-              with self._topic.batch() as batch:
-                for datum in self._buffer:
-                  batch.publish(datum)
-              self._buffer = []
-
-        project = transform._sink.project
-        topic_name = transform._sink.topic_name
-        return beam.ParDo(_DirectWriteToPubSub(project, topic_name))
-
-    overrides.append(ReadStringsFromPubSubOverride())
-    overrides.append(WriteStringsToPubSubOverride())
 
   return overrides
+
+
+def _get_pubsub_transform_overrides(pipeline_options):
+  from apache_beam.io.gcp import pubsub
+  from apache_beam.pipeline import PTransformOverride
+
+  class ReadStringsFromPubSubOverride(PTransformOverride):
+    def matches(self, applied_ptransform):
+      return isinstance(applied_ptransform.transform,
+                        pubsub.ReadStringsFromPubSub)
+
+    def get_replacement_transform(self, transform):
+      if not pipeline_options.view_as(StandardOptions).streaming:
+        raise Exception('PubSub I/O is only available in streaming mode '
+                        '(use the --streaming flag).')
+      return _DirectReadStringsFromPubSub(transform._source)
+
+  class WriteStringsToPubSubOverride(PTransformOverride):
+    def matches(self, applied_ptransform):
+      return isinstance(applied_ptransform.transform,
+                        pubsub.WriteStringsToPubSub)
+
+    def get_replacement_transform(self, transform):
+      if not pipeline_options.view_as(StandardOptions).streaming:
+        raise Exception('PubSub I/O is only available in streaming mode '
+                        '(use the --streaming flag).')
+
+      class _DirectWriteToPubSub(beam.DoFn):
+        _topic = None
+
+        def __init__(self, project, topic_name):
+          self.project = project
+          self.topic_name = topic_name
+
+        def start_bundle(self):
+          if self._topic is None:
+            self._topic = pubsub.Client(project=self.project).topic(
+                self.topic_name)
+          self._buffer = []
+
+        def process(self, elem):
+          self._buffer.append(elem.encode('utf-8'))
+          if len(self._buffer) >= 100:
+            self._flush()
+
+        def finish_bundle(self):
+          self._flush()
+
+        def _flush(self):
+          if self._buffer:
+            with self._topic.batch() as batch:
+              for datum in self._buffer:
+                batch.publish(datum)
+            self._buffer = []
+
+      project = transform._sink.project
+      topic_name = transform._sink.topic_name
+      return beam.ParDo(_DirectWriteToPubSub(project, topic_name))
+
+  return [ReadStringsFromPubSubOverride(), WriteStringsToPubSubOverride()]
 
 
 class DirectRunner(PipelineRunner):

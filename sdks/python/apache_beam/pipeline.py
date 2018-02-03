@@ -181,7 +181,6 @@ class Pipeline(object):
   def _replace(self, override):
 
     assert isinstance(override, PTransformOverride)
-    matcher = override.get_matcher()
 
     output_map = {}
     output_replacements = {}
@@ -194,7 +193,7 @@ class Pipeline(object):
         self.pipeline = pipeline
 
       def _replace_if_needed(self, original_transform_node):
-        if matcher(original_transform_node):
+        if override.matches(original_transform_node):
           assert isinstance(original_transform_node, AppliedPTransform)
           replacement_transform = override.get_replacement_transform(
               original_transform_node.transform)
@@ -323,11 +322,10 @@ class Pipeline(object):
       transform.inputs = input_replacements[transform]
 
   def _check_replacement(self, override):
-    matcher = override.get_matcher()
 
     class ReplacementValidator(PipelineVisitor):
       def visit_transform(self, transform_node):
-        if matcher(transform_node):
+        if override.matches(transform_node):
           raise RuntimeError('Transform node %r was not replaced as expected.',
                              transform_node)
 
@@ -861,12 +859,14 @@ class PTransformOverride(object):
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
-  def get_matcher(self):
-    """Gives a matcher that will be used to to perform this override.
+  def matches(self, applied_ptransform):
+    """Determines whether the given AppliedPTransform matches.
+
+    Args:
+      applied_ptransform: AppliedPTransform to be matched.
 
     Returns:
-      a callable that takes an AppliedPTransform as a parameter and returns a
-      boolean as a result.
+      a bool indicating whether the given AppliedPTransform is a match.
     """
     raise NotImplementedError
 
@@ -876,6 +876,7 @@ class PTransformOverride(object):
 
     Args:
       ptransform: PTransform to be replaced.
+
     Returns:
       A PTransform that will be the replacement for the PTransform given as an
       argument.
