@@ -117,13 +117,18 @@ class PipelineRunner(object):
   """
 
   def run(self, transform, options=None):
-    """Run the given transform with this runner.
+    """Run the given transform or callable with this runner.
     """
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import PTransform
+    from apache_beam.pvalue import PBegin
     from apache_beam.pipeline import Pipeline
     p = Pipeline(runner=self, options=options)
-    p | transform
+    if isinstance(transform, PTransform):
+      p | transform
+    else:
+      transform(PBegin(p))
     return p.run()
 
   def run_pipeline(self, pipeline):

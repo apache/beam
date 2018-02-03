@@ -128,6 +128,20 @@ class RunnerTest(unittest.TestCase):
     my_metric_value = result.metrics().query()['counters'][0].committed
     self.assertEqual(my_metric_value, 111)
 
+  def test_run_api_with_callable(self):
+    my_metric = Metrics.counter('namespace', 'my_metric')
+
+    def fn(start):
+      return (start
+              | beam.Create([1, 10, 100])
+              | beam.Map(lambda x: my_metric.inc(x)))
+    runner = DirectRunner()
+    result = runner.run(fn)
+    result.wait_until_finish()
+    # Use counters to assert the pipeline actually ran.
+    my_metric_value = result.metrics().query()['counters'][0].committed
+    self.assertEqual(my_metric_value, 111)
+
 
 if __name__ == '__main__':
   unittest.main()
