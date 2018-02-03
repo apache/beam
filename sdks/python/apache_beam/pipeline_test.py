@@ -310,13 +310,10 @@ class PipelineTest(unittest.TestCase):
       'apache_beam.runners.direct.direct_runner._get_transform_overrides')
   def test_ptransform_overrides(self, file_system_override_mock):
 
-    def my_par_do_matcher(applied_ptransform):
-      return isinstance(applied_ptransform.transform, DoubleParDo)
-
     class MyParDoOverride(PTransformOverride):
 
-      def get_matcher(self):
-        return my_par_do_matcher
+      def matches(self, applied_ptransform):
+        return isinstance(applied_ptransform.transform, DoubleParDo)
 
       def get_replacement_transform(self, ptransform):
         if isinstance(ptransform, DoubleParDo):
