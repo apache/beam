@@ -31,8 +31,9 @@ import itertools
 from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal import pickler
+from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.utils import urns
 
 __all__ = [
     'PCollection',
@@ -301,7 +302,7 @@ class AsSideInput(object):
     view_options = self._view_options()
     from_runtime_iterable = type(self)._from_runtime_iterable
     return SideInputData(
-        urns.ITERABLE_ACCESS,
+        common_urns.ITERABLE_SIDE_INPUT,
         self._window_mapping_fn,
         lambda iterable: from_runtime_iterable(iterable, view_options),
         self._input_element_coder())
@@ -354,17 +355,18 @@ class SideInputData(object):
             urn=self.access_pattern),
         view_fn=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
-                urn=urns.PICKLED_PYTHON_VIEWFN,
+                urn=python_urns.PICKLED_VIEWFN,
                 payload=pickler.dumps((self.view_fn, self.coder)))),
         window_mapping_fn=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
-                urn=urns.PICKLED_WINDOW_MAPPING_FN,
+                urn=python_urns.PICKLED_WINDOW_MAPPING_FN,
                 payload=pickler.dumps(self.window_mapping_fn))))
 
   @staticmethod
   def from_runner_api(proto, unused_context):
-    assert proto.view_fn.spec.urn == urns.PICKLED_PYTHON_VIEWFN
-    assert proto.window_mapping_fn.spec.urn == urns.PICKLED_WINDOW_MAPPING_FN
+    assert proto.view_fn.spec.urn == python_urns.PICKLED_VIEWFN
+    assert (proto.window_mapping_fn.spec.urn ==
+            python_urns.PICKLED_WINDOW_MAPPING_FN)
     return SideInputData(
         proto.access_pattern.urn,
         pickler.loads(proto.window_mapping_fn.spec.payload),
@@ -442,7 +444,7 @@ class AsIter(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        urns.ITERABLE_ACCESS,
+        common_urns.ITERABLE_SIDE_INPUT,
         self._window_mapping_fn,
         lambda iterable: iterable,
         self._input_element_coder())
@@ -473,7 +475,7 @@ class AsList(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        urns.ITERABLE_ACCESS,
+        common_urns.ITERABLE_SIDE_INPUT,
         self._window_mapping_fn,
         list,
         self._input_element_coder())
@@ -501,7 +503,7 @@ class AsDict(AsSideInput):
 
   def _side_input_data(self):
     return SideInputData(
-        urns.ITERABLE_ACCESS,
+        common_urns.ITERABLE_SIDE_INPUT,
         self._window_mapping_fn,
         dict,
         self._input_element_coder())

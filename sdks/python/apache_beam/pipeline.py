@@ -61,13 +61,13 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
-from apache_beam.utils import urns
 from apache_beam.utils.annotations import deprecated
 
 __all__ = ['Pipeline', 'PTransformOverride']
@@ -828,7 +828,7 @@ class AppliedPTransform(object):
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
         for tag, id in proto.outputs.items()}
     # This annotation is expected by some runners.
-    if proto.spec.urn == urns.PARDO_TRANSFORM:
+    if proto.spec.urn == common_urns.PARDO_TRANSFORM:
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
