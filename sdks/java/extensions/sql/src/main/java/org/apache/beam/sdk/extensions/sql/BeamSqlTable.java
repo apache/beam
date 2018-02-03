@@ -22,6 +22,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 
@@ -50,5 +51,5 @@ public interface BeamSqlTable {
   /**
    * Get the schema info of the table.
    */
-   BeamRecordSqlType getRowType();
+   BeamRecordType getRowType();
 }

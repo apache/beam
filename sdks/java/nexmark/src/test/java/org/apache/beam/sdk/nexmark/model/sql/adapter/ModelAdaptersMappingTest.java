@@ -27,6 +27,7 @@ import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.junit.Test;
 
 /**
@@ -37,7 +38,7 @@ public class ModelAdaptersMappingTest {
   private static final Person PERSON =
       new Person(3L, "name", "email", "cc", "city", "state", 329823L, "extra");
 
-  private static final BeamRecordSqlType PERSON_RECORD_TYPE = BeamRecordSqlType.builder()
+  private static final BeamRecordType PERSON_RECORD_TYPE = BeamRecordSqlType.builder()
       .withBigIntField("id")
       .withVarcharField("name")
       .withVarcharField("emailAddress")
@@ -51,7 +52,7 @@ public class ModelAdaptersMappingTest {
   private static final Bid BID =
       new Bid(5L, 3L, 123123L, 43234234L, "extra2");
 
-  private static final BeamRecordSqlType BID_RECORD_TYPE = BeamRecordSqlType.builder()
+  private static final BeamRecordType BID_RECORD_TYPE = BeamRecordSqlType.builder()
       .withBigIntField("auction")
       .withBigIntField("bidder")
       .withBigIntField("price")
@@ -62,7 +63,7 @@ public class ModelAdaptersMappingTest {
   private static final Auction AUCTION =
       new Auction(5L, "item", "desc", 342L, 321L, 3423342L, 2349234L, 3L, 1L, "extra3");
 
-  private static final BeamRecordSqlType AUCTION_RECORD_TYPE = BeamRecordSqlType.builder()
+  private static final BeamRecordType AUCTION_RECORD_TYPE = BeamRecordSqlType.builder()
       .withBigIntField("id")
       .withVarcharField("itemName")
       .withVarcharField("description")
@@ -90,30 +91,27 @@ public class ModelAdaptersMappingTest {
   public void testBidAdapterRecordType() {
     ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Bid.class);
 
-    BeamRecordSqlType bidRecordType = (BeamRecordSqlType) adapter.getRecordType();
+    BeamRecordType bidRecordType = adapter.getRecordType();
 
-    assertEquals(BID_RECORD_TYPE.getFieldNames(), bidRecordType.getFieldNames());
-    assertEquals(BID_RECORD_TYPE.getFieldTypes(), bidRecordType.getFieldTypes());
+    assertEquals(BID_RECORD_TYPE, bidRecordType);
   }
 
   @Test
   public void testPersonAdapterRecordType() {
     ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Person.class);
 
-    BeamRecordSqlType personRecordType = (BeamRecordSqlType) adapter.getRecordType();
+    BeamRecordType personRecordType = adapter.getRecordType();
 
-    assertEquals(PERSON_RECORD_TYPE.getFieldNames(), personRecordType.getFieldNames());
-    assertEquals(PERSON_RECORD_TYPE.getFieldTypes(), personRecordType.getFieldTypes());
+    assertEquals(PERSON_RECORD_TYPE, personRecordType);
   }
 
   @Test
   public void testAuctionAdapterRecordType() {
     ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Auction.class);
 
-    BeamRecordSqlType auctionRecordType = (BeamRecordSqlType) adapter.getRecordType();
+    BeamRecordType auctionRecordType = adapter.getRecordType();
 
-    assertEquals(AUCTION_RECORD_TYPE.getFieldNames(), auctionRecordType.getFieldNames());
-    assertEquals(AUCTION_RECORD_TYPE.getFieldTypes(), auctionRecordType.getFieldTypes());
+    assertEquals(AUCTION_RECORD_TYPE, auctionRecordType);
   }
 
   @Test

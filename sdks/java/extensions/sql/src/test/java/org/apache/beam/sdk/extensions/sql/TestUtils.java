@@ -19,11 +19,14 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.stream.Collectors.toList;
 
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.BeamRecord;
@@ -58,7 +61,7 @@ public class TestUtils {
     return strs;
   }
 
-  public static RowsBuilder rowsBuilderOf(BeamRecordSqlType type) {
+  public static RowsBuilder rowsBuilderOf(BeamRecordType type) {
     return RowsBuilder.of(type);
   }
 
@@ -80,7 +83,7 @@ public class TestUtils {
    * {@code}
    */
   public static class RowsBuilder {
-    private BeamRecordSqlType type;
+    private BeamRecordType type;
     private List<BeamRecord> rows = new ArrayList<>();
 
     /**
@@ -97,7 +100,7 @@ public class TestUtils {
      * @args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
-      BeamRecordSqlType beamSQLRowType = buildBeamSqlRowType(args);
+      BeamRecordType beamSQLRowType = buildBeamSqlRowType(args);
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLRowType;
 
@@ -114,9 +117,9 @@ public class TestUtils {
      * )}</pre>
      * @beamSQLRowType the record type.
      */
-    public static RowsBuilder of(final BeamRecordSqlType beamSQLRowType) {
+    public static RowsBuilder of(final BeamRecordType beamRowType) {
       RowsBuilder builder = new RowsBuilder();
-      builder.type = beamSQLRowType;
+      builder.type = beamRowType;
 
       return builder;
     }
@@ -228,23 +231,23 @@ public class TestUtils {
    *
    * <pre>{@code
    *   buildBeamSqlRowType(
-   *       Types.BIGINT, "order_id",
-   *       Types.INTEGER, "site_id",
-   *       Types.DOUBLE, "price",
-   *       Types.TIMESTAMP, "order_time"
+   *       SqlCoders.BIGINT, "order_id",
+   *       SqlCoders.INTEGER, "site_id",
+   *       SqlCoders.DOUBLE, "price",
+   *       SqlCoders.TIMESTAMP, "order_time"
    *   )
    * }</pre>
    */
-  public static BeamRecordSqlType buildBeamSqlRowType(Object... args) {
-    List<Integer> types = new ArrayList<>();
+  public static BeamRecordType buildBeamSqlRowType(Object... args) {
+    List<Coder> types = new ArrayList<>();
     List<String> names = new ArrayList<>();
 
     for (int i = 0; i < args.length - 1; i += 2) {
-      types.add((int) args[i]);
+      types.add((Coder) args[i]);
       names.add((String) args[i + 1]);
     }
 
-    return BeamRecordSqlType.create(names, types);
+    return new BeamRecordType(names, types);
   }
 
   /**
@@ -261,13 +264,11 @@ public class TestUtils {
    *   )
    * }</pre>
    */
-  public static List<BeamRecord> buildRows(BeamRecordSqlType type, List args) {
-    List<BeamRecord> rows = new ArrayList<>();
-    int fieldCount = type.getFieldCount();
-
-    for (int i = 0; i < args.size(); i += fieldCount) {
-      rows.add(new BeamRecord(type, args.subList(i, i + fieldCount)));
-    }
-    return rows;
+  public static List<BeamRecord> buildRows(BeamRecordType type, List<?> rowsValues) {
+    return Lists
+        .partition(rowsValues, type.getFieldCount())
+        .stream()
+        .map(values -> new BeamRecord(type, values.toArray()))
+        .collect(toList());
   }
 }

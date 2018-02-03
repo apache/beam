@@ -173,8 +173,7 @@ public class BeamSql {
         BeamRecordCoder sourceCoder = (BeamRecordCoder) sourceStream.getCoder();
 
         beamSqlEnv.registerTable(sourceTag.getId(),
-            new BeamPCollectionTable(sourceStream,
-                (BeamRecordSqlType) sourceCoder.getRecordType()));
+            new BeamPCollectionTable(sourceStream, sourceCoder.getRecordType()));
       }
     }
   }

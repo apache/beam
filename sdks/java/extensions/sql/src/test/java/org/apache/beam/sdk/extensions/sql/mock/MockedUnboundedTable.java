@@ -22,11 +22,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.calcite.util.Pair;
@@ -41,8 +41,8 @@ public class MockedUnboundedTable extends MockedTable {
   private final List<Pair<Duration, List<BeamRecord>>> timestampedRows = new ArrayList<>();
   /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
-  private MockedUnboundedTable(BeamRecordSqlType beamSqlRowType) {
-    super(beamSqlRowType);
+  private MockedUnboundedTable(BeamRecordType beamRowType) {
+    super(beamRowType);
   }
 
   /**
@@ -93,7 +93,7 @@ public class MockedUnboundedTable extends MockedTable {
   }
 
   @Override public PCollection<BeamRecord> buildIOReader(Pipeline pipeline) {
-    TestStream.Builder<BeamRecord> values = TestStream.create(beamRecordSqlType.getRecordCoder());
+    TestStream.Builder<BeamRecord> values = TestStream.create(beamRecordType.getRecordCoder());
 
     for (Pair<Duration, List<BeamRecord>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));

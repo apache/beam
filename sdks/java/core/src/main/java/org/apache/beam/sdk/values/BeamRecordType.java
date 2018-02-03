@@ -17,9 +17,12 @@
  */
 package org.apache.beam.sdk.values;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
+
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -62,6 +65,13 @@ public class BeamRecordType implements Serializable{
   }
 
   /**
+   * Return the field coder for {@code index}.
+   */
+  public Coder getFieldCoder(int index){
+    return fieldCoders.get(index);
+  }
+
+  /**
    * Returns an immutable list of field names.
    */
   public List<String> getFieldNames(){
@@ -90,7 +100,30 @@ public class BeamRecordType implements Serializable{
   }
 
   @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (!(o instanceof BeamRecordType)) {
+      return false;
+    }
+
+    BeamRecordType that = (BeamRecordType) o;
+    return Objects.equals(fieldNames, that.fieldNames)
+        && Objects.equals(fieldCoders, that.fieldCoders);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(fieldNames, fieldCoders);
+  }
+
+  @Override
   public String toString() {
-    return "BeamRecordType [fieldsName=" + fieldNames + "]";
+    return toStringHelper(this)
+        .add("fieldNames", fieldNames)
+        .add("fieldCoders", fieldCoders)
+        .toString();
   }
 }
