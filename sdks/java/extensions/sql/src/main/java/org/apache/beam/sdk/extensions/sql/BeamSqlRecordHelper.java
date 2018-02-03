@@ -26,11 +26,11 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.values.BeamRecord;
 
 /**
@@ -39,14 +39,10 @@ import org.apache.beam.sdk.values.BeamRecord;
 @Experimental
 public class BeamSqlRecordHelper {
 
-  public static BeamRecordSqlType getSqlRecordType(BeamRecord record) {
-    return (BeamRecordSqlType) record.getDataType();
-  }
-
   /**
    * {@link Coder} for Java type {@link Short}.
    */
-  public static class ShortCoder extends CustomCoder<Short> {
+  public static class ShortCoder extends AtomicCoder<Short> {
     private static final ShortCoder INSTANCE = new ShortCoder();
 
     public static ShortCoder of() {
@@ -65,15 +61,12 @@ public class BeamSqlRecordHelper {
     public Short decode(InputStream inStream) throws CoderException, IOException {
       return new DataInputStream(inStream).readShort();
     }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-    }
   }
+
   /**
    * {@link Coder} for Java type {@link Float}, it's stored as {@link BigDecimal}.
    */
-  public static class FloatCoder extends CustomCoder<Float> {
+  public static class FloatCoder extends AtomicCoder<Float> {
     private static final FloatCoder INSTANCE = new FloatCoder();
     private static final BigDecimalCoder CODER = BigDecimalCoder.of();
 
@@ -93,15 +86,12 @@ public class BeamSqlRecordHelper {
     public Float decode(InputStream inStream) throws CoderException, IOException {
       return CODER.decode(inStream).floatValue();
     }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-    }
   }
+
   /**
    * {@link Coder} for Java type {@link Double}, it's stored as {@link BigDecimal}.
    */
-  public static class DoubleCoder extends CustomCoder<Double> {
+  public static class DoubleCoder extends AtomicCoder<Double> {
     private static final DoubleCoder INSTANCE = new DoubleCoder();
     private static final BigDecimalCoder CODER = BigDecimalCoder.of();
 
@@ -121,16 +111,12 @@ public class BeamSqlRecordHelper {
     public Double decode(InputStream inStream) throws CoderException, IOException {
       return CODER.decode(inStream).doubleValue();
     }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-    }
   }
 
   /**
    * {@link Coder} for Java type {@link GregorianCalendar}, it's stored as {@link Long}.
    */
-  public static class TimeCoder extends CustomCoder<GregorianCalendar> {
+  public static class TimeCoder extends AtomicCoder<GregorianCalendar> {
     private static final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
     private static final TimeCoder INSTANCE = new TimeCoder();
 
@@ -153,15 +139,12 @@ public class BeamSqlRecordHelper {
       calendar.setTime(new Date(longCoder.decode(inStream)));
       return calendar;
     }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-    }
   }
+
   /**
    * {@link Coder} for Java type {@link Date}, it's stored as {@link Long}.
    */
-  public static class DateCoder extends CustomCoder<Date> {
+  public static class DateCoder extends AtomicCoder<Date> {
     private static final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
     private static final DateCoder INSTANCE = new DateCoder();
 
@@ -181,16 +164,12 @@ public class BeamSqlRecordHelper {
     public Date decode(InputStream inStream) throws CoderException, IOException {
       return new Date(longCoder.decode(inStream));
     }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
-    }
   }
 
   /**
    * {@link Coder} for Java type {@link Boolean}.
    */
-  public static class BooleanCoder extends CustomCoder<Boolean> {
+  public static class BooleanCoder extends AtomicCoder<Boolean> {
     private static final BooleanCoder INSTANCE = new BooleanCoder();
 
     public static BooleanCoder of() {
@@ -208,10 +187,6 @@ public class BeamSqlRecordHelper {
     @Override
     public Boolean decode(InputStream inStream) throws CoderException, IOException {
       return new DataInputStream(inStream).readBoolean();
-    }
-
-    @Override
-    public void verifyDeterministic() throws NonDeterministicException {
     }
   }
 }

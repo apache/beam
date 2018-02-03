@@ -39,8 +39,8 @@ public class ParserUtils {
     for (ColumnDefinition columnDef : stmt.fieldList()) {
       Column column = Column.builder()
           .name(columnDef.name().toLowerCase())
-          .type(
-              CalciteUtils.toJavaType(
+          .coder(
+              CalciteUtils.toCoder(
                   columnDef.type().deriveType(BeamQueryPlanner.TYPE_FACTORY).getSqlTypeName()
               )
           )

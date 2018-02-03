@@ -24,7 +24,6 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -36,6 +35,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -63,9 +63,9 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
 
   private List<AggregateCall> aggCalls;
 
-  private BeamRecordSqlType keyType;
-  private BeamRecordSqlType aggPartType;
-  private BeamRecordSqlType outputType;
+  private BeamRecordType keyType;
+  private BeamRecordType aggPartType;
+  private BeamRecordType outputType;
 
   private BeamRecordCoder inRecordCoder;
   private BeamRecordCoder keyCoder;
@@ -359,10 +359,10 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   private void prepareTypeAndCoder() {
     inRecordCoder = inputRowType.getRecordCoder();
 
-    keyType = initTypeOfSqlRow(Arrays.asList(KV.of("f_int", SqlTypeName.INTEGER)));
+    keyType = initTypeOfRow(Arrays.asList(KV.of("f_int", SqlTypeName.INTEGER)));
     keyCoder = keyType.getRecordCoder();
 
-    aggPartType = initTypeOfSqlRow(
+    aggPartType = initTypeOfRow(
         Arrays.asList(KV.of("count", SqlTypeName.BIGINT),
 
             KV.of("sum1", SqlTypeName.BIGINT), KV.of("avg1", SqlTypeName.BIGINT),
@@ -453,7 +453,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   /**
    * Row type of final output row.
    */
-  private BeamRecordSqlType prepareFinalRowType() {
+  private BeamRecordType prepareFinalRowType() {
     FieldInfoBuilder builder = BeamQueryPlanner.TYPE_FACTORY.builder();
     List<KV<String, SqlTypeName>> columnMetadata =
         Arrays.asList(KV.of("f_int", SqlTypeName.INTEGER), KV.of("count", SqlTypeName.BIGINT),

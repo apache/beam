@@ -18,15 +18,19 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
@@ -41,27 +45,28 @@ public final class BeamTableUtils {
   public static BeamRecord csvLine2BeamRecord(
       CSVFormat csvFormat,
       String line,
-      BeamRecordSqlType beamRecordSqlType) {
-    List<Object> fieldsValue = new ArrayList<>(beamRecordSqlType.getFieldCount());
+      BeamRecordType beamRecordType) {
+    List<Object> fieldsValue = new ArrayList<>(beamRecordType.getFieldCount());
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
 
-      if (rawRecord.size() != beamRecordSqlType.getFieldCount()) {
+      if (rawRecord.size() != beamRecordType.getFieldCount()) {
         throw new IllegalArgumentException(String.format(
             "Expect %d fields, but actually %d",
-            beamRecordSqlType.getFieldCount(), rawRecord.size()
+            beamRecordType.getFieldCount(), rawRecord.size()
         ));
       } else {
-        for (int idx = 0; idx < beamRecordSqlType.getFieldCount(); idx++) {
+        for (int idx = 0; idx < beamRecordType.getFieldCount(); idx++) {
           String raw = rawRecord.get(idx);
-          fieldsValue.add(autoCastField(beamRecordSqlType.getFieldTypeByIndex(idx), raw));
+          fieldsValue.add(
+              autoCastField(beamRecordType.getFieldCoder(idx), raw));
         }
       }
     } catch (IOException e) {
       throw new IllegalArgumentException("decodeRecord failed!", e);
     }
-    return new BeamRecord(beamRecordSqlType, fieldsValue);
+    return new BeamRecord(beamRecordType, fieldsValue);
   }
 
   public static String beamRecord2CsvLine(BeamRecord row, CSVFormat csvFormat) {
@@ -77,12 +82,14 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
-  public static Object autoCastField(int fieldType, Object rawObj) {
+  public static Object autoCastField(Coder coder, Object rawObj) {
+    checkArgument(coder instanceof SqlTypeCoder);
+
     if (rawObj == null) {
       return null;
     }
 
-    SqlTypeName columnType = CalciteUtils.toCalciteType(fieldType);
+    SqlTypeName columnType = CalciteUtils.toCalciteType((SqlTypeCoder) coder);
     // auto-casting for numberics
     if ((rawObj instanceof String && SqlTypeName.NUMERIC_TYPES.contains(columnType))
         || (rawObj instanceof BigDecimal && columnType != SqlTypeName.DECIMAL)) {

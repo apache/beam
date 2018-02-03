@@ -17,9 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.example;
 
-import java.sql.Types;
-import java.util.Arrays;
-import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
@@ -30,6 +27,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -51,9 +49,13 @@ class BeamSqlExample {
     Pipeline p = Pipeline.create(options);
 
     //define the input row format
-    List<String> fieldNames = Arrays.asList("c1", "c2", "c3");
-    List<Integer> fieldTypes = Arrays.asList(Types.INTEGER, Types.VARCHAR, Types.DOUBLE);
-    BeamRecordSqlType type = BeamRecordSqlType.create(fieldNames, fieldTypes);
+    BeamRecordType type = BeamRecordSqlType
+        .builder()
+        .withIntegerField("c1")
+        .withVarcharField("c2")
+        .withDoubleField("c3")
+        .build();
+
     BeamRecord row1 = new BeamRecord(type, 1, "row", 1.0);
     BeamRecord row2 = new BeamRecord(type, 2, "row", 2.0);
     BeamRecord row3 = new BeamRecord(type, 3, "row", 3.0);
@@ -71,7 +73,8 @@ class BeamSqlExample {
         "log_result",
         MapElements.via(
             new SimpleFunction<BeamRecord, Void>() {
-              public @Nullable Void apply(BeamRecord input) {
+              public @Nullable
+              Void apply(BeamRecord input) {
                 // expect output:
                 //  PCOLLECTION: [3, row, 3.0]
                 //  PCOLLECTION: [2, row, 2.0]
@@ -91,7 +94,8 @@ class BeamSqlExample {
         MapElements.via(
             new SimpleFunction<BeamRecord, Void>() {
               @Override
-              public @Nullable Void apply(BeamRecord input) {
+              public @Nullable
+              Void apply(BeamRecord input) {
                 // expect output:
                 //  CASE1_RESULT: [row, 5.0]
                 System.out.println("CASE1_RESULT: " + input.getDataValues());

@@ -18,23 +18,21 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import java.util.ArrayList;
+import static java.util.stream.Collectors.toList;
+
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.values.BeamRecordType;
 
 /**
  * Utility methods for metadata.
  */
 public class MetaUtils {
-  public static BeamRecordSqlType getBeamSqlRecordTypeFromTable(Table table) {
-    List<String> columnNames = new ArrayList<>(table.getColumns().size());
-    List<Integer> columnTypes = new ArrayList<>(table.getColumns().size());
-    for (Column column : table.getColumns()) {
-      columnNames.add(column.getName());
-      columnTypes.add(column.getType());
-    }
-    return BeamRecordSqlType.create(columnNames, columnTypes);
+  public static BeamRecordType getBeamRecordTypeFromTable(Table table) {
+    List<String> columnNames = table.getColumns().stream().map(Column::getName).collect(toList());
+    List<Coder> columnTypes = table.getColumns().stream().map(Column::getCoder).collect(toList());
+    return new BeamRecordType(columnNames, columnTypes);
   }
 }

@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -194,8 +193,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
-        SqlTypeName fieldType = CalciteUtils.getFieldType(
-            BeamSqlRecordHelper.getSqlRecordType(row1), fieldIndex);
+        SqlTypeName fieldType = CalciteUtils.getFieldCalciteType(row1.getDataType(), fieldIndex);
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
         boolean isValue1Null = (row1.getFieldValue(fieldIndex) == null);

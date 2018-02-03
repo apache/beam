@@ -34,6 +34,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,7 +45,7 @@ import org.junit.rules.ExpectedException;
  */
 public class BeamRecordSizeTest {
 
-  private static final BeamRecordSqlType RECORD_TYPE = BeamRecordSqlType.builder()
+  private static final BeamRecordType RECORD_TYPE = BeamRecordSqlType.builder()
       .withTinyIntField("f_tinyint")
       .withSmallIntField("f_smallint")
       .withIntegerField("f_int")
