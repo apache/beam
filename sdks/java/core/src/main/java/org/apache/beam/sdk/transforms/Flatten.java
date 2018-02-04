@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableLikeCoder;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -152,12 +153,13 @@ public class Flatten {
     @Override
     public PCollection<T> expand(PCollection<? extends Iterable<T>> in) {
       Coder<? extends Iterable<T>> inCoder = in.getCoder();
-      if (!(inCoder instanceof IterableLikeCoder)) {
+      final Coder<? extends Iterable<T>> coder = CoderUtils.unwrap(inCoder);
+      if (!(coder instanceof IterableLikeCoder)) {
         throw new IllegalArgumentException(
             "expecting the input Coder<Iterable> to be an IterableLikeCoder");
       }
       @SuppressWarnings("unchecked")
-      Coder<T> elemCoder = ((IterableLikeCoder<T, ?>) inCoder).getElemCoder();
+      Coder<T> elemCoder = ((IterableLikeCoder<T, ?>) coder).getElemCoder();
 
       return in.apply("FlattenIterables", FlatMapElements.via(
           new SimpleFunction<Iterable<T>, Iterable<T>>() {

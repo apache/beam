@@ -506,8 +506,9 @@ public class CoderRegistry {
   void verifyCompatible(CoderT coder, Type candidateType) throws IncompatibleCoderException {
 
     // Various representations of the coder's class
+    Coder<T> coderRef = CoderUtils.unwrap(coder);
     @SuppressWarnings("unchecked")
-    Class<CoderT> coderClass = (Class<CoderT>) coder.getClass();
+    Class<CoderT> coderClass = (Class<CoderT>) coderRef.getClass();
     TypeDescriptor<CoderT> coderDescriptor = TypeDescriptor.of(coderClass);
 
     // Various representations of the actual coded type

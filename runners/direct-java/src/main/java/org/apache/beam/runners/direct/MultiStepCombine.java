@@ -53,6 +53,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -96,7 +97,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
           boolean triggerApplicable = DefaultTrigger.of().equals(windowingStrategy.getTrigger());
           boolean accumulatorCoderAvailable;
           try {
-            if (input.getCoder() instanceof KvCoder) {
+            if (CoderUtils.unwrap(input.getCoder()) instanceof KvCoder) {
               KvCoder<K, InputT> kvCoder = (KvCoder<K, InputT>) input.getCoder();
               Coder<?> accumulatorCoder =
                   fn.getAccumulatorCoder(
@@ -195,7 +196,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
   @Override
   public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, InputT>> input) {
     checkArgument(
-        input.getCoder() instanceof KvCoder,
+        CoderUtils.unwrap(input.getCoder()) instanceof KvCoder,
         "Expected input to have a %s of type %s, got %s",
         Coder.class.getSimpleName(),
         KvCoder.class.getSimpleName(),

@@ -26,6 +26,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -160,7 +161,7 @@ public class KeyedPCollectionTuple<K> implements PInput {
     // as input yet (and won't be fully specified); This is fine
 
     // Assumes that the PCollection uses a KvCoder.
-    Coder<?> entryCoder = pc.getCoder();
+    Coder<?> entryCoder = CoderUtils.unwrap(pc.getCoder());
     if (!(entryCoder instanceof KvCoder<?, ?>)) {
       throw new IllegalArgumentException("PCollection does not use a KvCoder");
     }

@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -145,7 +146,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       // A KvCoder is required since this goes through GBK. Further, WindowedValueCoder
       // is not registered by default, so we explicitly set the relevant coders.
       checkState(
-          input.getCoder() instanceof KvCoder,
+          CoderUtils.unwrap(input.getCoder()) instanceof KvCoder,
           "Input to a %s using state requires a %s, but the coder was %s",
           ParDo.class.getSimpleName(),
           KvCoder.class.getSimpleName(),

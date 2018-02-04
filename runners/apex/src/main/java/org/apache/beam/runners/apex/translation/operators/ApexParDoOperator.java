@@ -78,6 +78,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
@@ -154,9 +155,10 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       throw new UnsupportedOperationException(msg);
     }
 
+    final Coder<InputT> coder = CoderUtils.unwrap(linputCoder);
     WindowedValueCoder<InputT> wvCoder =
         FullWindowedValueCoder.of(
-            linputCoder, this.windowingStrategy.getWindowFn().windowCoder());
+                coder, this.windowingStrategy.getWindowFn().windowCoder());
     Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(wvCoder);
     this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<>(), listCoder);
     this.inputCoder = wvCoder;
@@ -173,9 +175,9 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     } else {
       DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
       if (signature.usesState()) {
-        checkArgument(linputCoder instanceof KvCoder, "keyed input required for stateful DoFn");
+        checkArgument(coder instanceof KvCoder, "keyed input required for stateful DoFn");
         @SuppressWarnings("rawtypes")
-        Coder<?> keyCoder = ((KvCoder) linputCoder).getKeyCoder();
+        Coder<?> keyCoder = ((KvCoder) coder).getKeyCoder();
         this.currentKeyStateInternals = new StateInternalsProxy<>(
             stateBackend.newStateInternalsFactory(keyCoder));
       }

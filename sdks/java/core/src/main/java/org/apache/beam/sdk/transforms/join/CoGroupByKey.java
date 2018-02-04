@@ -28,6 +28,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult.CoGbkResultCoder;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple.TaggedKeyedPCollection;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -143,7 +144,7 @@ public class CoGroupByKey<K> extends
    */
   private <V> Coder<V> getValueCoder(PCollection<KV<K, V>> pCollection) {
     // Assumes that the PCollection uses a KvCoder.
-    Coder<?> entryCoder = pCollection.getCoder();
+    Coder<?> entryCoder = CoderUtils.unwrap(pCollection.getCoder());
     if (!(entryCoder instanceof KvCoder<?, ?>)) {
       throw new IllegalArgumentException("PCollection does not use a KvCoder");
     }

@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -122,13 +123,14 @@ public class Latest {
     public Coder<T> getDefaultOutputCoder(
         CoderRegistry registry, Coder<TimestampedValue<T>> inputCoder)
         throws CannotProvideCoderException {
+      final Coder<TimestampedValue<T>> unwrappedCoder = CoderUtils.unwrap(inputCoder);
       checkState(
-          inputCoder instanceof TimestampedValue.TimestampedValueCoder,
+          unwrappedCoder instanceof TimestampedValue.TimestampedValueCoder,
           "inputCoder must be a TimestampedValueCoder, but was %s",
           inputCoder);
 
       TimestampedValue.TimestampedValueCoder<T> inputTVCoder =
-          (TimestampedValue.TimestampedValueCoder<T>) inputCoder;
+          (TimestampedValue.TimestampedValueCoder<T>) unwrappedCoder;
       return NullableCoder.of(inputTVCoder.getValueCoder());
     }
 
@@ -183,7 +185,7 @@ public class Latest {
     @Override
     public PCollection<KV<K, V>> expand(PCollection<KV<K, V>> input) {
       checkNotNull(input);
-      checkArgument(input.getCoder() instanceof KvCoder,
+      checkArgument(CoderUtils.unwrap(input.getCoder()) instanceof KvCoder,
           "Input specifiedCoder must be an instance of KvCoder, but was %s", input.getCoder());
 
       @SuppressWarnings("unchecked")

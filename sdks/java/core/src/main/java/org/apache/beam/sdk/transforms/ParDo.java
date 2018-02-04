@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -457,7 +458,7 @@ public class ParDo {
   private static void validateStateApplicableForInput(
       DoFn<?, ?> fn,
       PCollection<?> input) {
-    Coder<?> inputCoder = input.getCoder();
+    Coder<?> inputCoder = CoderUtils.unwrap(input.getCoder());
     checkArgument(
         inputCoder instanceof KvCoder,
         "%s requires its input to use %s in order to use state and timers.",

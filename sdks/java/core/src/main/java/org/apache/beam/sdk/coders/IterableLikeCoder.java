@@ -78,7 +78,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   protected IterableLikeCoder(Coder<T> elementCoder, String  iterableName) {
     checkArgument(elementCoder != null, "element Coder for IterableLikeCoder must not be null");
     checkArgument(iterableName != null, "iterable name for IterableLikeCoder must not be null");
-    this.elementCoder = elementCoder;
+    this.elementCoder = new LengthAwareCoder<>(elementCoder);
     this.iterableName = iterableName;
   }
 

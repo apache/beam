@@ -40,6 +40,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -245,7 +246,7 @@ public class BatchStatefulParDoOverrides {
       // A KvCoder is required since this goes through GBK. Further, WindowedValueCoder
       // is not registered by default, so we explicitly set the relevant coders.
       checkState(
-          input.getCoder() instanceof KvCoder,
+          CoderUtils.unwrap(input.getCoder()) instanceof KvCoder,
           "Input to a %s using state requires a %s, but the coder was %s",
           ParDo.class.getSimpleName(),
           KvCoder.class.getSimpleName(),

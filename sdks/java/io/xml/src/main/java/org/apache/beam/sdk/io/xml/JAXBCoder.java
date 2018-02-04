@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.xml;
 
 import com.google.common.io.ByteStreams;
 import java.io.ByteArrayOutputStream;
-import java.io.FilterInputStream;
-import java.io.FilterOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -29,8 +27,11 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
+
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.SkipCloseCoder;
 import org.apache.beam.sdk.util.EmptyOnDeserializationThreadLocal;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> type of JAXB annotated objects that will be serialized.
  */
+// todo: use org.apache.beam.sdk.coders.LengthAwareCoder, does it hurt if always set in of()?
 public class JAXBCoder<T> extends CustomCoder<T> {
 
   private final Class<T> jaxbClass;
@@ -83,8 +85,8 @@ public class JAXBCoder<T> extends CustomCoder<T> {
    *
    * @param jaxbClass the {@code Class} of the JAXB annotated objects.
    */
-  public static <T> JAXBCoder<T> of(Class<T> jaxbClass) {
-    return new JAXBCoder<>(jaxbClass);
+  public static <T> Coder<T> of(Class<T> jaxbClass) {
+    return new SkipCloseCoder<>(new JAXBCoder<>(jaxbClass));
   }
 
   @Override
@@ -97,7 +99,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
       throws CoderException, IOException {
     if (context.isWholeStream) {
       try {
-        jaxbMarshaller.get().marshal(value, new CloseIgnoringOutputStream(outStream));
+        jaxbMarshaller.get().marshal(value, outStream);
       } catch (JAXBException e) {
         throw new CoderException(e);
       }
@@ -126,7 +128,7 @@ public class JAXBCoder<T> extends CustomCoder<T> {
         inStream = ByteStreams.limit(inStream, limit);
       }
       @SuppressWarnings("unchecked")
-      T obj = (T) jaxbUnmarshaller.get().unmarshal(new CloseIgnoringInputStream(inStream));
+      T obj = (T) jaxbUnmarshaller.get().unmarshal(inStream);
       return obj;
     } catch (JAXBException e) {
       throw new CoderException(e);
@@ -164,29 +166,5 @@ public class JAXBCoder<T> extends CustomCoder<T> {
   @Override
   public int hashCode() {
     return jaxbClass.hashCode();
-  }
-
-  private static class CloseIgnoringInputStream extends FilterInputStream {
-
-    protected CloseIgnoringInputStream(InputStream in) {
-      super(in);
-    }
-
-    @Override
-    public void close() {
-      // Do nothing. JAXB closes the underlying stream so we must filter out those calls.
-    }
-  }
-
-  private static class CloseIgnoringOutputStream extends FilterOutputStream {
-
-    protected CloseIgnoringOutputStream(OutputStream out) {
-      super(out);
-    }
-
-    @Override
-    public void close() throws IOException {
-      // JAXB closes the underlying stream so we must filter out those calls.
-    }
   }
 }

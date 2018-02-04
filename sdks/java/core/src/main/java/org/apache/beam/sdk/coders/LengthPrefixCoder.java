@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
@@ -107,10 +108,11 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
    */
   @Override
   protected long getEncodedElementByteSize(T value) throws Exception {
+    final Coder<T> valueCoder = CoderUtils.unwrap(this.valueCoder);
     if (valueCoder instanceof StructuredCoder) {
       // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding the number of bytes to represent the length.
-      long valueSize = ((StructuredCoder<T>) valueCoder).getEncodedElementByteSize(value);
+      long valueSize = valueCoder.getEncodedElementByteSize(value);
       return VarInt.getLength(valueSize) + valueSize;
     }
 

@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
@@ -158,11 +159,11 @@ public class NullableCoder<T> extends StructuredCoder<T> {
       return 1;
     }
 
-    if (valueCoder instanceof StructuredCoder) {
+    final Coder<T> coder = CoderUtils.unwrap(this.valueCoder);
+    if (coder instanceof StructuredCoder) {
       // If valueCoder is a StructuredCoder then we can ask it directly for the encoded size of
       // the value, adding 1 byte to count the null indicator.
-      return 1  + ((StructuredCoder<T>) valueCoder)
-          .getEncodedElementByteSize(value);
+      return 1  + coder.getEncodedElementByteSize(value);
     }
 
     // If value is not a StructuredCoder then fall back to the default StructuredCoder behavior

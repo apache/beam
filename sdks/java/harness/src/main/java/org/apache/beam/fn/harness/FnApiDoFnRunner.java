@@ -93,6 +93,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -1017,19 +1018,20 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       checkState(currentElement.getValue() instanceof KV,
           "Accessing state in unkeyed context. Current element is not a KV: %s.",
           currentElement);
+      final Coder<InputT> unwrapedInputCoder = CoderUtils.unwrap(inputCoder);
       checkState(
           // TODO: Stop passing windowed value coders within PCollections.
-          inputCoder instanceof KvCoder
-              || (inputCoder instanceof WindowedValueCoder
-              && (((WindowedValueCoder) inputCoder).getValueCoder() instanceof KvCoder)),
+          unwrapedInputCoder instanceof KvCoder
+              || (unwrapedInputCoder instanceof WindowedValueCoder
+              && (((WindowedValueCoder) unwrapedInputCoder).getValueCoder() instanceof KvCoder)),
           "Accessing state in unkeyed context. Keyed coder expected but found %s.",
           inputCoder);
 
       ByteString.Output encodedKeyOut = ByteString.newOutput();
 
-      Coder<K> keyCoder = inputCoder instanceof WindowedValueCoder
-          ? ((KvCoder<K, ?>) ((WindowedValueCoder) inputCoder).getValueCoder()).getKeyCoder()
-          : ((KvCoder<K, ?>) inputCoder).getKeyCoder();
+      Coder<K> keyCoder = unwrapedInputCoder instanceof WindowedValueCoder
+          ? ((KvCoder<K, ?>) ((WindowedValueCoder) unwrapedInputCoder).getValueCoder()).getKeyCoder()
+          : ((KvCoder<K, ?>) unwrapedInputCoder).getKeyCoder();
       try {
         keyCoder.encode(((KV<K, ?>) currentElement.getValue()).getKey(), encodedKeyOut);
       } catch (IOException e) {

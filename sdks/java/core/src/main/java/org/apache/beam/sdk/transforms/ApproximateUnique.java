@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -272,7 +273,7 @@ public class ApproximateUnique {
 
     @Override
     public PCollection<KV<K, Long>> expand(PCollection<KV<K, V>> input) {
-      Coder<KV<K, V>> inputCoder = input.getCoder();
+      Coder<KV<K, V>> inputCoder = CoderUtils.unwrap(input.getCoder());
       if (!(inputCoder instanceof KvCoder)) {
         throw new IllegalStateException(
             "ApproximateUnique.PerKey requires its input to use KvCoder");

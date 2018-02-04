@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.AppliedCombineFn;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.NameUtils.NameOverride;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -1629,7 +1630,7 @@ public class Combine {
       final GlobalCombineFn<InputT, AccumT, OutputT> typedFn =
           (GlobalCombineFn<InputT, AccumT, OutputT>) this.fn;
 
-      if (!(input.getCoder() instanceof KvCoder)) {
+      if (!(CoderUtils.unwrap(input.getCoder()) instanceof KvCoder)) {
         throw new IllegalStateException(
             "Expected input coder to be KvCoder, but was " + input.getCoder());
       }
@@ -2181,14 +2182,16 @@ public class Combine {
 
     private KvCoder<K, InputT> getKvCoder(
         Coder<? extends KV<K, ? extends Iterable<InputT>>> inputCoder) {
-      if (!(inputCoder instanceof KvCoder)) {
+      final Coder<? extends KV<K, ? extends Iterable<InputT>>> coder =
+        CoderUtils.unwrap(inputCoder);
+      if (!(coder instanceof KvCoder)) {
         throw new IllegalStateException(
             "Combine.GroupedValues requires its input to use KvCoder");
       }
       @SuppressWarnings({"unchecked", "rawtypes"})
-      KvCoder<K, ? extends Iterable<InputT>> kvCoder = (KvCoder) inputCoder;
+      KvCoder<K, ? extends Iterable<InputT>> kvCoder = (KvCoder) coder;
       Coder<K> keyCoder = kvCoder.getKeyCoder();
-      Coder<? extends Iterable<InputT>> kvValueCoder = kvCoder.getValueCoder();
+      Coder<? extends Iterable<InputT>> kvValueCoder = CoderUtils.unwrap(kvCoder.getValueCoder());
       if (!(kvValueCoder instanceof IterableCoder)) {
         throw new IllegalStateException(
             "Combine.GroupedValues requires its input values to use "
