@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Priority;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -58,7 +59,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
-      String priority) {
+      Priority priority) {
     return new BigQueryQuerySource<>(
         stepUuid, query, flattenResults, useLegacySql, bqServices, coder, parseFn, priority);
   }
@@ -67,7 +68,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   private final Boolean flattenResults;
   private final Boolean useLegacySql;
   private transient AtomicReference<JobStatistics> dryRunJobStats;
-  private String priority;
+  private final Priority priority;
 
   private BigQueryQuerySource(
       String stepUuid,
@@ -77,13 +78,18 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
-      String priority) {
+      Priority priority) {
     super(stepUuid, bqServices, coder, parseFn);
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
     this.dryRunJobStats = new AtomicReference<>();
-    this.priority = priority == null ? "BATCH" : priority;
+    if (priority != BigQueryIO.TypedRead.Priority.BATCH
+        || priority != BigQueryIO.TypedRead.Priority.INTERACTIVE) {
+        this.priority = BigQueryIO.TypedRead.Priority.BATCH;
+    } else {
+        this.priority = priority;
+    }
   }
 
   @Override
@@ -178,7 +184,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         .setAllowLargeResults(true)
         .setCreateDisposition("CREATE_IF_NEEDED")
         .setDestinationTable(destinationTable)
-        .setPriority(this.priority)
+        .setPriority(this.priority.name())
         .setWriteDisposition("WRITE_EMPTY");
 
     jobService.startQueryJob(jobRef, queryConfig);
