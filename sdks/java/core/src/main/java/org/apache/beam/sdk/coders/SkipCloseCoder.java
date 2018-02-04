@@ -35,7 +35,7 @@ public class SkipCloseCoder<T> extends Coder<T> implements Delegating<Coder<T>> 
   private Coder<T> delegate;
 
   protected SkipCloseCoder() {
-    // no-op
+    this.delegate = null;
   }
 
   public SkipCloseCoder(final Coder<T> delegate) {

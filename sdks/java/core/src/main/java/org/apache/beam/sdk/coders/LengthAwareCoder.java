@@ -36,7 +36,7 @@ public class LengthAwareCoder<T> extends Coder<T> implements Delegating<Coder<T>
   private Coder<T> delegate;
 
   protected LengthAwareCoder() {
-    // no-op
+    this.delegate = null;
   }
 
   public LengthAwareCoder(final Coder<T> delegate) {
