@@ -47,8 +47,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -64,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -73,6 +72,7 @@ import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.aws.options.S3Options;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.util.MoreFutures;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -637,11 +637,11 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
   private <T> List<T> callTasks(Collection<Callable<T>> tasks) throws IOException {
 
     try {
-      List<ListenableFuture<T>> futures = new ArrayList<>(tasks.size());
+      List<CompletionStage<T>> futures = new ArrayList<>(tasks.size());
       for (Callable<T> task : tasks) {
-        futures.add(executorService.submit(task));
+        futures.add(MoreFutures.supplyAsync(() -> task.call(), executorService));
       }
-      return Futures.allAsList(futures).get();
+      return MoreFutures.get(MoreFutures.allAsList(futures));
 
     } catch (ExecutionException e) {
       if (e.getCause() != null) {
