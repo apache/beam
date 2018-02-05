@@ -92,7 +92,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
@@ -106,7 +106,7 @@ import org.apache.calcite.util.NlsString;
 /**
  * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}.
  * {@code BeamSqlFnExecutor} converts a {@link BeamRelNode} to a {@link BeamSqlExpression},
- * which can be evaluated against the {@link BeamRecord}.
+ * which can be evaluated against the {@link Row}.
  *
  */
 public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
@@ -447,7 +447,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
   }
 
   @Override
-  public List<Object> execute(BeamRecord inputRow, BoundedWindow window) {
+  public List<Object> execute(Row inputRow, BoundedWindow window) {
     List<Object> results = new ArrayList<>();
     for (BeamSqlExpression exp : exps) {
       results.add(exp.evaluate(inputRow, window).getValue());

@@ -20,14 +20,14 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
 import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 
-import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.model.sql.ToBeamRecord;
+import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
@@ -44,7 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
  * arbitrary size. To make it more interesting we instead choose bids for every
  * {@code skipFactor}'th auction.
  */
-public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<BeamRecord>> {
+public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<Row>> {
 
   private static final String QUERY_TEMPLATE =
       "SELECT auction, bidder, price, dateTime, extra  FROM PCOLLECTION "
@@ -60,18 +60,18 @@ public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<BeamRe
   }
 
   @Override
-  public PCollection<BeamRecord> expand(PCollection<Event> allEvents) {
-    BeamRecordCoder bidRecordCoder = getBidRecordCoder();
+  public PCollection<Row> expand(PCollection<Event> allEvents) {
+    RowCoder bidRecordCoder = getBidRecordCoder();
 
-    PCollection<BeamRecord> bidEventsRecords = allEvents
+    PCollection<Row> bidEventsRecords = allEvents
         .apply(Filter.by(IS_BID))
-        .apply(ToBeamRecord.parDo())
+        .apply(ToRow.parDo())
         .setCoder(bidRecordCoder);
 
     return bidEventsRecords.apply(query);
   }
 
-  private BeamRecordCoder getBidRecordCoder() {
+  private RowCoder getBidRecordCoder() {
     return ADAPTERS.get(Bid.class).getRecordType().getRecordCoder();
   }
 }

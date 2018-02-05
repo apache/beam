@@ -35,8 +35,8 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -68,7 +68,7 @@ public class BeamTextCSVTableTest {
   private static Object[] data2 = new Object[] { 2, 2L, 2.2F, 2.2, "bond" };
 
   private static List<Object[]> testData = Arrays.asList(data1, data2);
-  private static List<BeamRecord> testDataRows = new ArrayList<BeamRecord>() {{
+  private static List<Row> testDataRows = new ArrayList<Row>() {{
     for (Object[] data : testData) {
       add(buildRow(data));
     }
@@ -79,7 +79,7 @@ public class BeamTextCSVTableTest {
   private static File writerTargetFile;
 
   @Test public void testBuildIOReader() {
-    PCollection<BeamRecord> rows = new BeamTextCSVTable(buildBeamRowType(),
+    PCollection<Row> rows = new BeamTextCSVTable(buildBeamRowType(),
         readerSourceFile.getAbsolutePath()).buildIOReader(pipeline);
     PAssert.that(rows).containsInAnyOrder(testDataRows);
     pipeline.run();
@@ -92,7 +92,7 @@ public class BeamTextCSVTableTest {
             .buildIOWriter());
     pipeline.run();
 
-    PCollection<BeamRecord> rows = new BeamTextCSVTable(buildBeamRowType(),
+    PCollection<Row> rows = new BeamTextCSVTable(buildBeamRowType(),
         writerTargetFile.getAbsolutePath()).buildIOReader(pipeline2);
 
     // confirm the two reads match
@@ -165,11 +165,11 @@ public class BeamTextCSVTableTest {
         .add("amount", SqlTypeName.DOUBLE).add("user_name", SqlTypeName.VARCHAR).build();
   }
 
-  private static BeamRecordType buildBeamRowType() {
+  private static RowType buildBeamRowType() {
     return CalciteUtils.toBeamRowType(buildRelDataType());
   }
 
-  private static BeamRecord buildRow(Object[] data) {
-    return new BeamRecord(buildBeamRowType(), Arrays.asList(data));
+  private static Row buildRow(Object[] data) {
+    return new Row(buildBeamRowType(), Arrays.asList(data));
   }
 }

@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getBeamRecordTypeFromTable;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getRowTypeFromTable;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -28,7 +28,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.RowType;
 
 /**
  * Kafka table provider.
@@ -47,7 +47,7 @@ import org.apache.beam.sdk.values.BeamRecordType;
  */
 public class KafkaTableProvider implements TableProvider {
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    BeamRecordType recordType = getBeamRecordTypeFromTable(table);
+    RowType recordType = getRowTypeFromTable(table);
 
     JSONObject properties = table.getProperties();
     String bootstrapServers = properties.getString("bootstrap.servers");

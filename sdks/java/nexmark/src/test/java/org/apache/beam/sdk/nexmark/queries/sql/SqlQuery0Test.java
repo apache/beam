@@ -25,7 +25,7 @@ import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,11 +44,11 @@ public class SqlQuery0Test {
   private static final ModelFieldsAdapter<Bid> BID_ADAPTER =
       ModelAdaptersMapping.ADAPTERS.get(Bid.class);
 
-  private static final BeamRecord BID1_RECORD =
-      new BeamRecord(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(BID1));
+  private static final Row BID1_RECORD =
+      new Row(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(BID1));
 
-  private static final BeamRecord BID2_RECORD =
-      new BeamRecord(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(BID2));
+  private static final Row BID2_RECORD =
+      new Row(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(BID2));
 
   @Rule
   public TestPipeline testPipeline = TestPipeline.create();

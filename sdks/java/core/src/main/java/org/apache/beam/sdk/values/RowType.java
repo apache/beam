@@ -24,22 +24,22 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.Coder;
 
 /**
- * {@link BeamRecordType} describes the fields in {@link BeamRecord}, extra checking can be added
- * by overwriting {@link BeamRecordType#validateValueType(int, Object)}.
+ * {@link RowType} describes the fields in {@link Row}, extra checking can be added
+ * by overwriting {@link RowType#validateValueType(int, Object)}.
  */
 @Experimental
-public class BeamRecordType implements Serializable{
+public class RowType implements Serializable{
   private List<String> fieldNames;
   private List<Coder> fieldCoders;
 
   /**
-   * Create a {@link BeamRecordType} with a name and Coder for each field.
+   * Create a {@link RowType} with a name and Coder for each field.
    */
-  public BeamRecordType(List<String> fieldNames, List<Coder> fieldCoders) {
+  public RowType(List<String> fieldNames, List<Coder> fieldCoders) {
     if (fieldNames.size() != fieldCoders.size()) {
       throw new IllegalStateException(
           "the size of fieldNames and fieldCoders need to be the same.");
@@ -58,10 +58,10 @@ public class BeamRecordType implements Serializable{
   }
 
   /**
-   * Return the coder for {@link BeamRecord}, which wraps {@link #fieldCoders} for each field.
+   * Return the coder for {@link Row}, which wraps {@link #fieldCoders} for each field.
    */
-  public BeamRecordCoder getRecordCoder(){
-    return BeamRecordCoder.of(this, fieldCoders);
+  public RowCoder getRecordCoder(){
+    return RowCoder.of(this, fieldCoders);
   }
 
   /**
@@ -105,11 +105,11 @@ public class BeamRecordType implements Serializable{
       return true;
     }
 
-    if (!(o instanceof BeamRecordType)) {
+    if (!(o instanceof RowType)) {
       return false;
     }
 
-    BeamRecordType that = (BeamRecordType) o;
+    RowType that = (RowType) o;
     return Objects.equals(fieldNames, that.fieldNames)
         && Objects.equals(fieldCoders, that.fieldCoders);
   }

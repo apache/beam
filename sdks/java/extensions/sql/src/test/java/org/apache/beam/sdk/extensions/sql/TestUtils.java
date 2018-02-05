@@ -29,8 +29,8 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
@@ -42,7 +42,7 @@ public class TestUtils {
   /**
    * A {@code DoFn} to convert a {@code BeamSqlRow} to a comparable {@code String}.
    */
-  public static class BeamSqlRow2StringDoFn extends DoFn<BeamRecord, String> {
+  public static class BeamSqlRow2StringDoFn extends DoFn<Row, String> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       ctx.output(ctx.element().toString());
@@ -52,16 +52,16 @@ public class TestUtils {
   /**
    * Convert list of {@code BeamSqlRow} to list of {@code String}.
    */
-  public static List<String> beamSqlRows2Strings(List<BeamRecord> rows) {
+  public static List<String> beamSqlRows2Strings(List<Row> rows) {
     List<String> strs = new ArrayList<>();
-    for (BeamRecord row : rows) {
+    for (Row row : rows) {
       strs.add(row.toString());
     }
 
     return strs;
   }
 
-  public static RowsBuilder rowsBuilderOf(BeamRecordType type) {
+  public static RowsBuilder rowsBuilderOf(RowType type) {
     return RowsBuilder.of(type);
   }
 
@@ -83,8 +83,8 @@ public class TestUtils {
    * {@code}
    */
   public static class RowsBuilder {
-    private BeamRecordType type;
-    private List<BeamRecord> rows = new ArrayList<>();
+    private RowType type;
+    private List<Row> rows = new ArrayList<>();
 
     /**
      * Create a RowsBuilder with the specified row type info.
@@ -100,7 +100,7 @@ public class TestUtils {
      * @args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
-      BeamRecordType beamSQLRowType = buildBeamSqlRowType(args);
+      RowType beamSQLRowType = buildBeamSqlRowType(args);
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamSQLRowType;
 
@@ -113,11 +113,11 @@ public class TestUtils {
      * <p>For example:
      * <pre>{@code
      * TestUtils.RowsBuilder.of(
-     *   beamRecordSqlType
+     *   rowSqlType
      * )}</pre>
      * @beamSQLRowType the record type.
      */
-    public static RowsBuilder of(final BeamRecordType beamRowType) {
+    public static RowsBuilder of(final RowType beamRowType) {
       RowsBuilder builder = new RowsBuilder();
       builder.type = beamRowType;
 
@@ -144,7 +144,7 @@ public class TestUtils {
       return this;
     }
 
-    public List<BeamRecord> getRows() {
+    public List<Row> getRows() {
       return rows;
     }
 
@@ -165,17 +165,17 @@ public class TestUtils {
   }
 
   static class PCollectionBuilder {
-    private BeamRecordType type;
-    private List<BeamRecord> rows;
+    private RowType type;
+    private List<Row> rows;
     private String timestampField;
     private Pipeline pipeline;
 
-    public PCollectionBuilder withRowType(BeamRecordType type) {
+    public PCollectionBuilder withRowType(RowType type) {
       this.type = type;
       return this;
     }
 
-    public PCollectionBuilder withRows(List<BeamRecord> rows) {
+    public PCollectionBuilder withRows(List<Row> rows) {
       this.rows = rows;
       return this;
     }
@@ -200,7 +200,7 @@ public class TestUtils {
      * <p>If timestamp field was set with {@link #withTimestampField(String)} then
      * watermark will be advanced to the values from that field.
      */
-    public PCollection<BeamRecord> buildUnbounded() {
+    public PCollection<Row> buildUnbounded() {
       checkArgument(pipeline != null);
       checkArgument(rows.size() > 0);
 
@@ -208,9 +208,9 @@ public class TestUtils {
         type = rows.get(0).getDataType();
       }
 
-      TestStream.Builder<BeamRecord> values = TestStream.create(type.getRecordCoder());
+      TestStream.Builder<Row> values = TestStream.create(type.getRecordCoder());
 
-      for (BeamRecord row : rows) {
+      for (Row row : rows) {
         if (timestampField != null) {
           values = values.advanceWatermarkTo(new Instant(row.getDate(timestampField)));
         }
@@ -238,7 +238,7 @@ public class TestUtils {
    *   )
    * }</pre>
    */
-  public static BeamRecordType buildBeamSqlRowType(Object... args) {
+  public static RowType buildBeamSqlRowType(Object... args) {
     List<Coder> types = new ArrayList<>();
     List<String> names = new ArrayList<>();
 
@@ -247,7 +247,7 @@ public class TestUtils {
       names.add((String) args[i + 1]);
     }
 
-    return new BeamRecordType(names, types);
+    return new RowType(names, types);
   }
 
   /**
@@ -264,11 +264,11 @@ public class TestUtils {
    *   )
    * }</pre>
    */
-  public static List<BeamRecord> buildRows(BeamRecordType type, List<?> rowsValues) {
+  public static List<Row> buildRows(RowType type, List<?> rowsValues) {
     return Lists
         .partition(rowsValues, type.getFieldCount())
         .stream()
-        .map(values -> new BeamRecord(type, values.toArray()))
+        .map(values -> new Row(type, values.toArray()))
         .collect(toList());
   }
 }

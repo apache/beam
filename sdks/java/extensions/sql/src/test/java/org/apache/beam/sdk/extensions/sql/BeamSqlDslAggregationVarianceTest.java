@@ -17,14 +17,14 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.utils.BeamRecordAsserts.matchesScalar;
+import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Before;
@@ -41,19 +41,19 @@ public class BeamSqlDslAggregationVarianceTest {
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
 
-  private PCollection<BeamRecord> boundedInput;
+  private PCollection<Row> boundedInput;
 
   @Before
   public void setUp() {
-    BeamRecordType rowType =
-        BeamRecordSqlType
+    RowType rowType =
+        RowSqlType
             .builder()
             .withIntegerField("f_int")
             .withDoubleField("f_double")
             .withIntegerField("f_int2")
             .build();
 
-    List<BeamRecord> recordsInTableB =
+    List<Row> recordsInTableB =
         TestUtils.RowsBuilder
             .of(rowType)
             .addRows(
