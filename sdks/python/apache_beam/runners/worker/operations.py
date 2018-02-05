@@ -178,7 +178,8 @@ class Operation(object):
                     {'ONLY_OUTPUT': self.receivers[0].opcounter
                                     .element_counter.value()}
                     if len(self.receivers) == 1
-                    else None))))
+                    else None))),
+        user=self.metrics_container.to_runner_api())
 
   def __str__(self):
     """Generates a useful string for this object.
