@@ -22,7 +22,6 @@ https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 
 import cStringIO
 import errno
-import fnmatch
 import io
 import logging
 import multiprocessing
@@ -207,40 +206,6 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def glob(self, pattern, limit=None):
-    """Return the GCS path names matching a given path name pattern.
-
-    Path name patterns are those recognized by fnmatch.fnmatch().  The path
-    can contain glob characters (*, ?, and [...] sets).
-
-    Args:
-      pattern: GCS file path pattern in the form gs://<bucket>/<name_pattern>.
-      limit: Maximal number of path names to return.
-        All matching paths are returned if set to None.
-
-    Returns:
-      list of GCS file paths matching the given pattern.
-    """
-    bucket, name_pattern = parse_gcs_path(pattern)
-    # Get the prefix with which we can list objects in the given bucket.
-    prefix = re.match('^[^[*?]*', name_pattern).group(0)
-    request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
-    object_paths = []
-    while True:
-      response = self.client.objects.List(request)
-      for item in response.items:
-        if fnmatch.fnmatch(item.name, name_pattern):
-          object_paths.append('gs://%s/%s' % (item.bucket, item.name))
-      if response.nextPageToken:
-        request.pageToken = response.nextPageToken
-        if limit is not None and len(object_paths) >= limit:
-          break
-      else:
-        break
-    return object_paths[:limit]
-
-  @retry.with_exponential_backoff(
-      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def delete(self, path):
     """Deletes the object at the given GCS path.
 
@@ -364,7 +329,7 @@ class GcsIO(object):
     """
     assert src.endswith('/')
     assert dest.endswith('/')
-    for entry in self.glob(src + '*'):
+    for entry in self.list_prefix(src):
       rel_path = entry[len(src):]
       self.copy(entry, dest + rel_path)
 
@@ -433,15 +398,16 @@ class GcsIO(object):
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
-  def size_of_files_in_glob(self, pattern, limit=None):
-    """Returns the size of all the files in the glob as a dictionary
+  def list_prefix(self, path):
+    """Lists files matching the prefix.
 
     Args:
-      pattern: a file path pattern that reads the size of all the files
+      path: GCS file path pattern in the form gs://<bucket>/<name>.
+
+    Returns:
+      Dictionary of file name -> size.
     """
-    bucket, name_pattern = parse_gcs_path(pattern)
-    # Get the prefix with which we can list objects in the given bucket.
-    prefix = re.match('^[^[*?]*', name_pattern).group(0)
+    bucket, prefix = parse_gcs_path(path)
     request = storage.StorageObjectsListRequest(bucket=bucket, prefix=prefix)
     file_sizes = {}
     counter = 0
@@ -450,23 +416,17 @@ class GcsIO(object):
     while True:
       response = self.client.objects.List(request)
       for item in response.items:
-        if fnmatch.fnmatch(item.name, name_pattern):
-          file_name = 'gs://%s/%s' % (item.bucket, item.name)
-          file_sizes[file_name] = item.size
-          counter += 1
-        if limit is not None and counter >= limit:
-          break
+        file_name = 'gs://%s/%s' % (item.bucket, item.name)
+        file_sizes[file_name] = item.size
+        counter += 1
         if counter % 10000 == 0:
           logging.info("Finished computing size of: %s files", len(file_sizes))
       if response.nextPageToken:
         request.pageToken = response.nextPageToken
-        if limit is not None and len(file_sizes) >= limit:
-          break
       else:
         break
-    logging.info(
-        "Finished the size estimation of the input at %s files. " +\
-        "Estimation took %s seconds", counter, time.time() - start_time)
+    logging.info("Finished listing %s files in %s seconds.",
+                 counter, time.time() - start_time)
     return file_sizes
 
 

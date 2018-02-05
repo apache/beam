@@ -241,6 +241,14 @@ class TestGCSIO(unittest.TestCase):
     self.assertFalse(self.gcs.exists(file_name + 'xyz'))
     self.assertTrue(self.gcs.exists(file_name))
 
+  def test_checksum(self):
+    file_name = 'gs://gcsio-test/dummy_file'
+    file_size = 1234
+    checksum = 'deadbeef'
+    self._insert_random_file(self.client, file_name, file_size, crc32c=checksum)
+    self.assertTrue(self.gcs.exists(file_name))
+    self.assertEqual(checksum, self.gcs.checksum(file_name))
+
   @mock.patch.object(FakeGcsObjects, 'Get')
   def test_exists_failure(self, mock_get):
     # Raising an error other than 404. Raising 404 is a valid failure for
@@ -600,184 +608,37 @@ class TestGCSIO(unittest.TestCase):
       with self.gcs.open(file_name) as f:
         f.read(0 / 0)
 
-  def test_glob(self):
+  def test_list_prefix(self):
     bucket_name = 'gcsio-test'
-    object_names = [
-        'cow/cat/fish',
-        'cow/cat/blubber',
-        'cow/dog/blubber',
-        'apple/dog/blubber',
-        'apple/fish/blubber',
-        'apple/fish/blowfish',
-        'apple/fish/bambi',
-        'apple/fish/balloon',
-        'apple/fish/cat',
-        'apple/fish/cart',
-        'apple/fish/carl',
-        'apple/fish/handle',
-        'apple/dish/bat',
-        'apple/dish/cat',
-        'apple/dish/carl',
-    ]
-    for object_name in object_names:
-      file_name = 'gs://%s/%s' % (bucket_name, object_name)
-      self._insert_random_file(self.client, file_name, 0)
-    test_cases = [
-        ('gs://gcsio-test/*', [
-            'cow/cat/fish',
-            'cow/cat/blubber',
-            'cow/dog/blubber',
-            'apple/dog/blubber',
-            'apple/fish/blubber',
-            'apple/fish/blowfish',
-            'apple/fish/bambi',
-            'apple/fish/balloon',
-            'apple/fish/cat',
-            'apple/fish/cart',
-            'apple/fish/carl',
-            'apple/fish/handle',
-            'apple/dish/bat',
-            'apple/dish/cat',
-            'apple/dish/carl',
-        ]),
-        ('gs://gcsio-test/cow/*', [
-            'cow/cat/fish',
-            'cow/cat/blubber',
-            'cow/dog/blubber',
-        ]),
-        ('gs://gcsio-test/cow/ca*', [
-            'cow/cat/fish',
-            'cow/cat/blubber',
-        ]),
-        ('gs://gcsio-test/apple/[df]ish/ca*', [
-            'apple/fish/cat',
-            'apple/fish/cart',
-            'apple/fish/carl',
-            'apple/dish/cat',
-            'apple/dish/carl',
-        ]),
-        ('gs://gcsio-test/apple/fish/car?', [
-            'apple/fish/cart',
-            'apple/fish/carl',
-        ]),
-        ('gs://gcsio-test/apple/fish/b*', [
-            'apple/fish/blubber',
-            'apple/fish/blowfish',
-            'apple/fish/bambi',
-            'apple/fish/balloon',
-        ]),
-        ('gs://gcsio-test/apple/f*/b*', [
-            'apple/fish/blubber',
-            'apple/fish/blowfish',
-            'apple/fish/bambi',
-            'apple/fish/balloon',
-        ]),
-        ('gs://gcsio-test/apple/dish/[cb]at', [
-            'apple/dish/bat',
-            'apple/dish/cat',
-        ]),
-    ]
-    for file_pattern, expected_object_names in test_cases:
-      expected_file_names = ['gs://%s/%s' % (bucket_name, o)
-                             for o in expected_object_names]
-      self.assertEqual(
-          set(self.gcs.glob(file_pattern)), set(expected_file_names))
-
-    # Check if limits are followed correctly
-    limit = 3
-    for file_pattern, expected_object_names in test_cases:
-      expected_num_items = min(len(expected_object_names), limit)
-      self.assertEqual(
-          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
-
-  def test_size_of_files_in_glob(self):
-    bucket_name = 'gcsio-test'
-    object_names = [
+    objects = [
         ('cow/cat/fish', 2),
         ('cow/cat/blubber', 3),
         ('cow/dog/blubber', 4),
-        ('apple/dog/blubber', 5),
-        ('apple/fish/blubber', 6),
-        ('apple/fish/blowfish', 7),
-        ('apple/fish/bambi', 8),
-        ('apple/fish/balloon', 9),
-        ('apple/fish/cat', 10),
-        ('apple/fish/cart', 11),
-        ('apple/fish/carl', 12),
-        ('apple/dish/bat', 13),
-        ('apple/dish/cat', 14),
-        ('apple/dish/carl', 15),
-        ('apple/fish/handle', 16),
     ]
-    for (object_name, size) in object_names:
+    for (object_name, size) in objects:
       file_name = 'gs://%s/%s' % (bucket_name, object_name)
       self._insert_random_file(self.client, file_name, size)
     test_cases = [
-        ('gs://gcsio-test/cow/*', [
+        ('gs://gcsio-test/c', [
             ('cow/cat/fish', 2),
             ('cow/cat/blubber', 3),
             ('cow/dog/blubber', 4),
         ]),
-        ('gs://gcsio-test/apple/fish/car?', [
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-        ]),
-        ('gs://gcsio-test/*/f*/car?', [
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-        ]),
-    ]
-    for file_pattern, expected_object_names in test_cases:
-      expected_file_sizes = {'gs://%s/%s' % (bucket_name, o): s
-                             for (o, s) in expected_object_names}
-      self.assertEqual(
-          self.gcs.size_of_files_in_glob(file_pattern), expected_file_sizes)
-
-    # Check if limits are followed correctly
-    limit = 1
-    for file_pattern, expected_object_names in test_cases:
-      expected_num_items = min(len(expected_object_names), limit)
-      self.assertEqual(
-          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
-
-  def test_size_of_files_in_glob_limited(self):
-    bucket_name = 'gcsio-test'
-    object_names = [
-        ('cow/cat/fish', 2),
-        ('cow/cat/blubber', 3),
-        ('cow/dog/blubber', 4),
-        ('apple/dog/blubber', 5),
-        ('apple/fish/blubber', 6),
-        ('apple/fish/blowfish', 7),
-        ('apple/fish/bambi', 8),
-        ('apple/fish/balloon', 9),
-        ('apple/fish/cat', 10),
-        ('apple/fish/cart', 11),
-        ('apple/fish/carl', 12),
-        ('apple/dish/bat', 13),
-        ('apple/dish/cat', 14),
-        ('apple/dish/carl', 15),
-    ]
-    for (object_name, size) in object_names:
-      file_name = 'gs://%s/%s' % (bucket_name, object_name)
-      self._insert_random_file(self.client, file_name, size)
-    test_cases = [
-        ('gs://gcsio-test/cow/*', [
+        ('gs://gcsio-test/cow/', [
             ('cow/cat/fish', 2),
             ('cow/cat/blubber', 3),
             ('cow/dog/blubber', 4),
         ]),
-        ('gs://gcsio-test/apple/fish/car?', [
-            ('apple/fish/cart', 11),
-            ('apple/fish/carl', 12),
-        ])
+        ('gs://gcsio-test/cow/cat/fish', [
+            ('cow/cat/fish', 2),
+        ]),
     ]
-    # Check if limits are followed correctly
-    limit = 1
     for file_pattern, expected_object_names in test_cases:
-      expected_num_items = min(len(expected_object_names), limit)
+      expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
+                             for (object_name, size) in expected_object_names]
       self.assertEqual(
-          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
+          set(self.gcs.list_prefix(file_pattern).iteritems()),
+          set(expected_file_names))
 
 
 if __name__ == '__main__':

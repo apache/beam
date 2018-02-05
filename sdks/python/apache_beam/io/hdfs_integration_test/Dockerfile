@@ -39,6 +39,6 @@ CMD holdup -t 45 http://namenode:50070 http://datanode:50075 && \
     sleep 45 && \
     hdfscli -v -v -v upload -f kinglear.txt / && \
     python -m apache_beam.examples.wordcount \
-        --input hdfs://kinglear.txt \
+        --input hdfs://kinglear* \
         --output hdfs://py-wordcount-integration \
         --hdfs_host namenode --hdfs_port 50070 --hdfs_user root
