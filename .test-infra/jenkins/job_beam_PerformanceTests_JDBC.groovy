@@ -69,7 +69,7 @@ job('beam_PerformanceTests_JDBC'){
 
     steps {
         shell('gcloud container clusters list')
-        shell('gcloud container clusters get-credentials io-datastores --verbosity=debug')
+        shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
         shell('find / -regex \'.*kube.*config.*\' 2>/dev/null')
     }
 
