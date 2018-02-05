@@ -58,7 +58,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
@@ -253,7 +252,7 @@ class FlinkStreamingTransformTranslators {
       if (context.getOutput(transform).isBounded().equals(PCollection.IsBounded.BOUNDED)) {
         boundedTranslator.translateNode(transform, context);
       } else {
-        unboundedTranslator.translateNode((Read.Unbounded<T>) transform, context);
+        unboundedTranslator.translateNode(transform, context);
       }
     }
   }
