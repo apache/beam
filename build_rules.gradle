@@ -67,6 +67,9 @@ repositories {
   maven { url "https://repository.apache.org/content/repositories/releases" }
 }
 
+// Apply a plugin which enables configuring projects imported into Intellij.
+apply plugin: "idea"
+
 // Provide code coverage
 // TODO: Should this only apply to Java projects?
 apply plugin: "jacoco"
@@ -363,6 +366,18 @@ ext.applyJavaNature = {
       force library.java.values()
     }
   }
+
+  def aptGeneratedMain = "${project.buildDir}/generated/source/apt/main"
+  def aptGeneratedTest = "${project.buildDir}/generated/source/apt/test"
+  idea {
+    module {
+      sourceDirs += file(aptGeneratedMain)
+      generatedSourceDirs += file(aptGeneratedMain)
+
+      testSourceDirs += file(aptGeneratedTest)
+      generatedSourceDirs += file(aptGeneratedTest)
+    }
+  }
 }
 
 /*************************************************************************************************/
@@ -398,6 +413,17 @@ ext.applyGoNature = {
       tasks.getByPath(project.path + ":resolveBuildDependencies").mustRunAfter tasks.getByPath(previous + ":installDependencies")
       println "Forcing: '" + project.path + ":resolveTestDependencies' must run after '" + previous + ":installDependencies'"
       tasks.getByPath(project.path + ":resolveTestDependencies").mustRunAfter tasks.getByPath(previous + ":installDependencies")
+    }
+  }
+
+  idea {
+    module {
+      // The gogradle plugin downloads all dependencies into the source tree here,
+      // which is a path baked into golang
+      excludeDirs += file("${project.path}/vendor")
+
+      // gogradle's private working directory
+      excludeDirs += file("${project.path}/.gogradle")
     }
   }
 }
@@ -443,6 +469,26 @@ ext.applyGrpcNature = {
       }
     }
   }
+
+  def generatedProtoMainJavaDir = "${project.buildDir}/generated/source/proto/main/java"
+  def generatedProtoTestJavaDir = "${project.buildDir}/generated/source/proto/test/java"
+  def generatedGrpcMainJavaDir = "${project.buildDir}/generated/source/proto/main/grpc"
+  def generatedGrpcTestJavaDir = "${project.buildDir}/generated/source/proto/test/grpc"
+  idea {
+    module {
+      sourceDirs += file(generatedProtoMainJavaDir)
+      generatedSourceDirs += file(generatedProtoMainJavaDir)
+
+      testSourceDirs += file(generatedProtoTestJavaDir)
+      generatedSourceDirs += file(generatedProtoTestJavaDir)
+
+      sourceDirs += file(generatedProtoMainJavaDir)
+      generatedSourceDirs += file(generatedGrpcMainJavaDir)
+
+      testSourceDirs += file(generatedGrpcTestJavaDir)
+      generatedSourceDirs += file(generatedGrpcTestJavaDir)
+    }
+  }
 }
 
 /*************************************************************************************************/
@@ -453,5 +499,3 @@ ext.applyAvroNature = {
   println "applyAvroNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.commercehub.gradle.plugin.avro"
 }
-
-

@@ -80,7 +80,7 @@ task copyFmppTemplatesFromCalciteCore(type: Copy) {
 }
 
 // Generate the FMPP sources from the FMPP templates.
-def generateFmppOutputDir = "${project.buildDir}/generated-fmpp"
+def generateFmppOutputDir = "${project.buildDir}/generated/fmpp"
 task generateFmppSources {
   dependsOn configurations.fmppTask
   dependsOn copyFmppTemplatesFromSrc
@@ -91,9 +91,14 @@ task generateFmppSources {
   }
 }
 
+// Match the output directory for generated code with the package, to be more tool-friendly
+def generateFmppJavaccRoot = "${generateFmppOutputDir}/javacc"
+def generatedJavaccSourceDir = "${project.buildDir}/generated/javacc"
+def generatedJavaccPackageDir = "${generatedJavaccSourceDir}/org/apache/beam/sdk/extensions/sql/impl/parser/impl"
 compileJavacc {
   dependsOn generateFmppSources
-  inputDirectory = file(generateFmppOutputDir)
+  inputDirectory = file(generateFmppJavaccRoot)
+  outputDirectory = file(generatedJavaccPackageDir)
   arguments = [grammar_encoding: "UTF-8", static: "false", lookahead: "2"]
 }
 
@@ -115,4 +120,15 @@ shadowJar {
   // getJavaRelocatedPath once the Maven build is no longer also shading this
   // module.
   relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
+}
+
+// Help IntelliJ find the fmpp bits
+idea {
+  module {
+    sourceDirs += file(generateFmppOutputDir)
+    generatedSourceDirs += file(generateFmppOutputDir)
+
+    sourceDirs += file(generatedJavaccSourceDir)
+    generatedSourceDirs += file(generatedJavaccSourceDir)
+  }
 }
