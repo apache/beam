@@ -20,8 +20,6 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.io.BaseEncoding;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
@@ -40,6 +38,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -54,6 +53,8 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
+import org.apache.beam.sdk.util.MoreFutures;
+import org.apache.beam.sdk.util.ThrowingSupplier;
 
 /** A client to stage files on an {@link ArtifactStagingServiceGrpc ArtifactService}. */
 public class ArtifactServiceStager {
@@ -87,19 +88,20 @@ public class ArtifactServiceStager {
   }
 
   public void stage(Iterable<File> files) throws IOException, InterruptedException {
-    final Map<File, ListenableFuture<ArtifactMetadata>> futures = new HashMap<>();
+    final Map<File, CompletionStage<ArtifactMetadata>> futures = new HashMap<>();
     for (File file : files) {
-      futures.put(file, executorService.submit(new StagingCallable(file)));
+      futures.put(file, MoreFutures.supplyAsync(new StagingCallable(file), executorService));
     }
-    ListenableFuture<StagingResult> stagingResult =
-        Futures.whenAllComplete(futures.values()).call(new ExtractStagingResultsCallable(futures));
+    CompletionStage<StagingResult> stagingResult =
+        MoreFutures.allAsList(futures.values())
+            .thenApply(ignored -> new ExtractStagingResultsCallable(futures).call());
     stageManifest(stagingResult);
   }
 
-  private void stageManifest(ListenableFuture<StagingResult> stagingFuture)
+  private void stageManifest(CompletionStage<StagingResult> stagingFuture)
       throws InterruptedException {
     try {
-      StagingResult stagingResult = stagingFuture.get();
+      StagingResult stagingResult = MoreFutures.get(stagingFuture);
       if (stagingResult.isSuccess()) {
         Manifest manifest =
             Manifest.newBuilder().addAllArtifact(stagingResult.getMetadata()).build();
@@ -121,7 +123,7 @@ public class ArtifactServiceStager {
     }
   }
 
-  private class StagingCallable implements Callable<ArtifactMetadata> {
+  private class StagingCallable implements ThrowingSupplier<ArtifactMetadata> {
     private final File file;
 
     private StagingCallable(File file) {
@@ -129,7 +131,7 @@ public class ArtifactServiceStager {
     }
 
     @Override
-    public ArtifactMetadata call() throws Exception {
+    public ArtifactMetadata get() throws Exception {
       // TODO: Add Retries
       PutArtifactResponseObserver responseObserver = new PutArtifactResponseObserver();
       StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
@@ -191,20 +193,20 @@ public class ArtifactServiceStager {
   }
 
   private static class ExtractStagingResultsCallable implements Callable<StagingResult> {
-    private final Map<File, ListenableFuture<ArtifactMetadata>> futures;
+    private final Map<File, CompletionStage<ArtifactMetadata>> futures;
 
     private ExtractStagingResultsCallable(
-        Map<File, ListenableFuture<ArtifactMetadata>> futures) {
+        Map<File, CompletionStage<ArtifactMetadata>> futures) {
       this.futures = futures;
     }
 
     @Override
-    public StagingResult call() throws Exception {
+    public StagingResult call() {
       Set<ArtifactMetadata> metadata = new HashSet<>();
       Map<File, Throwable> failures = new HashMap<>();
-      for (Entry<File, ListenableFuture<ArtifactMetadata>> stagedFileResult : futures.entrySet()) {
+      for (Entry<File, CompletionStage<ArtifactMetadata>> stagedFileResult : futures.entrySet()) {
         try {
-          metadata.add(stagedFileResult.getValue().get());
+          metadata.add(MoreFutures.get(stagedFileResult.getValue()));
         } catch (ExecutionException ee) {
           failures.put(stagedFileResult.getKey(), ee.getCause());
         } catch (InterruptedException ie) {

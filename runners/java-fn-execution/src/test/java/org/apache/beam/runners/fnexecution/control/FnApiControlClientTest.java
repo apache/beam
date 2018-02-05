@@ -24,13 +24,13 @@ import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.sdk.util.MoreFutures;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,13 +67,13 @@ public class FnApiControlClientTest {
   public void testRequestSuccess() throws Exception {
     String id = "successfulInstruction";
 
-    Future<BeamFnApi.InstructionResponse> responseFuture =
+    CompletionStage<InstructionResponse> responseFuture =
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
     client
         .asResponseObserver()
         .onNext(BeamFnApi.InstructionResponse.newBuilder().setInstructionId(id).build());
 
-    BeamFnApi.InstructionResponse response = responseFuture.get();
+    BeamFnApi.InstructionResponse response = MoreFutures.get(responseFuture);
 
     assertThat(response.getInstructionId(), equalTo(id));
   }
@@ -81,7 +81,7 @@ public class FnApiControlClientTest {
   @Test
   public void testRequestError() throws Exception {
     String id = "instructionId";
-    ListenableFuture<InstructionResponse> responseFuture =
+    CompletionStage<InstructionResponse> responseFuture =
         client.handle(InstructionRequest.newBuilder().setInstructionId(id).build());
     String error = "Oh no an error!";
     client
@@ -94,7 +94,7 @@ public class FnApiControlClientTest {
 
     thrown.expectCause(isA(RuntimeException.class));
     thrown.expectMessage(error);
-    responseFuture.get();
+    MoreFutures.get(responseFuture);
   }
 
   @Test
@@ -102,22 +102,22 @@ public class FnApiControlClientTest {
     String id = "actualInstruction";
     String unknownId = "unknownInstruction";
 
-    ListenableFuture<BeamFnApi.InstructionResponse> responseFuture =
+    CompletionStage<BeamFnApi.InstructionResponse> responseFuture =
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
 
     client
         .asResponseObserver()
         .onNext(BeamFnApi.InstructionResponse.newBuilder().setInstructionId(unknownId).build());
 
-    assertThat(responseFuture.isDone(), is(false));
-    assertThat(responseFuture.isCancelled(), is(false));
+    assertThat(MoreFutures.isDone(responseFuture), is(false));
+    assertThat(MoreFutures.isCancelled(responseFuture), is(false));
   }
 
   @Test
   public void testOnCompletedCancelsOutstanding() throws Exception {
     String id = "clientHangUpInstruction";
 
-    Future<BeamFnApi.InstructionResponse> responseFuture =
+    CompletionStage<InstructionResponse> responseFuture =
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
 
     client.asResponseObserver().onCompleted();
@@ -125,14 +125,14 @@ public class FnApiControlClientTest {
     thrown.expect(ExecutionException.class);
     thrown.expectCause(isA(IllegalStateException.class));
     thrown.expectMessage("closed");
-    responseFuture.get();
+    MoreFutures.get(responseFuture);
   }
 
   @Test
   public void testOnErrorCancelsOutstanding() throws Exception {
     String id = "errorInstruction";
 
-    Future<BeamFnApi.InstructionResponse> responseFuture =
+    CompletionStage<InstructionResponse> responseFuture =
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
 
     class FrazzleException extends Exception {}
@@ -140,14 +140,14 @@ public class FnApiControlClientTest {
 
     thrown.expect(ExecutionException.class);
     thrown.expectCause(isA(FrazzleException.class));
-    responseFuture.get();
+    MoreFutures.get(responseFuture);
   }
 
   @Test
   public void testCloseCancelsOutstanding() throws Exception {
     String id = "serverCloseInstruction";
 
-    Future<BeamFnApi.InstructionResponse> responseFuture =
+    CompletionStage<InstructionResponse> responseFuture =
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
 
     client.close();
@@ -155,6 +155,6 @@ public class FnApiControlClientTest {
     thrown.expect(ExecutionException.class);
     thrown.expectCause(isA(IllegalStateException.class));
     thrown.expectMessage("closed");
-    responseFuture.get();
+    MoreFutures.get(responseFuture);
   }
 }
