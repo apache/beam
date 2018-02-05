@@ -94,7 +94,7 @@ class FlinkPipelineExecutionEnvironment {
     }
 
     PipelineTranslationOptimizer optimizer =
-        new PipelineTranslationOptimizer(TranslationMode.BATCH, options, pipeline);
+        new PipelineTranslationOptimizer(TranslationMode.BATCH, options);
 
     optimizer.translate(pipeline);
     TranslationMode translationMode = optimizer.getTranslationMode();

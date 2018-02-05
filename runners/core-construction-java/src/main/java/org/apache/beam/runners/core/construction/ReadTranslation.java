@@ -30,7 +30,6 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.IsBounded;
-import org.apache.beam.model.pipeline.v1.RunnerApi.IsBounded.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -150,19 +149,6 @@ public class ReadTranslation {
               .getIsBounded());
     } catch (IOException e) {
       throw new RuntimeException("Internal error determining boundedness of Read", e);
-    }
-  }
-
-  public static IsBounded.Enum isBounded(AppliedPTransform<?, ?, ?> transform) {
-    try {
-      return ReadPayload.parseFrom(
-          PTransformTranslation
-              .toProto(transform, Collections.emptyList(), SdkComponents.create())
-              .getSpec()
-              .getPayload())
-          .getIsBounded();
-    } catch (IOException e) {
-      return Enum.UNRECOGNIZED;
     }
   }
 
