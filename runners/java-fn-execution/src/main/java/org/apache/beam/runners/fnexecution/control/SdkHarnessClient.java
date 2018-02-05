@@ -20,14 +20,11 @@ package org.apache.beam.runners.fnexecution.control;
 import com.google.auto.value.AutoValue;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
@@ -76,20 +73,20 @@ public class SdkHarnessClient implements AutoCloseable {
    */
   public class BundleProcessor<T> {
     private final String processBundleDescriptorId;
-    private final Future<RegisterResponse> registrationFuture;
+    private final CompletionStage<RegisterResponse> registrationFuture;
 
     private final RemoteInputDestination<WindowedValue<T>> remoteInput;
 
     private BundleProcessor(
         String processBundleDescriptorId,
-        Future<RegisterResponse> registrationFuture,
+        CompletionStage<RegisterResponse> registrationFuture,
         RemoteInputDestination<WindowedValue<T>> remoteInput) {
       this.processBundleDescriptorId = processBundleDescriptorId;
       this.registrationFuture = registrationFuture;
       this.remoteInput = remoteInput;
     }
 
-    public Future<RegisterResponse> getRegistrationFuture() {
+    public CompletionStage<RegisterResponse> getRegistrationFuture() {
       return registrationFuture;
     }
 
@@ -103,7 +100,7 @@ public class SdkHarnessClient implements AutoCloseable {
         Map<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers) {
       String bundleId = idGenerator.getId();
 
-      final ListenableFuture<BeamFnApi.InstructionResponse> genericResponse =
+      final CompletionStage<BeamFnApi.InstructionResponse> genericResponse =
           fnApiControlClient.handle(
               BeamFnApi.InstructionRequest.newBuilder()
                   .setInstructionId(bundleId)
@@ -118,11 +115,8 @@ public class SdkHarnessClient implements AutoCloseable {
           ProcessBundleDescriptor.class.getSimpleName(),
           processBundleDescriptorId);
 
-      ListenableFuture<BeamFnApi.ProcessBundleResponse> specificResponse =
-          Futures.transform(
-              genericResponse,
-              InstructionResponse::getProcessBundle,
-              MoreExecutors.directExecutor());
+      CompletionStage<BeamFnApi.ProcessBundleResponse> specificResponse =
+          genericResponse.thenApply(InstructionResponse::getProcessBundle);
       Map<BeamFnApi.Target, InboundDataClient> outputClients = new HashMap<>();
       for (Map.Entry<BeamFnApi.Target, RemoteOutputReceiver<?>> targetReceiver :
           outputReceivers.entrySet()) {
@@ -155,14 +149,14 @@ public class SdkHarnessClient implements AutoCloseable {
   public abstract static class ActiveBundle<InputT> {
     public abstract String getBundleId();
 
-    public abstract Future<BeamFnApi.ProcessBundleResponse> getBundleResponse();
+    public abstract CompletionStage<BeamFnApi.ProcessBundleResponse> getBundleResponse();
 
     public abstract CloseableFnDataReceiver<WindowedValue<InputT>> getInputReceiver();
     public abstract Map<BeamFnApi.Target, InboundDataClient> getOutputClients();
 
     public static <InputT> ActiveBundle<InputT> create(
         String bundleId,
-        Future<BeamFnApi.ProcessBundleResponse> response,
+        CompletionStage<BeamFnApi.ProcessBundleResponse> response,
         CloseableFnDataReceiver<WindowedValue<InputT>> dataReceiver,
         Map<BeamFnApi.Target, InboundDataClient> outputClients) {
       return new AutoValue_SdkHarnessClient_ActiveBundle<>(
@@ -228,7 +222,7 @@ public class SdkHarnessClient implements AutoCloseable {
 
     LOG.debug("Registering {}", processBundleDescriptors.keySet());
     // TODO: validate that all the necessary data endpoints are known
-    ListenableFuture<BeamFnApi.InstructionResponse> genericResponse =
+    CompletionStage<BeamFnApi.InstructionResponse> genericResponse =
         fnApiControlClient.handle(
             BeamFnApi.InstructionRequest.newBuilder()
                 .setInstructionId(idGenerator.getId())
@@ -238,11 +232,9 @@ public class SdkHarnessClient implements AutoCloseable {
                         .build())
                 .build());
 
-    ListenableFuture<RegisterResponse> registerResponseFuture =
-        Futures.transform(
-            genericResponse,
-            InstructionResponse::getRegister,
-            MoreExecutors.directExecutor());
+    CompletionStage<RegisterResponse> registerResponseFuture =
+        genericResponse.thenApply(InstructionResponse::getRegister);
+
     for (Map.Entry<ProcessBundleDescriptor, RemoteInputDestination<WindowedValue<?>>>
         descriptorInputEntry : processBundleDescriptors.entrySet()) {
       clientProcessors.put(
