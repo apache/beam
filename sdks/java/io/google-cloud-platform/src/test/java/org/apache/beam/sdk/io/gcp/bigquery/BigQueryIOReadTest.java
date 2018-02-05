@@ -355,7 +355,7 @@ public class BigQueryIOReadTest implements Serializable {
               .from("non-executing-project:somedataset.sometable")
               .withTestServices(fakeBqServices)
               .withoutValidation()
-              .usingInteractivePriority(); //<------- JT
+              .usingInteractivePriority();
       readTransform = useTemplateCompatibility ? read.withTemplateCompatibility() : read;
     }
     PCollection<KV<String, Long>> output =
