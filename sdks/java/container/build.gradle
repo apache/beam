@@ -46,7 +46,7 @@ task copyDockerfileDependencies(type: Copy) {
   from configurations.dockerDependency
   rename "slf4j-api.*", "slf4j-api.jar"
   rename "slf4j-jdk14.*", "slf4j-jdk14.jar"
-  rename "beam-sdks-java-harness.*", "beam-sdks-java-harness.jar"
+  rename "harness.*\\.jar", "beam-sdks-java-harness.jar"
   into "build/target"
 }
 
