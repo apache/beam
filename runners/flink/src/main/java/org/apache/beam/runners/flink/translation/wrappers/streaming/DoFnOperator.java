@@ -276,8 +276,10 @@ public class DoFnOperator<InputT, OutputT>
       keyedStateInternals = new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(),
           keyCoder);
 
-      timerService = (HeapInternalTimerService<?, TimerInternals.TimerData>)
-          getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
+      if (timerService == null) {
+        timerService = (HeapInternalTimerService<?, TimerInternals.TimerData>)
+            getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
+      }
 
       timerInternals = new FlinkTimerInternals();
 
@@ -730,11 +732,15 @@ public class DoFnOperator<InputT, OutputT>
         // We just initialize our timerService
         if (keyCoder != null) {
           if (timerService == null) {
-            timerService = new HeapInternalTimerService<>(
-                totalKeyGroups,
-                localKeyGroupRange,
-                this,
-                getRuntimeContext().getProcessingTimeService());
+            final HeapInternalTimerService<Object, TimerData> localService =
+                new HeapInternalTimerService<>(
+                    totalKeyGroups,
+                    localKeyGroupRange,
+                    this,
+                    getRuntimeContext().getProcessingTimeService());
+            localService.startTimerService(getKeyedStateBackend().getKeySerializer(),
+                new CoderTypeSerializer<>(timerCoder), this);
+            timerService = localService;
           }
           timerService.restoreTimersForKeyGroup(div, keyGroupIdx, getUserCodeClassloader());
         }
