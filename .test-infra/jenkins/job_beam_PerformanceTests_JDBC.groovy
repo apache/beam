@@ -68,11 +68,10 @@ job('beam_PerformanceTests_JDBC'){
     ]
 
     steps {
-        shell('pwd')
-        shell('ls -la')
+        shell('find . -regex \'.*kube.*config.*\' 2>/dev/null | more * | cat ')
     }
 
-    common_job_properties.buildPerformanceTest(delegate, argMap)
+    // common_job_properties.buildPerformanceTest(delegate, argMap)
 }
 
 static def makePathAbsolute(String path) {
