@@ -27,6 +27,162 @@ from StringIO import StringIO
 
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystem import FileMetadata
+from apache_beam.io.filesystem import FileSystem
+
+
+class TestingFileSystem(FileSystem):
+
+  def __init__(self, pipeline_options, has_dirs=False):
+    super(TestingFileSystem, self).__init__(pipeline_options)
+    self._has_dirs = has_dirs
+    self._files = {}
+
+  @classmethod
+  def scheme(cls):
+    # Required for FileSystems.get_filesystem().
+    return 'test'
+
+  def join(self, basepath, *paths):
+    raise NotImplementedError
+
+  def split(self, path):
+    raise NotImplementedError
+
+  def mkdirs(self, path):
+    raise NotImplementedError
+
+  def has_dirs(self):
+    return self._has_dirs
+
+  def _insert_random_file(self, path, size):
+    self._files[path] = size
+
+  def _list(self, dir_or_prefix):
+    for path, size in self._files.iteritems():
+      if path.startswith(dir_or_prefix):
+        yield FileMetadata(path, size)
+
+  def create(self, path, mime_type='application/octet-stream',
+             compression_type=CompressionTypes.AUTO):
+    raise NotImplementedError
+
+  def open(self, path, mime_type='application/octet-stream',
+           compression_type=CompressionTypes.AUTO):
+    raise NotImplementedError
+
+  def copy(self, source_file_names, destination_file_names):
+    raise NotImplementedError
+
+  def rename(self, source_file_names, destination_file_names):
+    raise NotImplementedError
+
+  def exists(self, path):
+    raise NotImplementedError
+
+  def size(self, path):
+    raise NotImplementedError
+
+  def checksum(self, path):
+    raise NotImplementedError
+
+  def delete(self, paths):
+    raise NotImplementedError
+
+
+class TestFileSystem(unittest.TestCase):
+
+  def setUp(self):
+    self.fs = TestingFileSystem(pipeline_options=None)
+
+  def _flatten_match(self, match_results):
+    return [file_metadata
+            for match_result in match_results
+            for file_metadata in match_result.metadata_list]
+
+  def test_match_glob(self):
+    bucket_name = 'gcsio-test'
+    objects = [
+        ('cow/cat/fish', 2),
+        ('cow/cat/blubber', 3),
+        ('cow/dog/blubber', 4),
+        ('apple/dog/blubber', 5),
+        ('apple/fish/blubber', 6),
+        ('apple/fish/blowfish', 7),
+        ('apple/fish/bambi', 8),
+        ('apple/fish/balloon', 9),
+        ('apple/fish/cat', 10),
+        ('apple/fish/cart', 11),
+        ('apple/fish/carl', 12),
+        ('apple/dish/bat', 13),
+        ('apple/dish/cat', 14),
+        ('apple/dish/carl', 15),
+    ]
+    for (object_name, size) in objects:
+      file_name = 'gs://%s/%s' % (bucket_name, object_name)
+      self.fs._insert_random_file(file_name, size)
+    test_cases = [
+        ('gs://*', objects),
+        ('gs://gcsio-test/*', objects),
+        ('gs://gcsio-test/cow/*', [
+            ('cow/cat/fish', 2),
+            ('cow/cat/blubber', 3),
+            ('cow/dog/blubber', 4),
+        ]),
+        ('gs://gcsio-test/cow/ca*', [
+            ('cow/cat/fish', 2),
+            ('cow/cat/blubber', 3),
+        ]),
+        ('gs://gcsio-test/apple/[df]ish/ca*', [
+            ('apple/fish/cat', 10),
+            ('apple/fish/cart', 11),
+            ('apple/fish/carl', 12),
+            ('apple/dish/cat', 14),
+            ('apple/dish/carl', 15),
+        ]),
+        ('gs://gcsio-test/apple/fish/car?', [
+            ('apple/fish/cart', 11),
+            ('apple/fish/carl', 12),
+        ]),
+        ('gs://gcsio-test/apple/fish/b*', [
+            ('apple/fish/blubber', 6),
+            ('apple/fish/blowfish', 7),
+            ('apple/fish/bambi', 8),
+            ('apple/fish/balloon', 9),
+        ]),
+        ('gs://gcsio-test/apple/f*/b*', [
+            ('apple/fish/blubber', 6),
+            ('apple/fish/blowfish', 7),
+            ('apple/fish/bambi', 8),
+            ('apple/fish/balloon', 9),
+        ]),
+        ('gs://gcsio-test/apple/dish/[cb]at', [
+            ('apple/dish/bat', 13),
+            ('apple/dish/cat', 14),
+        ]),
+    ]
+    for file_pattern, expected_object_names in test_cases:
+      expected_file_names = [('gs://%s/%s' % (bucket_name, object_name), size)
+                             for (object_name, size) in expected_object_names]
+      self.assertEqual(
+          set([(file_metadata.path, file_metadata.size_in_bytes)
+               for file_metadata in
+               self._flatten_match(self.fs.match([file_pattern]))]),
+          set(expected_file_names))
+
+    # Check if limits are followed correctly
+    limit = 3
+    for file_pattern, expected_object_names in test_cases:
+      expected_num_items = min(len(expected_object_names), limit)
+      self.assertEqual(
+          len(self._flatten_match(self.fs.match([file_pattern], [limit]))),
+          expected_num_items)
+
+
+class TestFileSystemWithDirs(TestFileSystem):
+
+  def setUp(self):
+    self.fs = TestingFileSystem(pipeline_options=None, has_dirs=True)
 
 
 class TestCompressedFile(unittest.TestCase):
