@@ -128,6 +128,9 @@ class Counter(object):
   SUM = cy_combiners.SumInt64Fn()
   MEAN = cy_combiners.MeanInt64Fn()
 
+  # Distribution Accumulator Fn
+  DISTRIBUTION = cy_combiners.DistributionCounterFn()
+
   def __init__(self, name, combine_fn):
     """Creates a Counter object.
 
