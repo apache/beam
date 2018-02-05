@@ -235,6 +235,22 @@ class LocalFileSystem(FileSystem):
     """
     return os.path.exists(path)
 
+  def checksum(self, path):
+    """Fetch checksum metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing file size.
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
+    """
+    if not self.exists(path):
+      raise BeamIOError('Path does not exist: %s' % path)
+    return str(os.path.getsize(path))
+
   def delete(self, paths):
     """Deletes files or directories at the provided paths.
     Directories will be deleted recursively.

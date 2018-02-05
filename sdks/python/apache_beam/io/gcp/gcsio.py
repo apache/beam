@@ -309,15 +309,7 @@ class GcsIO(object):
         sourceObject=src_path,
         destinationBucket=dest_bucket,
         destinationObject=dest_path)
-    try:
-      self.client.objects.Copy(request)
-    except HttpError as http_error:
-      if http_error.status_code == 404:
-        # This is a permanent error that should not be retried. Note that
-        # FileBasedSink.finalize_write expects an IOError when the source
-        # file does not exist.
-        raise GcsIOError(errno.ENOENT, 'Source file not found: %s' % src)
-      raise
+    self.client.objects.Copy(request)
 
   # We intentionally do not decorate this method with a retry, as retrying is
   # handled in BatchApiRequest.Execute().
@@ -410,6 +402,19 @@ class GcsIO(object):
       else:
         # We re-raise all other exceptions
         raise
+
+  @retry.with_exponential_backoff(
+      retry_filter=retry.retry_on_server_errors_and_timeout_filter)
+  def checksum(self, path):
+    """Looks up the checksum of a GCS object.
+
+    Args:
+      path: GCS file path pattern in the form gs://<bucket>/<name>.
+    """
+    bucket, object_path = parse_gcs_path(path)
+    request = storage.StorageObjectsGetRequest(
+        bucket=bucket, object=object_path)
+    return self.client.objects.Get(request).crc32c
 
   @retry.with_exponential_backoff(
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
