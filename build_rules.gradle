@@ -211,6 +211,7 @@ ext.applyJavaNature = {
   // Configures annotation processing for commonly used annotation processors
   // across all Java projects.
   apply plugin: "net.ltgt.apt"
+  apply plugin: "net.ltgt.apt-idea"
   dependencies {
     // Note that these plugins specifically use the compileOnly and testCompileOnly
     // configurations because they are never required to be shaded or become a
@@ -454,4 +455,12 @@ ext.applyAvroNature = {
   apply plugin: "com.commercehub.gradle.plugin.avro"
 }
 
+// Tell Intellij about generated sources.
+apply plugin: "idea"
 
+idea {
+  module {
+    sourceDirs += file("build/generated/source")
+    generatedSourceDirs += file("build/generated/source")
+  }
+}
