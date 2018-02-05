@@ -46,11 +46,12 @@ job('beam_PerformanceTests_JDBC'){
         postgresPassword: 'uuinkks',
         postgresSsl: 'false'
     ]
+
     def pipelineArgList = []
     pipelineArgs.each({
-        key, value -> pipelineArgList.add("--$key=$value")
+        key, value -> pipelineArgList.add("\"--$key=$value\"")
     })
-    def pipelineArgsJoined = pipelineArgList.join(',')
+    def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
 
     def argMap = [
         kubeconfig: '"$HOME/.kube/config"',
