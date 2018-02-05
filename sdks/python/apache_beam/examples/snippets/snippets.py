@@ -811,7 +811,10 @@ class SimpleKVSink(iobase.Sink):
     table_name = 'table' + uid
     return SimpleKVWriter(self._simplekv, access_token, table_name)
 
-  def finalize_write(self, access_token, table_names):
+  def pre_finalize(self, init_result, writer_results):
+    pass
+
+  def finalize_write(self, access_token, table_names, pre_finalize_result):
     for i, table_name in enumerate(table_names):
       self._simplekv.rename_table(
           access_token, table_name, self._final_table_name + str(i))
