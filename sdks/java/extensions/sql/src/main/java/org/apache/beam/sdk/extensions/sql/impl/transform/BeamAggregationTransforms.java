@@ -31,12 +31,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
-import org.apache.beam.sdk.extensions.sql.impl.transform.agg.BigDecimalConverter;
+import org.apache.beam.sdk.extensions.sql.impl.transform.agg.CovarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
+import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
@@ -153,7 +155,7 @@ public class BeamAggregationTransforms implements Serializable{
   public static class AggregationAdaptor
     extends CombineFn<BeamRecord, AggregationAccumulator, BeamRecord> {
     private List<CombineFn> aggregators;
-    private List<BeamSqlInputRefExpression> sourceFieldExps;
+    private List<Object> sourceFieldExps;
     private BeamRecordType finalRowType;
 
     public AggregationAdaptor(List<AggregateCall> aggregationCalls, BeamRecordType sourceRowType) {
@@ -162,10 +164,27 @@ public class BeamAggregationTransforms implements Serializable{
       List<String> outFieldsName = new ArrayList<>();
       List<Coder> outFieldsType = new ArrayList<>();
       for (AggregateCall call : aggregationCalls) {
-        int refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
-        BeamSqlInputRefExpression sourceExp = new BeamSqlInputRefExpression(
-            CalciteUtils.getFieldCalciteType(sourceRowType, refIndex), refIndex);
-        sourceFieldExps.add(sourceExp);
+        if (call.getArgList().size() == 2) {
+          /**
+           * handle the case of aggregation function has two parameters and
+           * use KV pair to bundle two corresponding expressions.
+           */
+
+          int refIndexKey = call.getArgList().get(0);
+          int refIndexValue = call.getArgList().get(1);
+
+          BeamSqlInputRefExpression sourceExpKey = new BeamSqlInputRefExpression(
+                  CalciteUtils.getFieldCalciteType(sourceRowType, refIndexKey), refIndexKey);
+          BeamSqlInputRefExpression sourceExpValue = new BeamSqlInputRefExpression(
+                  CalciteUtils.getFieldCalciteType(sourceRowType, refIndexValue), refIndexValue);
+
+          sourceFieldExps.add(KV.of(sourceExpKey, sourceExpValue));
+        } else {
+          int refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
+          BeamSqlInputRefExpression sourceExp = new BeamSqlInputRefExpression(
+                  CalciteUtils.getFieldCalciteType(sourceRowType, refIndex), refIndex);
+          sourceFieldExps.add(sourceExp);
+        }
 
         outFieldsName.add(call.name);
         SqlTypeCoder outFieldType = CalciteUtils.toCoder(call.type.getSqlTypeName());
@@ -195,6 +214,14 @@ public class BeamAggregationTransforms implements Serializable{
             aggregators.add(
                 VarianceFn.newSample(BigDecimalConverter.forSqlType(outFieldType)));
             break;
+          case "COVAR_POP":
+            aggregators.add(
+                CovarianceFn.newPopulation(BigDecimalConverter.forSqlType(outFieldType)));
+            break;
+          case "COVAR_SAMP":
+            aggregators.add(
+                CovarianceFn.newSample(BigDecimalConverter.forSqlType(outFieldType)));
+            break;
           default:
             if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
               // handle UDAF.
@@ -215,6 +242,7 @@ public class BeamAggregationTransforms implements Serializable{
       }
       finalRowType = new BeamRecordType(outFieldsName, outFieldsType);
     }
+
     @Override
     public AggregationAccumulator createAccumulator() {
       AggregationAccumulator initialAccu = new AggregationAccumulator();
@@ -223,13 +251,31 @@ public class BeamAggregationTransforms implements Serializable{
       }
       return initialAccu;
     }
+
     @Override
     public AggregationAccumulator addInput(AggregationAccumulator accumulator, BeamRecord input) {
       AggregationAccumulator deltaAcc = new AggregationAccumulator();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
-        deltaAcc.accumulatorElements.add(
-            aggregators.get(idx).addInput(accumulator.accumulatorElements.get(idx),
-            sourceFieldExps.get(idx).evaluate(input, null).getValue()));
+        if (sourceFieldExps.get(idx) instanceof BeamSqlInputRefExpression) {
+          BeamSqlInputRefExpression exp = (BeamSqlInputRefExpression) sourceFieldExps.get(idx);
+          deltaAcc.accumulatorElements.add(
+                  aggregators.get(idx).addInput(accumulator.accumulatorElements.get(idx),
+                          exp.evaluate(input, null).getValue()
+                  )
+          );
+        } else if (sourceFieldExps.get(idx) instanceof KV){
+          /**
+           * If source expression is type of KV pair, we bundle the value of two expressions into
+           * KV pair and pass it to aggregator's addInput method.
+           */
+
+          KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression> exp =
+          (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
+          deltaAcc.accumulatorElements.add(
+                  aggregators.get(idx).addInput(accumulator.accumulatorElements.get(idx),
+                          KV.of(exp.getKey().evaluate(input, null).getValue(),
+                                exp.getValue().evaluate(input, null).getValue())));
+        }
       }
       return deltaAcc;
     }
@@ -245,6 +291,7 @@ public class BeamAggregationTransforms implements Serializable{
       }
       return deltaAcc;
     }
+
     @Override
     public BeamRecord extractOutput(AggregationAccumulator accumulator) {
       List<Object> fieldValues = new ArrayList<>(aggregators.size());
@@ -254,6 +301,7 @@ public class BeamAggregationTransforms implements Serializable{
       }
       return new BeamRecord(finalRowType, fieldValues);
     }
+
     @Override
     public Coder<AggregationAccumulator> getAccumulatorCoder(
         CoderRegistry registry, Coder<BeamRecord> inputCoder)
@@ -262,9 +310,27 @@ public class BeamAggregationTransforms implements Serializable{
       registry.registerCoderForClass(BigDecimal.class, BigDecimalCoder.of());
       List<Coder> aggAccuCoderList = new ArrayList<>();
       for (int idx = 0; idx < aggregators.size(); ++idx) {
-        int srcFieldIndex = sourceFieldExps.get(idx).getInputRef();
-        Coder srcFieldCoder = beamRecordCoder.getCoders().get(srcFieldIndex);
-        aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, srcFieldCoder));
+        if (sourceFieldExps.get(idx) instanceof BeamSqlInputRefExpression) {
+          BeamSqlInputRefExpression exp = (BeamSqlInputRefExpression) sourceFieldExps.get(idx);
+          int srcFieldIndex = exp.getInputRef();
+
+          Coder srcFieldCoder = beamRecordCoder.getCoders().get(srcFieldIndex);
+          aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, srcFieldCoder));
+        } else if (sourceFieldExps.get(idx) instanceof KV) {
+          // extract coder of two expressions separately.
+          KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression> exp =
+          (KV<BeamSqlInputRefExpression, BeamSqlInputRefExpression>) sourceFieldExps.get(idx);
+
+          int srcFieldIndexKey = exp.getKey().getInputRef();
+          int srcFieldIndexValue = exp.getValue().getInputRef();
+
+          Coder srcFieldCoderKey = beamRecordCoder.getCoders().get(srcFieldIndexKey);
+          Coder srcFieldCoderValue = beamRecordCoder.getCoders().get(srcFieldIndexValue);
+
+          aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, KvCoder.of(
+                  srcFieldCoderKey, srcFieldCoderValue))
+          );
+        }
       }
       return new AggregationAccumulatorCoder(aggAccuCoderList);
     }

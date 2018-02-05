@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
+package org.apache.beam.sdk.extensions.sql.impl.utils;
 
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
