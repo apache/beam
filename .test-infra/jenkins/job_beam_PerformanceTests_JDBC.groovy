@@ -63,8 +63,8 @@ job('beam_PerformanceTests_JDBC'){
         beam_it_module: 'sdks/java/io/jdbc',
         beam_it_class: 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
         beam_it_options: pipelineArgsJoined,
-        beam_kubernetes_scripts: makePathAbsolute('.test-infra/kubernetes/postgres/postgres.yml'),
-        beam_options_config_file: makePathAbsolute('.test-infra/kubernetes/postgres/pkb-config.yml'),
+        beam_kubernetes_scripts: makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres.yml'),
+        beam_options_config_file: makePathAbsolute('src/.test-infra/kubernetes/postgres/pkb-config.yml'),
         bigquery_table: 'beam_performance.JdbcIOIT_pkb_results'
     ]
 
