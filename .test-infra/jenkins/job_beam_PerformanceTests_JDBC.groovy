@@ -53,7 +53,7 @@ job('beam_PerformanceTests_JDBC'){
     def pipelineArgsJoined = pipelineArgList.join(',')
 
     def argMap = [
-        kubeconfig: '/home/jenkins/.kube/config',
+        kubeconfig: '"$HOME/.kube/config"',
         beam_it_timeout: '1200',
         benchmarks: 'beam_integration_benchmark',
         beam_it_profile: 'io-it',
@@ -68,12 +68,11 @@ job('beam_PerformanceTests_JDBC'){
     ]
 
     steps {
-        shell('gcloud container clusters list')
+        // create kubernetes config if not exists
         shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
-        shell('find / -regex \'.*kube.*config.*\' 2>/dev/null')
     }
 
-    // common_job_properties.buildPerformanceTest(delegate, argMap)
+    common_job_properties.buildPerformanceTest(delegate, argMap)
 }
 
 static def makePathAbsolute(String path) {
