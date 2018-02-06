@@ -722,8 +722,8 @@ public class KafkaIOTest {
             MetricsFilter.builder()
                 .addNameFilter(
                     MetricNameFilter.named(
-                        KafkaIO.UnboundedKafkaReader.METRIC_NAMESPACE,
-                        KafkaIO.UnboundedKafkaReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC))
+                        KafkaUnboundedReader.METRIC_NAMESPACE,
+                        KafkaUnboundedReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC))
                 .build());
 
     assertThat(commitsEnqueuedMetrics.counters(), IsIterableWithSize.iterableWithSize(1));
@@ -794,16 +794,17 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testEOSink() {
+  public void testExactlyOnceSink() {
     // testSink() with EOS enabled.
     // This does not actually inject retries in a stage to test exactly-once-semantics.
     // It mainly exercises the code in normal flow without retries.
     // Ideally we should test EOS Sink by triggering replays of a messages between stages.
     // It is not feasible to test such retries with direct runner. When DoFnTester supports
-    // state, we can test KafkaEOWriter DoFn directly to ensure it handles retries correctly.
+    // state, we can test ExactlyOnceWriter DoFn directly to ensure it handles retries correctly.
 
     if (!ProducerSpEL.supportsTransactions()) {
-      LOG.warn("testEOSink() is disabled as Kafka client version does not support transactions.");
+      LOG.warn(
+        "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
       return;
     }
 
