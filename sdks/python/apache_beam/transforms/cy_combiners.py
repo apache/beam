@@ -23,7 +23,6 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 
 from apache_beam.transforms import core
-from decimal import *
 import math
 
 
@@ -311,8 +310,29 @@ class AnyCombineFn(AccumulatorCombineFn):
 class AllCombineFn(AccumulatorCombineFn):
   _accumulator_type = AllAccumulator
 
+MAX_LONG_10_FOR_LEADING_ZEROS = [19, 18, 18, 18, 18, 17, 17, 17, 16, 16, 16, 15, 15, 15, 15, 14, 14, 14, 13, 13, 13, 12, 12, 12,
+                                 12, 11, 11, 11, 10, 10, 10, 9, 9, 9, 9, 8, 8, 8, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3,
+                                 3, 2, 2, 2, 1, 1, 1, 0, 0, 0]
 
-# Distribution Counter
+LONG_SIZE = 64
+
+'''
+return the sign bit of x-y
+'''
+def compare_to(x, y):
+  if x < y:
+    return 1
+  return 0
+
+def get_log10_round_to_floor(element):
+  number_of_leading_zeros = LONG_SIZE - element.bit_length()
+  y = MAX_LONG_10_FOR_LEADING_ZEROS[number_of_leading_zeros]
+  return y - compare_to(element, math.pow(10, y))
+
+
+'''
+Distribution Counter: contains value distribution statistics and methods for incrementing
+'''
 class DistributionAccumulator(object):
   def __init__(self):
     self.min = 0
@@ -320,17 +340,12 @@ class DistributionAccumulator(object):
     self.count = 0
     self.sum = 0
     self.sum_of_squares = 0
-    # 1,2,5 bucketing
+    '''Histogram buckets of value counts for a distribution(1,2,5 bucketing)'''
     self.buckets = []
+    '''Starting index of the first stored bucket'''
     self.first_bucket_offset = 0
+    '''There are 3 buckets for every power of ten: 1, 2, 5'''
     self.buckets_per_10 = 3
-
-  @staticmethod
-  def get_log10_round_to_floor(element):
-    ctx = Context(prec=25, rounding=ROUND_FLOOR)
-    ten = Decimal(10)
-    result = ctx.divide(Decimal(element).ln(ctx), ten.ln(ctx))
-    return result.to_integral_exact(rounding=ROUND_FLOOR)
 
   def add_input(self, element):
     if element < 0:
@@ -341,48 +356,45 @@ class DistributionAccumulator(object):
     self.sum += element
     self.sum_of_squares += math.pow(element, 2)
     bucket_index = self.calculate_bucket_index(element)
-    new_buckets = self.increment_bucket(bucket_index)
-    if not self.buckets:
+    size_of_bucket = len(self.buckets)
+    self.increment_bucket(bucket_index)
+    if size_of_bucket == 0:
       self.first_bucket_offset = bucket_index
     else:
       self.first_bucket_offset = min(self.first_bucket_offset, bucket_index)
-    self.buckets = new_buckets
 
+  '''Calculate the bucket index for the given element'''
   def calculate_bucket_index(self, element):
     if element == 0:
       return 0
-    log10_floor = self.get_log10_round_to_floor(element)
+    log10_floor = get_log10_round_to_floor(element)
     power_of_ten = math.pow(10, log10_floor)
     if element < 2 * power_of_ten:
-      bucket_offset = 0
+      bucket_offset = 0  # [0, 2)
     elif element < 5 * power_of_ten:
-      bucket_offset = 1
+      bucket_offset = 1  # [2, 5)
     else:
-      bucket_offset = 2
+      bucket_offset = 2  # [5, 10)
     return 1 + (log10_floor * self.buckets_per_10) + bucket_offset
 
+  '''
+  Incerment the bucket for the given index
+  If the bucket at the given index is already in the list, this will increment the existing value.
+  If the specified index is outside of the current bucket range, the bucket list will be extended to incorporate the new bucket
+  '''
   def increment_bucket(self, bucket_index):
-    new_buckets = []
     if not self.buckets:
-      new_buckets.append(1)
+      self.buckets.append(1)
     elif bucket_index < self.first_bucket_offset:
+      new_buckets = []
       new_buckets.append(1)
       new_buckets.extend([0 for i in range(bucket_index+1, self.first_bucket_offset)])
-      new_buckets.extend(self.buckets)
+      self.buckets = new_buckets + self.buckets
     elif bucket_index >= self.first_bucket_offset + len(self.buckets):
-      new_buckets.extend(self.buckets)
-      new_buckets.extend([0 for i in range(self.first_bucket_offset + len(self.buckets), bucket_index)])
-      new_buckets.append(1)
+      self.buckets.extend([0 for i in range(self.first_bucket_offset + len(self.buckets), bucket_index)])
+      self.buckets.append(1)
     else:
-      cur_index = self.first_bucket_offset
-      for cur_value in self.buckets:
-        if bucket_index == cur_index:
-          new_buckets.append(cur_value + 1)
-        else:
-          new_buckets.append(cur_value)
-        cur_index += 1
-    return new_buckets
-
+      self.buckets[bucket_index - self.first_bucket_offset] += 1
 
 class DistributionCounterFn(AccumulatorCombineFn):
   _accumulator_type = DistributionAccumulator
