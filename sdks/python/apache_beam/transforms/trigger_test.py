@@ -375,7 +375,7 @@ class TriggerTest(unittest.TestCase):
 
   def test_picklable_output(self):
     global_window = trigger.GlobalWindow(),
-    driver = trigger.DefaultGlobalBatchTriggerDriver()
+    driver = trigger.DiscardingGlobalTriggerDriver()
     unpicklable = (WindowedValue(k, 0, global_window)
                    for k in range(10))
     with self.assertRaises(TypeError):
