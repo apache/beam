@@ -27,14 +27,16 @@ class DirectPipelineResultTest(unittest.TestCase):
   def test_waiting_on_result_stops_executor_threads(self):
     pre_test_threads = set(t.ident for t in threading.enumerate())
 
-    pipeline = test_pipeline.TestPipeline(runner='DirectRunner')
-    _ = (pipeline | beam.Create([{'foo': 'bar'}]))
-    result = pipeline.run()
-    result.wait_until_finish()
+    for runner in ['DirectRunner', 'BundleBasedDirectRunner',
+                   'SwitchingDirectRunner']:
+      pipeline = test_pipeline.TestPipeline(runner=runner)
+      _ = (pipeline | beam.Create([{'foo': 'bar'}]))
+      result = pipeline.run()
+      result.wait_until_finish()
 
-    post_test_threads = set(t.ident for t in threading.enumerate())
-    new_threads = post_test_threads - pre_test_threads
-    self.assertEqual(len(new_threads), 0)
+      post_test_threads = set(t.ident for t in threading.enumerate())
+      new_threads = post_test_threads - pre_test_threads
+      self.assertEqual(len(new_threads), 0)
 
 
 if __name__ == '__main__':
