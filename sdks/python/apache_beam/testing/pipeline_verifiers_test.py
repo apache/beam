@@ -127,7 +127,7 @@ class PipelineVerifiersTest(unittest.TestCase):
       verifiers.FileChecksumMatcher('file_path',
                                     'expected_checksum',
                                     'invalid_sleep_time')
-    self.assertEqual(cm.exception.message,
+    self.assertEqual(cm.exception.args[0],
                      'Sleep seconds, if received, must be int. '
                      'But received: \'invalid_sleep_time\', '
                      '<type \'str\'>')

@@ -49,7 +49,7 @@ class TestUtilsTest(unittest.TestCase):
     with self.assertRaises(BeamIOError) as error:
       utils.delete_files([path])
     self.assertTrue(
-        error.exception.message.startswith('Delete operation failed'))
+        error.exception.args[0].startswith('Delete operation failed'))
     self.assertEqual(error.exception.exception_details.keys(), [path])
 
   def test_delete_files_fails_with_invalid_arg(self):
