@@ -106,15 +106,17 @@ The following are special type hints that don't correspond to a class, but rathe
 
 In addition to using type hints for type checking at pipeline construction, you can enable runtime type checking to check that actual elements satisfy the declared type constraints during pipeline execution.
 
-For example, the following code would pass at both pipeline construction and runtime.
+For example, the following pipeline emits elements of the wrong type. Depending on the runner implementation, its execution may or may not fail at runtime.
 
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:type_hints_runtime_off %}```
 
-However, if you enable runtime type checking, the code passes at pipeline construction and fails at runtime. To enable runtime type checking, set the pipeline option `runtime_type_check` to `True`.
+However, if you enable runtime type checking, the code is guaranteed to fail at runtime. To enable runtime type checking, set the pipeline option `runtime_type_check` to `True`.
 
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:type_hints_runtime_on %}```
+
+Note that because runtime type checks are done for each `PCollection` element, enabling this feature may incur a significant performance penalty. It is therefore recommended that runtime type checks are disabled for production pipelines.
 
 ## Use of Type Hints in Coders
 
