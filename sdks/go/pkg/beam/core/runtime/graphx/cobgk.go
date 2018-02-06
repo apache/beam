@@ -20,6 +20,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
@@ -96,7 +97,7 @@ func MakeGBKUnionCoder(gbk *graph.MultiEdge) *coder.Coder {
 func makeUnionCoder() *coder.Coder {
 	t := typex.New(typex.KVType, typex.New(reflectx.Int), typex.New(reflectx.ByteSlice))
 
-	c, err := coder.NewVarIntZ(reflectx.Int)
+	c, err := coderx.NewVarIntZ(reflectx.Int)
 	if err != nil {
 		panic(err)
 	}

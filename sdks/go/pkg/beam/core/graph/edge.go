@@ -333,8 +333,8 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 	isPerKey := typex.IsWCoGBK(in.Type())
 	if isPerKey {
 		// For per-key combine, the shape of the inbound type and the type of the
-		// node are different. A node type of W<CoGBK<A,B>> will become W<B> or
-		// W<KV<A,B>>, depending on whether the combineFn is keyed or not.
+		// inbound node are different: a node type of W<CoGBK<A,B>> will become W<B>
+		// or W<KV<A,B>>, depending on whether the combineFn is keyed or not.
 		// Per-key combines may omit the key in the signature. In such a case,
 		// it is ignored for the purpose of binding. The runtime will later look at
 		// these types to decide whether to add the key or not.
