@@ -104,8 +104,8 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			}
 			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
 		case reflectx.String, reflectx.ByteSlice:
-			// We handle bytes/strings equivalently because they are essentially
-			// equivalent in the language. We generally infer exact coders only.
+			// TODO(BEAM-3580): we should stop encoding string using the bytecoder. It forces
+			// conversions at runtime in inconvenient places.
 			return &coder.Coder{Kind: coder.Bytes, T: t}, nil
 		default:
 			c, err := newJSONCoder(t.Type())

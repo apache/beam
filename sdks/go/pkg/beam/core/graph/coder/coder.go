@@ -127,7 +127,7 @@ const (
 	WindowedValue Kind = "W"
 	KV            Kind = "KV"
 
-	// CoGBK is non-standard and currently equivalent to either
+	// CoGBK is currently equivalent to either
 	//
 	//     KV<X,Iterable<Y>>         (if GBK)
 	//     KV<X,Iterable<KV<int,Y>>> (if CoGBK, using a tagged union encoding)

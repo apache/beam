@@ -132,10 +132,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		}
 
 		if req.GetProcessBundle() != nil {
-			// Only process bundles in a gorutine. We need to process plan creating etc
-			// serially.
-
-			// TODO: we only actually want to invoke plan.Execute async.
+			// Only process bundles in a goroutine. We at least need to process instructions for
+			// each plan serially. Perhaps just invoke plan.Execute async?
 			go fn()
 		} else {
 			fn()

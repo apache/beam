@@ -817,7 +817,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 	}
 }
 
-// DecodeCoderRefs  extracts usable coders from the encoded runner form.
+// DecodeCoderRefs extracts usable coders from the encoded runner form.
 func DecodeCoderRefs(list []*CoderRef) ([]*coder.Coder, error) {
 	var ret []*coder.Coder
 	for _, ref := range list {

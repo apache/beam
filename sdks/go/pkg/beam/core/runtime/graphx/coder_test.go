@@ -74,6 +74,10 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			"W<CoGBK<foo,bar>>",
 			coder.NewWCoGBK([]*coder.Coder{foo, bar}, window.NewGlobalWindow()),
 		},
+		{
+			"W<CoGBK<foo,bar,baz>>",
+			coder.NewWCoGBK([]*coder.Coder{foo, bar, baz}, window.NewGlobalWindow()),
+		},
 	}
 
 	for _, test := range tests {
