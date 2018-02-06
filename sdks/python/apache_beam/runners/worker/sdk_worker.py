@@ -57,6 +57,7 @@ class SdkHarness(object):
     self._fns = {}
     self._responses = queue.Queue()
     self._process_bundle_queue = queue.Queue()
+    self._unscheduled_process_bundle = set()
     logging.info('Initializing SDKHarness with %s workers.', self._worker_count)
 
   def run(self):
@@ -147,6 +148,7 @@ class SdkHarness(object):
       work = self._process_bundle_queue.get()
       # add the instuction_id vs worker map for progress reporting lookup
       self._instruction_id_vs_worker[work.instruction_id] = worker
+      self._unscheduled_process_bundle.discard(work.instruction_id)
       try:
         self._execute(lambda: worker.do_instruction(work), work)
       finally:
@@ -157,14 +159,26 @@ class SdkHarness(object):
 
     # Create a task for each process_bundle request and schedule it
     self._process_bundle_queue.put(request)
+    self._unscheduled_process_bundle.add(request.instruction_id)
     self._process_thread_pool.submit(task)
 
   def _request_process_bundle_progress(self, request):
 
     def task():
-      self._execute(lambda: self._instruction_id_vs_worker[getattr(
-          request, request.WhichOneof('request')
-      ).instruction_reference].do_instruction(request), request)
+      instruction_reference = getattr(
+          request, request.WhichOneof('request')).instruction_reference
+      if self._instruction_id_vs_worker.has_key(instruction_reference):
+        self._execute(
+            lambda: self._instruction_id_vs_worker[
+                instruction_reference
+            ].do_instruction(request), request)
+      else:
+        self._execute(lambda: beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id, error=(
+                'Process bundle request not yet scheduled for instruction {}' if
+                instruction_reference in self._unscheduled_process_bundle else
+                'Unknown process bundle instruction {}').format(
+                    instruction_reference)), request)
 
     self._progress_thread_pool.submit(task)
 
