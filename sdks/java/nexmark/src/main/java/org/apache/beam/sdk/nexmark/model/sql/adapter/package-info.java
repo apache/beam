@@ -21,6 +21,6 @@
  */
 
 /**
- * Model adapter which contains a mapping between specific Java model to a BeamRecord.
+ * Model adapter which contains a mapping between specific Java model to a Row.
  */
 package org.apache.beam.sdk.nexmark.model.sql.adapter;

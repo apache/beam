@@ -23,7 +23,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -42,7 +42,7 @@ public class BeamSqlDateCeilExpression extends BeamSqlExpression {
         && opType(1) == SqlTypeName.SYMBOL;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
+  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     Date date = opValueEvaluated(0, inputRow, window);
     long time = date.getTime();
     TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(1)).getValue();

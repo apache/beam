@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -33,7 +33,7 @@ public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
     public void testDefaultCharsetLiteral() {
         String sql = "SELECT * FROM TABLE_A WHERE f_string = '第四行'";
 
-    PCollection<BeamRecord> result =
+    PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
             .apply("testCompositeFilter", BeamSql.queryMulti(sql));
 
@@ -46,7 +46,7 @@ public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
     public void testNationalCharsetLiteral() {
         String sql = "SELECT * FROM TABLE_A WHERE f_string = N'第四行'";
 
-    PCollection<BeamRecord> result =
+    PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
             .apply("testCompositeFilter", BeamSql.queryMulti(sql));
 

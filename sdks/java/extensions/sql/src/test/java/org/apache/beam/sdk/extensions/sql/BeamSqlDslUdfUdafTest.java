@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.sql;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
@@ -36,23 +36,23 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdaf() throws Exception {
-    BeamRecordType resultType = BeamRecordSqlType.builder()
+    RowType resultType = RowSqlType.builder()
         .withIntegerField("f_int2")
         .withIntegerField("squaresum")
         .build();
 
-    BeamRecord record = new BeamRecord(resultType, 0, 30);
+    Row record = new Row(resultType, 0, 30);
 
     String sql1 = "SELECT f_int2, squaresum1(f_int) AS `squaresum`"
         + " FROM PCOLLECTION GROUP BY f_int2";
-    PCollection<BeamRecord> result1 =
+    PCollection<Row> result1 =
         boundedInput1.apply("testUdaf1",
             BeamSql.query(sql1).withUdaf("squaresum1", new SquareSum()));
     PAssert.that(result1).containsInAnyOrder(record);
 
     String sql2 = "SELECT f_int2, squaresum2(f_int) AS `squaresum`"
         + " FROM PCOLLECTION GROUP BY f_int2";
-    PCollection<BeamRecord> result2 =
+    PCollection<Row> result2 =
         PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
             .apply("testUdaf2", BeamSql.queryMulti(sql2).withUdaf("squaresum2", new SquareSum()));
     PAssert.that(result2).containsInAnyOrder(record);
@@ -65,21 +65,21 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdf() throws Exception{
-    BeamRecordType resultType = BeamRecordSqlType.builder()
+    RowType resultType = RowSqlType.builder()
         .withIntegerField("f_int")
         .withIntegerField("cubicvalue")
         .build();
 
-    BeamRecord record = new BeamRecord(resultType, 2, 8);
+    Row record = new Row(resultType, 2, 8);
 
     String sql1 = "SELECT f_int, cubic1(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
-    PCollection<BeamRecord> result1 =
+    PCollection<Row> result1 =
         boundedInput1.apply("testUdf1",
             BeamSql.query(sql1).withUdf("cubic1", CubicInteger.class));
     PAssert.that(result1).containsInAnyOrder(record);
 
     String sql2 = "SELECT f_int, cubic2(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
-    PCollection<BeamRecord> result2 =
+    PCollection<Row> result2 =
         PCollectionTuple.of(new TupleTag<>("PCOLLECTION"), boundedInput1)
             .apply("testUdf2", BeamSql.queryMulti(sql2).withUdf("cubic2", new CubicIntegerFn()));
     PAssert.that(result2).containsInAnyOrder(record);

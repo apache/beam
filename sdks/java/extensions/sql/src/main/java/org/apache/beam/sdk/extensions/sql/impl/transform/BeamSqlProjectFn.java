@@ -24,21 +24,21 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 
 /**
  *
  * {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step.
  *
  */
-public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
+public class BeamSqlProjectFn extends DoFn<Row, Row> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
-  private BeamRecordType outputRowType;
+  private RowType outputRowType;
 
   public BeamSqlProjectFn(String stepName, BeamSqlExpressionExecutor executor,
-      BeamRecordType outputRowType) {
+      RowType outputRowType) {
     super();
     this.stepName = stepName;
     this.executor = executor;
@@ -52,14 +52,14 @@ public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
 
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
-    BeamRecord inputRow = c.element();
+    Row inputRow = c.element();
     List<Object> results = executor.execute(inputRow, window);
     List<Object> fieldsValue = new ArrayList<>(results.size());
     for (int idx = 0; idx < results.size(); ++idx) {
       fieldsValue.add(
           BeamTableUtils.autoCastField(outputRowType.getFieldCoder(idx), results.get(idx)));
     }
-    BeamRecord outRow = new BeamRecord(outputRowType, fieldsValue);
+    Row outRow = new Row(outputRowType, fieldsValue);
 
     c.output(outRow);
   }

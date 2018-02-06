@@ -24,7 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlProjectFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.calcite.plan.RelOptCluster;
@@ -59,17 +59,17 @@ public class BeamProjectRel extends Project implements BeamRelNode {
   }
 
   @Override
-  public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
+  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
       , BeamSqlEnv sqlEnv) throws Exception {
     RelNode input = getInput();
     String stageName = BeamSqlRelUtils.getStageName(this);
 
-    PCollection<BeamRecord> upstream =
+    PCollection<Row> upstream =
         BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
 
     BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(this);
 
-    PCollection<BeamRecord> projectStream = upstream.apply(stageName, ParDo
+    PCollection<Row> projectStream = upstream.apply(stageName, ParDo
         .of(new BeamSqlProjectFn(getRelTypeName(), executor,
             CalciteUtils.toBeamRowType(rowType))));
     projectStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());

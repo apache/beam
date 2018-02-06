@@ -28,7 +28,7 @@ import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -61,13 +61,13 @@ public class SqlQuery2Test {
       new Event(BIDS.get(6)),
       new Event(BIDS.get(7)));
 
-  private static final List<BeamRecord> BIDS_EVEN_RECORDS = ImmutableList.of(
+  private static final List<Row> BIDS_EVEN_RECORDS = ImmutableList.of(
       newBidRecord(BIDS.get(1)),
       newBidRecord(BIDS.get(3)),
       newBidRecord(BIDS.get(5)),
       newBidRecord(BIDS.get(7)));
 
-  private static final List<BeamRecord> BIDS_EVERY_THIRD_RECORD = ImmutableList.of(
+  private static final List<Row> BIDS_EVERY_THIRD_RECORD = ImmutableList.of(
       newBidRecord(BIDS.get(2)),
       newBidRecord(BIDS.get(5)));
 
@@ -106,8 +106,8 @@ public class SqlQuery2Test {
     return new Bid(id, 3L, 100L, 432342L + id, "extra_" + id);
   }
 
-  private static BeamRecord newBidRecord(Bid bid) {
-    return new BeamRecord(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(bid));
+  private static Row newBidRecord(Bid bid) {
+    return new Row(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(bid));
   }
 
 }

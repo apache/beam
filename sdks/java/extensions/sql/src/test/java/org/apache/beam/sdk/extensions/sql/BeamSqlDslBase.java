@@ -27,8 +27,8 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -52,21 +52,21 @@ public class BeamSqlDslBase {
   @Rule
   public ExpectedException exceptions = ExpectedException.none();
 
-  static BeamRecordType rowTypeInTableA;
-  static List<BeamRecord> recordsInTableA;
+  static RowType rowTypeInTableA;
+  static List<Row> recordsInTableA;
 
   //bounded PCollections
-  PCollection<BeamRecord> boundedInput1;
-  PCollection<BeamRecord> boundedInput2;
+  PCollection<Row> boundedInput1;
+  PCollection<Row> boundedInput2;
 
   //unbounded PCollections
-  PCollection<BeamRecord> unboundedInput1;
-  PCollection<BeamRecord> unboundedInput2;
+  PCollection<Row> unboundedInput1;
+  PCollection<Row> unboundedInput2;
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
     rowTypeInTableA =
-        BeamRecordSqlType
+        RowSqlType
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")
@@ -109,11 +109,11 @@ public class BeamSqlDslBase {
     unboundedInput2 = prepareUnboundedPCollection2();
   }
 
-  private PCollection<BeamRecord> prepareUnboundedPCollection1() {
-    TestStream.Builder<BeamRecord> values = TestStream
+  private PCollection<Row> prepareUnboundedPCollection1() {
+    TestStream.Builder<Row> values = TestStream
         .create(rowTypeInTableA.getRecordCoder());
 
-    for (BeamRecord row : recordsInTableA) {
+    for (Row row : recordsInTableA) {
       values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
       values = values.addElements(row);
     }
@@ -125,11 +125,11 @@ public class BeamSqlDslBase {
                Window.into(FixedWindows.of(Duration.standardDays(365))));
   }
 
-  private PCollection<BeamRecord> prepareUnboundedPCollection2() {
-    TestStream.Builder<BeamRecord> values = TestStream
+  private PCollection<Row> prepareUnboundedPCollection2() {
+    TestStream.Builder<Row> values = TestStream
         .create(rowTypeInTableA.getRecordCoder());
 
-    BeamRecord row = recordsInTableA.get(0);
+    Row row = recordsInTableA.get(0);
     values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
     values = values.addElements(row);
 

@@ -21,11 +21,11 @@ package org.apache.beam.sdk.extensions.sql.impl.schema;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.testing.CoderProperties;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.rel.type.RelProtoDataType;
@@ -55,18 +55,18 @@ public class BeamSqlRowCoderTest {
                 .add("col_boolean", SqlTypeName.BOOLEAN)
                 .build();
 
-    BeamRecordType beamRowType = CalciteUtils.toBeamRowType(
+    RowType beamRowType = CalciteUtils.toBeamRowType(
         protoRowType.apply(new JavaTypeFactoryImpl(
             RelDataTypeSystem.DEFAULT)));
 
     GregorianCalendar calendar = new GregorianCalendar();
     calendar.setTime(new Date());
-    BeamRecord row = new BeamRecord(beamRowType
+    Row row = new Row(beamRowType
         , Byte.valueOf("1"), Short.valueOf("1"), 1, 1L, 1.1F, 1.1
         , BigDecimal.ZERO, "hello", calendar, new Date(), true);
 
 
-    BeamRecordCoder coder = beamRowType.getRecordCoder();
+    RowCoder coder = beamRowType.getRecordCoder();
     CoderProperties.coderDecodeEncodeEqual(coder, row);
   }
 }

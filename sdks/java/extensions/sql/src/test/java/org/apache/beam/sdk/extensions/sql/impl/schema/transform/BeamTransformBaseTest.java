@@ -24,8 +24,8 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.calcite.rel.type.RelDataTypeFactory.FieldInfoBuilder;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -38,8 +38,8 @@ import org.junit.BeforeClass;
 public class BeamTransformBaseTest {
   public static DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-  public static BeamRecordType inputRowType;
-  public static List<BeamRecord> inputRows;
+  public static RowType inputRowType;
+  public static List<Row> inputRows;
 
   @BeforeClass
   public static void prepareInput() throws NumberFormatException, ParseException{
@@ -106,7 +106,7 @@ public class BeamTransformBaseTest {
   /**
    * create a {@code BeamSqlRowType} for given column metadata.
    */
-  public static BeamRecordType initTypeOfRow(List<KV<String, SqlTypeName>> columnMetadata){
+  public static RowType initTypeOfRow(List<KV<String, SqlTypeName>> columnMetadata){
     FieldInfoBuilder builder = BeamQueryPlanner.TYPE_FACTORY.builder();
     for (KV<String, SqlTypeName> cm : columnMetadata) {
       builder.add(cm.getKey(), cm.getValue());
@@ -117,7 +117,7 @@ public class BeamTransformBaseTest {
   /**
    * Create an empty row with given column metadata.
    */
-  public static BeamRecord initBeamSqlRow(List<KV<String, SqlTypeName>> columnMetadata) {
+  public static Row initBeamSqlRow(List<KV<String, SqlTypeName>> columnMetadata) {
     return initBeamSqlRow(columnMetadata, Arrays.asList());
   }
 
@@ -125,11 +125,11 @@ public class BeamTransformBaseTest {
    * Create a row with given column metadata, and values for each column.
    *
    */
-  public static BeamRecord initBeamSqlRow(List<KV<String, SqlTypeName>> columnMetadata,
+  public static Row initBeamSqlRow(List<KV<String, SqlTypeName>> columnMetadata,
       List<Object> rowValues){
-    BeamRecordType rowType = initTypeOfRow(columnMetadata);
+    RowType rowType = initTypeOfRow(columnMetadata);
 
-    return new BeamRecord(rowType, rowValues);
+    return new Row(rowType, rowValues);
   }
 
 }

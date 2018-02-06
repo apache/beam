@@ -21,7 +21,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
@@ -34,8 +34,8 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.calcite.rel.core.AggregateCall;
@@ -63,14 +63,14 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
 
   private List<AggregateCall> aggCalls;
 
-  private BeamRecordType keyType;
-  private BeamRecordType aggPartType;
-  private BeamRecordType outputType;
+  private RowType keyType;
+  private RowType aggPartType;
+  private RowType outputType;
 
-  private BeamRecordCoder inRecordCoder;
-  private BeamRecordCoder keyCoder;
-  private BeamRecordCoder aggCoder;
-  private BeamRecordCoder outRecordCoder;
+  private RowCoder inRecordCoder;
+  private RowCoder keyCoder;
+  private RowCoder aggCoder;
+  private RowCoder outRecordCoder;
 
   /**
    * This step equals to below query.
@@ -99,10 +99,10 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   public void testCountPerElementBasic() throws ParseException {
     setupEnvironment();
 
-    PCollection<BeamRecord> input = p.apply(Create.of(inputRows));
+    PCollection<Row> input = p.apply(Create.of(inputRows));
 
     // 1. extract fields in group-by key part
-    PCollection<KV<BeamRecord, BeamRecord>> exGroupByStream =
+    PCollection<KV<Row, Row>> exGroupByStream =
         input
             .apply(
                 "exGroupBy",
@@ -112,13 +112,13 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
             .setCoder(KvCoder.of(keyCoder, inRecordCoder));
 
     // 2. apply a GroupByKey.
-    PCollection<KV<BeamRecord, Iterable<BeamRecord>>> groupedStream =
+    PCollection<KV<Row, Iterable<Row>>> groupedStream =
         exGroupByStream
             .apply("groupBy", GroupByKey.create())
             .setCoder(KvCoder.of(keyCoder, IterableCoder.of(inRecordCoder)));
 
     // 3. run aggregation functions
-    PCollection<KV<BeamRecord, BeamRecord>> aggregatedStream =
+    PCollection<KV<Row, Row>> aggregatedStream =
         groupedStream
             .apply(
                 "aggregation",
@@ -127,7 +127,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
             .setCoder(KvCoder.of(keyCoder, aggCoder));
 
     //4. flat KV to a single record
-    PCollection<BeamRecord> mergedStream = aggregatedStream.apply("mergeRecord",
+    PCollection<Row> mergedStream = aggregatedStream.apply("mergeRecord",
         ParDo.of(new BeamAggregationTransforms.MergeAggregationRecord(outputType, aggCalls, -1)));
     mergedStream.setCoder(outRecordCoder);
 
@@ -394,31 +394,31 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   /**
    * expected results after {@link BeamAggregationTransforms.AggregationGroupByKeyFn}.
    */
-  private List<KV<BeamRecord, BeamRecord>> prepareResultOfAggregationGroupByKeyFn() {
+  private List<KV<Row, Row>> prepareResultOfAggregationGroupByKeyFn() {
     return Arrays.asList(
         KV.of(
-            new BeamRecord(keyType, Arrays.asList(inputRows.get(0).getInteger(0))),
+            new Row(keyType, Arrays.asList(inputRows.get(0).getInteger(0))),
             inputRows.get(0)),
         KV.of(
-            new BeamRecord(keyType, Arrays.asList(inputRows.get(1).getInteger(0))),
+            new Row(keyType, Arrays.asList(inputRows.get(1).getInteger(0))),
             inputRows.get(1)),
         KV.of(
-            new BeamRecord(keyType, Arrays.asList(inputRows.get(2).getInteger(0))),
+            new Row(keyType, Arrays.asList(inputRows.get(2).getInteger(0))),
             inputRows.get(2)),
         KV.of(
-            new BeamRecord(keyType, Arrays.asList(inputRows.get(3).getInteger(0))),
+            new Row(keyType, Arrays.asList(inputRows.get(3).getInteger(0))),
             inputRows.get(3)));
   }
 
   /**
    * expected results after {@link BeamAggregationTransforms.AggregationCombineFn}.
    */
-  private List<KV<BeamRecord, BeamRecord>> prepareResultOfAggregationCombineFn()
+  private List<KV<Row, Row>> prepareResultOfAggregationCombineFn()
       throws ParseException {
     return Arrays.asList(
         KV.of(
-            new BeamRecord(keyType, Arrays.asList(inputRows.get(0).getInteger(0))),
-            new BeamRecord(
+            new Row(keyType, Arrays.asList(inputRows.get(0).getInteger(0))),
+            new Row(
                 aggPartType,
                 Arrays.asList(
                     4L,
@@ -453,7 +453,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   /**
    * Row type of final output row.
    */
-  private BeamRecordType prepareFinalRowType() {
+  private RowType prepareFinalRowType() {
     FieldInfoBuilder builder = BeamQueryPlanner.TYPE_FACTORY.builder();
     List<KV<String, SqlTypeName>> columnMetadata =
         Arrays.asList(KV.of("f_int", SqlTypeName.INTEGER), KV.of("count", SqlTypeName.BIGINT),
@@ -487,8 +487,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest{
   /**
    * expected results after {@link BeamAggregationTransforms.MergeAggregationRecord}.
    */
-  private BeamRecord prepareResultOfMergeAggregationRecord() throws ParseException {
-    return new BeamRecord(
+  private Row prepareResultOfMergeAggregationRecord() throws ParseException {
+    return new Row(
         outputType,
         Arrays.asList(
             1,
