@@ -23,6 +23,7 @@ graph of transformations belonging to a pipeline on the local machine.
 
 from __future__ import absolute_import
 
+import itertools
 import logging
 
 from google.protobuf import wrappers_pb2
@@ -30,6 +31,7 @@ from google.protobuf import wrappers_pb2
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import typehints
+from apache_beam.internal.util import ArgumentPlaceholder
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options.pipeline_options import DirectOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -42,13 +44,92 @@ from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.transforms.core import CombinePerKey
+from apache_beam.transforms.core import CombineValuesDoFn
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import _GroupAlsoByWindow
 from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.ptransform import PTransform
 
-__all__ = ['DirectRunner']
+# Note that the BundleBasedDirectRunner and SwitchingDirectRunner names are
+# experimental and have no backwards compatibility guarantees.
+__all__ = ['BundleBasedDirectRunner',
+           'DirectRunner',
+           'SwitchingDirectRunner']
+
+
+class SwitchingDirectRunner(PipelineRunner):
+  """Executes a single pipeline on the local machine.
+
+  This implementation switches between using the FnApiRunner (which has
+  high throughput for batch jobs) and using the BundleBasedDirectRunner,
+  which supports streaming execution and certain primitives not yet
+  implemented in the FnApiRunner.
+  """
+
+  def run_pipeline(self, pipeline):
+    use_fnapi_runner = True
+
+    # Streaming mode is not yet supported on the FnApiRunner.
+    if pipeline.options.view_as(StandardOptions).streaming:
+      use_fnapi_runner = False
+
+    from apache_beam.pipeline import PipelineVisitor
+    from apache_beam.runners.common import DoFnSignature
+    from apache_beam.runners.dataflow.native_io.iobase import NativeSource
+    from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite
+    from apache_beam.testing.test_stream import TestStream
+
+    class _FnApiRunnerSupportVisitor(PipelineVisitor):
+      """For internal use only; no backwards-compatibility guarantees.
+
+      Visitor for determining whether a Pipeline can be run on the FnApiRunner.
+      """
+
+      def __init__(self):
+        self.supported_by_fnapi_runner = True
+
+      def visit_transform(self, applied_ptransform):
+        transform = applied_ptransform.transform
+        # The FnApiRunner does not support streaming execution.
+        if isinstance(transform, TestStream):
+          self.supported_by_fnapi_runner = False
+        # The FnApiRunner does not support reads from NativeSources.
+        if (isinstance(transform, beam.io.Read) and
+            isinstance(transform.source, NativeSource)):
+          self.supported_by_fnapi_runner = False
+        # The FnApiRunner does not support the use of _NativeWrites.
+        if isinstance(transform, _NativeWrite):
+          self.supported_by_fnapi_runner = False
+        if isinstance(transform, beam.ParDo):
+          dofn = transform.dofn
+          # The FnApiRunner does not support execution of SplittableDoFns.
+          if DoFnSignature(dofn).is_splittable_dofn():
+            self.supported_by_fnapi_runner = False
+          # The FnApiRunner does not support execution of CombineFns with
+          # deferred side inputs.
+          if isinstance(dofn, CombineValuesDoFn):
+            args, kwargs = transform.raw_side_inputs
+            args_to_check = itertools.chain(args,
+                                            kwargs.values())
+            if any(isinstance(arg, ArgumentPlaceholder)
+                   for arg in args_to_check):
+              self.supported_by_fnapi_runner = False
+
+    # Check whether all transforms used in the pipeline are supported by the
+    # FnApiRunner.
+    visitor = _FnApiRunnerSupportVisitor()
+    pipeline.visit(visitor)
+    if not visitor.supported_by_fnapi_runner:
+      use_fnapi_runner = False
+
+    if use_fnapi_runner:
+      from apache_beam.runners.portability.fn_api_runner import FnApiRunner
+      runner = FnApiRunner()
+    else:
+      runner = BundleBasedDirectRunner()
+
+    return runner.run_pipeline(pipeline)
 
 
 # Type variables.
@@ -237,7 +318,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
   return [ReadStringsFromPubSubOverride(), WriteStringsToPubSubOverride()]
 
 
-class DirectRunner(PipelineRunner):
+class BundleBasedDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 
   def __init__(self):
@@ -287,6 +368,10 @@ class DirectRunner(PipelineRunner):
     result = DirectPipelineResult(executor, evaluation_context)
 
     return result
+
+
+# Use the BundleBasedDirectRunner as the default.
+DirectRunner = BundleBasedDirectRunner
 
 
 class DirectPipelineResult(PipelineResult):
