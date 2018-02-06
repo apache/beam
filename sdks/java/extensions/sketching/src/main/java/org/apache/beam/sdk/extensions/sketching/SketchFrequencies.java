@@ -98,16 +98,15 @@ import org.apache.beam.sdk.values.PCollection;
  *       advanced processing involving the Count-Min sketch.
  * </ul>
  *
- * <h3>Example 1: simple default use</h3>
+ * <h3>Example 1: default use</h3>
  *
- * <p>The simplest use is simply to call the {@link #globally()} or {@link #perKey()} method in
+ * <p>The simplest use is to call the {@link #globally()} or {@link #perKey()} method in
  * order to retrieve the sketch with an estimate number of hits for each element in the stream.
  *
  * <pre><code>
  * {@literal PCollection<MyObject>} pc = ...;
  * {@literal PCollection<CountMinSketch>} countMinSketch = pc.apply(SketchFrequencies
  * {@literal        .<MyObject>}globally()); //{@literal .<MyObject>}perKey();
- * }
  * </code></pre>
  *
  * <h3>Example 2: tune accuracy parameters</h3>
@@ -124,7 +123,6 @@ import org.apache.beam.sdk.values.PCollection;
  * {@literal  .<MyObject>}globally() //{@literal .<MyObject>}perKey()
  *            .withRelativeError(eps)
  *            .withConfidence(conf));
- * }
  * </code></pre>
  *
  * <h3>Example 3: query the resulting sketch</h3>
@@ -153,9 +151,8 @@ import org.apache.beam.sdk.values.PCollection;
  *           public void procesElement(ProcessContext c) {
  *             Long elem = c.element();
  *             CountMinSketch sketch = c.sideInput(sketchView);
- *             sketch.estimateCount(elem, coder);
+ *             c.output(sketch.estimateCount(elem, coder));
  *            }}).withSideInputs(sketchView));
- * }
  * </code></pre>
  *
  * <h3>Example 4: Using the CombineFn</h3>
@@ -175,7 +172,6 @@ import org.apache.beam.sdk.values.PCollection;
  * {@literal PCollection<CountMinSketch>} output = input.apply(Combine.globally(CountMinSketchFn
  * {@literal    .<MyObject>}create(new MyObjectCoder())
  *              .withAccuracy(eps, conf)));
- * }
  * </code></pre>
  *
  * <p><b>Warning: this class is experimental.</b> <br>
@@ -328,7 +324,7 @@ public final class SketchFrequencies {
     }
 
     /**
-     * Returns an {@link CountMinSketchFn} combiner with the given input coder. <br>
+     * Returns a {@link CountMinSketchFn} combiner with the given input coder. <br>
      * <b>Warning :</b> the coder must be deterministic.
      *
      * @param coder the coder that encodes the elements' type
