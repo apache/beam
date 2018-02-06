@@ -389,6 +389,14 @@ ext.applyGoNature = {
     goVersion = '1.9'
   }
 
+  repositories {
+    golang {
+      // Gogradle doesn't like thrift: https://github.com/gogradle/gogradle/issues/183
+      root 'git.apache.org/thrift.git'
+      emptyDir()
+    }
+  }
+
   // GoGradle fails in a parallel build during dependency resolution/installation.
   // Force a dependency between all GoGradle projects during dependency resolution/installation.
   // TODO: Figure out how to do this by automatically figuring out the task dependency DAG
