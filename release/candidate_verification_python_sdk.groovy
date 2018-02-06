@@ -10,7 +10,7 @@ import TestScripts
  * 4. Run Wordcount examples with DirectRunner
  * 5. Run Wordcount examples with DataflowRunner
  * 6. TODO: Run streaming wordcount on DirectRunner and (verify results, how?)
- * 7. TODO: ...
+ * 7. TODO: Run streaming wordcount on DataflowRunner
  */
 
 def t = new TestScripts()
@@ -73,7 +73,7 @@ println()
 * 5. Run wordcount with DataflowRunner
 *
 * */
-cmd.setLength(0) // clear the cmd buffer
+/*cmd.setLength(0) // clear the cmd buffer
 cmd.append("python -m apache_beam.examples.wordcount ")
     .append("--output gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT} ")
     .append("--staging_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
@@ -88,21 +88,119 @@ println("Running wordcount example with DataflowRunner with command:")
 println(cmd.toString())
 println("----------------------------------------------------------------")
 t.run(cmd.toString())
-//TODO: verify results.
+// verify results.
+t.run("gsutil ls gs://${ReleaseConfiguration.BUCKET_NAME}")
+4.times {
+  t.see("gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT}-0000${it}-of-00004")
+} */
+
+/*
+* 6. Run Streaming wordcount with DirectRunner
+*
+* */
+// create pubsub topics (Note that if toipics already exist, there will be errors when running these commands, TODO: error catch)
+create_pubsub(t)
+println 'c'
+
+cmd.setLength(0) // clear the cmd buffer
+cmd.append("python -m apache_beam.examples.streaming_wordcount ")
+.append("--input_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC1} ")
+.append("--output_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC2} ")
+.append("--streaming")
+
+println("----------------------------------------------------------------")
+println("Running Streaming wordcount example with DirectRunner with command:")
+println(cmd.toString())
+println("----------------------------------------------------------------")
+def streaming_wordcount_thread = Thread.start(){
+  t.run(cmd.toString())
+}
+
+t.run("sleep 15")
+// verify result
+run_pubsub_publish(t)
+run_pubsub_pull(t)
+
+t.see("like: 1")
+streaming_wordcount_thread.stop()
+println 'e'
 
 
 /*
-* TODO: 6. Run Streaming wordcount with DirectRunner
-*
+ * 7. Run Streaming Wordcount with DataflowRunner
+
 * */
+cmd.setLength(0) //clear the cmd buffer
+cmd.append("python -m apache_beam.examples.streaming_wordcount ")
+    .append("--streaming ")
+    .append("--job_name pyflow-wordstream-candidate ")
+    .append("runner DataflowRunner ")
+    .append("--input_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC1} ")
+    .append("--output_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC2} ")
+    .append("--staging_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
+    .append("--temp_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
+    .append("--num_workers ${ReleaseConfiguration.NUM_WORKERS} ")
+    .append("--sdk_location dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz ")
+
+println("----------------------------------------------------------------")
+println("Running Streaming wordcount example with DirectRunner with command:")
+println(cmd.toString())
+println("----------------------------------------------------------------")
+def streaming_wordcount_dataflow_thread = Thread.start(){
+  t.run(cmd.toString())
+}
+t.run("sleep 15")
+
+// verify result
+run_pubsub_publish(t)
+run_pubsub_pull(t)
+
+t.see("like: 1")
+streaming_wordcount_dataflow_thread.stop()
+println 'e2'
+
+
+
+// clean up pubsub topics and subscription
+cleanup_pubsub(t)
+
+println '*********************************'
+println 'Verification Complete'
+println '*********************************'
+t.done()
 
 
 
 
 
+private void run_pubsub_publish(TestScripts t){
+    def words = ["hello world!", "I like cats!", "Python", "hello Python", "hello Python"]
+    words.each {
+      t.run("gcloud alpha pubsub topics publish ${ReleaseConfiguration.PUBSUB_TOPIC1} \"${it}\"")
+  }
+    t.run("sleep 15")
+}
 
+private void run_pubsub_pull(TestScripts t){
+    t.run("gcloud alpha pubsub subscriptions pull --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_SUBSCRIPTION} --limit=100 --auto-ack")
+}
+private void create_pubsub(TestScripts t){
+    t.run("gcloud alpha pubsub topics create --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_TOPIC1}")
+    t.run("gcloud alpha pubsub topics create --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_TOPIC2}")
+    t.run("gcloud alpha pubsub subscriptions create --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_SUBSCRIPTION} --topic ${ReleaseConfiguration.PUBSUB_TOPIC2}")
+}
 
+private void cleanup_pubsub(TestScripts t){
+    t.run("gcloud alpha pubsub topics delete --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_TOPIC1}")
+    t.run("gcloud alpha pubsub topics delete --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_TOPIC2}")
+    t.run("gcloud alpha pubsub subscriptions delete --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_SUBSCRIPTION}")
+}
 
-
-
-
+private void print_separator(String description, String cmd=''){
+    println("----------------------------------------------------------------")
+    println(description)
+    if(cmd.length() > 0){
+    	println(cmd.toString())
+    }
+    println("----------------------------------------------------------------")
+}

@@ -17,5 +17,7 @@ class ReleaseConfiguration {
     static final int NUM_WORKERS              = 1
     static final String GAME_DATA             = '5000_gaming_data.csv'
     static final String WORDCOUNT_OUTPUT      = 'wordcount_direct.txt'
-
+    static final String PUBSUB_TOPIC1         = 'wordstream-python-topic-1'
+    static final String PUBSUB_TOPIC2         = 'wordstream-python-topic-2'
+    static final String PUBSUB_SUBSCRIPTION   = 'wordstream-python-sub2'
 }
