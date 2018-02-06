@@ -21,6 +21,7 @@ import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInA
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -30,12 +31,13 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -398,6 +400,7 @@ public class CoGroupByKeyTest implements Serializable {
    */
   @SuppressWarnings("unchecked")
   @Test
+  @Category(NeedsRunner.class)
   public void testConsumingDoFn() throws Exception {
     TupleTag<String> purchasesTag = new TupleTag<>();
     TupleTag<String> addressesTag = new TupleTag<>();
@@ -424,19 +427,30 @@ public class CoGroupByKeyTest implements Serializable {
             .and(addressesTag, Arrays.asList("8a"))
             .and(namesTag, new ArrayList<>());
 
-    List<KV<String, Integer>> results =
-        DoFnTester.of(
-            new CorrelatePurchaseCountForAddressesWithoutNamesFn(
-                purchasesTag,
-                addressesTag,
-                namesTag))
-                .processBundle(
-                    KV.of(1, result1),
-                    KV.of(2, result2),
-                    KV.of(3, result3),
-                    KV.of(4, result4));
+    KvCoder<Integer, CoGbkResult> coder = KvCoder.of(
+        VarIntCoder.of(),
+        CoGbkResult.CoGbkResultCoder.of(
+            CoGbkResultSchema.of(
+                ImmutableList.of(purchasesTag, addressesTag, namesTag)),
+            UnionCoder.of(
+                ImmutableList.of(
+                    StringUtf8Coder.of(),
+                    StringUtf8Coder.of(),
+                    StringUtf8Coder.of()))));
 
-    assertThat(results, containsInAnyOrder(KV.of("4a", 2), KV.of("8a", 0)));
+    PCollection<KV<String, Integer>> results =
+        p.apply(
+                Create.of(
+                        KV.of(1, result1), KV.of(2, result2), KV.of(3, result3), KV.of(4, result4))
+                    .withCoder(coder))
+            .apply(
+                ParDo.of(
+                    new CorrelatePurchaseCountForAddressesWithoutNamesFn(
+                        purchasesTag, addressesTag, namesTag)));
+
+    PAssert.that(results).containsInAnyOrder(KV.of("4a", 2), KV.of("8a", 0));
+
+    p.run();
   }
 
   /**
