@@ -529,6 +529,7 @@ public class BigQueryIO {
       abstract Builder<T> setUseLegacySql(Boolean useLegacySql);
       abstract Builder<T> setWithTemplateCompatibility(Boolean useTemplateCompatibility);
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
+      abstract Builder<T> setPriority(Priority priority);
       abstract TypedRead<T> build();
 
       abstract Builder<T> setParseFn(
@@ -548,7 +549,35 @@ public class BigQueryIO {
 
     abstract SerializableFunction<SchemaAndRecord, T> getParseFn();
 
+    @Nullable abstract Priority getPriority();
+
     @Nullable abstract Coder<T> getCoder();
+
+    /**
+    * An enumeration type for the priority of a query.
+    *
+    * @see
+    * <a href="https://cloud.google.com/bigquery/docs/running-queries">
+    *     Running Interactive and Batch Queries in the BigQuery documentation</a>
+    */
+    public enum Priority {
+        /**
+        * Specifies that a query should be run with an INTERACTIVE priority.
+        *
+        * <p>Interactive mode allows for BigQuery to execute the query as soon as possible. These
+        * queries count towards your concurrent rate limit and your daily limit.
+        */
+        INTERACTIVE,
+
+        /**
+        * Specifies that a query should be run with a BATCH priority.
+        *
+        * <p>Batch mode queries are queued by BigQuery.  These are started as soon as idle
+        * resources are available, usually within a few minutes. Batch queries don’t count
+        * towards your concurrent rate limit.
+        */
+        BATCH
+    }
 
     @VisibleForTesting
     Coder<T> inferCoder(CoderRegistry coderRegistry) {
@@ -583,7 +612,8 @@ public class BigQueryIO {
                 getUseLegacySql(),
                 getBigQueryServices(),
                 coder,
-                getParseFn());
+                getParseFn(),
+                getPriority());
       }
       return source;
     }
@@ -882,7 +912,17 @@ public class BigQueryIO {
       return toBuilder().setUseLegacySql(false).build();
     }
 
-    /** See {@link Read#withTemplateCompatibility()}. */
+    /** See {@link Priority#INTERACTIVE}. */
+    public TypedRead<T> usingInteractivePriority() {
+      return toBuilder().setPriority(Priority.INTERACTIVE).build();
+    }
+
+    /** See {@link Priority#BATCH}. */
+    public TypedRead<T> usingBatchPriority() {
+      return toBuilder().setPriority(Priority.BATCH).build();
+    }
+
+    /** See {@link TypedRead#withTemplateCompatibility()}. */
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withTemplateCompatibility() {
       return toBuilder().setWithTemplateCompatibility(true).build();
