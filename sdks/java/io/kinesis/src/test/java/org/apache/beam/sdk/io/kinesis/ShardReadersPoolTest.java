@@ -35,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -158,6 +159,7 @@ public class ShardReadersPoolTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-3599")
   public void shouldInterruptPuttingRecordsToQueueAndStopShortly()
       throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch()).thenReturn(asList(a, b, c));
@@ -230,6 +232,7 @@ public class ShardReadersPoolTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-3598")
   public void shouldStopReadersPoolAlsoWhenExceptionsOccurDuringStopping() throws Exception {
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
     when(firstIterator.findSuccessiveShardRecordIterators())
@@ -256,6 +259,7 @@ public class ShardReadersPoolTest {
   }
 
   @Test
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-3605")
   public void shouldForgetClosedShardIterator() throws Exception {
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
     when(firstIterator.findSuccessiveShardRecordIterators())
