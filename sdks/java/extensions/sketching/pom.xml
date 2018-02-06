@@ -39,11 +39,18 @@
       <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
-    <!-- Library containing sketches' implementation -->
+    <!-- Library containing sketches' implementations -->
     <dependency>
       <groupId>com.clearspring.analytics</groupId>
       <artifactId>stream</artifactId>
       <version>${streamlib.version}</version>
+    </dependency>
+
+    <!-- Ted Dunning's library for t-digest implementation -->
+    <dependency>
+      <groupId>com.tdunning</groupId>
+      <artifactId>t-digest</artifactId>
+      <version>3.2</version>
     </dependency>
 
     <dependency>
