@@ -908,7 +908,7 @@ public class DoFnSignatures {
       List<String> allowedParamTypes =
           Arrays.asList(
               formatType(new TypeDescriptor<BoundedWindow>() {}),
-              formatType(new TypeDescriptor<RestrictionTracker<?>>() {}));
+              formatType(new TypeDescriptor<RestrictionTracker<?, ?>>() {}));
       paramErrors.throwIllegalArgument(
           "%s is not a valid context parameter. Should be one of %s",
           formatType(paramT), allowedParamTypes);
@@ -1131,9 +1131,9 @@ public class DoFnSignatures {
    * RestrictionT}.
    */
   private static <RestrictionT>
-      TypeDescriptor<RestrictionTracker<RestrictionT>> restrictionTrackerTypeOf(
+      TypeDescriptor<RestrictionTracker<RestrictionT, ?>> restrictionTrackerTypeOf(
           TypeDescriptor<RestrictionT> restrictionT) {
-    return new TypeDescriptor<RestrictionTracker<RestrictionT>>() {}.where(
+    return new TypeDescriptor<RestrictionTracker<RestrictionT, ?>>() {}.where(
         new TypeParameter<RestrictionT>() {}, restrictionT);
   }
 

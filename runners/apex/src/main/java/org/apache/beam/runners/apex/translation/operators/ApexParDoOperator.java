@@ -474,7 +474,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
           (StateInternalsFactory<String>) this.currentKeyStateInternals.getFactory();
 
       @SuppressWarnings({ "rawtypes", "unchecked" })
-      ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object>>
+      ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object, Object>>
         splittableDoFn = (ProcessFn) doFn;
       splittableDoFn.setStateInternalsFactory(stateInternalsFactory);
       TimerInternalsFactory<String> timerInternalsFactory = key -> currentKeyTimerInternals;
