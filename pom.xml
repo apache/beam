@@ -1681,6 +1681,7 @@
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <runOrder>random</runOrder>
             <argLine>${beamSurefireArgline}</argLine>
           </configuration>
           <dependencies>
