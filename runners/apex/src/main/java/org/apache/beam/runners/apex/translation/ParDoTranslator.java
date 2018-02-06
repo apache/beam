@@ -117,7 +117,7 @@ class ParDoTranslator<InputT, OutputT>
   }
 
   static class SplittableProcessElementsTranslator<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, TrackerT>> {
 
     @Override
