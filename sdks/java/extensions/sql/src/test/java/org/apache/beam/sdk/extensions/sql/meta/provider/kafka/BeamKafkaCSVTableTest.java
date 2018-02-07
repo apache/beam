@@ -30,10 +30,8 @@ import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -41,17 +39,18 @@ import org.junit.Test;
  * Test for BeamKafkaCSVTable.
  */
 public class BeamKafkaCSVTableTest {
-  @Rule
-  public TestPipeline pipeline = TestPipeline.create();
-  public static BeamRecord row1;
-  public static BeamRecord row2;
+  @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  @BeforeClass
-  public static void setUp() {
-    row1 = new BeamRecord(genRowType(), 1L, 1, 1.0);
+  private static final BeamRecord ROW1 =
+      BeamRecord
+          .withRecordType(genRowType())
+          .addValues(1L, 1, 1.0)
+          .build();
 
-    row2 = new BeamRecord(genRowType(), 2L, 2, 2.0);
-  }
+  private static final BeamRecord ROW2 =
+      BeamRecord.withRecordType(genRowType())
+          .addValues(2L, 2, 2.0)
+          .build();
 
   @Test public void testCsvRecorderDecoder() throws Exception {
     PCollection<BeamRecord> result = pipeline
@@ -63,7 +62,7 @@ public class BeamKafkaCSVTableTest {
             new BeamKafkaCSVTable.CsvRecorderDecoder(genRowType(), CSVFormat.DEFAULT)
         );
 
-    PAssert.that(result).containsInAnyOrder(row1, row2);
+    PAssert.that(result).containsInAnyOrder(ROW1, ROW2);
 
     pipeline.run();
   }
@@ -71,7 +70,7 @@ public class BeamKafkaCSVTableTest {
   @Test public void testCsvRecorderEncoder() throws Exception {
     PCollection<BeamRecord> result = pipeline
         .apply(
-            Create.of(row1, row2)
+            Create.of(ROW1, ROW2)
         )
         .apply(
             new BeamKafkaCSVTable.CsvRecorderEncoder(genRowType(), CSVFormat.DEFAULT)
@@ -79,21 +78,18 @@ public class BeamKafkaCSVTableTest {
             new BeamKafkaCSVTable.CsvRecorderDecoder(genRowType(), CSVFormat.DEFAULT)
         );
 
-    PAssert.that(result).containsInAnyOrder(row1, row2);
+    PAssert.that(result).containsInAnyOrder(ROW1, ROW2);
 
     pipeline.run();
   }
 
   private static BeamRecordType genRowType() {
     return CalciteUtils.toBeamRowType(
-        ((RelProtoDataType)
-                a0 ->
-                    a0.builder()
-                        .add("order_id", SqlTypeName.BIGINT)
-                        .add("site_id", SqlTypeName.INTEGER)
-                        .add("price", SqlTypeName.DOUBLE)
-                        .build())
-            .apply(BeamQueryPlanner.TYPE_FACTORY));
+        BeamQueryPlanner.TYPE_FACTORY.builder()
+            .add("order_id", SqlTypeName.BIGINT)
+            .add("site_id", SqlTypeName.INTEGER)
+            .add("price", SqlTypeName.DOUBLE)
+            .build());
   }
 
   private static class String2KvBytes extends DoFn<String, KV<byte[], byte[]>>

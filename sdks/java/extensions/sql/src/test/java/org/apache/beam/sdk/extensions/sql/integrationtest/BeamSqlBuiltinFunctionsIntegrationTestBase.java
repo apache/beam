@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
+
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
@@ -27,7 +30,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
@@ -47,7 +49,7 @@ import org.junit.Rule;
  */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   private static final Map<Class, SqlTypeCoder> JAVA_CLASS_TO_CODER = ImmutableMap
-      .<Class, SqlTypeCoder> builder()
+      .<Class, SqlTypeCoder>builder()
       .put(Byte.class, SqlTypeCoders.TINYINT)
       .put(Short.class, SqlTypeCoders.SMALLINT)
       .put(Integer.class, SqlTypeCoders.INTEGER)
@@ -151,20 +153,19 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       PCollection<BeamRecord> inputCollection = getTestPCollection();
       System.out.println("SQL:>\n" + getSql());
       try {
-        List<String> names = new ArrayList<>();
-        List<Coder> coders = new ArrayList<>();
-        List<Object> values = new ArrayList<>();
+        BeamRecordType recordType =
+            exps.stream()
+                .map(exp -> BeamRecordType.newField(
+                    exp.getKey(),
+                    JAVA_CLASS_TO_CODER.get(exp.getValue().getClass())))
+                .collect(toRecordType());
 
-        for (Pair<String, Object> pair : exps) {
-          names.add(pair.getKey());
-          coders.add(JAVA_CLASS_TO_CODER.get(pair.getValue().getClass()));
-          values.add(pair.getValue());
-        }
+        List<Object> values = exps.stream().map(Pair::getValue).collect(toList());
 
         PCollection<BeamRecord> rows = inputCollection.apply(BeamSql.query(getSql()));
         PAssert.that(rows).containsInAnyOrder(
             TestUtils.RowsBuilder
-                .of(new BeamRecordType(names, coders))
+                .of(recordType)
                 .addRows(values)
                 .getRows()
         );

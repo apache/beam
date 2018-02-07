@@ -17,8 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
+
 import com.google.common.collect.ImmutableList;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
 
@@ -41,12 +42,10 @@ public class BeamRecordSqlType {
    */
   public static class Builder {
 
-    private ImmutableList.Builder<String> fieldNames;
-    private ImmutableList.Builder<Coder> fieldCoders;
+    private ImmutableList.Builder<BeamRecordType.Field> fields;
 
     public Builder withField(String fieldName, SqlTypeCoder fieldCoder) {
-      fieldNames.add(fieldName);
-      fieldCoders.add(fieldCoder);
+      fields.add(BeamRecordType.newField(fieldName, fieldCoder));
       return this;
     }
 
@@ -103,12 +102,11 @@ public class BeamRecordSqlType {
     }
 
     private Builder() {
-      this.fieldNames = ImmutableList.builder();
-      this.fieldCoders = ImmutableList.builder();
+      this.fields = ImmutableList.builder();
     }
 
     public BeamRecordType build() {
-      return new BeamRecordType(fieldNames.build(), fieldCoders.build());
+      return fields.build().stream().collect(toRecordType());
     }
   }
 }
