@@ -23,9 +23,9 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.ByteString;
+import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.internal.ServerImpl;
 import io.grpc.stub.StreamObserver;
 import java.io.File;
 import java.io.FileInputStream;
@@ -54,7 +54,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
   private ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stub;
 
   private LocalFileSystemArtifactStagerService stager;
-  private ServerImpl server;
+  private Server server;
 
   @Before
   public void setup() throws Exception {
