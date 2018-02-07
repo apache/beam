@@ -57,9 +57,6 @@ public class BeamSqlDatetimeMinusExpressionTest {
   private static final BeamSqlPrimitive STRING = BeamSqlPrimitive.of(
       SqlTypeName.VARCHAR, "hello");
 
-  private static final BeamSqlPrimitive INTERVAL_3_MONTHS = BeamSqlPrimitive.of(
-      SqlTypeName.INTERVAL_MONTH, TimeUnit.MONTH.multiplier.multiply(new BigDecimal(3)));
-
   @Test public void testOutputType() {
     BeamSqlDatetimeMinusExpression minusExpression1 =
         minusExpression(SqlTypeName.TIMESTAMP, TIMESTAMP, INTERVAL_2_SEC);

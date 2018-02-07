@@ -37,7 +37,6 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.StreamingOptions;
-import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.StreamingIT;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -59,8 +58,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** End-to-end integration test of {@link WindowedWordCount}. */
 @RunWith(JUnit4.class)
@@ -193,8 +190,6 @@ public class WindowedWordCountIT {
    */
   private static class WordCountsMatcher extends TypeSafeMatcher<PipelineResult>
       implements SerializableMatcher<PipelineResult> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(FileChecksumMatcher.class);
 
     private final SortedMap<String, Long> expectedWordCounts;
     private final List<ShardedFile> outputFiles;

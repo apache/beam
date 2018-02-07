@@ -61,8 +61,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Writes partitions to BigQuery tables.
@@ -79,7 +77,6 @@ import org.slf4j.LoggerFactory;
 class WriteTables<DestinationT>
   extends PTransform<PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
     PCollection<KV<TableDestination, String>>> {
-  private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
