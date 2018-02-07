@@ -401,33 +401,6 @@ ext.applyGoNature = {
     }
   }
 
-  // GoGradle fails in a parallel build during dependency resolution/installation.
-  // Force a dependency between all GoGradle projects during dependency resolution/installation.
-  // TODO: Figure out how to do this by automatically figuring out the task dependency DAG
-  // based upon task type.
-  List<String> goProjects = [
-      ":sdks:go",
-      ":runners:gcp:gcemd",
-      ":runners:gcp:gcsproxy",
-      ":sdks:python:container",
-      ":sdks:java:container",
-  ]
-  if (!goProjects.contains(project.path)) {
-    throw new GradleException(project.path + " has not been defined within the list of well known go projects within build_rules.gradle.")
-  }
-  int index = goProjects.indexOf(project.path)
-  if (index != 0) {
-    String previous = goProjects.get(index - 1)
-    println "Forcing: '" + previous + "' to be evaulated before '" + project.path + "'"
-    evaluationDependsOn(previous)
-    afterEvaluate {
-      println "Forcing: '" + project.path + ":resolveBuildDependencies' must run after '" + previous + ":installDependencies'"
-      tasks.getByPath(project.path + ":resolveBuildDependencies").mustRunAfter tasks.getByPath(previous + ":installDependencies")
-      println "Forcing: '" + project.path + ":resolveTestDependencies' must run after '" + previous + ":installDependencies'"
-      tasks.getByPath(project.path + ":resolveTestDependencies").mustRunAfter tasks.getByPath(previous + ":installDependencies")
-    }
-  }
-
   idea {
     module {
       // The gogradle plugin downloads all dependencies into the source tree here,
