@@ -139,7 +139,7 @@ class WriteTables<DestinationT>
         tableReference.setProjectId(
             c.getPipelineOptions().as(BigQueryOptions.class).getProject());
         tableDestination = new TableDestination(
-            tableReference, tableDestination.getTableDescription(),tableDestination.getTimePartitioning());
+            tableReference, tableDestination.getTableDescription(), tableDestination.getTimePartitioning());
       }
 
       Integer partition = c.element().getKey().getShardNumber();
