@@ -366,6 +366,7 @@ public abstract class DoFnSignature {
     public abstract static class OnTimerContextParameter extends Parameter {
       OnTimerContextParameter() {}
     }
+
     /**
      * Descriptor for a {@link Parameter} of type {@link BoundedWindow}.
      *

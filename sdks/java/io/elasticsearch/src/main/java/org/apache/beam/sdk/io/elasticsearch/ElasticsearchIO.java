@@ -858,6 +858,7 @@ public class ElasticsearchIO {
       }
     }
   }
+
   static int getBackendVersion(ConnectionConfiguration connectionConfiguration) {
     try (RestClient restClient = connectionConfiguration.createClient()) {
       Response response = restClient.performRequest("GET", "");

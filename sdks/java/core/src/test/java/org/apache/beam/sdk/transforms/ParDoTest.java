@@ -144,6 +144,7 @@ public class ParDoTest implements Serializable {
           + ":" + window.maxTimestamp().getMillis());
     }
   }
+
   static class TestNoOutputDoFn extends DoFn<Integer, String> {
     @ProcessElement
     public void processElement(DoFn<Integer, String>.ProcessContext c) throws Exception {}
