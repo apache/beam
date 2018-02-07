@@ -77,6 +77,8 @@ import com.amazonaws.services.kinesis.model.StopStreamEncryptionResult;
 import com.amazonaws.services.kinesis.model.StreamDescription;
 import com.amazonaws.services.kinesis.model.UpdateShardCountRequest;
 import com.amazonaws.services.kinesis.model.UpdateShardCountResult;
+import com.amazonaws.services.kinesis.producer.IKinesisProducer;
+import com.amazonaws.services.kinesis.producer.KinesisProducerConfiguration;
 import com.amazonaws.services.kinesis.waiters.AmazonKinesisWaiters;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -127,6 +129,11 @@ class AmazonKinesisMock implements AmazonKinesis {
     public int hashCode() {
       return reflectionHashCode(this);
     }
+
+    @Override public String toString() {
+      return "TestData{" + "data='" + data + '\'' + ", arrivalTimestamp=" + arrivalTimestamp
+          + ", sequenceNumber='" + sequenceNumber + '\'' + '}';
+    }
   }
 
   static class Provider implements AWSClientsProvider {
@@ -152,6 +159,10 @@ class AmazonKinesisMock implements AmazonKinesis {
     @Override
     public AmazonCloudWatch getCloudWatchClient() {
       return Mockito.mock(AmazonCloudWatch.class);
+    }
+
+    @Override public IKinesisProducer createKinesisProducer(KinesisProducerConfiguration config) {
+      throw new RuntimeException("Not implemented");
     }
   }
 
