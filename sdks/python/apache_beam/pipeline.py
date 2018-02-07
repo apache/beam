@@ -246,6 +246,11 @@ class Pipeline(object):
           self.pipeline._remove_labels_recursively(original_transform_node)
 
           new_output = replacement_transform.expand(input_node)
+
+          new_output.element_type = None
+          self.pipeline._infer_result_type(replacement_transform, inputs,
+                                           new_output)
+
           replacement_transform_node.add_output(new_output)
           if not new_output.producer:
             new_output.producer = replacement_transform_node
@@ -484,29 +489,8 @@ class Pipeline(object):
       # being the real producer of the result.
       if result.producer is None:
         result.producer = current
-      # TODO(robertwb): Multi-input, multi-output inference.
-      # TODO(robertwb): Ideally we'd do intersection here.
-      if (type_options is not None and type_options.pipeline_type_check
-          and isinstance(result, pvalue.PCollection)
-          and not result.element_type):
-        input_element_type = (
-            inputs[0].element_type
-            if len(inputs) == 1
-            else typehints.Any)
-        type_hints = transform.get_type_hints()
-        declared_output_type = type_hints.simple_output_type(transform.label)
-        if declared_output_type:
-          input_types = type_hints.input_types
-          if input_types and input_types[0]:
-            declared_input_type = input_types[0][0]
-            result.element_type = typehints.bind_type_variables(
-                declared_output_type,
-                typehints.match_type_variables(declared_input_type,
-                                               input_element_type))
-          else:
-            result.element_type = declared_output_type
-        else:
-          result.element_type = transform.infer_output_type(input_element_type)
+
+      self._infer_result_type(transform, inputs, result)
 
       assert isinstance(result.producer.inputs, tuple)
       current.add_output(result)
@@ -522,6 +506,33 @@ class Pipeline(object):
     current.update_input_refcounts()
     self.transforms_stack.pop()
     return pvalueish_result
+
+  def _infer_result_type(self, transform, inputs, result_pcollection):
+    # TODO(robertwb): Multi-input, multi-output inference.
+    # TODO(robertwb): Ideally we'd do intersection here.
+    type_options = self._options.view_as(TypeOptions)
+    if (type_options is not None and type_options.pipeline_type_check
+        and isinstance(result_pcollection, pvalue.PCollection)
+        and not result_pcollection.element_type):
+      input_element_type = (
+          inputs[0].element_type
+          if len(inputs) == 1
+          else typehints.Any)
+      type_hints = transform.get_type_hints()
+      declared_output_type = type_hints.simple_output_type(transform.label)
+      if declared_output_type:
+        input_types = type_hints.input_types
+        if input_types and input_types[0]:
+          declared_input_type = input_types[0][0]
+          result_pcollection.element_type = typehints.bind_type_variables(
+              declared_output_type,
+              typehints.match_type_variables(declared_input_type,
+                                             input_element_type))
+        else:
+          result_pcollection.element_type = declared_output_type
+      else:
+        result_pcollection.element_type = transform.infer_output_type(
+            input_element_type)
 
   def __reduce__(self):
     # Some transforms contain a reference to their enclosing pipeline,
