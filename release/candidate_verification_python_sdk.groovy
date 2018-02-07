@@ -102,10 +102,7 @@ cmd.append("python -m apache_beam.examples.streaming_wordcount ")
 .append("--output_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC2} ")
 .append("--streaming")
 
-println("----------------------------------------------------------------")
-println("Running Streaming wordcount example with DirectRunner with command:")
-println(cmd.toString())
-println("----------------------------------------------------------------")
+print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
 def streaming_wordcount_thread = Thread.start(){
   t.run(cmd.toString())
 }
@@ -134,10 +131,7 @@ cmd.append("python -m apache_beam.examples.streaming_wordcount ")
     .append("--num_workers ${ReleaseConfiguration.NUM_WORKERS} ")
     .append("--sdk_location dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz ")
 
-println("----------------------------------------------------------------")
-println("Running Streaming wordcount example with DirectRunner with command:")
-println(cmd.toString())
-println("----------------------------------------------------------------")
+print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
 def streaming_wordcount_dataflow_thread = Thread.start(){
   t.run(cmd.toString())
 }
