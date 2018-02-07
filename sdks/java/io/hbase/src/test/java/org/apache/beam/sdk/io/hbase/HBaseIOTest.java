@@ -248,8 +248,8 @@ public class HBaseIOTest {
    * [] and that some properties hold across them.
    */
   @Test
-  public void testReadingWithKeyRange() throws Exception {
-    final String table = "TEST-KEY-RANGE-TABLE";
+  public void testReadingKeyRangePrefix() throws Exception {
+    final String table = "TEST-KEY-RANGE-PREFIX-TABLE";
     final int numRows = 1001;
     final byte[] startRow = "2".getBytes();
     final byte[] stopRow = "9".getBytes();
@@ -262,11 +262,43 @@ public class HBaseIOTest {
     final ByteKeyRange prefixRange = ByteKeyRange.ALL_KEYS.withEndKey(startKey);
     runReadTestLength(
         HBaseIO.read().withConfiguration(conf).withTableId(table).withKeyRange(prefixRange), 126);
+  }
+
+  /**
+   * Tests reading all rows using key ranges. Tests a prefix [), a suffix (], and a restricted range
+   * [] and that some properties hold across them.
+   */
+  @Test
+  public void testReadingKeyRangeSuffix() throws Exception {
+    final String table = "TEST-KEY-RANGE-SUFFIX-TABLE";
+    final int numRows = 1001;
+    final byte[] startRow = "2".getBytes();
+    final byte[] stopRow = "9".getBytes();
+    final ByteKey startKey = ByteKey.copyFrom(startRow);
+
+    createTable(table);
+    writeData(table, numRows);
 
     // Test suffix: [startKey, end).
     final ByteKeyRange suffixRange = ByteKeyRange.ALL_KEYS.withStartKey(startKey);
     runReadTestLength(
         HBaseIO.read().withConfiguration(conf).withTableId(table).withKeyRange(suffixRange), 875);
+  }
+
+  /**
+   * Tests reading all rows using key ranges. Tests a prefix [), a suffix (], and a restricted range
+   * [] and that some properties hold across them.
+   */
+  @Test
+  public void testReadingKeyRangeMiddle() throws Exception {
+    final String table = "TEST-KEY-RANGE-TABLE";
+    final int numRows = 1001;
+    final byte[] startRow = "2".getBytes();
+    final byte[] stopRow = "9".getBytes();
+    final ByteKey startKey = ByteKey.copyFrom(startRow);
+
+    createTable(table);
+    writeData(table, numRows);
 
     // Test restricted range: [startKey, endKey).
     // This one tests the second signature of .withKeyRange
