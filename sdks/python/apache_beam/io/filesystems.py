@@ -51,7 +51,7 @@ class FileSystems(object):
     Args:
       pipeline_options: Instance of ``PipelineOptions``.
     """
-    cls._options = pipeline_options
+    cls._pipeline_options = pipeline_options
 
   @staticmethod
   def get_scheme(path):
