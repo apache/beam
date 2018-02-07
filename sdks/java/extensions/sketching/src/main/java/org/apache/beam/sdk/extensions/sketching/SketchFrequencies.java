@@ -235,10 +235,25 @@ public final class SketchFrequencies {
       abstract GlobalSketch<InputT> build();
     }
 
+    /**
+     * Returns a new {@link PTransform} with a new relative error {@code epsilon}.
+     *
+     * <p>Keep in mind that the lower the {@code epsilon} value, the greater the width.
+     *
+     * @param eps the error relative to the total number of distinct elements
+     */
     public GlobalSketch<InputT> withRelativeError(double eps) {
       return toBuilder().setRelativeError(eps).build();
     }
 
+    /**
+     * Returns a new {@link PTransform} with a new {@code confidence} value, i.e.
+     * the probability that the relative error is lower or equal to {@code epsilon}.
+     *
+     * <p>Keep in mind that the greater the confidence, the greater the depth.
+     *
+     * @param conf the confidence in the result to not exceed the relative error
+     */
     public GlobalSketch<InputT> withConfidence(double conf) {
       return toBuilder().setConfidence(conf).build();
     }
@@ -283,10 +298,25 @@ public final class SketchFrequencies {
       abstract PerKeySketch<K, V> build();
     }
 
+    /**
+     * Returns a new {@link PTransform} with a new relative error {@code epsilon}.
+     *
+     * <p>Keep in mind that the lower the {@code epsilon} value, the greater the width.
+     *
+     * @param eps the error relative to the total number of distinct elements
+     */
     public PerKeySketch<K, V> withRelativeError(double eps) {
       return toBuilder().setRelativeError(eps).build();
     }
 
+    /**
+     * Returns a new {@link PTransform} with a new {@code confidence} value, i.e.
+     * the probability that the relative error is lower or equal to {@code epsilon}.
+     *
+     * <p>Keep in mind that the greater the confidence, the greater the depth.
+     *
+     * @param conf the confidence in the result to not exceed the relative error
+     */
     public PerKeySketch<K, V> withConfidence(double conf) {
       return toBuilder().setConfidence(conf).build();
     }

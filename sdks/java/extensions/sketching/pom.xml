@@ -31,6 +31,7 @@
 
   <properties>
     <streamlib.version>2.9.5</streamlib.version>
+    <t-digest.version>3.2</t-digest.version>
   </properties>
 
   <dependencies>
@@ -50,7 +51,7 @@
     <dependency>
       <groupId>com.tdunning</groupId>
       <artifactId>t-digest</artifactId>
-      <version>3.2</version>
+      <version>${t-digest.version}</version>
     </dependency>
 
     <dependency>
