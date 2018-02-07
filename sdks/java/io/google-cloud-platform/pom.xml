@@ -189,7 +189,7 @@
 
     <dependency>
       <groupId>com.google.api</groupId>
-      <artifactId>gax-grpc</artifactId>
+      <artifactId>gax</artifactId>
     </dependency>
 
     <dependency>
