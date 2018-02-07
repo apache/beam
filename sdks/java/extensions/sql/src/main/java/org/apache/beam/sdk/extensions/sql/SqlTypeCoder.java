@@ -73,7 +73,7 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
   static class SqlSmallIntCoder extends SqlTypeCoder {
     @Override
     protected Coder delegateCoder() {
-      return BeamSqlRecordHelper.ShortCoder.of();
+      return RowHelper.ShortCoder.of();
     }
   }
 
@@ -94,14 +94,14 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
   static class SqlFloatCoder extends SqlTypeCoder {
     @Override
     protected Coder delegateCoder() {
-      return BeamSqlRecordHelper.FloatCoder.of();
+      return RowHelper.FloatCoder.of();
     }
   }
 
   static class SqlDoubleCoder extends SqlTypeCoder {
     @Override
     protected Coder delegateCoder() {
-      return BeamSqlRecordHelper.DoubleCoder.of();
+      return RowHelper.DoubleCoder.of();
     }
   }
 
@@ -115,7 +115,7 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
   static class SqlBooleanCoder extends SqlTypeCoder {
     @Override
     protected Coder delegateCoder() {
-      return BeamSqlRecordHelper.BooleanCoder.of();
+      return RowHelper.BooleanCoder.of();
     }
   }
 
@@ -136,21 +136,21 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
   static class SqlTimeCoder extends SqlTypeCoder {
     @Override
     protected Coder delegateCoder() {
-      return BeamSqlRecordHelper.TimeCoder.of();
+      return RowHelper.TimeCoder.of();
     }
   }
 
   static class SqlDateCoder extends SqlTypeCoder {
     @Override
     protected Coder delegateCoder() {
-      return BeamSqlRecordHelper.DateCoder.of();
+      return RowHelper.DateCoder.of();
     }
   }
 
   static class SqlTimestampCoder extends SqlTypeCoder {
     @Override
     protected Coder delegateCoder() {
-      return BeamSqlRecordHelper.DateCoder.of();
+      return RowHelper.DateCoder.of();
     }
   }
 }

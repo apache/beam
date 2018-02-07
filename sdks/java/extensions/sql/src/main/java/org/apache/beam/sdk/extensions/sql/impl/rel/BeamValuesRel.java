@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.autoCastField;
-import static org.apache.beam.sdk.values.BeamRecord.toRecord;
+import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -28,10 +28,10 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.Values;
@@ -58,7 +58,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
   }
 
-  @Override public PCollection<BeamRecord> buildBeamPipeline(
+  @Override public PCollection<Row> buildBeamPipeline(
       PCollectionTuple inputPCollections,
       BeamSqlEnv sqlEnv) throws Exception {
 
@@ -67,26 +67,26 @@ public class BeamValuesRel extends Values implements BeamRelNode {
       throw new IllegalStateException("Values with empty tuples!");
     }
 
-    BeamRecordType beamRowType = CalciteUtils.toBeamRowType(this.getRowType());
+    RowType rowType = CalciteUtils.toBeamRowType(this.getRowType());
 
-    List<BeamRecord> rows =
+    List<Row> rows =
         tuples
             .stream()
-            .map(tuple -> tupleToRecord(beamRowType, tuple))
+            .map(tuple -> tupleToRow(rowType, tuple))
             .collect(toList());
 
     return
         inputPCollections
             .getPipeline()
             .apply(stageName, Create.of(rows))
-            .setCoder(beamRowType.getRecordCoder());
+            .setCoder(rowType.getRowCoder());
   }
 
-  private BeamRecord tupleToRecord(BeamRecordType beamRowType, ImmutableList<RexLiteral> tuple) {
+  private Row tupleToRow(RowType rowType, ImmutableList<RexLiteral> tuple) {
     return
         IntStream
             .range(0, tuple.size())
-            .mapToObj(i -> autoCastField(beamRowType.getFieldCoder(i), tuple.get(i).getValue()))
-            .collect(toRecord(beamRowType));
+            .mapToObj(i -> autoCastField(rowType.getFieldCoder(i), tuple.get(i).getValue()))
+            .collect(toRow(rowType));
   }
 }

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -43,7 +43,7 @@ public class BeamSqlWindowExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Date> evaluate(BeamRecord inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<Date> evaluate(Row inputRow, BoundedWindow window) {
     return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         (Date) operands.get(0).evaluate(inputRow, window).getValue());
   }

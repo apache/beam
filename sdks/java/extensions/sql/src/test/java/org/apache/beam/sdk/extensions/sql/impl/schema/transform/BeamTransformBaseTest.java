@@ -21,10 +21,10 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.junit.BeforeClass;
 
 /**
@@ -33,13 +33,13 @@ import org.junit.BeforeClass;
 public class BeamTransformBaseTest {
   static DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-  static BeamRecordType inputRowType;
-  static List<BeamRecord> inputRows;
+  static RowType inputRowType;
+  static List<Row> inputRows;
 
   @BeforeClass
   public static void prepareInput() throws NumberFormatException, ParseException {
     inputRowType =
-        BeamRecordSqlType
+        RowSqlType
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")

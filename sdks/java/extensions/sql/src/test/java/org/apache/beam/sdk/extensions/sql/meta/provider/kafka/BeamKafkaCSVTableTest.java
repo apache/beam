@@ -26,10 +26,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Rule;
@@ -41,19 +41,19 @@ import org.junit.Test;
 public class BeamKafkaCSVTableTest {
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  private static final BeamRecord ROW1 =
-      BeamRecord
-          .withRecordType(genRowType())
+  private static final Row ROW1 =
+      Row
+          .withRowType(genRowType())
           .addValues(1L, 1, 1.0)
           .build();
 
-  private static final BeamRecord ROW2 =
-      BeamRecord.withRecordType(genRowType())
+  private static final Row ROW2 =
+      Row.withRowType(genRowType())
           .addValues(2L, 2, 2.0)
           .build();
 
   @Test public void testCsvRecorderDecoder() throws Exception {
-    PCollection<BeamRecord> result = pipeline
+    PCollection<Row> result = pipeline
         .apply(
             Create.of("1,\"1\",1.0", "2,2,2.0")
         )
@@ -68,7 +68,7 @@ public class BeamKafkaCSVTableTest {
   }
 
   @Test public void testCsvRecorderEncoder() throws Exception {
-    PCollection<BeamRecord> result = pipeline
+    PCollection<Row> result = pipeline
         .apply(
             Create.of(ROW1, ROW2)
         )
@@ -83,7 +83,7 @@ public class BeamKafkaCSVTableTest {
     pipeline.run();
   }
 
-  private static BeamRecordType genRowType() {
+  private static RowType genRowType() {
     return CalciteUtils.toBeamRowType(
         BeamQueryPlanner.TYPE_FACTORY.builder()
             .add("order_id", SqlTypeName.BIGINT)

@@ -33,40 +33,40 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * {@link BeamRecord} is an immutable tuple-like type to represent one element in a
- * {@link PCollection}. The fields are described with a {@link BeamRecordType}.
+ * {@link Row} is an immutable tuple-like type to represent one element in a
+ * {@link PCollection}. The fields are described with a {@link RowType}.
  *
- * <p>{@link BeamRecordType} contains the names for each field and the coder for the whole
- * record, {see @link BeamRecordType#getRecordCoder()}.
+ * <p>{@link RowType} contains the names for each field and the coder for the whole
+ * record, {see @link RowType#getRowCoder()}.
  */
 @Experimental
 @AutoValue
-public abstract class BeamRecord implements Serializable {
+public abstract class Row implements Serializable {
 
   /**
-   * Creates a {@link BeamRecord} from the list of values and {@link #getRecordType()}.
+   * Creates a {@link Row} from the list of values and {@link #getRowType()}.
    */
-  public static <T> Collector<T, List<Object>, BeamRecord> toRecord(
-      BeamRecordType recordType) {
+  public static <T> Collector<T, List<Object>, Row> toRow(
+      RowType rowType) {
 
     return Collector.of(
-        () -> new ArrayList<>(recordType.getFieldCount()),
+        () -> new ArrayList<>(rowType.getFieldCount()),
         List::add,
         (left, right) -> {
           left.addAll(right);
           return left;
         },
-        values -> BeamRecord.withRecordType(recordType).addValues(values).build());
+        values -> Row.withRowType(rowType).addValues(values).build());
   }
 
   /**
    * Creates a new record filled with nulls.
    */
-  public static BeamRecord nullRecord(BeamRecordType recordType) {
+  public static Row nullRow(RowType rowType) {
     return
-        BeamRecord
-            .withRecordType(recordType)
-            .addValues(Collections.nCopies(recordType.getFieldCount(), null))
+        Row
+            .withRowType(rowType)
+            .addValues(Collections.nCopies(rowType.getFieldCount(), null))
             .build();
   }
 
@@ -75,7 +75,7 @@ public abstract class BeamRecord implements Serializable {
    * if type doesn't match.
    */
   public <T> T getValue(String fieldName) {
-    return getValue(getRecordType().indexOf(fieldName));
+    return getValue(getRowType().indexOf(fieldName));
   }
 
   /**
@@ -276,28 +276,28 @@ public abstract class BeamRecord implements Serializable {
   public abstract List<Object> getValues();
 
   /**
-   * Return {@link BeamRecordType} which describes the fields.
+   * Return {@link RowType} which describes the fields.
    */
-  public abstract BeamRecordType getRecordType();
+  public abstract RowType getRowType();
 
   /**
-   * Creates a record builder with specified {@link #getRecordType()}.
+   * Creates a record builder with specified {@link #getRowType()}.
    * {@link Builder#build()} will throw an {@link IllegalArgumentException} if number of fields
-   * in {@link #getRecordType()} does not match the number of fields specified.
+   * in {@link #getRowType()} does not match the number of fields specified.
    */
-  public static Builder withRecordType(BeamRecordType recordType) {
+  public static Builder withRowType(RowType rowType) {
     return
-        new AutoValue_BeamRecord.Builder(recordType);
+        new AutoValue_Row.Builder(rowType);
   }
 
   /**
-   * Builder for {@link BeamRecord}.
+   * Builder for {@link Row}.
    */
   public static class Builder {
     private List<Object> values = new ArrayList<>();
-    private BeamRecordType type;
+    private RowType type;
 
-    Builder(BeamRecordType type) {
+    Builder(RowType type) {
       this.type = type;
     }
 
@@ -310,16 +310,16 @@ public abstract class BeamRecord implements Serializable {
       return addValues(Arrays.asList(values));
     }
 
-    public BeamRecord build() {
+    public Row build() {
       checkNotNull(type);
 
       if (type.getFieldCount() != values.size()) {
         throw new IllegalArgumentException(
             String.format(
-                "Field count in BeamRecordType (%s) and values (%s) must match",
+                "Field count in RowType (%s) and values (%s) must match",
                 type.fieldNames(), values));
       }
-      return new AutoValue_BeamRecord(values, type);
+      return new AutoValue_Row(values, type);
     }
   }
 }
