@@ -21,7 +21,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -33,7 +33,7 @@ public class BeamSqlOrExpression extends BeamSqlLogicalExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamRecord inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<Boolean> evaluate(Row inputRow, BoundedWindow window) {
     boolean result = false;
     for (BeamSqlExpression exp : operands) {
       BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window);

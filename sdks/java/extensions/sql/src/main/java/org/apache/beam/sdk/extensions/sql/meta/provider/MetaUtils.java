@@ -18,26 +18,26 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
+import static org.apache.beam.sdk.values.RowType.toRowType;
 
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.RowType;
 
 /**
  * Utility methods for metadata.
  */
 public class MetaUtils {
-  public static BeamRecordType getBeamRecordTypeFromTable(Table table) {
+  public static RowType getRowTypeFromTable(Table table) {
     return
         table
             .getColumns()
             .stream()
             .map(MetaUtils::toRecordField)
-            .collect(toRecordType());
+            .collect(toRowType());
   }
 
-  private static BeamRecordType.Field toRecordField(Column column) {
-    return BeamRecordType.newField(column.getName(), column.getCoder());
+  private static RowType.Field toRecordField(Column column) {
+    return RowType.newField(column.getName(), column.getCoder());
   }
 }

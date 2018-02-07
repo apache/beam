@@ -24,7 +24,7 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DurationFieldType;
 
@@ -94,7 +94,7 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     if (delegateExpression == null) {
       throw new IllegalStateException("Unable to execute unsupported 'datetime minus' expression");
     }

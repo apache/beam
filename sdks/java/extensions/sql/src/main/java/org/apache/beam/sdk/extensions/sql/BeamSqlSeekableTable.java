@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 
 /**
  * A seekable table converts a JOIN operator to an inline lookup.
@@ -29,7 +29,7 @@ import org.apache.beam.sdk.values.BeamRecord;
 @Experimental
 public interface BeamSqlSeekableTable extends Serializable{
   /**
-   * return a list of {@code BeamRecord} with given key set.
+   * return a list of {@code Row} with given key set.
    */
-  List<BeamRecord> seekRecord(BeamRecord lookupSubRecord);
+  List<Row> seekRow(Row lookupSubRow);
 }

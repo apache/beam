@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
+import static org.apache.beam.sdk.values.RowType.toRowType;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
@@ -33,9 +33,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Unit tests for {@link BeamRecordType}.
+ * Unit tests for {@link RowType}.
  */
-public class BeamRecordTypeTest {
+public class RowTypeTest {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -45,15 +45,15 @@ public class BeamRecordTypeTest {
     List<String> names = Arrays.asList("f_int", "f_string");
     List<Coder> coders = Arrays.asList(VarIntCoder.of(), StringUtf8Coder.of());
 
-    BeamRecordType recordType = BeamRecordType.fromNamesAndCoders(names, coders);
+    RowType rowType = RowType.fromNamesAndCoders(names, coders);
 
-    assertEquals(2, recordType.getFieldCount());
+    assertEquals(2, rowType.getFieldCount());
 
-    assertEquals("f_int", recordType.getFieldName(0));
-    assertEquals("f_string", recordType.getFieldName(1));
+    assertEquals("f_int", rowType.getFieldName(0));
+    assertEquals("f_string", rowType.getFieldName(1));
 
-    assertEquals(VarIntCoder.of(), recordType.getFieldCoder(0));
-    assertEquals(StringUtf8Coder.of(), recordType.getFieldCoder(1));
+    assertEquals(VarIntCoder.of(), rowType.getFieldCoder(0));
+    assertEquals(StringUtf8Coder.of(), rowType.getFieldCoder(1));
   }
 
   @Test
@@ -62,24 +62,24 @@ public class BeamRecordTypeTest {
     List<Coder> coders = Arrays.asList(VarIntCoder.of(), StringUtf8Coder.of(), VarLongCoder.of());
 
     thrown.expect(IllegalStateException.class);
-    BeamRecordType.fromNamesAndCoders(names, coders);
+    RowType.fromNamesAndCoders(names, coders);
   }
 
   @Test
   public void testCollector() {
-    BeamRecordType recordType =
+    RowType rowType =
         Stream
             .of(
-                BeamRecordType.newField("f_int", VarIntCoder.of()),
-                BeamRecordType.newField("f_string", StringUtf8Coder.of()))
-            .collect(toRecordType());
+                RowType.newField("f_int", VarIntCoder.of()),
+                RowType.newField("f_string", StringUtf8Coder.of()))
+            .collect(toRowType());
 
-    assertEquals(2, recordType.getFieldCount());
+    assertEquals(2, rowType.getFieldCount());
 
-    assertEquals("f_int", recordType.getFieldName(0));
-    assertEquals("f_string", recordType.getFieldName(1));
+    assertEquals("f_int", rowType.getFieldName(0));
+    assertEquals("f_string", rowType.getFieldName(1));
 
-    assertEquals(VarIntCoder.of(), recordType.getFieldCoder(0));
-    assertEquals(StringUtf8Coder.of(), recordType.getFieldCoder(1));
+    assertEquals(VarIntCoder.of(), rowType.getFieldCoder(0));
+    assertEquals(StringUtf8Coder.of(), rowType.getFieldCoder(1));
   }
 }

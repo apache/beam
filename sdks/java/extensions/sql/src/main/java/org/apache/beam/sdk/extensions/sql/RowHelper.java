@@ -31,13 +31,13 @@ import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 
 /**
- * A {@link Coder} encodes {@link BeamRecord}.
+ * Atomic {@link Coder}s for {@link Row} fields for SQL types.
  */
 @Experimental
-public class BeamSqlRecordHelper {
+public class RowHelper {
 
   /**
    * {@link Coder} for Java type {@link Short}.

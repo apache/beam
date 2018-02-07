@@ -24,15 +24,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collector;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.RowCoder;
 
 /**
- * {@link BeamRecordType} describes the fields in {@link BeamRecord}.
+ * {@link RowType} describes the fields in {@link Row}.
  */
 @Experimental
 @AutoValue
-public abstract class BeamRecordType implements Serializable{
+public abstract class RowType implements Serializable{
   abstract List<String> fieldNames();
   abstract List<Coder> fieldCoders();
 
@@ -47,14 +47,14 @@ public abstract class BeamRecordType implements Serializable{
     abstract Coder coder();
 
     public static Field of(String name, Coder coder) {
-      return new AutoValue_BeamRecordType_Field(name, coder);
+      return new AutoValue_RowType_Field(name, coder);
     }
   }
 
   /**
-   * Collects a stream of {@link Field}s into a {@link BeamRecordType}.
+   * Collects a stream of {@link Field}s into a {@link RowType}.
    */
-  public static Collector<Field, List<Field>, BeamRecordType> toRecordType() {
+  public static Collector<Field, List<Field>, RowType> toRowType() {
     return Collector.of(
         ArrayList::new,
         List::add,
@@ -62,10 +62,10 @@ public abstract class BeamRecordType implements Serializable{
           left.addAll(right);
           return left;
         },
-        BeamRecordType::fromFields);
+        RowType::fromFields);
   }
 
-  private static BeamRecordType fromFields(List<Field> fields) {
+  private static RowType fromFields(List<Field> fields) {
     ImmutableList.Builder<String> names = ImmutableList.builder();
     ImmutableList.Builder<Coder> coders = ImmutableList.builder();
 
@@ -84,7 +84,7 @@ public abstract class BeamRecordType implements Serializable{
     return Field.of(name, coder);
   }
 
-  public static BeamRecordType fromNamesAndCoders(
+  public static RowType fromNamesAndCoders(
       List<String> fieldNames,
       List<Coder> fieldCoders) {
 
@@ -93,14 +93,14 @@ public abstract class BeamRecordType implements Serializable{
           "the size of fieldNames and fieldCoders need to be the same.");
     }
 
-    return new AutoValue_BeamRecordType(fieldNames, fieldCoders);
+    return new AutoValue_RowType(fieldNames, fieldCoders);
   }
 
   /**
-   * Return the coder for {@link BeamRecord}, which wraps {@link #fieldCoders} for each field.
+   * Return the coder for {@link Row}, which wraps {@link #fieldCoders} for each field.
    */
-  public BeamRecordCoder getRecordCoder(){
-    return BeamRecordCoder.of(this, fieldCoders());
+  public RowCoder getRowCoder(){
+    return RowCoder.of(this, fieldCoders());
   }
 
   /**
