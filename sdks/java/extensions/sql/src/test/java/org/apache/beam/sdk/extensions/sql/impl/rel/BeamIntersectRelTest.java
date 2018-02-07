@@ -24,8 +24,8 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -76,7 +76,7 @@ public class BeamIntersectRelTest extends BaseRelTest {
         + "SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS2 ";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             SqlTypeCoders.BIGINT, "order_id",
@@ -99,7 +99,7 @@ public class BeamIntersectRelTest extends BaseRelTest {
         + "SELECT order_id, site_id, price "
         + "FROM ORDER_DETAILS2 ";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).satisfies(new CheckSize(3));
 
     PAssert.that(rows).containsInAnyOrder(

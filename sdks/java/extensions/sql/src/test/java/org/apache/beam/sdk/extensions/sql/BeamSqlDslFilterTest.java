@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
@@ -44,13 +44,13 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     runSingleFilter(unboundedInput1);
   }
 
-  private void runSingleFilter(PCollection<BeamRecord> input) throws Exception {
+  private void runSingleFilter(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
-    PCollection<BeamRecord> result =
+    PCollection<Row> result =
         input.apply("testSingleFilter", BeamSql.query(sql));
 
-    PAssert.that(result).containsInAnyOrder(recordsInTableA.get(0));
+    PAssert.that(result).containsInAnyOrder(rowsInTableA.get(0));
 
     pipeline.run().waitUntilFinish();
   }
@@ -71,15 +71,15 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     runCompositeFilter(unboundedInput1);
   }
 
-  private void runCompositeFilter(PCollection<BeamRecord> input) throws Exception {
+  private void runCompositeFilter(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM TABLE_A"
         + " WHERE f_int > 1 AND (f_long < 3000 OR f_string = 'string_row3')";
 
-    PCollection<BeamRecord> result =
+    PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testCompositeFilter", BeamSql.queryMulti(sql));
 
-    PAssert.that(result).containsInAnyOrder(recordsInTableA.get(1), recordsInTableA.get(2));
+    PAssert.that(result).containsInAnyOrder(rowsInTableA.get(1), rowsInTableA.get(2));
 
     pipeline.run().waitUntilFinish();
   }
@@ -100,10 +100,10 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     runNoReturnFilter(unboundedInput1);
   }
 
-  private void runNoReturnFilter(PCollection<BeamRecord> input) throws Exception {
+  private void runNoReturnFilter(PCollection<Row> input) throws Exception {
     String sql = "SELECT * FROM TABLE_A WHERE f_int < 1";
 
-    PCollection<BeamRecord> result =
+    PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testNoReturnFilter", BeamSql.queryMulti(sql));
 
@@ -120,7 +120,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM TABLE_B WHERE f_int < 1";
 
-    PCollection<BeamRecord> result =
+    PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
             .apply("testFromInvalidTableName1", BeamSql.queryMulti(sql));
 
@@ -135,7 +135,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION_NA";
 
-    PCollection<BeamRecord> result = boundedInput1.apply(BeamSql.query(sql));
+    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -148,7 +148,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
-    PCollection<BeamRecord> result = boundedInput1.apply(BeamSql.query(sql));
+    PCollection<Row> result = boundedInput1.apply(BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

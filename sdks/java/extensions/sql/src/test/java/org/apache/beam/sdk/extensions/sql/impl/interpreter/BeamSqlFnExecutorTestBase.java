@@ -24,7 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -55,7 +55,7 @@ public class BeamSqlFnExecutorTestBase {
   static RelDataType relDataType;
   static RelBuilder relBuilder;
 
-  public static BeamRecord record;
+  public static Row row;
 
   @BeforeClass
   public static void prepare() {
@@ -65,9 +65,9 @@ public class BeamSqlFnExecutorTestBase {
         .add("price", SqlTypeName.DOUBLE)
         .add("order_time", SqlTypeName.BIGINT).build();
 
-    record =
-        BeamRecord
-            .withRecordType(CalciteUtils.toBeamRowType(relDataType))
+    row =
+        Row
+            .withRowType(CalciteUtils.toBeamRowType(relDataType))
             .addValues(
                 1234567L,
                 0,
