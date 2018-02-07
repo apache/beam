@@ -395,6 +395,10 @@ ext.applyGoNature = {
       root 'git.apache.org/thrift.git'
       emptyDir()
     }
+    golang {
+      root 'github.com/apache/thrift'
+      emptyDir()
+    }
   }
 
   // GoGradle fails in a parallel build during dependency resolution/installation.
