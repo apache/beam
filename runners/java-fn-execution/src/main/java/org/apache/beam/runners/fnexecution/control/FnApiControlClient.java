@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>This low-level client is responsible only for correlating requests with responses.
  */
-public class FnApiControlClient implements Closeable {
+public class FnApiControlClient implements Closeable, InstructionRequestHandler {
   private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClient.class);
 
   // All writes to this StreamObserver need to be synchronized.
