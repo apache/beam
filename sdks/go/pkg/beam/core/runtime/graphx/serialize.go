@@ -432,8 +432,6 @@ func tryEncodeSpecial(t reflect.Type) (v1.Type_Special, bool) {
 		return v1.Type_EVENTTIME, true
 	case typex.KVType:
 		return v1.Type_KV, true
-	case typex.GBKType:
-		return v1.Type_GBK, true
 	case typex.CoGBKType:
 		return v1.Type_COGBK, true
 	case typex.WindowedValueType:
@@ -579,8 +577,6 @@ func decodeSpecial(s v1.Type_Special) (reflect.Type, error) {
 		return typex.EventTimeType, nil
 	case v1.Type_KV:
 		return typex.KVType, nil
-	case v1.Type_GBK:
-		return typex.GBKType, nil
 	case v1.Type_COGBK:
 		return typex.CoGBKType, nil
 	case v1.Type_WINDOWEDVALUE:
@@ -721,12 +717,27 @@ const (
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
 	lengthPrefixType  = "kind:length_prefix"
+
+	cogbklistType = "kind:cogbklist" // CoGBK representation. Not a coder.
 )
 
 // WrapExtraWindowedValue adds an additional WV needed for side input, which
 // expects the coder to have exactly one component with the element.
 func WrapExtraWindowedValue(c *CoderRef) *CoderRef {
 	return &CoderRef{Type: WindowedValueType, Components: []*CoderRef{c}}
+}
+
+// EncodeCoderRefs returns the encoded forms understood by the runner.
+func EncodeCoderRefs(list []*coder.Coder) ([]*CoderRef, error) {
+	var refs []*CoderRef
+	for _, c := range list {
+		ref, err := EncodeCoderRef(c)
+		if err != nil {
+			return nil, err
+		}
+		refs = append(refs, ref)
+	}
+	return refs, nil
 }
 
 // EncodeCoderRef returns the encoded form understood by the runner.
@@ -758,21 +769,26 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		}
 		return &CoderRef{Type: pairType, Components: []*CoderRef{key, value}, IsPairLike: true}, nil
 
-	case coder.GBK:
-		if len(c.Components) != 2 {
-			return nil, fmt.Errorf("bad GBK: %v", c)
+	case coder.CoGBK:
+		if len(c.Components) < 2 {
+			return nil, fmt.Errorf("bad CoGBK: %v", c)
 		}
 
-		key, err := EncodeCoderRef(c.Components[0])
+		refs, err := EncodeCoderRefs(c.Components)
 		if err != nil {
 			return nil, err
 		}
-		value, err := EncodeCoderRef(c.Components[1])
-		if err != nil {
-			return nil, err
+
+		value := refs[1]
+		if len(c.Components) > 2 {
+			// TODO(BEAM-490): don't inject union coder for CoGBK.
+
+			union := &CoderRef{Type: cogbklistType, Components: refs[1:]}
+			value = &CoderRef{Type: lengthPrefixType, Components: []*CoderRef{union}}
 		}
+
 		stream := &CoderRef{Type: streamType, Components: []*CoderRef{value}, IsStreamLike: true}
-		return &CoderRef{Type: pairType, Components: []*CoderRef{key, stream}, IsPairLike: true}, nil
+		return &CoderRef{Type: pairType, Components: []*CoderRef{refs[0], stream}, IsPairLike: true}, nil
 
 	case coder.WindowedValue:
 		if len(c.Components) != 1 || c.Window == nil {
@@ -801,6 +817,19 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 	}
 }
 
+// DecodeCoderRefs extracts usable coders from the encoded runner form.
+func DecodeCoderRefs(list []*CoderRef) ([]*coder.Coder, error) {
+	var ret []*coder.Coder
+	for _, ref := range list {
+		c, err := DecodeCoderRef(ref)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, c)
+	}
+	return ret, nil
+}
+
 // DecodeCoderRef extracts a usable coder from the encoded runner form.
 func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 	switch c.Type {
@@ -827,15 +856,30 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		isGBK := elm.Type == streamType
 		if isGBK {
 			elm = elm.Components[0]
-			kind = coder.GBK
-			root = typex.GBKType
+			kind = coder.CoGBK
+			root = typex.CoGBKType
+
+			// TODO(BEAM-490): If CoGBK with > 1 input, handle as special GBK. We expect
+			// it to be encoded as CoGBK<K,LP<Union<V,W,..>>. Remove this handling once
+			// CoGBK has a first-class representation.
+
+			if refs, ok := isCoGBKList(elm); ok {
+				values, err := DecodeCoderRefs(refs)
+				if err != nil {
+					return nil, err
+				}
+
+				t := typex.New(root, append([]typex.FullType{key.T}, coder.Types(values)...)...)
+				return &coder.Coder{Kind: kind, T: t, Components: append([]*coder.Coder{key}, values...)}, nil
+			}
 		}
+
 		value, err := DecodeCoderRef(elm)
 		if err != nil {
 			return nil, err
 		}
-		t := typex.New(root, key.T, value.T)
 
+		t := typex.New(root, key.T, value.T)
 		return &coder.Coder{Kind: kind, T: t, Components: []*coder.Coder{key, value}}, nil
 
 	case lengthPrefixType:
@@ -845,7 +889,7 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 
 		var ref v1.CustomCoder
 		if err := protox.DecodeBase64(c.Components[0].Type, &ref); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("base64 decode for %v failed: %v", c.Components[0].Type, err)
 		}
 		custom, err := decodeCustomCoder(&ref)
 		if err != nil {
@@ -877,6 +921,17 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 	default:
 		return nil, fmt.Errorf("custom coders must be length prefixed: %+v", c)
 	}
+}
+
+func isCoGBKList(ref *CoderRef) ([]*CoderRef, bool) {
+	if ref.Type != lengthPrefixType {
+		return nil, false
+	}
+	ref2 := ref.Components[0]
+	if ref2.Type != cogbklistType {
+		return nil, false
+	}
+	return ref2.Components, true
 }
 
 // TODO(wcn): Windowing information isn't currently propagated through

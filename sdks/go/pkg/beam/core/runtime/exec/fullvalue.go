@@ -25,6 +25,9 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+// TODO(herohde) 1/29/2018: using FullValue for nested KVs is somewhat of a hack
+// and is errorprone. Consider making it a more explicit data structure.
+
 // FullValue represents the full runtime value for a data element, incl. the
 // implicit context. The result of a GBK or CoGBK is not a single FullValue.
 // The consumer is responsible for converting the values to the correct type.

@@ -55,7 +55,7 @@ import (
 // See CoGroupByKey for a way to group multiple input PCollections by a common
 // key at once.
 func GroupByKey(s Scope, a PCollection) PCollection {
-	return Must(TryGroupByKey(s, a))
+	return CoGroupByKey(s, a)
 }
 
 // TODO(herohde) 5/30/2017: add windowing aspects to above documentation.
@@ -64,19 +64,7 @@ func GroupByKey(s Scope, a PCollection) PCollection {
 // TryGroupByKey inserts a GBK transform into the pipeline. Returns
 // an error on failure.
 func TryGroupByKey(s Scope, a PCollection) (PCollection, error) {
-	if !s.IsValid() {
-		return PCollection{}, fmt.Errorf("invalid scope")
-	}
-	if !a.IsValid() {
-		return PCollection{}, fmt.Errorf("invalid pcollection to GBK")
-	}
-	edge, err := graph.NewGBK(s.real, s.scope, a.n)
-	if err != nil {
-		return PCollection{}, err
-	}
-	ret := PCollection{edge.Output[0].To}
-	ret.SetCoder(NewCoder(ret.Type()))
-	return ret, nil
+	return TryCoGroupByKey(s, a)
 }
 
 // CoGroupByKey inserts a CoGBK transform into the pipeline.
@@ -87,5 +75,30 @@ func CoGroupByKey(s Scope, cols ...PCollection) PCollection {
 // TryCoGroupByKey inserts a CoGBK transform into the pipeline. Returns
 // an error on failure.
 func TryCoGroupByKey(s Scope, cols ...PCollection) (PCollection, error) {
-	panic("NYI")
+	if !s.IsValid() {
+		return PCollection{}, fmt.Errorf("invalid scope")
+	}
+	if len(cols) < 1 {
+		return PCollection{}, fmt.Errorf("need at least 1 pcollection")
+	}
+	for i, in := range cols {
+		if !in.IsValid() {
+			return PCollection{}, fmt.Errorf("invalid pcollection to CoGBK: index %v", i)
+		}
+	}
+
+	var in []*graph.Node
+	for _, s := range cols {
+		in = append(in, s.n)
+	}
+
+	fmt.Println(in)
+
+	edge, err := graph.NewCoGBK(s.real, s.scope, in)
+	if err != nil {
+		return PCollection{}, err
+	}
+	ret := PCollection{edge.Output[0].To}
+	ret.SetCoder(NewCoder(ret.Type()))
+	return ret, nil
 }

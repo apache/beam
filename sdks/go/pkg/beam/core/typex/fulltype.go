@@ -24,7 +24,7 @@ import (
 
 // FullType represents the tree structure of data types processed by the graph.
 // It allows representation of composite types, such as KV<int, string> or
-// W<GBK<int, int>>, as well as "generic" such types, KV<int,T> or GBK<X,Y>,
+// W<CoGBK<int, int>>, as well as "generic" such types, KV<int,T> or CoGBK<X,Y>,
 // where the free "type variables" are the fixed universal types: T, X, etc.
 type FullType interface {
 	// Class returns the class of the FullType. It is never Illegal.
@@ -80,8 +80,6 @@ func printShortComposite(t reflect.Type) string {
 	switch t {
 	case WindowedValueType:
 		return "W"
-	case GBKType:
-		return "GBK"
 	case CoGBKType:
 		return "CoGBK"
 	case KVType:
@@ -96,6 +94,8 @@ func printShortComposite(t reflect.Type) string {
 // New constructs a new full type with the given elements. It panics
 // if not valid.
 func New(t reflect.Type, components ...FullType) FullType {
+	checkTypesNotNil(components)
+
 	class := ClassOf(t)
 	switch class {
 	case Concrete, Universal:
@@ -110,12 +110,12 @@ func New(t reflect.Type, components ...FullType) FullType {
 		}
 	case Composite:
 		switch t {
-		case KVType, GBKType:
+		case KVType:
 			if len(components) != 2 {
-				panic("Invalid number of components for KV/GBK")
+				panic("Invalid number of components for KV")
 			}
-			if isAnyComposite(components) {
-				panic("Invalid to nest composites inside KV/GBK")
+			if isAnyNonKVComposite(components) {
+				panic("Invalid to nest composites inside KV")
 			}
 			return &tree{class, t, components}
 		case WindowedValueType:
@@ -130,7 +130,7 @@ func New(t reflect.Type, components ...FullType) FullType {
 			if len(components) < 2 {
 				panic("Invalid number of components for CoGBK")
 			}
-			if isAnyComposite(components) {
+			if isAnyNonKVComposite(components) {
 				panic("Invalid to nest composites inside CoGBK")
 			}
 			return &tree{class, t, components}
@@ -142,9 +142,15 @@ func New(t reflect.Type, components ...FullType) FullType {
 	}
 }
 
-func isAnyComposite(list []FullType) bool {
+// NOTE(herohde) 1/26/2018: we allow nested KV types and coders to support the
+// CoGBK translation (using KV<K,KV<int,[]byte>> to encode keyed raw union values)
+// and potentially other uses. We do not have a reasonable way to emit nested KV
+// values, so user functions are still limited to non-nested KVs. Universally-typed
+// KV-values might be simple to allow, for example.
+
+func isAnyNonKVComposite(list []FullType) bool {
 	for _, t := range list {
-		if t.Class() == Composite {
+		if t.Class() == Composite && t.Type() != KVType {
 			return true
 		}
 	}
@@ -167,14 +173,6 @@ func IsWKV(t FullType) bool {
 
 func NewWKV(components ...FullType) FullType {
 	return NewW(New(KVType, components...))
-}
-
-func IsWGBK(t FullType) bool {
-	return IsW(t) && SkipW(t).Type() == GBKType
-}
-
-func NewWGBK(components ...FullType) FullType {
-	return NewW(New(GBKType, components...))
 }
 
 func IsWCoGBK(t FullType) bool {
@@ -391,4 +389,12 @@ func substituteList(list []FullType, m map[string]reflect.Type) ([]FullType, err
 		ret = append(ret, repl)
 	}
 	return ret, nil
+}
+
+func checkTypesNotNil(list []FullType) {
+	for i, t := range list {
+		if t == nil {
+			panic(fmt.Sprintf("nil type at index: %v", i))
+		}
+	}
 }

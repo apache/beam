@@ -40,7 +40,7 @@ const (
 	// represented as a reflect.Type and may incur runtime conversions.
 	// The component cannot be a Composite.
 	Container
-	// Composite type: KV, GBK, CoGBk, WindowedValue. Beam-generic types
+	// Composite type: KV, CoGBk, WindowedValue. Beam-generic types
 	// that cannot be represented as a single reflect.Type.
 	Composite
 )
@@ -166,7 +166,7 @@ func IsUniversal(t reflect.Type) bool {
 // Composite marker types: KV, GBK, CoGBK or WindowedValue.
 func IsComposite(t reflect.Type) bool {
 	switch t {
-	case KVType, GBKType, CoGBKType, WindowedValueType:
+	case KVType, CoGBKType, WindowedValueType:
 		return true
 	default:
 		return false

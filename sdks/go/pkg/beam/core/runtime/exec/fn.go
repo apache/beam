@@ -68,7 +68,7 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...interfac
 			param := fn.Param[in[i]]
 
 			if param.Kind != funcx.FnIter {
-				return nil, fmt.Errorf("GBK result values must be iterable: %v", param)
+				return nil, fmt.Errorf("GBK/CoGBK result values must be iterable: %v", param)
 			}
 
 			// TODO(herohde) 12/12/2017: allow form conversion on GBK results?
@@ -134,7 +134,7 @@ func makeSideInputs(fn *funcx.Fn, in []*graph.Inbound, side []ReStream) ([]Reusa
 
 	var ret []ReusableInput
 	for i := 0; i < len(side); i++ {
-		s, err := makeSideInput(in[i+1].Kind, fn.Param[i+offset].T, side[i])
+		s, err := makeSideInput(in[i+1].Kind, fn.Param[param[i+offset]].T, side[i])
 		if err != nil {
 			return nil, fmt.Errorf("failed to make side input %v: %v", i, err)
 		}
