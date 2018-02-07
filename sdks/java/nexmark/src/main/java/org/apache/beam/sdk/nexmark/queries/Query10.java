@@ -62,7 +62,6 @@ import org.slf4j.LoggerFactory;
  */
 public class Query10 extends NexmarkQuery {
   private static final Logger LOG = LoggerFactory.getLogger(Query10.class);
-  private static final int CHANNEL_BUFFER = 8 << 20; // 8MB
   private static final int NUM_SHARDS_PER_WORKER = 5;
   private static final Duration LATE_BATCHING_PERIOD = Duration.standardSeconds(10);
 

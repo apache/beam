@@ -283,11 +283,6 @@ public class NexmarkUtils {
   private static final boolean LOG_INFO = false;
 
   /**
-   * Set to true to capture all error messages. The logging level flags don't currently work.
-   */
-  private static final boolean LOG_ERROR = true;
-
-  /**
    * Set to true to log directly to stdout. If run using Google Dataflow, you can watch the results
    * in real-time with: tail -f /var/log/dataflow/streaming-harness/harness-stdout.log
    */

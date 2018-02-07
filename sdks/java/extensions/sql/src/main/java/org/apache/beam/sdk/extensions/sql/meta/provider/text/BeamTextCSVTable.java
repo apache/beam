@@ -27,8 +27,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.csv.CSVFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@code BeamTextCSVTable} is a {@code BeamTextTable} which formatted in CSV.
@@ -38,8 +36,6 @@ import org.slf4j.LoggerFactory;
  * </p>
  */
 public class BeamTextCSVTable extends BeamTextTable {
-  private static final Logger LOG = LoggerFactory
-      .getLogger(BeamTextCSVTable.class);
 
   private String filePattern;
   private CSVFormat csvFormat;
