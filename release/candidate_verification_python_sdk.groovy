@@ -34,6 +34,7 @@ t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.BEAM_PYT
 * 2. Verify hashes
 *
 * */
+print_separator("Checking sha1 and md5 hashes ")
 t.run("sha1sum -c ${ReleaseConfiguration.SHA1_FILE_NAME}")
 t.see("OK")
 t.run("md5sum -c ${ReleaseConfiguration.MD5_FILE_NAME}")
@@ -44,9 +45,7 @@ t.see("OK")
 * 3. create a new virtualenv and install the SDK
 *
 * */
-println("-----------------------------------------------------------")
-println("Creating new virtualenv and installing the SDK")
-println("-----------------------------------------------------------")
+print_separator("Creating new virtualenv and installing the SDK")
 t.run("virtualenv temp_virtualenv")
 t.run(". temp_virtualenv/bin/activate")
 t.run("unzip ${ReleaseConfiguration.BEAM_PYTHON_RELEASE}")
@@ -60,9 +59,7 @@ println()
 * 4. Run wordcount with DirectRunner
 *
 * */
-println("----------------------------------------------------------------")
-println("Running wordcount example with DirectRunner and verify results")
-println("----------------------------------------------------------------")
+print_separator("Running wordcount example with DirectRunner and verify results")
 t.run("python -m apache_beam.examples.wordcount --output wordcount_direct.txt")
 t.run "ls"
 t.see "wordcount_direct.txt-00000-of-00001"
@@ -73,7 +70,7 @@ println()
 * 5. Run wordcount with DataflowRunner
 *
 * */
-/*cmd.setLength(0) // clear the cmd buffer
+cmd.setLength(0) // clear the cmd buffer
 cmd.append("python -m apache_beam.examples.wordcount ")
     .append("--output gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT} ")
     .append("--staging_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
@@ -83,16 +80,14 @@ cmd.append("python -m apache_beam.examples.wordcount ")
     .append("--project ${ReleaseConfiguration.PROJECT_ID} ")
     .append("--num_workers ${ReleaseConfiguration.NUM_WORKERS} ")
     .append("--sdk_location dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz ")
-println("----------------------------------------------------------------")
-println("Running wordcount example with DataflowRunner with command:")
-println(cmd.toString())
-println("----------------------------------------------------------------")
+
+print_separator("Running wordcount example with DataflowRunner with command: ", cmd.toString())
 t.run(cmd.toString())
 // verify results.
 t.run("gsutil ls gs://${ReleaseConfiguration.BUCKET_NAME}")
 4.times {
   t.see("gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT}-0000${it}-of-00004")
-} */
+}
 
 /*
 * 6. Run Streaming wordcount with DirectRunner
@@ -100,7 +95,6 @@ t.run("gsutil ls gs://${ReleaseConfiguration.BUCKET_NAME}")
 * */
 // create pubsub topics (Note that if toipics already exist, there will be errors when running these commands, TODO: error catch)
 create_pubsub(t)
-println 'c'
 
 cmd.setLength(0) // clear the cmd buffer
 cmd.append("python -m apache_beam.examples.streaming_wordcount ")
@@ -120,10 +114,8 @@ t.run("sleep 15")
 // verify result
 run_pubsub_publish(t)
 run_pubsub_pull(t)
-
 t.see("like: 1")
 streaming_wordcount_thread.stop()
-println 'e'
 
 
 /*
@@ -154,12 +146,8 @@ t.run("sleep 15")
 // verify result
 run_pubsub_publish(t)
 run_pubsub_pull(t)
-
 t.see("like: 1")
 streaming_wordcount_dataflow_thread.stop()
-println 'e2'
-
-
 
 // clean up pubsub topics and subscription
 cleanup_pubsub(t)
