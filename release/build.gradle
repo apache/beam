@@ -1,0 +1,67 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply plugin: 'groovy'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile 'org.codehaus.groovy:groovy-all:2.4.13'
+    compile 'commons-cli:commons-cli:1.2'
+}
+
+// Nightly releases
+def verNightly = project.findProperty('ver') ?: '2.4.0-SNAPSHOT'
+def repoNightly = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+def argsNightly = ["--ver=${verNightly}", "--repourl=${repoNightly}"]
+
+// External releases
+def verRelease = project.findProperty('ver') ?: '2.3.0'
+def repoRelease = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/orgapachebeam-1026'
+def argsRelease = ["--ver=${verRelease}", "--repourl=${repoRelease}"]
+
+// For dataflow runner
+def cloudProject = project.findProperty('cloudProject') ?: 'apache-beam-testing'
+def cloudBucket = project.findProperty('cloudBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
+def argsProject = ["--project=${cloudProject}", "--bucket=${cloudBucket}"]
+
+task runQuickstartJavaDirectNightly (dependsOn: 'classes', type: JavaExec) {
+    main = 'quickstart-java-direct'
+    classpath = sourceSets.main.runtimeClasspath
+    args argsNightly
+}
+
+task runQuickstartJavaDirectRelease (dependsOn: 'classes', type: JavaExec) {
+    main = 'quickstart-java-direct'
+    classpath = sourceSets.main.runtimeClasspath
+    args argsRelease
+}
+
+task runQuickstartJavaDataflowNightly (dependsOn: 'classes', type: JavaExec) {
+    main = 'quickstart-java-dataflow'
+    classpath = sourceSets.main.runtimeClasspath
+    args argsNightly + argsProject
+}
+
+task runQuickstartJavaDataflowRelease (dependsOn: 'classes', type: JavaExec) {
+    main = 'quickstart-java-dataflow'
+    classpath = sourceSets.main.runtimeClasspath
+    args argsRelease + argsProject
+}

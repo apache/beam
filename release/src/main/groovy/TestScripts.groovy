@@ -17,19 +17,56 @@
  * limitations under the License.
  */
 
+import groovy.util.CliBuilder
+
 /*
  * Scripting functions to make writing a test similar to the quickstart
  * instructions from https://beam.apache.org/get-started/quickstart-java/
  */
 class TestScripts {
-     
+
    // Global state to maintain when running the steps
    class var {
-     static File startDir 
+     static File startDir
      static File curDir
      static String lastText
+     static String repoUrl
+     static String ver
+     static String project
+     static String bucket
    }
-   
+
+   def TestScripts(String[] args) {
+     def cli = new CliBuilder()
+     cli.ver(args:1, 'SDL Version')
+     cli.repourl(args:1, 'Repository URL')
+     cli.project(args:1, 'Google Cloud Project')
+     cli.bucket(args:1, 'Google Cloud Storage Bucket')
+     def options = cli.parse(args)
+     var.repoUrl = options.repourl
+     var.ver = options.ver
+     println "Repository URL: ${var.repoUrl}"
+     println "Version: ${var.ver}"
+     if (options.project) {
+       var.project = options.project
+       var.bucket = options.bucket
+       println "Project: ${var.project}"
+       println "Storage bucket: ${var.bucket}"
+     }
+   }
+
+   def ver() {
+     return var.ver
+   }
+
+   def project() {
+     return var.project
+   }
+
+   def gsloc() {
+      return var.bucket
+    }
+
    // Both documents the overal scenario and creates a clean temp directory
    def describe(String desc) {
      var.startDir = File.createTempDir()
@@ -37,15 +74,16 @@ class TestScripts {
      var.curDir = var.startDir
      print "*****\n* Scenario: ${desc}\n*****\n"
    }
-   
+
    // Just document the intention of a set of steps
-   def intent(String desc) { 
+   def intent(String desc) {
      print "\n*****\n* Test: ${desc}\n*****\n\n"
    }
-   
-     
+
+
    // Run a command
    public void run(String cmd) {
+     println cmd
      if (cmd.startsWith("cd ")) {
        _chdir(cmd.substring(3))
      } else if (cmd.startsWith("mvn ")) {
@@ -54,7 +92,7 @@ class TestScripts {
        _execute(cmd)
      }
    }
-   
+
    // Check for expected results in stdout of the last command
    public void see(String expected) {
      if (!var.lastText.contains(expected)) {
@@ -64,7 +102,7 @@ class TestScripts {
      }
      println "Verified $expected"
    }
-   
+
    // Cleanup and print success
    public void done() {
      var.startDir.deleteDir()
@@ -91,7 +129,7 @@ class TestScripts {
        _error("Failed command")
      }
    }
-   
+
    // Change directory
    private void _chdir(String subdir) {
      var.curDir = new File(var.curDir.absolutePath, subdir)
@@ -101,34 +139,37 @@ class TestScripts {
      _execute("pwd")
      if (var.lastText != var.curDir.absolutePath) {
        _error("Directory mismatch, ${var.lastText} != ${var.curDir.absolutePath}")
-   
+
      }
    }
-   
-   // Run a maven command, setting up a new local repository and a settings.xml with the snapshot repository
+
+   // Run a maven command, setting up a new local repository and a settings.xml with a custom repository
    private void _mvn(String args) {
      def m2 = new File(var.startDir, ".m2/repository")
      m2.mkdirs()
      def settings = new File(var.startDir, "settings.xml")
-     def repo = System.env.snapshot_repository ?: "https://repository.apache.org/content/repositories/snapshots"
      settings.write """
        <settings>
          <localRepository>${m2.absolutePath}</localRepository>
            <profiles>
              <profile>
-               <id>snapshot</id>
+               <id>testrel</id>
                  <repositories>
                    <repository>
-                     <id>apache.snapshots</id>
-                     <url>${repo}</url>
+                     <id>test.release</id>
+                     <url>${var.repoUrl}</url>
                    </repository>
                  </repositories>
                </profile>
              </profiles>
         </settings>
         """
-       def cmd = "mvn ${args} -s${settings.absolutePath} -Psnapshot -B"
-       _execute(cmd)
+       def cmd = "mvn ${args} -s${settings.absolutePath} -Ptestrel -B"
+       String path = System.getenv("PATH");
+       // Set the path on jenkins executors to use 3.5.2.
+       def mvnPath = "/home/jenkins/tools/maven/apache-maven-3.5.2/bin"
+       def setPath = "export PATH=${mvnPath}:${path} && "
+       _execute(setPath + cmd)
    }
 
    // Clean up and report error
