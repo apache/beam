@@ -17,13 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rule.AggregateWindowField;
@@ -161,30 +160,33 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
    */
   private BeamRecordType exKeyFieldsSchema(RelDataType relDataType) {
     BeamRecordType inputRowType = CalciteUtils.toBeamRowType(relDataType);
-    List<String> fieldNames = new ArrayList<>();
-    int windowFieldIndex = windowField.map(AggregateWindowField::fieldIndex).orElse(-1);
-    List<Coder> fieldTypes = new ArrayList<>();
-    for (int i : groupSet.asList()) {
-      if (i != windowFieldIndex) {
-        fieldNames.add(inputRowType.getFieldNameByIndex(i));
-        fieldTypes.add(inputRowType.getFieldCoder(i));
-      }
-    }
-    return new BeamRecordType(fieldNames, fieldTypes);
+    return groupSet
+        .asList()
+        .stream()
+        .filter(i -> i != windowFieldIndex)
+        .map(i -> newRecordField(inputRowType, i))
+        .collect(toRecordType());
+  }
+
+  private BeamRecordType.Field newRecordField(BeamRecordType recordType, int i) {
+    return BeamRecordType.newField(recordType.getFieldName(i), recordType.getFieldCoder(i));
   }
 
   /**
    * Type of sub-rowrecord, that represents the list of aggregation fields.
    */
   private BeamRecordType exAggFieldsSchema() {
-    List<String> fieldNames = new ArrayList<>();
-    List<Coder> fieldTypes = new ArrayList<>();
-    for (AggregateCall ac : getAggCallList()) {
-      fieldNames.add(ac.name);
-      fieldTypes.add(CalciteUtils.toCoder(ac.type.getSqlTypeName()));
-    }
+    return
+        getAggCallList()
+            .stream()
+            .map(this::newRecordField)
+            .collect(toRecordType());
+  }
 
-    return new BeamRecordType(fieldNames, fieldTypes);
+  private BeamRecordType.Field newRecordField(AggregateCall aggCall) {
+    return
+        BeamRecordType
+            .newField(aggCall.name, CalciteUtils.toCoder(aggCall.type.getSqlTypeName()));
   }
 
   @Override

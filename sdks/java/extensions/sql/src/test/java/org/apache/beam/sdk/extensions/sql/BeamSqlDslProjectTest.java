@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import static java.util.stream.Collectors.toList;
+
+import java.util.List;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
@@ -84,9 +88,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         .withBigIntField("f_long")
         .build();
 
-    BeamRecord record = new BeamRecord(resultType,
-        recordsInTableA.get(0).getFieldValue(0),
-        recordsInTableA.get(0).getFieldValue(1));
+    BeamRecord record = recordAtIndex(resultType, 0);
 
     PAssert.that(result).containsInAnyOrder(record);
 
@@ -123,21 +125,26 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
             .withBigIntField("f_long")
             .build();
 
-    BeamRecord record1 = new BeamRecord(resultType
-        , recordsInTableA.get(0).getFieldValue(0), recordsInTableA.get(0).getFieldValue(1));
+    List<BeamRecord> expectedRecords =
+        IntStream
+            .range(0, 4)
+            .mapToObj(i -> recordAtIndex(resultType, i))
+            .collect(toList());
 
-    BeamRecord record2 = new BeamRecord(resultType
-        , recordsInTableA.get(1).getFieldValue(0), recordsInTableA.get(1).getFieldValue(1));
-
-    BeamRecord record3 = new BeamRecord(resultType
-        , recordsInTableA.get(2).getFieldValue(0), recordsInTableA.get(2).getFieldValue(1));
-
-    BeamRecord record4 = new BeamRecord(resultType
-        , recordsInTableA.get(3).getFieldValue(0), recordsInTableA.get(3).getFieldValue(1));
-
-    PAssert.that(result).containsInAnyOrder(record1, record2, record3, record4);
+    PAssert
+        .that(result)
+        .containsInAnyOrder(expectedRecords);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  private BeamRecord recordAtIndex(BeamRecordType resultType, int index) {
+    return BeamRecord
+        .withRecordType(resultType)
+        .addValues(
+            recordsInTableA.get(index).getValue(0),
+            recordsInTableA.get(index).getValue(1))
+        .build();
   }
 
   /**
@@ -170,19 +177,15 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
             .withBigIntField("f_long")
             .build();
 
-    BeamRecord record1 = new BeamRecord(resultType
-        , recordsInTableA.get(0).getFieldValue(0), recordsInTableA.get(0).getFieldValue(1));
+    List<BeamRecord> expectedRecords =
+        IntStream
+            .range(0, 4)
+            .mapToObj(i -> recordAtIndex(resultType, i))
+            .collect(toList());
 
-    BeamRecord record2 = new BeamRecord(resultType
-        , recordsInTableA.get(1).getFieldValue(0), recordsInTableA.get(1).getFieldValue(1));
-
-    BeamRecord record3 = new BeamRecord(resultType
-        , recordsInTableA.get(2).getFieldValue(0), recordsInTableA.get(2).getFieldValue(1));
-
-    BeamRecord record4 = new BeamRecord(resultType
-        , recordsInTableA.get(3).getFieldValue(0), recordsInTableA.get(3).getFieldValue(1));
-
-    PAssert.that(result).containsInAnyOrder(record1, record2, record3, record4);
+    PAssert
+        .that(result)
+        .containsInAnyOrder(expectedRecords);
 
     pipeline.run().waitUntilFinish();
   }
@@ -213,7 +216,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     BeamRecordType resultType =
         BeamRecordSqlType.builder().withIntegerField("literal_field").build();
 
-    BeamRecord record = new BeamRecord(resultType, 1);
+    BeamRecord record = BeamRecord.withRecordType(resultType).addValues(1).build();
 
     PAssert.that(result).containsInAnyOrder(record);
 

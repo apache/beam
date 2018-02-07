@@ -18,11 +18,13 @@
 
 package org.apache.beam.sdk.nexmark.model.sql;
 
+import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping.ADAPTERS;
+
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.Person;
-import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping;
+import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -57,10 +59,7 @@ public class ToBeamRecordTest {
             .addElements(new Event(BID))
             .advanceWatermarkToInfinity());
 
-    BeamRecord expectedBidRecord =
-        new BeamRecord(
-            ModelAdaptersMapping.ADAPTERS.get(Bid.class).getRecordType(),
-            ModelAdaptersMapping.ADAPTERS.get(Bid.class).getFieldsValues(BID));
+    BeamRecord expectedBidRecord = toBeamRecord(BID);
 
     PAssert
         .that(bids.apply(ToBeamRecord.parDo()))
@@ -76,10 +75,7 @@ public class ToBeamRecordTest {
             .addElements(new Event(PERSON))
             .advanceWatermarkToInfinity());
 
-    BeamRecord expectedPersonRecord =
-        new BeamRecord(
-            ModelAdaptersMapping.ADAPTERS.get(Person.class).getRecordType(),
-            ModelAdaptersMapping.ADAPTERS.get(Person.class).getFieldsValues(PERSON));
+    BeamRecord expectedPersonRecord = toBeamRecord(PERSON);
 
     PAssert
         .that(people.apply(ToBeamRecord.parDo()))
@@ -95,15 +91,20 @@ public class ToBeamRecordTest {
             .addElements(new Event(AUCTION))
             .advanceWatermarkToInfinity());
 
-    BeamRecord expectedAuctionRecord =
-        new BeamRecord(
-            ModelAdaptersMapping.ADAPTERS.get(Auction.class).getRecordType(),
-            ModelAdaptersMapping.ADAPTERS.get(Auction.class).getFieldsValues(AUCTION));
+    BeamRecord expectedAuctionRecord = toBeamRecord(AUCTION);
 
     PAssert
         .that(auctions.apply(ToBeamRecord.parDo()))
         .containsInAnyOrder(expectedAuctionRecord);
 
     testPipeline.run();
+  }
+
+  private static BeamRecord toBeamRecord(Object obj) {
+    ModelFieldsAdapter adapter = ADAPTERS.get(obj.getClass());
+    return BeamRecord
+            .withRecordType(adapter.getRecordType())
+            .addValues(adapter.getFieldsValues(obj))
+            .build();
   }
 }

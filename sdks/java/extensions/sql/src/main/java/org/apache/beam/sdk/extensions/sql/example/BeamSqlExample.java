@@ -56,9 +56,9 @@ class BeamSqlExample {
         .withDoubleField("c3")
         .build();
 
-    BeamRecord row1 = new BeamRecord(type, 1, "row", 1.0);
-    BeamRecord row2 = new BeamRecord(type, 2, "row", 2.0);
-    BeamRecord row3 = new BeamRecord(type, 3, "row", 3.0);
+    BeamRecord row1 = BeamRecord.withRecordType(type).addValues(1, "row", 1.0).build();
+    BeamRecord row2 = BeamRecord.withRecordType(type).addValues(2, "row", 2.0).build();
+    BeamRecord row3 = BeamRecord.withRecordType(type).addValues(3, "row", 3.0).build();
 
     //create a source PCollection with Create.of();
     PCollection<BeamRecord> inputTable = PBegin.in(p).apply(Create.of(row1, row2, row3)
@@ -78,7 +78,7 @@ class BeamSqlExample {
                 // expect output:
                 //  PCOLLECTION: [3, row, 3.0]
                 //  PCOLLECTION: [2, row, 2.0]
-                System.out.println("PCOLLECTION: " + input.getDataValues());
+                System.out.println("PCOLLECTION: " + input.getValues());
                 return null;
               }
             }));
@@ -98,7 +98,7 @@ class BeamSqlExample {
               Void apply(BeamRecord input) {
                 // expect output:
                 //  CASE1_RESULT: [row, 5.0]
-                System.out.println("CASE1_RESULT: " + input.getDataValues());
+                System.out.println("CASE1_RESULT: " + input.getValues());
                 return null;
               }
             }));

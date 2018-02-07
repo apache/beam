@@ -25,7 +25,6 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -50,17 +49,13 @@ import org.junit.BeforeClass;
  * base class to test {@link BeamSqlFnExecutor} and subclasses of {@link BeamSqlExpression}.
  */
 public class BeamSqlFnExecutorTestBase {
-  public static RexBuilder rexBuilder = new RexBuilder(BeamQueryPlanner.TYPE_FACTORY);
-  public static RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(), rexBuilder);
+  static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
+  static RexBuilder rexBuilder = new RexBuilder(BeamQueryPlanner.TYPE_FACTORY);
+  static RelOptCluster cluster = RelOptCluster.create(new VolcanoPlanner(), rexBuilder);
+  static RelDataType relDataType;
+  static RelBuilder relBuilder;
 
-  public static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(
-      RelDataTypeSystem.DEFAULT);
-  public static RelDataType relDataType;
-
-  public static BeamRecordType beamRowType;
   public static BeamRecord record;
-
-  public static RelBuilder relBuilder;
 
   @BeforeClass
   public static void prepare() {
@@ -70,9 +65,15 @@ public class BeamSqlFnExecutorTestBase {
         .add("price", SqlTypeName.DOUBLE)
         .add("order_time", SqlTypeName.BIGINT).build();
 
-    beamRowType = CalciteUtils.toBeamRowType(relDataType);
-    record = new BeamRecord(beamRowType
-        , 1234567L, 0, 8.9, 1234567L);
+    record =
+        BeamRecord
+            .withRecordType(CalciteUtils.toBeamRowType(relDataType))
+            .addValues(
+                1234567L,
+                0,
+                8.9,
+                1234567L)
+            .build();
 
     SchemaPlus schema = Frameworks.createRootSchema(true);
     final List<RelTraitDef> traitDefs = new ArrayList<>();

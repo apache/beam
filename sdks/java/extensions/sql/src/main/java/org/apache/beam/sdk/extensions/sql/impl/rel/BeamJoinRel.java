@@ -18,9 +18,10 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
+
 import com.google.common.base.Joiner;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -121,13 +122,14 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
     // build the extract key type
     // the name of the join field is not important
-    List<String> names = new ArrayList<>(pairs.size());
-    List<Coder> types = new ArrayList<>(pairs.size());
-    for (int i = 0; i < pairs.size(); i++) {
-      names.add("c" + i);
-      types.add(leftRowType.getFieldCoder(pairs.get(i).getKey()));
-    }
-    BeamRecordType extractKeyRowType = new BeamRecordType(names, types);
+    BeamRecordType extractKeyRowType =
+        pairs
+            .stream()
+            .map(pair ->
+                     BeamRecordType.newField(
+                         leftRowType.getFieldName(pair.getKey()),
+                         leftRowType.getFieldCoder(pair.getKey())))
+            .collect(toRecordType());
 
     Coder extractKeyRowCoder = extractKeyRowType.getRecordCoder();
 
@@ -264,7 +266,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
   private BeamRecord buildNullRow(BeamRelNode relNode) {
     BeamRecordType leftType = CalciteUtils.toBeamRowType(relNode.getRowType());
-    return new BeamRecord(leftType, Collections.nCopies(leftType.getFieldCount(), null));
+    return BeamRecord.nullRecord(leftType);
   }
 
   private List<Pair<Integer, Integer>> extractJoinColumns(int leftRowColumnCount) {

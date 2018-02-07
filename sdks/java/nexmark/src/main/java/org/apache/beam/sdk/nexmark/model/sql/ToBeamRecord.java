@@ -55,7 +55,10 @@ public class ToBeamRecord {
 
     ModelFieldsAdapter adapter = modelTypeAdapters.get(modelClass);
 
-    return new BeamRecord(adapter.getRecordType(), adapter.getFieldsValues(model));
+    return BeamRecord
+        .withRecordType(adapter.getRecordType())
+        .addValues(adapter.getFieldsValues(model))
+        .build();
   }
 
   private KnownSize getModel(Event event) {

@@ -59,11 +59,11 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
       throws CoderException, IOException {
     nullListCoder.encode(scanNullFields(value), outStream);
     for (int idx = 0; idx < value.getFieldCount(); ++idx) {
-      if (value.getFieldValue(idx) == null) {
+      if (value.getValue(idx) == null) {
         continue;
       }
 
-      coders.get(idx).encode(value.getFieldValue(idx), outStream);
+      coders.get(idx).encode(value.getValue(idx), outStream);
     }
   }
 
@@ -79,9 +79,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
         fieldValues.add(coders.get(idx).decode(inStream));
       }
     }
-    BeamRecord record = new BeamRecord(recordType, fieldValues);
-
-    return record;
+    return BeamRecord.withRecordType(recordType).addValues(fieldValues).build();
   }
 
   /**
@@ -90,7 +88,7 @@ public class BeamRecordCoder extends CustomCoder<BeamRecord> {
   private BitSet scanNullFields(BeamRecord record){
     BitSet nullFields = new BitSet(record.getFieldCount());
     for (int idx = 0; idx < record.getFieldCount(); ++idx) {
-      if (record.getFieldValue(idx) == null) {
+      if (record.getValue(idx) == null) {
         nullFields.set(idx);
       }
     }

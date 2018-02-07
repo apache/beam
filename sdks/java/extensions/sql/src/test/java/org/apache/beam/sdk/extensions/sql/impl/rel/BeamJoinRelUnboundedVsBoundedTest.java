@@ -129,9 +129,10 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
     @Override
     public List<BeamRecord> seekRecord(BeamRecord lookupSubRecord) {
-      return Arrays.asList(new BeamRecord(getRowType(), 1, "SITE1"));
+      return Arrays.asList(BeamRecord.withRecordType(getRowType()).addValues(1, "SITE1").build());
     }
   }
+
   @Test
   public void testInnerJoin_unboundedTableOnTheLeftSide() throws Exception {
     String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "

@@ -91,7 +91,7 @@ public class BeamRecordSize implements KnownSize {
   }
 
   private static long sizeInBytes(BeamRecord beamRecord) {
-    BeamRecordType recordType = beamRecord.getDataType();
+    BeamRecordType recordType = beamRecord.getRecordType();
     long size = 1; // nulls bitset
 
     for (int fieldIndex = 0; fieldIndex < recordType.getFieldCount(); fieldIndex++) {

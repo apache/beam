@@ -45,10 +45,16 @@ public class SqlQuery0Test {
       ModelAdaptersMapping.ADAPTERS.get(Bid.class);
 
   private static final BeamRecord BID1_RECORD =
-      new BeamRecord(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(BID1));
+      BeamRecord
+          .withRecordType(BID_ADAPTER.getRecordType())
+          .addValues(BID_ADAPTER.getFieldsValues(BID1))
+          .build();
 
   private static final BeamRecord BID2_RECORD =
-      new BeamRecord(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(BID2));
+      BeamRecord
+          .withRecordType(BID_ADAPTER.getRecordType())
+          .addValues(BID_ADAPTER.getFieldsValues(BID2))
+          .build();
 
   @Rule
   public TestPipeline testPipeline = TestPipeline.create();

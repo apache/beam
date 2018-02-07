@@ -27,8 +27,8 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
@@ -39,32 +39,41 @@ public class BeamSqlRowCoderTest {
 
   @Test
   public void encodeAndDecode() throws Exception {
-    final RelProtoDataType protoRowType =
-        a0 ->
-            a0.builder()
-                .add("col_tinyint", SqlTypeName.TINYINT)
-                .add("col_smallint", SqlTypeName.SMALLINT)
-                .add("col_integer", SqlTypeName.INTEGER)
-                .add("col_bigint", SqlTypeName.BIGINT)
-                .add("col_float", SqlTypeName.FLOAT)
-                .add("col_double", SqlTypeName.DOUBLE)
-                .add("col_decimal", SqlTypeName.DECIMAL)
-                .add("col_string_varchar", SqlTypeName.VARCHAR)
-                .add("col_time", SqlTypeName.TIME)
-                .add("col_timestamp", SqlTypeName.TIMESTAMP)
-                .add("col_boolean", SqlTypeName.BOOLEAN)
-                .build();
+    RelDataType relDataType = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT)
+        .builder()
+        .add("col_tinyint", SqlTypeName.TINYINT)
+        .add("col_smallint", SqlTypeName.SMALLINT)
+        .add("col_integer", SqlTypeName.INTEGER)
+        .add("col_bigint", SqlTypeName.BIGINT)
+        .add("col_float", SqlTypeName.FLOAT)
+        .add("col_double", SqlTypeName.DOUBLE)
+        .add("col_decimal", SqlTypeName.DECIMAL)
+        .add("col_string_varchar", SqlTypeName.VARCHAR)
+        .add("col_time", SqlTypeName.TIME)
+        .add("col_timestamp", SqlTypeName.TIMESTAMP)
+        .add("col_boolean", SqlTypeName.BOOLEAN)
+        .build();
 
-    BeamRecordType beamRowType = CalciteUtils.toBeamRowType(
-        protoRowType.apply(new JavaTypeFactoryImpl(
-            RelDataTypeSystem.DEFAULT)));
+    BeamRecordType beamRowType = CalciteUtils.toBeamRowType(relDataType);
 
     GregorianCalendar calendar = new GregorianCalendar();
     calendar.setTime(new Date());
-    BeamRecord row = new BeamRecord(beamRowType
-        , Byte.valueOf("1"), Short.valueOf("1"), 1, 1L, 1.1F, 1.1
-        , BigDecimal.ZERO, "hello", calendar, new Date(), true);
-
+    BeamRecord row =
+        BeamRecord
+            .withRecordType(beamRowType)
+            .addValues(
+                Byte.valueOf("1"),
+                Short.valueOf("1"),
+                1,
+                1L,
+                1.1F,
+                1.1,
+                BigDecimal.ZERO,
+                "hello",
+                calendar,
+                new Date(),
+                true)
+            .build();
 
     BeamRecordCoder coder = beamRowType.getRecordCoder();
     CoderProperties.coderDecodeEncodeEqual(coder, row);

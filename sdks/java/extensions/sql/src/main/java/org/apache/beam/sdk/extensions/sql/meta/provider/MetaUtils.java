@@ -18,10 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
 
-import java.util.List;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.values.BeamRecordType;
@@ -31,8 +29,15 @@ import org.apache.beam.sdk.values.BeamRecordType;
  */
 public class MetaUtils {
   public static BeamRecordType getBeamRecordTypeFromTable(Table table) {
-    List<String> columnNames = table.getColumns().stream().map(Column::getName).collect(toList());
-    List<Coder> columnTypes = table.getColumns().stream().map(Column::getCoder).collect(toList());
-    return new BeamRecordType(columnNames, columnTypes);
+    return
+        table
+            .getColumns()
+            .stream()
+            .map(MetaUtils::toRecordField)
+            .collect(toRecordType());
+  }
+
+  private static BeamRecordType.Field toRecordField(Column column) {
+    return BeamRecordType.newField(column.getName(), column.getCoder());
   }
 }
