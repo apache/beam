@@ -28,9 +28,9 @@ import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -61,15 +61,15 @@ public class SqlQuery2Test {
       new Event(BIDS.get(6)),
       new Event(BIDS.get(7)));
 
-  private static final List<BeamRecord> BIDS_EVEN_RECORDS = ImmutableList.of(
-      newBidRecord(BIDS.get(1)),
-      newBidRecord(BIDS.get(3)),
-      newBidRecord(BIDS.get(5)),
-      newBidRecord(BIDS.get(7)));
+  private static final List<Row> BIDS_EVEN_ROWS = ImmutableList.of(
+      newBidRow(BIDS.get(1)),
+      newBidRow(BIDS.get(3)),
+      newBidRow(BIDS.get(5)),
+      newBidRow(BIDS.get(7)));
 
-  private static final List<BeamRecord> BIDS_EVERY_THIRD_RECORD = ImmutableList.of(
-      newBidRecord(BIDS.get(2)),
-      newBidRecord(BIDS.get(5)));
+  private static final List<Row> BIDS_EVERY_THIRD_ROW = ImmutableList.of(
+      newBidRow(BIDS.get(2)),
+      newBidRow(BIDS.get(5)));
 
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
@@ -83,7 +83,7 @@ public class SqlQuery2Test {
 
     PAssert
         .that(bids.apply(new SqlQuery2(2)))
-        .containsInAnyOrder(BIDS_EVEN_RECORDS);
+        .containsInAnyOrder(BIDS_EVEN_ROWS);
 
     testPipeline.run();
   }
@@ -97,7 +97,7 @@ public class SqlQuery2Test {
 
     PAssert
         .that(bids.apply(new SqlQuery2(3)))
-        .containsInAnyOrder(BIDS_EVERY_THIRD_RECORD);
+        .containsInAnyOrder(BIDS_EVERY_THIRD_ROW);
 
     testPipeline.run();
   }
@@ -106,10 +106,10 @@ public class SqlQuery2Test {
     return new Bid(id, 3L, 100L, 432342L + id, "extra_" + id);
   }
 
-  private static BeamRecord newBidRecord(Bid bid) {
+  private static Row newBidRow(Bid bid) {
     return
-        BeamRecord
-            .withRecordType(BID_ADAPTER.getRecordType())
+        Row
+            .withRowType(BID_ADAPTER.getRowType())
             .addValues(BID_ADAPTER.getFieldsValues(bid))
             .build();
   }

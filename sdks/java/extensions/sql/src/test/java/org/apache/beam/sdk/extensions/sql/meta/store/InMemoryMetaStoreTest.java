@@ -29,8 +29,8 @@ import com.google.common.collect.ImmutableList;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
@@ -92,7 +92,7 @@ public class InMemoryMetaStoreTest {
     BeamSqlTable actualSqlTable = store.buildBeamSqlTable("hello");
     assertNotNull(actualSqlTable);
     assertEquals(
-        BeamRecordSqlType.builder().withIntegerField("id").withVarcharField("name").build(),
+        RowSqlType.builder().withIntegerField("id").withVarcharField("name").build(),
         actualSqlTable.getRowType()
     );
   }

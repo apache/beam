@@ -18,13 +18,13 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import static org.apache.beam.sdk.values.BeamRecordType.toRecordType;
+import static org.apache.beam.sdk.values.RowType.toRowType;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -78,25 +78,25 @@ public class CalciteUtils {
   /**
    * Get the {@code SqlTypeName} for the specified column of a table.
    */
-  public static SqlTypeName getFieldCalciteType(BeamRecordType schema, int index) {
+  public static SqlTypeName getFieldCalciteType(RowType schema, int index) {
     return toCalciteType((SqlTypeCoder) schema.getFieldCoder(index));
   }
 
   /**
    * Generate {@code BeamSqlRowType} from {@code RelDataType} which is used to create table.
    */
-  public static BeamRecordType toBeamRowType(RelDataType tableInfo) {
+  public static RowType toBeamRowType(RelDataType tableInfo) {
     return
         tableInfo
             .getFieldList()
             .stream()
-            .map(CalciteUtils::toBeamRecordField)
-            .collect(toRecordType());
+            .map(CalciteUtils::toBeamRowField)
+            .collect(toRowType());
   }
 
-  private static BeamRecordType.Field toBeamRecordField(RelDataTypeField calciteField) {
+  private static RowType.Field toBeamRowField(RelDataTypeField calciteField) {
     return
-        BeamRecordType.newField(
+        RowType.newField(
             calciteField.getName(),
             toCoder(calciteField.getType().getSqlTypeName()));
   }
@@ -104,13 +104,13 @@ public class CalciteUtils {
   /**
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
-  public static RelProtoDataType toCalciteRowType(final BeamRecordType recordType) {
+  public static RelProtoDataType toCalciteRowType(final RowType rowType) {
     return fieldInfo -> {
       RelDataTypeFactory.FieldInfoBuilder builder = fieldInfo.builder();
-      for (int idx = 0; idx < recordType.getFieldNames().size(); ++idx) {
+      for (int idx = 0; idx < rowType.getFieldNames().size(); ++idx) {
         builder.add(
-            recordType.getFieldName(idx),
-            toCalciteType((SqlTypeCoder) recordType.getFieldCoder(idx)));
+            rowType.getFieldName(idx),
+            toCalciteType((SqlTypeCoder) rowType.getFieldCoder(idx)));
       }
       return builder.build();
     };

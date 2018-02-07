@@ -25,8 +25,8 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -77,7 +77,7 @@ public class BeamSortRelTest extends BaseRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc limit 4";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(TestUtils.RowsBuilder.of(
         SqlTypeCoders.BIGINT, "order_id",
         SqlTypeCoders.INTEGER, "site_id",
@@ -97,7 +97,7 @@ public class BeamSortRelTest extends BaseRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_time desc limit 4";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(TestUtils.RowsBuilder.of(
         SqlTypeCoders.BIGINT, "order_id",
         SqlTypeCoders.INTEGER, "site_id",
@@ -137,7 +137,7 @@ public class BeamSortRelTest extends BaseRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc NULLS FIRST limit 4";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             SqlTypeCoders.BIGINT, "order_id",
@@ -175,7 +175,7 @@ public class BeamSortRelTest extends BaseRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc NULLS LAST limit 4";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             SqlTypeCoders.BIGINT, "order_id",
@@ -198,7 +198,7 @@ public class BeamSortRelTest extends BaseRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc limit 4 offset 4";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             SqlTypeCoders.BIGINT, "order_id",
@@ -221,7 +221,7 @@ public class BeamSortRelTest extends BaseRelTest {
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_id asc, site_id desc limit 11";
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             SqlTypeCoders.BIGINT, "order_id",

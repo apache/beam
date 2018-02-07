@@ -27,38 +27,38 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 
 /**
- * {@link KnownSize} implementation to estimate the size of a {@link BeamRecord},
+ * {@link KnownSize} implementation to estimate the size of a {@link Row},
  * similar to Java model. NexmarkLauncher/Queries infrastructure expects the events to
  * be able to quickly provide the estimates of their sizes.
  *
- * <p>The {@link BeamRecord} size is calculated at creation time.
+ * <p>The {@link Row} size is calculated at creation time.
  *
- * <p>Field sizes are sizes of Java types described in {@link BeamRecordSqlType}. Except strings,
+ * <p>Field sizes are sizes of Java types described in {@link RowSqlType}. Except strings,
  * which are assumed to be taking 1-byte per character plus 1 byte size.
  */
-public class BeamRecordSize implements KnownSize {
+public class RowSize implements KnownSize {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
-  public static final Coder<BeamRecordSize> CODER = new CustomCoder<BeamRecordSize>() {
+  public static final Coder<RowSize> CODER = new CustomCoder<RowSize>() {
     @Override
-    public void encode(BeamRecordSize beamRecordSize, OutputStream outStream)
+    public void encode(RowSize rowSize, OutputStream outStream)
         throws CoderException, IOException {
 
-      LONG_CODER.encode(beamRecordSize.sizeInBytes(), outStream);
+      LONG_CODER.encode(rowSize.sizeInBytes(), outStream);
     }
 
     @Override
-    public BeamRecordSize decode(InputStream inStream) throws CoderException, IOException {
-      return new BeamRecordSize(LONG_CODER.decode(inStream));
+    public RowSize decode(InputStream inStream) throws CoderException, IOException {
+      return new RowSize(LONG_CODER.decode(inStream));
     }
   };
 
@@ -77,25 +77,25 @@ public class BeamRecordSize implements KnownSize {
           .put(SqlTypeCoders.TIMESTAMP, bytes(Long.SIZE))
           .build();
 
-  public static ParDo.SingleOutput<BeamRecord, BeamRecordSize> parDo() {
-    return ParDo.of(new DoFn<BeamRecord, BeamRecordSize>() {
+  public static ParDo.SingleOutput<Row, RowSize> parDo() {
+    return ParDo.of(new DoFn<Row, RowSize>() {
       @ProcessElement
       public void processElement(ProcessContext c) {
-        c.output(BeamRecordSize.of(c.element()));
+        c.output(RowSize.of(c.element()));
       }
     });
   }
 
-  public static BeamRecordSize of(BeamRecord beamRecord) {
-    return new BeamRecordSize(sizeInBytes(beamRecord));
+  public static RowSize of(Row row) {
+    return new RowSize(sizeInBytes(row));
   }
 
-  private static long sizeInBytes(BeamRecord beamRecord) {
-    BeamRecordType recordType = beamRecord.getRecordType();
+  private static long sizeInBytes(Row row) {
+    RowType rowType = row.getRowType();
     long size = 1; // nulls bitset
 
-    for (int fieldIndex = 0; fieldIndex < recordType.getFieldCount(); fieldIndex++) {
-      Coder fieldType = recordType.getFieldCoder(fieldIndex);
+    for (int fieldIndex = 0; fieldIndex < rowType.getFieldCount(); fieldIndex++) {
+      Coder fieldType = rowType.getFieldCoder(fieldIndex);
 
       Integer estimatedSize = ESTIMATED_FIELD_SIZES.get(fieldType);
 
@@ -105,7 +105,7 @@ public class BeamRecordSize implements KnownSize {
       }
 
       if (isString(fieldType)) {
-        size += beamRecord.getString(fieldIndex).length() + 1;
+        size += row.getString(fieldIndex).length() + 1;
         continue;
       }
 
@@ -117,7 +117,7 @@ public class BeamRecordSize implements KnownSize {
 
   private long sizeInBytes;
 
-  private BeamRecordSize(long sizeInBytes) {
+  private RowSize(long sizeInBytes) {
     this.sizeInBytes = sizeInBytes;
   }
 

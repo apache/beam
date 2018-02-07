@@ -30,12 +30,12 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.junit.AfterClass;
@@ -59,8 +59,8 @@ public class BeamTextCSVTableTest {
    *     integer,bigint,float,double,string
    * </p>
    */
-  private static BeamRecordType recordType =
-      BeamRecordSqlType
+  private static RowType rowType =
+      RowSqlType
           .builder()
           .withIntegerField("id")
           .withBigIntField("order_id")
@@ -72,32 +72,32 @@ public class BeamTextCSVTableTest {
   private static Object[] data2 = new Object[] { 2, 2L, 2.2F, 2.2, "bond" };
 
   private static List<Object[]> testData = Arrays.asList(data1, data2);
-  private static List<BeamRecord> testDataRows = Arrays.asList(
-      BeamRecord.withRecordType(recordType).addValues(data1).build(),
-      BeamRecord.withRecordType(recordType).addValues(data2).build());
+  private static List<Row> testDataRows = Arrays.asList(
+      Row.withRowType(rowType).addValues(data1).build(),
+      Row.withRowType(rowType).addValues(data2).build());
 
   private static Path tempFolder;
   private static File readerSourceFile;
   private static File writerTargetFile;
 
   @Test public void testBuildIOReader() {
-    PCollection<BeamRecord> rows =
-        new BeamTextCSVTable(recordType, readerSourceFile.getAbsolutePath())
+    PCollection<Row> rows =
+        new BeamTextCSVTable(rowType, readerSourceFile.getAbsolutePath())
             .buildIOReader(pipeline);
     PAssert.that(rows).containsInAnyOrder(testDataRows);
     pipeline.run();
   }
 
   @Test public void testBuildIOWriter() {
-    new BeamTextCSVTable(recordType, readerSourceFile.getAbsolutePath())
+    new BeamTextCSVTable(rowType, readerSourceFile.getAbsolutePath())
         .buildIOReader(pipeline)
         .apply(
-            new BeamTextCSVTable(recordType, writerTargetFile.getAbsolutePath())
+            new BeamTextCSVTable(rowType, writerTargetFile.getAbsolutePath())
                 .buildIOWriter());
     pipeline.run();
 
-    PCollection<BeamRecord> rows =
-        new BeamTextCSVTable(recordType, writerTargetFile.getAbsolutePath())
+    PCollection<Row> rows =
+        new BeamTextCSVTable(rowType, writerTargetFile.getAbsolutePath())
             .buildIOReader(pipeline2);
 
     // confirm the two reads match

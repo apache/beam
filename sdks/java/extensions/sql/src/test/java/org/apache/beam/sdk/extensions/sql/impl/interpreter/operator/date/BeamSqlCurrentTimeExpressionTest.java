@@ -34,6 +34,6 @@ public class BeamSqlCurrentTimeExpressionTest extends BeamSqlDateExpressionTestB
   public void test() {
     List<BeamSqlExpression> operands = new ArrayList<>();
     assertEquals(SqlTypeName.TIME,
-        new BeamSqlCurrentTimeExpression(operands).evaluate(record, null).getOutputType());
+        new BeamSqlCurrentTimeExpression(operands).evaluate(row, null).getOutputType());
   }
 }

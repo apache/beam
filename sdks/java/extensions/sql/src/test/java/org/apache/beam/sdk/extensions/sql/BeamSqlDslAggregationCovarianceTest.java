@@ -17,16 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.utils.BeamRecordAsserts.matchesScalar;
+import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.BeamRecord;
-import org.apache.beam.sdk.values.BeamRecordType;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,11 +41,11 @@ public class BeamSqlDslAggregationCovarianceTest {
     @Rule
     public TestPipeline pipeline = TestPipeline.create();
 
-    private PCollection<BeamRecord> boundedInput;
+    private PCollection<Row> boundedInput;
 
     @Before
     public void setUp() {
-        BeamRecordType rowType = BeamRecordSqlType.builder()
+        RowType rowType = RowSqlType.builder()
                 .withDoubleField("f_double1")
                 .withDoubleField("f_double2")
                 .withDoubleField("f_double3")
@@ -54,7 +54,7 @@ public class BeamSqlDslAggregationCovarianceTest {
                 .withIntegerField("f_int3")
                 .build();
 
-        List<BeamRecord> recordsInTableB =
+        List<Row> rowsInTableB =
                 TestUtils.RowsBuilder
                         .of(rowType)
                         .addRows(
@@ -67,7 +67,7 @@ public class BeamSqlDslAggregationCovarianceTest {
 
         boundedInput = PBegin
                 .in(pipeline)
-                .apply(Create.of(recordsInTableB).withCoder(rowType.getRecordCoder()));
+                .apply(Create.of(rowsInTableB).withCoder(rowType.getRowCoder()));
     }
 
     @Test
