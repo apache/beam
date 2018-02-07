@@ -100,6 +100,7 @@ REQUIRED_PACKAGES = [
     'crcmod>=1.7,<2.0',
     'dill==0.2.6',
     'grpcio>=1.0,<2',
+    'hdfs>=2.1.0,<3.0.0',
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
     'oauth2client>=2.0.1,<5',
@@ -110,7 +111,6 @@ REQUIRED_PACKAGES = [
     'six>=1.9,<1.12',
     'typing>=3.6.0,<3.7.0',
     'futures>=3.1.1,<4.0.0',
-    'hdfs3>=0.3.0,<0.4.0',
     ]
 
 REQUIRED_SETUP_PACKAGES = [
