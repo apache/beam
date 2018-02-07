@@ -61,32 +61,31 @@ include:
   data within your driver program. From there, `PCollection`s are the inputs and
   outputs for each step in your pipeline.
 
-* `Transform`: A `Transform` represents a data processing operation, or a step,
-  in your pipeline. Every `Transform` takes one or more `PCollection` objects as
+* `PTransform`: A `PTransform` represents a data processing operation, or a step,
+  in your pipeline. Every `PTransform` takes one or more `PCollection` objects as
   input, performs a processing function that you provide on the elements of that
-  `PCollection`, and produces one or more output `PCollection` objects.
+  `PCollection`, and produces zero or more output `PCollection` objects.
 
-* I/O `Source` and `Sink`: Beam provides `Source` and `Sink` APIs to represent
-  reading and writing data, respectively. `Source` encapsulates the code
-  necessary to read data into your Beam pipeline from some external source, such
-  as cloud file storage or a subscription to a streaming data source. `Sink`
-  likewise encapsulates the code necessary to write the elements of a
-  `PCollection` to an external data sink.
+* I/O transforms: Beam comes with a number of "IOs" - library `PTransform`s that
+  read or write data to various external storage systems.
 
 A typical Beam driver program works as follows:
 
 * Create a `Pipeline` object and set the pipeline execution options, including
   the Pipeline Runner.
-* Create an initial `PCollection` for pipeline data, either using the `Source`
-  API to read data from an external source, or using a `Create` transform to
+* Create an initial `PCollection` for pipeline data, either using the IOs
+  to read data from an external storage system, or using a `Create` transform to
   build a `PCollection` from in-memory data.
-* Apply **Transforms** to each `PCollection`. Transforms can change, filter,
+* Apply **PTransforms** to each `PCollection`. Transforms can change, filter,
   group, analyze, or otherwise process the elements in a `PCollection`. A
   transform creates a new output `PCollection` *without consuming the input
   collection*. A typical pipeline applies subsequent transforms to the each new
-  output `PCollection` in turn until processing is complete.
-* Output the final, transformed `PCollection`(s), typically using the `Sink` API
-  to write data to an external source.
+  output `PCollection` in turn until processing is complete. However, note that
+  a pipeline does not have to be a single straight line of transforms applied
+  one after another: think of `PCollection`s as variables and `PTransform`s as
+  functions applied to these variables: the shape of the pipeline can be an
+  arbitrarily complex processing graph.
+* Use IOs to write the final, transformed `PCollection`(s) to an external source.
 * **Run** the pipeline using the designated Pipeline Runner.
 
 When you run your Beam driver program, the Pipeline Runner that you designate
@@ -1640,8 +1639,8 @@ is a useful starting point when you want to write new composite PTransforms.
 ## 5. Pipeline I/O
 
 When you create a pipeline, you often need to read data from some external
-source, such as a file in external data sink or a database. Likewise, you may
-want your pipeline to output its result data to a similar external data sink.
+source, such as a file or a database. Likewise, you may
+want your pipeline to output its result data to an external storage system.
 Beam provides read and write transforms for a [number of common data storage
 types]({{ site.baseurl }}/documentation/io/built-in/). If you want your pipeline
 to read from or write to a data storage format that isn't supported by the
