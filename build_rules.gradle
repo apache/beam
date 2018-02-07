@@ -490,7 +490,7 @@ ext.applyGrpcNature = {
       testSourceDirs += file(generatedProtoTestJavaDir)
       generatedSourceDirs += file(generatedProtoTestJavaDir)
 
-      sourceDirs += file(generatedProtoMainJavaDir)
+      sourceDirs += file(generatedGrpcMainJavaDir)
       generatedSourceDirs += file(generatedGrpcMainJavaDir)
 
       testSourceDirs += file(generatedGrpcTestJavaDir)
