@@ -31,13 +31,13 @@ import (
 
 // Combine is a Combine executor. Combiners do not have side inputs (or output).
 type Combine struct {
-	UID  UnitID
-	Edge *graph.MultiEdge
-	Out  Node
+	UID               UnitID
+	Fn                *graph.CombineFn
+	IsPerKey, UsesKey bool
+	Out               Node
 
-	accum             interface{} // global accumulator, only used/valid if isPerKey == false
-	first             bool
-	isPerKey, usesKey bool
+	accum interface{} // global accumulator, only used/valid if isPerKey == false
+	first bool
 
 	mergeFn reflectx.Func2x1 // optimized caller in the case of binary merge accumulators
 
@@ -55,19 +55,13 @@ func (n *Combine) Up(ctx context.Context) error {
 	}
 	n.status = Up
 
-	if _, err := Invoke(ctx, n.Edge.CombineFn.SetupFn(), nil); err != nil {
+	if _, err := Invoke(ctx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}
 
-	if n.Edge.CombineFn.AddInputFn() == nil {
-		n.mergeFn = reflectx.ToFunc2x1(n.Edge.CombineFn.MergeAccumulatorsFn().Fn)
+	if n.Fn.AddInputFn() == nil {
+		n.mergeFn = reflectx.ToFunc2x1(n.Fn.MergeAccumulatorsFn().Fn)
 	}
-
-	// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
-	// instead of inferring it here?
-
-	n.isPerKey = typex.IsWGBK(n.Edge.Input[0].From.Type())
-	n.usesKey = typex.IsWKV(n.Edge.Input[0].Type)
 	return nil
 }
 
@@ -81,7 +75,7 @@ func (n *Combine) StartBundle(ctx context.Context, id string, data DataManager) 
 		return n.fail(err)
 	}
 
-	if n.isPerKey {
+	if n.IsPerKey {
 		return nil
 	}
 
@@ -99,7 +93,7 @@ func (n *Combine) ProcessElement(ctx context.Context, value FullValue, values ..
 		return fmt.Errorf("invalid status for combine %v: %v", n.UID, n.status)
 	}
 
-	if n.isPerKey {
+	if n.IsPerKey {
 		// For per-key combine, all processing can be done here. Note that
 		// we do not explicitly call merge, although it may be called implicitly
 		// when adding input.
@@ -152,7 +146,7 @@ func (n *Combine) FinishBundle(ctx context.Context) error {
 	}
 	n.status = Up
 
-	if !n.isPerKey {
+	if !n.IsPerKey {
 		out, err := n.extract(ctx, n.accum)
 		if err != nil {
 			return n.fail(err)
@@ -175,20 +169,20 @@ func (n *Combine) Down(ctx context.Context) error {
 	}
 	n.status = Down
 
-	if _, err := Invoke(ctx, n.Edge.CombineFn.TeardownFn(), nil); err != nil {
+	if _, err := Invoke(ctx, n.Fn.TeardownFn(), nil); err != nil {
 		n.err.TrySetError(err)
 	}
 	return n.err.Error()
 }
 
 func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, error) {
-	fn := n.Edge.CombineFn.CreateAccumulatorFn()
+	fn := n.Fn.CreateAccumulatorFn()
 	if fn == nil {
-		return reflect.Zero(n.Edge.CombineFn.MergeAccumulatorsFn().Ret[0].T).Interface(), nil
+		return reflect.Zero(n.Fn.MergeAccumulatorsFn().Ret[0].T).Interface(), nil
 	}
 
 	var opt *MainInput
-	if n.usesKey {
+	if n.UsesKey {
 		opt = &MainInput{Key: FullValue{Elm: key}}
 	}
 
@@ -202,7 +196,7 @@ func (n *Combine) newAccum(ctx context.Context, key interface{}) (interface{}, e
 func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, timestamp typex.EventTime, first bool) (interface{}, error) {
 	// log.Printf("AddInput: %v %v into %v", key, value, accum)
 
-	fn := n.Edge.CombineFn.AddInputFn()
+	fn := n.Fn.AddInputFn()
 	if fn == nil {
 		// Merge function only. The input value is an accumulator. We only do a binary
 		// merge if we've actually seen a value.
@@ -225,13 +219,13 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 
 	in := fn.Params(funcx.FnValue | funcx.FnIter | funcx.FnReIter)
 	i := 1
-	if n.usesKey {
+	if n.UsesKey {
 		opt.Key.Elm2 = Convert(key, fn.Param[in[i]].T)
 		i++
 	}
 	v := Convert(value, fn.Param[i].T)
 
-	val, err := Invoke(ctx, n.Edge.CombineFn.AddInputFn(), opt, v)
+	val, err := Invoke(ctx, n.Fn.AddInputFn(), opt, v)
 	if err != nil {
 		return nil, n.fail(fmt.Errorf("AddInput failed: %v", err))
 	}
@@ -239,13 +233,13 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value interface{}, t
 }
 
 func (n *Combine) extract(ctx context.Context, accum interface{}) (interface{}, error) {
-	fn := n.Edge.CombineFn.ExtractOutputFn()
+	fn := n.Fn.ExtractOutputFn()
 	if fn == nil {
 		// Merge function only. Accumulator type is the output type.
 		return accum, nil
 	}
 
-	val, err := Invoke(ctx, n.Edge.CombineFn.ExtractOutputFn(), nil, accum)
+	val, err := Invoke(ctx, n.Fn.ExtractOutputFn(), nil, accum)
 	if err != nil {
 		return nil, n.fail(fmt.Errorf("ExtractOutput failed: %v", err))
 	}
@@ -259,9 +253,5 @@ func (n *Combine) fail(err error) error {
 }
 
 func (n *Combine) String() string {
-	// Re-compute: the corresponding fields are not necessarily set yet.
-	isPerKey := typex.IsWGBK(n.Edge.Input[0].From.Type())
-	usesKey := typex.IsWKV(n.Edge.Input[0].Type)
-
-	return fmt.Sprintf("Combine[%v] Keyed:%v (Use:%v) Out:%v", path.Base(n.Edge.CombineFn.Name()), isPerKey, usesKey, n.Out.ID())
+	return fmt.Sprintf("Combine[%v] Keyed:%v (Use:%v) Out:%v", path.Base(n.Fn.Name()), n.IsPerKey, n.UsesKey, n.Out.ID())
 }

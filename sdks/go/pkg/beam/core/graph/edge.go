@@ -26,19 +26,17 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-// Opcode represents a primitive Fn API instruction kind.
+// Opcode represents a primitive Beam instruction kind.
 type Opcode string
 
 // Valid opcodes.
 const (
-	Impulse    Opcode = "Impulse"
-	ParDo      Opcode = "ParDo"
-	GBK        Opcode = "GBK" // TODO: Unify with CoGBK?
-	External   Opcode = "External"
-	Flatten    Opcode = "Flatten"
-	Combine    Opcode = "Combine"
-	DataSource Opcode = "DataSource"
-	DataSink   Opcode = "DataSink"
+	Impulse  Opcode = "Impulse"
+	ParDo    Opcode = "ParDo"
+	CoGBK    Opcode = "CoGBK"
+	External Opcode = "External"
+	Flatten  Opcode = "Flatten"
+	Combine  Opcode = "Combine"
 )
 
 // InputKind represents the role of the input and its shape.
@@ -131,17 +129,6 @@ func (o *Outbound) String() string {
 	return fmt.Sprintf("Out: %v -> %v", o.Type, o.To)
 }
 
-// Port represents the connection port of external operations.
-type Port struct {
-	URL string
-}
-
-// Target represents the target of external operations.
-type Target struct {
-	ID   string
-	Name string
-}
-
 // Payload represents an external payload.
 type Payload struct {
 	URN  string
@@ -160,8 +147,6 @@ type MultiEdge struct {
 	Op        Opcode
 	DoFn      *DoFn      // ParDo
 	CombineFn *CombineFn // Combine
-	Port      *Port      // DataSource, DataSink
-	Target    *Target    // DataSource, DataSink
 	Value     []byte     // Impulse
 	Payload   *Payload   // External
 
@@ -198,26 +183,47 @@ func (e *MultiEdge) String() string {
 // nodes, unless we add a notion of default coder for arbitrary types. We leave
 // that to the beam layer.
 
-// NewGBK inserts a new GBK edge into the graph.
-func NewGBK(g *Graph, s *Scope, n *Node) (*MultiEdge, error) {
-	if !typex.IsWKV(n.Type()) {
-		return nil, fmt.Errorf("input type must be KV: %v", n)
+// NewCoGBK inserts a new CoGBK edge into the graph.
+func NewCoGBK(g *Graph, s *Scope, ns []*Node) (*MultiEdge, error) {
+	if len(ns) == 0 {
+		return nil, fmt.Errorf("cogbk needs at least 1 input")
+	}
+	if !typex.IsWKV(ns[0].Type()) {
+		return nil, fmt.Errorf("input type must be KV: %v", ns[0])
 	}
 
-	// (1) Create GBK result type and coder: KV<T,U> -> GBK<T,U>.
+	// (1) Create CoGBK result type: KV<T,U>, .., KV<T,Z> -> CoGBK<T,U,..,Z>.
 
-	t := typex.NewWGBK(typex.SkipW(n.Type()).Components()...)
-	out := g.NewNode(t, n.Window())
+	c := coder.SkipW(ns[0].Coder).Components[0]
+	w := ns[0].Window()
+	comp := []typex.FullType{c.T, typex.SkipW(ns[0].Type()).Components()[1]}
 
-	// (2) Add generic GBK edge
+	for i := 1; i < len(ns); i++ {
+		n := ns[i]
+		if !typex.IsWKV(n.Type()) {
+			return nil, fmt.Errorf("input type must be KV: %v", n)
+		}
+		if !coder.SkipW(n.Coder).Components[0].Equals(c) {
+			return nil, fmt.Errorf("key coder for %v is %v, want %v", n, coder.SkipW(n.Coder).Components[0], c)
+		}
+		if !w.Equals(n.Window()) {
+			return nil, fmt.Errorf("mismatched cogbk window types: %v, want %v", n.Window(), w)
+		}
 
-	inT := typex.New(typex.KVType, typex.New(typex.TType), typex.New(typex.UType))
-	outT := typex.New(typex.GBKType, typex.New(typex.TType), typex.New(typex.UType))
+		comp = append(comp, typex.SkipW(n.Type()).Components()[1])
+	}
+
+	t := typex.NewWCoGBK(comp...)
+	out := g.NewNode(t, w)
+
+	// (2) Add CoGBK edge
 
 	edge := g.NewEdge(s)
-	edge.Op = GBK
-	edge.Input = []*Inbound{{Kind: Main, From: n, Type: inT}}
-	edge.Output = []*Outbound{{To: out, Type: outT}}
+	edge.Op = CoGBK
+	for i := 0; i < len(ns); i++ {
+		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: ns[i], Type: ns[i].Type()})
+	}
+	edge.Output = []*Outbound{{To: out, Type: t}}
 	return edge, nil
 }
 
@@ -233,14 +239,12 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 		if !typex.IsEqual(t, n.Type()) {
 			return nil, fmt.Errorf("mismatched flatten input types: %v, want %v", n.Type(), t)
 		}
-
 		if !w.Equals(n.Window()) {
 			return nil, fmt.Errorf("mismatched flatten window types: %v, want %v", n.Window(), w)
 		}
-
 	}
-	if typex.IsWGBK(t) || typex.IsWCoGBK(t) {
-		return nil, fmt.Errorf("flatten input type cannot be GBK or CGBK: %v", t)
+	if typex.IsWCoGBK(t) {
+		return nil, fmt.Errorf("flatten input type cannot be CoGBK: %v", t)
 	}
 
 	edge := g.NewEdge(s)
@@ -297,16 +301,13 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs ma
 	return edge, nil
 }
 
-// NewCombine inserts a new Combine edge into the graph.
-func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error) {
-	if len(in) < 1 {
-		return nil, fmt.Errorf("combine needs at least 1 input, got %v", len(in))
-	}
-
-	// Create a synthetic function for binding purposes. It takes main inputs,
-	// side inputs and returns the output type -- but hides the accumulator.
+// NewCombine inserts a new Combine edge into the graph. Combines cannot have side
+// input.
+func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) {
+	// Create a synthetic function for binding purposes. It takes main input
+	// and returns the output type -- but hides the accumulator.
 	//
-	//  (1) If AddInput exists, then it lists the main and side inputs. If not,
+	//  (1) If AddInput exists, then it lists the main inputs. If not,
 	//      the only main input type is the accumulator type.
 	//  (2)	If ExtractOutput exists then it returns the output type. If not,
 	//      then the accumulator is the output type.
@@ -316,7 +317,8 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 
 	synth := &funcx.Fn{}
 	if f := u.AddInputFn(); f != nil {
-		synth.Param = f.Param[1:] // drop accumulator parameter.
+		// drop accumulator and irrelevant parameters
+		synth.Param = funcx.SubParams(f.Param, f.Params(funcx.FnValue)[1:]...)
 	} else {
 		synth.Param = []funcx.FnParam{{Kind: funcx.FnValue, T: u.MergeAccumulatorsFn().Ret[0].T}}
 	}
@@ -326,55 +328,47 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 		synth.Ret = u.MergeAccumulatorsFn().Ret
 	}
 
-	ts := NodeTypes(in)
-	t := typex.SkipW(in[0].Type())
+	inT := in.Type()
 
-	// Per-key combines are allowed as well and the key does not have to be
-	// present in the signature. In that case, it is ignored for the
-	// purpose of binding. The difficulty is that we can't easily tell the
-	// difference between (Key, Accum) and (Accum, SideInput) in the
-	// signature, so we simply try binding with and without a key.
-
-	isPerKey := typex.IsWGBK(ts[0])
+	isPerKey := typex.IsWCoGBK(in.Type())
 	if isPerKey {
-		ts[0] = typex.NewW(t.Components()[1]) // Try W<GBK<A,B>> -> W<B>
+		// For per-key combine, the shape of the inbound type and the type of the
+		// inbound node are different: a node type of W<CoGBK<A,B>> will become W<B>
+		// or W<KV<A,B>>, depending on whether the combineFn is keyed or not.
+		// Per-key combines may omit the key in the signature. In such a case,
+		// it is ignored for the purpose of binding. The runtime will later look at
+		// these types to decide whether to add the key or not.
+		//
+		// However, the outbound type will be W<KV<A,O>> (where O is the output
+		// type) regardless of whether the combineFn is keyed or not.
+
+		t := typex.SkipW(in.Type())
+		if len(t.Components()) > 2 {
+			return nil, fmt.Errorf("combine cannot follow multi-input CoGBK: %v", t)
+		}
+
+		if len(synth.Param) == 1 {
+			inT = typex.NewW(t.Components()[1]) // Drop implicit key for binding purposes
+		} else {
+			inT = typex.NewWKV(t.Components()...)
+		}
 
 		// The runtime always adds the key for the output of per-key combiners.
 		key := t.Components()[0]
 		synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
 	}
 
-	inbound, kinds, outbound, out, err := Bind(synth, nil, ts...)
+	inbound, kinds, outbound, out, err := Bind(synth, nil, inT)
 	if err != nil {
-		if !isPerKey {
-			return nil, err
-		}
-
-		ts[0] = typex.NewWKV(t.Components()...) // Try W<GBK<A,B>> -> W<KV<A,B>>
-
-		inbound, kinds, outbound, out, err = Bind(synth, nil, ts...)
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
-
-	// For per-key combine, the shape of the inbound type and the type of the
-	// node are different. A node type of W<GBK<A,B>> will become W<B> or
-	// W<KV<A,B>>, depending on whether the combineFn is keyed or not. The
-	// runtime will look at this type to decide whether to add the key.
-	//
-	// However, the outbound type will be W<KV<A,O>> (where O is the output
-	// type) regardless of whether the combineFn is keyed or not.
 
 	edge := g.NewEdge(s)
 	edge.Op = Combine
 	edge.CombineFn = u
-
-	for i := 0; i < len(in); i++ {
-		edge.Input = append(edge.Input, &Inbound{Kind: kinds[i], From: in[i], Type: inbound[i]})
-	}
+	edge.Input = []*Inbound{{Kind: kinds[0], From: in, Type: inbound[0]}}
 	for i := 0; i < len(out); i++ {
-		n := g.NewNode(out[i], inputWindow(in))
+		n := g.NewNode(out[i], in.Window())
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
 	return edge, nil

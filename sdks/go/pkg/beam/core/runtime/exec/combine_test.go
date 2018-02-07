@@ -39,13 +39,13 @@ func TestCombine(t *testing.T) {
 	g := graph.New()
 	in := g.NewNode(typex.NewW(typex.New(reflectx.Int)), window.NewGlobalWindow())
 
-	edge, err := graph.NewCombine(g, g.Root(), fn, []*graph.Node{in})
+	edge, err := graph.NewCombine(g, g.Root(), fn, in)
 	if err != nil {
 		t.Fatalf("invalid pardo: %v", err)
 	}
 
 	out := &CaptureNode{UID: 1}
-	combine := &Combine{UID: 2, Edge: edge, Out: out}
+	combine := &Combine{UID: 2, Fn: edge.CombineFn, Out: out}
 	n := &FixedRoot{UID: 3, Elements: makeValues(1, 2, 3, 4, 5, 6), Out: combine}
 
 	p, err := NewPlan("a", []Unit{n, combine, out})

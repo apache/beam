@@ -27,11 +27,8 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
@@ -110,9 +107,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		}
 
 		// Launch a goroutine to handle the control message.
-		// TODO(wcn): maybe only do this for 'heavy' messages?
 		// TODO(wcn): implement a rate limiter for 'heavy' messages?
-		go func() {
+		fn := func() {
 			log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
 			recordInstructionRequest(req)
 
@@ -133,7 +129,15 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			if resp != nil {
 				respc <- resp
 			}
-		}()
+		}
+
+		if req.GetProcessBundle() != nil {
+			// Only process bundles in a goroutine. We at least need to process instructions for
+			// each plan serially. Perhaps just invoke plan.Execute async?
+			go fn()
+		} else {
+			fn()
+		}
 	}
 }
 
@@ -157,41 +161,16 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		msg := req.GetRegister()
 
 		for _, desc := range msg.GetProcessBundleDescriptor() {
-			var roots []string
-			for id := range desc.GetTransforms() {
-				roots = append(roots, id)
-			}
-			p := &pb.Pipeline{
-				Components: &pb.Components{
-					Transforms:          desc.Transforms,
-					Pcollections:        desc.Pcollections,
-					Coders:              desc.Coders,
-					WindowingStrategies: desc.WindowingStrategies,
-					Environments:        desc.Environments,
-				},
-				RootTransformIds: roots,
-			}
-
-			g, err := graphx.Unmarshal(p)
+			p, err := exec.UnmarshalPlan(desc)
 			if err != nil {
 				return fail(id, "Invalid bundle desc: %v", err)
 			}
-			log.Debugf(ctx, "Added subgraph %v:\n %v", desc.GetId(), g)
-
-			edges, _, err := g.Build()
-			if err != nil {
-				return fail(id, "invalid pipeline: %v", err)
-			}
-			plan, err := direct.Compile(edges)
-			if err != nil {
-				return fail(id, "translation failed: %v", err)
-			}
 
 			pid := desc.GetId()
-			log.Debugf(ctx, "Plan %v: %v", pid, plan)
+			log.Debugf(ctx, "Plan %v: %v", pid, p)
 
 			c.mu.Lock()
-			c.plans[pid] = plan
+			c.plans[pid] = p
 			c.mu.Unlock()
 		}
 

@@ -62,7 +62,6 @@ func TestClassOf(t *testing.T) {
 		{ZType, Universal},
 
 		{KVType, Composite},
-		{GBKType, Composite},
 		{CoGBKType, Composite},
 		{WindowedValueType, Composite},
 

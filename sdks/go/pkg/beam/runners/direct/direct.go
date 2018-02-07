@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -49,8 +50,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	return plan.Down(ctx)
 }
-
-// TODO(herohde) 4/29/2017: Cleaner separation of direct (vs other runners) and core exec. BEAM-3316?
 
 // Compile translates a pipeline to a multi-bundle execution plan.
 func Compile(edges []*graph.MultiEdge) (*exec.Plan, error) {
@@ -97,15 +96,6 @@ func Compile(edges []*graph.MultiEdge) (*exec.Plan, error) {
 			u := &Impulse{UID: b.idgen.New(), Value: edge.Value, Out: out}
 			roots = append(roots, u)
 
-		case graph.DataSource:
-			out, err := b.makeNode(edge.Output[0].To.ID())
-			if err != nil {
-				return nil, err
-			}
-
-			u := &exec.DataSource{UID: b.idgen.New(), Edge: edge, Out: out}
-			roots = append(roots, u)
-
 		default:
 			// skip non-roots
 		}
@@ -117,7 +107,7 @@ func Compile(edges []*graph.MultiEdge) (*exec.Plan, error) {
 // linkID represents an incoming data link to an Edge.
 type linkID struct {
 	to    int // graph.MultiEdge
-	input int // input index. If > 0, it's a side input.
+	input int // input index. If > 0, it's a side or CoGBK input.
 }
 
 // builder is the recursive builder for non-root execution nodes.
@@ -203,7 +193,7 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 
 	// Process all incoming links for the edge and cache them. It thus doesn't matter
 	// which exact link triggers the Node generation. The link caching is only needed
-	// to process ParDo side inputs.
+	// to process ParDo side inputs and CoGBK.
 
 	edge := b.edges[id.to]
 
@@ -215,7 +205,7 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 	var u exec.Node
 	switch edge.Op {
 	case graph.ParDo:
-		pardo := &exec.ParDo{UID: b.idgen.New(), Edge: edge, Out: out}
+		pardo := &exec.ParDo{UID: b.idgen.New(), Fn: edge.DoFn, Inbound: edge.Input, Out: out}
 		if len(edge.Input) == 1 {
 			u = pardo
 			break
@@ -241,10 +231,31 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		return b.links[id], nil
 
 	case graph.Combine:
-		u = &exec.Combine{UID: b.idgen.New(), Edge: edge, Out: out[0]}
+		isPerKey := typex.IsWCoGBK(edge.Input[0].From.Type())
+		usesKey := typex.IsWKV(edge.Input[0].Type)
 
-	case graph.GBK:
-		u = &GBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}
+		u = &exec.Combine{UID: b.idgen.New(), Fn: edge.CombineFn, IsPerKey: isPerKey, UsesKey: usesKey, Out: out[0]}
+
+	case graph.CoGBK:
+		u = &CoGBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}
+		b.units = append(b.units, u)
+
+		// CoGBK needs injection of each incoming index. If > 1 incoming,
+		// insert Flatten as well.
+
+		if len(edge.Input) > 1 {
+			u = &exec.Flatten{UID: b.idgen.New(), N: len(edge.Input), Out: u}
+			b.units = append(b.units, u)
+		}
+
+		for i := 0; i < len(edge.Input); i++ {
+			n := &Inject{UID: b.idgen.New(), N: i, Out: u}
+
+			b.units = append(b.units, n)
+			b.links[linkID{edge.ID(), i}] = n
+		}
+
+		return b.links[id], nil
 
 	case graph.Flatten:
 		u = &exec.Flatten{UID: b.idgen.New(), N: len(edge.Input), Out: out[0]}
@@ -252,9 +263,6 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		for i := 0; i < len(edge.Input); i++ {
 			b.links[linkID{edge.ID(), i}] = u
 		}
-
-	case graph.DataSink:
-		u = &exec.DataSink{UID: b.idgen.New(), Edge: edge}
 
 	default:
 		return nil, fmt.Errorf("unexpected edge: %v", edge)

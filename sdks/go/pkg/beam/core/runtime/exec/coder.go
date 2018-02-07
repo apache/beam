@@ -22,17 +22,27 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
+// Port represents the connection port of external operations.
+type Port struct {
+	URL string
+}
+
+// Target represents the target of external operations.
+type Target struct {
+	ID   string
+	Name string
+}
+
 // StreamID represents the information needed to identify a data stream.
 type StreamID struct {
-	Port   graph.Port
-	Target graph.Target
+	Port   Port
+	Target Target
 	InstID string
 }
 
@@ -243,11 +253,10 @@ type kvEncoder struct {
 }
 
 func (c *kvEncoder) Encode(val FullValue, w io.Writer) error {
-	if err := c.fst.Encode(FullValue{Elm: val.Elm}, w); err != nil {
+	if err := c.fst.Encode(convertIfNeeded(val.Elm), w); err != nil {
 		return err
 	}
-	return c.snd.Encode(FullValue{Elm: val.Elm2}, w)
-
+	return c.snd.Encode(convertIfNeeded(val.Elm2), w)
 }
 
 type kvDecoder struct {
@@ -300,4 +309,11 @@ func DecodeWindowedValueHeader(c *coder.Coder, r io.Reader) (typex.EventTime, er
 		return typex.EventTime(time.Time{}), err
 	}
 	return t, nil
+}
+
+func convertIfNeeded(v interface{}) FullValue {
+	if fv, ok := v.(FullValue); ok {
+		return fv
+	}
+	return FullValue{Elm: v}
 }

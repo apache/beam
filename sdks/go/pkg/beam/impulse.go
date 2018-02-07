@@ -40,5 +40,7 @@ func ImpulseValue(s Scope, value []byte) PCollection {
 		panic("Invalid scope")
 	}
 	edge := graph.NewImpulse(s.real, s.scope, value)
-	return PCollection{edge.Output[0].To}
+	ret := PCollection{edge.Output[0].To}
+	ret.SetCoder(NewCoder(ret.Type()))
+	return ret
 }

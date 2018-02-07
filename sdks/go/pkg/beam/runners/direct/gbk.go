@@ -27,11 +27,11 @@ import (
 
 type group struct {
 	key    exec.FullValue
-	values []exec.FullValue
+	values [][]exec.FullValue
 }
 
-// GBK buffers all input and continues on FinishBundle. Use with small single-bundle data only.
-type GBK struct {
+// CoGBK buffers all input and continues on FinishBundle. Use with small single-bundle data only.
+type CoGBK struct {
 	UID  exec.UnitID
 	Edge *graph.MultiEdge
 	Out  exec.Node
@@ -40,40 +40,49 @@ type GBK struct {
 	m   map[string]*group
 }
 
-func (n *GBK) ID() exec.UnitID {
+func (n *CoGBK) ID() exec.UnitID {
 	return n.UID
 }
 
-func (n *GBK) Up(ctx context.Context) error {
+func (n *CoGBK) Up(ctx context.Context) error {
 	n.enc = exec.MakeElementEncoder(coder.SkipW(n.Edge.Input[0].From.Coder).Components[0])
 	n.m = make(map[string]*group)
 	return nil
 }
 
-func (n *GBK) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+func (n *CoGBK) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
 	return n.Out.StartBundle(ctx, id, data)
 }
 
-func (n *GBK) ProcessElement(ctx context.Context, elm exec.FullValue, _ ...exec.ReStream) error {
+func (n *CoGBK) ProcessElement(ctx context.Context, elm exec.FullValue, _ ...exec.ReStream) error {
+	index := elm.Elm.(int)
+	value := elm.Elm2.(exec.FullValue)
+
 	var buf bytes.Buffer
-	if err := n.enc.Encode(exec.FullValue{Elm: elm.Elm}, &buf); err != nil {
-		return fmt.Errorf("failed to encode key %v for GBK: %v", elm, err)
+	if err := n.enc.Encode(exec.FullValue{Elm: value.Elm}, &buf); err != nil {
+		return fmt.Errorf("failed to encode key %v for CoGBK: %v", elm, err)
 	}
 	key := buf.String()
 
 	g, ok := n.m[key]
 	if !ok {
-		g = &group{key: exec.FullValue{Elm: elm.Elm, Timestamp: elm.Timestamp}}
+		g = &group{
+			key:    exec.FullValue{Elm: value.Elm, Timestamp: value.Timestamp},
+			values: make([][]exec.FullValue, len(n.Edge.Input)),
+		}
 		n.m[key] = g
 	}
-	g.values = append(g.values, exec.FullValue{Elm: elm.Elm2, Timestamp: elm.Timestamp})
+	g.values[index] = append(g.values[index], exec.FullValue{Elm: value.Elm2, Timestamp: value.Timestamp})
 	return nil
 }
 
-func (n *GBK) FinishBundle(ctx context.Context) error {
+func (n *CoGBK) FinishBundle(ctx context.Context) error {
 	for key, g := range n.m {
-		values := &exec.FixedReStream{Buf: g.values}
-		if err := n.Out.ProcessElement(ctx, g.key, values); err != nil {
+		values := make([]exec.ReStream, len(g.values))
+		for i, list := range g.values {
+			values[i] = &exec.FixedReStream{Buf: list}
+		}
+		if err := n.Out.ProcessElement(ctx, g.key, values...); err != nil {
 			return err
 		}
 		delete(n.m, key)
@@ -81,10 +90,46 @@ func (n *GBK) FinishBundle(ctx context.Context) error {
 	return n.Out.FinishBundle(ctx)
 }
 
-func (n *GBK) Down(ctx context.Context) error {
+func (n *CoGBK) Down(ctx context.Context) error {
 	return nil
 }
 
-func (n *GBK) String() string {
-	return fmt.Sprintf("GBK. Out:%v", n.Out.ID())
+func (n *CoGBK) String() string {
+	return fmt.Sprintf("CoGBK. Out:%v", n.Out.ID())
+}
+
+// Inject injects the predecessor index into each FullValue, effectively
+// converting KV<X,Y> into KV<X,KV<int,Y>>. Used to prime CoGBK.
+type Inject struct {
+	UID exec.UnitID
+	N   int
+	Out exec.Node
+}
+
+func (n *Inject) ID() exec.UnitID {
+	return n.UID
+}
+
+func (n *Inject) Up(ctx context.Context) error {
+	return nil
+}
+
+func (n *Inject) StartBundle(ctx context.Context, id string, data exec.DataManager) error {
+	return n.Out.StartBundle(ctx, id, data)
+}
+
+func (n *Inject) ProcessElement(ctx context.Context, elm exec.FullValue, values ...exec.ReStream) error {
+	return n.Out.ProcessElement(ctx, exec.FullValue{Elm: n.N, Elm2: elm, Timestamp: elm.Timestamp}, values...)
+}
+
+func (n *Inject) FinishBundle(ctx context.Context) error {
+	return n.Out.FinishBundle(ctx)
+}
+
+func (n *Inject) Down(ctx context.Context) error {
+	return nil
+}
+
+func (n *Inject) String() string {
+	return fmt.Sprintf("Inject[%v]. Out:%v", n.N, n.Out.ID())
 }

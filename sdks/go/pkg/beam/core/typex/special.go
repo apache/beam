@@ -35,7 +35,6 @@ var (
 	EventTimeType = reflect.TypeOf((*EventTime)(nil)).Elem()
 
 	KVType            = reflect.TypeOf((*KV)(nil)).Elem()
-	GBKType           = reflect.TypeOf((*GBK)(nil)).Elem()
 	CoGBKType         = reflect.TypeOf((*CoGBK)(nil)).Elem()
 	WindowedValueType = reflect.TypeOf((*WindowedValue)(nil)).Elem()
 )
@@ -54,18 +53,13 @@ type Z interface{}
 // EventTime is a time.Time that Beam understands as attached to an element.
 type EventTime time.Time
 
-// KV, GBK, CoGBK, WindowedValue are composite generic types. They are not
-// used directly in user code signatures, but only in FullTypes. The fields below
+// KV, CoGBK, WindowedValue are composite generic types. They are not used
+// directly in user code signatures, but only in FullTypes. The fields below
 // are for documentation only.
 
 type KV struct {
 	Key   T
 	Value U
-}
-
-type GBK struct {
-	Key    T
-	Values U
 }
 
 type CoGBK struct {

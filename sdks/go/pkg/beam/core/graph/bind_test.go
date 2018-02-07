@@ -16,9 +16,8 @@
 package graph
 
 import (
-	"testing"
-
 	"reflect"
+	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -120,6 +119,21 @@ func TestBind(t *testing.T) {
 			[]typex.FullType{typex.NewWKV(typex.New(reflectx.Int8), typex.New(reflectx.Int16))},
 			func(int8, func(*int16) bool) int { return 0 },
 			nil,
+		},
+		{ // GBK binding
+			[]typex.FullType{typex.NewWCoGBK(typex.New(reflectx.Int8), typex.New(reflectx.Int16))},
+			func(int8, func(*int16) bool) int { return 0 },
+			[]typex.FullType{typex.NewW(typex.New(reflectx.Int))},
+		},
+		{ // CoGBK binding
+			[]typex.FullType{typex.NewWCoGBK(typex.New(reflectx.Int8), typex.New(reflectx.Int16), typex.New(reflectx.Int32))},
+			func(int8, func(*int16) bool, func(*int32) bool) int { return 0 },
+			[]typex.FullType{typex.NewW(typex.New(reflectx.Int))},
+		},
+		{ // GBK binding with side input
+			[]typex.FullType{typex.NewWCoGBK(typex.New(reflectx.Int8), typex.New(reflectx.Int16)), typex.NewW(typex.New(reflectx.Int32))},
+			func(int8, func(*int16) bool, func(*int32) bool) int { return 0 },
+			[]typex.FullType{typex.NewW(typex.New(reflectx.Int))},
 		},
 	}
 

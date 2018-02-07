@@ -51,7 +51,7 @@ message Type {
         SLICE = 20;
         STRUCT = 21;
         FUNC = 22;
-        CHAN = 23; // TODO: remove?
+        CHAN = 23;
         PTR = 24;
         SPECIAL = 25;
 
@@ -104,7 +104,6 @@ message Type {
         EVENTTIME = 10;
 
         KV = 11;
-        GBK = 12;
         COGBK = 13;
         WINDOWEDVALUE = 14;
 
@@ -214,4 +213,20 @@ message MultiEdge {
         FullType type = 1;
     }
     repeated Outbound outbound = 3;
+}
+
+// InjectPayload is the payload for the built-in Inject function.
+message InjectPayload {
+    int32 n = 1;
+}
+
+// TransformPayload represents the full payload for transforms, both
+// user defined and built-in.
+message TransformPayload {
+    // urn is included here. It is also present in the model pipeline, but
+    // not when submitting through Dataflow yet.
+    string urn = 1;
+
+    MultiEdge edge = 2;
+    InjectPayload inject = 3;
 }
