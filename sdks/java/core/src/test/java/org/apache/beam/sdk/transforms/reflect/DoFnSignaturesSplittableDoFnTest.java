@@ -199,6 +199,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       @ProcessElement
       public void process(ProcessContext context) {}
     }
+
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures

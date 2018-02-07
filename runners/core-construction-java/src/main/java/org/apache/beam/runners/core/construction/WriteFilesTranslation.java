@@ -294,6 +294,7 @@ public class WriteFilesTranslation {
       return new RawWriteFiles(protoTransform, rehydratedComponents);
     }
   }
+
   /** Registers {@link WriteFilesTranslator}. */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
