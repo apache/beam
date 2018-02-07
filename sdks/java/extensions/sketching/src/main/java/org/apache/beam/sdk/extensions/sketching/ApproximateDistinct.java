@@ -258,10 +258,32 @@ public final class ApproximateDistinct {
       abstract GloballyDistinct<InputT> build();
     }
 
+    /**
+     * Returns a new {@link PTransform} with a new precision {@code p}.
+     *
+     * <p>Keep in mind that {@code p} cannot be lower than 4, because the estimation would be too
+     * inaccurate.
+     *
+     * <p>See {@link ApproximateDistinct#precisionForRelativeError(double)} and {@link
+     * ApproximateDistinct#relativeErrorForPrecision(int)} to have more information about the
+     * relationship between precision and relative error.
+     *
+     * @param p the precision value for the normal representation
+     */
     public GloballyDistinct<InputT> withPrecision(int p) {
       return toBuilder().setPrecision(p).build();
     }
 
+    /**
+     * Returns a new {@link PTransform} with a sparse representation of precision {@code sp}.
+     *
+     * <p>Values above 32 are not yet supported by the AddThis version of HyperLogLog+.
+     *
+     * <p>Fore more information about the sparse representation, read Google's paper available <a
+     * href="https://research.google.com/pubs/pub40671.html">here</a>.
+     *
+     * @param sp the precision of HyperLogLog+' sparse representation
+     */
     public GloballyDistinct<InputT> withSparsePrecision(int sp) {
       return toBuilder().setSparsePrecision(sp).build();
     }
@@ -310,10 +332,32 @@ public final class ApproximateDistinct {
       abstract PerKeyDistinct<K, V> build();
     }
 
+    /**
+     * Returns a new {@link PTransform} with a new precision {@code p}.
+     *
+     * <p>Keep in mind that {@code p} cannot be lower than 4, because the estimation would be too
+     * inaccurate.
+     *
+     * <p>See {@link ApproximateDistinct#precisionForRelativeError(double)} and {@link
+     * ApproximateDistinct#relativeErrorForPrecision(int)} to have more information about the
+     * relationship between precision and relative error.
+     *
+     * @param p the precision value for the normal representation
+     */
     public PerKeyDistinct<K, V> withPrecision(int p) {
       return toBuilder().setPrecision(p).build();
     }
 
+    /**
+     * Returns a new {@link PTransform} with a sparse representation of precision {@code sp}.
+     *
+     * <p>Values above 32 are not yet supported by the AddThis version of HyperLogLog+.
+     *
+     * <p>Fore more information about the sparse representation, read Google's paper available <a
+     * href="https://research.google.com/pubs/pub40671.html">here</a>.
+     *
+     * @param sp the precision of HyperLogLog+' sparse representation
+     */
     public PerKeyDistinct<K, V> withSparsePrecision(int sp) {
       return toBuilder().setSparsePrecision(sp).build();
     }

@@ -49,15 +49,21 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <h2>Parameters</h2>
  *
- * <p>Only one parameter can be tuned in order ton control the estimation accuracy and memory use,
- * called the compression factor {@code cf}.
+ * <p>Only one parameter can be tuned in order to control the tradeoff between
+ * the estimation accuracy and the memory use. <br>
  *
  * <p>Stream elements are compressed into a linked list of centroids.
- * The compression factor is used to limit the number of elements represented by each centroid
- * as well as the total number of centroids. <br>
- * The accuracy is really high (in parts per million) for extreme quantiles and
- * in general {@code <1000 ppm} for middle quantiles. <br>
- * By default the compression factor is set to 100. A value of 1000 is extremely large.
+ * The compression factor {@code cf} is used to limit the number of elements represented by
+ * each centroid as well as the total number of centroids. <br>
+ * The relative error will always be a small fraction of 1% for values at extreme quantiles
+ * and in general {@code <1000 ppm} at middle quantiles. <br>
+ *
+ * <p>By default the compression factor is set to 100. In the paper, experiments suggest that
+ * values at mid quantiles will have an accuracy of 1% for streams up to 100k elements. <br>
+ * If you have a larger stream or want a better accuracy,
+ * you should increase the compression factor. <br>
+ * For instance a value of 500 would guarantee a relative error of less than 1% in streams
+ * up to 10M elements. Note that a value of 1000 is extremely large.
  *
  * <h2>Examples</h2>
  *
@@ -107,7 +113,7 @@ import org.apache.beam.sdk.values.PCollection;
  *        {@literal new DoFn<MergingDigest, KV<Double, Double>>()} {
  *          {@literal @ProcessElement}
  *           public void procesElement(ProcessContext c) {
- *             Double[] quantiles = {0.01, 0.25, 0.5, 0.75, 0.99}
+ *             double[] quantiles = {0.01, 0.25, 0.5, 0.75, 0.99}
  *             for (Double q : quantiles) {
  *                c.output(KV.of(q, c.element().quantile(q));
  *             }
@@ -179,6 +185,14 @@ public final class TDigestQuantiles {
       abstract GlobalDigest build();
     }
 
+    /**
+     * Returns a new {@link PTransform} with a new compression factor {@code cf}.
+     *
+     * <p>This value bounds the maximum number of points resumed in each centroid
+     * and the total number of centroids in the digest.
+     *
+     * @param cf the bound value for centroid and digest sizes.
+     */
     public GlobalDigest withCompression(double cf) {
       return toBuilder().setCompression(cf).build();
     }
@@ -186,7 +200,7 @@ public final class TDigestQuantiles {
     @Override
     public PCollection<MergingDigest> expand(PCollection<Double> input) {
       return input.apply(
-                      "Compute HyperLogLog Structure",
+                      "Compute T-Digest Structure",
                       Combine.globally(TDigestQuantilesFn.create(this.compression())));
     }
   }
@@ -206,19 +220,27 @@ public final class TDigestQuantiles {
 
     @AutoValue.Builder
     abstract static class Builder<K> {
-      abstract Builder<K> setCompression(double c);
+      abstract Builder<K> setCompression(double cf);
 
       abstract PerKeyDigest<K> build();
     }
 
-    public PerKeyDigest<K> withCompression(double c) {
-      return toBuilder().setCompression(c).build();
+    /**
+     * Returns a new {@link PTransform} with a new compression factor {@code cf}.
+     *
+     * <p>This value bounds the maximum number of points resumed in each centroid
+     * and the total number of centroids in the digest.
+     *
+     * @param cf the bound value for centroid and digest sizes.
+     */
+    public PerKeyDigest<K> withCompression(double cf) {
+      return toBuilder().setCompression(cf).build();
     }
 
     @Override
     public PCollection<KV<K, MergingDigest>> expand(PCollection<KV<K, Double>> input) {
       return input.apply(
-              "Compute HyperLogLog Structure",
+              "Compute T-Digest Structure",
               Combine.perKey(TDigestQuantilesFn.create(this.compression())));
     }
   }
@@ -236,8 +258,10 @@ public final class TDigestQuantiles {
     /**
      * Returns {@link TDigestQuantilesFn} combiner with the given compression factor.
      *
-     * @param compression   the compression factor guarantees a relative error of at most
-     *                      {@code 3 / compression} on quantiles.
+     * <p>This value bounds the maximum number of points resumed in each centroid
+     * and the total number of centroids in the digest.
+     *
+     * @param compression the bound value for centroid and digest sizes.
      */
     public static TDigestQuantilesFn create(double compression) {
         if (compression > 0) {
@@ -295,8 +319,8 @@ public final class TDigestQuantiles {
       if (value == null) {
         throw new CoderException("cannot encode a null T-Digest sketch");
       }
-      ByteBuffer buf = ByteBuffer.allocate(value.smallByteSize());
-      value.asSmallBytes(buf);
+      ByteBuffer buf = ByteBuffer.allocate(value.byteSize());
+      value.asBytes(buf);
       BYTE_ARRAY_CODER.encode(buf.array(), outStream);
     }
 
@@ -315,7 +339,7 @@ public final class TDigestQuantiles {
       if (value == null) {
         throw new CoderException("cannot encode a null T-Digest sketch");
       }
-      return value.smallByteSize();
+      return value.byteSize();
     }
   }
 }

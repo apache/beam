@@ -55,6 +55,8 @@ public class TDigestQuantilesTest {
 
   private static final int compression = 100;
 
+  private static final double[] quantiles = {0.25, 0.5, 0.75, 0.99};
+
   private static List<Double> generateStream() {
     List<Double> li = new ArrayList<>();
     for (double i = 1D; i <= size; i++) {
@@ -68,7 +70,7 @@ public class TDigestQuantilesTest {
   public void globally() {
     PCollection<KV<Double, Double>> col = tp.apply(Create.of(stream))
             .apply(TDigestQuantiles.globally().withCompression(compression))
-            .apply(ParDo.of(new RetrieveQuantiles(0.25, 0.5, 0.75, 0.99)));
+            .apply(ParDo.of(new RetrieveQuantiles(quantiles)));
 
     PAssert.that("Verify Accuracy", col).satisfies(new VerifyAccuracy());
     tp.run();
@@ -80,7 +82,7 @@ public class TDigestQuantilesTest {
             .apply(WithKeys.<Integer, Double>of(1))
             .apply(TDigestQuantiles.<Integer>perKey().withCompression(compression))
             .apply(Values.<MergingDigest>create())
-            .apply(ParDo.of(new RetrieveQuantiles(0.25,  0.5, 0.75, 0.99)));
+            .apply(ParDo.of(new RetrieveQuantiles(quantiles)));
 
     PAssert.that("Verify Accuracy", col).satisfies(new VerifyAccuracy());
 
@@ -144,17 +146,14 @@ public class TDigestQuantilesTest {
   }
 
   static class RetrieveQuantiles extends DoFn<MergingDigest, KV<Double, Double>> {
-    private final double quantile;
-    private final double[] otherQ;
+    private final double[] quantiles;
 
-    public RetrieveQuantiles(double q, double... otherQ) {
-      this.quantile = q;
-      this.otherQ = otherQ;
+    public RetrieveQuantiles(double[] quantiles) {
+      this.quantiles = quantiles;
     }
 
     @ProcessElement public void processElement(ProcessContext c) {
-      c.output(KV.of(quantile, c.element().quantile(quantile)));
-      for (Double q : otherQ) {
+      for (double q : quantiles) {
         c.output(KV.of(q, c.element().quantile(q)));
       }
     }
