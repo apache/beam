@@ -159,16 +159,16 @@ class JavaNatureConfiguration {
 //                  Will become a runtime dependency of the generated Maven pom.
 //  * testCompile - Required during compilation or runtime of the test source set.
 //                  This must be shaded away in the shaded test jar.
-//  * testShadow  - Required during compilation or runtime of the test source set.
+//  * shadowTest  - Required during compilation or runtime of the test source set.
 //                  TODO: Figure out whether this should be a test scope dependency
 //                  of the generated Maven pom.
 //
 // When creating a cross-project dependency between two Java projects, one should only rely on the shaded configurations.
 // This allows for compilation/test execution to occur against the final artifact that will be provided to users.
-// This is by done by referencing the "shadow" or "testShadow" configuration as so:
+// This is by done by referencing the "shadow" or "shadowTest" configuration as so:
 //   dependencies {
 //     shadow project(path: "other:java:project1", configuration: "shadow")
-//     testShadow project(path: "other:java:project2", configuration: "testShadow")
+//     shadowTest project(path: "other:java:project2", configuration: "shadowTest")
 //   }
 // This will ensure the correct set of transitive dependencies from those projects are correctly added to the
 // main and test source set runtimes.
@@ -329,7 +329,7 @@ ext.applyJavaNature = {
     // Ensure that shaded classes are part of the artifact set.
     artifacts.archives shadowJar
 
-    // TODO: Figure out how to create ShadowJar task for testShadowJar here
+    // TODO: Figure out how to create ShadowJar task for ShadowTestJar here
     // that is extendable within each sub-project with any additional includes.
     // This could mirror the "shadowJar" configuration block.
     // Optionally, we could also copy the shading configuration from the main
@@ -360,7 +360,7 @@ ext.applyJavaNature = {
   // which chooses the latest version available.
   //
   // TODO: Figure out whether we should force all dependency conflict resolution
-  // to occur in the "shadow" and "testShadow" configurations.
+  // to occur in the "shadow" and "shadowTest" configurations.
   configurations.all {
     resolutionStrategy {
       force library.java.values()
