@@ -378,12 +378,10 @@ public class DoFnOperator<InputT, OutputT>
           nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
       Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-      if (pushedBackContents != null) {
-        if (!Iterables.isEmpty(pushedBackContents)) {
-          String pushedBackString = Joiner.on(",").join(pushedBackContents);
-          throw new RuntimeException(
-              "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
-        }
+      if (pushedBackContents != null && !Iterables.isEmpty(pushedBackContents)) {
+        String pushedBackString = Joiner.on(",").join(pushedBackContents);
+        throw new RuntimeException(
+            "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
       }
     }
   }

@@ -369,12 +369,10 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         State jobState = job.getState();
 
         // If we see an error, cancel and note failure
-        if (messageHandler.hasSeenError()) {
-          if (!job.getState().isTerminal()) {
-            job.cancel();
-            LOG.info("Cancelling Dataflow job {}", job.getJobId());
-            return null;
-          }
+        if (messageHandler.hasSeenError() && !job.getState().isTerminal()) {
+          job.cancel();
+          LOG.info("Cancelling Dataflow job {}", job.getJobId());
+          return null;
         }
 
         if (jobState.isTerminal()) {
