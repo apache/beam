@@ -129,7 +129,8 @@ class FlinkStreamingTransformTranslators {
         SPLITTABLE_PROCESS_URN, new SplittableProcessElementsStreamingTranslator());
     TRANSLATORS.put(SplittableParDo.SPLITTABLE_GBKIKWI_URN, new GBKIntoKeyedWorkItemsTranslator());
 
-    TRANSLATORS.put(PTransformTranslation.WINDOW_TRANSFORM_URN, new WindowAssignTranslator());
+    TRANSLATORS.put(
+        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslator());
     TRANSLATORS.put(
         PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionTranslator());
     TRANSLATORS.put(
