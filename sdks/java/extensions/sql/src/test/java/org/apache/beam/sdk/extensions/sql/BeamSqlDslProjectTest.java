@@ -81,7 +81,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFields", BeamSql.queryMulti(sql));
+            .apply("testPartialFields", BeamSql.query(sql));
 
     RowType resultType = RowSqlType.builder()
         .withIntegerField("f_int")
@@ -116,7 +116,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFieldsInMultipleRow", BeamSql.queryMulti(sql));
+            .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
 
     RowType resultType =
         RowSqlType
@@ -168,7 +168,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testPartialFieldsInRows", BeamSql.queryMulti(sql));
+            .apply("testPartialFieldsInRows", BeamSql.query(sql));
 
     RowType resultType =
         RowSqlType
@@ -211,7 +211,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testLiteralField", BeamSql.queryMulti(sql));
+            .apply("testLiteralField", BeamSql.query(sql));
 
     RowType resultType =
         RowSqlType.builder().withIntegerField("literal_field").build();
@@ -233,7 +233,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testProjectUnknownField", BeamSql.queryMulti(sql));
+            .apply("testProjectUnknownField", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
