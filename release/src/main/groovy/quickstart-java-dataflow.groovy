@@ -17,22 +17,20 @@
  * limitations under the License.
  */
 
-t = new TestScripts()  
+t = new TestScripts(args)
 
 /*
- * Run the direct quickstart from https://beam.apache.org/get-started/quickstart-java/
+ * Run the dataflow quickstart from https://beam.apache.org/get-started/quickstart-java/
  */
 
-t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
+t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
 
-  t.intent 'Gets the WordCount Code'
-    ver = System.env.snapshot_version ?: "2.3.0-SNAPSHOT"
-
+  t.intent 'Gets the WordCount Example Code'
     // Generate a maven project from the snapshot repository
     t.run """mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-      -DarchetypeVersion=$ver \
+      -DarchetypeVersion=${t.ver()} \
       -DgroupId=org.example \
       -DartifactId=word-count-beam \
       -Dversion="0.1" \
@@ -48,17 +46,27 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
     t.run "ls src/main/java/org/apache/beam/examples/"
     t.see "WordCount.java"
 
-  t.intent 'Runs the WordCount Code with Direct runner'
+  t.intent 'Runs the WordCount Code with Dataflow runner'
 
-    // Run the workcount example with the direct runner
+    // Remove any count files
+    t.run """gsutil rm gs://${t.gsloc()}/count* || echo 'No files'"""
+
+    // Run the workcount example with the dataflow runner
     t.run """mvn compile exec:java \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
-      -Dexec.args="--inputFile=pom.xml --output=counts" \
-      -Pdirect-runner"""
+      -Dexec.args="--runner=DataflowRunner \
+                   --project=${t.project()} \
+                   --gcpTempLocation=gs://${t.gsloc()}/tmp \
+                   --output=gs://${t.gsloc()}/counts \
+                   --inputFile=gs://apache-beam-samples/shakespeare/*" \
+                    -Pdataflow-runner"""
 
-    // Verify text from the pom.xml input file
-    t.run "grep Foundation counts*"
-    t.see "Foundation: 1"
+    // Verify wordcount text
+    t.run """gsutil cat gs://${t.gsloc()}/count* | grep Montague:"""
+    t.see "Montague: 47"
+
+    // Remove count files
+    t.run """gsutil rm gs://${t.gsloc()}/count*"""
 
     // Clean up
     t.done()
