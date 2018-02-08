@@ -455,6 +455,9 @@ class CallableWrapperDoFn(DoFn):
   def _process_argspec_fn(self):
     return getattr(self._fn, '_argspec_fn', self._fn)
 
+  def _inspect_process(self):
+    return inspect.getargspec(self._process_argspec_fn())
+
 
 class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a Combine transform with custom processing.
