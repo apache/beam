@@ -18,7 +18,9 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import static org.apache.beam.sdk.values.RowType.toRowType;
+import static org.joda.time.Duration.ZERO;
 
 import com.google.common.base.Joiner;
 import java.util.ArrayList;
@@ -35,7 +37,11 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -43,6 +49,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -112,6 +119,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     PCollection<Row> leftRows = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
     PCollection<Row> rightRows = rightRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
 
+    verifySupportedTrigger(leftRows);
+    verifySupportedTrigger(rightRows);
+
     String stageName = BeamSqlRelUtils.getStageName(this);
     WindowFn leftWinFn = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWinFn = rightRows.getWindowingStrategy().getWindowFn();
@@ -151,8 +161,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
     // a regular join
     if ((leftRows.isBounded() == PCollection.IsBounded.BOUNDED
             && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)
-           || (leftRows.isBounded() == PCollection.IsBounded.UNBOUNDED
-                && rightRows.isBounded() == PCollection.IsBounded.UNBOUNDED)) {
+           || (leftRows.isBounded() == UNBOUNDED
+                && rightRows.isBounded() == UNBOUNDED)) {
       try {
         leftWinFn.verifyCompatibility(rightWinFn);
       } catch (IncompatibleWindowException e) {
@@ -164,8 +174,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
           leftNullRow, rightNullRow, stageName);
     } else if (
         (leftRows.isBounded() == PCollection.IsBounded.BOUNDED
-        && rightRows.isBounded() == PCollection.IsBounded.UNBOUNDED)
-        || (leftRows.isBounded() == PCollection.IsBounded.UNBOUNDED
+        && rightRows.isBounded() == UNBOUNDED)
+        || (leftRows.isBounded() == UNBOUNDED
             && rightRows.isBounded() == PCollection.IsBounded.BOUNDED)
         ) {
       // if one of the sides is Bounded & the other is Unbounded
@@ -192,6 +202,31 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       throw new UnsupportedOperationException(
           "The inputs to the JOIN have un-joinnable windowFns: " + leftWinFn + ", " + rightWinFn);
     }
+  }
+
+  private void verifySupportedTrigger(PCollection<Row> pCollection) {
+    WindowingStrategy windowingStrategy = pCollection.getWindowingStrategy();
+
+    if (UNBOUNDED.equals(pCollection.isBounded())
+        && !triggersOncePerWindow(windowingStrategy)) {
+      throw new UnsupportedOperationException(
+          "Joining unbounded PCollections is currently only supported for "
+              + "non-global windows with either AfterWatermark.pastEndOfWindow() with any lateness "
+              + "or default trigger with zero lateness. In these cases Beam can guarantee it "
+              + "joins all input elements once per window. "
+              + windowingStrategy + " is not supported");
+    }
+  }
+
+  private boolean triggersOncePerWindow(WindowingStrategy windowingStrategy) {
+    Trigger trigger = windowingStrategy.getTrigger();
+
+    if (windowingStrategy.getWindowFn() instanceof GlobalWindows) {
+      return false;
+    }
+
+    return AfterWatermark.pastEndOfWindow().equals(trigger)
+        || trigger instanceof DefaultTrigger && ZERO.equals(windowingStrategy.getAllowedLateness());
   }
 
   private PCollection<Row> standardJoin(
