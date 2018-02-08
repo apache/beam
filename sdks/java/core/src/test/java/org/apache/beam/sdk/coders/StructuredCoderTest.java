@@ -115,7 +115,7 @@ public class StructuredCoderTest {
         throws CoderException, IOException {
       if (value == null) {
         outStream.write(2);
-      } else if (value.getValue()){
+      } else if (value.getValue()) {
         outStream.write(1);
       } else {
         outStream.write(0);

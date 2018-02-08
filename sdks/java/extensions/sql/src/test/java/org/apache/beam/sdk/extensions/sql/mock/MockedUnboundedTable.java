@@ -58,7 +58,7 @@ public class MockedUnboundedTable extends MockedTable {
    *       Types.TIMESTAMP, "order_time")
    * }</pre>
    */
-  public static MockedUnboundedTable of(final Object... args){
+  public static MockedUnboundedTable of(final Object... args) {
     return new MockedUnboundedTable(TestUtils.buildBeamSqlRowType(args));
   }
 

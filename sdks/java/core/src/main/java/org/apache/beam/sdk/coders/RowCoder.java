@@ -43,7 +43,7 @@ public class RowCoder extends CustomCoder<Row> {
     this.coders = coders;
   }
 
-  public static RowCoder of(RowType rowType, List<Coder> coderArray){
+  public static RowCoder of(RowType rowType, List<Coder> coderArray) {
     if (rowType.getFieldCount() != coderArray.size()) {
       throw new IllegalArgumentException("Coder size doesn't match with field size");
     }
@@ -85,7 +85,7 @@ public class RowCoder extends CustomCoder<Row> {
   /**
    * Scan {@link Row} to find fields with a NULL value.
    */
-  private BitSet scanNullFields(Row row){
+  private BitSet scanNullFields(Row row) {
     BitSet nullFields = new BitSet(row.getFieldCount());
     for (int idx = 0; idx < row.getFieldCount(); ++idx) {
       if (row.getValue(idx) == null) {

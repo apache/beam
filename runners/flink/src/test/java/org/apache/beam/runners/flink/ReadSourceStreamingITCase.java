@@ -32,7 +32,7 @@ public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
 
   protected String resultPath;
 
-  public ReadSourceStreamingITCase(){
+  public ReadSourceStreamingITCase() {
   }
 
   private static final String[] EXPECTED_RESULT = new String[] {
