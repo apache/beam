@@ -48,7 +48,8 @@ job('beam_PostRelease_NightlySnapshot') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      './gradlew :release:runQuickstartJavaDirectNightly',
+     // './gradlew :release:runQuickstartJavaDirectNightly',
+      './gradlew :release:runQuickstartJavaDataflowRelease',
       'Run Dataflow PostRelease')
 
   steps {
