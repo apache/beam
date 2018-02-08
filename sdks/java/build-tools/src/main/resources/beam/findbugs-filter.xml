@@ -337,12 +337,6 @@
     <!--[BEAM-407] Inconsistent synchronization -->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.transforms.ApproximateQuantiles$QuantileBuffer"/>
-    <Method name="compareTo"/>
-    <Bug pattern="EQ_COMPARETO_USE_OBJECT_EQUALS"/>
-    <!--[BEAM-410] Class defines compareTo(...) and uses Object.equals()-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
