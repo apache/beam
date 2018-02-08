@@ -39,6 +39,7 @@ dependencies {
   shadow "com.amazonaws:aws-java-sdk-kinesis:$aws_version"
   shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_version"
   shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
+  shadow "com.amazonaws:amazon-kinesis-producer:0.12.8"
   shadow "commons-lang:commons-lang:2.6"
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.junit

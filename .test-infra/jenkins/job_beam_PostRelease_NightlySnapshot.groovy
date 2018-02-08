@@ -31,7 +31,7 @@ job('beam_PostRelease_NightlySnapshot') {
 
   parameters {
     stringParam('snapshot_version',
-                '2.3.0-SNAPSHOT',
+                '2.4.0-SNAPSHOT',
                 'Version of the repository snapshot to install')
     stringParam('snapshot_url',
                 'https://repository.apache.org/content/repositories/snapshots',

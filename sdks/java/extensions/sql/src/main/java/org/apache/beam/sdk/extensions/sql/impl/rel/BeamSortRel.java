@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -33,9 +32,9 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
@@ -120,10 +119,10 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
+  @Override public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
       , BeamSqlEnv sqlEnv) throws Exception {
     RelNode input = getInput();
-    PCollection<BeamRecord> upstream = BeamSqlRelUtils.getBeamRelInput(input)
+    PCollection<Row> upstream = BeamSqlRelUtils.getBeamRelInput(input)
         .buildBeamPipeline(inputPCollections, sqlEnv);
     Type windowType = upstream.getWindowingStrategy().getWindowFn()
         .getWindowTypeDescriptor().getType();
@@ -135,7 +134,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     BeamSqlRowComparator comparator = new BeamSqlRowComparator(fieldIndices, orientation,
         nullsFirst);
     // first find the top (offset + count)
-    PCollection<List<BeamRecord>> rawStream =
+    PCollection<List<Row>> rawStream =
         upstream
             .apply(
                 "extractTopOffsetAndFetch",
@@ -151,8 +150,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
               .setCoder(ListCoder.of(upstream.getCoder()));
     }
 
-    PCollection<BeamRecord> orderedStream = rawStream.apply("flatten", Flatten.iterables());
-    orderedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
+    PCollection<Row> orderedStream = rawStream.apply("flatten", Flatten.iterables());
+    orderedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
 
     return orderedStream;
   }
@@ -177,7 +176,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
-  private static class BeamSqlRowComparator implements Comparator<BeamRecord>, Serializable {
+  private static class BeamSqlRowComparator implements Comparator<Row>, Serializable {
     private List<Integer> fieldsIndices;
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
@@ -190,16 +189,15 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       this.nullsFirst = nullsFirst;
     }
 
-    @Override public int compare(BeamRecord row1, BeamRecord row2) {
+    @Override public int compare(Row row1, Row row2) {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
-        SqlTypeName fieldType = CalciteUtils.getFieldType(
-            BeamSqlRecordHelper.getSqlRecordType(row1), fieldIndex);
+        SqlTypeName fieldType = CalciteUtils.getFieldCalciteType(row1.getRowType(), fieldIndex);
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
-        boolean isValue1Null = (row1.getFieldValue(fieldIndex) == null);
-        boolean isValue2Null = (row2.getFieldValue(fieldIndex) == null);
+        boolean isValue1Null = (row1.getValue(fieldIndex) == null);
+        boolean isValue2Null = (row2.getValue(fieldIndex) == null);
         if (isValue1Null && isValue2Null) {
           continue;
         } else if (isValue1Null && !isValue2Null) {
@@ -217,8 +215,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             case VARCHAR:
             case DATE:
             case TIMESTAMP:
-              Comparable v1 = (Comparable) row1.getFieldValue(fieldIndex);
-              Comparable v2 = (Comparable) row2.getFieldValue(fieldIndex);
+              Comparable v1 = (Comparable) row1.getValue(fieldIndex);
+              Comparable v2 = (Comparable) row2.getValue(fieldIndex);
               fieldRet = v1.compareTo(v2);
               break;
             default:

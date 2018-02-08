@@ -9,8 +9,8 @@ import TestScripts
  * 3. Create a new virtualenv and install the SDK
  * 4. Run Wordcount examples with DirectRunner
  * 5. Run Wordcount examples with DataflowRunner
- * 6. TODO: Run streaming wordcount on DirectRunner and (verify results, how?)
- * 7. TODO: Run streaming wordcount on DataflowRunner
+ * 6. Run streaming wordcount on DirectRunner
+ * 7. Run streaming wordcount on DataflowRunner
  */
 
 def t = new TestScripts()
@@ -19,8 +19,8 @@ StringBuilder cmd = new StringBuilder()
 
 /*
 * 1. Download files from RC staging location, including:
-*   apache-beam-2.3.0-python.zip.md5
-*   apache-beam-2.3.0-python.zip.sha1
+*   apache-beam-{version}-python.zip.md5
+*   apache-beam-{version}-python.zip.sha1
 *
 * */
 t.run("pwd")

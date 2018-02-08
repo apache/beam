@@ -42,7 +42,7 @@ public class Environments {
           .put(PTransformTranslation.COMBINE_TRANSFORM_URN, Environments::combineExtractor)
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, Environments::parDoExtractor)
           .put(PTransformTranslation.READ_TRANSFORM_URN, Environments::readExtractor)
-          .put(PTransformTranslation.WINDOW_TRANSFORM_URN, Environments::windowExtractor)
+          .put(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, Environments::windowExtractor)
           .build();
 
   private static final EnvironmentIdExtractor DEFAULT_SPEC_EXTRACTOR = (transform) -> null;

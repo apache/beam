@@ -166,7 +166,6 @@ public class DirectTransformExecutorTest {
           @Override
           public void processElement(WindowedValue<String> element) throws Exception {
             elementsProcessed.add(element);
-            return;
           }
 
           @Override

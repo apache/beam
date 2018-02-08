@@ -28,19 +28,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelProtoDataType;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.junit.AfterClass;
@@ -64,36 +59,46 @@ public class BeamTextCSVTableTest {
    *     integer,bigint,float,double,string
    * </p>
    */
+  private static RowType rowType =
+      RowSqlType
+          .builder()
+          .withIntegerField("id")
+          .withBigIntField("order_id")
+          .withFloatField("price")
+          .withDoubleField("amount")
+          .withVarcharField("user_name")
+          .build();
   private static Object[] data1 = new Object[] { 1, 1L, 1.1F, 1.1, "james" };
   private static Object[] data2 = new Object[] { 2, 2L, 2.2F, 2.2, "bond" };
 
   private static List<Object[]> testData = Arrays.asList(data1, data2);
-  private static List<BeamRecord> testDataRows = new ArrayList<BeamRecord>() {{
-    for (Object[] data : testData) {
-      add(buildRow(data));
-    }
-  }};
+  private static List<Row> testDataRows = Arrays.asList(
+      Row.withRowType(rowType).addValues(data1).build(),
+      Row.withRowType(rowType).addValues(data2).build());
 
   private static Path tempFolder;
   private static File readerSourceFile;
   private static File writerTargetFile;
 
   @Test public void testBuildIOReader() {
-    PCollection<BeamRecord> rows = new BeamTextCSVTable(buildBeamSqlRowType(),
-        readerSourceFile.getAbsolutePath()).buildIOReader(pipeline);
+    PCollection<Row> rows =
+        new BeamTextCSVTable(rowType, readerSourceFile.getAbsolutePath())
+            .buildIOReader(pipeline);
     PAssert.that(rows).containsInAnyOrder(testDataRows);
     pipeline.run();
   }
 
   @Test public void testBuildIOWriter() {
-    new BeamTextCSVTable(buildBeamSqlRowType(),
-        readerSourceFile.getAbsolutePath()).buildIOReader(pipeline)
-        .apply(new BeamTextCSVTable(buildBeamSqlRowType(), writerTargetFile.getAbsolutePath())
-            .buildIOWriter());
+    new BeamTextCSVTable(rowType, readerSourceFile.getAbsolutePath())
+        .buildIOReader(pipeline)
+        .apply(
+            new BeamTextCSVTable(rowType, writerTargetFile.getAbsolutePath())
+                .buildIOWriter());
     pipeline.run();
 
-    PCollection<BeamRecord> rows = new BeamTextCSVTable(buildBeamSqlRowType(),
-        writerTargetFile.getAbsolutePath()).buildIOReader(pipeline2);
+    PCollection<Row> rows =
+        new BeamTextCSVTable(rowType, writerTargetFile.getAbsolutePath())
+            .buildIOReader(pipeline2);
 
     // confirm the two reads match
     PAssert.that(rows).containsInAnyOrder(testDataRows);
@@ -146,30 +151,5 @@ public class BeamTextCSVTableTest {
     } catch (IOException e) {
       e.printStackTrace();
     }
-  }
-
-  private RelProtoDataType buildRowType() {
-    return a0 ->
-        a0.builder()
-            .add("id", SqlTypeName.INTEGER)
-            .add("order_id", SqlTypeName.BIGINT)
-            .add("price", SqlTypeName.FLOAT)
-            .add("amount", SqlTypeName.DOUBLE)
-            .add("user_name", SqlTypeName.VARCHAR)
-            .build();
-  }
-
-  private static RelDataType buildRelDataType() {
-    return BeamQueryPlanner.TYPE_FACTORY.builder().add("id", SqlTypeName.INTEGER)
-        .add("order_id", SqlTypeName.BIGINT).add("price", SqlTypeName.FLOAT)
-        .add("amount", SqlTypeName.DOUBLE).add("user_name", SqlTypeName.VARCHAR).build();
-  }
-
-  private static BeamRecordSqlType buildBeamSqlRowType() {
-    return CalciteUtils.toBeamRowType(buildRelDataType());
-  }
-
-  private static BeamRecord buildRow(Object[] data) {
-    return new BeamRecord(buildBeamSqlRowType(), Arrays.asList(data));
   }
 }

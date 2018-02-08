@@ -178,7 +178,8 @@ class Operation(object):
                     {'ONLY_OUTPUT': self.receivers[0].opcounter
                                     .element_counter.value()}
                     if len(self.receivers) == 1
-                    else None))))
+                    else None))),
+        user=self.metrics_container.to_runner_api())
 
   def __str__(self):
     """Generates a useful string for this object.
@@ -288,8 +289,8 @@ class DoOperation(Operation):
     assert self.side_input_maps is None
 
     # Get experiments active in the worker to check for side input metrics exp.
-    experiments = set(RuntimeValueProvider(
-        'experiments', str, '').get().split(','))
+    experiments = set(
+        RuntimeValueProvider.get_value('experiments', str, '').split(','))
 
     # We will read the side inputs in the order prescribed by the
     # tags_and_types argument because this is exactly the order needed to

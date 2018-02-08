@@ -39,11 +39,11 @@ public class BeamSqlDateFloorExpressionTest extends BeamSqlDateExpressionTestBas
     // YEAR
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.YEAR));
     assertEquals(str2DateTime("2017-01-01 00:00:00"),
-        new BeamSqlDateFloorExpression(operands).evaluate(record, null).getDate());
+        new BeamSqlDateFloorExpression(operands).evaluate(row, null).getDate());
     // MONTH
     operands.set(1, BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.MONTH));
     assertEquals(str2DateTime("2017-05-01 00:00:00"),
-        new BeamSqlDateFloorExpression(operands).evaluate(record, null).getDate());
+        new BeamSqlDateFloorExpression(operands).evaluate(row, null).getDate());
 
   }
 }

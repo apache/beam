@@ -18,12 +18,13 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import java.sql.Types;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import static org.apache.beam.sdk.values.RowType.toRowType;
+
+import com.google.common.collect.BiMap;
+import com.google.common.collect.ImmutableBiMap;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -34,75 +35,82 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * Utility methods for Calcite related operations.
  */
 public class CalciteUtils {
-  private static final Map<Integer, SqlTypeName> JAVA_TO_CALCITE_MAPPING = new HashMap<>();
-  private static final Map<SqlTypeName, Integer> CALCITE_TO_JAVA_MAPPING = new HashMap<>();
-  static {
-    JAVA_TO_CALCITE_MAPPING.put(Types.TINYINT, SqlTypeName.TINYINT);
-    JAVA_TO_CALCITE_MAPPING.put(Types.SMALLINT, SqlTypeName.SMALLINT);
-    JAVA_TO_CALCITE_MAPPING.put(Types.INTEGER, SqlTypeName.INTEGER);
-    JAVA_TO_CALCITE_MAPPING.put(Types.BIGINT, SqlTypeName.BIGINT);
+  private static final BiMap<SqlTypeCoder, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
+      ImmutableBiMap.<SqlTypeCoder, SqlTypeName>builder()
+          .put(SqlTypeCoders.TINYINT, SqlTypeName.TINYINT)
+          .put(SqlTypeCoders.SMALLINT, SqlTypeName.SMALLINT)
+          .put(SqlTypeCoders.INTEGER, SqlTypeName.INTEGER)
+          .put(SqlTypeCoders.BIGINT, SqlTypeName.BIGINT)
 
-    JAVA_TO_CALCITE_MAPPING.put(Types.FLOAT, SqlTypeName.FLOAT);
-    JAVA_TO_CALCITE_MAPPING.put(Types.DOUBLE, SqlTypeName.DOUBLE);
+          .put(SqlTypeCoders.FLOAT, SqlTypeName.FLOAT)
+          .put(SqlTypeCoders.DOUBLE, SqlTypeName.DOUBLE)
 
-    JAVA_TO_CALCITE_MAPPING.put(Types.DECIMAL, SqlTypeName.DECIMAL);
+          .put(SqlTypeCoders.DECIMAL, SqlTypeName.DECIMAL)
 
-    JAVA_TO_CALCITE_MAPPING.put(Types.CHAR, SqlTypeName.CHAR);
-    JAVA_TO_CALCITE_MAPPING.put(Types.VARCHAR, SqlTypeName.VARCHAR);
+          .put(SqlTypeCoders.CHAR, SqlTypeName.CHAR)
+          .put(SqlTypeCoders.VARCHAR, SqlTypeName.VARCHAR)
 
-    JAVA_TO_CALCITE_MAPPING.put(Types.DATE, SqlTypeName.DATE);
-    JAVA_TO_CALCITE_MAPPING.put(Types.TIME, SqlTypeName.TIME);
-    JAVA_TO_CALCITE_MAPPING.put(Types.TIMESTAMP, SqlTypeName.TIMESTAMP);
+          .put(SqlTypeCoders.DATE, SqlTypeName.DATE)
+          .put(SqlTypeCoders.TIME, SqlTypeName.TIME)
+          .put(SqlTypeCoders.TIMESTAMP, SqlTypeName.TIMESTAMP)
 
-    JAVA_TO_CALCITE_MAPPING.put(Types.BOOLEAN, SqlTypeName.BOOLEAN);
+          .put(SqlTypeCoders.BOOLEAN, SqlTypeName.BOOLEAN)
+          .build();
 
-    for (Map.Entry<Integer, SqlTypeName> pair : JAVA_TO_CALCITE_MAPPING.entrySet()) {
-      CALCITE_TO_JAVA_MAPPING.put(pair.getValue(), pair.getKey());
-    }
+  private static final BiMap<SqlTypeName, SqlTypeCoder> CALCITE_TO_BEAM_TYPE_MAPPING =
+      BEAM_TO_CALCITE_TYPE_MAPPING.inverse();
+
+  /**
+   * Get the corresponding Calcite's {@link SqlTypeName}
+   * for supported Beam SQL type coder, see {@link SqlTypeCoder}.
+   */
+  public static SqlTypeName toCalciteType(SqlTypeCoder coder) {
+    return BEAM_TO_CALCITE_TYPE_MAPPING.get(coder);
   }
 
   /**
-   * Get the corresponding {@code SqlTypeName} for an integer sql type.
+   * Get the Beam SQL type coder ({@link SqlTypeCoder}) from Calcite's {@link SqlTypeName}.
    */
-  public static SqlTypeName toCalciteType(int type) {
-    return JAVA_TO_CALCITE_MAPPING.get(type);
-  }
-
-  /**
-   * Get the integer sql type from Calcite {@code SqlTypeName}.
-   */
-  public static Integer toJavaType(SqlTypeName typeName) {
-    return CALCITE_TO_JAVA_MAPPING.get(typeName);
+  public static SqlTypeCoder toCoder(SqlTypeName typeName) {
+    return CALCITE_TO_BEAM_TYPE_MAPPING.get(typeName);
   }
 
   /**
    * Get the {@code SqlTypeName} for the specified column of a table.
    */
-  public static SqlTypeName getFieldType(BeamRecordSqlType schema, int index) {
-    return toCalciteType(schema.getFieldTypeByIndex(index));
+  public static SqlTypeName getFieldCalciteType(RowType schema, int index) {
+    return toCalciteType((SqlTypeCoder) schema.getFieldCoder(index));
   }
 
   /**
    * Generate {@code BeamSqlRowType} from {@code RelDataType} which is used to create table.
    */
-  public static BeamRecordSqlType toBeamRowType(RelDataType tableInfo) {
-    List<String> fieldNames = new ArrayList<>();
-    List<Integer> fieldTypes = new ArrayList<>();
-    for (RelDataTypeField f : tableInfo.getFieldList()) {
-      fieldNames.add(f.getName());
-      fieldTypes.add(toJavaType(f.getType().getSqlTypeName()));
-    }
-    return BeamRecordSqlType.create(fieldNames, fieldTypes);
+  public static RowType toBeamRowType(RelDataType tableInfo) {
+    return
+        tableInfo
+            .getFieldList()
+            .stream()
+            .map(CalciteUtils::toBeamRowField)
+            .collect(toRowType());
+  }
+
+  private static RowType.Field toBeamRowField(RelDataTypeField calciteField) {
+    return
+        RowType.newField(
+            calciteField.getName(),
+            toCoder(calciteField.getType().getSqlTypeName()));
   }
 
   /**
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
-  public static RelProtoDataType toCalciteRowType(final BeamRecordSqlType that) {
-    return a -> {
-      RelDataTypeFactory.FieldInfoBuilder builder = a.builder();
-      for (int idx = 0; idx < that.getFieldNames().size(); ++idx) {
-        builder.add(that.getFieldNameByIndex(idx), toCalciteType(that.getFieldTypeByIndex(idx)));
+  public static RelProtoDataType toCalciteRowType(final RowType rowType) {
+    return fieldInfo -> {
+      RelDataTypeFactory.FieldInfoBuilder builder = fieldInfo.builder();
+      for (int idx = 0; idx < rowType.getFieldNames().size(); ++idx) {
+        builder.add(
+            rowType.getFieldName(idx),
+            toCalciteType((SqlTypeCoder) rowType.getFieldCoder(idx)));
       }
       return builder.build();
     };

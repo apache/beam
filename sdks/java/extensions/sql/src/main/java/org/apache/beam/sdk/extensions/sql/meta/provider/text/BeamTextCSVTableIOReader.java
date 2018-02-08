@@ -18,41 +18,41 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
-import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLine2BeamRecord;
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLine2BeamRow;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.commons.csv.CSVFormat;
 
 /**
  * IOReader for {@code BeamTextCSVTable}.
  */
 public class BeamTextCSVTableIOReader
-    extends PTransform<PCollection<String>, PCollection<BeamRecord>>
+    extends PTransform<PCollection<String>, PCollection<Row>>
     implements Serializable {
   private String filePattern;
-  protected BeamRecordSqlType beamRecordSqlType;
+  protected RowType rowType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOReader(BeamRecordSqlType beamRecordSqlType, String filePattern,
-      CSVFormat csvFormat) {
+  public BeamTextCSVTableIOReader(RowType rowType, String filePattern,
+                                  CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.beamRecordSqlType = beamRecordSqlType;
+    this.rowType = rowType;
     this.csvFormat = csvFormat;
   }
 
   @Override
-  public PCollection<BeamRecord> expand(PCollection<String> input) {
-    return input.apply(ParDo.of(new DoFn<String, BeamRecord>() {
+  public PCollection<Row> expand(PCollection<String> input) {
+    return input.apply(ParDo.of(new DoFn<String, Row>() {
           @ProcessElement
           public void processElement(ProcessContext ctx) {
             String str = ctx.element();
-            ctx.output(csvLine2BeamRecord(csvFormat, str, beamRecordSqlType));
+            ctx.output(csvLine2BeamRow(csvFormat, str, rowType));
           }
         }));
   }

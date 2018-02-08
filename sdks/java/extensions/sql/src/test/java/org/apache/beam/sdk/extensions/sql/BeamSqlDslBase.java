@@ -18,19 +18,20 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.math.BigDecimal;
-import java.sql.Types;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -51,86 +52,91 @@ public class BeamSqlDslBase {
   @Rule
   public ExpectedException exceptions = ExpectedException.none();
 
-  public static BeamRecordSqlType rowTypeInTableA;
-  public static List<BeamRecord> recordsInTableA;
+  static RowType rowTypeInTableA;
+  static List<Row> rowsInTableA;
 
   //bounded PCollections
-  public PCollection<BeamRecord> boundedInput1;
-  public PCollection<BeamRecord> boundedInput2;
+  PCollection<Row> boundedInput1;
+  PCollection<Row> boundedInput2;
 
   //unbounded PCollections
-  public PCollection<BeamRecord> unboundedInput1;
-  public PCollection<BeamRecord> unboundedInput2;
+  PCollection<Row> unboundedInput1;
+  PCollection<Row> unboundedInput2;
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
-    rowTypeInTableA = BeamRecordSqlType.create(
-        Arrays.asList("f_int", "f_long", "f_short", "f_byte", "f_float", "f_double", "f_string",
-            "f_timestamp", "f_int2", "f_decimal"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,
-            Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER, Types.DECIMAL));
+    rowTypeInTableA =
+        RowSqlType
+            .builder()
+            .withIntegerField("f_int")
+            .withBigIntField("f_long")
+            .withSmallIntField("f_short")
+            .withTinyIntField("f_byte")
+            .withFloatField("f_float")
+            .withDoubleField("f_double")
+            .withVarcharField("f_string")
+            .withTimestampField("f_timestamp")
+            .withIntegerField("f_int2")
+            .withDecimalField("f_decimal")
+            .build();
 
-    recordsInTableA = prepareInputRowsInTableA();
+    rowsInTableA =
+        TestUtils.RowsBuilder.of(rowTypeInTableA)
+            .addRows(
+                1, 1000L, (short) 1, (byte) 1, 1.0f, 1.0d, "string_row1",
+                FORMAT.parse("2017-01-01 01:01:03"), 0, new BigDecimal(1))
+            .addRows(
+                2, 2000L, (short) 2, (byte) 2, 2.0f, 2.0d, "string_row2",
+                FORMAT.parse("2017-01-01 01:02:03"), 0, new BigDecimal(2))
+            .addRows(
+                3, 3000L, (short) 3, (byte) 3, 3.0f, 3.0d, "string_row3",
+                FORMAT.parse("2017-01-01 01:06:03"), 0, new BigDecimal(3))
+            .addRows(
+                4, 4000L, (short) 4, (byte) 4, 4.0f, 4.0d, "第四行",
+                FORMAT.parse("2017-01-01 02:04:03"), 0, new BigDecimal(4))
+            .getRows();
   }
 
   @Before
   public void preparePCollections(){
     boundedInput1 = PBegin.in(pipeline).apply("boundedInput1",
-        Create.of(recordsInTableA).withCoder(rowTypeInTableA.getRecordCoder()));
+        Create.of(rowsInTableA).withCoder(rowTypeInTableA.getRowCoder()));
 
     boundedInput2 = PBegin.in(pipeline).apply("boundedInput2",
-        Create.of(recordsInTableA.get(0)).withCoder(rowTypeInTableA.getRecordCoder()));
+        Create.of(rowsInTableA.get(0)).withCoder(rowTypeInTableA.getRowCoder()));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
   }
 
-  private PCollection<BeamRecord> prepareUnboundedPCollection1() {
-    TestStream.Builder<BeamRecord> values = TestStream
-        .create(rowTypeInTableA.getRecordCoder());
+  private PCollection<Row> prepareUnboundedPCollection1() {
+    TestStream.Builder<Row> values = TestStream
+        .create(rowTypeInTableA.getRowCoder());
 
-    for (BeamRecord row : recordsInTableA) {
+    for (Row row : rowsInTableA) {
       values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
       values = values.addElements(row);
     }
 
-    return PBegin.in(pipeline).apply("unboundedInput1", values.advanceWatermarkToInfinity());
+    return PBegin
+        .in(pipeline)
+        .apply("unboundedInput1", values.advanceWatermarkToInfinity())
+        .apply("unboundedInput1.fixedWindow1year",
+               Window.into(FixedWindows.of(Duration.standardDays(365))));
   }
 
-  private PCollection<BeamRecord> prepareUnboundedPCollection2() {
-    TestStream.Builder<BeamRecord> values = TestStream
-        .create(rowTypeInTableA.getRecordCoder());
+  private PCollection<Row> prepareUnboundedPCollection2() {
+    TestStream.Builder<Row> values = TestStream
+        .create(rowTypeInTableA.getRowCoder());
 
-    BeamRecord row = recordsInTableA.get(0);
+    Row row = rowsInTableA.get(0);
     values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
     values = values.addElements(row);
 
-    return PBegin.in(pipeline).apply("unboundedInput2", values.advanceWatermarkToInfinity());
-  }
-
-  private static List<BeamRecord> prepareInputRowsInTableA() throws ParseException{
-    List<BeamRecord> rows = new ArrayList<>();
-
-    BeamRecord row1 = new BeamRecord(rowTypeInTableA
-        , 1, 1000L, Short.valueOf("1"), Byte.valueOf("1"), 1.0f, 1.0, "string_row1"
-        , FORMAT.parse("2017-01-01 01:01:03"), 0, BigDecimal.ONE);
-    rows.add(row1);
-
-    BeamRecord row2 = new BeamRecord(rowTypeInTableA
-        , 2, 2000L, Short.valueOf("2"), Byte.valueOf("2"), 2.0f, 2.0, "string_row2"
-        , FORMAT.parse("2017-01-01 01:02:03"), 0, new BigDecimal(2));
-    rows.add(row2);
-
-    BeamRecord row3 = new BeamRecord(rowTypeInTableA
-        , 3, 3000L, Short.valueOf("3"), Byte.valueOf("3"), 3.0f, 3.0, "string_row3"
-        , FORMAT.parse("2017-01-01 01:06:03"), 0, new BigDecimal(3));
-    rows.add(row3);
-
-    BeamRecord row4 = new BeamRecord(rowTypeInTableA
-        , 4, 4000L, Short.valueOf("4"), Byte.valueOf("4"), 4.0f, 4.0, "第四行"
-        , FORMAT.parse("2017-01-01 02:04:03"), 0, new BigDecimal(4));
-    rows.add(row4);
-
-    return rows;
+    return PBegin
+        .in(pipeline)
+        .apply("unboundedInput2", values.advanceWatermarkToInfinity())
+        .apply("unboundedInput2.fixedWindow1year",
+               Window.into(FixedWindows.of(Duration.standardDays(365))));
   }
 }

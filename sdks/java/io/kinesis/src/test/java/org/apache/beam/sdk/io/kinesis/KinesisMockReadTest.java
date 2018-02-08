@@ -58,7 +58,7 @@ public class KinesisMockReadTest {
     p.run();
   }
 
-  private static class KinesisRecordToTestData extends
+  static class KinesisRecordToTestData extends
       DoFn<KinesisRecord, AmazonKinesisMock.TestData> {
 
     @ProcessElement

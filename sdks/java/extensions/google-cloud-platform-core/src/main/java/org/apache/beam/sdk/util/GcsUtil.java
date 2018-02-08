@@ -44,9 +44,6 @@ import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -59,6 +56,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -578,7 +576,7 @@ public class GcsUtil {
   }
 
   private static void executeBatches(List<BatchRequest> batches) throws IOException {
-    ListeningExecutorService executor =
+    ExecutorService executor =
         MoreExecutors.listeningDecorator(
             MoreExecutors.getExitingExecutorService(
                 new ThreadPoolExecutor(
@@ -588,18 +586,17 @@ public class GcsUtil {
                     TimeUnit.MILLISECONDS,
                     new LinkedBlockingQueue<>())));
 
-    List<ListenableFuture<Void>> futures = new LinkedList<>();
+    List<CompletionStage<Void>> futures = new LinkedList<>();
     for (final BatchRequest batch : batches) {
-      futures.add(
-          executor.submit(
-              () -> {
-                batch.execute();
-                return null;
-              }));
+      futures.add(MoreFutures.runAsync(
+          () -> {
+            batch.execute();
+          },
+          executor));
     }
 
     try {
-      Futures.allAsList(futures).get();
+      MoreFutures.get(MoreFutures.allAsList(futures));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while executing batch GCS request", e);

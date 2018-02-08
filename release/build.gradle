@@ -34,7 +34,7 @@ def argsNightly = ["--ver=${verNightly}", "--repourl=${repoNightly}"]
 
 // External releases
 def verRelease = project.findProperty('ver') ?: '2.3.0'
-def repoRelease = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/orgapachebeam-1026'
+def repoRelease = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/orgapachebeam-1027'
 def argsRelease = ["--ver=${verRelease}", "--repourl=${repoRelease}"]
 
 // For dataflow runner

@@ -101,7 +101,7 @@ public class DirectMetricsTest {
         committedMetricsResult("ns1", "name2", "step1", 12L),
         committedMetricsResult("ns1", "name1", "step2", 7L)));
     assertThat(results.distributions(), contains(
-        attemptedMetricsResult("ns1", "name1", "step1", DistributionResult.ZERO)));
+        attemptedMetricsResult("ns1", "name1", "step1", DistributionResult.IDENTITY_ELEMENT)));
     assertThat(results.distributions(), contains(
         committedMetricsResult("ns1", "name1", "step1", DistributionResult.create(12, 3, 3, 5))));
     assertThat(results.gauges(), contains(

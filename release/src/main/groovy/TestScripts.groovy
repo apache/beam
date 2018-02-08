@@ -164,7 +164,7 @@ class TestScripts {
              </profiles>
         </settings>
         """
-       def cmd = "mvn ${args} -s${settings.absolutePath} -Ptestrel -B"
+       def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel -B"
        String path = System.getenv("PATH");
        // Set the path on jenkins executors to use 3.5.2.
        def mvnPath = "/home/jenkins/tools/maven/apache-maven-3.5.2/bin"

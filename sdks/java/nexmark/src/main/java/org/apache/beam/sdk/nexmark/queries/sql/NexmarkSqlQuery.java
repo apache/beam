@@ -22,11 +22,11 @@ import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
-import org.apache.beam.sdk.nexmark.model.sql.BeamRecordSize;
+import org.apache.beam.sdk.nexmark.model.sql.RowSize;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 
 /**
  * Executor for Nexmark queries. Allows to decouple from NexmarkQuery
@@ -34,21 +34,21 @@ import org.apache.beam.sdk.values.PCollection;
  */
 public class NexmarkSqlQuery extends NexmarkQuery {
 
-  private PTransform<PCollection<Event>, PCollection<BeamRecord>> queryTransform;
+  private PTransform<PCollection<Event>, PCollection<Row>> queryTransform;
 
   public NexmarkSqlQuery(NexmarkConfiguration configuration,
-                         PTransform<PCollection<Event>, PCollection<BeamRecord>> queryTransform) {
+                         PTransform<PCollection<Event>, PCollection<Row>> queryTransform) {
     super(configuration, queryTransform.getName());
     this.queryTransform = queryTransform;
   }
 
   @Override
   protected PCollection<KnownSize> applyPrim(PCollection<Event> events) {
-    PCollection<BeamRecord> queryResults = events.apply(queryTransform);
+    PCollection<Row> queryResults = events.apply(queryTransform);
 
     PCollection<? extends KnownSize> resultRecordsSizes = queryResults
-        .apply(BeamRecordSize.parDo())
-        .setCoder(BeamRecordSize.CODER);
+        .apply(RowSize.parDo())
+        .setCoder(RowSize.CODER);
 
     return NexmarkUtils.castToKnownSize(name, resultRecordsSizes);
   }

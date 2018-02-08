@@ -40,12 +40,24 @@
           <reuseForks>false</reuseForks>
         </configuration>
       </plugin>
+      <!-- Don't shade kinesis (AWS-KPL library has a a hard dependency on guava) -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>bundle-and-repackage</id>
+            <phase>none</phase>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
   <properties>
     <aws.version>1.11.255</aws.version>
     <amazon-kinesis-client.version>1.8.8</amazon-kinesis-client.version>
+    <amazon-kinesis-producer.version>0.12.8</amazon-kinesis-producer.version>
   </properties>
 
   <dependencies>
@@ -68,6 +80,12 @@
 
     <dependency>
       <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-core</artifactId>
+      <version>${aws.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.amazonaws</groupId>
       <artifactId>amazon-kinesis-client</artifactId>
       <version>${amazon-kinesis-client.version}</version>
     </dependency>
@@ -80,8 +98,9 @@
     </dependency>
 
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>amazon-kinesis-producer</artifactId>
+      <version>${amazon-kinesis-producer.version}</version>
     </dependency>
 
     <dependency>
@@ -101,12 +120,6 @@
     </dependency>
 
     <dependency>
-      <groupId>com.amazonaws</groupId>
-      <artifactId>aws-java-sdk-core</artifactId>
-      <version>${aws.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
     </dependency>
@@ -115,6 +128,11 @@
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
       <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
 
     <dependency>

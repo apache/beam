@@ -21,7 +21,7 @@ import common_job_properties
 // This is the Java precommit which runs a Gradle build, and the current set
 // of precommit tests.
 job('beam_PreCommit_Java_GradleBuild') {
-  description('Runs a build of the current GitHub Pull Request.')
+  description('Runs Java PreCommit tests for the current GitHub Pull Request.')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()

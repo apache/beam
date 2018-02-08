@@ -45,8 +45,8 @@ class ProducerSpEL {
   static final String ENABLE_IDEMPOTENCE_CONFIG = "enable.idempotence";
   static final String TRANSACTIONAL_ID_CONFIG = "transactional.id";
 
-  private static Class producerFencedExceptionClass;
-  private static Class outOfOrderSequenceExceptionClass;
+  private static Class<?> producerFencedExceptionClass;
+  private static Class<?> outOfOrderSequenceExceptionClass;
 
   static {
     try {
@@ -89,13 +89,13 @@ class ProducerSpEL {
                   "Please used version 0.11 or later.");
   }
 
-  private static Object invoke(Method method, Object obj, Object... args) {
+  private static void invoke(Method method, Object obj, Object... args) {
     try {
-      return method.invoke(obj, args);
+      method.invoke(obj, args);
     } catch (IllegalAccessException | InvocationTargetException e) {
-      return new RuntimeException(e);
+      throw new RuntimeException(e);
     } catch (ApiException e) {
-      Class eClass = e.getClass();
+      Class<?> eClass = e.getClass();
       if (producerFencedExceptionClass.isAssignableFrom(eClass)
         || outOfOrderSequenceExceptionClass.isAssignableFrom(eClass)
         || AuthorizationException.class.isAssignableFrom(eClass)) {
