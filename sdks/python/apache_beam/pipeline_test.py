@@ -445,6 +445,12 @@ class DoFnTest(unittest.TestCase):
     assert_that(pcoll, equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
     pipeline.run()
 
+  def test_timestamp_param_map(self):
+    with TestPipeline() as p:
+      assert_that(
+          p | Create([1, 2]) | beam.Map(lambda _, t=DoFn.TimestampParam: t),
+          equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
+
 
 class Bacon(PipelineOptions):
 
