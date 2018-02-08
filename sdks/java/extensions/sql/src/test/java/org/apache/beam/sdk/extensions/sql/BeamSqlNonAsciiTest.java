@@ -35,7 +35,7 @@ public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testCompositeFilter", BeamSql.queryMulti(sql));
+            .apply("testCompositeFilter", BeamSql.query(sql));
 
         PAssert.that(result).containsInAnyOrder(rowsInTableA.get(3));
 
@@ -48,7 +48,7 @@ public class BeamSqlNonAsciiTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testCompositeFilter", BeamSql.queryMulti(sql));
+            .apply("testCompositeFilter", BeamSql.query(sql));
 
         PAssert.that(result).containsInAnyOrder(rowsInTableA.get(3));
 
