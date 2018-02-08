@@ -42,7 +42,7 @@ import org.joda.time.Instant;
 public class TopWikipediaSessionsITCase extends StreamingProgramTestBase implements Serializable {
   protected String resultPath;
 
-  public TopWikipediaSessionsITCase(){
+  public TopWikipediaSessionsITCase() {
   }
 
   static final String[] EXPECTED_RESULT = new String[] {

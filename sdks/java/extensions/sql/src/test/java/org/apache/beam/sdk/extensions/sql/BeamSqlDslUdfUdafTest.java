@@ -127,7 +127,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    * A example UDF for test.
    */
   public static class CubicInteger implements BeamSqlUdf {
-    public static Integer eval(Integer input){
+    public static Integer eval(Integer input) {
       return input * input * input;
     }
   }

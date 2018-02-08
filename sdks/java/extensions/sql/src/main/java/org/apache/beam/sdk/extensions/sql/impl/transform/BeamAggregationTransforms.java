@@ -266,7 +266,7 @@ public class BeamAggregationTransforms implements Serializable{
                           exp.evaluate(input, null).getValue()
                   )
           );
-        } else if (sourceFieldExps.get(idx) instanceof KV){
+        } else if (sourceFieldExps.get(idx) instanceof KV) {
           /**
            * If source expression is type of KV pair, we bundle the value of two expressions into
            * KV pair and pass it to aggregator's addInput method.
