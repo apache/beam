@@ -31,10 +31,10 @@ job('beam_PostRelease_NightlySnapshot') {
 
   parameters {
     stringParam('snapshot_version',
-                '2.3.0-SNAPSHOT',
+                '',
                 'Version of the repository snapshot to install')
     stringParam('snapshot_url',
-                'https://repository.apache.org/content/repositories/snapshots',
+                '',
                 'Repository URL to install from')
   }
 
@@ -42,11 +42,21 @@ job('beam_PostRelease_NightlySnapshot') {
   common_job_properties.setPostCommit(
       delegate,
       '0 11 * * *',
-      false,
-      'dev@beam.apache.org')
+      false)
+
+
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      './gradlew :release:runQuickstartsJava',
+      'Run Dataflow PostRelease')
 
   steps {
-    // Run a quickstart from https://beam.apache.org/get-started/quickstart-java/
-    shell('cd ' + common_job_properties.checkoutDir + '/release && groovy quickstart-java-direct.groovy')
+    // Run a quickstart from https://beam.apache.org/get-started/quickstart-java
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':release:runQuickstartsJava')
+      switches('-Pver=$snapshot_version -Prepourl=$snapshot_url')
+    }
   }
 }
