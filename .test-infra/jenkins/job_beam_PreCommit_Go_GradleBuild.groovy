@@ -18,10 +18,10 @@
 
 import common_job_properties
 
-// This is the Java precommit which runs a Gradle build, and the current set
+// This is the Go precommit which runs a gradle build, and the current set
 // of precommit tests.
-job('beam_PreCommit_Java_GradleBuild') {
-  description('Runs Java PreCommit tests for the current GitHub Pull Request.')
+job('beam_PreCommit_Go_GradleBuild') {
+  description('Runs Go PreCommit tests for the current GitHub Pull Request.')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()
@@ -32,11 +32,6 @@ job('beam_PreCommit_Java_GradleBuild') {
     'master',
     240)
 
-  // Publish all test results to Jenkins
-  publishers {
-    archiveJunit('**/build/test-results/**/*.xml')
-  }
-
   def gradle_switches = [
     // Continue the build even if there is a failure to show as many potential failures as possible.
     '--continue',
@@ -44,13 +39,13 @@ job('beam_PreCommit_Java_GradleBuild') {
     '--rerun-tasks',
   ]
 
-  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' :javaPreCommit'
+  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' :goPreCommit'
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Java Gradle PreCommit')
+  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Go Gradle PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':javaPreCommit')
+      tasks(':goPreCommit')
       for (String gradle_switch : gradle_switches) {
         switches(gradle_switch)
       }
