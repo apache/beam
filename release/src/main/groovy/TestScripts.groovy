@@ -17,6 +17,7 @@
  * limitations under the License.
  */
 
+import java.util.stream.*
 import groovy.util.CliBuilder
 
 /*
@@ -125,8 +126,11 @@ class TestScripts {
      var.lastText = var.lastText.trim()
      proc.waitFor()
      if (proc.exitValue() != 0) {
+       InputStream errorStream = proc.getErrorStream()
+       String errorMessage = new BufferedReader(new InputStreamReader(errorStream))
+  .lines().collect(Collectors.joining("\n"));
        println var.lastText
-       _error("Failed command")
+       _error("Failed command: \n" + errorMessage)
      }
    }
 

@@ -70,7 +70,7 @@ println()
 * 5. Run wordcount with DataflowRunner
 *
 * */
-cmd.setLength(0) // clear the cmd buffer
+/*cmd.setLength(0) // clear the cmd buffer
 cmd.append("python -m apache_beam.examples.wordcount ")
     .append("--output gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT} ")
     .append("--staging_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
@@ -87,13 +87,13 @@ t.run(cmd.toString())
 t.run("gsutil ls gs://${ReleaseConfiguration.BUCKET_NAME}")
 4.times {
   t.see("gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT}-0000${it}-of-00004")
-}
+}*/
 
 /*
 * 6. Run Streaming wordcount with DirectRunner
 *
 * */
-// create pubsub topics (Note that if toipics already exist, there will be errors when running these commands, TODO: error catch)
+// create pubsub topics
 create_pubsub(t)
 
 cmd.setLength(0) // clear the cmd buffer

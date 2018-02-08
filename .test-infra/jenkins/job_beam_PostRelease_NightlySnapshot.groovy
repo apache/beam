@@ -55,7 +55,8 @@ job('beam_PostRelease_NightlySnapshot') {
     // Run a quickstart from https://beam.apache.org/get-started/quickstart-java
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':release:runQuickstartJavaDirectNightly')
+//      tasks(':release:runQuickstartJavaDirectNightly')
+      tasks(':release:runQuickstartJavaDataflowRelease')
       switches('-Pver=$snapshot_version -Prepourl=$snapshot_url')
     }
   }

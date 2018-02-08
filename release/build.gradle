@@ -65,3 +65,8 @@ task runQuickstartJavaDataflowRelease (dependsOn: 'classes', type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     args argsRelease + argsProject
 }
+
+task runQuickstartPythonRelease(dependsOn: 'classes', type: JavaExec) {
+    main = 'candidate_verification_python_sdk'
+    classpath = sourceSets.main.runtimeClasspath
+}
