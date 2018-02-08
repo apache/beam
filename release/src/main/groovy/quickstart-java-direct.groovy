@@ -17,40 +17,19 @@
  * limitations under the License.
  */
 
-t = new TestScripts()  
+t = new TestScripts(args)
 
 /*
- * Run the direct quickstart from https://beam.apache.org/get-started/quickstart-java/
+ * Run the Direct quickstart from https://beam.apache.org/get-started/quickstart-java/
  */
 
 t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
 
-  t.intent 'Gets the WordCount Code'
-    ver = System.env.snapshot_version ?: "2.3.0-SNAPSHOT"
-
-    // Generate a maven project from the snapshot repository
-    t.run """mvn archetype:generate \
-      -DarchetypeGroupId=org.apache.beam \
-      -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-      -DarchetypeVersion=$ver \
-      -DgroupId=org.example \
-      -DartifactId=word-count-beam \
-      -Dversion="0.1" \
-      -Dpackage=org.apache.beam.examples \
-      -DinteractiveMode=false"""
-
-    // Check if it was generated
-    t.see "[INFO] BUILD SUCCESS"
-    t.run "cd word-count-beam"
-    t.run "ls"
-    t.see "pom.xml"
-    t.see "src"
-    t.run "ls src/main/java/org/apache/beam/examples/"
-    t.see "WordCount.java"
+  t.intent 'Gets the WordCount Example Code'
+    QuickstartArchetype.generate(t)
 
   t.intent 'Runs the WordCount Code with Direct runner'
-
-    // Run the workcount example with the direct runner
+    // Run the wordcount example with the Direct runner
     t.run """mvn compile exec:java \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--inputFile=pom.xml --output=counts" \
