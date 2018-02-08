@@ -26,9 +26,9 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.io.BaseEncoding;
-import io.grpc.Server;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.internal.ServerImpl;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -55,7 +55,7 @@ import org.junit.runners.JUnit4;
 public class ArtifactServiceStagerTest {
   @Rule public TemporaryFolder temp = new TemporaryFolder();
 
-  private Server server;
+  private ServerImpl server;
   private InMemoryArtifactStagerService service;
   private ArtifactServiceStager stager;
 
