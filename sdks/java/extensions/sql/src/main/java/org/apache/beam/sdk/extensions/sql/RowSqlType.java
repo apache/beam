@@ -23,11 +23,12 @@ import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
 
+
 /**
  * Type builder for {@link Row} with SQL types.
  *
  * <p>Limited SQL types are supported now, visit
- * <a href="https://beam.apache.org/blog/2017/07/21/sql-dsl.html#data-type">data types</a>
+ * <a href="https://beam.apache.org/documentation/dsls/sql/#data-types">data types</a>
  * for more details.
  *
  * <p>SQL types are represented by instances of {@link SqlTypeCoder}, see {@link SqlTypeCoders}.
@@ -38,7 +39,7 @@ public class RowSqlType {
   }
 
   /**
-   * Builder class to construct {@link RowSqlType}.
+   * Builder class to construct {@link RowType}.
    */
   public static class Builder {
 
