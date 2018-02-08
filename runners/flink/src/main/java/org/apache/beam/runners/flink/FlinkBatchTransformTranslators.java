@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -30,21 +31,29 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.KeyedWorkItem;
+import org.apache.beam.runners.core.KeyedWorkItemCoder;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.construction.CombineTranslation;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
+import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMergingNonShuffleReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMultiOutputPruningFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkSplittableDoFnFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkStatefulDoFnFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvKeySelector;
 import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItem;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKeyedWorkItemCoder;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -61,8 +70,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -76,6 +84,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
@@ -86,6 +95,7 @@ import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
+import org.apache.flink.util.Collector;
 
 /**
  * Translators for transforming {@link PTransform PTransforms} to
@@ -110,6 +120,8 @@ class FlinkBatchTransformTranslators {
         new CombinePerKeyTranslatorBatch());
     TRANSLATORS.put(PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
         new GroupByKeyTranslatorBatch());
+    TRANSLATORS.put(SplittableParDo.SPLITTABLE_GBKIKWI_URN, new GBKIntoKeyedWorkItemsTranslator());
+
     TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch());
 
     TRANSLATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN,
@@ -119,6 +131,9 @@ class FlinkBatchTransformTranslators {
         PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslatorBatch());
 
     TRANSLATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoTranslatorBatch());
+
+    TRANSLATORS.put(
+        SPLITTABLE_PROCESS_URN, new SplittableParDoTranslatorBatch());
 
     TRANSLATORS.put(PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch());
   }
@@ -274,6 +289,69 @@ class FlinkBatchTransformTranslators {
 
     }
 
+  }
+
+  private static class GBKIntoKeyedWorkItemsTranslator<K, InputT>
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
+      PTransform<PCollection<KV<K, InputT>>, PCollection<KeyedWorkItem<K, InputT>>>> {
+
+    @Override
+    public void translateNode(
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KeyedWorkItem<K, InputT>>> transform,
+        FlinkBatchTranslationContext context) {
+
+      PCollection<KV<K, InputT>> input = context.getInput(transform);
+
+      KvCoder<K, InputT> inputKvCoder = (KvCoder<K, InputT>) input.getCoder();
+
+      SingletonKeyedWorkItemCoder<K, InputT> workItemCoder = SingletonKeyedWorkItemCoder.of(
+          inputKvCoder.getKeyCoder(),
+          inputKvCoder.getValueCoder(),
+          input.getWindowingStrategy().getWindowFn().windowCoder());
+
+      WindowedValue.
+          ValueOnlyWindowedValueCoder<SingletonKeyedWorkItem<K, InputT>> windowedWorkItemCoder =
+          WindowedValue.getValueOnlyCoder(workItemCoder);
+
+      CoderTypeInformation<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemTypeInfo =
+          new CoderTypeInformation<>(windowedWorkItemCoder);
+
+      DataSet<WindowedValue<KV<K, InputT>>> inputDataSet = context.getInputDataSet(input);
+
+      DataSet<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> workItemDataSet =
+          inputDataSet
+              .flatMap(new ToKeyedWorkItemInGlobalWindow<>())
+              .returns(workItemTypeInfo)
+              .name("ToKeyedWorkItem");
+
+      context.setOutputDataSet(context.getOutput(transform), workItemDataSet);
+    }
+  }
+
+  private static class ToKeyedWorkItemInGlobalWindow<K, InputT>
+      extends RichFlatMapFunction<
+            WindowedValue<KV<K, InputT>>,
+            WindowedValue<SingletonKeyedWorkItem<K, InputT>>> {
+
+    @Override
+    public void flatMap(
+        WindowedValue<KV<K, InputT>> inWithMultipleWindows,
+        Collector<WindowedValue<SingletonKeyedWorkItem<K, InputT>>> out) throws Exception {
+
+      // we need to wrap each one work item per window for now
+      // since otherwise the PushbackSideInputRunner will not correctly
+      // determine whether side inputs are ready
+      //
+      // this is tracked as https://issues.apache.org/jira/browse/BEAM-1850
+      for (WindowedValue<KV<K, InputT>> in : inWithMultipleWindows.explodeWindows()) {
+        SingletonKeyedWorkItem<K, InputT> workItem =
+            new SingletonKeyedWorkItem<>(
+                in.getValue().getKey(),
+                in.withValue(in.getValue().getValue()));
+
+        out.collect(WindowedValue.valueInGlobalWindow(workItem));
+      }
+    }
   }
 
   private static class ReshuffleTranslatorBatch<K, InputT>
@@ -476,16 +554,6 @@ class FlinkBatchTransformTranslators {
     }
   }
 
-  private static void rejectSplittable(DoFn<?, ?> doFn) {
-    DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
-    if (signature.processElement().isSplittable()) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "%s does not currently support splittable DoFn: %s",
-              FlinkRunner.class.getSimpleName(), doFn));
-    }
-  }
-
   private static class ParDoTranslatorBatch<InputT, OutputT>
       implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
       PTransform<PCollection<InputT>, PCollectionTuple>> {
@@ -501,7 +569,6 @@ class FlinkBatchTransformTranslators {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      rejectSplittable(doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
 
@@ -614,6 +681,132 @@ class FlinkBatchTransformTranslators {
             doFnWrapper, transform.getName());
 
       }
+
+      transformSideInputs(sideInputs, outputDataSet, context);
+
+      for (Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+        pruneOutput(
+            outputDataSet,
+            context,
+            outputMap.get(output.getKey()),
+            (PCollection) output.getValue());
+      }
+
+    }
+
+    private <T> void pruneOutput(
+        DataSet<WindowedValue<RawUnionValue>> taggedDataSet,
+        FlinkBatchTranslationContext context,
+        int integerTag,
+        PCollection<T> collection) {
+      TypeInformation<WindowedValue<T>> outputType = context.getTypeInfo(collection);
+
+      FlinkMultiOutputPruningFunction<T> pruningFunction =
+          new FlinkMultiOutputPruningFunction<>(integerTag);
+
+      FlatMapOperator<WindowedValue<RawUnionValue>, WindowedValue<T>> pruningOperator =
+          new FlatMapOperator<>(
+              taggedDataSet,
+              outputType,
+              pruningFunction,
+              collection.getName());
+
+      context.setOutputDataSet(collection, pruningOperator);
+    }
+  }
+
+  private static class SplittableParDoTranslatorBatch<
+      InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
+      implements FlinkBatchPipelineTranslator.BatchTransformTranslator<
+      SplittableParDoViaKeyedWorkItems.ProcessElements<InputT, OutputT, RestrictionT, TrackerT>> {
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void translateNode(
+        SplittableParDoViaKeyedWorkItems.ProcessElements<
+            InputT, OutputT, RestrictionT, TrackerT> transform,
+        FlinkBatchTranslationContext context) {
+
+      SplittableParDoViaKeyedWorkItems.ProcessFn<InputT, OutputT, RestrictionT, TrackerT> doFn =
+          transform.newProcessFn(transform.getFn());
+
+      DataSet<WindowedValue<InputT>> inputDataSet =
+          context.getInputDataSet(context.getInput(transform));
+
+      Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
+
+      TupleTag<?> mainOutputTag = transform.getMainOutputTag();
+      Map<TupleTag<?>, Integer> outputMap = Maps.newHashMap();
+      // put the main output at index 0, FlinkMultiOutputDoFnFunction  expects this
+      outputMap.put(mainOutputTag, 0);
+      int count = 1;
+      for (TupleTag<?> tag : outputs.keySet()) {
+        if (!outputMap.containsKey(tag)) {
+          outputMap.put(tag, count++);
+        }
+      }
+
+      // Union coder elements must match the order of the output tags.
+      Map<Integer, TupleTag<?>> indexMap = Maps.newTreeMap();
+      for (Map.Entry<TupleTag<?>, Integer> entry : outputMap.entrySet()) {
+        indexMap.put(entry.getValue(), entry.getKey());
+      }
+
+      // assume that the windowing strategy is the same for all outputs
+      WindowingStrategy<?, ?> windowingStrategy = null;
+
+      // collect all output Coders and create a UnionCoder for our tagged outputs
+      List<Coder<?>> outputCoders = Lists.newArrayList();
+      for (TupleTag<?> tag : indexMap.values()) {
+        PValue taggedValue = outputs.get(tag);
+        checkState(
+            taggedValue instanceof PCollection,
+            "Within ParDo, got a non-PCollection output %s of type %s",
+            taggedValue,
+            taggedValue.getClass().getSimpleName());
+        PCollection<?> coll = (PCollection<?>) taggedValue;
+        outputCoders.add(coll.getCoder());
+        windowingStrategy = coll.getWindowingStrategy();
+      }
+
+      if (windowingStrategy == null) {
+        throw new IllegalStateException("No outputs defined.");
+      }
+
+      UnionCoder unionCoder = UnionCoder.of(outputCoders);
+
+      TypeInformation<WindowedValue<RawUnionValue>> typeInformation =
+          new CoderTypeInformation<>(
+              WindowedValue.getFullCoder(
+                  unionCoder,
+                  windowingStrategy.getWindowFn().windowCoder()));
+
+      List<PCollectionView<?>> sideInputs = transform.getSideInputs();
+
+      // construct a map from side input to WindowingStrategy so that
+      // the DoFn runner can map main-input windows to side input windows
+      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
+      for (PCollectionView<?> sideInput: sideInputs) {
+        sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
+      }
+
+      SingleInputUdfOperator<WindowedValue<InputT>, WindowedValue<RawUnionValue>, ?> outputDataSet;
+
+      // we know it's an SDF so the input must be KeyedWorkItems
+      KeyedWorkItemCoder<?, InputT> inputCoder =
+          (KeyedWorkItemCoder) context.getInput(transform).getCoder();
+
+      FlinkSplittableDoFnFunction<?, ?, OutputT> doFnWrapper = new FlinkSplittableDoFnFunction<>(
+          (DoFn) doFn, context.getCurrentTransform().getFullName(),
+          windowingStrategy, sideInputStrategies, context.getPipelineOptions(),
+          outputMap, mainOutputTag
+      );
+
+      Grouping<WindowedValue<InputT>> grouping =
+          inputDataSet.groupBy(new WorkItemKeySelector(inputCoder.getKeyCoder()));
+
+      outputDataSet =
+          new GroupReduceOperator(grouping, typeInformation, doFnWrapper, transform.getName());
 
       transformSideInputs(sideInputs, outputDataSet, context);
 
