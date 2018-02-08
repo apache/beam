@@ -17,48 +17,31 @@
  * limitations under the License.
  */
 
-t = new TestScripts()  
+t = new TestScripts(args)
 
 /*
  * Run the direct quickstart from https://beam.apache.org/get-started/quickstart-java/
  */
 
-t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
+t.describe 'Run Apache Beam Java SDK Quickstart - Apex'
 
-  t.intent 'Gets the WordCount Code'
-    ver = System.env.snapshot_version ?: "2.3.0-SNAPSHOT"
+  t.intent 'Gets the WordCount Example Code'
+    QuickstartArchetype.generate(t)
 
-    // Generate a maven project from the snapshot repository
-    t.run """mvn archetype:generate \
-      -DarchetypeGroupId=org.apache.beam \
-      -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-      -DarchetypeVersion=$ver \
-      -DgroupId=org.example \
-      -DartifactId=word-count-beam \
-      -Dversion="0.1" \
-      -Dpackage=org.apache.beam.examples \
-      -DinteractiveMode=false"""
+  t.intent 'Runs the WordCount Code with Apex runner'
+    // Run the workcount example with the apex runner
+    t.run "curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > /tmp/kinglear.txt"
 
-    // Check if it was generated
-    t.see "[INFO] BUILD SUCCESS"
-    t.run "cd word-count-beam"
-    t.run "ls"
-    t.see "pom.xml"
-    t.see "src"
-    t.run "ls src/main/java/org/apache/beam/examples/"
-    t.see "WordCount.java"
-
-  t.intent 'Runs the WordCount Code with Direct runner'
-
-    // Run the workcount example with the direct runner
     t.run """mvn compile exec:java \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
-      -Dexec.args="--inputFile=pom.xml --output=counts" \
-      -Pdirect-runner"""
+      -Dexec.args="--inputFile=/tmp/kinglear.txt \
+                   --output=counts \
+                   --runner=ApexRunner" \
+      -Papex-runner"""
 
     // Verify text from the pom.xml input file
-    t.run "grep Foundation counts*"
-    t.see "Foundation: 1"
+    t.run "grep Cordelia counts*"
+    t.see "Cordelia: 31"
 
     // Clean up
     t.done()
