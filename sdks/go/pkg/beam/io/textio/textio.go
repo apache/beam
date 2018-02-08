@@ -161,10 +161,9 @@ func (w *writeFileFn) ProcessElement(ctx context.Context, _ int, lines func(*str
 
 	fd, err := fs.OpenWrite(ctx, w.Filename)
 	if err != nil {
-		fs.Close()
 		return err
 	}
-	buf := bufio.NewWriterSize(fd, 1<<20)
+	buf := bufio.NewWriterSize(fd, 1<<20) // use 1MB buffer
 
 	log.Infof(ctx, "Writing to %v", w.Filename)
 
