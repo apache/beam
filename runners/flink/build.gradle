@@ -117,3 +117,6 @@ task validatesRunner {
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
 }
+
+// Generates :runners:flink:runQuickstartJavaFlinkLocal
+createJavaQuickstartValidationTask(name: 'FlinkLocal')
