@@ -20,7 +20,7 @@
 t = new TestScripts(args)
 
 /*
- * Run the direct quickstart from https://beam.apache.org/get-started/quickstart-java/
+ * Run the Flink local quickstart from https://beam.apache.org/get-started/quickstart-java/
  */
 
 t.describe 'Run Apache Beam Java SDK Quickstart - Flink Local'
@@ -29,17 +29,15 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Flink Local'
     QuickstartArchetype.generate(t)
 
   t.intent 'Runs the WordCount Code with Flink Local runner'
-    // Run the workcount example with the flink local runner
-    t.run "curl http://www.gutenberg.org/cache/epub/1128/pg1128.txt > /tmp/kinglear.txt"
-
+    // Run the wordcount example with the flink local runner
     t.run """mvn compile exec:java \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
-      -Dexec.args="--inputFile=/tmp/kinglear.txt --output=counts \
+      -Dexec.args="--inputFile=pom.xml --output=counts \
       --runner=FlinkRunner" -Pflink-runner"""
 
-    // Verify text from the kinglear.txt input file
-    t.run "grep Cordelia counts*"
-    t.see "Cordelia: 31"
+    // Verify text from the pom.xml input file
+    t.run "grep Foundation counts*"
+    t.see "Foundation: 1"
 
     // Clean up
     t.done()

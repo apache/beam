@@ -19,46 +19,18 @@
 apply plugin: 'groovy'
 
 repositories {
-    mavenCentral()
+  mavenCentral()
 }
 
 dependencies {
-    compile 'org.codehaus.groovy:groovy-all:2.4.13'
-    compile 'commons-cli:commons-cli:1.2'
+  compile 'org.codehaus.groovy:groovy-all:2.4.13'
+  compile 'commons-cli:commons-cli:1.2'
 }
 
-// Nightly releases
-def verNightly = project.findProperty('ver') ?: '2.4.0-SNAPSHOT'
-def repoNightly = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
-def argsNightly = ["--ver=${verNightly}", "--repourl=${repoNightly}"]
-
-// External releases
-def verRelease = project.findProperty('ver') ?: '2.3.0'
-def repoRelease = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/orgapachebeam-1027'
-def argsRelease = ["--ver=${verRelease}", "--repourl=${repoRelease}"]
-
-// For dataflow runner
-def cloudProject = project.findProperty('cloudProject') ?: 'apache-beam-testing'
-def cloudBucket = project.findProperty('cloudBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
-def argsProject = ["--project=${cloudProject}", "--bucket=${cloudBucket}"]
-
-// Generates tasks for running each quickstart in each configuration, like
-// :runQuickstartJavaDirectNightly
-// :runQuickstartJavaDirectRelease
-// :runQuickstartJavaDataflowNightly
-// :runQuickstartJavaDataflowRelease
-for (String release : ["Release", "Nightly"]) {
-  for (String runner : ["Direct", "Dataflow", "Apex", "Spark", "FlinkLocal"]) {
-    def taskName = "runQuickstartJava${runner}${release}"
-    def argsNeeded =  release == "Nightly" ?  argsNightly : argsRelease
-    if (runner == "Dataflow") {
-      argsNeeded += argsProject
-    } 
-    println "Generating :${taskName}"
-    task "${taskName}" (dependsOn: 'classes', type: JavaExec) {
-      main = "quickstart-java-${runner}".toLowerCase()
-      classpath = sourceSets.main.runtimeClasspath
-      args argsNeeded
-    }
-  }
+task runQuickstartsJava {
+  dependsOn ":runners:direct-java:runQuickstartJavaDirect"
+  dependsOn ":runners:google-cloud-dataflow-java:runQuickstartJavaDataflow"
+  dependsOn ":runners:apex:runQuickstartJavaApex"
+  dependsOn ":runners:spark:runQuickstartJavaSpark"
+  dependsOn ":runners:flink:runQuickstartJavaFlinkLocal"
 }

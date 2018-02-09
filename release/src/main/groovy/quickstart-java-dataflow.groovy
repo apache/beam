@@ -20,7 +20,7 @@
 t = new TestScripts(args)
 
 /*
- * Run the dataflow quickstart from https://beam.apache.org/get-started/quickstart-java/
+ * Run the Dataflow quickstart from https://beam.apache.org/get-started/quickstart-java/
  */
 
 t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
@@ -33,7 +33,7 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Dataflow'
     // Remove any count files
     t.run """gsutil rm gs://${t.gsloc()}/count* || echo 'No files'"""
 
-    // Run the workcount example with the dataflow runner
+    // Run the wordcount example with the Dataflow runner
     t.run """mvn compile exec:java \
       -Dexec.mainClass=org.apache.beam.examples.WordCount \
       -Dexec.args="--runner=DataflowRunner \

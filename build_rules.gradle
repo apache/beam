@@ -507,3 +507,20 @@ ext.applyAvroNature = {
   println "applyAvroNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.commercehub.gradle.plugin.avro"
 }
+
+// Creates a task to run the quickstart for a runner.
+// Releases version and URL, can be overriden for a RC release with
+// ./gradlew :release:runQuickstartJava -Pver=2.3.0 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-1027
+ext.createJavaQuickstartValidationTask = { String name, extra_args=[] ->
+  def taskName = "runQuickstartJava${name}"
+  println "Generating :${taskName}"
+  def releaseVersion = project.findProperty('ver') ?: version
+  def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+  def argsNeeded = ["--ver=${releaseVersion}", "--repourl=${releaseRepo}"] + extra_args
+  project.evaluationDependsOn(':release')
+  task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
+    main = "quickstart-java-${name}".toLowerCase()
+    classpath = project(':release').sourceSets.main.runtimeClasspath
+    args argsNeeded
+  }
+}
