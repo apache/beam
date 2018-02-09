@@ -33,6 +33,8 @@ job('beam_PreCommit_Go_GradleBuild') {
     240)
 
   def gradle_switches = [
+    // Gradle log verbosity enough to diagnose basic build issues
+    "--info",
     // Continue the build even if there is a failure to show as many potential failures as possible.
     '--continue',
     // Until we verify the build cache is working appropriately, force rerunning all tasks
