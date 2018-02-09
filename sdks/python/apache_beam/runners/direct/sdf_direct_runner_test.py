@@ -145,7 +145,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
 
     assert len(expected_data) > 0
 
-    with TestPipeline(runner='DirectRunner') as p:
+    with TestPipeline() as p:
       pc1 = (p
              | 'Create1' >> beam.Create(file_names)
              | 'SDF' >> beam.ParDo(ReadFiles(resume_count)))
@@ -205,7 +205,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
         resume_count)
 
   def test_sdf_with_windowed_timestamped_input(self):
-    with TestPipeline(runner='DirectRunner') as p:
+    with TestPipeline() as p:
       result = (p
                 | beam.Create([1, 3, 5, 10])
                 | beam.FlatMap(lambda t: [TimestampedValue(('A', t), t),
@@ -221,7 +221,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
       assert_that(result, equal_to(expected_result))
 
   def test_sdf_with_side_inputs(self):
-    with TestPipeline(runner='DirectRunner') as p:
+    with TestPipeline() as p:
       result = (p
                 | 'create_main' >> beam.Create(['1', '3', '5'])
                 | beam.ParDo(ExpandStrings(), side=['1', '3']))

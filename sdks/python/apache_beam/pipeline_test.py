@@ -170,8 +170,7 @@ class PipelineTest(unittest.TestCase):
   # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
   # @attr('ValidatesRunner')
   def test_metrics_in_fake_source(self):
-    # FakeSource mock requires DirectRunner.
-    pipeline = TestPipeline(runner='DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
     assert_that(pcoll, equal_to([1, 2, 3, 4, 5, 6]))
     res = pipeline.run()
@@ -182,8 +181,7 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(outputs_counter.committed, 6)
 
   def test_fake_read(self):
-    # FakeSource mock requires DirectRunner.
-    pipeline = TestPipeline(runner='DirectRunner')
+    pipeline = TestPipeline()
     pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
     assert_that(pcoll, equal_to([1, 2, 3]))
     pipeline.run()
@@ -279,7 +277,9 @@ class PipelineTest(unittest.TestCase):
     num_elements = 10
     num_maps = 100
 
-    pipeline = TestPipeline()
+    # TODO(robertwb): reduce memory usage of FnApiRunner so that this test
+    # passes.
+    pipeline = TestPipeline(runner='BundleBasedDirectRunner')
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (
@@ -335,7 +335,7 @@ class PipelineTest(unittest.TestCase):
     file_system_override_mock.side_effect = get_overrides
 
     # Specify DirectRunner as it's the one patched above.
-    with Pipeline(runner='DirectRunner') as p:
+    with Pipeline(runner='BundleBasedDirectRunner') as p:
       pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
       assert_that(pcoll, equal_to([3, 6, 9]))
 
@@ -572,7 +572,9 @@ class RunnerApiTest(unittest.TestCase):
 class DirectRunnerRetryTests(unittest.TestCase):
 
   def test_retry_fork_graph(self):
-    p = beam.Pipeline(runner='DirectRunner')
+    # TODO(BEAM-3642): The FnApiRunner currently does not currently support
+    # retries.
+    p = beam.Pipeline(runner='BundleBasedDirectRunner')
 
     # TODO(mariagh): Remove the use of globals from the test.
     global count_b, count_c # pylint: disable=global-variable-undefined
