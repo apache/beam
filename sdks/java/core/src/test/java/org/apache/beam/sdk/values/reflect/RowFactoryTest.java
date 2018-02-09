@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.values.reflect;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.values.reflect.ReflectionUtils.getPublicGetters;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotSame;
@@ -62,7 +64,10 @@ public class RowFactoryTest {
    */
   @Parameterized.Parameters
   public static Iterable<GetterFactory> gettersFactories() {
-    return ImmutableList.of(new GeneratedGetterFactory(), new ReflectionGetterFactory());
+    return ImmutableList.of(
+        new GeneratedGetterFactory(),
+        new ReflectionGetterFactory(),
+        clazz -> getPublicGetters(clazz).stream().map(ReflectionGetter::new).collect(toList()));
   }
 
   private GetterFactory getterFactory;
