@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql;
 
 
 import static org.apache.beam.sdk.extensions.sql.QueryValidationHelper.validateQuery;
+import static org.apache.beam.sdk.extensions.sql.SchemaHelper.toRows;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
@@ -79,7 +80,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
   private PCollectionTuple toPCollectionTuple(PInput inputs) {
     return (inputs instanceof PCollection)
-        ? PCollectionTuple.of(new TupleTag<>(PCOLLECTION_NAME), (PCollection<Row>) inputs)
+        ? PCollectionTuple.of(new TupleTag<>(PCOLLECTION_NAME), toRows(inputs))
         : tupleOfAllInputs(inputs.getPipeline(), inputs.expand());
   }
 
@@ -92,7 +93,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     for (Map.Entry<TupleTag<?>, PValue> input : taggedInputs.entrySet()) {
       tuple = tuple.and(
           new TupleTag<>(input.getKey().getId()),
-          (PCollection<Row>) input.getValue());
+          toRows(input.getValue()));
     }
 
     return tuple;
