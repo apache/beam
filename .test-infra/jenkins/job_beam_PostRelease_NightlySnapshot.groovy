@@ -49,7 +49,7 @@ job('beam_PostRelease_NightlySnapshot') {
   common_job_properties.enablePhraseTriggeringFromPullRequest(
       delegate,
      // './gradlew :release:runQuickstartJavaDirectNightly',
-      './gradlew :release:runQuickstartJavaDataflowRelease',
+      './gradlew :release:runQuickstartPythonRelease',
       'Run Dataflow PostRelease')
 
   steps {
@@ -57,7 +57,7 @@ job('beam_PostRelease_NightlySnapshot') {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
 //      tasks(':release:runQuickstartJavaDirectNightly')
-      tasks(':release:runQuickstartJavaDataflowRelease')
+      tasks(':release:runQuickstartPythonRelease')
       switches('-Pver=$snapshot_version -Prepourl=$snapshot_url')
     }
   }
