@@ -23,8 +23,12 @@ import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBo
     .ORDER_DETAILS1;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest
     .ORDER_DETAILS2;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.stringContainsInOrder;
 
+import java.util.Arrays;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -37,6 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
+import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -209,7 +214,7 @@ public class BeamSqlDslJoinTest {
   }
 
   @Test
-  public void testJoinsUnboundedWithinWindowsWithEndOfWindowTrigger() throws Exception {
+  public void testRejectsUnboundedWithinWindowsWithEndOfWindowTrigger() throws Exception {
 
     String sql =
         "SELECT o1.order_id, o1.price, o1.site_id, o2.order_id, o2.price, o2.site_id  "
@@ -227,17 +232,9 @@ public class BeamSqlDslJoinTest {
                    .accumulatingFiredPanes());
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    PAssert
-        .that(
-            inputs.apply("sql", BeamSql.queryMulti(sql)))
-        .containsInAnyOrder(
-            TestUtils.RowsBuilder
-                .of(
-                    RESULT_ROW_TYPE
-                ).addRows(
-                1, 2, 2, 2, 2, 1,
-                1, 4, 3, 3, 3, 1
-            ).getRows());
+    thrown.expectCause(expectedSingleFireTrigger());
+
+    inputs.apply("sql", BeamSql.queryMulti(sql));
 
     pipeline.run();
   }
@@ -255,7 +252,8 @@ public class BeamSqlDslJoinTest {
     PCollection<Row> orders = ordersUnbounded();
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    thrown.expectCause(isA(UnsupportedOperationException.class));
+    thrown.expectCause(expectedSingleFireTrigger());
+
     inputs.apply("sql", BeamSql.queryMulti(sql));
 
     pipeline.run();
@@ -280,8 +278,10 @@ public class BeamSqlDslJoinTest {
                    .accumulatingFiredPanes());
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    thrown.expectCause(isA(UnsupportedOperationException.class));
+    thrown.expectCause(expectedSingleFireTrigger());
+
     inputs.apply("sql", BeamSql.queryMulti(sql));
+
     pipeline.run();
   }
 
@@ -305,8 +305,10 @@ public class BeamSqlDslJoinTest {
                 .accumulatingFiredPanes());
     PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
 
-    thrown.expectCause(isA(UnsupportedOperationException.class));
+    thrown.expectCause(expectedSingleFireTrigger());
+
     inputs.apply("sql", BeamSql.queryMulti(sql));
+
     pipeline.run();
   }
 
@@ -341,5 +343,13 @@ public class BeamSqlDslJoinTest {
         "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
         .apply("join", BeamSql.queryMulti(sql))
         .setCoder(RESULT_CODER);
+  }
+
+  private Matcher<UnsupportedOperationException> expectedSingleFireTrigger() {
+    return allOf(
+        isA(UnsupportedOperationException.class),
+        hasProperty("message",
+                    stringContainsInOrder(
+                        Arrays.asList("once per window", "default trigger"))));
   }
 }

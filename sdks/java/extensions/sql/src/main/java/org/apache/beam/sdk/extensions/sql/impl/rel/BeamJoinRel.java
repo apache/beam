@@ -37,7 +37,6 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
@@ -211,9 +210,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
         && !triggersOncePerWindow(windowingStrategy)) {
       throw new UnsupportedOperationException(
           "Joining unbounded PCollections is currently only supported for "
-              + "non-global windows with either AfterWatermark.pastEndOfWindow() with any lateness "
-              + "or default trigger with zero lateness. In these cases Beam can guarantee it "
-              + "joins all input elements once per window. "
+              + "non-global windows with triggers that are known to produce output once per window,"
+              + "such as the default trigger with zero allowed lateness. "
+              + "In these cases Beam can guarantee it joins all input elements once per window. "
               + windowingStrategy + " is not supported");
     }
   }
@@ -221,12 +220,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   private boolean triggersOncePerWindow(WindowingStrategy windowingStrategy) {
     Trigger trigger = windowingStrategy.getTrigger();
 
-    if (windowingStrategy.getWindowFn() instanceof GlobalWindows) {
-      return false;
-    }
-
-    return AfterWatermark.pastEndOfWindow().equals(trigger)
-        || trigger instanceof DefaultTrigger && ZERO.equals(windowingStrategy.getAllowedLateness());
+    return !(windowingStrategy.getWindowFn() instanceof GlobalWindows)
+        && trigger instanceof DefaultTrigger
+        && ZERO.equals(windowingStrategy.getAllowedLateness());
   }
 
   private PCollection<Row> standardJoin(
