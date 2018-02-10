@@ -39,6 +39,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -59,8 +61,10 @@ import org.slf4j.LoggerFactory;
  * Test on the JdbcIO.
  */
 public class JdbcIOTest implements Serializable {
+
   private static final Logger LOG = LoggerFactory.getLogger(JdbcIOTest.class);
   public static final int EXPECTED_ROW_COUNT = 1000;
+  public static final String BACKOFF_TABLE = "UT_WRITE_BACKOFF";
 
   private static NetworkServerControl derbyServer;
   private static ClientDataSource dataSource;
@@ -71,6 +75,9 @@ public class JdbcIOTest implements Serializable {
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
 
+  @Rule
+  public final transient ExpectedLogs expectedLogs = ExpectedLogs.none(JdbcIO.class);
+
   @BeforeClass
   public static void startDatabase() throws Exception {
     ServerSocket socket = new ServerSocket(0);
@@ -79,6 +86,9 @@ public class JdbcIOTest implements Serializable {
 
     LOG.info("Starting Derby database on {}", port);
 
+    // by default, derby uses a lock timeout of 60 seconds. In order to speed up the test
+    // and detect the lock faster, we decrease this timeout
+    System.setProperty("derby.locks.waitTimeout", "2");
     System.setProperty("derby.stream.error.file", "target/derby.log");
 
     derbyServer = new NetworkServerControl(InetAddress.getByName("localhost"), port);
@@ -222,25 +232,25 @@ public class JdbcIOTest implements Serializable {
     pipeline.run();
   }
 
-   @Test
-   public void testReadWithSingleStringParameter() throws Exception {
+  @Test
+  public void testReadWithSingleStringParameter() throws Exception {
     PCollection<TestRow> rows =
-        pipeline.apply(
-            JdbcIO.<TestRow>read()
-                .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
-                .withQuery(String.format("select name,id from %s where name = ?", readTableName))
-                .withStatementPreparator(
-                    (preparedStatement) -> preparedStatement.setString(1, getNameForSeed(1)))
-                .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
-                .withCoder(SerializableCoder.of(TestRow.class)));
+      pipeline.apply(
+        JdbcIO.<TestRow>read()
+          .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
+          .withQuery(String.format("select name,id from %s where name = ?", readTableName))
+          .withStatementPreparator(
+            (preparedStatement) -> preparedStatement.setString(1, getNameForSeed(1)))
+          .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
+          .withCoder(SerializableCoder.of(TestRow.class)));
 
     PAssert.thatSingleton(rows.apply("Count All", Count.globally())).isEqualTo(1L);
 
-     Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
-     PAssert.that(rows).containsInAnyOrder(expectedValues);
+    Iterable<TestRow> expectedValues = Collections.singletonList(TestRow.fromSeed(1));
+    PAssert.that(rows).containsInAnyOrder(expectedValues);
 
-     pipeline.run();
-   }
+    pipeline.run();
+  }
 
   @Test
   public void testWrite() throws Exception {
@@ -275,7 +285,7 @@ public class JdbcIOTest implements Serializable {
       try (Connection connection = dataSource.getConnection()) {
         try (Statement statement = connection.createStatement()) {
           try (ResultSet resultSet = statement.executeQuery("select count(*) from "
-                + tableName)) {
+              + tableName)) {
             resultSet.next();
             int count = resultSet.getInt(1);
 
@@ -285,6 +295,84 @@ public class JdbcIOTest implements Serializable {
       }
     } finally {
       DatabaseTestHelper.deleteTable(dataSource, tableName);
+    }
+  }
+
+  @Test
+  public void testWriteWithBackoff() throws Exception {
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE_BACKOFF");
+    DatabaseTestHelper.createTable(dataSource, tableName);
+
+    // lock table
+    Connection connection = dataSource.getConnection();
+    Statement lockStatement = connection.createStatement();
+    lockStatement.execute("ALTER TABLE " + tableName + " LOCKSIZE TABLE");
+    lockStatement.execute("LOCK TABLE " + tableName + " IN EXCLUSIVE MODE");
+
+    // start a first transaction
+    connection.setAutoCommit(false);
+    PreparedStatement insertStatement =
+        connection.prepareStatement("insert into " + tableName + " values(?, ?)");
+    insertStatement.setInt(1, 1);
+    insertStatement.setString(2, "TEST");
+    insertStatement.execute();
+
+    // try to write to this table
+    pipeline
+        .apply(Create.of(Collections.singletonList(KV.of(1, "TEST"))))
+        .apply(
+            JdbcIO.<KV<Integer, String>>write()
+                .withDataSourceConfiguration(
+                    JdbcIO.DataSourceConfiguration.create(
+                        "org.apache.derby.jdbc.ClientDriver",
+                        "jdbc:derby://localhost:" + port + "/target/beam"))
+                .withStatement(String.format("insert into %s values(?, ?)", tableName))
+                .withRetryStrategy((JdbcIO.RetryStrategy) e -> {
+                  return e.getSQLState().equals("XJ208"); // we fake a deadlock with a lock here
+                })
+                .withPreparedStatementSetter(
+                    (element, statement) -> {
+                      statement.setInt(1, element.getKey());
+                      statement.setString(2, element.getValue());
+                    }));
+
+    // starting a thread to perform the commit later, while the pipeline is running into the backoff
+    Thread commitThread = new Thread(() -> {
+      try {
+        Thread.sleep(10000);
+        connection.commit();
+      } catch (Exception e) {
+        // nothing to do
+      }
+    });
+    commitThread.start();
+    pipeline.run();
+    commitThread.join();
+
+    // we verify the the backoff has been called thanks to the log message
+    expectedLogs.verifyWarn("Deadlock detected, retrying");
+
+    try (Connection readConnection = dataSource.getConnection()) {
+      try (Statement statement = readConnection.createStatement()) {
+        try (ResultSet resultSet = statement.executeQuery("select count(*) from "
+            + tableName)) {
+          resultSet.next();
+          int count = resultSet.getInt(1);
+          // here we have the record inserted by the first transaction (by hand), and a second one
+          // inserted by the pipeline
+          Assert.assertEquals(2, count);
+        }
+      }
+    }
+
+  }
+
+  @After
+  public void tearDown() {
+    try {
+      DatabaseTestHelper.deleteTable(dataSource, BACKOFF_TABLE);
+    } catch (Exception e) {
+      // nothing to do
     }
   }
 
