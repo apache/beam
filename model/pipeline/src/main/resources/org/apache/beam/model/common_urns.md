@@ -47,6 +47,7 @@ Payload: A windowing strategy id.
 
 ### beam:transform:read:v1
 
+### beam:transform:impulse:v1
 
 ## Combining
 
