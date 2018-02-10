@@ -76,3 +76,15 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
 }
+
+// Shade dependencies.
+shadowJar {
+  dependencies {
+    include(dependency(library.java.grpc_netty))
+    include(dependency(library.java.netty_handler))
+    include(dependency(library.java.netty_tcnative_boringssl_static))
+  }
+  relocate "io.netty", getJavaRelocatedPath("io.netty")
+  relocate "io.grpc", getJavaRelocatedPath("io.grpc")
+  relocate "org.apache.tomcat", getJavaRelocatedPath("org.apache.tomcat")
+}

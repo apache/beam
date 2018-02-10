@@ -40,7 +40,42 @@
           <executions>
             <execution>
               <id>bundle-and-repackage</id>
-              <phase>none</phase>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <artifactSet>
+                  <includes>
+                    <include>io.netty:netty-handler:jar:</include>
+                    <include>io.netty:netty-tcnative-boringssl-static:jar:</include>
+                    <include>io.grpc:grpc-netty:jar:</include>
+                  </includes>
+                </artifactSet>
+                <relocations>
+                  <relocation>
+                    <pattern>io.grpc</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.beam.sdk.repackaged.io.grpc
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>io.netty</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.beam.sdk.repackaged.io.netty
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>org.apache.tomcat</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.beam.sdk.repackaged.org.apache.tomcat
+                    </shadedPattern>
+                  </relocation>
+                </relocations>
+              </configuration>
             </execution>
           </executions>
         </plugin>
