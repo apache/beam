@@ -21,7 +21,7 @@ import common_job_properties
 // This is the Java precommit which runs a Gradle build, and the current set
 // of precommit tests.
 job('beam_PreCommit_Java_GradleBuild') {
-  description('Runs a build of the current GitHub Pull Request.')
+  description('Runs Java PreCommit tests for the current GitHub Pull Request.')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()
@@ -38,6 +38,8 @@ job('beam_PreCommit_Java_GradleBuild') {
   }
 
   def gradle_switches = [
+    // Gradle log verbosity enough to diagnose basic build issues
+    "--info",
     // Continue the build even if there is a failure to show as many potential failures as possible.
     '--continue',
     // Until we verify the build cache is working appropriately, force rerunning all tasks

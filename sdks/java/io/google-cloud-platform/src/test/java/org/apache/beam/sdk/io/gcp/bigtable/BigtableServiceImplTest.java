@@ -23,6 +23,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.MutateRowsRequest;
 import com.google.bigtable.v2.MutateRowsRequest.Entry;
 import com.google.bigtable.v2.Mutation;
@@ -36,6 +37,8 @@ import com.google.cloud.bigtable.grpc.BigtableSession;
 import com.google.cloud.bigtable.grpc.BigtableTableName;
 import com.google.cloud.bigtable.grpc.async.BulkMutation;
 import com.google.cloud.bigtable.grpc.scanner.ResultScanner;
+import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Arrays;
@@ -132,7 +135,11 @@ public class BigtableServiceImplTest {
     Mutation mutation = Mutation.newBuilder()
         .setSetCell(SetCell.newBuilder().setFamilyName("Family").build()).build();
     ByteString key = ByteString.copyFromUtf8("key");
-    underTest.writeRecord(KV.of(key, (Iterable<Mutation>) Arrays.asList(mutation)));
+
+    SettableFuture<MutateRowResponse> fakeResponse = SettableFuture.create();
+    when(mockBulkMutation.add(any(MutateRowsRequest.Entry.class))).thenReturn(fakeResponse);
+
+    underTest.writeRecord(KV.of(key, ImmutableList.of(mutation)));
     Entry expected = MutateRowsRequest.Entry.newBuilder()
         .setRowKey(key)
         .addMutations(mutation)

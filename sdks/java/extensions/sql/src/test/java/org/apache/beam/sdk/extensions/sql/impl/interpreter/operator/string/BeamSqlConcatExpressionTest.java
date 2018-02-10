@@ -60,7 +60,7 @@ public class BeamSqlConcatExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, " world"));
     Assert.assertEquals("hello world",
-        new BeamSqlConcatExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlConcatExpression(operands).evaluate(row, null).getValue());
   }
 
 }

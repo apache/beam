@@ -31,7 +31,7 @@ import org.joda.time.Instant;
  * DoFn}, in particular, allowing the runner to access the {@link RestrictionTracker}.
  */
 public abstract class SplittableProcessElementInvoker<
-    InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> {
+    InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> {
   /** Specifies how to resume a splittable {@link DoFn.ProcessElement} call. */
   public class Result {
     @Nullable

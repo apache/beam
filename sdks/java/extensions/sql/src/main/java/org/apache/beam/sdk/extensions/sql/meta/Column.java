@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.sql.meta;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
 
 /**
  * Metadata class for a {@code BeamSqlTable} column.
@@ -28,7 +29,7 @@ import javax.annotation.Nullable;
 @AutoValue
 public abstract class Column implements Serializable {
   public abstract String getName();
-  public abstract Integer getType();
+  public abstract Coder getCoder();
   @Nullable
   public abstract String getComment();
   public abstract boolean isPrimaryKey();
@@ -43,7 +44,7 @@ public abstract class Column implements Serializable {
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder name(String name);
-    public abstract Builder type(Integer type);
+    public abstract Builder coder(Coder coder);
     public abstract Builder comment(String comment);
     public abstract Builder primaryKey(boolean isPrimaryKey);
     public abstract Column build();

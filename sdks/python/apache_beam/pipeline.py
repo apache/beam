@@ -61,13 +61,14 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import PDone
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner
 from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
-from apache_beam.utils import urns
 from apache_beam.utils.annotations import deprecated
 
 __all__ = ['Pipeline', 'PTransformOverride']
@@ -180,7 +181,6 @@ class Pipeline(object):
   def _replace(self, override):
 
     assert isinstance(override, PTransformOverride)
-    matcher = override.get_matcher()
 
     output_map = {}
     output_replacements = {}
@@ -193,10 +193,12 @@ class Pipeline(object):
         self.pipeline = pipeline
 
       def _replace_if_needed(self, original_transform_node):
-        if matcher(original_transform_node):
+        if override.matches(original_transform_node):
           assert isinstance(original_transform_node, AppliedPTransform)
           replacement_transform = override.get_replacement_transform(
               original_transform_node.transform)
+          if replacement_transform is original_transform_node.transform:
+            return
 
           replacement_transform_node = AppliedPTransform(
               original_transform_node.parent, replacement_transform,
@@ -227,6 +229,10 @@ class Pipeline(object):
                 'have a single input. Tried to replace input of '
                 'AppliedPTransform %r that has %d inputs',
                 original_transform_node, len(inputs))
+          elif len(inputs) == 1:
+            input_node = inputs[0]
+          elif len(inputs) == 0:
+            input_node = pvalue.PBegin(self)
 
           # We have to add the new AppliedTransform to the stack before expand()
           # and pop it out later to make sure that parts get added correctly.
@@ -239,16 +245,23 @@ class Pipeline(object):
           # with labels of the children of the original.
           self.pipeline._remove_labels_recursively(original_transform_node)
 
-          new_output = replacement_transform.expand(inputs[0])
+          new_output = replacement_transform.expand(input_node)
+
+          new_output.element_type = None
+          self.pipeline._infer_result_type(replacement_transform, inputs,
+                                           new_output)
+
           replacement_transform_node.add_output(new_output)
+          if not new_output.producer:
+            new_output.producer = replacement_transform_node
 
           # We only support replacing transforms with a single output with
           # another transform that produces a single output.
           # TODO: Support replacing PTransforms with multiple outputs.
           if (len(original_transform_node.outputs) > 1 or
-              not isinstance(
-                  original_transform_node.outputs[None], PCollection) or
-              not isinstance(new_output, PCollection)):
+              not isinstance(original_transform_node.outputs[None],
+                             (PCollection, PDone)) or
+              not isinstance(new_output, (PCollection, PDone))):
             raise NotImplementedError(
                 'PTransform overriding is only supported for PTransforms that '
                 'have a single output. Tried to replace output of '
@@ -314,11 +327,10 @@ class Pipeline(object):
       transform.inputs = input_replacements[transform]
 
   def _check_replacement(self, override):
-    matcher = override.get_matcher()
 
     class ReplacementValidator(PipelineVisitor):
       def visit_transform(self, transform_node):
-        if matcher(transform_node):
+        if override.matches(transform_node):
           raise RuntimeError('Transform node %r was not replaced as expected.',
                              transform_node)
 
@@ -477,29 +489,8 @@ class Pipeline(object):
       # being the real producer of the result.
       if result.producer is None:
         result.producer = current
-      # TODO(robertwb): Multi-input, multi-output inference.
-      # TODO(robertwb): Ideally we'd do intersection here.
-      if (type_options is not None and type_options.pipeline_type_check
-          and isinstance(result, pvalue.PCollection)
-          and not result.element_type):
-        input_element_type = (
-            inputs[0].element_type
-            if len(inputs) == 1
-            else typehints.Any)
-        type_hints = transform.get_type_hints()
-        declared_output_type = type_hints.simple_output_type(transform.label)
-        if declared_output_type:
-          input_types = type_hints.input_types
-          if input_types and input_types[0]:
-            declared_input_type = input_types[0][0]
-            result.element_type = typehints.bind_type_variables(
-                declared_output_type,
-                typehints.match_type_variables(declared_input_type,
-                                               input_element_type))
-          else:
-            result.element_type = declared_output_type
-        else:
-          result.element_type = transform.infer_output_type(input_element_type)
+
+      self._infer_result_type(transform, inputs, result)
 
       assert isinstance(result.producer.inputs, tuple)
       current.add_output(result)
@@ -515,6 +506,33 @@ class Pipeline(object):
     current.update_input_refcounts()
     self.transforms_stack.pop()
     return pvalueish_result
+
+  def _infer_result_type(self, transform, inputs, result_pcollection):
+    # TODO(robertwb): Multi-input, multi-output inference.
+    # TODO(robertwb): Ideally we'd do intersection here.
+    type_options = self._options.view_as(TypeOptions)
+    if (type_options is not None and type_options.pipeline_type_check
+        and isinstance(result_pcollection, pvalue.PCollection)
+        and not result_pcollection.element_type):
+      input_element_type = (
+          inputs[0].element_type
+          if len(inputs) == 1
+          else typehints.Any)
+      type_hints = transform.get_type_hints()
+      declared_output_type = type_hints.simple_output_type(transform.label)
+      if declared_output_type:
+        input_types = type_hints.input_types
+        if input_types and input_types[0]:
+          declared_input_type = input_types[0][0]
+          result_pcollection.element_type = typehints.bind_type_variables(
+              declared_output_type,
+              typehints.match_type_variables(declared_input_type,
+                                             input_element_type))
+        else:
+          result_pcollection.element_type = declared_output_type
+      else:
+        result_pcollection.element_type = transform.infer_output_type(
+            input_element_type)
 
   def __reduce__(self):
     # Some transforms contain a reference to their enclosing pipeline,
@@ -828,7 +846,7 @@ class AppliedPTransform(object):
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
         for tag, id in proto.outputs.items()}
     # This annotation is expected by some runners.
-    if proto.spec.urn == urns.PARDO_TRANSFORM:
+    if proto.spec.urn == common_urns.PARDO_TRANSFORM:
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
@@ -852,12 +870,14 @@ class PTransformOverride(object):
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
-  def get_matcher(self):
-    """Gives a matcher that will be used to to perform this override.
+  def matches(self, applied_ptransform):
+    """Determines whether the given AppliedPTransform matches.
+
+    Args:
+      applied_ptransform: AppliedPTransform to be matched.
 
     Returns:
-      a callable that takes an AppliedPTransform as a parameter and returns a
-      boolean as a result.
+      a bool indicating whether the given AppliedPTransform is a match.
     """
     raise NotImplementedError
 
@@ -867,6 +887,7 @@ class PTransformOverride(object):
 
     Args:
       ptransform: PTransform to be replaced.
+
     Returns:
       A PTransform that will be the replacement for the PTransform given as an
       argument.

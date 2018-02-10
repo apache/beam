@@ -66,19 +66,19 @@ public class BeamSqlPositionExpressionTest extends BeamSqlFnExecutorTestBase {
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "worldhello"));
-    assertEquals(5, new BeamSqlPositionExpression(operands).evaluate(record, null).getValue());
+    assertEquals(5, new BeamSqlPositionExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "worldhello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
-    assertEquals(5, new BeamSqlPositionExpression(operands).evaluate(record, null).getValue());
+    assertEquals(5, new BeamSqlPositionExpression(operands).evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "world"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1));
-    assertEquals(-1, new BeamSqlPositionExpression(operands).evaluate(record, null).getValue());
+    assertEquals(-1, new BeamSqlPositionExpression(operands).evaluate(row, null).getValue());
   }
 
 }

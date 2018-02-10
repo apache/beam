@@ -64,8 +64,6 @@ example, the above function can be decorated::
 See apache_beam.typehints.decorators module for more details.
 """
 
-import warnings
-
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
 
@@ -123,14 +121,16 @@ class CoderRegistry(object):
         # In some old code, None is used for Any.
         # TODO(robertwb): Clean this up.
         pass
-      elif typehint is object:
+      elif typehint is object or typehint == typehints.Any:
         # We explicitly want the fallback coder.
         pass
       elif isinstance(typehint, typehints.TypeVariable):
         # TODO(robertwb): Clean this up when type inference is fully enabled.
         pass
       else:
-        warnings.warn('Using fallback coder for typehint: %r.' % typehint)
+        # TODO(robertwb): Re-enable this warning when it's actionable.
+        # warnings.warn('Using fallback coder for typehint: %r.' % typehint)
+        pass
       coder = self._fallback_coder
     return coder.from_type_hint(typehint, self)
 

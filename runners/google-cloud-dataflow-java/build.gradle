@@ -86,3 +86,9 @@ dependencies {
 test {
   systemProperties = [ "beamUseDummyRunner" : "true" ]
 }
+
+// Generates :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow
+def cloudProject = project.findProperty('cloudProject') ?: 'apache-beam-testing'
+def cloudBucket = project.findProperty('cloudBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
+def argsProject = ["--project=${cloudProject}", "--bucket=${cloudBucket}"]
+createJavaQuickstartValidationTask('Dataflow', argsProject)

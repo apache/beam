@@ -99,7 +99,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
     responseObserver.awaitTerminalState();
 
-    File staged = stager.getArtifactFile(name);
+    File staged = stager.getLocation().getArtifactFile(name);
     assertThat(staged.exists(), is(true));
     ByteBuffer buf = ByteBuffer.allocate(data.length);
     new FileInputStream(staged).getChannel().read(buf);
@@ -146,7 +146,7 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
     responseObserver.awaitTerminalState();
 
-    File staged = stager.getArtifactFile(name);
+    File staged = stager.getLocation().getArtifactFile(name);
     assertThat(staged.exists(), is(true));
     ByteBuffer buf = ByteBuffer.allocate("foo-bar-baz".length());
     new FileInputStream(staged).getChannel().read(buf);

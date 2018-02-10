@@ -38,7 +38,7 @@ public class BeamSqlLowerExpressionTest extends BeamSqlFnExecutorTestBase {
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "HELLO"));
     assertEquals("hello",
-        new BeamSqlLowerExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlLowerExpression(operands).evaluate(row, null).getValue());
   }
 
 }

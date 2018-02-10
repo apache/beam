@@ -316,11 +316,9 @@ public class HadoopInputFormatIO {
      */
     private void validateTranslationFunction(TypeDescriptor<?> inputType,
         SimpleFunction<?, ?> simpleFunction, String errorMsg) {
-      if (simpleFunction != null) {
-        if (!simpleFunction.getInputTypeDescriptor().equals(inputType)) {
-          throw new IllegalArgumentException(
-              String.format(errorMsg, getinputFormatClass().getRawType(), inputType.getRawType()));
-        }
+      if (simpleFunction != null && !simpleFunction.getInputTypeDescriptor().equals(inputType)) {
+        throw new IllegalArgumentException(
+            String.format(errorMsg, getinputFormatClass().getRawType(), inputType.getRawType()));
       }
     }
 
