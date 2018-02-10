@@ -536,8 +536,15 @@ public class KafkaIO {
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
       checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
+      ConsumerSpEL consumerSpEL = new ConsumerSpEL();
+
+      if (!consumerSpEL.hasOffsetsForTimes()) {
+        LOG.warn("Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
+                   + "may not be supported in next release of Apache Beam. "
+                   + "Please upgrade your Kafka client version.", AppInfoParser.getVersion());
+      }
       if (getStartReadTime() != null) {
-        checkArgument(new ConsumerSpEL().hasOffsetsForTimes(),
+        checkArgument(consumerSpEL.hasOffsetsForTimes(),
             "Consumer.offsetsForTimes is only supported by Kafka Client 0.10.1.0 onwards, "
                 + "current version of Kafka Client is " + AppInfoParser.getVersion()
                 + ". If you are building with maven, set \"kafka.clients.version\" "
