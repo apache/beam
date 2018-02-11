@@ -80,6 +80,8 @@ include "beam-sdks-java-extensions-join-library"
 project(":beam-sdks-java-extensions-join-library").dir = file("sdks/java/extensions/join-library")
 include "beam-sdks-java-extensions-protobuf"
 project(":beam-sdks-java-extensions-protobuf").dir = file("sdks/java/extensions/protobuf")
+include "beam-sdks-java-extensions-scripting"
+project(":beam-sdks-java-extensions-scripting").dir = file("sdks/java/extensions/scripting")
 include "beam-sdks-java-extensions-sketching"
 project(":beam-sdks-java-extensions-sketching").dir = file("sdks/java/extensions/sketching")
 include "beam-sdks-java-extensions-sorter"
