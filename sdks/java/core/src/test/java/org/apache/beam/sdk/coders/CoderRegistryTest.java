@@ -209,7 +209,7 @@ public class CoderRegistryTest {
             ListCoder.of(MyValueCoder.of())),
         TypeDescriptor.of(MyGenericClass.class).getTypeParameter("FooT"));
 
-    assertEquals(new LengthAwareCoder<>(MyValueCoder.of()), fooCoder);
+    assertEquals(MyValueCoder.of(), fooCoder);
   }
 
   @Test

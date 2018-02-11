@@ -42,7 +42,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *
  * @param <T> type of JAXB annotated objects that will be serialized.
  */
-// todo: use org.apache.beam.sdk.coders.LengthAwareCoder, does it hurt if always set in of()?
+// todo: use org.apache.beam.sdk.coders.LengthPrefixCoder, does it hurt if always set in of()?
 public class JAXBCoder<T> extends CustomCoder<T> {
 
   private final Class<T> jaxbClass;

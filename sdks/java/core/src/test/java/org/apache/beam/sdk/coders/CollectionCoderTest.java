@@ -67,10 +67,10 @@ public class CollectionCoderTest {
   private static final List<String> TEST_ENCODINGS = Arrays.asList(
     "AAAAAA",
     "AAAAAA",
-    "AAAAAQEN",
-    "AAAABAEBAQIBAwEE",
-    "AAAAAwEHAQYBBQ",
-    "AAAAAwX7____DwEfAVM");
+    "AAAAAQ0",
+    "AAAABAECAwQ",
+    "AAAAAwcGBQ",
+    "AAAAA_v___8PH1M");
 
   @Test
   public void testWireFormat() throws Exception {

@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
@@ -78,7 +79,9 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
   protected IterableLikeCoder(Coder<T> elementCoder, String  iterableName) {
     checkArgument(elementCoder != null, "element Coder for IterableLikeCoder must not be null");
     checkArgument(iterableName != null, "iterable name for IterableLikeCoder must not be null");
-    this.elementCoder = new LengthAwareCoder<>(elementCoder);
+    this.elementCoder = CoderUtils.unwrap(elementCoder).getClass()
+            .getName().startsWith("org.apache.beam.") // backward compat, don't break them
+      ? elementCoder : LengthPrefixCoder.of(elementCoder);
     this.iterableName = iterableName;
   }
 

@@ -25,7 +25,6 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.DefaultCoder.DefaultCoderProviderRegistrar.DefaultCoderProvider;
-import org.apache.beam.sdk.util.Delegating;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
@@ -137,7 +136,7 @@ public class DefaultCoderTest {
     Coder<List<AvroRecord>> avroRecordCoder =
         registry.getCoder(new TypeDescriptor<List<AvroRecord>>(){});
     assertThat(avroRecordCoder, instanceOf(ListCoder.class));
-    assertThat(((Delegating<Coder<?>>) ((ListCoder) avroRecordCoder).getElemCoder()).getDelegate(),
+    assertThat(((ListCoder) avroRecordCoder).getElemCoder(),
         instanceOf(AvroCoder.class));
     assertThat(
         registry.getCoder(new TypeDescriptor<List<SerializableRecord>>() {}),

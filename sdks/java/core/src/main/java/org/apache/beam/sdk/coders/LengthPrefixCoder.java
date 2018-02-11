@@ -20,14 +20,16 @@ package org.apache.beam.sdk.coders;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.io.ByteStreams;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.util.Delegating;
+import org.apache.beam.sdk.util.LimitedInputStream;
 import org.apache.beam.sdk.util.VarInt;
+import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * A {@link Coder} which is able to take any existing coder and wrap it such that it is only
@@ -36,7 +38,7 @@ import org.apache.beam.sdk.util.VarInt;
  *
  * @param <T> the type of the values being transcoded
  */
-public class LengthPrefixCoder<T> extends StructuredCoder<T> {
+public class LengthPrefixCoder<T> extends StructuredCoder<T> implements Delegating<Coder<T>> {
 
   public static <T> LengthPrefixCoder<T> of(
       Coder<T> valueCoder) {
@@ -53,6 +55,11 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   }
 
   @Override
+  public Coder<T> getDelegate() {
+    return getValueCoder();
+  }
+
+  @Override
   public void encode(T value, OutputStream outStream)
       throws CoderException, IOException {
     ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -63,8 +70,8 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
 
   @Override
   public T decode(InputStream inStream) throws CoderException, IOException {
-    long size = VarInt.decodeLong(inStream);
-    return valueCoder.decode(ByteStreams.limit(inStream, size), Context.OUTER);
+    int size = VarInt.decodeInt(inStream); // encode passes size() so an int
+    return valueCoder.decode(new LimitedInputStream(size, inStream), Context.OUTER);
   }
 
   @Override
@@ -129,5 +136,22 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(T value) {
     return valueCoder.isRegisterByteSizeObserverCheap(value);
+  }
+
+  @Override
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
+    return valueCoder.getEncodedTypeDescriptor();
+  }
+
+  @Override
+  public boolean equals(final Object o) {
+    return this == o
+            || o != null && getClass() == o.getClass()
+            && valueCoder.equals(LengthPrefixCoder.class.cast(o).valueCoder);
+  }
+
+  @Override
+  public int hashCode() {
+    return valueCoder.hashCode();
   }
 }
