@@ -416,18 +416,6 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-extensions-join-library</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-extensions-protobuf</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-extensions-google-cloud-platform-core</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -436,6 +424,24 @@
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-extensions-google-cloud-platform-core</artifactId>
         <classifier>tests</classifier>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-join-library</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-json-jackson</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-protobuf</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -515,14 +521,6 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-io-elasticsearch-tests-common</artifactId>
-        <version>${project.version}</version>
-        <scope>test</scope>
-        <classifier>tests</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-elasticsearch-tests-2</artifactId>
         <version>${project.version}</version>
         <scope>test</scope>
@@ -533,6 +531,14 @@
         <artifactId>beam-sdks-java-io-elasticsearch-tests-5</artifactId>
         <version>${project.version}</version>
         <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch-tests-common</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+        <classifier>tests</classifier>
       </dependency>
 
       <dependency>
@@ -557,6 +563,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-hadoop-file-system</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -610,13 +622,25 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-redis</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-solr</artifactId>
         <version>${project.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
+        <artifactId>beam-sdks-java-io-tika</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-xml</artifactId>
         <version>${project.version}</version>
       </dependency>
 
