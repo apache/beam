@@ -71,6 +71,7 @@ the SDK understands the last three combine helper operations.
 
 ### beam:transform:reshuffle:v1
 
+### beam:transform:map_windows:v1
 
 ## WindowFns
 
