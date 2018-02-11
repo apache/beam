@@ -21,25 +21,49 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-sdks-java-parent</artifactId>
+    <artifactId>beam-sdks-java-extensions-parent</artifactId>
     <version>2.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-sdks-java-extensions-parent</artifactId>
-  <packaging>pom</packaging>
+  <artifactId>beam-sdks-java-extensions-scripting</artifactId>
+  <name>Apache Beam :: SDKs :: Java :: Extensions :: Scripting</name>
 
-  <name>Apache Beam :: SDKs :: Java :: Extensions</name>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
 
-  <modules>
-    <module>google-cloud-platform-core</module>
-    <module>jackson</module>
-    <module>join-library</module>
-    <module>protobuf</module>
-    <module>scripting</module>
-    <module>sketching</module>
-    <module>sorter</module>
-    <module>sql</module>
-  </modules>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+
+    <!-- Dependency for tests -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
 </project>
