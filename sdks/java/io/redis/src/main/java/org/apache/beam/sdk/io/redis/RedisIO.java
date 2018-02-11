@@ -200,6 +200,7 @@ public class RedisIO {
 
       return input
           .apply(Create.of(keyPattern()))
+          .apply(ParDo.of(new ReadKeywsWithPattern(connectionConfiguration())))
           .apply(RedisIO.readAll().withConnectionConfiguration(connectionConfiguration()));
     }
 
@@ -260,22 +261,30 @@ public class RedisIO {
 
   }
 
-  /**
-   * A {@link DoFn} requesting Redis server to get key/value pairs.
-   */
-  private static class ReadFn extends DoFn<String, KV<String, String>> {
+  private abstract static class BaseReadFn<T> extends DoFn<String, T> {
+    protected final RedisConnectionConfiguration connectionConfiguration;
 
-    private final RedisConnectionConfiguration connectionConfiguration;
+    protected transient Jedis jedis;
 
-    private transient Jedis jedis;
-
-    public ReadFn(RedisConnectionConfiguration connectionConfiguration) {
+    public BaseReadFn(RedisConnectionConfiguration connectionConfiguration) {
       this.connectionConfiguration = connectionConfiguration;
     }
 
     @Setup
     public void setup() {
       jedis = connectionConfiguration.connect();
+    }
+
+    @Teardown
+    public void teardown() {
+      jedis.close();
+    }
+  }
+
+  private static class ReadKeywsWithPattern extends BaseReadFn<String> {
+
+    ReadKeywsWithPattern(RedisConnectionConfiguration connectionConfiguration) {
+      super(connectionConfiguration);
     }
 
     @ProcessElement
@@ -288,28 +297,33 @@ public class RedisIO {
       while (!finished) {
         ScanResult<String> scanResult = jedis.scan(cursor, scanParams);
         List<String> keys = scanResult.getResult();
-
-        Pipeline pipeline = jedis.pipelined();
-        if (keys != null) {
-          for (String key : keys) {
-            pipeline.get(key);
-          }
-          List<Object> values = pipeline.syncAndReturnAll();
-          for (int i = 0; i < values.size(); i++) {
-            processContext.output(KV.of(keys.get(i), (String) values.get(i)));
-          }
+        for (String k : keys) {
+          processContext.output(k);
         }
-
         cursor = scanResult.getStringCursor();
         if (cursor.equals("0")) {
           finished = true;
         }
       }
     }
+  }
+  /**
+   * A {@link DoFn} requesting Redis server to get key/value pairs.
+   */
+  private static class ReadFn extends BaseReadFn<KV<String, String>> {
 
-    @Teardown
-    public void teardown() {
-      jedis.close();
+    ReadFn(RedisConnectionConfiguration connectionConfiguration) {
+      super(connectionConfiguration);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext processContext) throws Exception {
+      String key = processContext.element();
+
+      String value = jedis.get(key);
+      if (value != null) {
+        processContext.output(KV.of(key, value));
+      }
     }
 
   }
