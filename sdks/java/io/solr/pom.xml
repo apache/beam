@@ -112,6 +112,13 @@
             <artifactId>solr-test-framework</artifactId>
             <version>5.5.4</version>
             <scope>test</scope>
+            <exclusions>
+                <!-- Fix build on JDK-9 -->
+                <exclusion>
+                    <groupId>jdk.tools</groupId>
+                    <artifactId>jdk.tools</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
