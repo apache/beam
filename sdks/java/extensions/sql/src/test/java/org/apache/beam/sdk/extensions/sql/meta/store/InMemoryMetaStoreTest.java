@@ -163,6 +163,10 @@ public class InMemoryMetaStoreTest {
 
     }
 
+    @Override public void dropTable(String tableName) {
+
+    }
+
     @Override public List<Table> listTables() {
       List<Table> ret = new ArrayList<>(names.length);
       for (String name : names) {

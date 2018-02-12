@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -48,11 +52,13 @@ import org.apache.calcite.tools.Frameworks;
  * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions,
  * and a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
-public class BeamSqlEnv implements Serializable{
+public class BeamSqlEnv implements Serializable {
   transient SchemaPlus schema;
   transient BeamQueryPlanner planner;
+  transient Map<String, BeamSqlTable> tables;
 
   public BeamSqlEnv() {
+    tables = new HashMap<String, BeamSqlTable>(16);
     schema = Frameworks.createRootSchema(true);
     planner = new BeamQueryPlanner(schema);
   }
@@ -85,8 +91,22 @@ public class BeamSqlEnv implements Serializable{
    *
    */
   public void registerTable(String tableName, BeamSqlTable table) {
+    tables.put(tableName, table);
     schema.add(tableName, new BeamCalciteTable(table.getRowType()));
     planner.getSourceTables().put(tableName, table);
+  }
+
+  public void deregisterTable(String targetTableName) {
+    // reconstruct the schema
+    schema = Frameworks.createRootSchema(true);
+    for (Map.Entry<String, BeamSqlTable> entry : tables.entrySet()) {
+      String tableName = entry.getKey();
+      BeamSqlTable table = entry.getValue();
+      if (!tableName.equals(targetTableName)) {
+        schema.add(tableName, new BeamCalciteTable(table.getRowType()));
+      }
+    }
+    planner = new BeamQueryPlanner(schema);
   }
 
   /**
@@ -132,5 +152,13 @@ public class BeamSqlEnv implements Serializable{
 
   public BeamQueryPlanner getPlanner() {
     return planner;
+  }
+
+  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+
+    tables = new HashMap<String, BeamSqlTable>(16);
+    schema = Frameworks.createRootSchema(true);
+    planner = new BeamQueryPlanner(schema);
   }
 }

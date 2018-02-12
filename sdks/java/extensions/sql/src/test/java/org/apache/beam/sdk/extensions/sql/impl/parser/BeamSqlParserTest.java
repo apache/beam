@@ -122,6 +122,18 @@ public class BeamSqlParserTest {
     );
   }
 
+  @Test
+  public void testParseDropTable() throws Exception {
+    BeamSqlParser parser = new BeamSqlParser("drop table person");
+    SqlNode sqlNode = parser.impl().parseSqlStmtEof();
+
+    assertNotNull(sqlNode);
+    assertTrue(sqlNode instanceof SqlDropTable);
+    SqlDropTable stmt = (SqlDropTable) sqlNode;
+    assertNotNull(stmt);
+    assertEquals("person", stmt.tableName());
+  }
+
   private Table parseTable(String sql) throws Exception {
     BeamSqlParser parser = new BeamSqlParser(sql);
     SqlNode sqlNode = parser.impl().parseSqlStmtEof();

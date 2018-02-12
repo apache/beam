@@ -68,6 +68,10 @@ public class KafkaTableProvider implements TableProvider {
     // empty
   }
 
+  @Override public void dropTable(String tableName) {
+    // empty
+  }
+
   @Override public List<Table> listTables() {
     return Collections.emptyList();
   }
