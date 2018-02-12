@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,7 +52,7 @@ import org.apache.calcite.tools.Frameworks;
  * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions,
  * and a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
-public class BeamSqlEnv implements Serializable{
+public class BeamSqlEnv implements Serializable {
   transient SchemaPlus schema;
   transient BeamQueryPlanner planner;
   transient Map<String, BeamSqlTable> tables;
@@ -97,9 +99,11 @@ public class BeamSqlEnv implements Serializable{
   public void deregisterTable(String targetTableName) {
     // reconstruct the schema
     schema = Frameworks.createRootSchema(true);
-    for (String tableName : tables.keySet()) {
+    for (Map.Entry<String, BeamSqlTable> entry : tables.entrySet()) {
+      String tableName = entry.getKey();
+      BeamSqlTable table = entry.getValue();
       if (!tableName.equals(targetTableName)) {
-        schema.add(tableName, new BeamCalciteTable(tables.get(tableName).getRowType()));
+        schema.add(tableName, new BeamCalciteTable(table.getRowType()));
       }
     }
     planner = new BeamQueryPlanner(schema);
@@ -148,5 +152,13 @@ public class BeamSqlEnv implements Serializable{
 
   public BeamQueryPlanner getPlanner() {
     return planner;
+  }
+
+  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+
+    tables = new HashMap<String, BeamSqlTable>(16);
+    schema = Frameworks.createRootSchema(true);
+    planner = new BeamQueryPlanner(schema);
   }
 }
