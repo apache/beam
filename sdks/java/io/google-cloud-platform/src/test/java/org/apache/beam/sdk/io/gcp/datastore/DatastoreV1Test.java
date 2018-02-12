@@ -728,7 +728,7 @@ public class DatastoreV1Test {
     ReadFn readFn = new ReadFn(V_1_OPTIONS, mockDatastoreFactory);
     DoFnTester<Query, Entity> doFnTester = DoFnTester.of(readFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<Entity> entities = doFnTester.processBundle(query);
+    doFnTester.processBundle(query);
   }
 
   @Test

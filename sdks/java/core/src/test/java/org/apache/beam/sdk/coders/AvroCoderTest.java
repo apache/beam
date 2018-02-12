@@ -198,9 +198,6 @@ public class AvroCoderTest {
     Object cloned1 = CoderUtils.clone(avroCoder1, pojo1);
     Object cloned2 = CoderUtils.clone(avroCoder2, pojo2);
 
-    Class<?> class1 = cloned1.getClass();
-    Class<?> class2 = cloned2.getClass();
-
     // Confirming that the uncorrupted coder is fine
     pojoClass1.cast(cloned1);
 

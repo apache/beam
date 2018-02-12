@@ -149,23 +149,22 @@ public class FlatMapElementsTest implements Serializable {
   public void testPolymorphicSimpleFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    PCollection<Integer> output =
-        pipeline
-            .apply(Create.of(1, 2, 3))
+    pipeline
+        .apply(Create.of(1, 2, 3))
 
-            // This is the function that needs to propagate the input T to output T
-            .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<>()))
+        // This is the function that needs to propagate the input T to output T
+        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<>()))
 
-            // This is a consumer to ensure that all coder inference logic is executed.
-            .apply(
-                "Test Consumer",
-                MapElements.via(
-                    new SimpleFunction<Iterable<Integer>, Integer>() {
-                      @Override
-                      public Integer apply(Iterable<Integer> input) {
-                        return 42;
-                      }
-                    }));
+        // This is a consumer to ensure that all coder inference logic is executed.
+        .apply(
+            "Test Consumer",
+            MapElements.via(
+                new SimpleFunction<Iterable<Integer>, Integer>() {
+                  @Override
+                  public Integer apply(Iterable<Integer> input) {
+                    return 42;
+                  }
+                }));
   }
 
   @Test

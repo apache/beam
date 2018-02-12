@@ -368,8 +368,6 @@ public class BatchViewOverridesTest {
 
   @Test
   public void testToIsmMetadataRecordForSizeDoFn() throws Exception {
-    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForSizeTag = new TupleTag<>();
-    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForEntrySetTag = new TupleTag<>();
 
     Coder<Long> keyCoder = VarLongCoder.of();
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
@@ -419,8 +417,6 @@ public class BatchViewOverridesTest {
 
   @Test
   public void testToIsmMetadataRecordForKeyDoFn() throws Exception {
-    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForSizeTag = new TupleTag<>();
-    TupleTag<KV<Integer, KV<IntervalWindow, Long>>> outputForEntrySetTag = new TupleTag<>();
 
     Coder<Long> keyCoder = VarLongCoder.of();
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();

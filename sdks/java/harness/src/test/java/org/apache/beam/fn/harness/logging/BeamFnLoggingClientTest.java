@@ -167,7 +167,6 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testWhenServerFailsThatClientIsAbleToCleanup() throws Exception {
-    AtomicBoolean clientClosedStream = new AtomicBoolean();
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();
@@ -218,7 +217,6 @@ public class BeamFnLoggingClientTest {
 
   @Test
   public void testWhenServerHangsUpEarlyThatClientIsAbleCleanup() throws Exception {
-    AtomicBoolean clientClosedStream = new AtomicBoolean();
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
     AtomicReference<StreamObserver<BeamFnApi.LogControl>> outboundServerObserver =
         new AtomicReference<>();

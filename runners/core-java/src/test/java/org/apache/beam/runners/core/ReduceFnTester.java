@@ -173,9 +173,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           throws Exception {
 
     CoderRegistry registry = CoderRegistry.createDefault();
-    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.withInputCoder(
-            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+    // Ensure that the CombineFn can be converted into an AppliedCombineFn
+    AppliedCombineFn.withInputCoder(
+        combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
         strategy,
@@ -222,9 +222,9 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
           SideInputReader sideInputReader)
           throws Exception {
     CoderRegistry registry = CoderRegistry.createDefault();
-    AppliedCombineFn<String, Integer, AccumT, OutputT> fn =
-        AppliedCombineFn.withInputCoder(
-            combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
+    // Ensure that the CombineFn can be converted into an AppliedCombineFn
+    AppliedCombineFn.withInputCoder(
+        combineFn, registry, KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()));
 
     return combining(
         strategy,

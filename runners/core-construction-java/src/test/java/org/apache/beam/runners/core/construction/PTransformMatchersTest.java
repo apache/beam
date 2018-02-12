@@ -526,7 +526,7 @@ public class PTransformMatchersTest implements Serializable {
         WriteFiles.to(
             new FileBasedSink<Integer, Void, Integer>(
                 StaticValueProvider.of(outputDirectory),
-                DynamicFileDestinations.constant(new FakeFilenamePolicy())) {
+                DynamicFileDestinations.constant(policy)) {
               @Override
               public WriteOperation<Void, Integer> createWriteOperation() {
                 return null;

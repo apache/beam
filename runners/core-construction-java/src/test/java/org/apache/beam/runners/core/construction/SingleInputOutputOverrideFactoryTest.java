@@ -96,8 +96,7 @@ public class SingleInputOutputOverrideFactoryTest implements Serializable {
     PCollection<Integer> output = input.apply("Map", MapElements.via(fn));
     PCollection<Integer> reappliedOutput = input.apply("ReMap", MapElements.via(fn));
     thrown.expect(IllegalArgumentException.class);
-    Map<PValue, ReplacementOutput> replacementMap =
-        factory.mapOutputs(
-            PCollectionList.of(output).and(input).and(reappliedOutput).expand(), reappliedOutput);
+    factory.mapOutputs(
+        PCollectionList.of(output).and(input).and(reappliedOutput).expand(), reappliedOutput);
   }
 }

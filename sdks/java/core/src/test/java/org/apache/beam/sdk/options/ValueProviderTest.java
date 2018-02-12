@@ -175,7 +175,7 @@ public class ValueProviderTest {
     expectedException.expectMessage(
       "Method getBar should not have return type "
       + "RuntimeValueProvider, use ValueProvider instead.");
-    RuntimeValueProvider<String> provider = options.getBar();
+    options.getBar();
   }
 
   /** A test interface. */
@@ -191,7 +191,7 @@ public class ValueProviderTest {
     expectedException.expectMessage(
       "Method getBar should not have return type "
       + "StaticValueProvider, use ValueProvider instead.");
-    StaticValueProvider<String> provider = options.getBar();
+    options.getBar();
   }
 
 

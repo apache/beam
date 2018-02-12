@@ -170,9 +170,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
 
   @Test(expected = IllegalStateException.class)
   public void testBuildExpression_logical_andOr_invalidOperand() {
-    RexNode rexNode;
-    BeamSqlExpression exp;
-    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.AND,
+    RexNode rexNode = rexBuilder.makeCall(SqlStdOperatorTable.AND,
         Arrays.asList(
             rexBuilder.makeLiteral(true),
             rexBuilder.makeLiteral("hello")
@@ -183,9 +181,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
 
   @Test(expected = IllegalStateException.class)
   public void testBuildExpression_logical_not_invalidOperand() {
-    RexNode rexNode;
-    BeamSqlExpression exp;
-    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.NOT,
+    RexNode rexNode = rexBuilder.makeCall(SqlStdOperatorTable.NOT,
         Arrays.asList(
             rexBuilder.makeLiteral("hello")
         )
@@ -196,9 +192,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
 
   @Test(expected = IllegalStateException.class)
   public void testBuildExpression_logical_not_invalidOperandCount() {
-    RexNode rexNode;
-    BeamSqlExpression exp;
-    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.NOT,
+    RexNode rexNode = rexBuilder.makeCall(SqlStdOperatorTable.NOT,
         Arrays.asList(
             rexBuilder.makeLiteral(true),
             rexBuilder.makeLiteral(true)

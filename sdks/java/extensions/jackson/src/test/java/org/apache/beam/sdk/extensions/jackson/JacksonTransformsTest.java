@@ -145,10 +145,9 @@ public class JacksonTransformsTest {
 
   @Test(expected = Pipeline.PipelineExecutionException.class)
   public void failWritingWithoutCustomMapper() {
-    PCollection<String> output =
-        pipeline
-            .apply(Create.of(EMPTY_BEANS))
-            .apply(AsJsons.of(MyEmptyBean.class)).setCoder(StringUtf8Coder.of());
+    pipeline
+        .apply(Create.of(EMPTY_BEANS))
+        .apply(AsJsons.of(MyEmptyBean.class)).setCoder(StringUtf8Coder.of());
 
     pipeline.run();
   }
