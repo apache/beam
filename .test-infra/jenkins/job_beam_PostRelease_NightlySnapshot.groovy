@@ -36,6 +36,13 @@ job('beam_PostRelease_NightlySnapshot') {
     stringParam('snapshot_url',
                 '',
                 'Repository URL to install from')
+    nodeParam('TEST_HOST') {
+      description('select test host as either beam1, 2 or 3')
+      defaultNodes(['beam1', 'beam2', 'beam3'])
+      allowedNodes(['beam1', 'beam2', 'beam3'])
+      trigger('multiSelectionDisallowed')
+      eligibility('IgnoreOfflineNodeEligibility')
+    }
   }
 
   // This is a post-commit job that runs once per day, not for every push.

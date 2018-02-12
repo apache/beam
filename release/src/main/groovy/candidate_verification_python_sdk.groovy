@@ -110,6 +110,8 @@ t.run("gsutil ls gs://${ReleaseConfiguration.BUCKET_NAME}")
 4.times {
   t.see("gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT}-0000${it}-of-00004")
 }
+// clean output files from GCS
+t.run("gsutil rm gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT}-*")
 println()
 
 /*
