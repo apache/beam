@@ -37,6 +37,7 @@ from apache_beam.internal.gcp import json_value
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
@@ -280,7 +281,8 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     # Snapshot the pipeline in a portable proto before mutating it
-    proto_pipeline = pipeline.to_runner_api()
+    proto_pipeline, self.proto_context = pipeline.to_runner_api(
+        return_context=True)
 
     # Performing configured PTransform overrides.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
@@ -575,8 +577,17 @@ class DataflowRunner(PipelineRunner):
             if transform_node.side_inputs else ''),
         transform_node,
         transform_node.transform.output_tags)
-    fn_data = self._pardo_fn_data(transform_node, lookup_label)
-    step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))
+    # Import here to avoid adding the dependency for local running scenarios.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners.dataflow.internal import apiclient
+    transform_proto = self.proto_context.transforms.get_proto(transform_node)
+    if (apiclient._use_fnapi(transform_node.inputs[0].pipeline._options)
+        and transform_proto.spec.urn == common_urns.PARDO_TRANSFORM):
+      serialized_data = self.proto_context.transforms.get_id(transform_node)
+    else:
+      serialized_data = pickler.dumps(
+          self._pardo_fn_data(transform_node, lookup_label))
+    step.add_property(PropertyNames.SERIALIZED_FN, serialized_data)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
