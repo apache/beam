@@ -65,10 +65,10 @@ t.see("OK")
 *
 * */
 print_separator("Creating new virtualenv and installing the SDK")
-t.run("virtualenv temp_virtualenv")
-//t.run(". temp_virtualenv/bin/activate")
 t.run("unzip ${ReleaseConfiguration.BEAM_PYTHON_RELEASE}")
 t.run("cd apache-beam-${ReleaseConfiguration.VERSION}/sdks/python/")
+t.run("virtualenv temp_virtualenv")
+//t.run(". temp_virtualenv/bin/activate")
 //t.run("python setup.py sdist")
 //t.run("pip install dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz[gcp]")
 t.run(". temp_virtualenv/bin/activate && python setup.py sdist && pip install dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz[gcp]")
@@ -107,6 +107,7 @@ t.run("gsutil ls gs://${ReleaseConfiguration.BUCKET_NAME}")
 4.times {
   t.see("gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT}-0000${it}-of-00004")
 }
+println()
 
 /*
 * 6. Run Streaming wordcount with DirectRunner
@@ -132,7 +133,7 @@ run_pubsub_publish(t)
 run_pubsub_pull(t)
 t.see("like: 1")
 streaming_wordcount_thread.stop()
-
+println()
 
 /*
  * 7. Run Streaming Wordcount with DataflowRunner
