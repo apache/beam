@@ -219,6 +219,11 @@ public class KafkaSource
         throw new RuntimeException(e);
       }
       List<PartitionInfo> ps = c.partitionsFor(topicId);
+
+      if (ps.isEmpty()) {
+        throw new IllegalStateException("No kafka partitions found for topic " + topicId);
+      }
+
       final long stopAtStamp = stopReadingAtStamp;
       final long defaultOffsetTimestamp = offsetTimestamp;
       return ps.stream().map(p ->
