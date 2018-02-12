@@ -106,7 +106,7 @@ class ShardReadersPool {
     }
   }
 
-  private void startReadingShards(Iterable<ShardRecordsIterator> shardRecordsIterators) {
+  void startReadingShards(Iterable<ShardRecordsIterator> shardRecordsIterators) {
     for (final ShardRecordsIterator recordsIterator : shardRecordsIterators) {
       numberOfRecordsInAQueueByShard.put(recordsIterator.getShardId(), new AtomicInteger());
       executorService.submit(() -> readLoop(recordsIterator));
