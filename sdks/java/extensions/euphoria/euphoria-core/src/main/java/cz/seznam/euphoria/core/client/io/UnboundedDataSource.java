@@ -30,7 +30,11 @@ import java.util.List;
 @Audience(Audience.Type.EXECUTOR)
 public interface UnboundedDataSource<T, OFFSET extends Serializable> extends DataSource<T> {
 
-  /** @return a list of all partitions of this source */
+  /**
+   * Error should be reported via throwing RuntimeException
+   * (Do not return empty list on error)
+   * @return a list of all partitions of this source
+   * */
   List<UnboundedPartition<T, OFFSET>> getPartitions();
 
   @Override
