@@ -226,15 +226,18 @@ public class KafkaSource
 
       final long stopAtStamp = stopReadingAtStamp;
       final long defaultOffsetTimestamp = offsetTimestamp;
-      return ps.stream().map(p ->
-          // ~ FIXME a leader might not be available (check p.leader().id() == -1)
-          // ... fail in this situation
-          new KafkaPartition(
-              brokerList, topicId, p.partition(),
-              config,
-              offs.getOrDefault(p.partition(), defaultOffsetTimestamp),
-              stopAtStamp))
-          .collect(Collectors.toList());
+      return ps.stream().map((PartitionInfo p) -> {
+        if (p.leader().id() == -1) {
+          throw new IllegalStateException("Leader not available");
+        }
+
+        return new KafkaPartition(
+          brokerList, topicId, p.partition(),
+          config,
+          offs.getOrDefault(p.partition(), defaultOffsetTimestamp),
+          stopAtStamp);
+        })
+      .collect(Collectors.toList());
     }
   }
 
