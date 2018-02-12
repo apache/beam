@@ -131,14 +131,6 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     public List<Row> seekRow(Row lookupSubRow) {
       return Arrays.asList(Row.withRowType(getRowType()).addValues(1, "SITE1").build());
     }
-
-    @Override
-    public void setup() {
-    }
-
-    @Override
-    public void teardown() {
-    }
   }
 
   @Test
