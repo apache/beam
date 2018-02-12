@@ -22,9 +22,8 @@ import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,7 +34,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -48,6 +46,8 @@ import org.mockito.stubbing.Answer;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class ShardReadersPoolTest {
+
+  private static final int TIMEOUT_IN_MILLIS = (int) TimeUnit.SECONDS.toMillis(10);
 
   @Mock
   private ShardRecordsIterator firstIterator, secondIterator, thirdIterator, fourthIterator;
@@ -155,11 +155,10 @@ public class ShardReadersPoolTest {
 
     Stopwatch stopwatch = Stopwatch.createStarted();
     shardReadersPool.stop();
-    assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS)).isLessThan(TimeUnit.SECONDS.toMillis(1));
+    assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS)).isLessThan(TIMEOUT_IN_MILLIS);
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-3599")
   public void shouldInterruptPuttingRecordsToQueueAndStopShortly()
       throws TransientKinesisException, KinesisShardClosedException {
     when(firstIterator.readNextBatch()).thenReturn(asList(a, b, c));
@@ -170,7 +169,7 @@ public class ShardReadersPoolTest {
 
     Stopwatch stopwatch = Stopwatch.createStarted();
     shardReadersPool.stop();
-    assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS)).isLessThan(TimeUnit.SECONDS.toMillis(1));
+    assertThat(stopwatch.elapsed(TimeUnit.MILLISECONDS)).isLessThan(TIMEOUT_IN_MILLIS);
 
   }
 
@@ -199,10 +198,9 @@ public class ShardReadersPoolTest {
         .thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
-    Thread.sleep(200);
 
-    verify(firstIterator, times(1)).readNextBatch();
-    verify(secondIterator, atLeast(2)).readNextBatch();
+    verify(firstIterator, timeout(TIMEOUT_IN_MILLIS).times(1)).readNextBatch();
+    verify(secondIterator, timeout(TIMEOUT_IN_MILLIS).atLeast(2)).readNextBatch();
   }
 
   @Test
@@ -213,10 +211,9 @@ public class ShardReadersPoolTest {
         .thenReturn(asList(thirdIterator, fourthIterator));
 
     shardReadersPool.start();
-    Thread.sleep(1500);
 
-    verify(thirdIterator, atLeast(2)).readNextBatch();
-    verify(fourthIterator, atLeast(2)).readNextBatch();
+    verify(thirdIterator, timeout(TIMEOUT_IN_MILLIS).atLeast(2)).readNextBatch();
+    verify(fourthIterator, timeout(TIMEOUT_IN_MILLIS).atLeast(2)).readNextBatch();
   }
 
   @Test
@@ -226,13 +223,11 @@ public class ShardReadersPoolTest {
         .thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
-    Thread.sleep(200);
 
-    verify(firstIterator, times(1)).readNextBatch();
+    verify(firstIterator, timeout(TIMEOUT_IN_MILLIS).times(1)).readNextBatch();
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-3598")
   public void shouldStopReadersPoolAlsoWhenExceptionsOccurDuringStopping() throws Exception {
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
     when(firstIterator.findSuccessiveShardRecordIterators())
@@ -240,9 +235,8 @@ public class ShardReadersPoolTest {
         .thenReturn(Collections.emptyList());
 
     shardReadersPool.start();
-    Thread.sleep(200);
 
-    verify(firstIterator, times(2)).readNextBatch();
+    verify(firstIterator, timeout(TIMEOUT_IN_MILLIS).times(2)).readNextBatch();
   }
 
   @Test
@@ -259,14 +253,14 @@ public class ShardReadersPoolTest {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-3605")
   public void shouldForgetClosedShardIterator() throws Exception {
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
-    when(firstIterator.findSuccessiveShardRecordIterators())
-        .thenReturn(Collections.emptyList());
+    List<ShardRecordsIterator> emptyList = Collections.emptyList();
+    when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(emptyList);
 
     shardReadersPool.start();
-    Thread.sleep(200);
+    verify(shardReadersPool).startReadingShards(Arrays.asList(firstIterator, secondIterator));
+    verify(shardReadersPool, timeout(TIMEOUT_IN_MILLIS)).startReadingShards(emptyList);
 
     KinesisReaderCheckpoint checkpointMark = shardReadersPool.getCheckpointMark();
     assertThat(checkpointMark.iterator())
