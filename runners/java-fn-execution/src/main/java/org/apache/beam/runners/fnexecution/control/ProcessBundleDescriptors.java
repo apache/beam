@@ -19,7 +19,7 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.runners.core.construction.UrnUtils.validateCommonUrn;
+import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
@@ -41,6 +41,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
@@ -186,7 +187,7 @@ public class ProcessBundleDescriptors {
                 SdkFunctionSpec.newBuilder()
                     .setSpec(
                         FunctionSpec.newBuilder()
-                            .setUrn(validateCommonUrn("beam:coder:windowed_value:v1"))))
+                            .setUrn(getUrn(StandardCoders.Enum.WINDOWED_VALUE))))
             .build();
     // Add the original WindowedValue<T, W> coder to the components;
     String windowedValueId =

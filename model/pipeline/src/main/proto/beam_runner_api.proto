@@ -30,6 +30,7 @@ option java_package = "org.apache.beam.model.pipeline.v1";
 option java_outer_classname = "RunnerApi";
 
 import "google/protobuf/any.proto";
+import "google/protobuf/descriptor.proto";
 
 // A set of mappings from id to message. This is included as an optional field
 // on any proto message that may contain references needing resolution.
@@ -173,6 +174,84 @@ message PTransform {
   // there is none, or it is not relevant (such as use by the Fn API)
   // then it may be omitted.
   DisplayData display_data = 6;
+}
+
+message StandardPTransforms {
+  enum Primitives {
+    // Represents Beam's parallel do operation.
+    // Payload: ParDoPayload.
+    // TODO(BEAM-3595): Change this to beam:transform:pardo:v1.
+    PAR_DO = 0 [(beam_urn) = "urn:beam:transform:pardo:v1"];
+
+    // Represents Beam's flatten operation.
+    // Payload: None.
+    FLATTEN = 1 [(beam_urn) = "beam:transform:flatten:v1"];
+
+    // Represents Beam's group-by-key operation.
+    // Payload: None
+    GROUP_BY_KEY = 2 [(beam_urn) = "beam:transform:group_by_key:v1"];
+
+    // Represents the operation generating a single empty element.
+    IMPULSE = 3 [(beam_urn) = "beam:transform:impulse:v1"];
+
+    // Represents the Window.into() operation.
+    // Payload: WindowIntoPayload.
+    ASSIGN_WINDOWS = 4 [(beam_urn) = "beam:transform:window_into:v1"];
+
+    // Represents the TestStream.
+    // Payload: TestStreamPayload
+    TEST_STREAM = 5 [(beam_urn) = "urn:beam:transform:teststream:v1"];
+
+    // Represents mapping of main input window into side input window.
+    // Payload: serialized WindowMappingFn.
+    MAP_WINDOWS = 6 [(beam_urn) = "beam:transform:map_windows:v1"];
+  }
+  enum DeprecatedPrimitives {
+    // Represents the operation to read a Bounded or Unbounded source.
+    // Payload: ReadPayload.
+    READ = 0 [(beam_urn) = "beam:transform:read:v1"];
+
+    // Runners should move away from translating `CreatePCollectionView` and treat this as
+    // part of the translation for a `ParDo` side input.
+    CREATE_VIEW = 1 [(beam_urn) = "beam:transform:create_view:v1"];
+  }
+  enum Composites {
+    // Represents the Combine.perKey() operation.
+    // If this is produced by an SDK, it is assumed that the SDK understands
+    // each of CombineComponents.
+    // Payload: CombinePayload
+    COMBINE_PER_KEY = 0 [(beam_urn) = "beam:transform:combine_per_key:v1"];
+
+    // Represents the Combine.globally() operation.
+    // If this is produced by an SDK, it is assumed that the SDK understands
+    // each of CombineComponents.
+    // Payload: CombinePayload
+    COMBINE_GLOBALLY = 1 [(beam_urn) = "beam:transform:combine_globally:v1"];
+
+    // Represents the Combine.groupedValues() operation.
+    // If this is produced by an SDK, it is assumed that the SDK understands
+    // each of CombineComponents.
+    // Payload: CombinePayload
+    COMBINE_GROUPED_VALUES = 2 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
+
+    // Represents the Reshuffle operation.
+    RESHUFFLE = 3 [(beam_urn) = "beam:transform:reshuffle:v1"];
+
+    // Less well-known. Payload: WriteFilesPayload.
+    WRITE_FILES = 4 [(beam_urn) = "beam:transform:write_files:v1"];
+  }
+  enum CombineComponents {
+    COMBINE_PGBKCV = 0 [(beam_urn) = "beam:transform:combine_pgbkcv:v1"];
+    COMBINE_MERGE_ACCUMULATORS = 1 [(beam_urn) = "beam:transform:combine_merge_accumulators:v1"];
+    COMBINE_EXTRACT_OUTPUTS = 2 [(beam_urn) = "beam:transform:combine_extract_outputs:v1"];
+  }
+}
+
+message StandardSideInputTypes {
+  enum Enum {
+    ITERABLE = 0 [(beam_urn) = "beam:side_input:iterable:v1"];
+    MULTIMAP = 1 [(beam_urn) = "beam:side_input:multimap:v1"];
+  }
 }
 
 // A PCollection!
@@ -433,6 +512,34 @@ message Coder {
   // this is a list of the components. In order for encodings to be identical,
   // the SdkFunctionSpec and all components must be identical, recursively.
   repeated string component_coder_ids = 2;
+}
+
+message StandardCoders {
+  enum Enum {
+    // Components: None
+    BYTES = 0 [(beam_urn) = "beam:coder:bytes:v1"];
+
+    // Components: The key and value coder, in that order.
+    KV = 1 [(beam_urn) = "beam:coder:kv:v1"];
+
+    // Components: None
+    VARINT = 2 [(beam_urn) = "beam:coder:varint:v1"];
+
+    // Encodes an iterable of elements.
+    // Components: Coder for a single element.
+    ITERABLE = 3 [(beam_urn) = "beam:coder:iterable:v1"];
+
+    TIMESTAMP = 4 [(beam_urn) = "beam:coder:timestamp:v1"];
+    /*
+     * The following coders are typically not specified by manually by the user,
+     * but are used at runtime and must be supported by every SDK.
+     */
+
+    INTERVAL_WINDOW = 5 [(beam_urn) = "beam:coder:interval_window:v1"];
+    LENGTH_PREFIX = 6 [(beam_urn) = "beam:coder:length_prefix:v1"];
+    GLOBAL_WINDOW = 7 [(beam_urn) = "beam:coder:global_window:v1"];
+    WINDOWED_VALUE = 8 [(beam_urn) = "beam:coder:windowed_value:v1"];
+  }
 }
 
 // A windowing strategy describes the window function, triggering, allowed
@@ -778,6 +885,36 @@ message SdkFunctionSpec {
   // (Required) Reference to an execution environment capable of
   // invoking this function.
   string environment_id = 2;
+}
+
+extend google.protobuf.EnumValueOptions {
+  // An extension to be used for specifying the standard URN of various
+  // pipeline entities, e.g. transforms, functions, coders etc.
+  // Code should refer to the URNs of those entities by extracting
+  // it from the (beam_urn) extension, rather than by hard-coding
+  // the URN.
+  //
+  // The recommended pattern for declaring it is (exemplified by coders):
+  //
+  // message StandardCoders {
+  //   enum Enum {
+  //     BYTES = 0 [(beam_urn) = "beam:coder:bytes:v1"];
+  //     ...
+  //   }
+  // }
+  //
+  // If there are multiple categories of entities of this type, use the
+  // following pattern (exemplified by PTransforms):
+  //
+  // message StandardPTransforms {
+  //   enum Primitives {
+  //     ...
+  //   }
+  //   enum Composites {
+  //     ...
+  //   }
+  // }
+  string beam_urn = 185324356;
 }
 
 // A URN along with a parameter object whose schema is determined by the

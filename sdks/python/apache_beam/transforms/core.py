@@ -1632,7 +1632,7 @@ class WindowInto(ParDo):
 
   def to_runner_api_parameter(self, context):
     return (
-        common_urns.WINDOW_INTO_TRANSFORM,
+        common_urns.ASSIGN_WINDOWS_TRANSFORM,
         self.windowing.to_runner_api(context))
 
   @staticmethod
@@ -1646,7 +1646,7 @@ class WindowInto(ParDo):
 
 
 PTransform.register_urn(
-    common_urns.WINDOW_INTO_TRANSFORM,
+    common_urns.ASSIGN_WINDOWS_TRANSFORM,
     # TODO(robertwb): Update WindowIntoPayload to include the full strategy.
     # (Right now only WindowFn is used, but we need this to reconstitute the
     # WindowInto transform, and in the future will need it at runtime to

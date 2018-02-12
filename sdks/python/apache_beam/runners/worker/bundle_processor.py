@@ -543,7 +543,7 @@ def _create_simple_pardo_operation(
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.WINDOW_INTO_TRANSFORM, beam_runner_api_pb2.WindowingStrategy)
+    common_urns.ASSIGN_WINDOWS_TRANSFORM, beam_runner_api_pb2.WindowingStrategy)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   class WindowIntoDoFn(beam.DoFn):
     def __init__(self, windowing):
