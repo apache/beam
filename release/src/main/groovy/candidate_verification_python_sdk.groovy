@@ -41,8 +41,7 @@ StringBuilder cmd = new StringBuilder()
 *   apache-beam-{version}-python.zip.sha1
 *
 * */
-t.run('echo ------------------------- python sdk validation start------------------')
-println "test-----test-----test-----"
+println "python sdk validation start"
 t.run("pwd")
 t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.SHA1_FILE_NAME}")
 t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.MD5_FILE_NAME}")

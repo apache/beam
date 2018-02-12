@@ -35,7 +35,7 @@ task runQuickstartsJava {
   dependsOn ":runners:flink:runQuickstartJavaFlinkLocal"
 }
 
-task runQuickstartsPython (dependsoOn: 'classes', type: JavaExec){
+task runQuickstartsPython (dependsOn: 'classes', type: JavaExec){
   main = 'candidate_verification_python_sdk'
   classpath = sourceSets.main.runtimeClasspath
 }
