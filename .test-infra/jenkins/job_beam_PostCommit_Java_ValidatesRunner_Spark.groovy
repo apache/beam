@@ -40,5 +40,5 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Spark') {
     'Run Spark ValidatesRunner')
 
   // Maven goals for this job.
-  goals('-B -e clean verify -am -pl runners/spark -Pvalidates-runner-tests -Plocal-validates-runner-tests -Dspark.ui.enabled=false')
+  goals('-B -e clean verify -am -pl runners/spark -Plocal-validates-runner-tests -Dspark.ui.enabled=false')
 }
