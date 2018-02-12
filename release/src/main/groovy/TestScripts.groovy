@@ -18,6 +18,7 @@
  */
 
 import groovy.util.CliBuilder
+import java.util.stream.*
 
 /*
  * Scripting functions to make writing a test similar to the quickstart
@@ -127,8 +128,11 @@ class TestScripts {
      proc.waitFor()
      var.lastText = text.toString().trim()
      if (proc.exitValue() != 0) {
+       InputStream errorStream = proc.getErrorStream()
+       String errorMessage = new BufferedReader(new InputStreamReader(errorStream))
+       .lines().collect(Collectors.joining("\n"));
        println var.lastText
-       _error("Failed command")
+         _error("Failed command: \n" + errorMessage)
      }
    }
 

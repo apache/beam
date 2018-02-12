@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import ReleaseConfiguration
 import TestScripts
 
@@ -9,8 +27,8 @@ import TestScripts
  * 3. Create a new virtualenv and install the SDK
  * 4. Run Wordcount examples with DirectRunner
  * 5. Run Wordcount examples with DataflowRunner
- * 6. TODO: Run streaming wordcount on DirectRunner and (verify results, how?)
- * 7. TODO: Run streaming wordcount on DataflowRunner
+ * 6. Run streaming wordcount on DirectRunner
+ * 7. Run streaming wordcount on DataflowRunner
  */
 
 def t = new TestScripts()
@@ -19,10 +37,12 @@ StringBuilder cmd = new StringBuilder()
 
 /*
 * 1. Download files from RC staging location, including:
-*   apache-beam-2.3.0-python.zip.md5
-*   apache-beam-2.3.0-python.zip.sha1
+*   apache-beam-{version}-python.zip.md5
+*   apache-beam-{version}-python.zip.sha1
 *
 * */
+t.run('echo ------------------------- python sdk validation start------------------')
+println "test-----test-----test-----"
 t.run("pwd")
 t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.SHA1_FILE_NAME}")
 t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.MD5_FILE_NAME}")
@@ -80,7 +100,6 @@ cmd.append("python -m apache_beam.examples.wordcount ")
     .append("--project ${ReleaseConfiguration.PROJECT_ID} ")
     .append("--num_workers ${ReleaseConfiguration.NUM_WORKERS} ")
     .append("--sdk_location dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz ")
-
 print_separator("Running wordcount example with DataflowRunner with command: ", cmd.toString())
 t.run(cmd.toString())
 // verify results.
@@ -93,18 +112,18 @@ t.run("gsutil ls gs://${ReleaseConfiguration.BUCKET_NAME}")
 * 6. Run Streaming wordcount with DirectRunner
 *
 * */
-// create pubsub topics (Note that if toipics already exist, there will be errors when running these commands, TODO: error catch)
+// create pubsub topics
 create_pubsub(t)
 
 cmd.setLength(0) // clear the cmd buffer
 cmd.append("python -m apache_beam.examples.streaming_wordcount ")
-.append("--input_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC1} ")
-.append("--output_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC2} ")
-.append("--streaming")
+        .append("--input_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC1} ")
+        .append("--output_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC2} ")
+        .append("--streaming")
 
 print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
 def streaming_wordcount_thread = Thread.start(){
-  t.run(cmd.toString())
+    t.run(cmd.toString())
 }
 
 t.run("sleep 15")
@@ -117,23 +136,22 @@ streaming_wordcount_thread.stop()
 
 /*
  * 7. Run Streaming Wordcount with DataflowRunner
-
 * */
 cmd.setLength(0) //clear the cmd buffer
 cmd.append("python -m apache_beam.examples.streaming_wordcount ")
-    .append("--streaming ")
-    .append("--job_name pyflow-wordstream-candidate ")
-    .append("runner DataflowRunner ")
-    .append("--input_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC1} ")
-    .append("--output_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC2} ")
-    .append("--staging_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
-    .append("--temp_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
-    .append("--num_workers ${ReleaseConfiguration.NUM_WORKERS} ")
-    .append("--sdk_location dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz ")
+        .append("--streaming ")
+        .append("--job_name pyflow-wordstream-candidate ")
+        .append("runner DataflowRunner ")
+        .append("--input_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC1} ")
+        .append("--output_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC2} ")
+        .append("--staging_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
+        .append("--temp_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
+        .append("--num_workers ${ReleaseConfiguration.NUM_WORKERS} ")
+        .append("--sdk_location dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz ")
 
 print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
 def streaming_wordcount_dataflow_thread = Thread.start(){
-  t.run(cmd.toString())
+    t.run(cmd.toString())
 }
 t.run("sleep 15")
 
@@ -152,14 +170,11 @@ println '*********************************'
 t.done()
 
 
-
-
-
 private void run_pubsub_publish(TestScripts t){
     def words = ["hello world!", "I like cats!", "Python", "hello Python", "hello Python"]
     words.each {
-      t.run("gcloud alpha pubsub topics publish ${ReleaseConfiguration.PUBSUB_TOPIC1} \"${it}\"")
-  }
+        t.run("gcloud alpha pubsub topics publish ${ReleaseConfiguration.PUBSUB_TOPIC1} \"${it}\"")
+    }
     t.run("sleep 15")
 }
 
@@ -182,7 +197,7 @@ private void print_separator(String description, String cmd=''){
     println("----------------------------------------------------------------")
     println(description)
     if(cmd.length() > 0){
-    	println(cmd.toString())
+        println(cmd.toString())
     }
     println("----------------------------------------------------------------")
 }
