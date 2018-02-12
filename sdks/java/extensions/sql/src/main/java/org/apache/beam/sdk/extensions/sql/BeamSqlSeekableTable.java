@@ -31,7 +31,7 @@ public interface BeamSqlSeekableTable extends Serializable{
   /**
    * prepare the instance.
    */
-  void setup();
+  default void setUp(){};
 
   /**
    * return a list of {@code Row} with given key set.
@@ -41,5 +41,5 @@ public interface BeamSqlSeekableTable extends Serializable{
   /**
    * cleanup resources of the instance.
    */
-  void teardown();
+  default void tearDown(){};
 }

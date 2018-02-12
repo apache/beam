@@ -222,7 +222,7 @@ public class BeamJoinTransforms {
       return input.apply("join_as_lookup", ParDo.of(new DoFn<Row, Row>(){
         @Setup
         public void setup(){
-          seekableTable.setup();
+          seekableTable.setUp();
         }
 
         @ProcessElement
@@ -237,7 +237,7 @@ public class BeamJoinTransforms {
 
         @Teardown
         public void teardown(){
-          seekableTable.teardown();
+          seekableTable.tearDown();
         }
 
         private Row extractJoinSubRow(Row factRow) {
