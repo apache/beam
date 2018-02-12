@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.spark;
+package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import cz.seznam.euphoria.core.client.operator.JoinHint;
 
 @Audience(Audience.Type.CLIENT)
 public class JoinHints {
@@ -28,8 +27,7 @@ public class JoinHints {
   }
 
   /**
-   * Broadcasts optional join side to all executors. See {@link BroadcastHashJoinTranslator}
-   * for more details.
+   * Broadcasts optional join side to all executors.
    */
   public static class BroadcastHashJoin implements JoinHint {
 
