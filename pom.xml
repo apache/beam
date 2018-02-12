@@ -175,6 +175,8 @@
     <maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
     <reproducible-build-maven-plugin.version>0.4</reproducible-build-maven-plugin.version>
     <maven-assembly-plugin.version>3.1.0</maven-assembly-plugin.version>
+    <plexus-compiler-java-errorprone.version>2.8.2</plexus-compiler-java-errorprone.version>
+    <error_prone_core.version>2.2.0</error_prone_core.version>
 
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
@@ -350,6 +352,38 @@
             </plugin>
           </plugins>
         </pluginManagement>
+      </build>
+    </profile>
+
+    <profile>
+      <id>errorprone</id>
+      <build>
+        <plugins>
+          <!-- Turn on Error Prone -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <compilerId>javac-with-errorprone</compilerId>
+              <forceJavacCompilerUse>true</forceJavacCompilerUse>
+              <showWarnings>true</showWarnings>
+            </configuration>
+            <dependencies>
+              <dependency>
+                <groupId>org.codehaus.plexus</groupId>
+                <artifactId>plexus-compiler-javac-errorprone</artifactId>
+		<version>${plexus-compiler-java-errorprone.version}</version>
+              </dependency>
+              <!-- override plexus-compiler-javac-errorprone's dependency on
+                   Error Prone with the latest version -->
+              <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_core</artifactId>
+		<version>${error_prone_core.version}</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+        </plugins>
       </build>
     </profile>
 
