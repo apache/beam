@@ -17,10 +17,15 @@ package cz.seznam.euphoria.beam;
 
 import cz.seznam.euphoria.beam.io.KryoCoder;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
+import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
+import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.type.TypeAwareReduceFunctor;
 import cz.seznam.euphoria.core.client.type.TypeAwareUnaryFunction;
 import cz.seznam.euphoria.core.client.type.TypeAwareUnaryFunctor;
@@ -38,26 +43,29 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.stream.Collectors.toList;
 
 /**
- * Keeps track of mapping between Euphoria {@link Operator} and {@link PCollection}.
+ * Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}.
  */
 class BeamExecutorContext {
 
   private final DAG<Operator<?, ?>> dag;
-  private final Map<Operator<?, ?>, PCollection<?>> outputs = new HashMap<>();
+  private final Map<Dataset<?>, PCollection<?>> outputs = new HashMap<>();
   private final Pipeline pipeline;
 
   private final Settings settings = new Settings();
 
   private final AccumulatorProvider.Factory accumulatorFactory;
 
-  BeamExecutorContext(DAG<Operator<?, ?>> dag,
-                      AccumulatorProvider.Factory accumulatorFactory,
-                      Pipeline pipeline) {
+  BeamExecutorContext(
+      DAG<Operator<?, ?>> dag,
+      AccumulatorProvider.Factory accumulatorFactory,
+      Pipeline pipeline) {
+
     this.dag = dag;
     this.accumulatorFactory = accumulatorFactory;
     this.pipeline = pipeline;
@@ -75,7 +83,7 @@ class BeamExecutorContext {
         .stream()
         .map(Node::get)
         .map(parent -> {
-          final PCollection<IN> out = (PCollection<IN>) outputs.get(parent);
+          final PCollection<IN> out = (PCollection<IN>) outputs.get(parent.output());
           if (out == null) {
             throw new IllegalArgumentException("Output missing for operator " + parent.getName());
           }
@@ -84,16 +92,17 @@ class BeamExecutorContext {
         .collect(toList());
   }
 
-  Optional<PCollection<?>> getOutput(Operator<?, ?> operator) {
-    return Optional.ofNullable(outputs.get(operator));
+  Optional<PCollection<?>> getPCollection(Dataset<?> dataset) {
+    return Optional.ofNullable(outputs.get(dataset));
   }
 
-  void setOutput(Operator<?, ?> operator, PCollection<?> output) {
-    final PCollection<?> prev = outputs.put(operator, output);
+  void setPCollection(Dataset<?> dataset, PCollection<?> coll) {
+    final PCollection<?> prev = outputs.put(dataset, coll);
     if (prev != null) {
       throw new IllegalStateException(
-         "Operator(" + operator.getName() + ") output already processed");
+         "Dataset(" + dataset + ") already materialized.");
     }
+    coll.setCoder(getOutputCoder(dataset));
   }
 
   Pipeline getPipeline() {
@@ -109,36 +118,36 @@ class BeamExecutorContext {
       return getCoder(((TypeAwareUnaryFunction<IN, OUT>) unaryFunction).getTypeHint());
     }
     if (strongTypingEnabled()) {
-      throw new IllegalArgumentException("x");
-
+      throw new IllegalArgumentException(
+          "Missing type information for function " + unaryFunction);
     }
     return new KryoCoder<>();
   }
 
-  <IN, OUT> Coder<OUT> getCoder(UnaryFunctor <IN, OUT> unaryFunctor) {
+  <IN, OUT> Coder<OUT> getCoder(UnaryFunctor<IN, OUT> unaryFunctor) {
     if (unaryFunctor instanceof TypeAwareUnaryFunctor) {
       return getCoder(((TypeAwareUnaryFunctor<IN, OUT>) unaryFunctor).getTypeHint());
     }
     if (strongTypingEnabled()) {
-      throw new IllegalArgumentException("x");
-
+      throw new IllegalArgumentException(
+          "Missing type information for funtion " + unaryFunctor);
     }
     return new KryoCoder<>();
   }
 
-  <IN, OUT> Coder<OUT> getCoder(ReduceFunctor <IN, OUT> reduceFunctor) {
+  <IN, OUT> Coder<OUT> getCoder(ReduceFunctor<IN, OUT> reduceFunctor) {
     if (reduceFunctor instanceof TypeAwareReduceFunctor) {
       return getCoder(((TypeAwareReduceFunctor<IN, OUT>) reduceFunctor).getTypeHint());
     }
     if (strongTypingEnabled()) {
-      throw new IllegalArgumentException("x");
-
+      throw new IllegalArgumentException(
+          "Missing type information for function " + reduceFunctor);
     }
     return new KryoCoder<>();
   }
 
   @SuppressWarnings("unchecked")
-  <T> Coder<T> getCoder(TypeHint<T> typeHint) {
+  private <T> Coder<T> getCoder(TypeHint<T> typeHint) {
     try {
       return pipeline.getCoderRegistry().getCoder(
           (TypeDescriptor<T>) TypeDescriptor.of(typeHint.getType()));
@@ -154,4 +163,31 @@ class BeamExecutorContext {
   Settings getSettings() {
     return settings;
   }
+
+  @SuppressWarnings("unchecked")
+  private <T> Coder<T> getOutputCoder(Dataset<?> dataset) {
+    Operator<?, ?> op = dataset.getProducer();
+    if (op instanceof FlatMap) {
+      FlatMap m = (FlatMap) op;
+      return getCoder(m.getFunctor());
+    } else if (op instanceof Union) {
+      Union<?> u = (Union) op;
+      Dataset<?> first = Objects.requireNonNull(
+          Iterables.getFirst(u.listInputs(), null));
+      return getOutputCoder(first);
+    } else if (op instanceof ReduceByKey) {
+      ReduceByKey rb = (ReduceByKey) op;
+      return getCoder(rb.getReducer());
+    } else if (op instanceof ReduceStateByKey) {
+      ReduceStateByKey rbsk = (ReduceStateByKey) op;
+      // FIXME
+      return new KryoCoder<>();
+    } else if (op == null) {
+      // FIXME
+      return new KryoCoder<>();
+    }
+    // FIXME
+    return new KryoCoder<>();
+  }
+
 }
