@@ -74,4 +74,4 @@ task buildDependencyTree(type: DependencyReportTask) {
 compileJava.dependsOn buildDependencyTree
 
 // Generates :runners:apex:runQuickstartJavaApex
-createJavaQuickstartValidationTask('Apex')
+createJavaQuickstartValidationTask(name: 'Apex')

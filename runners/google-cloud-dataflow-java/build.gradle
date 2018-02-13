@@ -88,7 +88,6 @@ test {
 }
 
 // Generates :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow
-def cloudProject = project.findProperty('cloudProject') ?: 'apache-beam-testing'
-def cloudBucket = project.findProperty('cloudBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
-def argsProject = ["--project=${cloudProject}", "--bucket=${cloudBucket}"]
-createJavaQuickstartValidationTask('Dataflow', argsProject)
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
+createJavaQuickstartValidationTask(name: 'Dataflow', gcpProject: gcpProject, gcsBucket: gcsBucket)

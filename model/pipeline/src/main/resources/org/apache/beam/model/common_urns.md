@@ -47,6 +47,7 @@ Payload: A windowing strategy id.
 
 ### beam:transform:read:v1
 
+### beam:transform:impulse:v1
 
 ## Combining
 
@@ -70,6 +71,7 @@ the SDK understands the last three combine helper operations.
 
 ### beam:transform:reshuffle:v1
 
+### beam:transform:map_windows:v1
 
 ## WindowFns
 

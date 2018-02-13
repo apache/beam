@@ -24,6 +24,7 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.parser.BeamSqlParser;
 import org.apache.beam.sdk.extensions.sql.impl.parser.ParserUtils;
 import org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateTable;
+import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDropTable;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
@@ -80,6 +81,8 @@ public class BeamSqlCli {
 
     if (sqlNode instanceof SqlCreateTable) {
       handleCreateTable((SqlCreateTable) sqlNode, metaStore);
+    } else if (sqlNode instanceof SqlDropTable) {
+      handleDropTable((SqlDropTable) sqlNode);
     } else {
       PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
           .as(PipelineOptions.class);
@@ -101,6 +104,11 @@ public class BeamSqlCli {
 
     // register the new table into the schema
     env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table.getName()));
+  }
+
+  private void handleDropTable(SqlDropTable stmt) {
+    metaStore.dropTable(stmt.tableName());
+    env.deregisterTable(stmt.tableName());
   }
 
   /**

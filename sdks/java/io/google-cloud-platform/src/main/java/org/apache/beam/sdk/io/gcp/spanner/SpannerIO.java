@@ -293,7 +293,7 @@ public class SpannerIO {
     }
 
     /** Specifies the Cloud Spanner host. */
-    public ReadAll witHost(String host) {
+    public ReadAll withHost(String host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
     }
@@ -399,7 +399,7 @@ public class SpannerIO {
     }
 
     /** Specifies the Cloud Spanner host. */
-    public Read witHost(String host) {
+    public Read withHost(String host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
     }
@@ -559,7 +559,7 @@ public class SpannerIO {
     }
 
     /** Specifies the Cloud Spanner host. */
-    public CreateTransaction witHost(String host) {
+    public CreateTransaction withHost(String host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
     }
@@ -663,7 +663,7 @@ public class SpannerIO {
     }
 
     /** Specifies the Cloud Spanner host. */
-    public Write witHost(String host) {
+    public Write withHost(String host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
     }

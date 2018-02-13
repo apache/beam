@@ -33,26 +33,28 @@ class TestScripts {
      static String lastText
      static String repoUrl
      static String ver
-     static String project
-     static String bucket
+     static String gcpProject
+     static String gcsBucket
    }
 
    def TestScripts(String[] args) {
      def cli = new CliBuilder()
      cli.ver(args:1, 'SDL Version')
      cli.repourl(args:1, 'Repository URL')
-     cli.project(args:1, 'Google Cloud Project')
-     cli.bucket(args:1, 'Google Cloud Storage Bucket')
+     cli.gcpProject(args:1, 'Google Cloud Project')
+     cli.gcsBucket(args:1, 'Google Cloud Storage Bucket')
      def options = cli.parse(args)
      var.repoUrl = options.repourl
      var.ver = options.ver
      println "Repository URL: ${var.repoUrl}"
      println "Version: ${var.ver}"
-     if (options.project) {
-       var.project = options.project
-       var.bucket = options.bucket
-       println "Project: ${var.project}"
-       println "Storage bucket: ${var.bucket}"
+     if (options.gcpProject) {
+       var.gcpProject = options.gcpProject
+       println "GCS Project: ${var.gcpProject}"
+     }
+     if (options.gcsBucket) {
+       var.gcsBucket = options.gcsBucket
+       println "GCS Storage bucket: ${var.gcsBucket}"
      }
    }
 
@@ -60,12 +62,12 @@ class TestScripts {
      return var.ver
    }
 
-   def project() {
-     return var.project
+   def gcpProject() {
+     return var.gcpProject
    }
 
-   def gsloc() {
-     return var.bucket
+   def gcsBucket() {
+     return var.gcsBucket
    }
 
    // Both documents the overal scenario and creates a clean temp directory

@@ -71,4 +71,4 @@ shadowJar {
 }
 
 // Generates :runners:direct-java:runQuickstartJavaDirect
-createJavaQuickstartValidationTask('Direct')
+createJavaQuickstartValidationTask(name: 'Direct')

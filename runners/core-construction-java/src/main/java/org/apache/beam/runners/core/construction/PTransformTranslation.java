@@ -58,6 +58,7 @@ public class PTransformTranslation {
       validateCommonUrn("beam:transform:flatten:v1");
   public static final String GROUP_BY_KEY_TRANSFORM_URN =
       validateCommonUrn("beam:transform:group_by_key:v1");
+  public static final String IMPULSE_TRANSFORM_URN = validateCommonUrn("beam:transform:impulse:v1");
   public static final String READ_TRANSFORM_URN =
       validateCommonUrn("beam:transform:read:v1");
   public static final String ASSIGN_WINDOWS_TRANSFORM_URN =

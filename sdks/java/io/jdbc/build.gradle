@@ -35,6 +35,7 @@ dependencies {
   shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow "org.apache.commons:commons-dbcp2:2.1.1"
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
   testCompile project(":sdks:java:io:common").sourceSets.test.output

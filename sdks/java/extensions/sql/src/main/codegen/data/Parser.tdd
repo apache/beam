@@ -36,7 +36,8 @@
 
   # List of methods for parsing custom SQL statements.
   statementParserMethods: [
-    "SqlCreateTable()"
+    "SqlCreateTable()",
+    "SqlDropTable()"
   ]
 
   # List of methods for parsing custom literals.

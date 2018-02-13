@@ -45,6 +45,13 @@ public interface TableProvider {
   void createTable(Table table);
 
   /**
+   * Drops a table.
+   *
+   * @param tableName
+   */
+  void dropTable(String tableName);
+
+  /**
    * List all tables from this provider.
    */
   List<Table> listTables();

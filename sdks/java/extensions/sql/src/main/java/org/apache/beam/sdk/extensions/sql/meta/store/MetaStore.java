@@ -27,11 +27,15 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  * The interface to handle CRUD of {@code BeamSql} table metadata.
  */
 public interface MetaStore {
-
   /**
    * create a table.
    */
   void createTable(Table table);
+
+  /**
+   * drop a table.
+   */
+  void dropTable(String tableName);
 
   /**
    * Get table with the specified name.

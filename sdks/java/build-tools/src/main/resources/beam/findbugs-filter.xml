@@ -340,7 +340,10 @@
     <Class name="org.apache.beam.sdk.util.CombineFnUtil$NonSerializableBoundedCombineFn"/>
     <Field name="context"/>
     <Bug pattern="SE_BAD_FIELD"/>
-    <!--[BEAM-419] Non-transient non-serializable instance field in serializable class-->
+    <!--
+      The class is not meant to be serializable, writeObject() just throws an exception. Therefore
+      it's reasonable for this field to also not be serializable.
+    -->
   </Match>
   <Match>
     <Class name="org.apache.beam.runners.core.WatermarkHold"/>
