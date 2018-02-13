@@ -19,6 +19,7 @@ import cz.seznam.euphoria.beam.BeamExecutor;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.operator.test.junit.ExecutorEnvironment;
 import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
+import java.time.Duration;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 
@@ -28,7 +29,7 @@ public interface BeamExecutorProvider extends ExecutorProvider {
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
     final String[] args = {"--runner=DirectRunner"};
     final PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-    final Executor executor = new BeamExecutor(options);
+    final Executor executor = new BeamExecutor(options).withAllowedLateness(Duration.ofHours(1));
 
     return new ExecutorEnvironment() {
       @Override

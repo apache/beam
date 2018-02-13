@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 
 import java.util.IdentityHashMap;
 import java.util.Map;
+import org.joda.time.Duration;
 
 /**
  * This class converts Euphoria's {@code Flow} into Beam's Pipeline.
@@ -53,9 +54,11 @@ class FlowTranslator {
   }
 
   @SuppressWarnings("unchecked")
-  static Pipeline toPipeline(Flow flow,
-                             AccumulatorProvider.Factory accumulatorFactory,
-                             PipelineOptions options) {
+  static Pipeline toPipeline(
+      Flow flow,
+      AccumulatorProvider.Factory accumulatorFactory,
+      PipelineOptions options,
+      Duration allowedLateness) {
 
     final DAG<Operator<?, ?>> dag = FlowUnfolder.unfold(flow, operator ->
         translators.containsKey(operator.getClass())
@@ -64,7 +67,7 @@ class FlowTranslator {
     final Pipeline pipeline = Pipeline.create(options);
 
     final BeamExecutorContext executorContext = new BeamExecutorContext(
-        dag, accumulatorFactory, pipeline);
+        dag, accumulatorFactory, pipeline, allowedLateness);
 
     // translate each operator to a beam transformation
     dag.traverse()
