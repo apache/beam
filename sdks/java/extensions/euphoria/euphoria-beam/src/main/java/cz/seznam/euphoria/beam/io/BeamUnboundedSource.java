@@ -37,6 +37,7 @@ public class BeamUnboundedSource<T, OFFSET extends Serializable>
 
   private final UnboundedDataSource<T, OFFSET> wrap;
   private final int partitionId;
+  private final BeamCheckpointMark<OFFSET> mark = new BeamCheckpointMark<>();
 
   private BeamUnboundedSource(UnboundedDataSource<T, OFFSET> wrap) {
     this(wrap, -1);
@@ -89,8 +90,11 @@ public class BeamUnboundedSource<T, OFFSET extends Serializable>
   @Override
   public UnboundedReader<T> createReader(
       PipelineOptions options, BeamCheckpointMark checkpointMark) throws IOException {
-    final cz.seznam.euphoria.core.client.io.UnboundedReader<T, OFFSET> reader =
-        wrap.getPartitions().get(partitionId).openReader();
+    final cz.seznam.euphoria.core.client.io.UnboundedReader<T, OFFSET> reader;
+    reader = wrap.getPartitions().get(partitionId).openReader();
+    if (mark.offset != null) {
+      reader.reset(mark.offset);
+    }
     return new UnboundedReader<T>() {
 
       private T current = null;
@@ -107,6 +111,7 @@ public class BeamUnboundedSource<T, OFFSET extends Serializable>
         if (hasNext) {
           current = reader.next();
         }
+        mark.marked = reader.getCurrentOffset();
         return hasNext;
       }
 
@@ -117,7 +122,7 @@ public class BeamUnboundedSource<T, OFFSET extends Serializable>
 
       @Override
       public CheckpointMark getCheckpointMark() {
-        return new BeamCheckpointMark();
+        return mark;
       }
 
       @Override
@@ -148,15 +153,17 @@ public class BeamUnboundedSource<T, OFFSET extends Serializable>
     return new KryoCoder<>();
   }
 
-  public static class BeamCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
+  public static class BeamCheckpointMark<OFFSET>
+      implements UnboundedSource.CheckpointMark, Serializable {
 
-    public BeamCheckpointMark() {
-    }
+    private OFFSET offset = null;
+    private OFFSET marked = null;
 
     @Override
     public void finalizeCheckpoint() throws IOException {
-      // FIXME
+      offset = marked;
     }
+
   }
 
   public static <T, OFFSET extends Serializable> BeamUnboundedSource<T, OFFSET> wrap(

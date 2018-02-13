@@ -75,7 +75,9 @@ class FlowTranslator {
             throw new UnsupportedOperationException(
                 "Operator " + op.getClass().getSimpleName() + " not supported");
           }
-          executorContext.setOutput(op, translator.translate(op, executorContext));
+          executorContext.setPCollection(
+              op.output(),
+              translator.translate(op, executorContext));
         });
 
     // process sinks
@@ -83,7 +85,7 @@ class FlowTranslator {
         .stream()
         .map(Node::get)
         .forEach(op -> {
-          final PCollection pcs = executorContext.getOutput(op)
+          final PCollection pcs = executorContext.getPCollection(op.output())
               .orElseThrow(ExceptionUtils.illegal(
                   "Dataset " + op.output() + " has not been " +
                   "materialized"));

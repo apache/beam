@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  * A {@link BoundedSource} created from {@link BoundedDataSource}.
  */
 public class BeamBoundedSource<T> extends BoundedSource<T> {
-  
+
   private final BoundedDataSource<T> wrap;
 
   private BeamBoundedSource(BoundedDataSource<T> wrap) {
@@ -97,6 +97,7 @@ public class BeamBoundedSource<T> extends BoundedSource<T> {
 
   @Override
   public Coder<T> getDefaultOutputCoder() {
+    // FIXME
     return new KryoCoder<>();
   }
 
