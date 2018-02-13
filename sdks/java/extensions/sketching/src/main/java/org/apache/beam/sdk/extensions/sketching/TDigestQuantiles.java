@@ -32,6 +32,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -56,14 +57,10 @@ import org.apache.beam.sdk.values.PCollection;
  * The compression factor {@code cf} is used to limit the number of elements represented by
  * each centroid as well as the total number of centroids. <br>
  * The relative error will always be a small fraction of 1% for values at extreme quantiles
- * and in general {@code <1000 ppm} at middle quantiles. <br>
+ * and always be less than 3/cf at middle quantiles. <br>
  *
- * <p>By default the compression factor is set to 100. In the paper, experiments suggest that
- * values at mid quantiles will have an accuracy of 1% for streams up to 100k elements. <br>
- * If you have a larger stream or want a better accuracy,
- * you should increase the compression factor. <br>
- * For instance a value of 500 would guarantee a relative error of less than 1% in streams
- * up to 10M elements. Note that a value of 1000 is extremely large.
+ * <p>By default the compression factor is set to 100,
+ * which guarantees a relative error less than 3%.
  *
  * <h2>Examples</h2>
  *
@@ -114,7 +111,7 @@ import org.apache.beam.sdk.values.PCollection;
  *          {@literal @ProcessElement}
  *           public void procesElement(ProcessContext c) {
  *             double[] quantiles = {0.01, 0.25, 0.5, 0.75, 0.99}
- *             for (Double q : quantiles) {
+ *             for (double q : quantiles) {
  *                c.output(KV.of(q, c.element().quantile(q));
  *             }
  *           }}));
@@ -186,10 +183,11 @@ public final class TDigestQuantiles {
     }
 
     /**
-     * Returns a new {@link PTransform} with a new compression factor {@code cf}.
+     * Sets the compression factor {@code cf}.
      *
-     * <p>This value bounds the maximum number of points resumed in each centroid
-     * and the total number of centroids in the digest.
+     * <p>Keep in mind that a compression factor {@code cf} of c guarantees
+     * a relative error less than 3/c at mid quantiles. <br>
+     * The accuracy will always be significantly less than 1% at extreme quantiles.
      *
      * @param cf the bound value for centroid and digest sizes.
      */
@@ -226,10 +224,11 @@ public final class TDigestQuantiles {
     }
 
     /**
-     * Returns a new {@link PTransform} with a new compression factor {@code cf}.
+     * Sets the compression factor {@code cf}.
      *
-     * <p>This value bounds the maximum number of points resumed in each centroid
-     * and the total number of centroids in the digest.
+     * <p>Keep in mind that a compression factor {@code cf} of c guarantees
+     * a relative error less than 3/c at mid quantiles. <br>
+     * The accuracy will always be significantly less than 1% at extreme quantiles.
      *
      * @param cf the bound value for centroid and digest sizes.
      */
@@ -258,8 +257,9 @@ public final class TDigestQuantiles {
     /**
      * Returns {@link TDigestQuantilesFn} combiner with the given compression factor.
      *
-     * <p>This value bounds the maximum number of points resumed in each centroid
-     * and the total number of centroids in the digest.
+     * <p>Keep in mind that a compression factor {@code cf} of c guarantees
+     * a relative error less than 3/c at mid quantiles. <br>
+     * The accuracy will always be significantly less than 1% at extreme quantiles.
      *
      * @param compression the bound value for centroid and digest sizes.
      */
@@ -304,8 +304,12 @@ public final class TDigestQuantiles {
       return new MergingDigestCoder();
     }
 
-    @Override public MergingDigest defaultValue() {
-      return new MergingDigest(10);
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(DisplayData
+              .item("compression", compression)
+              .withLabel("Compression factor"));
     }
   }
 
