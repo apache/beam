@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.executor.AbstractExecutor;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.joda.time.Duration;
 
 /**
  * Executor implementation using Apache Beam as a runtime.
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 public class BeamExecutor extends AbstractExecutor{
 
   private final PipelineOptions options;
+  private Duration allowedLateness = Duration.ZERO;
 
   private AccumulatorProvider.Factory accumulatorFactory =
       VoidAccumulatorProvider.Factory.get();
@@ -38,7 +40,8 @@ public class BeamExecutor extends AbstractExecutor{
   }
 
   protected Result execute(Flow flow) {
-    final Pipeline pipeline = FlowTranslator.toPipeline(flow, accumulatorFactory, options);
+    final Pipeline pipeline = FlowTranslator.toPipeline(
+        flow, accumulatorFactory, options, allowedLateness);
     final PipelineResult result = pipeline.run();
     // @todo handle result
     result.waitUntilFinish();
@@ -48,5 +51,15 @@ public class BeamExecutor extends AbstractExecutor{
   @Override
   public void setAccumulatorProvider(AccumulatorProvider.Factory accumulatorFactory) {
     this.accumulatorFactory = accumulatorFactory;
+  }
+
+  /**
+   * Specify global allowed lateness for the executor.
+   * @param duration the allowed lateness for all windows
+   * @return this
+   */
+  public BeamExecutor withAllowedLateness(java.time.Duration duration) {
+    this.allowedLateness = Duration.millis(duration.toMillis());
+    return this;
   }
 }
