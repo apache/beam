@@ -47,7 +47,6 @@ job('beam_PostRelease_Python_Candidate') {
         gradle {
             rootBuildScriptDir(common_job_properties.checkoutDir)
             tasks('release:runPythonReleaseCandidate')
-            switches('-Pver=$snapshot_version -Prepourl=$snapshot_url')
         }
     }
 }
