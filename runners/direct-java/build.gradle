@@ -69,3 +69,6 @@ shadowJar {
   relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
   relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
 }
+
+// Generates :runners:direct-java:runQuickstartJavaDirect
+createJavaQuickstartValidationTask(name: 'Direct')
