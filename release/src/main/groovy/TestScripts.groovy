@@ -134,7 +134,7 @@ class TestScripts {
        String errorMessage = new BufferedReader(new InputStreamReader(errorStream))
        .lines().collect(Collectors.joining("\n"));
        println var.lastText
-         _error("Failed command: \n" + errorMessage)
+       _error("Failed command: \n" + errorMessage)
      }
    }
 
