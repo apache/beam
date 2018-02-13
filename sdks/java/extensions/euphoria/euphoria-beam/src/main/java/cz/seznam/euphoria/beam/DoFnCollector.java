@@ -1,5 +1,5 @@
-/**
- * Copyright 2016-2017 Seznam.cz, a.s.
+/*
+ * Copyright 2016-2018 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package cz.seznam.euphoria.beam;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
@@ -22,6 +21,7 @@ import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.Consumer;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
@@ -54,7 +54,7 @@ public class DoFnCollector<OUT> implements Collector<OUT>, Context {
   }
 
   @Override
-  public Object getWindow() {
+  public Window<?> getWindow() {
     // FIXME: we need to return the element's window here
     return GlobalWindowing.Window.get();
   }

@@ -9,7 +9,7 @@ plugins {
 allprojects {
   apply plugin: 'idea'
   group = 'cz.seznam.euphoria'
-  version = '0.8-SNAPSHOT'
+  version = '0.9-SNAPSHOT'
 }
 
 subprojects {

@@ -116,7 +116,7 @@ public class SumByKey<IN, KEY, W extends Window<W>>
     }
 
     @Override
-    public <W extends Window> OutputBuilder<IN, KEY, W>
+    public <W extends Window<W>> OutputBuilder<IN, KEY, W>
     windowBy(Windowing<IN, W> windowing) {
       return new OutputBuilder<>(name, input, keyExtractor, e -> 1L, windowing);
     }

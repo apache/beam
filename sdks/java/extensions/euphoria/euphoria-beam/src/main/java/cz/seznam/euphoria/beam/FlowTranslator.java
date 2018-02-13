@@ -1,5 +1,5 @@
-/**
- * Copyright 2016-2017 Seznam.cz, a.s.
+/*
+ * Copyright 2016-2018 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package cz.seznam.euphoria.beam;
 
 import cz.seznam.euphoria.beam.io.BeamWriteSink;
@@ -85,7 +84,8 @@ class FlowTranslator {
         .map(Node::get)
         .forEach(op -> {
           final PCollection pcs = executorContext.getOutput(op)
-              .orElseThrow(ExceptionUtils.illegal("Dataset " + op.output() + " has not been " +
+              .orElseThrow(ExceptionUtils.illegal(
+                  "Dataset " + op.output() + " has not been " +
                   "materialized"));
           DataSink<?> sink = op.output().getOutputSink();
           pcs.apply(BeamWriteSink.wrap(sink));
