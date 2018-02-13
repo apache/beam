@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.kafka;
 
+import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
 import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
 import cz.seznam.euphoria.core.client.io.UnboundedDataSource;
@@ -206,7 +207,7 @@ public class KafkaSource
             stopReadingAtStamp);
       }
     }
-    try (Consumer<?, ?> c = KafkaUtils.newConsumer(
+    try (Consumer<?, ?> c = newConsumer(
         brokerList, "euphoria.partition-probe-" + UUID.randomUUID().toString(),
         config)) {
 
@@ -240,6 +241,13 @@ public class KafkaSource
               })
               .collect(Collectors.toList());
     }
+  }
+
+  @VisibleForTesting
+  Consumer<byte[], byte[]> newConsumer(String brokerList, @Nullable String groupId, @Nullable Settings config) {
+    return KafkaUtils.newConsumer(
+            brokerList, "euphoria.partition-probe-" + UUID.randomUUID().toString(),
+            config);
   }
 
   @Override
