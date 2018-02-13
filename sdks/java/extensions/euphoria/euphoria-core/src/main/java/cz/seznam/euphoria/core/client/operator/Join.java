@@ -197,7 +197,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<W>>
   }
 
   public static class OutputBuilder<LEFT, RIGHT, KEY, OUT, W extends Window<W>>
-      implements Builders.OutputValues<KEY, OUT> {
+      implements Builders.OutputValues<KEY, OUT>, Builders.Output<Pair<KEY, OUT>> {
 
     private final String name;
     private final Dataset<LEFT> left;

@@ -64,6 +64,13 @@ public class ExceptionUtils {
     }
   }
 
+  /**
+   * Return consumer throwing {@link RuntimeException} on each exception
+   * thrown from given {@link ThrowingConsumer}.
+   * @param <T> type parameter
+   * @param consumer the consumer that throws exception
+   * @return consumer not throwing checked exceptions
+   */
   public static <T> Consumer<T> unchecked(ThrowingConsumer<T> consumer) {
     return what -> {
       try {
@@ -75,6 +82,15 @@ public class ExceptionUtils {
         throw new RuntimeException(ex);
       }
     };
+  }
+
+  /**
+   * Create supplier for {@link IllegalStateException} with given message.
+   * @param message the message for exception
+   * @return exception supplier
+   */
+  public static java.util.function.Supplier<IllegalStateException> illegal(String message) {
+    return () -> new IllegalStateException(message);
   }
 
   @FunctionalInterface

@@ -1,5 +1,5 @@
-/**
- * Copyright 2016-2017 Seznam.cz, a.s.
+/*
+ * Copyright 2016-2018 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  */
 package cz.seznam.euphoria.beam;
 
-import com.google.common.reflect.TypeParameter;
-import com.google.common.reflect.TypeToken;
+import cz.seznam.euphoria.shadow.com.google.common.reflect.TypeParameter;
+import cz.seznam.euphoria.shadow.com.google.common.reflect.TypeToken;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
