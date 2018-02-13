@@ -162,6 +162,7 @@
     <apache-rat-plugin.version>0.12</apache-rat-plugin.version>
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
+    <license-maven-plugin.version>1.14</license-maven-plugin.version>
     <maven-surefire-plugin.version>2.20.1</maven-surefire-plugin.version>
     <maven-failsafe-plugin.version>2.20.1</maven-failsafe-plugin.version>
     <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
