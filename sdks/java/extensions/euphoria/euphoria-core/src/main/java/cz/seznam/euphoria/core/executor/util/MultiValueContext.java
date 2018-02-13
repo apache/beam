@@ -25,97 +25,98 @@ import cz.seznam.euphoria.core.client.io.Context;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Audience(Audience.Type.EXECUTOR)
 public class MultiValueContext<T> implements Context, Collector<T> {
 
-    private final List<T> elements = new ArrayList<>(1);
-    @Nullable
-    final Context wrap;
+  private final List<T> elements = new ArrayList<>(1);
+  @Nullable
+  final Context wrap;
 
-    public MultiValueContext() {
-        this(null);
+  public MultiValueContext() {
+    this(null);
+  }
+
+  public MultiValueContext(Context wrap) {
+    this.wrap = wrap;
+  }
+
+  /**
+   * Replace the stored value with given one.
+   *
+   * @param elem the element to store
+   */
+  @Override
+  public void collect(T elem) {
+    elements.add(elem);
+  }
+
+  @Override
+  public Context asContext() {
+    return this;
+  }
+
+  /**
+   * Retrieve window associated with the stored element.
+   */
+  @Override
+  public Window<?> getWindow() throws UnsupportedOperationException {
+    if (wrap == null) {
+      throw new UnsupportedOperationException(
+          "The window is unknown in this context");
     }
+    return wrap.getWindow();
+  }
 
-    public MultiValueContext(Context wrap) {
-        this.wrap = wrap;
+  @Override
+  public Counter getCounter(String name) {
+    if (wrap == null) {
+      throw new UnsupportedOperationException(
+          "Accumulators not supported in this context");
     }
+    return wrap.getCounter(name);
+  }
 
-    /**
-     * Replace the stored value with given one.
-     *
-     * @param elem the element to store
-     */
-    @Override
-    public void collect(T elem) {
-        elements.add(elem);
+  @Override
+  public Histogram getHistogram(String name) {
+    if (wrap == null) {
+      throw new UnsupportedOperationException(
+          "Accumulators not supported in this context");
     }
+    return wrap.getHistogram(name);
 
-    @Override
-    public Context asContext() {
-        return this;
+  }
+
+  @Override
+  public Timer getTimer(String name) {
+    if (wrap == null) {
+      throw new UnsupportedOperationException(
+          "Accumulators not supported in this context");
     }
+    return wrap.getTimer(name);
 
-    /**
-     * Retrieve window associated with the stored element.
-     */
-    @Override
-    public Window<?> getWindow() throws UnsupportedOperationException {
-        if (wrap == null) {
-            throw new UnsupportedOperationException(
-                    "The window is unknown in this context");
-        }
-        return wrap.getWindow();
-    }
+  }
 
-    @Override
-    public Counter getCounter(String name) {
-        if (wrap == null) {
-            throw new UnsupportedOperationException(
-                    "Accumulators not supported in this context");
-        }
-        return wrap.getCounter(name);
-    }
+  /**
+   * Retrieve and reset the stored elements.
+   *
+   * @return the stored value
+   */
+  public List<T> getAndResetValues() {
+    List<T> copiedElements = new ArrayList<>(elements);
+    elements.clear();
+    return copiedElements;
+  }
 
-    @Override
-    public Histogram getHistogram(String name) {
-        if (wrap == null) {
-            throw new UnsupportedOperationException(
-                    "Accumulators not supported in this context");
-        }
-        return wrap.getHistogram(name);
-
-    }
-
-    @Override
-    public Timer getTimer(String name) {
-        if (wrap == null) {
-            throw new UnsupportedOperationException(
-                    "Accumulators not supported in this context");
-        }
-        return wrap.getTimer(name);
-
-    }
-
-    /**
-     * Retrieve and reset the stored elements.
-     *
-     * @return the stored value
-     */
-    public List<T> getAndResetValue() {
-        List<T> copiedElements = new ArrayList<>(elements);
-        elements.clear();
-        return copiedElements;
-    }
-
-    /**
-     * Retrieve value of this context.
-     *
-     * @return value
-     */
-    public List<T> get() {
-        return elements;
-    }
+  /**
+   * Retrieve value of this context.
+   *
+   * @return value
+   */
+  public List<T> get() {
+    return Collections.unmodifiableList(elements);
+  }
 }
 

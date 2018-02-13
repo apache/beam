@@ -25,7 +25,7 @@ import org.junit.runners.Suite;
  */
 @RunWith(ExecutorProviderRunner.class)
 @Suite.SuiteClasses({
-        BroadcastHashJoinTest.class,
+    BroadcastHashJoinTest.class,
     CountByKeyTest.class,
     DistinctTest.class,
     FilterTest.class,
