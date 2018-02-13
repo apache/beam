@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.kafka;
 
+import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
 import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
 import cz.seznam.euphoria.core.client.io.UnboundedDataSource;
@@ -206,7 +207,7 @@ public class KafkaSource
             stopReadingAtStamp);
       }
     }
-    try (Consumer<?, ?> c = KafkaUtils.newConsumer(
+    try (Consumer<?, ?> c = newConsumer(
         brokerList, "euphoria.partition-probe-" + UUID.randomUUID().toString(),
         config)) {
 
@@ -219,18 +220,34 @@ public class KafkaSource
         throw new RuntimeException(e);
       }
       List<PartitionInfo> ps = c.partitionsFor(topicId);
+
+      if (ps.isEmpty()) {
+        throw new IllegalStateException("No kafka partitions found for topic " + topicId);
+      }
+
       final long stopAtStamp = stopReadingAtStamp;
       final long defaultOffsetTimestamp = offsetTimestamp;
-      return ps.stream().map(p ->
-          // ~ FIXME a leader might not be available (check p.leader().id() == -1)
-          // ... fail in this situation
-          new KafkaPartition(
-              brokerList, topicId, p.partition(),
-              config,
-              offs.getOrDefault(p.partition(), defaultOffsetTimestamp),
-              stopAtStamp))
-          .collect(Collectors.toList());
+      return ps.stream()
+              .map((PartitionInfo p) -> {
+                if (p.leader().id() == -1) {
+                  throw new IllegalStateException("Leader not available");
+                }
+
+                return new KafkaPartition(
+                        brokerList, topicId, p.partition(),
+                        config,
+                        offs.getOrDefault(p.partition(), defaultOffsetTimestamp),
+                        stopAtStamp);
+              })
+              .collect(Collectors.toList());
     }
+  }
+
+  @VisibleForTesting
+  Consumer<byte[], byte[]> newConsumer(String brokerList, @Nullable String groupId, @Nullable Settings config) {
+    return KafkaUtils.newConsumer(
+            brokerList, "euphoria.partition-probe-" + UUID.randomUUID().toString(),
+            config);
   }
 
   @Override
