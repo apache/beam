@@ -31,20 +31,20 @@ import (
 const (
 	// Model constants
 
-	urnBytesCoder         = "urn:beam:coders:bytes:0.1"
-	urnVarIntCoder        = "urn:beam:coders:varint:0.1"
-	urnLengthPrefixCoder  = "urn:beam:coders:length_prefix:0.1"
-	urnKVCoder            = "urn:beam:coders:kv:0.1"
-	urnStreamCoder        = "urn:beam:coders:stream:0.1"
-	urnWindowedValueCoder = "urn:beam:coders:windowed_value:0.1"
+	urnBytesCoder         = "beam:coder:bytes:v1"
+	urnVarIntCoder        = "beam:coder:varint:v1"
+	urnLengthPrefixCoder  = "beam:coder:length_prefix:v1"
+	urnKVCoder            = "beam:coder:kv:v1"
+	urnIterableCoder      = "beam:coder:iterable:v1"
+	urnWindowedValueCoder = "beam:coder:windowed_value:v1"
 
-	urnGlobalWindow         = "urn:beam:coders:global_window:0.1"
-	urnIntervalWindowsCoder = "urn:beam:coders:interval_window:0.1"
+	urnGlobalWindow         = "beam:coder:global_window:v1"
+	urnIntervalWindowsCoder = "beam:coder:interval_window:v1"
 
 	// SDK constants
 
-	urnCustomCoder = "urn:beam:go:coders:custom:v1"
-	urnCoGBKList   = "urn:beam:go:coders:cogbklist:v1" // CoGBK representation. Not a coder.
+	urnCustomCoder = "beam:go:coder:custom:v1"
+	urnCoGBKList   = "beam:go:coder:cogbklist:v1" // CoGBK representation. Not a coder.
 )
 
 // MarshalCoders marshals a list of coders into model coders.
@@ -170,7 +170,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
-		isGBK := elm.GetSpec().GetSpec().GetUrn() == urnStreamCoder
+		isGBK := elm.GetSpec().GetSpec().GetUrn() == urnIterableCoder
 		if isGBK {
 			id = elm.GetComponentCoderIds()[0]
 			kind = coder.CoGBK
@@ -345,7 +345,7 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 			value = b.internBuiltInCoder(urnLengthPrefixCoder, union)
 		}
 
-		stream := b.internBuiltInCoder(urnStreamCoder, value)
+		stream := b.internBuiltInCoder(urnIterableCoder, value)
 		return b.internBuiltInCoder(urnKVCoder, comp[0], stream)
 
 	case coder.WindowedValue:
