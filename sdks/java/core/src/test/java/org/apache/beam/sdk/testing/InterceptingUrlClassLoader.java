@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
+import com.google.common.base.Predicates;
 import com.google.common.collect.Sets;
 import com.google.common.io.ByteStreams;
 import java.io.IOException;
-import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * A classloader that intercepts loading of specifically named classes. This classloader copies
@@ -28,11 +29,15 @@ import java.util.Set;
  * with multiple classloaders..
  */
 public class InterceptingUrlClassLoader extends ClassLoader {
-    private final Set<String> ownedClasses;
+    private final Predicate<String> test;
 
     public InterceptingUrlClassLoader(final ClassLoader parent, final String... ownedClasses) {
+        this(parent, Predicates.in(Sets.newHashSet(ownedClasses))::apply);
+    }
+
+    public InterceptingUrlClassLoader(final ClassLoader parent, final Predicate<String> test) {
         super(parent);
-        this.ownedClasses = Sets.newHashSet(ownedClasses);
+        this.test = test;
     }
 
     @Override
@@ -42,7 +47,7 @@ public class InterceptingUrlClassLoader extends ClassLoader {
             return alreadyLoaded;
         }
 
-        if (name != null && ownedClasses.contains(name)) {
+        if (name != null && test.test(name)) {
             try {
                 final String classAsResource = name.replace('.', '/') + ".class";
                 final byte[] classBytes =

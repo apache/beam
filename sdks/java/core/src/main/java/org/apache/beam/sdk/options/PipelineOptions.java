@@ -36,6 +36,7 @@ import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.ReleaseInfo;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -285,7 +286,9 @@ public interface PipelineOptions extends HasDisplayData {
         @SuppressWarnings({"unchecked", "rawtypes"})
         Class<? extends PipelineRunner<?>> direct =
             (Class<? extends PipelineRunner<?>>)
-                Class.forName("org.apache.beam.runners.direct.DirectRunner");
+                Class.forName(
+                  "org.apache.beam.runners.direct.DirectRunner", true,
+                  ReflectHelpers.findClassLoader());
         return direct;
       } catch (ClassNotFoundException e) {
         throw new IllegalArgumentException(String.format(
