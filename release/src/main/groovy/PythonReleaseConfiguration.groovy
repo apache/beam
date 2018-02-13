@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-class ReleaseConfiguration {
+class PythonReleaseConfiguration {
 
     // Python Release Candidate
     static final String VERSION             = '2.3.0'
@@ -28,11 +28,16 @@ class ReleaseConfiguration {
 
 
     // Cloud Configurations
+
+    /* for local test
     static final String PROJECT_ID            = 'my-first-project-190318'
     static final String BUCKET_NAME           = 'yifan_auto_verification_test_bucket'
     static final String TEMP_DIR              = '/temp'
+    */
+    static final String PROJECT_ID            = 'apache-beam-testing'
+    static final String BUCKET_NAME           = 'temp-storage-for-release-validation-tests'
+    static final String TEMP_DIR              = '/quickstart'
     static final int NUM_WORKERS              = 1
-    static final String GAME_DATA             = '5000_gaming_data.csv'
     static final String WORDCOUNT_OUTPUT      = 'wordcount_direct.txt'
     static final String PUBSUB_TOPIC1         = 'wordstream-python-topic-1'
     static final String PUBSUB_TOPIC2         = 'wordstream-python-topic-2'

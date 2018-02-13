@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-import ReleaseConfiguration
+import PythonReleaseConfiguration
 import TestScripts
 
 /*
@@ -43,10 +43,10 @@ StringBuilder cmd = new StringBuilder()
 * */
 println "python sdk validation start"
 t.run("pwd")
-t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.SHA1_FILE_NAME}")
-t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.MD5_FILE_NAME}")
-t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.BEAM_PYTHON_SDK}")
-t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.BEAM_PYTHON_RELEASE}")
+t.run("wget ${PythonReleaseConfiguration.CANDIDATE_URL}${PythonReleaseConfiguration.SHA1_FILE_NAME}")
+t.run("wget ${PythonReleaseConfiguration.CANDIDATE_URL}${PythonReleaseConfiguration.MD5_FILE_NAME}")
+t.run("wget ${PythonReleaseConfiguration.CANDIDATE_URL}${PythonReleaseConfiguration.BEAM_PYTHON_SDK}")
+t.run("wget ${PythonReleaseConfiguration.CANDIDATE_URL}${PythonReleaseConfiguration.BEAM_PYTHON_RELEASE}")
 
 
 /*
@@ -54,9 +54,9 @@ t.run("wget ${ReleaseConfiguration.CANDIDATE_URL}${ReleaseConfiguration.BEAM_PYT
 *
 * */
 print_separator("Checking sha1 and md5 hashes ")
-t.run("sha1sum -c ${ReleaseConfiguration.SHA1_FILE_NAME}")
+t.run("sha1sum -c ${PythonReleaseConfiguration.SHA1_FILE_NAME}")
 t.see("OK")
-t.run("md5sum -c ${ReleaseConfiguration.MD5_FILE_NAME}")
+t.run("md5sum -c ${PythonReleaseConfiguration.MD5_FILE_NAME}")
 t.see("OK")
 
 
@@ -65,16 +65,16 @@ t.see("OK")
 *
 * */
 print_separator("Creating new virtualenv and installing the SDK")
-t.run("unzip ${ReleaseConfiguration.BEAM_PYTHON_RELEASE}")
-t.run("cd apache-beam-${ReleaseConfiguration.VERSION}/sdks/python/")
+t.run("unzip ${PythonReleaseConfiguration.BEAM_PYTHON_RELEASE}")
+t.run("cd apache-beam-${PythonReleaseConfiguration.VERSION}/sdks/python/")
 t.run("pip install --upgrade setuptools pip")
 t.run("pip --version")
 t.run("virtualenv temp_virtualenv")
 
 //t.run(". temp_virtualenv/bin/activate")
 //t.run("python setup.py sdist")
-//t.run("pip install dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz[gcp]")
-t.run(". temp_virtualenv/bin/activate && python setup.py sdist && pip install dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz[gcp]")
+//t.run("pip install dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz[gcp]")
+t.run(". temp_virtualenv/bin/activate && python setup.py sdist && pip install dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz[gcp]")
 println()
 
 
@@ -95,24 +95,25 @@ println()
 * */
 cmd.setLength(0) // clear the cmd buffer
 cmd.append("python -m apache_beam.examples.wordcount ")
-    .append("--output gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT} ")
-    .append("--staging_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
-    .append("--temp_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
+    .append("--output gs://${PythonReleaseConfiguration.BUCKET_NAME}/${PythonReleaseConfiguration.WORDCOUNT_OUTPUT} ")
+    .append("--staging_location gs://${PythonReleaseConfiguration.BUCKET_NAME}${PythonReleaseConfiguration.TEMP_DIR} ")
+    .append("--temp_location gs://${PythonReleaseConfiguration.BUCKET_NAME}${PythonReleaseConfiguration.TEMP_DIR} ")
     .append("--runner DataflowRunner ")
     .append("--job_name wordcount ")
-    .append("--project ${ReleaseConfiguration.PROJECT_ID} ")
-    .append("--num_workers ${ReleaseConfiguration.NUM_WORKERS} ")
-    .append("--sdk_location dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz ")
+    .append("--project ${PythonReleaseConfiguration.PROJECT_ID} ")
+    .append("--num_workers ${PythonReleaseConfiguration.NUM_WORKERS} ")
+    .append("--sdk_location dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz ")
 print_separator("Running wordcount example with DataflowRunner with command: ", cmd.toString())
 t.run(cmd.toString())
 // verify results.
-t.run("gsutil ls gs://${ReleaseConfiguration.BUCKET_NAME}")
+t.run("gsutil ls gs://${PythonReleaseConfiguration.BUCKET_NAME}")
 4.times {
-  t.see("gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT}-0000${it}-of-00004")
+  t.see("gs://${PythonReleaseConfiguration.BUCKET_NAME}/${PythonReleaseConfiguration.WORDCOUNT_OUTPUT}-0000${it}-of-00004")
 }
 // clean output files from GCS
-t.run("gsutil rm gs://${ReleaseConfiguration.BUCKET_NAME}/${ReleaseConfiguration.WORDCOUNT_OUTPUT}-*")
+t.run("gsutil rm gs://${PythonReleaseConfiguration.BUCKET_NAME}/${PythonReleaseConfiguration.WORDCOUNT_OUTPUT}-*")
 println()
+
 
 /*
 * 6. Run Streaming wordcount with DirectRunner
@@ -123,9 +124,9 @@ create_pubsub(t)
 
 cmd.setLength(0) // clear the cmd buffer
 cmd.append("python -m apache_beam.examples.streaming_wordcount ")
-        .append("--input_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC1} ")
-        .append("--output_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC2} ")
-        .append("--streaming")
+    .append("--input_topic projects/${PythonReleaseConfiguration.PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC1} ")
+    .append("--output_topic projects/${PythonReleaseConfiguration.PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC2} ")
+    .append("--streaming")
 
 print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
 def streaming_wordcount_thread = Thread.start(){
@@ -140,20 +141,22 @@ t.see("like: 1")
 streaming_wordcount_thread.stop()
 println()
 
+
 /*
  * 7. Run Streaming Wordcount with DataflowRunner
 * */
 cmd.setLength(0) //clear the cmd buffer
 cmd.append("python -m apache_beam.examples.streaming_wordcount ")
-        .append("--streaming ")
-        .append("--job_name pyflow-wordstream-candidate ")
-        .append("runner DataflowRunner ")
-        .append("--input_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC1} ")
-        .append("--output_topic projects/${ReleaseConfiguration.PROJECT_ID}/topics/${ReleaseConfiguration.PUBSUB_TOPIC2} ")
-        .append("--staging_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
-        .append("--temp_location gs://${ReleaseConfiguration.BUCKET_NAME}${ReleaseConfiguration.TEMP_DIR} ")
-        .append("--num_workers ${ReleaseConfiguration.NUM_WORKERS} ")
-        .append("--sdk_location dist/apache-beam-${ReleaseConfiguration.VERSION}.tar.gz ")
+    .append("--streaming ")
+    .append("--job_name pyflow-wordstream-candidate ")
+    .append("--project ${PythonReleaseConfiguration.PROJECT_ID} ")
+    .append("--runner DataflowRunner ")
+    .append("--input_topic projects/${PythonReleaseConfiguration.PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC1} ")
+    .append("--output_topic projects/${PythonReleaseConfiguration.PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC2} ")
+    .append("--staging_location gs://${PythonReleaseConfiguration.BUCKET_NAME}${PythonReleaseConfiguration.TEMP_DIR} ")
+    .append("--temp_location gs://${PythonReleaseConfiguration.BUCKET_NAME}${PythonReleaseConfiguration.TEMP_DIR} ")
+    .append("--num_workers ${PythonReleaseConfiguration.NUM_WORKERS} ")
+    .append("--sdk_location dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz ")
 
 print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
 def streaming_wordcount_dataflow_thread = Thread.start(){
@@ -179,24 +182,24 @@ t.done()
 private void run_pubsub_publish(TestScripts t){
     def words = ["hello world!", "I like cats!", "Python", "hello Python", "hello Python"]
     words.each {
-        t.run("gcloud alpha pubsub topics publish ${ReleaseConfiguration.PUBSUB_TOPIC1} \"${it}\"")
+        t.run("gcloud alpha pubsub topics publish ${PythonReleaseConfiguration.PUBSUB_TOPIC1} \"${it}\"")
     }
     t.run("sleep 15")
 }
 
 private void run_pubsub_pull(TestScripts t){
-    t.run("gcloud alpha pubsub subscriptions pull --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_SUBSCRIPTION} --limit=100 --auto-ack")
+    t.run("gcloud alpha pubsub subscriptions pull --project=${PythonReleaseConfiguration.PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION} --limit=100 --auto-ack")
 }
 private void create_pubsub(TestScripts t){
-    t.run("gcloud alpha pubsub topics create --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_TOPIC1}")
-    t.run("gcloud alpha pubsub topics create --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_TOPIC2}")
-    t.run("gcloud alpha pubsub subscriptions create --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_SUBSCRIPTION} --topic ${ReleaseConfiguration.PUBSUB_TOPIC2}")
+    t.run("gcloud alpha pubsub topics create --project=${PythonReleaseConfiguration.PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC1}")
+    t.run("gcloud alpha pubsub topics create --project=${PythonReleaseConfiguration.PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
+    t.run("gcloud alpha pubsub subscriptions create --project=${PythonReleaseConfiguration.PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION} --topic ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
 }
 
 private void cleanup_pubsub(TestScripts t){
-    t.run("gcloud alpha pubsub topics delete --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_TOPIC1}")
-    t.run("gcloud alpha pubsub topics delete --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_TOPIC2}")
-    t.run("gcloud alpha pubsub subscriptions delete --project=${ReleaseConfiguration.PROJECT_ID} ${ReleaseConfiguration.PUBSUB_SUBSCRIPTION}")
+    t.run("gcloud alpha pubsub topics delete --project=${PythonReleaseConfiguration.PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC1}")
+    t.run("gcloud alpha pubsub topics delete --project=${PythonReleaseConfiguration.PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
+    t.run("gcloud alpha pubsub subscriptions delete --project=${PythonReleaseConfiguration.PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION}")
 }
 
 private void print_separator(String description, String cmd=''){
