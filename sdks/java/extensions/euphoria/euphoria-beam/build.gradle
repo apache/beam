@@ -10,3 +10,5 @@ dependencies {
   testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
   testCompile "org.apache.beam:beam-runners-direct-java:${beamVersion}"
 }
+
+test.testLogging.showStandardStreams = true
