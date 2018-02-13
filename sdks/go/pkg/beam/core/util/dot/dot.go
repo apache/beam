@@ -37,7 +37,7 @@ digraph execution_plan {
 	concentrate="true";
 
 	// Node definition used for multiedge
-  node [shape="square" style="filled" fillcolor="honeydew" fontname="Ubuntu" penwidth="1.0" margin="0.05,0.0.05"];
+  node [shape="rectangle" style="filled" fillcolor="honeydew" fontname="Ubuntu" penwidth="1.0" margin="0.05,0.0.05"];
 
 	bgcolor="#e6ecfa";
 `
