@@ -35,7 +35,6 @@ from collections import defaultdict
 from apache_beam.metrics.cells import CounterCell
 from apache_beam.metrics.cells import DistributionCell
 from apache_beam.metrics.cells import GaugeCell
-from apache_beam.metrics.metricbase import MetricName
 from apache_beam.portability.api import beam_fn_api_pb2
 
 
