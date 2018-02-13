@@ -24,6 +24,14 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 
 test {
   jvmArgs "-da"
+
+  // charset that calcite will use for the tables in the tests
+  // need to setup as system property prior to running any tests
+  // or some of the tests may fail as calcite will init itself
+  // with it's default of ISO-8859-1
+  systemProperty 'saffron.default.charset', 'UTF-16LE'
+  systemProperty 'saffron.default.nationalcharset', 'UTF-16LE'
+  systemProperty 'saffron.default.collation.name', 'UTF-16LE$en_US'
 }
 
 configurations {
