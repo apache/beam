@@ -69,7 +69,9 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     } else {
       input = context.getInput(operator)
           .apply(org.apache.beam.sdk.transforms.windowing.Window.into(
-              BeamWindowFn.wrap(operator.getWindowing())));
+              BeamWindowFn.wrap(operator.getWindowing()))
+          .discardingFiredPanes()
+          .withAllowedLateness(context.getAllowedLateness(operator)));
     }
 
     // ~ create key & value extractor
@@ -86,7 +88,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
     if (operator.isCombinable()) {
       final PCollection<KV<KEY, VALUE>> combined = extracted.apply(
-          Combine.perKey(asCombiner(operator.getReducer())));
+          Combine.perKey(asCombiner(reducer)));
 
       // remap from KVs to Pairs
       PCollection<Pair<KEY, VALUE>> kvs = combined.apply(
@@ -109,7 +111,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
         .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
 
       return grouped
-          .apply(ParDo.of(new ReduceDoFn<>(operator.getReducer(), accumulators)));
+          .apply(ParDo.of(new ReduceDoFn<>(reducer, accumulators)));
     }
   }
 
@@ -138,7 +140,7 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       reducer.apply(StreamSupport.stream(ctx.element().getValue().spliterator(), false),
-          new DoFnCollector<>(accumulators, (out) ->
+          new DoFnCollector<>(accumulators, out ->
               ctx.output(Pair.of(ctx.element().getKey(), out))));
     }
   }

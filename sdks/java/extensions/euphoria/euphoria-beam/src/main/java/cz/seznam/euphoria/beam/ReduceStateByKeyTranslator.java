@@ -15,24 +15,15 @@
  */
 package cz.seznam.euphoria.beam;
 
-import cz.seznam.euphoria.beam.io.KryoCoder;
-import cz.seznam.euphoria.beam.window.BeamWindowFn;
-import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 public class ReduceStateByKeyTranslator implements OperatorTranslator<ReduceStateByKey> {
 
   @Override
   @SuppressWarnings("unchecked")
   public PCollection<?> translate(ReduceStateByKey operator, BeamExecutorContext context) {
+    /*
     PCollection<Object> input = context.getInput(operator);
     final UnaryFunction<Object, Object> keyExtractor = operator.getKeyExtractor();
     final UnaryFunction<Object, Object> valueExtractor = operator.getValueExtractor();
@@ -43,35 +34,33 @@ public class ReduceStateByKeyTranslator implements OperatorTranslator<ReduceStat
             .via(e -> KV.of(keyExtractor.apply(e), valueExtractor.apply(e))))
         .setCoder(KvCoder.of(new KryoCoder<>(), new KryoCoder<>()));
 
-//    final Windowing<Object, Window> windowing = operator.getWindowing();
-//
-//    if (windowing != null) {
-//      BeamWindowFn wrap = BeamWindowFn.wrap(operator.getWindowing());
-//      org.apache.beam.sdk.transforms.windowing.Window<Object> into =
-//          org.apache.beam.sdk.transforms.windowing.Window.into(wrap);
-//    }
+    final Windowing<Object, Window> windowing = operator.getWindowing();
 
-//    if (operator.isCombinable()) {
-//      // combine
-//      kvs = kvs.apply(Combine.perKey(asSerializableCombinableFunction(
-//          (ReduceFunctor) operator.getReducer())));
-    // remap from KVs to Pairs
-//      col = (PCollection<Object, Object>>) col.apply(
-//          MapElements
-//              .into(pairDescriptor())
-//              .via((KV kv) -> Pair.of(kv.getKey(), kv.getValue())));
-//      kvs.setCoder(new KryoCoder<>());
-//    } else {
-    // reduce
-    return (PCollection<?>) extracted
-        .apply(GroupByKey.create())
-//        .apply(ParDo.of(ReduceByKeyTranslator.asReduceParDo(operator.get())))
-        .setCoder(new KryoCoder<>());
+    if (windowing != null) {
+      BeamWindowFn wrap = BeamWindowFn.wrap(operator.getWindowing());
+      org.apache.beam.sdk.transforms.windowing.Window<Object> into =
+          org.apache.beam.sdk.transforms.windowing.Window.into(wrap);
+    }
+
+    if (operator.isCombinable()) {
+      // combine
+      kvs = kvs.apply(Combine.perKey(asSerializableCombinableFunction(
+          (ReduceFunctor) operator.getReducer())));
+      // remap from KVs to Pairs
+      col = (PCollection<Object, Object>>) col.apply(
+          MapElements
+              .into(pairDescriptor())
+              .via((KV kv) -> Pair.of(kv.getKey(), kv.getValue())));
+      kvs.setCoder(new KryoCoder<>());
+    } else {
+      // reduce
+      return (PCollection<?>) extracted
+          .apply(GroupByKey.create())
+          .apply(ParDo.of(ReduceByKeyTranslator.asReduceParDo(operator.get())))
+          .setCoder(new KryoCoder<>());
+    }
+    */
+    throw new UnsupportedOperationException("Not supported yet");
   }
 
-  private static TypeDescriptor<KV<Object, Object>> kvDescriptor() {
-    return new TypeDescriptor<KV<Object, Object>>() {
-
-    };
-  }
 }
