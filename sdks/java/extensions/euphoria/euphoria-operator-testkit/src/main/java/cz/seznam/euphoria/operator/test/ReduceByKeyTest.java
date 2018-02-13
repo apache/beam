@@ -40,11 +40,11 @@ import cz.seznam.euphoria.core.client.triggers.CountTrigger;
 import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
+import cz.seznam.euphoria.core.client.type.TypeHint;
 import cz.seznam.euphoria.core.client.util.Fold;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
-import cz.seznam.euphoria.core.client.type.TypeHint;
 import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
@@ -742,9 +742,9 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         input = AssignEventTime.of(input).using(Pair::getSecond).output();
         Dataset<Pair<String, Integer>> reduced =
             ReduceByKey.of(input)
-                .keyBy(e -> "", new TypeHint<String>() {})
-                .valueBy(Pair::getFirst, new TypeHint<Integer>() {})
-                .combineBy(Sums.ofInts(), new TypeHint<Integer>() {})
+                .keyBy(e -> "", TypeHint.ofString())
+                .valueBy(Pair::getFirst, TypeHint.ofInt())
+                .combineBy(Sums.ofInts(), TypeHint.ofInt())
                 .windowBy(Time.of(Duration.ofSeconds(5)))
                 .output();
         // ~ now use a custom windowing with a trigger which does

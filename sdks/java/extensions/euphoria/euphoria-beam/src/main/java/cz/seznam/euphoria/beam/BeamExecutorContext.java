@@ -1,5 +1,5 @@
-/**
- * Copyright 2016-2017 Seznam.cz, a.s.
+/*
+ * Copyright 2016-2018 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package cz.seznam.euphoria.beam;
 
-import com.google.common.collect.Iterables;
-import com.google.common.reflect.TypeToken;
 import cz.seznam.euphoria.beam.io.KryoCoder;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
@@ -31,6 +28,7 @@ import cz.seznam.euphoria.core.client.type.TypeHint;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
