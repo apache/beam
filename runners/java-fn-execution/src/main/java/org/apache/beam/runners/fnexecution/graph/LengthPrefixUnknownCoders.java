@@ -41,7 +41,7 @@ public class LengthPrefixUnknownCoders {
           "beam:coder:kv:v1",
           "beam:coder:varint:v1",
           "beam:coder:interval_window:v1",
-          "beam:coder:stream:v1",
+          "beam:coder:iterable:v1",
           LENGTH_PREFIX_CODER_TYPE,
           "beam:coder:global_window:v1",
           "beam:coder:windowed_value:v1");
