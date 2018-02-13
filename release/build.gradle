@@ -34,3 +34,8 @@ task runQuickstartsJava {
   dependsOn ":runners:spark:runQuickstartJavaSpark"
   dependsOn ":runners:flink:runQuickstartJavaFlinkLocal"
 }
+
+task runPythonReleaseCandidate (dependsOn: 'classes', type: JavaExec){
+  main = 'candidate_verification_python_sdk'
+  classpath = sourceSets.main.runtimeClasspath
+}
