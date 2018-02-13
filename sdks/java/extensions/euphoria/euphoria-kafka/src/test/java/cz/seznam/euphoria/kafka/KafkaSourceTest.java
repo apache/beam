@@ -51,8 +51,7 @@ public class KafkaSourceTest {
   @Test(expected = IllegalStateException.class)
   @SuppressWarnings("unchecked")
   public void testNoLeader() {
-    Node leaderNode = new Node(-1, "localhost", 3333); // -1 no leader, constant not even defined in Kafka
-    PartitionInfo pi = new PartitionInfo("topic", 0, leaderNode, null, null);
+    PartitionInfo pi = new PartitionInfo("topic", 0, Node.noNode(), null, null);
     tryGetPartitions(Collections.emptyList());
   }
 
