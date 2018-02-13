@@ -72,14 +72,14 @@ public class BeamSqlCaseExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "world"));
     assertEquals("hello", new BeamSqlCaseExpression(operands)
-        .evaluate(record, null).getValue());
+        .evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "world"));
     assertEquals("world", new BeamSqlCaseExpression(operands)
-        .evaluate(record, null).getValue());
+        .evaluate(row, null).getValue());
 
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
@@ -88,6 +88,6 @@ public class BeamSqlCaseExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello1"));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "world"));
     assertEquals("hello1", new BeamSqlCaseExpression(operands)
-        .evaluate(record, null).getValue());
+        .evaluate(row, null).getValue());
   }
 }

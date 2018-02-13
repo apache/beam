@@ -18,16 +18,16 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BeamRecordCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlSelect;
@@ -114,7 +114,7 @@ public class BeamSql {
    * query.
    */
   public static class QueryTransform extends
-      PTransform<PCollectionTuple, PCollection<BeamRecord>> {
+      PTransform<PCollectionTuple, PCollection<Row>> {
     private BeamSqlEnv beamSqlEnv = new BeamSqlEnv();
     private String sqlQuery;
 
@@ -149,7 +149,7 @@ public class BeamSql {
      }
 
     @Override
-    public PCollection<BeamRecord> expand(PCollectionTuple input) {
+    public PCollection<Row> expand(PCollectionTuple input) {
       registerTables(input);
 
       BeamRelNode beamRelNode = null;
@@ -169,12 +169,11 @@ public class BeamSql {
     //register tables, related with input PCollections.
     private void registerTables(PCollectionTuple input){
       for (TupleTag<?> sourceTag : input.getAll().keySet()) {
-        PCollection<BeamRecord> sourceStream = (PCollection<BeamRecord>) input.get(sourceTag);
-        BeamRecordCoder sourceCoder = (BeamRecordCoder) sourceStream.getCoder();
+        PCollection<Row> sourceStream = (PCollection<Row>) input.get(sourceTag);
+        RowCoder sourceCoder = (RowCoder) sourceStream.getCoder();
 
         beamSqlEnv.registerTable(sourceTag.getId(),
-            new BeamPCollectionTable(sourceStream,
-                (BeamRecordSqlType) sourceCoder.getRecordType()));
+            new BeamPCollectionTable(sourceStream, sourceCoder.getRowType()));
       }
     }
   }
@@ -184,7 +183,7 @@ public class BeamSql {
    * a single table.
    */
   public static class SimpleQueryTransform
-      extends PTransform<PCollection<BeamRecord>, PCollection<BeamRecord>> {
+      extends PTransform<PCollection<Row>, PCollection<Row>> {
     private static final String PCOLLECTION_TABLE_NAME = "PCOLLECTION";
     private QueryTransform delegate;
 
@@ -241,7 +240,7 @@ public class BeamSql {
     }
 
     @Override
-    public PCollection<BeamRecord> expand(PCollection<BeamRecord> input) {
+    public PCollection<Row> expand(PCollection<Row> input) {
       validateQuery();
       return PCollectionTuple.of(new TupleTag<>(PCOLLECTION_TABLE_NAME), input).apply(delegate);
     }

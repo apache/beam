@@ -21,15 +21,14 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 
 /**
  * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}.
- * It holds the value, and return it directly during {@link #evaluate(BeamRecord, BoundedWindow)}.
+ * It holds the value, and return it directly during {@link #evaluate(Row, BoundedWindow)}.
  *
  */
 public class BeamSqlPrimitive<T> extends BeamSqlExpression {
@@ -150,7 +149,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<T> evaluate(BeamRecord inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<T> evaluate(Row inputRow, BoundedWindow window) {
     return this;
   }
 

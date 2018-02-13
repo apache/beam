@@ -59,10 +59,3 @@ dependencies {
   testCompile "org.apache.hive:hive-common:$hive_version"
   testCompile "org.apache.hive:hive-cli:$hive_version"
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

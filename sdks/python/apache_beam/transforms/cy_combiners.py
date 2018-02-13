@@ -77,6 +77,7 @@ class SumInt64Accumulator(object):
     self.value = 0
 
   def add_input(self, element):
+    global INT64_MAX, INT64_MIN  # pylint: disable=global-variable-not-assigned
     element = int(element)
     if not INT64_MIN <= element <= INT64_MAX:
       raise OverflowError(element)

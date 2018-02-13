@@ -21,14 +21,13 @@ import com.google.common.base.Joiner;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-
 import org.apache.avro.reflect.AvroIgnore;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 
 /**
- * Checkpoint for an unbounded KafkaIO.Read. Consists of Kafka topic name, partition id,
+ * Checkpoint for a {@link KafkaUnboundedReader}. Consists of Kafka topic name, partition id,
  * and the latest offset consumed so far.
  */
 @DefaultCoder(AvroCoder.class)
@@ -37,12 +36,12 @@ public class KafkaCheckpointMark implements UnboundedSource.CheckpointMark {
   private List<PartitionMark> partitions;
 
   @AvroIgnore
-  private KafkaIO.UnboundedKafkaReader<?, ?> reader; // Non-null when offsets need to be committed.
+  private KafkaUnboundedReader<?, ?> reader; // Non-null when offsets need to be committed.
 
   private KafkaCheckpointMark() {} // for Avro
 
   public KafkaCheckpointMark(List<PartitionMark> partitions,
-                             KafkaIO.UnboundedKafkaReader<?, ?> reader) {
+                             KafkaUnboundedReader<?, ?> reader) {
     this.partitions = partitions;
     this.reader = reader;
   }

@@ -30,10 +30,3 @@ dependencies {
   shadow library.java.grpc_protobuf
   shadow library.java.grpc_stub
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

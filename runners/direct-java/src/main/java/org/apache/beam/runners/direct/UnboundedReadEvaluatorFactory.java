@@ -45,15 +45,12 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A {@link TransformEvaluatorFactory} that produces {@link TransformEvaluator TransformEvaluators}
  * for the {@link Unbounded Read.Unbounded} primitive {@link PTransform}.
  */
 class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
-  private static final Logger LOG = LoggerFactory.getLogger(UnboundedReadEvaluatorFactory.class);
   // Occasionally close an existing reader and resume from checkpoint, to exercise close-and-resume
   private static final double DEFAULT_READER_REUSE_CHANCE = 0.95;
 

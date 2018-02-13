@@ -300,7 +300,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryValue<>();
+              return new InMemoryValue<>(coder);
             }
           }
 
@@ -317,7 +317,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryCombiningState<>(combineFn);
+              return new InMemoryCombiningState<>(combineFn, accumCoder);
             }
           }
 
@@ -331,7 +331,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryBag<>();
+              return new InMemoryBag<>(elemCoder);
             }
           }
 
@@ -345,7 +345,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemorySet<>();
+              return new InMemorySet<>(elemCoder);
             }
           }
 
@@ -361,7 +361,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryMap<>();
+              return new InMemoryMap<>(mapKeyCoder, mapValueCoder);
             }
           }
 

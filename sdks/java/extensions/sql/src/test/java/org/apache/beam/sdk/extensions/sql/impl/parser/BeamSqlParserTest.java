@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
+import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.INTEGER;
+import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.VARCHAR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -25,7 +27,6 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
 import java.net.URI;
-import java.sql.Types;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.calcite.sql.SqlNode;
@@ -121,6 +122,18 @@ public class BeamSqlParserTest {
     );
   }
 
+  @Test
+  public void testParseDropTable() throws Exception {
+    BeamSqlParser parser = new BeamSqlParser("drop table person");
+    SqlNode sqlNode = parser.impl().parseSqlStmtEof();
+
+    assertNotNull(sqlNode);
+    assertTrue(sqlNode instanceof SqlDropTable);
+    SqlDropTable stmt = (SqlDropTable) sqlNode;
+    assertNotNull(stmt);
+    assertEquals("person", stmt.tableName());
+  }
+
   private Table parseTable(String sql) throws Exception {
     BeamSqlParser parser = new BeamSqlParser(sql);
     SqlNode sqlNode = parser.impl().parseSqlStmtEof();
@@ -150,13 +163,13 @@ public class BeamSqlParserTest {
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")
-                .type(Types.INTEGER)
+                .coder(INTEGER)
                 .primaryKey(false)
                 .comment("id")
                 .build(),
             Column.builder()
                 .name("name")
-                .type(Types.VARCHAR)
+                .coder(VARCHAR)
                 .primaryKey(false)
                 .comment("name")
                 .build()

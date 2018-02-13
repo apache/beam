@@ -31,11 +31,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -49,6 +49,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
@@ -90,6 +91,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.clients.producer.MockProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -119,8 +121,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Tests of {@link KafkaIO}.
- * Run with 'mvn test -Dkafka.clients.version=0.10.1.1',
- * or 'mvn test -Dkafka.clients.version=0.9.0.1' for either Kafka client version.
+ * Run with 'mvn test -Dkafka.clients.version=0.10.1.1', to test with a specific Kafka version.
  */
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
@@ -184,12 +185,8 @@ public class KafkaIOTest {
 
     final MockConsumer<byte[], byte[]> consumer =
         new MockConsumer<byte[], byte[]>(offsetResetStrategy) {
-          // override assign() in order to set offset limits & to save assigned partitions.
-          //remove keyword '@Override' here, it can work with Kafka client 0.9 and 0.10 as:
-          //1. SpEL can find this function, either input is List or Collection;
-          //2. List extends Collection, so super.assign() could find either assign(List)
-          //  or assign(Collection).
-          public void assign(final List<TopicPartition> assigned) {
+          @Override
+          public void assign(final Collection<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
             for (TopicPartition tp : assigned) {
@@ -198,34 +195,21 @@ public class KafkaIOTest {
             }
           }
           // Override offsetsForTimes() in order to look up the offsets by timestamp.
-          // Remove keyword '@Override' here, Kafka client 0.10.1.0 previous versions does not have
-          // this method.
-          // Should return Map<TopicPartition, OffsetAndTimestamp>, but 0.10.1.0 previous versions
-          // does not have the OffsetAndTimestamp class. So return a raw type and use reflection
-          // here.
-          @SuppressWarnings("unchecked")
-          public Map offsetsForTimes(Map<TopicPartition, Long> timestampsToSearch) {
-            HashMap<TopicPartition, Object> result = new HashMap<>();
-            try {
-              Class<?> cls = Class.forName("org.apache.kafka.clients.consumer.OffsetAndTimestamp");
-              // OffsetAndTimestamp(long offset, long timestamp)
-              Constructor constructor = cls.getDeclaredConstructor(long.class, long.class);
-
-              // In test scope, timestamp == offset.
-              for (Map.Entry<TopicPartition, Long> entry : timestampsToSearch.entrySet()) {
-                long maxOffset = offsets[partitions.indexOf(entry.getKey())];
-                Long offset = entry.getValue();
-                if (offset >= maxOffset) {
-                  offset = null;
-                }
-                result.put(
-                    entry.getKey(), constructor.newInstance(entry.getValue(), offset));
-              }
-              return result;
-            } catch (ClassNotFoundException | IllegalAccessException
-                | InstantiationException | NoSuchMethodException | InvocationTargetException e) {
-              throw new RuntimeException(e);
-            }
+          @Override
+          public Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(
+            Map<TopicPartition, Long> timestampsToSearch) {
+            return timestampsToSearch
+              .entrySet()
+              .stream()
+              .map(e -> {
+                // In test scope, timestamp == offset.
+                long maxOffset = offsets[partitions.indexOf(e.getKey())];
+                long offset = e.getValue();
+                OffsetAndTimestamp value = (offset >= maxOffset)
+                  ? null : new OffsetAndTimestamp(offset, offset);
+                return new SimpleEntry<>(e.getKey(), value);
+              })
+              .collect(Collectors.toMap(SimpleEntry::getKey, SimpleEntry::getValue));
           }
         };
 
@@ -722,8 +706,8 @@ public class KafkaIOTest {
             MetricsFilter.builder()
                 .addNameFilter(
                     MetricNameFilter.named(
-                        KafkaIO.UnboundedKafkaReader.METRIC_NAMESPACE,
-                        KafkaIO.UnboundedKafkaReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC))
+                        KafkaUnboundedReader.METRIC_NAMESPACE,
+                        KafkaUnboundedReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC))
                 .build());
 
     assertThat(commitsEnqueuedMetrics.counters(), IsIterableWithSize.iterableWithSize(1));
@@ -794,16 +778,17 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testEOSink() {
+  public void testExactlyOnceSink() {
     // testSink() with EOS enabled.
     // This does not actually inject retries in a stage to test exactly-once-semantics.
     // It mainly exercises the code in normal flow without retries.
     // Ideally we should test EOS Sink by triggering replays of a messages between stages.
     // It is not feasible to test such retries with direct runner. When DoFnTester supports
-    // state, we can test KafkaEOWriter DoFn directly to ensure it handles retries correctly.
+    // state, we can test ExactlyOnceWriter DoFn directly to ensure it handles retries correctly.
 
     if (!ProducerSpEL.supportsTransactions()) {
-      LOG.warn("testEOSink() is disabled as Kafka client version does not support transactions.");
+      LOG.warn(
+        "testExactlyOnceSink() is disabled as Kafka client version does not support transactions.");
       return;
     }
 

@@ -191,7 +191,7 @@ class DataflowMetrics extends MetricResults {
     private DistributionResult getDistributionValue(
         com.google.api.services.dataflow.model.MetricUpdate metricUpdate) {
       if (metricUpdate.getDistribution() == null) {
-        return DistributionResult.ZERO;
+        return DistributionResult.IDENTITY_ELEMENT;
       }
       ArrayMap distributionMap = (ArrayMap) metricUpdate.getDistribution();
       Long count = ((Number) distributionMap.get("count")).longValue();

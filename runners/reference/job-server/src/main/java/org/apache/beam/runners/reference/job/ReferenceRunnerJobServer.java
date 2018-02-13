@@ -24,12 +24,9 @@ import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** A program that runs a {@link ReferenceRunnerJobService}. */
 public class ReferenceRunnerJobServer {
-  private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
 
   public static void main(String[] args) throws Exception {
     ServerConfiguration configuration = new ServerConfiguration();

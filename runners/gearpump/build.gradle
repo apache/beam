@@ -42,10 +42,3 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
   testCompile library.java.mockito_core
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

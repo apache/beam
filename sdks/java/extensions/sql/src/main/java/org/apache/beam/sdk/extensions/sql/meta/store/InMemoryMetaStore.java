@@ -55,6 +55,16 @@ public class InMemoryMetaStore implements MetaStore {
     tables.put(table.getName(), table);
   }
 
+  @Override public void dropTable(String tableName) {
+    if (!tables.containsKey(tableName)) {
+      throw new IllegalArgumentException("No such table: " + tableName);
+    }
+
+    Table table = tables.get(tableName);
+    providers.get(table.getType()).dropTable(tableName);
+    tables.remove(tableName);
+  }
+
   @Override public Table getTable(String tableName) {
     if (tableName == null) {
       return null;

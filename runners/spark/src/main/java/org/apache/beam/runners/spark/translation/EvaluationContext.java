@@ -154,14 +154,12 @@ public class EvaluationContext {
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
-    if (forceCache || shouldCache(pvalue)) {
+    if ((forceCache || shouldCache(pvalue)) && pvalue instanceof PCollection) {
       // we cache only PCollection
-      if (pvalue instanceof PCollection) {
-        Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
-        Coder<? extends BoundedWindow> wCoder =
-            ((PCollection<?>) pvalue).getWindowingStrategy().getWindowFn().windowCoder();
-        dataset.cache(storageLevel(), WindowedValue.getFullCoder(coder, wCoder));
-      }
+      Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
+      Coder<? extends BoundedWindow> wCoder =
+          ((PCollection<?>) pvalue).getWindowingStrategy().getWindowFn().windowCoder();
+      dataset.cache(storageLevel(), WindowedValue.getFullCoder(coder, wCoder));
     }
     datasets.put(pvalue, dataset);
     leaves.add(dataset);

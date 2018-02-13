@@ -29,10 +29,3 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

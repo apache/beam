@@ -50,7 +50,11 @@ import org.joda.time.Instant;
  * outputs), or runs for the given duration.
  */
 public class OutputAndTimeBoundedSplittableProcessElementInvoker<
-        InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+        InputT,
+        OutputT,
+        RestrictionT,
+        PositionT,
+        TrackerT extends RestrictionTracker<RestrictionT, PositionT>>
     extends SplittableProcessElementInvoker<InputT, OutputT, RestrictionT, TrackerT> {
   private final DoFn<InputT, OutputT> fn;
   private final PipelineOptions pipelineOptions;
@@ -71,9 +75,10 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
    * @param maxNumOutputs Maximum number of outputs, in total over all output tags, after which a
    *     checkpoint will be requested. This is a best-effort request - the {@link DoFn} may output
    *     more after receiving the request.
-   * @param maxDuration Maximum duration of the {@link DoFn.ProcessElement} call after which a
-   *     checkpoint will be requested. This is a best-effort request - the {@link DoFn} may run for
-   *     longer after receiving the request.
+   * @param maxDuration Maximum duration of the {@link DoFn.ProcessElement} call (counted from the
+   *     first successful {@link RestrictionTracker#tryClaim} call) after which a checkpoint will be
+   *     requested. This is a best-effort request - the {@link DoFn} may run for longer after
+   *     receiving the request.
    */
   public OutputAndTimeBoundedSplittableProcessElementInvoker(
       DoFn<InputT, OutputT> fn,
@@ -98,6 +103,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       final WindowedValue<InputT> element,
       final TrackerT tracker) {
     final ProcessContext processContext = new ProcessContext(element, tracker);
+    tracker.setClaimObserver(processContext);
     DoFn.ProcessContinuation cont = invoker.invokeProcessElement(
         new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
           @Override
@@ -107,7 +113,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
-          public RestrictionTracker<?> restrictionTracker() {
+          public RestrictionTracker<?, ?> restrictionTracker() {
             return tracker;
           }
 
@@ -157,19 +163,39 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
                 "Access to timers not supported in Splittable DoFn");
           }
         });
-    // TODO: verify that if there was a failed tryClaim() call, then cont.shouldResume() is false.
-    // Currently we can't verify this because there are no hooks into tryClaim().
-    // See https://issues.apache.org/jira/browse/BEAM-2607
     processContext.cancelScheduledCheckpoint();
     @Nullable KV<RestrictionT, Instant> residual = processContext.getTakenCheckpoint();
     if (cont.shouldResume()) {
+      checkState(
+          !processContext.hasClaimFailed,
+          "After tryClaim() returned false, @ProcessElement must return stop(), "
+              + "but returned resume()");
       if (residual == null) {
         // No checkpoint had been taken by the runner while the ProcessElement call ran, however
         // the call says that not the whole restriction has been processed. So we need to take
         // a checkpoint now: checkpoint() guarantees that the primary restriction describes exactly
         // the work that was done in the current ProcessElement call, and returns a residual
         // restriction that describes exactly the work that wasn't done in the current call.
-        residual = checkNotNull(processContext.takeCheckpointNow());
+        if (processContext.numClaimedBlocks > 0) {
+          residual = checkNotNull(processContext.takeCheckpointNow());
+          tracker.checkDone();
+        } else {
+          // The call returned resume() without trying to claim any blocks, i.e. it is unaware
+          // of any work to be done at the moment, but more might emerge later. This is a valid
+          // use case: e.g. a DoFn reading from a streaming source might see that there are
+          // currently no new elements (hence not claim anything) and return resume() with a delay
+          // to check again later.
+          // In this case, we must simply reschedule the original restriction - checkpointing a
+          // tracker that hasn't claimed any work is not allowed.
+          //
+          // Note that the situation "a DoFn repeatedly says that it doesn't have any work to claim
+          // and asks to try again later with the same restriction" is different from the situation
+          // "a runner repeatedly checkpoints the DoFn before it has a chance to even attempt
+          // claiming work": the former is valid, and the latter would be a bug, and is addressed
+          // by not checkpointing the tracker until it attempts to claim some work.
+          residual = KV.of(tracker.currentRestriction(), processContext.getLastReportedWatermark());
+          // Don't call tracker.checkDone() - it's not done.
+        }
       } else {
         // A checkpoint was taken by the runner, and then the ProcessElement call returned resume()
         // without making more tryClaim() calls (since no tryClaim() calls can succeed after
@@ -180,14 +206,15 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         // ProcessElement call.
         // In other words, if we took a checkpoint *after* ProcessElement completed (like in the
         // branch above), it would have been equivalent to this one.
+        tracker.checkDone();
       }
     } else {
       // The ProcessElement call returned stop() - that means the tracker's current restriction
       // has been fully processed by the call. A checkpoint may or may not have been taken in
       // "residual"; if it was, then we'll need to process it; if no, then we don't - nothing
       // special needs to be done.
+      tracker.checkDone();
     }
-    tracker.checkDone();
     if (residual == null) {
       // Can only be true if cont.shouldResume() is false and no checkpoint was taken.
       // This means the restriction has been fully processed.
@@ -197,9 +224,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     return new Result(residual.getKey(), cont, residual.getValue());
   }
 
-  private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
+  private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext
+      implements RestrictionTracker.ClaimObserver<PositionT> {
     private final WindowedValue<InputT> element;
     private final TrackerT tracker;
+    private int numClaimedBlocks;
+    private boolean hasClaimFailed;
 
     private int numOutputs;
     // Checkpoint may be initiated either when the given number of outputs is reached,
@@ -212,20 +242,44 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     // on the output from "checkpoint".
     private @Nullable Instant residualWatermark;
     // A handle on the scheduled action to take a checkpoint.
-    private Future<?> scheduledCheckpoint;
+    private @Nullable Future<?> scheduledCheckpoint;
     private @Nullable Instant lastReportedWatermark;
 
     public ProcessContext(WindowedValue<InputT> element, TrackerT tracker) {
       fn.super();
       this.element = element;
       this.tracker = tracker;
+    }
 
-      this.scheduledCheckpoint =
-          executor.schedule(
-              (Runnable) this::takeCheckpointNow, maxDuration.getMillis(), TimeUnit.MILLISECONDS);
+    @Override
+    public void onClaimed(PositionT position) {
+      checkState(
+          !hasClaimFailed,
+          "Must not call tryClaim() after it has previously returned false");
+      if (numClaimedBlocks == 0) {
+        // Claiming first block: can schedule the checkpoint now.
+        // We don't schedule it right away to prevent checkpointing before any blocks are claimed,
+        // in a state where no work has been done yet - because such a checkpoint is equivalent to
+        // the original restriction, i.e. pointless.
+        this.scheduledCheckpoint =
+            executor.schedule(
+                (Runnable) this::takeCheckpointNow, maxDuration.getMillis(), TimeUnit.MILLISECONDS);
+      }
+      ++numClaimedBlocks;
+    }
+
+    @Override
+    public void onClaimFailed(PositionT position) {
+      checkState(
+          !hasClaimFailed,
+          "Must not call tryClaim() after it has previously returned false");
+      hasClaimFailed = true;
     }
 
     void cancelScheduledCheckpoint() {
+      if (scheduledCheckpoint == null) {
+        return;
+      }
       scheduledCheckpoint.cancel(true);
       try {
         Futures.getUnchecked(scheduledCheckpoint);
@@ -275,7 +329,17 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public synchronized void updateWatermark(Instant watermark) {
+      // Updating the watermark without any claimed blocks is allowed.
+      // The watermark is a promise about the timestamps of output from future claimed blocks.
+      // Such a promise can be made even if there are no claimed blocks. E.g. imagine reading
+      // from a streaming source that currently has no new data: there are no blocks to claim, but
+      // we may still want to advance the watermark if we have information about what timestamps
+      // of future elements in the source will be like.
       lastReportedWatermark = watermark;
+    }
+
+    synchronized Instant getLastReportedWatermark() {
+      return lastReportedWatermark;
     }
 
     @Override
@@ -290,8 +354,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public void outputWithTimestamp(OutputT value, Instant timestamp) {
-      output.outputWindowedValue(value, timestamp, element.getWindows(), element.getPane());
       noteOutput();
+      output.outputWindowedValue(value, timestamp, element.getWindows(), element.getPane());
     }
 
     @Override
@@ -301,12 +365,14 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T value, Instant timestamp) {
+      noteOutput();
       output.outputWindowedValue(
           tag, value, timestamp, element.getWindows(), element.getPane());
-      noteOutput();
     }
 
     private void noteOutput() {
+      checkState(!hasClaimFailed, "Output is not allowed after a failed tryClaim()");
+      checkState(numClaimedBlocks > 0, "Output is not allowed before tryClaim()");
       ++numOutputs;
       if (numOutputs >= maxNumOutputs) {
         takeCheckpointNow();

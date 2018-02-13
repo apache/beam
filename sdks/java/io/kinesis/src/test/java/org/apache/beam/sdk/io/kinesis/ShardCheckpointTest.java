@@ -32,9 +32,7 @@ import static org.mockito.Mockito.when;
 
 import com.amazonaws.services.kinesis.clientlibrary.types.ExtendedSequenceNumber;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-
 import java.io.IOException;
-
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.junit.Before;

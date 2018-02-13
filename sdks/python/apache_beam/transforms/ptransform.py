@@ -51,6 +51,7 @@ from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal import util
+from apache_beam.portability import python_urns
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import typehints
@@ -60,7 +61,6 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
 
 __all__ = [
     'PTransform',
@@ -555,7 +555,7 @@ class PTransform(WithTypeHints, HasDisplayData):
         context)
 
   def to_runner_api_parameter(self, context):
-    return (urns.PICKLED_TRANSFORM,
+    return (python_urns.PICKLED_TRANSFORM,
             wrappers_pb2.BytesValue(value=pickler.dumps(self)))
 
   @staticmethod
@@ -564,7 +564,7 @@ class PTransform(WithTypeHints, HasDisplayData):
 
 
 PTransform.register_urn(
-    urns.PICKLED_TRANSFORM,
+    python_urns.PICKLED_TRANSFORM,
     wrappers_pb2.BytesValue,
     PTransform.from_runner_api_parameter)
 

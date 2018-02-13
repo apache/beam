@@ -1,13 +1,3 @@
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
-
-import static org.junit.Assert.assertEquals;
-
-import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.sql.type.SqlTypeName;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -25,6 +15,15 @@ import org.junit.rules.ExpectedException;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
+
+import static org.junit.Assert.assertEquals;
+
+import org.apache.calcite.avatica.util.TimeUnit;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /**
  * Unit tests for {@link TimeUnitUtils}.

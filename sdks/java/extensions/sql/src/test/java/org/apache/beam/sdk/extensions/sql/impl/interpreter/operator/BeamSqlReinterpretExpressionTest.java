@@ -25,11 +25,10 @@ import static org.junit.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
@@ -41,7 +40,7 @@ public class BeamSqlReinterpretExpressionTest extends BeamSqlFnExecutorTestBase 
   private static final Date DATE = new Date(DATE_LONG);
   private static final GregorianCalendar CALENDAR = new GregorianCalendar(2017, 8, 9);
 
-  private static final BeamRecord NULL_ROW = null;
+  private static final Row NULL_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
 
   private static final BeamSqlExpression DATE_PRIMITIVE = BeamSqlPrimitive.of(

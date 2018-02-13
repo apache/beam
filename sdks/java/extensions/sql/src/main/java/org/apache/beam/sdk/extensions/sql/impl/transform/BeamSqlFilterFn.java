@@ -22,13 +22,13 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExec
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 
 /**
  * {@code BeamSqlFilterFn} is the executor for a {@link BeamFilterRel} step.
  *
  */
-public class BeamSqlFilterFn extends DoFn<BeamRecord, BeamRecord> {
+public class BeamSqlFilterFn extends DoFn<Row, Row> {
 
   private String stepName;
   private BeamSqlExpressionExecutor executor;
@@ -46,7 +46,7 @@ public class BeamSqlFilterFn extends DoFn<BeamRecord, BeamRecord> {
 
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
-    BeamRecord in = c.element();
+    Row in = c.element();
 
     List<Object> result = executor.execute(in, window);
 

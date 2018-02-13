@@ -755,7 +755,7 @@ public class FileIO {
   public abstract static class Write<DestinationT, UserT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
     /** A policy for generating names for shard files. */
-    interface FileNaming extends Serializable {
+    public interface FileNaming extends Serializable {
       /**
        * Generates the filename. MUST use each argument and return different values for
        * each combination of the arguments.

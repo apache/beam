@@ -20,10 +20,8 @@ package org.apache.beam.sdk.io.kinesis;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.services.kinesis.model.Shard;
-
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

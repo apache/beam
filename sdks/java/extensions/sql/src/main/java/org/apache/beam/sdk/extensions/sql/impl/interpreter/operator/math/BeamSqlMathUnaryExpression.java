@@ -22,7 +22,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 
@@ -46,7 +46,7 @@ public abstract class BeamSqlMathUnaryExpression extends BeamSqlExpression {
     return acceptance;
   }
 
-  @Override public BeamSqlPrimitive<? extends Number> evaluate(BeamRecord inputRow,
+  @Override public BeamSqlPrimitive<? extends Number> evaluate(Row inputRow,
       BoundedWindow window) {
     BeamSqlExpression operand = op(0);
     return calculate(operand.evaluate(inputRow, window));
