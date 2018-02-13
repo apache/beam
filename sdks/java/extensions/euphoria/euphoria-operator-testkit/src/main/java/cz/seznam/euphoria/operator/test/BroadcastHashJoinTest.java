@@ -113,39 +113,39 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
     });
   }
 
-    @Processing(Processing.Type.BOUNDED)
-    @Test
-    public void keyHashCollisionBroadcastHashJoin() {
-        final String sameHashCodeKey1 = "FB";
-        final String sameHashCodeKey2 = "Ea";
-        execute(new JoinTest.JoinTestCase<String, Integer, Pair<String, String>>() {
+  @Processing(Processing.Type.BOUNDED)
+  @Test
+  public void keyHashCollisionBroadcastHashJoin() {
+    final String sameHashCodeKey1 = "FB";
+    final String sameHashCodeKey2 = "Ea";
+    execute(new JoinTest.JoinTestCase<String, Integer, Pair<String, String>>() {
 
-            @Override
-            protected Dataset<Pair<String, String>> getOutput(
-                    Dataset<String> left, Dataset<Integer> right) {
-                return LeftJoin.of(left, right)
-                        .by(e -> e, e -> e % 2 == 0 ? sameHashCodeKey2 : sameHashCodeKey1)
-                        .using((String l, Optional<Integer> r, Collector<String> c) ->
-                                c.collect(l + "+" + r.orElse(null)))
-                        .withHints(Sets.newHashSet(JoinHints.broadcastHashJoin()))
-                        .output();
-            }
+      @Override
+      protected Dataset<Pair<String, String>> getOutput(
+          Dataset<String> left, Dataset<Integer> right) {
+        return LeftJoin.of(left, right)
+            .by(e -> e, e -> e % 2 == 0 ? sameHashCodeKey2 : sameHashCodeKey1)
+            .using((String l, Optional<Integer> r, Collector<String> c) ->
+                c.collect(l + "+" + r.orElse(null)))
+            .withHints(Sets.newHashSet(JoinHints.broadcastHashJoin()))
+            .output();
+      }
 
-            @Override
-            protected List<String> getLeftInput() {
-                return Arrays.asList(sameHashCodeKey1, sameHashCodeKey2, "keyWithoutRightSide");
-            }
+      @Override
+      protected List<String> getLeftInput() {
+        return Arrays.asList(sameHashCodeKey1, sameHashCodeKey2, "keyWithoutRightSide");
+      }
 
-            @Override
-            protected List<Integer> getRightInput() {
-                return Arrays.asList(1, 2);
-            }
+      @Override
+      protected List<Integer> getRightInput() {
+        return Arrays.asList(1, 2);
+      }
 
-            @Override
-            public List<Pair<String, String>> getUnorderedOutput() {
-                return Arrays.asList(Pair.of(sameHashCodeKey1, "FB+1"), Pair.of(sameHashCodeKey2, "Ea+2"),
-                        Pair.of("keyWithoutRightSide", "keyWithoutRightSide+null"));
-            }
-        });
-    }
+      @Override
+      public List<Pair<String, String>> getUnorderedOutput() {
+        return Arrays.asList(Pair.of(sameHashCodeKey1, "FB+1"), Pair.of(sameHashCodeKey2, "Ea+2"),
+            Pair.of("keyWithoutRightSide", "keyWithoutRightSide+null"));
+      }
+    });
+  }
 }
