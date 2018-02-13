@@ -29,21 +29,22 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
 /**
  * Utilities for replacing or wrapping unknown coders with {@link LengthPrefixCoder}.
  *
- * <p>TODO: Support a dynamic list of well known coders using either registration or manual listing.
+ * <p>TODO: Support a dynamic list of well known coders using either registration or manual listing,
+ * possibly from ModelCoderRegistrar.
  */
 public class LengthPrefixUnknownCoders {
-  private static final String BYTES_CODER_TYPE = "urn:beam:coders:bytes:0.1";
-  private static final String LENGTH_PREFIX_CODER_TYPE = "urn:beam:coders:length_prefix:0.1";
+  private static final String BYTES_CODER_TYPE = "beam:coder:bytes:v1";
+  private static final String LENGTH_PREFIX_CODER_TYPE = "beam:coder:length_prefix:v1";
   private static final Set<String> WELL_KNOWN_CODER_URNS =
       ImmutableSet.of(
           BYTES_CODER_TYPE,
-          "urn:beam:coders:kv:0.1",
-          "urn:beam:coders:varint:0.1",
-          "urn:beam:coders:interval_window:0.1",
-          "urn:beam:coders:stream:0.1",
+          "beam:coder:kv:v1",
+          "beam:coder:varint:v1",
+          "beam:coder:interval_window:v1",
+          "beam:coder:iterable:v1",
           LENGTH_PREFIX_CODER_TYPE,
-          "urn:beam:coders:global_window:0.1",
-          "urn:beam:coders:windowed_value:0.1");
+          "beam:coder:global_window:v1",
+          "beam:coder:windowed_value:v1");
 
   /**
    * Recursively traverse the coder tree and wrap the first unknown coder in every branch with a

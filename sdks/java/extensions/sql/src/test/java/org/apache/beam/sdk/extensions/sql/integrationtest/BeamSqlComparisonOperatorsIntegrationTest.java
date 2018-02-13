@@ -19,12 +19,11 @@
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import java.math.BigDecimal;
-import java.sql.Types;
-import java.util.Arrays;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.junit.Test;
 
 /**
@@ -281,31 +280,36 @@ public class BeamSqlComparisonOperatorsIntegrationTest
     checker.buildRunAndCheck();
   }
 
-  @Override protected PCollection<BeamRecord> getTestPCollection() {
-    BeamRecordSqlType type = BeamRecordSqlType.create(
-        Arrays.asList(
-            "c_tinyint_0", "c_tinyint_1", "c_tinyint_2",
-            "c_smallint_0", "c_smallint_1", "c_smallint_2",
-            "c_integer_0", "c_integer_1", "c_integer_2",
-            "c_bigint_0", "c_bigint_1", "c_bigint_2",
-            "c_float_0", "c_float_1", "c_float_2",
-            "c_double_0", "c_double_1", "c_double_2",
-            "c_decimal_0", "c_decimal_1", "c_decimal_2",
-            "c_varchar_0", "c_varchar_1", "c_varchar_2",
-            "c_boolean_false", "c_boolean_true"
-            ),
-        Arrays.asList(
-            Types.TINYINT, Types.TINYINT, Types.TINYINT,
-            Types.SMALLINT, Types.SMALLINT, Types.SMALLINT,
-            Types.INTEGER, Types.INTEGER, Types.INTEGER,
-            Types.BIGINT, Types.BIGINT, Types.BIGINT,
-            Types.FLOAT, Types.FLOAT, Types.FLOAT,
-            Types.DOUBLE, Types.DOUBLE, Types.DOUBLE,
-            Types.DECIMAL, Types.DECIMAL, Types.DECIMAL,
-            Types.VARCHAR, Types.VARCHAR, Types.VARCHAR,
-            Types.BOOLEAN, Types.BOOLEAN
-        )
-    );
+  @Override protected PCollection<Row> getTestPCollection() {
+    RowType type = RowSqlType.builder()
+        .withTinyIntField("c_tinyint_0")
+        .withTinyIntField("c_tinyint_1")
+        .withTinyIntField("c_tinyint_2")
+        .withSmallIntField("c_smallint_0")
+        .withSmallIntField("c_smallint_1")
+        .withSmallIntField("c_smallint_2")
+        .withIntegerField("c_integer_0")
+        .withIntegerField("c_integer_1")
+        .withIntegerField("c_integer_2")
+        .withBigIntField("c_bigint_0")
+        .withBigIntField("c_bigint_1")
+        .withBigIntField("c_bigint_2")
+        .withFloatField("c_float_0")
+        .withFloatField("c_float_1")
+        .withFloatField("c_float_2")
+        .withDoubleField("c_double_0")
+        .withDoubleField("c_double_1")
+        .withDoubleField("c_double_2")
+        .withDecimalField("c_decimal_0")
+        .withDecimalField("c_decimal_1")
+        .withDecimalField("c_decimal_2")
+        .withVarcharField("c_varchar_0")
+        .withVarcharField("c_varchar_1")
+        .withVarcharField("c_varchar_2")
+        .withBooleanField("c_boolean_false")
+        .withBooleanField("c_boolean_true")
+        .build();
+
     try {
       return MockedBoundedTable
           .of(type)
@@ -321,7 +325,7 @@ public class BeamSqlComparisonOperatorsIntegrationTest
               false, true
           )
           .buildIOReader(pipeline)
-          .setCoder(type.getRecordCoder());
+          .setCoder(type.getRowCoder());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

@@ -308,10 +308,14 @@ class TypeHintsTest(unittest.TestCase):
           beam.typehints.Tuple[int, int])
 
   def test_runtime_checks_off(self):
+    # We do not run the following pipeline, as it has incorrect type
+    # information, and may fail with obscure errors, depending on the runner
+    # implementation.
+
     # pylint: disable=expression-not-assigned
-    with TestPipeline() as p:
-      # [START type_hints_runtime_off]
-      p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+    p = TestPipeline()
+    # [START type_hints_runtime_off]
+    p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
     # [END type_hints_runtime_off]
 
   def test_runtime_checks_on(self):
@@ -328,7 +332,7 @@ class TypeHintsTest(unittest.TestCase):
       lines = (p | beam.Create(
           ['banana,fruit,3', 'kiwi,fruit,2', 'kiwi,fruit,2', 'zucchini,veg,3']))
 
-      # For pickling
+      # For pickling.
       global Player  # pylint: disable=global-variable-not-assigned
 
       # [START type_hints_deterministic_key]
@@ -454,7 +458,7 @@ class SnippetsTest(unittest.TestCase):
   def tearDown(self):
     beam.io.ReadFromText = self.old_read_from_text
     beam.io.WriteToText = self.old_write_to_text
-    # Cleanup all the temporary files created in the test
+    # Cleanup all the temporary files created in the test.
     map(os.remove, self.temp_files)
 
   def create_temp_file(self, contents=''):
@@ -1027,7 +1031,7 @@ class PTransformTest(unittest.TestCase):
     # [START model_composite_transform]
     class ComputeWordLengths(beam.PTransform):
       def expand(self, pcoll):
-        # transform logic goes here
+        # Transform logic goes here.
         return pcoll | beam.Map(lambda x: len(x))
     # [END model_composite_transform]
 

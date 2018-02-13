@@ -21,6 +21,20 @@ applyGoNature()
 
 description = "Apache Beam :: Runners :: Google Cloud Platform :: GCS artifact proxy"
 
+// Figure out why the golang plugin does not add a build dependency between projects.
+// Without the line below, we get spurious errors about not being able to resolve
+// "./github.com/apache/beam/sdks/go"
+resolveBuildDependencies.dependsOn ":sdks:go:build"
+
+dependencies {
+  golang {
+    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
+    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
+    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+  }
+}
+
 golang {
   packagePath = 'github.com/apache/beam/runners/gcp/gcsproxy'
   build {

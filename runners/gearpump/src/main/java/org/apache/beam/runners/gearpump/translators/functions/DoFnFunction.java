@@ -19,9 +19,7 @@
 package org.apache.beam.runners.gearpump.translators.functions;
 
 import com.google.common.collect.Iterables;
-
 import com.google.common.collect.Lists;
-
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
@@ -30,7 +28,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
@@ -45,7 +42,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;

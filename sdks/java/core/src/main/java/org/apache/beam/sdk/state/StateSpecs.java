@@ -286,10 +286,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.coder == null) {
-        if (coders[0] != null) {
-          this.coder = (Coder<T>) coders[0];
-        }
+      if (this.coder == null && coders[0] != null) {
+        this.coder = (Coder<T>) coders[0];
       }
     }
 
@@ -355,10 +353,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.accumCoder == null) {
-        if (coders[1] != null) {
-          this.accumCoder = (Coder<AccumT>) coders[1];
-        }
+      if (this.accumCoder == null && coders[1] != null) {
+        this.accumCoder = (Coder<AccumT>) coders[1];
       }
     }
 
@@ -434,10 +430,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.accumCoder == null) {
-        if (coders[2] != null) {
-          this.accumCoder = (Coder<AccumT>) coders[2];
-        }
+      if (this.accumCoder == null && coders[2] != null) {
+        this.accumCoder = (Coder<AccumT>) coders[2];
       }
     }
 
@@ -506,10 +500,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.elemCoder == null) {
-        if (coders[0] != null) {
-          this.elemCoder = (Coder<T>) coders[0];
-        }
+      if (this.elemCoder == null && coders[0] != null) {
+        this.elemCoder = (Coder<T>) coders[0];
       }
     }
 
@@ -567,15 +559,11 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.keyCoder == null) {
-        if (coders[0] != null) {
-          this.keyCoder = (Coder<K>) coders[0];
-        }
+      if (this.keyCoder == null && coders[0] != null) {
+        this.keyCoder = (Coder<K>) coders[0];
       }
-      if (this.valueCoder == null) {
-        if (coders[1] != null) {
-          this.valueCoder = (Coder<V>) coders[1];
-        }
+      if (this.valueCoder == null && coders[1] != null) {
+        this.valueCoder = (Coder<V>) coders[1];
       }
     }
 
@@ -636,10 +624,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.elemCoder == null) {
-        if (coders[0] != null) {
-          this.elemCoder = (Coder<T>) coders[0];
-        }
+      if (this.elemCoder == null && coders[0] != null) {
+        this.elemCoder = (Coder<T>) coders[0];
       }
     }
 

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.nexmark;
 
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;

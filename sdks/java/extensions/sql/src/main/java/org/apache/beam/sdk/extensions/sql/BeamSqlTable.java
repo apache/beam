@@ -21,9 +21,10 @@ package org.apache.beam.sdk.extensions.sql;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 
 /**
  * This interface defines a Beam Sql Table.
@@ -39,16 +40,16 @@ public interface BeamSqlTable {
    * create a {@code PCollection<BeamSqlRow>} from source.
    *
    */
-  PCollection<BeamRecord> buildIOReader(Pipeline pipeline);
+  PCollection<Row> buildIOReader(Pipeline pipeline);
 
   /**
    * create a {@code IO.write()} instance to write to target.
    *
    */
-   PTransform<? super PCollection<BeamRecord>, PDone> buildIOWriter();
+   PTransform<? super PCollection<Row>, PDone> buildIOWriter();
 
   /**
    * Get the schema info of the table.
    */
-   BeamRecordSqlType getRowType();
+   RowType getRowType();
 }

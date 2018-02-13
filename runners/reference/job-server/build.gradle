@@ -36,10 +36,3 @@ dependencies {
   shadowTest library.java.hamcrest_core
   shadowTest library.java.slf4j_jdk14
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

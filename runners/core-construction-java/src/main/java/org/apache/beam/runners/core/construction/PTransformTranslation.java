@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.runners.core.construction.UrnUtils.validateCommonUrn;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Joiner;
@@ -51,27 +52,35 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class PTransformTranslation {
 
-  public static final String PAR_DO_TRANSFORM_URN = "urn:beam:transform:pardo:v1";
-  public static final String FLATTEN_TRANSFORM_URN = "urn:beam:transform:flatten:v1";
-  public static final String GROUP_BY_KEY_TRANSFORM_URN = "urn:beam:transform:groupbykey:v1";
-  public static final String READ_TRANSFORM_URN = "urn:beam:transform:read:v1";
-  public static final String WINDOW_TRANSFORM_URN = "urn:beam:transform:window:v1";
+  public static final String PAR_DO_TRANSFORM_URN =
+      validateCommonUrn("urn:beam:transform:pardo:v1");
+  public static final String FLATTEN_TRANSFORM_URN =
+      validateCommonUrn("beam:transform:flatten:v1");
+  public static final String GROUP_BY_KEY_TRANSFORM_URN =
+      validateCommonUrn("beam:transform:group_by_key:v1");
+  public static final String IMPULSE_TRANSFORM_URN = validateCommonUrn("beam:transform:impulse:v1");
+  public static final String READ_TRANSFORM_URN =
+      validateCommonUrn("beam:transform:read:v1");
+  public static final String ASSIGN_WINDOWS_TRANSFORM_URN =
+      validateCommonUrn("beam:transform:window_into:v1");
   public static final String TEST_STREAM_TRANSFORM_URN = "urn:beam:transform:teststream:v1";
 
   // Not strictly a primitive transform
-  public static final String COMBINE_TRANSFORM_URN = "urn:beam:transform:combine:v1";
+  public static final String COMBINE_TRANSFORM_URN =
+      validateCommonUrn("beam:transform:combine_per_key:v1");
 
-  public static final String RESHUFFLE_URN = "urn:beam:transform:reshuffle:v1";
+  public static final String RESHUFFLE_URN =
+      validateCommonUrn("beam:transform:reshuffle:v1");
 
   // Less well-known. And where shall these live?
-  public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
+  public static final String WRITE_FILES_TRANSFORM_URN = "beam:transform:write_files:0.1";
 
   /**
    * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
    *     part of the translation for a `ParDo` side input.
    */
   @Deprecated
-  public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
+  public static final String CREATE_VIEW_TRANSFORM_URN = "beam:transform:create_view:v1";
 
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();

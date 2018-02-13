@@ -56,8 +56,6 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
@@ -72,6 +70,8 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
@@ -825,7 +825,7 @@ public class BigtableIOTest {
         .apply("write", defaultWrite.withTableId(table));
     p.run();
 
-    logged.verifyInfo("Wrote 1 records");
+    logged.verifyDebug("Wrote 1 records");
 
     assertEquals(1, service.tables.size());
     assertNotNull(service.getTable(table));
@@ -1180,7 +1180,7 @@ public class BigtableIOTest {
    * entries. The column family in the {@link SetCell} is ignored; only the value is used.
    *
    * <p>When no {@link SetCell} is provided, the write will fail and this will be exposed via an
-   * exception on the returned {@link ListenableFuture}.
+   * exception on the returned {@link CompletionStage}.
    */
   private static class FakeBigtableWriter implements BigtableService.Writer {
     private final String tableId;
@@ -1190,7 +1190,7 @@ public class BigtableIOTest {
     }
 
     @Override
-    public ListenableFuture<MutateRowResponse> writeRecord(
+    public CompletionStage<MutateRowResponse> writeRecord(
         KV<ByteString, Iterable<Mutation>> record) {
       service.verifyTableExists(tableId);
       Map<ByteString, ByteString> table = service.getTable(tableId);
@@ -1198,11 +1198,13 @@ public class BigtableIOTest {
       for (Mutation m : record.getValue()) {
         SetCell cell = m.getSetCell();
         if (cell.getValue().isEmpty()) {
-          return Futures.immediateFailedCheckedFuture(new IOException("cell value missing"));
+          CompletableFuture<MutateRowResponse> result = new CompletableFuture<>();
+          result.completeExceptionally(new IOException("cell value missing"));
+          return result;
         }
         table.put(key, cell.getValue());
       }
-      return Futures.immediateFuture(MutateRowResponse.getDefaultInstance());
+      return CompletableFuture.completedFuture(MutateRowResponse.getDefaultInstance());
     }
 
     @Override

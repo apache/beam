@@ -23,11 +23,10 @@ import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 import org.joda.time.DurationFieldType;
@@ -58,7 +57,7 @@ public class BeamSqlTimestampMinusIntervalExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive evaluate(BeamRecord row, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(Row row, BoundedWindow window) {
     DateTime date = new DateTime((Object) opValueEvaluated(0, row, window));
     Period period = intervalToPeriod(op(1).evaluate(row, window));
 

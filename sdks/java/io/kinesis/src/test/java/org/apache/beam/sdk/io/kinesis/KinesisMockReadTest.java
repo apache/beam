@@ -21,9 +21,7 @@ import static com.google.common.collect.Lists.newArrayList;
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.google.common.collect.Iterables;
-
 import java.util.List;
-
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -60,7 +58,7 @@ public class KinesisMockReadTest {
     p.run();
   }
 
-  private static class KinesisRecordToTestData extends
+  static class KinesisRecordToTestData extends
       DoFn<KinesisRecord, AmazonKinesisMock.TestData> {
 
     @ProcessElement

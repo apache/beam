@@ -37,15 +37,12 @@ class SplittableParDoOverride(PTransformOverride):
   SDF specific logic.
   """
 
-  def get_matcher(self):
-    def _matcher(applied_ptransform):
-      assert isinstance(applied_ptransform, AppliedPTransform)
-      transform = applied_ptransform.transform
-      if isinstance(transform, ParDo):
-        signature = DoFnSignature(transform.fn)
-        return signature.is_splittable_dofn()
-
-    return _matcher
+  def matches(self, applied_ptransform):
+    assert isinstance(applied_ptransform, AppliedPTransform)
+    transform = applied_ptransform.transform
+    if isinstance(transform, ParDo):
+      signature = DoFnSignature(transform.fn)
+      return signature.is_splittable_dofn()
 
   def get_replacement_transform(self, ptransform):
     assert isinstance(ptransform, ParDo)

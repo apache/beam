@@ -44,13 +44,9 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests of {@link CassandraIO}. */
 public class CassandraIOTest implements Serializable {
-
-  private static final Logger LOG = LoggerFactory.getLogger(CassandraIOTest.class);
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 

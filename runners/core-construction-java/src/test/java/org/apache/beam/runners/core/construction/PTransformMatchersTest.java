@@ -160,7 +160,7 @@ public class PTransformMatchersTest implements Serializable {
           ctxt.output(ctxt.element().getValue() + 1);
         }
       };
-  private abstract static class SomeTracker implements RestrictionTracker<Void> {}
+  private abstract static class SomeTracker extends RestrictionTracker<Void, Void> {}
   private DoFn<KV<String, Integer>, Integer> splittableDoFn =
       new DoFn<KV<String, Integer>, Integer>() {
         @ProcessElement

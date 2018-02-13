@@ -403,6 +403,8 @@ class AnyTypeConstraint(TypeConstraint):
   function arguments or return types. All other TypeConstraint's are equivalent
   to 'Any', and its 'type_check' method is a no-op.
   """
+  def __eq__(self, other):
+    return type(self) == type(other)
 
   def __repr__(self):
     return 'Any'
@@ -412,6 +414,9 @@ class AnyTypeConstraint(TypeConstraint):
 
 
 class TypeVariable(AnyTypeConstraint):
+
+  def __eq__(self, other):
+    return type(self) == type(other) and self.name == other.name
 
   def __init__(self, name):
     self.name = name

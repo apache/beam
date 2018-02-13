@@ -24,13 +24,14 @@ import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.parser.BeamSqlParser;
 import org.apache.beam.sdk.extensions.sql.impl.parser.ParserUtils;
 import org.apache.beam.sdk.extensions.sql.impl.parser.SqlCreateTable;
+import org.apache.beam.sdk.extensions.sql.impl.parser.SqlDropTable;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.store.MetaStore;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.sql.SqlNode;
 
@@ -80,6 +81,8 @@ public class BeamSqlCli {
 
     if (sqlNode instanceof SqlCreateTable) {
       handleCreateTable((SqlCreateTable) sqlNode, metaStore);
+    } else if (sqlNode instanceof SqlDropTable) {
+      handleDropTable((SqlDropTable) sqlNode);
     } else {
       PipelineOptions options = PipelineOptionsFactory.fromArgs(new String[] {}).withValidation()
           .as(PipelineOptions.class);
@@ -103,12 +106,17 @@ public class BeamSqlCli {
     env.registerTable(table.getName(), metaStore.buildBeamSqlTable(table.getName()));
   }
 
+  private void handleDropTable(SqlDropTable stmt) {
+    metaStore.dropTable(stmt.tableName());
+    env.deregisterTable(stmt.tableName());
+  }
+
   /**
    * compile SQL, and return a {@link Pipeline}.
    */
-  private static PCollection<BeamRecord> compilePipeline(String sqlStatement, Pipeline basePipeline,
-      BeamSqlEnv sqlEnv) throws Exception {
-    PCollection<BeamRecord> resultStream =
+  private static PCollection<Row> compilePipeline(String sqlStatement, Pipeline basePipeline,
+                                                  BeamSqlEnv sqlEnv) throws Exception {
+    PCollection<Row> resultStream =
         sqlEnv.getPlanner().compileBeamPipeline(sqlStatement, basePipeline, sqlEnv);
     return resultStream;
   }

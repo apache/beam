@@ -416,18 +416,6 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-extensions-join-library</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-extensions-protobuf</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-extensions-google-cloud-platform-core</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -436,6 +424,24 @@
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-extensions-google-cloud-platform-core</artifactId>
         <classifier>tests</classifier>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-join-library</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-json-jackson</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-protobuf</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -515,14 +521,6 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-io-elasticsearch-tests-common</artifactId>
-        <version>${project.version}</version>
-        <scope>test</scope>
-        <classifier>tests</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-elasticsearch-tests-2</artifactId>
         <version>${project.version}</version>
         <scope>test</scope>
@@ -533,6 +531,14 @@
         <artifactId>beam-sdks-java-io-elasticsearch-tests-5</artifactId>
         <version>${project.version}</version>
         <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch-tests-common</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+        <classifier>tests</classifier>
       </dependency>
 
       <dependency>
@@ -557,6 +563,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-hadoop-file-system</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -610,13 +622,25 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-redis</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-solr</artifactId>
         <version>${project.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
+        <artifactId>beam-sdks-java-io-tika</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-xml</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -1411,12 +1435,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>2.17</version>
+          <version>3.0.0</version>
           <dependencies>
             <dependency>
               <groupId>com.puppycrawl.tools</groupId>
               <artifactId>checkstyle</artifactId>
-              <version>6.19</version>
+              <version>8.7</version>
             </dependency>
             <dependency>
               <groupId>org.apache.beam</groupId>
@@ -1431,6 +1455,13 @@
             <failOnViolation>true</failOnViolation>
             <includeResources>false</includeResources>
             <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <!-- only check the actual source directories in src, not anything generated in target -->
+            <sourceDirectories>
+                <sourceDirctory>src/main/java</sourceDirctory>
+            </sourceDirectories>
+            <testSourceDirectories>
+                <testSourceDirctory>src/test/java</testSourceDirctory>
+            </testSourceDirectories>
           </configuration>
           <executions>
             <!--
@@ -1469,7 +1500,6 @@
               <arg>-Xlint:-try</arg>
               <arg>-Xlint:-unchecked</arg>
               <arg>-Xlint:-varargs</arg>
-	      <arg>-parameters</arg>
               <!-- Uncomment the following args to display more warnings. -->
               <!-- -Xmaxwarns -->
               <!-- 10000 -->
@@ -1489,6 +1519,7 @@
               <configuration>
                 <compilerArgs>
                   <arg>${compiler.default.pkginfo.flag}</arg>
+                  <arg>-parameters</arg>
                 </compilerArgs>
                 <excludes>
                   <exclude>${compiler.default.exclude}</exclude>
@@ -1589,6 +1620,7 @@
             <useDefaultExcludes>true</useDefaultExcludes>
             <excludes>
               <!-- rat uses .gitignore for excludes -->
+              <exclude>**/gogradle.lock</exclude>
 
               <!-- ignore files we track but do not distribute -->
               <exclude>.github/**/*</exclude>
@@ -1677,6 +1709,7 @@
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <runOrder>random</runOrder>
             <argLine>${beamSurefireArgline}</argLine>
           </configuration>
           <dependencies>
@@ -1946,6 +1979,7 @@
                   <include>**/sdks/python/NOTICE</include>
                   <include>**/sdks/python/README.md</include>
                   <include>**/sdks/python/apache_beam/portability/api/*pb2*.*</include>
+                  <include>**/sdks/python/apache_beam/portability/common_urns.py</include>
                   <include>**/sdks/python/**/*.c</include>
                   <include>**/sdks/python/**/*.so</include>
                   <include>**/sdks/python/**/*.egg</include>

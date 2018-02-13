@@ -38,7 +38,7 @@ public class BeamSqlCharLengthExpressionTest extends BeamSqlFnExecutorTestBase {
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
     assertEquals(5,
-        new BeamSqlCharLengthExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlCharLengthExpression(operands).evaluate(row, null).getValue());
   }
 
 }

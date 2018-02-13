@@ -153,7 +153,7 @@ class FnApiRunnerTest(
       self.skipTest('Progress metrics not supported.')
 
     _ = (p
-         | beam.Create([0, 0, 0, 2.1e-3 * DEFAULT_SAMPLING_PERIOD_MS])
+         | beam.Create([0, 0, 0, 5e-3 * DEFAULT_SAMPLING_PERIOD_MS])
          | beam.Map(time.sleep)
          | beam.Map(lambda x: ('key', x))
          | beam.GroupByKey()
@@ -180,7 +180,7 @@ class FnApiRunnerTest(
           pregbk_metrics.ptransforms['Map(sleep)']
           .processed_elements.measured.output_element_counts['None'])
       self.assertLessEqual(
-          2e-3 * DEFAULT_SAMPLING_PERIOD_MS,
+          4e-3 * DEFAULT_SAMPLING_PERIOD_MS,
           pregbk_metrics.ptransforms['Map(sleep)']
           .processed_elements.measured.total_time_spent)
       self.assertEqual(

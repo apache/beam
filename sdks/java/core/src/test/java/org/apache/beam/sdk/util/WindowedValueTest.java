@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.util;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -36,22 +35,30 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.joda.time.Instant;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Test case for {@link WindowedValue}. */
 @RunWith(JUnit4.class)
 public class WindowedValueTest {
+
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
+
   @Test
   public void testWindowedValueCoder() throws CoderException {
     Instant timestamp = new Instant(1234);
-    WindowedValue<String> value = WindowedValue.of(
-        "abc",
-        new Instant(1234),
-        Arrays.asList(new IntervalWindow(timestamp, timestamp.plus(1000)),
-                      new IntervalWindow(timestamp.plus(1000), timestamp.plus(2000))),
-        PaneInfo.NO_FIRING);
+    WindowedValue<String> value =
+        WindowedValue.of(
+            "abc",
+            new Instant(1234),
+            Arrays.asList(
+                new IntervalWindow(timestamp, timestamp.plus(1000)),
+                new IntervalWindow(timestamp.plus(1000), timestamp.plus(2000))),
+            PaneInfo.NO_FIRING);
 
     Coder<WindowedValue<String>> windowedValueCoder =
         WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
@@ -67,8 +74,8 @@ public class WindowedValueTest {
 
   @Test
   public void testFullWindowedValueCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(WindowedValue.getFullCoder(
-        GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(
+        WindowedValue.getFullCoder(GlobalWindow.Coder.INSTANCE, GlobalWindow.Coder.INSTANCE));
   }
 
   @Test
@@ -77,11 +84,9 @@ public class WindowedValueTest {
   }
 
   @Test
-  public void testExplodeWindowsInNoWindowsEmptyIterable() {
-    WindowedValue<String> value =
-        WindowedValue.of("foo", Instant.now(), ImmutableList.of(), PaneInfo.NO_FIRING);
-
-    assertThat(value.explodeWindows(), emptyIterable());
+  public void testExplodeWindowsInNoWindowsCrash() {
+    thrown.expect(IllegalArgumentException.class);
+    WindowedValue.of("foo", Instant.now(), ImmutableList.of(), PaneInfo.NO_FIRING);
   }
 
   @Test

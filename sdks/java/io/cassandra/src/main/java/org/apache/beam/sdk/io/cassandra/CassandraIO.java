@@ -35,8 +35,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An IO to read from Apache Cassandra.
@@ -81,8 +79,6 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class CassandraIO {
-
-  private static final Logger LOG = LoggerFactory.getLogger(CassandraIO.class);
 
   private CassandraIO() {}
 

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -50,7 +50,7 @@ public abstract class BeamSqlExpression implements Serializable {
     return op(idx).getOutputType();
   }
 
-  public <T> T opValueEvaluated(int idx, BeamRecord row, BoundedWindow window) {
+  public <T> T opValueEvaluated(int idx, Row row, BoundedWindow window) {
     return (T) op(idx).evaluate(row, window).getValue();
   }
 
@@ -60,10 +60,10 @@ public abstract class BeamSqlExpression implements Serializable {
   public abstract boolean accept();
 
   /**
-   * Apply input record {@link BeamRecord} with {@link BoundedWindow} to this expression,
+   * Apply input record {@link Row} with {@link BoundedWindow} to this expression,
    * the output value is wrapped with {@link BeamSqlPrimitive}.
    */
-  public abstract BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window);
+  public abstract BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window);
 
   public List<BeamSqlExpression> getOperands() {
     return operands;
