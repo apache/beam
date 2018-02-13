@@ -18,18 +18,23 @@
 package org.apache.beam.sdk.io.parquet;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.hadoop.crypto.key.kms.KMSClientProvider.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-
 import javax.annotation.Nullable;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -39,6 +44,7 @@ import org.apache.parquet.avro.AvroParquetReader;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetReader;
 import org.apache.parquet.hadoop.ParquetWriter;
+import org.joda.time.Duration;
 
 /**
  * IO to read and write Parquet files.
@@ -48,24 +54,23 @@ import org.apache.parquet.hadoop.ParquetWriter;
  * <p>{@link ParquetIO} source returns a {@link PCollection} for
  * Parquet files. The elements in the {@link PCollection} are Avro {@link GenericRecord}.
  *
- * <p>To configure the {@link Read}, you have to provide the location (path) of the Parquet file
- * and the Avro schema.
+ * <p>To configure the {@link Read}, you have to provide the file patterns (from) of the
+ * Parquet files and the Avro schema.
  *
  * <p>For example:
  *
  * <pre>{@code
- *  pipeline.apply(ParquetIO.read().withPath("/foo/bar").withSchema(schema))
+ *  pipeline.apply(ParquetIO.read().from("/foo/bar").withSchema(schema))
  *  ...
  * }
  * </pre>
+ *
+ * <p>As {@link Read} is based on {@link FileIO}, it supports any filesystem (hdfs, ...).
  *
  * <h3>Writing Parquet files</h3>
  *
  * <p>{@link Write} allows you to write a {@link PCollection} of {@link GenericRecord} into a
  * Parquet file.
- *
- * <p>Like for the {@link Read}, you have to provide the location (path) of the Parquet file and
- * the Avro schema.
  *
  * <p>For example:
  *
@@ -77,76 +82,253 @@ import org.apache.parquet.hadoop.ParquetWriter;
  */
 public class ParquetIO {
 
+  /**
+   * Reads {@link GenericRecord} from a Parquet file (or multiple Parquet files matching
+   * the pattern).
+   */
   public static Read read() {
-    return new AutoValue_ParquetIO_Read.Builder().build();
+    return new AutoValue_ParquetIO_Read.Builder().setHintMatchesManyFiles(false)
+        .setMatchConfiguration(FileIO.MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
+        .build();
   }
 
   /**
-   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link org.apache.beam.sdk.io.FileIO.ReadableFile},
-   * which allows more flexible usage via different
+   * Like {@link #read()}, but reads each filepattern in the input {@link PCollection}.
    */
-  public static ReadFiles() {
+  public static ReadAll readAll() {
+    return new AutoValue_ParquetIO_ReadAll.Builder()
+        .setMatchConfiguration(FileIO.MatchConfiguration
+            .create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+        .build();
+  }
+
+  /**
+   * Like {@link #read()}, but reads each file in a {@link PCollection}
+   * of {@link org.apache.beam.sdk.io.FileIO.ReadableFile},
+   * which allows more flexible usage.
+   */
+  public static ReadFiles readFiles() {
     return new AutoValue_ParquetIO_ReadFiles.Builder().build();
   }
 
+  /**
+   * Writes a {@link PCollection} to an Parquet file.
+   */
   public static Write write() {
     return new AutoValue_ParquetIO_Write.Builder().build();
   }
 
   /**
-   * A {@link PTransform} to read from Parquet file.
+   * Implementation of {@link #read()}.
    */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<GenericRecord>> {
 
-    @Nullable abstract String path();
+    @Nullable abstract ValueProvider<String> filepattern();
+    abstract FileIO.MatchConfiguration matchConfiguration();
+    @Nullable abstract Schema schema();
+    abstract boolean hintMatchesManyFiles();
+
+    abstract Builder builder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setFilepattern(ValueProvider<String> filepattern);
+      abstract Builder setMatchConfiguration(FileIO.MatchConfiguration matchConfiguration);
+      abstract Builder setSchema(Schema schema);
+      abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
+
+      abstract Read build();
+    }
+
+    /**
+     * Reads from the given filename or filepattern.
+     *
+     * <p>If it is known that the filepattern will match a very large number of files (at least tens
+     * of thousands), use {@link #withHintMatchesManyFiles} for better performance and scalability.
+     */
+    public Read from(ValueProvider<String> filepattern) {
+      return builder().setFilepattern(filepattern).build();
+    }
+
+    /** Like {@link #from(ValueProvider)}. */
+    public Read from(String filepattern) {
+      return from(ValueProvider.StaticValueProvider.of(filepattern));
+    }
+
+    /**
+     * Schema of the record in the Parquet file.
+     */
+    public Read withSchema(Schema schema) {
+      return builder().setSchema(schema).build();
+    }
+
+    /** Sets the {@link FileIO.MatchConfiguration}. */
+    public Read withMatchConfiguration(FileIO.MatchConfiguration matchConfiguration) {
+      return builder().setMatchConfiguration(matchConfiguration).build();
+    }
+
+    /** Configures whether or not a filepattern matching no files is allowed. */
+    public Read withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
+      return withMatchConfiguration(matchConfiguration().withEmptyMatchTreatment(treatment));
+    }
+
+    /**
+     * Continuously watches for new files matching the filepattern, polling it at the given
+     * interval, until the given termination condition is reached. The returned {@link PCollection}
+     * is unbounded.
+     *
+     * <p>This works only in runners supporting {@link Experimental.Kind#SPLITTABLE_DO_FN}.
+     */
+    @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
+    public Read watchForNewFiles(
+        Duration pollInterval, Watch.Growth.TerminationCondition<String, ?> terminationCondition) {
+      return withMatchConfiguration(
+          matchConfiguration().continuously(pollInterval, terminationCondition));
+    }
+
+    /**
+     * Hints that the filepattern specified in {@link #from(String)} matches a very large number of
+     * files.
+     *
+     * <p>This hint may cause a runner to execute the transform differently, in a way that improves
+     * performance for this case, but it may worsen performance if the filepattern matches only a
+     * small number of files (e.g., in a runner that supports dynamic work rebalancing, it will
+     * happen less efficiently within individual files).
+     */
+    public Read withHintMatchesManyFiles() {
+      return builder().setHintMatchesManyFiles(true).build();
+    }
+
+    @Override
+    public PCollection<GenericRecord> expand(PBegin input) {
+      checkNotNull(filepattern(), "filepattern");
+      checkNotNull(schema(), "schema");
+
+      ReadAll readAll = readAll().withMatchConfiguration(matchConfiguration()).withSchema(schema());
+      return input
+          .apply("Create filepattern", Create.ofProvider(filepattern(),
+              StringUtf8Coder.of()))
+          .apply("Via ReadAll", readAll);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .addIfNotNull(
+              DisplayData.item("filePattern", filepattern()).withLabel("Input File Pattern"))
+          .include("matchConfiguration", matchConfiguration());
+    }
+  }
+
+  /**
+   * Implementation of {@link #readAll()}.
+   */
+  @AutoValue
+  public abstract static class ReadAll extends PTransform<PCollection<String>,
+      PCollection<GenericRecord>> {
+
+    abstract FileIO.MatchConfiguration matchConfiguration();
     @Nullable abstract Schema schema();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setPath(String path);
+      abstract Builder setMatchConfiguration(FileIO.MatchConfiguration matchConfiguration);
       abstract Builder setSchema(Schema schema);
-      abstract Read build();
+
+      abstract ReadAll build();
     }
 
     /**
-     * Define the location of the Parquet file you want to read.
+     * Sets the {@link org.apache.beam.sdk.io.FileIO.MatchConfiguration}.
      */
-    public Read withPath(String path) {
-      checkArgument(path != null, "ParquetIO.read().withPath(path) called with null path");
-      return builder().setPath(path).build();
+    public ReadAll withMatchConfiguration(FileIO.MatchConfiguration configuration) {
+      return builder().setMatchConfiguration(configuration).build();
     }
 
+    /**
+     * Sets the {@link EmptyMatchTreatment}.
+     */
+    public ReadAll withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
+      return withMatchConfiguration(matchConfiguration().withEmptyMatchTreatment(treatment));
+    }
+
+    /**
+     * Sets the schema of the records.
+     */
+    public ReadAll withSchema(Schema schema) {
+      return builder().setSchema(schema).build();
+    }
+
+    @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
+    public ReadAll watchForNewFiles(
+        Duration pollInterval, Watch.Growth.TerminationCondition<String, ?> terminationCondition) {
+      return withMatchConfiguration(
+          matchConfiguration().continuously(pollInterval, terminationCondition));
+    }
+
+    @Override
+    public PCollection<GenericRecord> expand(PCollection<String> input) {
+      checkNotNull(schema(), "schema");
+      return input
+          .apply(FileIO.matchAll().withConfiguration(matchConfiguration()))
+          .apply(FileIO.readMatches())
+          .apply(readFiles().withSchema(schema()));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.include("matchConfiguration", matchConfiguration());
+    }
+
+  }
+
+  /**
+   * Implementation of {@link #readFiles()}.
+   */
+  @AutoValue
+  public abstract static class ReadFiles extends PTransform<PCollection<FileIO.ReadableFile>,
+      PCollection<GenericRecord>> {
+
+    @Nullable abstract Schema schema();
+
+    abstract Builder builder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setSchema(Schema schema);
+      abstract ReadFiles build();
+    }
     /**
      * Define the Avro schema of the record to read from the Parquet file.
      */
-    public Read withSchema(Schema schema) {
+    public ReadFiles withSchema(Schema schema) {
       checkArgument(schema != null,
-          "ParquetIO.read().withSchema(schema) called with null schema");
+          "schema can not be null");
       return builder().setSchema(schema).build();
     }
 
     @Override
-    public PCollection<GenericRecord> expand(PBegin input) {
+    public PCollection<GenericRecord> expand(PCollection<FileIO.ReadableFile> input) {
       return input
-          .apply(Create.of(path()))
           .apply(ParDo.of(new ReadFn()))
           .setCoder(AvroCoder.of(schema()));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      builder.add(DisplayData.item("path", path()));
       builder.add(DisplayData.item("schema", schema().toString()));
     }
 
-    static class ReadFn extends DoFn<String, GenericRecord> {
+    static class ReadFn extends DoFn<FileIO.ReadableFile, GenericRecord> {
 
       @ProcessElement
       public void processElement(ProcessContext processContext) throws Exception {
-        Path path = new Path(processContext.element());
+        Path path = new Path(processContext.element().getMetadata().resourceId().toString());
         try (ParquetReader<GenericRecord> reader =
                  AvroParquetReader.<GenericRecord>builder(path).build()) {
           GenericRecord read;
