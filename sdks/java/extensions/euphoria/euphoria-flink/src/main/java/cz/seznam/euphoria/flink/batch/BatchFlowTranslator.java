@@ -101,8 +101,8 @@ public class BatchFlowTranslator extends FlowTranslator {
     this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
 
     // basic operators
-    Translation.add(translations, FlowUnfolder.InputOperator.class, new InputTranslator
-        (splitAssignerFactory));
+    Translation.add(translations, FlowUnfolder.InputOperator.class, new InputTranslator(
+        splitAssignerFactory));
     Translation.add(translations, FlatMap.class, new FlatMapTranslator());
     Translation.add(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator());
     Translation.add(translations, Union.class, new UnionTranslator());
@@ -158,8 +158,8 @@ public class BatchFlowTranslator extends FlowTranslator {
       }
       // ~ verify the flowToDag translation
       Translation<Operator<?, ?>> firstMatch = null;
-      for (Translation tx : txs) {
-        if (tx.accept == null || (boolean)tx.accept.apply(originalOp)) {
+      for (Translation<Operator<?, ?>> tx : txs) {
+        if (tx.accept == null || tx.accept.apply(originalOp)) {
           firstMatch = tx;
           break;
         }
