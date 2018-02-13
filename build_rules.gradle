@@ -38,7 +38,7 @@ println "Applying build_rules.gradle to $project.name"
 // We use the project.path as the group name to make this mapping unique since
 // we have a few projects with the same name.
 group = project.path
-version = "2.3.0-SNAPSHOT"
+version = "2.4.0-SNAPSHOT"
 
 // Define the default set of repositories for all builds.
 repositories {
@@ -483,4 +483,42 @@ ext.applyGrpcNature = {
 ext.applyAvroNature = {
   println "applyAvroNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.commercehub.gradle.plugin.avro"
+}
+
+// A class defining the set of configurable properties for createJavaQuickstartValidationTask
+class JavaQuickstartConfiguration {
+  // Name for the quickstart is required.
+  // Used both for the test name runQuickstartJava${name}
+  // and also for the script name, quickstart-java-${name}.toLowerCase().
+  String name
+
+  // gcpProject sets the gcpProject argument when executing the quickstart.
+  String gcpProject
+
+  // gcsBucket sets the gcsProject argument when executing the quickstart.
+  String gcsBucket
+}
+
+// Creates a task to run the quickstart for a runner.
+// Releases version and URL, can be overriden for a RC release with
+// ./gradlew :release:runQuickstartJava -Pver=2.3.0 -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-1027
+ext.createJavaQuickstartValidationTask = {
+  JavaQuickstartConfiguration config = it as JavaQuickstartConfiguration
+  def taskName = "runQuickstartJava${config.name}"
+  println "Generating :${taskName}"
+  def releaseVersion = project.findProperty('ver') ?: version
+  def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
+  def argsNeeded = ["--ver=${releaseVersion}", "--repourl=${releaseRepo}"]
+  if (config.gcpProject) {
+    argsNeeded.add("--gcpProject=${config.gcpProject}")
+  }
+  if (config.gcsBucket) {
+    argsNeeded.add("--gcsBucket=${config.gcsBucket}")
+  }
+  project.evaluationDependsOn(':release')
+  task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
+    main = "quickstart-java-${config.name}".toLowerCase()
+    classpath = project(':release').sourceSets.main.runtimeClasspath
+    args argsNeeded
+  }
 }
