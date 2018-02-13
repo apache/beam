@@ -1620,6 +1620,7 @@
             <useDefaultExcludes>true</useDefaultExcludes>
             <excludes>
               <!-- rat uses .gitignore for excludes -->
+              <exclude>**/gogradle.lock</exclude>
 
               <!-- ignore files we track but do not distribute -->
               <exclude>.github/**/*</exclude>
