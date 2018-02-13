@@ -22,12 +22,10 @@ import static org.junit.Assert.assertEquals;
 import java.io.File;
 import java.io.Serializable;
 import java.util.ArrayList;
-
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -45,7 +43,6 @@ import org.apache.parquet.hadoop.ParquetWriter;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 
 /**
@@ -60,7 +57,6 @@ public class ParquetIOTest implements Serializable {
   public transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
-  @Category(NeedsRunner.class)
   public void testRead() throws Exception {
     File file = temporaryFolder.newFile("testread.parquet");
     file.delete();
@@ -85,7 +81,7 @@ public class ParquetIOTest implements Serializable {
       }
     }
 
-    PCollection<GenericRecord> output = pipeline.apply(ParquetIO.read().withPath(file.toString())
+    PCollection<GenericRecord> output = pipeline.apply(ParquetIO.read().from(file.toString())
         .withSchema(schema));
 
     PAssert.thatSingleton(output.apply("Count All", Count.<GenericRecord>globally()))
@@ -114,10 +110,8 @@ public class ParquetIOTest implements Serializable {
     pipeline.run();
   }
 
-  @Ignore("Direct runner uses com.google.common.cache.LocalCache causing file already exists. "
-      + "Investigating.")
+  @Ignore
   @Test
-  @Category(NeedsRunner.class)
   public void testWrite() throws Exception {
     File file = temporaryFolder.newFile("testwrite.parquet");
     file.delete();
