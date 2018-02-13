@@ -101,6 +101,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *     provided, will be called on the discarded instance.</li>
  * </ol>
  *
+ * <p>Note also that calls to {@link DoFn.Teardown} are best effort, and may not be called before a
+ * {@link DoFn} is discarded in the general case. As a result, use of the {@link DoFn.Teardown}
+ * method to perform side effects is not appropriate, because the elements that produced the side
+ * effect will not be replayed in case of failure, and those side effects are permanently lost.
+ *
  * <p>Each of the calls to any of the {@link DoFn DoFn's} processing
  * methods can produce zero or more output elements. All of the
  * of output elements from all of the {@link DoFn} instances

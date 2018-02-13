@@ -600,11 +600,19 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.METHOD)
   public @interface FinishBundle {}
 
-
   /**
-   * Annotation for the method to use to clean up this instance after processing bundles of
-   * elements. No other method will be called after a call to the annotated method is made.
-   * The method annotated with this must satisfy the following constraint:
+   * Annotation for the method to use to clean up this instance before it is discarded. No other
+   * method will be called after a call to the annotated method is made.
+   *
+   * <p>Note that calls to the annotated method are best effort, and may not occur for arbitrary
+   * reasons. Any changes based on input elements must be performed in the {@link ProcessElement} or
+   * {@link FinishBundle} methods. If this is not done, a runner is permitted to mark elements as
+   * completely processed even with buffered side effects. If {@link Teardown} is not called but the
+   * buffered state becomes inaccessible (for example, due to hardware failures), the side effects
+   * produced by the elements are lost and not recoverable.
+   *
+   * <p>The method annotated with this must satisfy the following constraint:
+   *
    * <ul>
    *   <li>It must have zero arguments.
    * </ul>
@@ -612,8 +620,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  public @interface Teardown {
-  }
+  public @interface Teardown {}
 
   /**
    * Annotation for the method that maps an element to an initial restriction for a <a
