@@ -236,7 +236,7 @@ public final class SketchFrequencies {
     }
 
     /**
-     * Returns a new {@link PTransform} with a new relative error {@code epsilon}.
+     * Sets the relative error {@code epsilon}.
      *
      * <p>Keep in mind that the lower the {@code epsilon} value, the greater the width.
      *
@@ -247,7 +247,7 @@ public final class SketchFrequencies {
     }
 
     /**
-     * Returns a new {@link PTransform} with a new {@code confidence} value, i.e.
+     * Sets the {@code confidence} value, i.e.
      * the probability that the relative error is lower or equal to {@code epsilon}.
      *
      * <p>Keep in mind that the greater the confidence, the greater the depth.
@@ -299,7 +299,7 @@ public final class SketchFrequencies {
     }
 
     /**
-     * Returns a new {@link PTransform} with a new relative error {@code epsilon}.
+     * Sets the relative error {@code epsilon}.
      *
      * <p>Keep in mind that the lower the {@code epsilon} value, the greater the width.
      *
@@ -310,7 +310,7 @@ public final class SketchFrequencies {
     }
 
     /**
-     * Returns a new {@link PTransform} with a new {@code confidence} value, i.e.
+     * Sets the {@code confidence} value, i.e.
      * the probability that the relative error is lower or equal to {@code epsilon}.
      *
      * <p>Keep in mind that the greater the confidence, the greater the depth.

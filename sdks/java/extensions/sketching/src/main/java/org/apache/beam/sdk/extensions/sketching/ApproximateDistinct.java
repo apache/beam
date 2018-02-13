@@ -259,7 +259,7 @@ public final class ApproximateDistinct {
     }
 
     /**
-     * Returns a new {@link PTransform} with a new precision {@code p}.
+     * Sets the precision {@code p}.
      *
      * <p>Keep in mind that {@code p} cannot be lower than 4, because the estimation would be too
      * inaccurate.
@@ -275,7 +275,7 @@ public final class ApproximateDistinct {
     }
 
     /**
-     * Returns a new {@link PTransform} with a sparse representation of precision {@code sp}.
+     * Sets the sparse representation's precision {@code sp}.
      *
      * <p>Values above 32 are not yet supported by the AddThis version of HyperLogLog+.
      *
@@ -333,7 +333,7 @@ public final class ApproximateDistinct {
     }
 
     /**
-     * Returns a new {@link PTransform} with a new precision {@code p}.
+     * Sets the precision {@code p}.
      *
      * <p>Keep in mind that {@code p} cannot be lower than 4, because the estimation would be too
      * inaccurate.
@@ -349,7 +349,7 @@ public final class ApproximateDistinct {
     }
 
     /**
-     * Returns a new {@link PTransform} with a sparse representation of precision {@code sp}.
+     * Sets the sparse representation's precision {@code sp}.
      *
      * <p>Values above 32 are not yet supported by the AddThis version of HyperLogLog+.
      *
@@ -411,7 +411,7 @@ public final class ApproximateDistinct {
     }
 
     /**
-     * Returns a new {@link ApproximateDistinctFn} combiner with a new precision {@code p}.
+     * Returns an {@link ApproximateDistinctFn} combiner with a new precision {@code p}.
      *
      * <p>Keep in mind that {@code p} cannot be lower than 4, because the estimation would be too
      * inaccurate.
@@ -428,8 +428,8 @@ public final class ApproximateDistinct {
     }
 
     /**
-     * Returns a new {@link ApproximateDistinctFn} combiner with a sparse representation of
-     * precision {@code sp}.
+     * Returns an {@link ApproximateDistinctFn} combiner with a new
+     * sparse representation's precision {@code sp}.
      *
      * <p>Values above 32 are not yet supported by the AddThis version of HyperLogLog+.
      *

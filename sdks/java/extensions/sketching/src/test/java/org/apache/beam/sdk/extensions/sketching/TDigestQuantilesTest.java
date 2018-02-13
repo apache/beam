@@ -17,10 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sketching;
 
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.junit.Assert.assertThat;
+
 import com.tdunning.math.stats.Centroid;
 import com.tdunning.math.stats.MergingDigest;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,6 +38,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Assert;
@@ -118,14 +121,7 @@ public class TDigestQuantilesTest {
   }
 
   private <T> boolean encodeDecodeEquals(MergingDigest tDigest) throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    MergingDigestCoder tDigestCoder = new MergingDigestCoder();
-
-    tDigestCoder.encode(tDigest, baos);
-    byte[] bytes = baos.toByteArray();
-
-    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-    MergingDigest decoded = tDigestCoder.decode(bais);
+    MergingDigest decoded = CoderUtils.clone(new MergingDigestCoder(), tDigest);
 
     boolean equal = true;
     // the only way to compare the two sketches is to compare them centroid by centroid.
@@ -143,6 +139,12 @@ public class TDigestQuantilesTest {
       }
     }
     return equal;
+  }
+
+  @Test
+  public void testDisplayData() {
+    final TDigestQuantilesFn fn = TDigestQuantilesFn.create(155D);
+    assertThat(DisplayData.from(fn), hasDisplayItem("compression", 155D));
   }
 
   static class RetrieveQuantiles extends DoFn<MergingDigest, KV<Double, Double>> {
@@ -165,7 +167,7 @@ public class TDigestQuantilesTest {
 
     public Void apply(Iterable<KV<Double, Double>> input) {
       for (KV<Double, Double> pair : input) {
-        double expectedValue = pair.getKey() * size;
+        double expectedValue = pair.getKey() * (size + 1);
         boolean isAccurate = Math.abs(pair.getValue() - expectedValue)
                 / size <= expectedError;
         Assert.assertTrue("not accurate enough : \nQuantile " + pair.getKey()
