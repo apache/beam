@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.beam;
 
+import cz.seznam.euphoria.beam.coder.PairCoder;
 import cz.seznam.euphoria.beam.io.KryoCoder;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -47,6 +48,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 import static java.util.stream.Collectors.toList;
+import org.joda.time.Duration;
 
 /**
  * Keeps track of mapping between Euphoria {@link Dataset} and {@link PCollection}.
@@ -56,6 +58,7 @@ class BeamExecutorContext {
   private final DAG<Operator<?, ?>> dag;
   private final Map<Dataset<?>, PCollection<?>> outputs = new HashMap<>();
   private final Pipeline pipeline;
+  private final Duration allowedLateness;
 
   private final Settings settings = new Settings();
 
@@ -64,11 +67,13 @@ class BeamExecutorContext {
   BeamExecutorContext(
       DAG<Operator<?, ?>> dag,
       AccumulatorProvider.Factory accumulatorFactory,
-      Pipeline pipeline) {
+      Pipeline pipeline,
+      Duration allowedLateness) {
 
     this.dag = dag;
     this.accumulatorFactory = accumulatorFactory;
     this.pipeline = pipeline;
+    this.allowedLateness = allowedLateness;
   }
 
   <IN> PCollection<IN> getInput(Operator<IN, ?> operator) {
@@ -96,7 +101,7 @@ class BeamExecutorContext {
     return Optional.ofNullable(outputs.get(dataset));
   }
 
-  void setPCollection(Dataset<?> dataset, PCollection<?> coll) {
+  <T> void setPCollection(Dataset<T> dataset, PCollection<T> coll) {
     final PCollection<?> prev = outputs.put(dataset, coll);
     if (prev != null) {
       throw new IllegalStateException(
@@ -165,19 +170,19 @@ class BeamExecutorContext {
   }
 
   @SuppressWarnings("unchecked")
-  private <T> Coder<T> getOutputCoder(Dataset<?> dataset) {
+  private <T> Coder<T> getOutputCoder(Dataset<T> dataset) {
     Operator<?, ?> op = dataset.getProducer();
     if (op instanceof FlatMap) {
-      FlatMap m = (FlatMap) op;
+      FlatMap<?, T> m = (FlatMap) op;
       return getCoder(m.getFunctor());
     } else if (op instanceof Union) {
-      Union<?> u = (Union) op;
-      Dataset<?> first = Objects.requireNonNull(
+      Union<T> u = (Union) op;
+      Dataset<T> first = Objects.requireNonNull(
           Iterables.getFirst(u.listInputs(), null));
       return getOutputCoder(first);
     } else if (op instanceof ReduceByKey) {
       ReduceByKey rb = (ReduceByKey) op;
-      return getCoder(rb.getReducer());
+      return PairCoder.of(getCoder(rb.getKeyExtractor()), getCoder(rb.getReducer()));
     } else if (op instanceof ReduceStateByKey) {
       ReduceStateByKey rbsk = (ReduceStateByKey) op;
       // FIXME
@@ -188,6 +193,10 @@ class BeamExecutorContext {
     }
     // FIXME
     return new KryoCoder<>();
+  }
+
+  Duration getAllowedLateness(Operator<?, ?> operator) {
+    return allowedLateness;
   }
 
 }

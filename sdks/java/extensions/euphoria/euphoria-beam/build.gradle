@@ -9,6 +9,7 @@ dependencies {
   testCompile project(':euphoria-operator-testkit')
   testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
   testCompile "org.apache.beam:beam-runners-direct-java:${beamVersion}"
+  testCompile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.25'
 }
 
 test.testLogging.showStandardStreams = true
