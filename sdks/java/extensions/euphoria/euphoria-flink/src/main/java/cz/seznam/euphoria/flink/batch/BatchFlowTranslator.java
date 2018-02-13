@@ -44,10 +44,14 @@ import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 
+/**
+ * Translate flow for Flink Batch Mode. Only first translation match is used in flow
+ */
 public class BatchFlowTranslator extends FlowTranslator {
 
   public interface SplitAssignerFactory
-  extends BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner>, Serializable {}
+      extends BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner>, Serializable {
+  }
 
   public static final SplitAssignerFactory DEFAULT_SPLIT_ASSIGNER_FACTORY =
       (splits, partitions) -> new LocatableInputSplitAssigner(splits);
@@ -63,16 +67,14 @@ public class BatchFlowTranslator extends FlowTranslator {
     }
 
     static <O extends Operator<?, ?>> void add(
-            Map<Class, List<Translation>> idx,
-        Class<O> type, BatchOperatorTranslator<O> translator)
-    {
+        Map<Class, List<Translation>> idx,
+        Class<O> type, BatchOperatorTranslator<O> translator) {
       add(idx, type, translator, null);
     }
 
     static <O extends Operator<?, ?>> void add(
-            Map<Class, List<Translation>> idx,
-        Class<O> type, BatchOperatorTranslator<O> translator, UnaryPredicate<O> accept)
-    {
+        Map<Class, List<Translation>> idx,
+        Class<O> type, BatchOperatorTranslator<O> translator, UnaryPredicate<O> accept) {
       idx.putIfAbsent(type, new ArrayList<>());
       idx.get(type).add(new Translation<>(translator, accept));
     }
@@ -100,7 +102,7 @@ public class BatchFlowTranslator extends FlowTranslator {
 
     // basic operators
     Translation.add(translations, FlowUnfolder.InputOperator.class, new InputTranslator
-            (splitAssignerFactory));
+        (splitAssignerFactory));
     Translation.add(translations, FlatMap.class, new FlatMapTranslator());
     Translation.add(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator());
     Translation.add(translations, Union.class, new UnionTranslator());
@@ -111,16 +113,16 @@ public class BatchFlowTranslator extends FlowTranslator {
 
     // ~ batch broadcast join for a very small left side
     Translation.add(translations, Join.class, new BroadcastHashJoinTranslator(),
-            BroadcastHashJoinTranslator::wantTranslate);
+        BroadcastHashJoinTranslator::wantTranslate);
   }
 
   @SuppressWarnings("unchecked")
   @Override
   protected Collection<TranslateAcceptor> getAcceptors() {
     return translations.entrySet().stream()
-            .flatMap((entry) -> entry.getValue()
-                    .stream()
-                    .map(translator -> new TranslateAcceptor(entry.getKey(), translator.accept)))
+        .flatMap((entry) -> entry.getValue()
+            .stream()
+            .map(translator -> new TranslateAcceptor(entry.getKey(), translator.accept)))
         .collect(Collectors.toList());
   }
 
@@ -131,6 +133,12 @@ public class BatchFlowTranslator extends FlowTranslator {
     return opt;
   }
 
+  /**
+   * Take only first translation operator
+   * @param flow the user defined flow to be translated
+   *
+   * @return all output sinks
+   */
   @Override
   @SuppressWarnings("unchecked")
   public List<DataSink<?>> translateInto(Flow flow) {
@@ -138,7 +146,7 @@ public class BatchFlowTranslator extends FlowTranslator {
     DAG<FlinkOperator<Operator<?, ?>>> dag = flowToDag(flow);
 
     BatchExecutorContext executorContext = new BatchExecutorContext(env, (DAG) dag,
-            accumulatorFactory, settings);
+        accumulatorFactory, settings);
 
     // translate each operator to proper Flink transformation
     dag.traverse().map(Node::get).forEach(op -> {
@@ -146,12 +154,12 @@ public class BatchFlowTranslator extends FlowTranslator {
       List<Translation> txs = this.translations.get(originalOp.getClass());
       if (txs.isEmpty()) {
         throw new UnsupportedOperationException(
-                "Operator " + op.getClass().getSimpleName() + " not supported");
+            "Operator " + op.getClass().getSimpleName() + " not supported");
       }
       // ~ verify the flowToDag translation
       Translation<Operator<?, ?>> firstMatch = null;
       for (Translation tx : txs) {
-        if (tx.accept == null || Boolean.TRUE.equals(tx.accept.apply(originalOp))) {
+        if (tx.accept == null || (boolean)tx.accept.apply(originalOp)) {
           firstMatch = tx;
           break;
         }
@@ -169,18 +177,18 @@ public class BatchFlowTranslator extends FlowTranslator {
     // process all sinks in the DAG (leaf nodes)
     final List<DataSink<?>> sinks = new ArrayList<>();
     dag.getLeafs()
-            .stream()
-            .map(Node::get)
-            .filter(op -> op.output().getOutputSink() != null)
-            .forEach(op -> {
+        .stream()
+        .map(Node::get)
+        .filter(op -> op.output().getOutputSink() != null)
+        .forEach(op -> {
 
-              final DataSink<?> sink = op.output().getOutputSink();
-              sinks.add(sink);
-              DataSet<?> flinkOutput =
-                      Objects.requireNonNull(executorContext.getOutputStream(op));
+          final DataSink<?> sink = op.output().getOutputSink();
+          sinks.add(sink);
+          DataSet<?> flinkOutput =
+              Objects.requireNonNull(executorContext.getOutputStream(op));
 
-              flinkOutput.output(new DataSinkWrapper<>((DataSink) sink));
-            });
+          flinkOutput.output(new DataSinkWrapper<>((DataSink) sink));
+        });
 
     return sinks;
   }
