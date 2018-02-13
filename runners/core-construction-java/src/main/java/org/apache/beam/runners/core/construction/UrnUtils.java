@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 /** Utilities for dealing with URNs. */
 public class UrnUtils {
 
-  private static final String STANDARD_URNS_PATH = "/org/apache/beam/model/common_urns.md";
+  private static final String STANDARD_URNS_PATH = "org/apache/beam/model/common_urns.md";
   private static final Pattern URN_REGEX = Pattern.compile("\\b(urn:)?beam:\\S+:v[0-9.]+");
   private static final Set<String> COMMON_URNS = extractUrnsFromPath(STANDARD_URNS_PATH);
 
@@ -37,7 +37,7 @@ public class UrnUtils {
     String contents;
     try {
       contents = CharStreams.toString(new InputStreamReader(
-          UrnUtils.class.getResourceAsStream(path)));
+          UrnUtils.class.getClassLoader().getResourceAsStream(path)));
     } catch (IOException exn) {
       throw new RuntimeException(exn);
     }
