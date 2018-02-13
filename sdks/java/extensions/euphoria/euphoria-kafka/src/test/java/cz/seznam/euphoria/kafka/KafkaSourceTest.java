@@ -16,9 +16,13 @@
 package cz.seznam.euphoria.kafka;
 
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.common.Node;
+import org.apache.kafka.common.PartitionInfo;
 import org.junit.Test;
+import org.junit.experimental.categories.Categories;
 
 import java.util.Collections;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -33,10 +37,29 @@ public class KafkaSourceTest {
    */
   @Test(expected = IllegalStateException.class)
   @SuppressWarnings("unchecked")
+  public void testNoPartitions() {
+    tryGetPartitions(Collections.emptyList());
+  }
+
+  @SuppressWarnings("unchecked")
   public void testPartitions() {
+    Node leaderNode = new Node(1, "localhost", 3333);
+    PartitionInfo pi = new PartitionInfo("topic", 0, leaderNode, null, null);
+    tryGetPartitions(Collections.emptyList());
+  }
+
+  @Test(expected = IllegalStateException.class)
+  @SuppressWarnings("unchecked")
+  public void testNoLeader() {
+    Node leaderNode = new Node(-1, "localhost", 3333); // -1 no leader, constant not even defined in Kafka
+    PartitionInfo pi = new PartitionInfo("topic", 0, leaderNode, null, null);
+    tryGetPartitions(Collections.emptyList());
+  }
+
+  public void tryGetPartitions(List<PartitionInfo> partitions) {
     KafkaSource source = mock(KafkaSource.class);
     Consumer<byte[], byte[]> consumer = mock(Consumer.class);
-    when(consumer.partitionsFor(any(String.class))).thenReturn(Collections.emptyList());
+    when(consumer.partitionsFor(any(String.class))).thenReturn(partitions);
     when(source.newConsumer(any(), any(), any())).thenReturn(consumer);
     when(source.getPartitions()).thenCallRealMethod();
     source.getPartitions();
