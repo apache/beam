@@ -1,5 +1,5 @@
-/**
- * Copyright 2016-2017 Seznam.cz, a.s.
+/*
+ * Copyright 2016-2018 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package cz.seznam.euphoria.beam;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
 import java.io.Serializable;
@@ -45,7 +46,7 @@ public class CombinableCollector<T> implements Collector<T>, Serializable {
   }
 
   @Override
-  public Object getWindow() {
+  public Window<?> getWindow() {
     // this is not needed, the underlaying functor does not have access to this
     throw new UnsupportedOperationException("Not supported.");
   }

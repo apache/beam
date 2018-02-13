@@ -1,5 +1,5 @@
-/**
- * Copyright 2016-2017 Seznam.cz, a.s.
+/*
+ * Copyright 2016-2018 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,36 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package cz.seznam.euphoria.beam;
 
-import com.google.common.base.Preconditions;
-import com.google.common.reflect.TypeToken;
-import cz.seznam.euphoria.beam.coder.PairCoder;
-import cz.seznam.euphoria.beam.io.KryoCoder;
 import cz.seznam.euphoria.beam.window.BeamWindowFn;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
-import cz.seznam.euphoria.core.client.type.TypeAwareReduceFunctor;
-import cz.seznam.euphoria.core.client.type.TypeAwareUnaryFunction;
-import cz.seznam.euphoria.core.client.type.TypeHint;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.util.ExceptionUtils;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -50,7 +34,7 @@ import java.util.stream.StreamSupport;
 /**
  * Translator for {@code ReduceByKey} operator.
  */
-public class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
+class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
 
   @Override
   @SuppressWarnings("unchecked")
@@ -87,16 +71,16 @@ public class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     }
 
     // ~ create key & value extractor
-    final MapElements<IN, KV<KEY, VALUE>> extractor = MapElements
-        .into(TypeUtils.kvOf(keyType, valueType))
-        .via(e -> KV.of(keyExtractor.apply(e), valueExtractor.apply(e)));
+//    final MapElements<IN, KV<KEY, VALUE>> extractor = MapElements
+//        .into(TypeUtils.kvOf(keyType, valueType))
+//        .via(e -> KV.of(keyExtractor.apply(e), valueExtractor.apply(e)));
 
     final PCollection<KV<KEY, VALUE>> extracted;
 
     // ~ apply key & value extractor
-    extracted = input
-        .apply(extractor)
-        .setCoder(KvCoder.of(keyCoder, valueCoder));
+//    extracted = input
+//        .apply(extractor)
+//        .setCoder(KvCoder.of(keyCoder, valueCoder));
 
 //    if (operator.isCombinable()) {
 //      final PCollection<KV<KEY, VALUE>> combined = extracted.apply(
@@ -113,17 +97,19 @@ public class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
     // reduce
 //    final PCollection<Pair<KEY, OUT>> result =
 
-    final AccumulatorProvider accumulators = new LazyAccumulatorProvider(
-        context.getAccumulatorFactory(),
-        context.getSettings());
+//    final AccumulatorProvider accumulators = new LazyAccumulatorProvider(
+//        context.getAccumulatorFactory(),
+//        context.getSettings());
 
-    final PCollection<KV<KEY, Iterable<VALUE>>> grouped = extracted
-        .apply(GroupByKey.create())
-        .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
+//    final PCollection<KV<KEY, Iterable<VALUE>>> grouped = extracted
+//        .apply(GroupByKey.create())
+//        .setCoder(KvCoder.of(keyCoder, IterableCoder.of(valueCoder)));
 
-    return grouped
-        .apply(ParDo.of(new ReduceDoFn<>(operator.getReducer(), accumulators)))
-        .setCoder(PairCoder.of(keyCoder, outputCoder));
+//    return grouped
+//        .apply(ParDo.of(new ReduceDoFn<>(operator.getReducer(), accumulators)))
+//        .setCoder(PairCoder.of(keyCoder, outputCoder));
+
+    throw new UnsupportedOperationException("FIXME");
   }
 
   private static <IN, OUT> SerializableFunction<Stream<IN>, IN> asCombiner(

@@ -1,5 +1,5 @@
-/**
- * Copyright 2016-2017 Seznam.cz, a.s.
+/*
+ * Copyright 2016-2018 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
  */
 package cz.seznam.euphoria.core.client.type;
 
-import com.google.common.reflect.TypeToken;
-
+import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.shadow.com.google.common.reflect.TypeParameter;
+import cz.seznam.euphoria.shadow.com.google.common.reflect.TypeToken;
 import java.io.Serializable;
 import java.lang.reflect.Type;
 
@@ -54,6 +55,22 @@ public abstract class TypeHint<T> implements Serializable {
 
   public static TypeHint<Long> ofLong() {
     return TypeHint.of(Long.class);
+  }
+
+  public static TypeHint<Integer> ofInt() {
+    return TypeHint.of(Integer.class);
+  }
+
+  public static <A, B> TypeHint<Pair<A, B>> ofPair(TypeToken<A> left, TypeToken<B> right) {
+    return new SimpleTypeHint<>(new TypeToken<Pair<A, B>>(Pair.class) { }
+        .where(new TypeParameter<A>() { }, left)
+        .where(new TypeParameter<B>() { }, right));
+  }
+
+  public static <A, B> TypeHint<Pair<A, B>> ofPair(Class<A> left, Class<B> right) {
+    return new SimpleTypeHint<>(new TypeToken<Pair<A, B>>(Pair.class) { }
+        .where(new TypeParameter<A>() { }, left)
+        .where(new TypeParameter<B>() { }, right));
   }
 
   private static class SimpleTypeHint<T> extends TypeHint<T> {
