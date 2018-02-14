@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.options;
 
+import static java.util.Collections.singletonList;
 import static java.util.Locale.ROOT;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -55,6 +56,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -1797,6 +1799,82 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
+  @Test
+  public void testPipelineOptionsFactoryFromProperties() {
+    assertEquals("testAppName", PipelineOptionsFactory.fromProperties(new Properties() {{
+      put("appName", "testAppName");
+    }}).as(ApplicationNameOptions.class).getAppName());
+  }
+
+  @Test
+  public void testPipelineOptionsFactoryFromSystemProperties() {
+    final String prefix = getClass().getName() + ".testPipelineOptionsFactoryFromSystemProperties.";
+    System.setProperty(prefix + "appName", "testAppName");
+    assertEquals("testAppName",
+      PipelineOptionsFactory.fromSystemProperties(prefix)
+        .as(ApplicationNameOptions.class).getAppName());
+    System.clearProperty(prefix + "appName");
+  }
+
+  @Test
+  public void testPipelineOptionsFactoryFromPropertiesWithPrefix() {
+    PipelineOptionsFactory.register(PipelineOptionsFactoryFromPropertiesTestOptions.class);
+    { // expected case, set and not set
+      final PipelineOptions options =
+        PipelineOptionsFactory.fromProperties("prefix.", new Properties() {{
+          put("prefix.appName", "testAppName");
+          put("prefix.option", "test");
+        }});
+      final ApplicationNameOptions opts = options.as(ApplicationNameOptions.class);
+      assertEquals("testAppName", opts.getAppName());
+      assertNull(opts.getTempLocation());
+      assertEquals(
+        "test",
+        options.as(PipelineOptionsFactoryFromPropertiesTestOptions.class).getOption());
+    }
+    { // non string value - nobody should care about that case except us as a testing coverage
+      final PipelineOptionsFactoryFromPropertiesTestOptions opts =
+              PipelineOptionsFactory.fromProperties("prefix.", new Properties() {{
+                put("prefix.appName", singletonList("test"));
+              }}).as(PipelineOptionsFactoryFromPropertiesTestOptions.class);
+      assertNull(opts.getOption());
+    }
+    { // non string key - nobody should care about that case except us as a testing coverage
+      final PipelineOptionsFactoryFromPropertiesTestOptions opts =
+              PipelineOptionsFactory.fromProperties("prefix.", new Properties() {{
+                put(singletonList("prefix.appName"), "test");
+              }}).as(PipelineOptionsFactoryFromPropertiesTestOptions.class);
+      assertNull(opts.getOption());
+    }
+  }
+
+  /** Used to test properties typing handling. */
+  public interface PipelineOptionsFactoryFromPropertiesTestOptions extends PipelineOptions {
+    @Description("A test option.")
+    String getOption();
+    void setOption(String b);
+  }
+
+  @Test
+  public void testPipelineOptionsFactoryFromPropertiesWithLongPrefix() {
+    assertEquals(
+      "testAppName",
+      PipelineOptionsFactory.fromProperties("org.apache.beam.", new Properties() {{
+        put("org.apache.beam.appName", "testAppName");
+      }}).as(ApplicationNameOptions.class).getAppName());
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testPipelineOptionsFactoryFromNullProperties() {
+    PipelineOptionsFactory.fromProperties(null);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testPipelineOptionsFactoryFromPropertiesAndNullPrefix() {
+    PipelineOptionsFactory.fromProperties(null, new Properties() {{
+      put("appName", "testAppName");
+    }}).as(ApplicationNameOptions.class).getAppName();
+  }
   /** Used to test that the thread context class loader is used when creating proxies. */
   public interface ClassLoaderTestOptions extends PipelineOptions {
     @Default.Boolean(true)
