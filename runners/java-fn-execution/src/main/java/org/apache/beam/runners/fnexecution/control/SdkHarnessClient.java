@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A high-level client for an SDK harness.
  *
- * <p>This provides a Java-friendly wrapper around {@link FnApiControlClient} and {@link
+ * <p>This provides a Java-friendly wrapper around {@link InstructionRequestHandler} and {@link
  * CloseableFnDataReceiver}, which handle lower-level gRPC message wrangling.
  */
 public class SdkHarnessClient implements AutoCloseable {
@@ -165,14 +165,14 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   private final IdGenerator idGenerator;
-  private final FnApiControlClient fnApiControlClient;
+  private final InstructionRequestHandler fnApiControlClient;
   private final FnDataService fnApiDataService;
 
   private final Cache<String, BundleProcessor> clientProcessors =
       CacheBuilder.newBuilder().build();
 
   private SdkHarnessClient(
-      FnApiControlClient fnApiControlClient,
+      InstructionRequestHandler fnApiControlClient,
       FnDataService fnApiDataService,
       IdGenerator idGenerator) {
     this.fnApiDataService = fnApiDataService;
@@ -186,7 +186,7 @@ public class SdkHarnessClient implements AutoCloseable {
    * correctly associated.
    */
   public static SdkHarnessClient usingFnApiClient(
-      FnApiControlClient fnApiControlClient, FnDataService fnApiDataService) {
+      InstructionRequestHandler fnApiControlClient, FnDataService fnApiDataService) {
     return new SdkHarnessClient(fnApiControlClient, fnApiDataService, new CountingIdGenerator());
   }
 
@@ -249,9 +249,7 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
-    this.fnApiControlClient.close();
-  }
+  public void close() throws Exception {}
 
   /**
    * A pair of {@link Coder} and {@link BeamFnApi.Target} which can be handled by the remote SDK
