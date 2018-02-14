@@ -221,7 +221,7 @@ class PipelineTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       pipeline.apply(transform, pcoll2)
     self.assertEqual(
-        cm.exception.message,
+        cm.exception.args[0],
         'Transform "CustomTransform" does not have a stable unique label. '
         'This will prevent updating of pipelines. '
         'To apply a transform with a specified label write '
