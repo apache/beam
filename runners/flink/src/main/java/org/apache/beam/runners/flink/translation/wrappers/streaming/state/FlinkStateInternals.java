@@ -1067,7 +1067,7 @@ public class FlinkStateInternals<K> implements StateInternals {
             namespace.stringKey(),
             StringSerializer.INSTANCE,
             flinkStateDescriptor).get(t);
-        return ReadableStates.immediate(result != null ? result : false);
+        return ReadableStates.immediate(result != null && result);
       } catch (Exception e) {
         throw new RuntimeException("Error contains value from state.", e);
       }

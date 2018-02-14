@@ -25,7 +25,6 @@ that method for more details.
 For an example implementation of :class:`FileBasedSource` see
 :class:`~apache_beam.io._AvroSource`.
 """
-import uuid
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
@@ -38,13 +37,10 @@ from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.options.value_provider import check_accessible
 from apache_beam.transforms.core import DoFn
-from apache_beam.transforms.core import FlatMap
-from apache_beam.transforms.core import GroupByKey
-from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import PTransform
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.trigger import DefaultTrigger
+from apache_beam.transforms.util import Reshuffle
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
 
@@ -354,25 +350,6 @@ class _ExpandIntoRanges(DoFn):
             0, range_trackers.OffsetRangeTracker.OFFSET_INFINITY))
 
 
-# Replace following with a generic reshard transform once
-# https://issues.apache.org/jira/browse/BEAM-1872 is implemented.
-class _Reshard(PTransform):
-
-  def expand(self, pvalue):
-    keyed_pc = (pvalue
-                | 'AssignKey' >> Map(lambda x: (uuid.uuid4(), x)))
-    if keyed_pc.windowing.windowfn.is_merging():
-      raise ValueError('Transform ReadAllFiles cannot be used in the presence '
-                       'of merging windows')
-    if not isinstance(keyed_pc.windowing.triggerfn, DefaultTrigger):
-      raise ValueError('Transform ReadAllFiles cannot be used in the presence '
-                       'of non-trivial triggers')
-
-    return (keyed_pc | 'GroupByKey' >> GroupByKey()
-            # Using FlatMap below due to the possibility of key collisions.
-            | 'DropKey' >> FlatMap(lambda k_values: k_values[1]))
-
-
 class _ReadRange(DoFn):
 
   def __init__(self, source_from_file):
@@ -432,5 +409,5 @@ class ReadAllFiles(PTransform):
             | 'ExpandIntoRanges' >> ParDo(_ExpandIntoRanges(
                 self._splittable, self._compression_type,
                 self._desired_bundle_size, self._min_bundle_size))
-            | 'Reshard' >> _Reshard()
+            | 'Reshard' >> Reshuffle()
             | 'ReadRange' >> ParDo(_ReadRange(self._source_from_file)))

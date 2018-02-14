@@ -37,6 +37,7 @@ sdks/python/LICENSE
 sdks/python/NOTICE
 sdks/python/README.md
 sdks/python/apache_beam/portability/api/*pb2*.*
+sdks/python/apache_beam/portability/common_urns.py
 
 # Ignore IntelliJ files.
 **/.idea/**/*

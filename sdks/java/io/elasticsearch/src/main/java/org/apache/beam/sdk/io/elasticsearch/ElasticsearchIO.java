@@ -605,15 +605,12 @@ public class ElasticsearchIO {
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
-      if (source.backendVersion == 5){
-        //if there is more than one slice
-        if (source.numSlices != null && source.numSlices > 1){
-          // add slice to the user query
-          String sliceQuery = String
-              .format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId,
-                  source.numSlices);
-          query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
-        }
+      if (source.backendVersion == 5 && source.numSlices != null && source.numSlices > 1){
+        //if there is more than one slice, add the slice to the user query
+        String sliceQuery = String
+            .format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId,
+                source.numSlices);
+        query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
       }
       Response response;
       String endPoint =

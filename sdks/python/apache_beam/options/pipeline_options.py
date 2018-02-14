@@ -30,6 +30,7 @@ __all__ = [
     'TypeOptions',
     'DirectOptions',
     'GoogleCloudOptions',
+    'HadoopFileSystemOptions',
     'WorkerOptions',
     'DebugOptions',
     'ProfilingOptions',
@@ -389,6 +390,33 @@ class GoogleCloudOptions(PipelineOptions):
         errors.append('--dataflow_job_file and --template_location '
                       'are mutually exclusive.')
 
+    return errors
+
+
+class HadoopFileSystemOptions(PipelineOptions):
+  """``HadoopFileSystem`` connection options."""
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--hdfs_host',
+        default=None,
+        help=
+        ('Hostname or address of the HDFS namenode.'))
+    parser.add_argument(
+        '--hdfs_port',
+        default=None,
+        help=
+        ('Port of the HDFS namenode.'))
+    parser.add_argument(
+        '--hdfs_user',
+        default=None,
+        help=
+        ('HDFS username to use.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(validator.validate_optional_argument_positive(self, 'port'))
     return errors
 
 

@@ -39,13 +39,6 @@
           <parallel>none</parallel>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-deploy-plugin</artifactId>
-        <configuration>
-          <skip>true</skip>
-        </configuration>
-      </plugin>
     </plugins>
   </build>
 
@@ -75,6 +68,9 @@
 
     <profile>
       <id>spark-runner</id>
+      <properties>
+        <netty.version>4.0.43.Final</netty.version>
+      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>

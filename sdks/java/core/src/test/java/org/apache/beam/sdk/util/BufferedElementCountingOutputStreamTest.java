@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.util;
 
+import static org.apache.beam.sdk.util.BufferedElementCountingOutputStream.BUFFER_POOL;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -27,6 +29,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -154,6 +157,39 @@ public class BufferedElementCountingOutputStreamTest {
     expectedException.expect(IOException.class);
     expectedException.expectMessage("Stream has been finished.");
     testValues(toBytes("a")).write("b".getBytes());
+  }
+
+  @Test
+  public void testBuffersAreTakenAndReturned() throws Exception {
+    BUFFER_POOL.clear();
+    BUFFER_POOL.offer(ByteBuffer.allocate(256));
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    BufferedElementCountingOutputStream os = createAndWriteValues(toBytes("abcdefghij"), baos);
+    assertEquals(0, BUFFER_POOL.size());
+    os.finish();
+    assertEquals(1, BUFFER_POOL.size());
+
+  }
+
+  @Test
+  public void testBehaviorWhenBufferPoolFull() throws Exception {
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    while (BUFFER_POOL.remainingCapacity() > 0) {
+      BUFFER_POOL.offer(ByteBuffer.allocate(256));
+    }
+    BufferedElementCountingOutputStream os = createAndWriteValues(toBytes("abcdefghij"), baos);
+    os.finish();
+    assertEquals(0, BUFFER_POOL.remainingCapacity());
+  }
+
+  @Test
+  public void testBehaviorWhenBufferPoolEmpty() throws Exception {
+    BUFFER_POOL.clear();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    BufferedElementCountingOutputStream os = createAndWriteValues(toBytes("abcdefghij"), baos);
+    assertEquals(0, BUFFER_POOL.size());
+    os.finish();
+    assertEquals(1, BUFFER_POOL.size());
   }
 
   private List<byte[]> toBytes(String ... values) {

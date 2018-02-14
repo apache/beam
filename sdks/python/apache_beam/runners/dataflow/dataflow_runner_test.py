@@ -273,8 +273,10 @@ class DataflowRunnerTest(unittest.TestCase):
       pcoll2.element_type = typehints.Any
       pcoll3.element_type = typehints.KV[typehints.Any, typehints.Any]
       for pcoll in [pcoll1, pcoll2, pcoll3]:
+        applied = AppliedPTransform(None, transform, "label", [pcoll])
+        applied.outputs[None] = PCollection(None)
         DataflowRunner.group_by_key_input_visitor().visit_transform(
-            AppliedPTransform(None, transform, "label", [pcoll]))
+            applied)
         self.assertEqual(pcoll.element_type,
                          typehints.KV[typehints.Any, typehints.Any])
 

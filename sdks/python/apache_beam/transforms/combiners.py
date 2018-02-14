@@ -137,7 +137,7 @@ class CountCombineFn(core.CombineFn):
     return accumulator + 1
 
   def add_inputs(self, accumulator, elements):
-    return accumulator + len(elements)
+    return accumulator + len(list(elements))
 
   def merge_accumulators(self, accumulators):
     return sum(accumulators)
@@ -536,30 +536,35 @@ class ToDictCombineFn(core.CombineFn):
     return accumulator
 
 
+class _CurriedFn(core.CombineFn):
+  """Wrapped CombineFn with extra arguments."""
+
+  def __init__(self, fn, args, kwargs):
+    self.fn = fn
+    self.args = args
+    self.kwargs = kwargs
+
+  def create_accumulator(self):
+    return self.fn.create_accumulator(*self.args, **self.kwargs)
+
+  def add_input(self, accumulator, element):
+    return self.fn.add_input(accumulator, element, *self.args, **self.kwargs)
+
+  def merge_accumulators(self, accumulators):
+    return self.fn.merge_accumulators(accumulators, *self.args, **self.kwargs)
+
+  def extract_output(self, accumulator):
+    return self.fn.extract_output(accumulator, *self.args, **self.kwargs)
+
+  def apply(self, elements):
+    return self.fn.apply(elements, *self.args, **self.kwargs)
+
+
 def curry_combine_fn(fn, args, kwargs):
   if not args and not kwargs:
     return fn
-
-  # Create CurriedFn class for the combiner
-  class CurriedFn(core.CombineFn):
-    """CombineFn that applies extra arguments."""
-
-    def create_accumulator(self):
-      return fn.create_accumulator(*args, **kwargs)
-
-    def add_input(self, accumulator, element):
-      return fn.add_input(accumulator, element, *args, **kwargs)
-
-    def merge_accumulators(self, accumulators):
-      return fn.merge_accumulators(accumulators, *args, **kwargs)
-
-    def extract_output(self, accumulator):
-      return fn.extract_output(accumulator, *args, **kwargs)
-
-    def apply(self, elements):
-      return fn.apply(elements, *args, **kwargs)
-
-  return CurriedFn()
+  else:
+    return _CurriedFn(fn, args, kwargs)
 
 
 class PhasedCombineFnExecutor(object):

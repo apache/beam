@@ -29,7 +29,6 @@ public class BeamSqlArithmeticOperatorsIntegrationTest
     extends BeamSqlBuiltinFunctionsIntegrationTestBase {
 
   private static final BigDecimal ZERO = BigDecimal.valueOf(0.0);
-  private static final BigDecimal ONE0 = BigDecimal.valueOf(1);
   private static final BigDecimal ONE = BigDecimal.valueOf(1.0);
   private static final BigDecimal ONE2 = BigDecimal.valueOf(1.0).multiply(BigDecimal.valueOf(1.0));
   private static final BigDecimal ONE10 = BigDecimal.ONE.divide(

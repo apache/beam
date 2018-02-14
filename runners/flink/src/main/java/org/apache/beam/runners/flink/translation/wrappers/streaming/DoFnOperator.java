@@ -276,8 +276,10 @@ public class DoFnOperator<InputT, OutputT>
       keyedStateInternals = new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(),
           keyCoder);
 
-      timerService = (HeapInternalTimerService<?, TimerInternals.TimerData>)
-          getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
+      if (timerService == null) {
+        timerService = (HeapInternalTimerService<?, TimerInternals.TimerData>)
+            getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
+      }
 
       timerInternals = new FlinkTimerInternals();
 
@@ -376,12 +378,10 @@ public class DoFnOperator<InputT, OutputT>
           nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
       Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-      if (pushedBackContents != null) {
-        if (!Iterables.isEmpty(pushedBackContents)) {
-          String pushedBackString = Joiner.on(",").join(pushedBackContents);
-          throw new RuntimeException(
-              "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
-        }
+      if (pushedBackContents != null && !Iterables.isEmpty(pushedBackContents)) {
+        String pushedBackString = Joiner.on(",").join(pushedBackContents);
+        throw new RuntimeException(
+            "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
       }
     }
   }
@@ -730,11 +730,15 @@ public class DoFnOperator<InputT, OutputT>
         // We just initialize our timerService
         if (keyCoder != null) {
           if (timerService == null) {
-            timerService = new HeapInternalTimerService<>(
-                totalKeyGroups,
-                localKeyGroupRange,
-                this,
-                getRuntimeContext().getProcessingTimeService());
+            final HeapInternalTimerService<Object, TimerData> localService =
+                new HeapInternalTimerService<>(
+                    totalKeyGroups,
+                    localKeyGroupRange,
+                    this,
+                    getRuntimeContext().getProcessingTimeService());
+            localService.startTimerService(getKeyedStateBackend().getKeySerializer(),
+                new CoderTypeSerializer<>(timerCoder), this);
+            timerService = localService;
           }
           timerService.restoreTimersForKeyGroup(div, keyGroupIdx, getUserCodeClassloader());
         }

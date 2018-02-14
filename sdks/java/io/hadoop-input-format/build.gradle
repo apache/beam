@@ -75,13 +75,6 @@ dependencies {
   shadow library.java.commons_io_2x
 }
 
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests
-
 // The cassandra.yaml file currently assumes "target/..." exists.
 // TODO: Update cassandra.yaml to inject new properties representing
 // the root path. Also migrate cassandra.yaml to use any open ports

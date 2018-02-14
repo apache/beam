@@ -50,11 +50,16 @@ public class SplittableParDoTest {
     }
   }
 
-  private static class SomeRestrictionTracker implements RestrictionTracker<SomeRestriction> {
+  private static class SomeRestrictionTracker extends RestrictionTracker<SomeRestriction, Void> {
     private final SomeRestriction someRestriction;
 
     public SomeRestrictionTracker(SomeRestriction someRestriction) {
       this.someRestriction = someRestriction;
+    }
+
+    @Override
+    protected boolean tryClaimImpl(Void position) {
+      return false;
     }
 
     @Override

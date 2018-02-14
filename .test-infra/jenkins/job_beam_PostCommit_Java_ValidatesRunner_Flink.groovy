@@ -39,5 +39,5 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Flink') {
     'Run Flink ValidatesRunner')
 
   // Maven goals for this job.
-  goals('-B -e clean verify -am -pl runners/flink -Plocal-validates-runner-tests -Pvalidates-runner-tests')
+  goals('-B -e clean verify -am -pl runners/flink -Plocal-validates-runner-tests')
 }

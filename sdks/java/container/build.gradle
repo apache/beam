@@ -36,6 +36,7 @@ dependencies {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
     build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
   }
   dockerDependency library.java.slf4j_api
   dockerDependency library.java.slf4j_jdk14
@@ -46,7 +47,7 @@ task copyDockerfileDependencies(type: Copy) {
   from configurations.dockerDependency
   rename "slf4j-api.*", "slf4j-api.jar"
   rename "slf4j-jdk14.*", "slf4j-jdk14.jar"
-  rename "beam-sdks-java-harness.*", "beam-sdks-java-harness.jar"
+  rename "harness.*\\.jar", "beam-sdks-java-harness.jar"
   into "build/target"
 }
 
@@ -60,8 +61,13 @@ golang {
 }
 
 docker {
-  // TODO(herohde): make the name easier to generate for releases.
-  name System.properties['user.name'] + '-docker-apache.bintray.io/beam/java:latest'
+  String repositoryRoot
+  if (rootProject.hasProperty(["docker-repository-root"])) {
+    repositoryRoot = rootProject["docker-repository-root"]
+  } else {
+    repositoryRoot = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
+  }
+  name "${repositoryRoot}/java:latest"
   files "./build/"
 }
 // Ensure that we build the required resources and copy and file dependencies from related projects

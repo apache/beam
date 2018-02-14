@@ -20,7 +20,7 @@ package org.apache.beam.sdk.nexmark.queries.sql;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -28,9 +28,10 @@ import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -39,12 +40,14 @@ import org.junit.Test;
  */
 public class SqlQuery3Test {
 
-  private static final BeamRecordSqlType RESULT_RECORD_TYPE = BeamRecordSqlType.builder()
-      .withVarcharField("name")
-      .withVarcharField("city")
-      .withVarcharField("state")
-      .withBigIntField("id")
-      .build();
+  private static final RowType RESULT_ROW_TYPE =
+      RowSqlType
+          .builder()
+          .withVarcharField("name")
+          .withVarcharField("city")
+          .withVarcharField("state")
+          .withBigIntField("id")
+          .build();
 
   private static final List<Person> PEOPLE = ImmutableList.of(
       newPerson(0L, "WA"),
@@ -83,11 +86,11 @@ public class SqlQuery3Test {
       new Event(AUCTIONS.get(8)),
       new Event(AUCTIONS.get(9)));
 
-  public static final List<BeamRecord> RESULTS = ImmutableList.of(
-      newResultRecord("name_1", "city_1", "CA", 1L),
-      newResultRecord("name_3", "city_3", "ID", 3L),
-      newResultRecord("name_1", "city_1", "CA", 6L),
-      newResultRecord("name_3", "city_3", "ID", 8L));
+  public static final List<Row> RESULTS = ImmutableList.of(
+      newResultRow("name_1", "city_1", "CA", 1L),
+      newResultRow("name_3", "city_3", "ID", 3L),
+      newResultRow("name_1", "city_1", "CA", 6L),
+      newResultRow("name_3", "city_3", "ID", 8L));
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
@@ -131,17 +134,20 @@ public class SqlQuery3Test {
       "extra_" + id);
   }
 
-  private static BeamRecord newResultRecord(
+  private static Row newResultRow(
       String personName,
       String personCity,
       String personState,
       long auctionId) {
 
-    return new BeamRecord(
-        RESULT_RECORD_TYPE,
-        personName,
-        personCity,
-        personState,
-        auctionId);
+    return
+        Row
+            .withRowType(RESULT_ROW_TYPE)
+            .addValues(
+                personName,
+                personCity,
+                personState,
+                auctionId)
+            .build();
   }
 }

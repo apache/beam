@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.bigtable.v2.MutateRowResponse;
 import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
@@ -33,9 +32,6 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.MoreObjects.ToStringHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Arrays;
@@ -705,10 +701,14 @@ public class BigtableIO {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         checkForFailures();
-        Futures.addCallback(
-            bigtableWriter.writeRecord(c.element()),
-            new WriteExceptionCallback(c.element()),
-            MoreExecutors.directExecutor());
+        bigtableWriter
+            .writeRecord(c.element())
+            .whenComplete(
+                (mutationResult, exception) -> {
+                  if (exception != null) {
+                    failures.add(new BigtableWriteException(c.element(), exception));
+                  }
+                });
         ++recordsWritten;
       }
 
@@ -716,7 +716,7 @@ public class BigtableIO {
       public void finishBundle() throws Exception {
         bigtableWriter.flush();
         checkForFailures();
-        LOG.info("Wrote {} records", recordsWritten);
+        LOG.debug("Wrote {} records", recordsWritten);
       }
 
       @Teardown
@@ -771,22 +771,6 @@ public class BigtableIO {
           exception.addSuppressed(e);
         }
         throw exception;
-      }
-
-      private class WriteExceptionCallback implements FutureCallback<MutateRowResponse> {
-        private final KV<ByteString, Iterable<Mutation>> value;
-
-        public WriteExceptionCallback(KV<ByteString, Iterable<Mutation>> value) {
-          this.value = value;
-        }
-
-        @Override
-        public void onFailure(Throwable cause) {
-          failures.add(new BigtableWriteException(value, cause));
-        }
-
-        @Override
-        public void onSuccess(MutateRowResponse produced) {}
       }
     }
   }

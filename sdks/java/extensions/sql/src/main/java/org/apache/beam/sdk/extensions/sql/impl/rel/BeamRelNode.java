@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.RelNode;
 
 /**
@@ -33,7 +33,7 @@ public interface BeamRelNode extends RelNode {
    * {@code BeamQueryPlanner} visits it with a DFS(Depth-First-Search)
    * algorithm.
    */
-  PCollection<BeamRecord> buildBeamPipeline(
+  PCollection<Row> buildBeamPipeline(
       PCollectionTuple inputPCollections, BeamSqlEnv sqlEnv)
       throws Exception;
 }

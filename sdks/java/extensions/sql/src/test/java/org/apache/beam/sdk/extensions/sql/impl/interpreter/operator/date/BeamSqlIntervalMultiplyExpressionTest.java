@@ -26,11 +26,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
@@ -38,7 +37,7 @@ import org.junit.Test;
  * Test for BeamSqlIntervalMultiplyExpression.
  */
 public class BeamSqlIntervalMultiplyExpressionTest {
-  private static final BeamRecord NULL_INPUT_ROW = null;
+  private static final Row NULL_INPUT_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
   private static final BigDecimal DECIMAL_THREE = new BigDecimal(3);
   private static final BigDecimal DECIMAL_FOUR = new BigDecimal(4);

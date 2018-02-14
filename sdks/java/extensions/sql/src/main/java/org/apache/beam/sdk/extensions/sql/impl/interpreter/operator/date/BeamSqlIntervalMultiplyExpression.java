@@ -22,14 +22,12 @@ import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.
 import static org.apache.beam.sdk.extensions.sql.impl.utils.SqlTypeUtils.findExpressionOfType;
 
 import com.google.common.base.Optional;
-
 import java.math.BigDecimal;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -85,7 +83,7 @@ public class BeamSqlIntervalMultiplyExpression extends BeamSqlExpression {
    *   "TIMESTAMPADD(YEAR, 2, TIMESTAMP '1984-04-19 01:02:03')"
    */
   @Override
-  public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     BeamSqlPrimitive intervalOperandPrimitive =
         findExpressionOfType(operands, SqlTypeName.INTERVAL_TYPES).get().evaluate(inputRow, window);
     SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();

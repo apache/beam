@@ -60,6 +60,9 @@ class _PipelineContextMap(object):
       self._id_to_proto[id] = obj.to_runner_api(self._pipeline_context)
     return self._obj_to_id[obj]
 
+  def get_proto(self, obj, label=None):
+    return self._id_to_proto[self.get_id(obj, label)]
+
   def get_by_id(self, id):
     if id not in self._id_to_obj:
       self._id_to_obj[id] = self._obj_type.from_runner_api(

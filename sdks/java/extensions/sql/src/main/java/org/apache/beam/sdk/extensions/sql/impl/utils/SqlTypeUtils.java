@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
 import com.google.common.base.Optional;
-
 import java.util.Collection;
 import java.util.List;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.calcite.sql.type.SqlTypeName;
 

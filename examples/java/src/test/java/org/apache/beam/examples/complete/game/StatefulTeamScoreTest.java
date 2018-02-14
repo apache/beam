@@ -47,8 +47,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class StatefulTeamScoreTest {
 
-  private static final Duration ALLOWED_LATENESS = Duration.standardHours(1);
-  private static final Duration TEAM_WINDOW_DURATION = Duration.standardMinutes(20);
   private Instant baseTime = new Instant(0);
 
   @Rule

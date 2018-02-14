@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer.CoderTypeSerializerConfigSnapshot;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;

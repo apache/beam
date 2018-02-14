@@ -366,8 +366,8 @@ public class DisplayDataTest implements Serializable {
             .addIfNotDefault(DisplayData.item("Double", Double.valueOf(1.23)), Double.valueOf(1.23))
             .addIfNotDefault(DisplayData.item("boolean", true), true)
             .addIfNotDefault(
-                DisplayData.item("Boolean", Boolean.valueOf(true)),
-                Boolean.valueOf(true));
+                DisplayData.item("Boolean", Boolean.TRUE),
+                Boolean.TRUE);
       }
     });
 

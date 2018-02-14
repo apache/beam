@@ -27,8 +27,8 @@ import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -52,11 +52,17 @@ public class SqlQuery1Test {
   private static final ModelFieldsAdapter<Bid> BID_ADAPTER =
       ADAPTERS.get(Bid.class);
 
-  private static final BeamRecord BID1_EUR_RECORD =
-      new BeamRecord(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(BID1_EUR));
+  private static final Row BID1_EUR_ROW =
+      Row
+          .withRowType(BID_ADAPTER.getRowType())
+          .addValues(BID_ADAPTER.getFieldsValues(BID1_EUR))
+          .build();
 
-  private static final BeamRecord BID2_EUR_RECORD =
-      new BeamRecord(BID_ADAPTER.getRecordType(), BID_ADAPTER.getFieldsValues(BID2_EUR));
+  private static final Row BID2_EUR_ROW =
+      Row
+          .withRowType(BID_ADAPTER.getRowType())
+          .addValues(BID_ADAPTER.getFieldsValues(BID2_EUR))
+          .build();
 
   @Rule
   public TestPipeline testPipeline = TestPipeline.create();
@@ -77,7 +83,7 @@ public class SqlQuery1Test {
 
     PAssert
         .that(bids.apply(new SqlQuery1()))
-        .containsInAnyOrder(BID1_EUR_RECORD, BID2_EUR_RECORD);
+        .containsInAnyOrder(BID1_EUR_ROW, BID2_EUR_ROW);
 
     testPipeline.run();
   }

@@ -20,10 +20,8 @@ package org.apache.beam.sdk.io.kinesis;
 import static org.mockito.BDDMockito.given;
 
 import com.google.common.collect.Lists;
-
 import java.util.Collections;
 import java.util.List;
-
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import org.junit.runner.RunWith;

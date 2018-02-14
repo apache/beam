@@ -19,10 +19,12 @@ package org.apache.beam.sdk.extensions.sql;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.store.InMemoryMetaStore;
+import org.apache.calcite.tools.ValidationException;
 import org.junit.Test;
 
 /**
@@ -47,6 +49,49 @@ public class BeamSqlCliTest {
     Table table = metaStore.getTable("person");
     assertNotNull(table);
   }
+
+  @Test
+  public void testExecute_dropTable() throws Exception {
+    InMemoryMetaStore metaStore = new InMemoryMetaStore();
+    metaStore.registerProvider(new TextTableProvider());
+
+    BeamSqlCli cli = new BeamSqlCli()
+        .metaStore(metaStore);
+    cli.execute(
+        "create table person (\n"
+            + "id int COMMENT 'id', \n"
+            + "name varchar(31) COMMENT 'name', \n"
+            + "age int COMMENT 'age') \n"
+            + "TYPE 'text' \n"
+            + "COMMENT '' LOCATION 'text://home/admin/orders'"
+    );
+    Table table = metaStore.getTable("person");
+    assertNotNull(table);
+
+    cli.execute("drop table person");
+    table = metaStore.getTable("person");
+    assertNull(table);
+  }
+
+  @Test(expected = ValidationException.class)
+  public void testExecute_dropTable_assertTableRemovedFromPlanner() throws Exception {
+    InMemoryMetaStore metaStore = new InMemoryMetaStore();
+    metaStore.registerProvider(new TextTableProvider());
+
+    BeamSqlCli cli = new BeamSqlCli()
+        .metaStore(metaStore);
+    cli.execute(
+        "create table person (\n"
+            + "id int COMMENT 'id', \n"
+            + "name varchar(31) COMMENT 'name', \n"
+            + "age int COMMENT 'age') \n"
+            + "TYPE 'text' \n"
+            + "COMMENT '' LOCATION 'text://home/admin/orders'"
+    );
+    cli.execute("drop table person");
+    cli.explainQuery("select * from person");
+  }
+
 
   @Test
   public void testExplainQuery() throws Exception {

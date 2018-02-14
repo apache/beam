@@ -87,3 +87,20 @@ SqlNode SqlCreateTable() :
         location, tbl_properties, select);
     }
 }
+
+/**
+ * DROP TABLE table_name
+ */
+SqlNode SqlDropTable() :
+{
+    SqlParserPos pos;
+    SqlIdentifier tblName;
+}
+{
+    <DROP> { pos = getPos(); }
+    <TABLE>
+    tblName = SimpleIdentifier() {
+        return new SqlDropTable(pos, tblName);
+    }
+}
+

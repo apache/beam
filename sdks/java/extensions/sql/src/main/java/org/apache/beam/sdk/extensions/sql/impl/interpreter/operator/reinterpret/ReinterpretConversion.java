@@ -20,12 +20,10 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
-
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 
