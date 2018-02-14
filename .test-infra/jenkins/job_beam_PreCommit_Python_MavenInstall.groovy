@@ -37,6 +37,11 @@ mavenJob('beam_PreCommit_Python_MavenInstall') {
   // Set Maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/nosetests.xml')
+  }
+
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/python -am -amd', 'Run Python PreCommit')
 
