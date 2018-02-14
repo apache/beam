@@ -37,6 +37,25 @@ public class MoreFuturesTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
+  public void supplyAsyncSuccess() throws Exception {
+    CompletionStage<Integer> future = MoreFutures.supplyAsync(() -> 42);
+    assertThat(MoreFutures.get(future), equalTo(42));
+  }
+
+  @Test
+  public void supplyAsyncFailure() throws Exception {
+    final String testMessage = "this is just a test";
+    CompletionStage<Long> future = MoreFutures.supplyAsync(() -> {
+      throw new IllegalStateException(testMessage);
+    });
+
+    thrown.expect(ExecutionException.class);
+    thrown.expectCause(isA(IllegalStateException.class));
+    thrown.expectMessage(testMessage);
+    MoreFutures.get(future);
+  }
+
+  @Test
   public void runAsyncSuccess() throws Exception {
     AtomicInteger result = new AtomicInteger(0);
     CompletionStage<Void> sideEffectFuture = MoreFutures.runAsync(() -> {
