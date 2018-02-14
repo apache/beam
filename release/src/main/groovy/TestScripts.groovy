@@ -106,6 +106,11 @@ class TestScripts {
      println "Verified $expected"
    }
 
+   // Return console output for the latest command
+   public String output(){
+       return var.lastText
+   }
+
    // Cleanup and print success
    public void done() {
      var.startDir.deleteDir()
