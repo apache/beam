@@ -109,7 +109,7 @@
     <api-common.version>1.0.0-rc2</api-common.version>
     <args4j.version>2.33</args4j.version>
     <avro.version>1.8.2</avro.version>
-    <bigquery.version>v2-rev355-1.22.0</bigquery.version>
+    <bigquery.version>v2-rev374-1.22.0</bigquery.version>
     <bigtable.version>1.0.0</bigtable.version>
     <bigtable.proto.version>1.0.0-pre3</bigtable.proto.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
