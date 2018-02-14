@@ -40,7 +40,7 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.type.TypeHint;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
-import cz.seznam.euphoria.core.testing.DatasetAssert;
+import cz.seznam.euphoria.testing.DatasetAssert;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -123,10 +123,7 @@ public class ReduceByKeyTest {
             Pair.of(1, 1L), Pair.of(3, 2L),  // second window
             Pair.of(1, 2L), Pair.of(3, 2L),  // third window
             Pair.of(3, 1L));                 // fourth window
-
   }
-
-
 
   static class AssertingWindowing<T> implements Windowing<T, TimeInterval> {
     @Override

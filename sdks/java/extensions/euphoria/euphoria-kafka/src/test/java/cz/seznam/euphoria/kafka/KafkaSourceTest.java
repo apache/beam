@@ -19,15 +19,11 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.PartitionInfo;
 import org.junit.Test;
-import org.junit.experimental.categories.Categories;
 
 import java.util.Collections;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
+import static org.mockito.Mockito.*;
 
 public class KafkaSourceTest {
 
@@ -36,12 +32,10 @@ public class KafkaSourceTest {
    * an IllegalStateException is expected
    */
   @Test(expected = IllegalStateException.class)
-  @SuppressWarnings("unchecked")
   public void testNoPartitions() {
     tryGetPartitions(Collections.emptyList());
   }
 
-  @SuppressWarnings("unchecked")
   public void testPartitions() {
     Node leaderNode = new Node(1, "localhost", 3333);
     PartitionInfo pi = new PartitionInfo("topic", 0, leaderNode, null, null);
@@ -49,12 +43,12 @@ public class KafkaSourceTest {
   }
 
   @Test(expected = IllegalStateException.class)
-  @SuppressWarnings("unchecked")
   public void testNoLeader() {
     PartitionInfo pi = new PartitionInfo("topic", 0, Node.noNode(), null, null);
     tryGetPartitions(Collections.singletonList(pi));
   }
 
+  @SuppressWarnings("unchecked")
   public void tryGetPartitions(List<PartitionInfo> partitions) {
     KafkaSource source = mock(KafkaSource.class);
     Consumer<byte[], byte[]> consumer = mock(Consumer.class);
