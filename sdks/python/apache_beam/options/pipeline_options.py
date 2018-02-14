@@ -264,7 +264,7 @@ class PipelineOptions(HasDisplayData):
 
 class StandardOptions(PipelineOptions):
 
-  DEFAULT_RUNNER = 'DirectRunner'
+  DEFAULT_RUNNER = 'apache_beam.runners.portability.fn_api_runner.FnApiRunner'
 
   @classmethod
   def _add_argparse_args(cls, parser):
