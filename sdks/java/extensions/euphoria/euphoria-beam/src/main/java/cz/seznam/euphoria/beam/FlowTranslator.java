@@ -28,6 +28,7 @@ import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.util.ExceptionUtils;
+import cz.seznam.euphoria.core.util.Settings;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PCollection;
@@ -47,27 +48,39 @@ class FlowTranslator {
     translators.put(FlowUnfolder.InputOperator.class, new InputTranslator());
     translators.put(FlatMap.class, new FlatMapTranslator());
     translators.put(Union.class, new UnionTranslator());
+    translators.put(WrappedPCollectionOperator.class, WrappedPCollectionOperator::translate);
 
     // extended operators
     translators.put(ReduceByKey.class, new ReduceByKeyTranslator());
     translators.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
   }
 
-  @SuppressWarnings("unchecked")
   static Pipeline toPipeline(
       Flow flow,
       AccumulatorProvider.Factory accumulatorFactory,
       PipelineOptions options,
+      Settings settings,
       Duration allowedLateness) {
 
+    final Pipeline pipeline = Pipeline.create(options);
+    DAG<Operator<?, ?>> dag = toDAG(flow);
+
+    final BeamExecutorContext executorContext = new BeamExecutorContext(
+        dag, accumulatorFactory, pipeline, settings, allowedLateness);
+
+    updateContextBy(dag, executorContext);
+    return executorContext.getPipeline();
+  }
+
+  static DAG<Operator<?, ?>> toDAG(Flow flow) {
     final DAG<Operator<?, ?>> dag = FlowUnfolder.unfold(flow, operator ->
         translators.containsKey(operator.getClass())
     );
+    return dag;
+  }
 
-    final Pipeline pipeline = Pipeline.create(options);
-
-    final BeamExecutorContext executorContext = new BeamExecutorContext(
-        dag, accumulatorFactory, pipeline, allowedLateness);
+  @SuppressWarnings("unchecked")
+  static void updateContextBy(DAG<Operator<?, ?>> dag, BeamExecutorContext context) {
 
     // translate each operator to a beam transformation
     dag.traverse()
@@ -78,9 +91,9 @@ class FlowTranslator {
             throw new UnsupportedOperationException(
                 "Operator " + op.getClass().getSimpleName() + " not supported");
           }
-          executorContext.setPCollection(
+          context.setPCollection(
               op.output(),
-              translator.translate(op, executorContext));
+              translator.translate(op, context));
         });
 
     // process sinks
@@ -88,14 +101,15 @@ class FlowTranslator {
         .stream()
         .map(Node::get)
         .forEach(op -> {
-          final PCollection pcs = executorContext.getPCollection(op.output())
+          final PCollection pcs = context.getPCollection(op.output())
               .orElseThrow(ExceptionUtils.illegal(
                   "Dataset " + op.output() + " has not been " +
                   "materialized"));
           DataSink<?> sink = op.output().getOutputSink();
-          pcs.apply(BeamWriteSink.wrap(sink));
+          if (sink != null) {
+            // the leaf might be consumed by some other Beam transformation
+            pcs.apply(BeamWriteSink.wrap(sink));
+          }
         });
-
-    return executorContext.getPipeline();
   }
 }
