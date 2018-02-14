@@ -470,7 +470,7 @@ class TranscriptTest(unittest.TestCase):
       args = []
       start = 0
       depth = 0
-      for ix in xrange(len(s)):
+      for ix in range(len(s)):
         c = s[ix]
         if c in '({[':
           depth += 1
