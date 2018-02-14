@@ -198,7 +198,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
             valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
 
         curTimestamp = (source.getSpec().getTimestampFn() == null)
-            ? Instant.now() : source.getSpec().getTimestampFn().apply(record);
+            ? new Instant(record.getTimestamp()) : source.getSpec().getTimestampFn().apply(record);
         curRecord = record;
 
         int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
