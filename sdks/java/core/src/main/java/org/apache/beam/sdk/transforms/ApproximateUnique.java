@@ -22,9 +22,7 @@ import com.google.common.hash.HashingOutputStream;
 import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
 import java.util.PriorityQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -337,32 +335,36 @@ public class ApproximateUnique {
        * Adds a value to the heap, returning whether the value is (large enough
        * to be) in the heap.
        */
-      public boolean add(Long value) {
-        if (heap.contains(value)) {
-          return true;
-        } else if (heap.size() < sampleSize) {
-          heap.add(value);
-          return true;
-        } else if (value > heap.element()) {
-          heap.remove();
-          heap.add(value);
-          return true;
-        } else {
-          return false;
+      public boolean add(long value) {
+        if (heap.size() >= sampleSize && value < heap.element()) {
+          return false; // Common case as input size increases.
         }
+        if (!heap.contains(value)) {
+          if (heap.size() >= sampleSize) {
+            heap.remove();
+          }
+          heap.add(value);
+        }
+        return true;
       }
 
-      /**
-       * Returns the values in the heap, ordered largest to smallest.
-       */
-      public List<Long> extractOrderedList() {
-        // The only way to extract the order from the heap is element-by-element
-        // from smallest to largest.
-        Long[] array = new Long[heap.size()];
-        for (int i = heap.size() - 1; i >= 0; i--) {
-          array[i] = heap.remove();
+      long getEstimate() {
+        if (heap.size() < sampleSize) {
+          return (long) heap.size();
+        } else {
+          long smallestSampleHash = heap.element();
+          double sampleSpaceSize = Long.MAX_VALUE - (double) smallestSampleHash;
+          // This formula takes into account the possibility of hash collisions,
+          // which become more likely than not for 2^32 distinct elements.
+          // Note that log(1+x) ~ x for small x, so for sampleSize << maxHash
+          // log(1 - sampleSize/sampleSpace) / log(1 - 1/sampleSpace) ~ sampleSize
+          // and hence estimate ~ sampleSize * HASH_SPACE_SIZE / sampleSpace
+          // as one would expect.
+          double estimate = Math.log1p(-sampleSize / sampleSpaceSize)
+            / Math.log1p(-1 / sampleSpaceSize)
+            * HASH_SPACE_SIZE / sampleSpaceSize;
+          return Math.round(estimate);
         }
-        return Arrays.asList(array);
       }
     }
 
@@ -394,35 +396,14 @@ public class ApproximateUnique {
       Iterator<LargestUnique> iterator = heaps.iterator();
       LargestUnique heap = iterator.next();
       while (iterator.hasNext()) {
-        List<Long> largestHashes = iterator.next().extractOrderedList();
-        for (long hash : largestHashes) {
-          if (!heap.add(hash)) {
-            break; // The remainder of this list is all smaller.
-          }
-        }
+        iterator.next().heap.forEach(h -> heap.add(h));
       }
       return heap;
     }
 
     @Override
     public Long extractOutput(LargestUnique heap) {
-      List<Long> largestHashes = heap.extractOrderedList();
-      if (largestHashes.size() < sampleSize) {
-        return (long) largestHashes.size();
-      } else {
-        long smallestSampleHash = largestHashes.get(largestHashes.size() - 1);
-        double sampleSpaceSize = Long.MAX_VALUE - (double) smallestSampleHash;
-        // This formula takes into account the possibility of hash collisions,
-        // which become more likely than not for 2^32 distinct elements.
-        // Note that log(1+x) ~ x for small x, so for sampleSize << maxHash
-        // log(1 - sampleSize/sampleSpace) / log(1 - 1/sampleSpace) ~ sampleSize
-        // and hence estimate ~ sampleSize * HASH_SPACE_SIZE / sampleSpace
-        // as one would expect.
-        double estimate = Math.log1p(-sampleSize / sampleSpaceSize)
-            / Math.log1p(-1 / sampleSpaceSize)
-            * HASH_SPACE_SIZE / sampleSpaceSize;
-        return Math.round(estimate);
-      }
+      return heap.getEstimate();
     }
 
     @Override
