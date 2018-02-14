@@ -18,28 +18,43 @@
 
 package org.apache.beam.sdk.extensions.sql;
 
+import static org.apache.beam.sdk.extensions.sql.TestUtils.tuple;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest
     .ORDER_DETAILS1;
 import static org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRelBoundedVsBoundedTest
     .ORDER_DETAILS2;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.isA;
+import static org.hamcrest.Matchers.stringContainsInOrder;
 
+import java.util.Arrays;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
-import org.apache.beam.sdk.values.TupleTag;
+import org.hamcrest.Matcher;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /**
  * Tests for joins in queries.
  */
 public class BeamSqlDslJoinTest {
-  @Rule
-  public final TestPipeline pipeline = TestPipeline.create();
+
+  @Rule public final ExpectedException thrown = ExpectedException.none();
+  @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   private static final RowType SOURCE_ROW_TYPE =
       RowSqlType.builder()
@@ -156,8 +171,10 @@ public class BeamSqlDslJoinTest {
     pipeline.run();
   }
 
-  @Test(expected = IllegalStateException.class)
+  @Test
   public void testException_crossJoin() throws Exception {
+    thrown.expect(IllegalStateException.class);
+
     String sql =
         "SELECT *  "
             + "FROM ORDER_DETAILS1 o1, ORDER_DETAILS2 o2";
@@ -167,14 +184,172 @@ public class BeamSqlDslJoinTest {
     pipeline.run();
   }
 
+  @Test
+  public void testJoinsUnboundedWithinWindowsWithDefaultTrigger() throws Exception {
+
+    String sql =
+        "SELECT o1.order_id, o1.price, o1.site_id, o2.order_id, o2.price, o2.site_id  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    PCollection<Row> orders = ordersUnbounded()
+        .apply("window", Window.into(FixedWindows.of(Duration.standardSeconds(50))));
+    PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
+
+    PAssert
+        .that(
+            inputs.apply("sql", BeamSql.queryMulti(sql)))
+        .containsInAnyOrder(
+        TestUtils.RowsBuilder
+            .of(
+            RESULT_ROW_TYPE
+        ).addRows(
+            1, 2, 2, 2, 2, 1,
+            1, 4, 3, 3, 3, 1
+        ).getRows());
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRejectsUnboundedWithinWindowsWithEndOfWindowTrigger() throws Exception {
+
+    String sql =
+        "SELECT o1.order_id, o1.price, o1.site_id, o2.order_id, o2.price, o2.site_id  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    PCollection<Row> orders = ordersUnbounded()
+        .apply("window",
+               Window
+                   .<Row>into(FixedWindows.of(Duration.standardSeconds(50)))
+                   .triggering(AfterWatermark.pastEndOfWindow())
+                   .withAllowedLateness(Duration.ZERO)
+                   .accumulatingFiredPanes());
+    PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
+
+    thrown.expectCause(expectedSingleFireTrigger());
+
+    inputs.apply("sql", BeamSql.queryMulti(sql));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRejectsGlobalWindowsWithDefaultTriggerInUnboundedInput() throws Exception {
+
+    String sql =
+        "SELECT *  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    PCollection<Row> orders = ordersUnbounded();
+    PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
+
+    thrown.expectCause(expectedSingleFireTrigger());
+
+    inputs.apply("sql", BeamSql.queryMulti(sql));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRejectsGlobalWindowsWithEndOfWindowTrigger() throws Exception {
+
+    String sql =
+        "SELECT o1.order_id, o1.price, o1.site_id, o2.order_id, o2.price, o2.site_id  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    PCollection<Row> orders = ordersUnbounded()
+        .apply("window",
+               Window
+                   .<Row>into(new GlobalWindows())
+                   .triggering(AfterWatermark.pastEndOfWindow())
+                   .withAllowedLateness(Duration.ZERO)
+                   .accumulatingFiredPanes());
+    PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
+
+    thrown.expectCause(expectedSingleFireTrigger());
+
+    inputs.apply("sql", BeamSql.queryMulti(sql));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testRejectsNonGlobalWindowsWithRepeatingTrigger() throws Exception {
+
+    String sql =
+        "SELECT o1.order_id, o1.price, o1.site_id, o2.order_id, o2.price, o2.site_id  "
+            + "FROM ORDER_DETAILS1 o1"
+            + " JOIN ORDER_DETAILS2 o2"
+            + " on "
+            + " o1.order_id=o2.site_id AND o2.price=o1.site_id";
+
+    PCollection<Row> orders = ordersUnbounded()
+        .apply(
+            "window",
+            Window
+                .<Row>into(FixedWindows.of(Duration.standardSeconds(203)))
+                .triggering(Repeatedly.forever(AfterWatermark.pastEndOfWindow()))
+                .withAllowedLateness(Duration.standardMinutes(2))
+                .accumulatingFiredPanes());
+    PCollectionTuple inputs = tuple("ORDER_DETAILS1", orders, "ORDER_DETAILS2", orders);
+
+    thrown.expectCause(expectedSingleFireTrigger());
+
+    inputs.apply("sql", BeamSql.queryMulti(sql));
+
+    pipeline.run();
+  }
+
+  private PCollection<Row> ordersUnbounded() {
+    DateTime ts = new DateTime(2017, 1, 1, 1, 0, 0);
+
+    return
+        TestUtils
+            .rowsBuilderOf(
+                RowSqlType
+                    .builder()
+                    .withIntegerField("order_id")
+                    .withIntegerField("price")
+                    .withIntegerField("site_id")
+                    .withTimestampField("timestamp")
+                    .build())
+            .addRows(
+                1, 2, 2, ts.plusSeconds(0).toDate(),
+                2, 2, 1, ts.plusSeconds(40).toDate(),
+                1, 4, 3, ts.plusSeconds(60).toDate(),
+                3, 2, 1, ts.plusSeconds(65).toDate(),
+                3, 3, 1, ts.plusSeconds(70).toDate())
+            .getPCollectionBuilder()
+            .withTimestampField("timestamp")
+            .inPipeline(pipeline)
+            .buildUnbounded();
+  }
+
   private PCollection<Row> queryFromOrderTables(String sql) {
-    return PCollectionTuple.of(
-        new TupleTag<>("ORDER_DETAILS1"),
-        ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER))
-        .and(
-            new TupleTag<>("ORDER_DETAILS2"),
-            ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
+    return tuple(
+        "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER),
+        "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
         .apply("join", BeamSql.queryMulti(sql))
         .setCoder(RESULT_CODER);
+  }
+
+  private Matcher<UnsupportedOperationException> expectedSingleFireTrigger() {
+    return allOf(
+        isA(UnsupportedOperationException.class),
+        hasProperty("message",
+                    stringContainsInOrder(
+                        Arrays.asList("once per window", "default trigger"))));
   }
 }
