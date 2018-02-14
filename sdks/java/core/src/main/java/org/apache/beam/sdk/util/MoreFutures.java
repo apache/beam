@@ -94,7 +94,8 @@ public class MoreFutures {
   public static <T> CompletionStage<T> supplyAsync(
       ThrowingSupplier<T> supplier, ExecutorService executorService) {
     CompletableFuture<T> result = new CompletableFuture<>();
-    CompletableFuture.runAsync(
+
+    CompletionStage<Void> wrapper = CompletableFuture.runAsync(
         () -> {
           try {
             result.complete(supplier.get());
@@ -106,7 +107,7 @@ public class MoreFutures {
           }
         },
         executorService);
-    return result;
+    return wrapper.thenCompose(nothing -> result);
   }
 
   /**
@@ -125,20 +126,22 @@ public class MoreFutures {
   public static CompletionStage<Void> runAsync(
       ThrowingRunnable runnable, ExecutorService executorService) {
     CompletableFuture<Void> result = new CompletableFuture<>();
-    CompletableFuture.runAsync(
-        () -> {
-          try {
-            runnable.run();
-            result.complete(null);
-          } catch (InterruptedException e) {
-            result.completeExceptionally(e);
-            Thread.currentThread().interrupt();
-          } catch (Throwable t) {
-            result.completeExceptionally(t);
-          }
-        },
-        executorService);
-    return result;
+
+    CompletionStage<Void> wrapper =
+        CompletableFuture.runAsync(
+            () -> {
+              try {
+                runnable.run();
+                result.complete(null);
+              } catch (InterruptedException e) {
+                result.completeExceptionally(e);
+                Thread.currentThread().interrupt();
+              } catch (Throwable t) {
+                result.completeExceptionally(t);
+              }
+            },
+            executorService);
+    return wrapper.thenCompose(nothing -> result);
   }
 
   /**
