@@ -72,10 +72,3 @@ task buildDependencyTree(type: DependencyReportTask) {
   }
 }
 compileJava.dependsOn buildDependencyTree
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

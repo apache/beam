@@ -18,14 +18,14 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.sql.Types;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -40,9 +40,9 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
 
   public static final MockedBoundedTable ORDER_DETAILS1 =
       MockedBoundedTable.of(
-          Types.INTEGER, "order_id",
-          Types.INTEGER, "site_id",
-          Types.INTEGER, "price"
+          SqlTypeCoders.INTEGER, "order_id",
+          SqlTypeCoders.INTEGER, "site_id",
+          SqlTypeCoders.INTEGER, "price"
       ).addRows(
           1, 2, 3,
           2, 3, 3,
@@ -51,9 +51,9 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
 
   public static final MockedBoundedTable ORDER_DETAILS2 =
       MockedBoundedTable.of(
-          Types.INTEGER, "order_id",
-          Types.INTEGER, "site_id",
-          Types.INTEGER, "price"
+          SqlTypeCoders.INTEGER, "order_id",
+          SqlTypeCoders.INTEGER, "site_id",
+          SqlTypeCoders.INTEGER, "price"
       ).addRows(
           1, 2, 3,
           2, 3, 3,
@@ -76,15 +76,15 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
         + " o1.order_id=o2.site_id AND o2.price=o1.site_id"
         ;
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.INTEGER, "order_id",
-            Types.INTEGER, "site_id",
-            Types.INTEGER, "price",
-            Types.INTEGER, "order_id0",
-            Types.INTEGER, "site_id0",
-            Types.INTEGER, "price0"
+            SqlTypeCoders.INTEGER, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.INTEGER, "price",
+            SqlTypeCoders.INTEGER, "order_id0",
+            SqlTypeCoders.INTEGER, "site_id0",
+            SqlTypeCoders.INTEGER, "price0"
         ).addRows(
             2, 3, 3, 1, 2, 3
         ).getRows());
@@ -101,16 +101,16 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id"
         ;
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
     pipeline.enableAbandonedNodeEnforcement(false);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.INTEGER, "order_id",
-            Types.INTEGER, "site_id",
-            Types.INTEGER, "price",
-            Types.INTEGER, "order_id0",
-            Types.INTEGER, "site_id0",
-            Types.INTEGER, "price0"
+            SqlTypeCoders.INTEGER, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.INTEGER, "price",
+            SqlTypeCoders.INTEGER, "order_id0",
+            SqlTypeCoders.INTEGER, "site_id0",
+            SqlTypeCoders.INTEGER, "price0"
         ).addRows(
             1, 2, 3, null, null, null,
             2, 3, 3, 1, 2, 3,
@@ -129,15 +129,15 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id"
         ;
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            Types.INTEGER, "order_id",
-            Types.INTEGER, "site_id",
-            Types.INTEGER, "price",
-            Types.INTEGER, "order_id0",
-            Types.INTEGER, "site_id0",
-            Types.INTEGER, "price0"
+            SqlTypeCoders.INTEGER, "order_id",
+            SqlTypeCoders.INTEGER, "site_id",
+            SqlTypeCoders.INTEGER, "price",
+            SqlTypeCoders.INTEGER, "order_id0",
+            SqlTypeCoders.INTEGER, "site_id0",
+            SqlTypeCoders.INTEGER, "price0"
         ).addRows(
             2, 3, 3, 1, 2, 3,
             null, null, null, 2, 3, 3,
@@ -156,15 +156,15 @@ public class BeamJoinRelBoundedVsBoundedTest extends BaseRelTest {
             + " o1.order_id=o2.site_id AND o2.price=o1.site_id"
         ;
 
-    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
+    PCollection<Row> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-          Types.INTEGER, "order_id",
-          Types.INTEGER, "site_id",
-          Types.INTEGER, "price",
-          Types.INTEGER, "order_id0",
-          Types.INTEGER, "site_id0",
-          Types.INTEGER, "price0"
+          SqlTypeCoders.INTEGER, "order_id",
+          SqlTypeCoders.INTEGER, "site_id",
+          SqlTypeCoders.INTEGER, "price",
+          SqlTypeCoders.INTEGER, "order_id0",
+          SqlTypeCoders.INTEGER, "site_id0",
+          SqlTypeCoders.INTEGER, "price0"
         ).addRows(
           2, 3, 3, 1, 2, 3,
           1, 2, 3, null, null, null,

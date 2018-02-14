@@ -65,7 +65,7 @@ class WordCountIT(unittest.TestCase):
     # and start pipeline job by calling pipeline main function.
     wordcount.run(test_pipeline.get_full_options_as_args(**extra_opts))
 
-  @attr('IT')
+  @attr('IT', 'ValidatesContainer')
   def test_wordcount_fnapi_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 

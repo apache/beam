@@ -24,22 +24,17 @@ description = "Apache Beam :: Runners :: Java Local Artifact Service"
 dependencies {
   compile library.java.guava
   shadow project(path: ":model:job-management", configuration: "shadow")
+  shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.protobuf_java
   shadow library.java.slf4j_api
+  testCompile project(path: ":runners:core-construction-java")
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

@@ -24,11 +24,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.Date;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
@@ -41,7 +40,7 @@ import org.junit.rules.ExpectedException;
  */
 public class BeamSqlTimestampMinusTimestampExpressionTest {
 
-  private static final BeamRecord NULL_ROW = null;
+  private static final Row NULL_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
 
   private static final Date DATE = new Date(2017, 3, 4, 3, 2, 1);

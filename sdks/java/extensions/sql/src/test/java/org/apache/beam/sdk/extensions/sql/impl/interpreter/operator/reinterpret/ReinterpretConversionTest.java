@@ -27,9 +27,7 @@ import static org.mockito.Mockito.verify;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
-
 import java.util.Set;
-
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;

@@ -18,24 +18,29 @@
 
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
+import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.values.RowType.toRowType;
+
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
-import java.sql.Types;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.util.Pair;
 import org.junit.Rule;
 
@@ -43,21 +48,21 @@ import org.junit.Rule;
  * Base class for all built-in functions integration tests.
  */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
-  private static final Map<Class, Integer> JAVA_CLASS_TO_SQL_TYPE = ImmutableMap
-      .<Class, Integer> builder()
-      .put(Byte.class, Types.TINYINT)
-      .put(Short.class, Types.SMALLINT)
-      .put(Integer.class, Types.INTEGER)
-      .put(Long.class, Types.BIGINT)
-      .put(Float.class, Types.FLOAT)
-      .put(Double.class, Types.DOUBLE)
-      .put(BigDecimal.class, Types.DECIMAL)
-      .put(String.class, Types.VARCHAR)
-      .put(Date.class, Types.DATE)
-      .put(Boolean.class, Types.BOOLEAN)
+  private static final Map<Class, SqlTypeCoder> JAVA_CLASS_TO_CODER = ImmutableMap
+      .<Class, SqlTypeCoder>builder()
+      .put(Byte.class, SqlTypeCoders.TINYINT)
+      .put(Short.class, SqlTypeCoders.SMALLINT)
+      .put(Integer.class, SqlTypeCoders.INTEGER)
+      .put(Long.class, SqlTypeCoders.BIGINT)
+      .put(Float.class, SqlTypeCoders.FLOAT)
+      .put(Double.class, SqlTypeCoders.DOUBLE)
+      .put(BigDecimal.class, SqlTypeCoders.DECIMAL)
+      .put(String.class, SqlTypeCoders.VARCHAR)
+      .put(Date.class, SqlTypeCoders.DATE)
+      .put(Boolean.class, SqlTypeCoders.BOOLEAN)
       .build();
 
-  private static final BeamRecordSqlType RECORD_SQL_TYPE = BeamRecordSqlType.builder()
+  private static final RowType ROW_TYPE = RowSqlType.builder()
       .withDateField("ts")
       .withTinyIntField("c_tinyint")
       .withSmallIntField("c_smallint")
@@ -75,10 +80,10 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
-  protected PCollection<BeamRecord> getTestPCollection() {
+  protected PCollection<Row> getTestPCollection() {
     try {
       return MockedBoundedTable
-          .of(RECORD_SQL_TYPE)
+          .of(ROW_TYPE)
           .addRows(
               parseDate("1986-02-15 11:35:26"),
               (byte) 1,
@@ -94,7 +99,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               9223372036854775807L
           )
           .buildIOReader(pipeline)
-          .setCoder(RECORD_SQL_TYPE.getRecordCoder());
+          .setCoder(ROW_TYPE.getRowCoder());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -145,23 +150,22 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
      * Build the corresponding SQL, compile to Beam Pipeline, run it, and check the result.
      */
     public void buildRunAndCheck() {
-      PCollection<BeamRecord> inputCollection = getTestPCollection();
+      PCollection<Row> inputCollection = getTestPCollection();
       System.out.println("SQL:>\n" + getSql());
       try {
-        List<String> names = new ArrayList<>();
-        List<Integer> types = new ArrayList<>();
-        List<Object> values = new ArrayList<>();
+        RowType rowType =
+            exps.stream()
+                .map(exp -> RowType.newField(
+                    exp.getKey(),
+                    JAVA_CLASS_TO_CODER.get(exp.getValue().getClass())))
+                .collect(toRowType());
 
-        for (Pair<String, Object> pair : exps) {
-          names.add(pair.getKey());
-          types.add(JAVA_CLASS_TO_SQL_TYPE.get(pair.getValue().getClass()));
-          values.add(pair.getValue());
-        }
+        List<Object> values = exps.stream().map(Pair::getValue).collect(toList());
 
-        PCollection<BeamRecord> rows = inputCollection.apply(BeamSql.query(getSql()));
+        PCollection<Row> rows = inputCollection.apply(BeamSql.query(getSql()));
         PAssert.that(rows).containsInAnyOrder(
             TestUtils.RowsBuilder
-                .of(BeamRecordSqlType.create(names, types))
+                .of(rowType)
                 .addRows(values)
                 .getRows()
         );

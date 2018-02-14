@@ -231,7 +231,7 @@ public class ParDoTranslationTest {
 
   private static class SplittableDropElementsFn extends DoFn<KV<Long, String>, Void> {
     @ProcessElement
-    public void proc(ProcessContext context, RestrictionTracker<Integer> restriction) {
+    public void proc(ProcessContext context, RestrictionTracker<Integer, ?> restriction) {
       context.output(null);
     }
 
@@ -241,7 +241,7 @@ public class ParDoTranslationTest {
     }
 
     @NewTracker
-    public RestrictionTracker<Integer> newTracker(Integer restriction) {
+    public RestrictionTracker<Integer, ?> newTracker(Integer restriction) {
       throw new UnsupportedOperationException("Should never be called; only to test translation");
     }
 

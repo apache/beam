@@ -73,7 +73,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -430,10 +429,6 @@ public class WriteFilesTest {
           "simple");
     }
 
-    @Override
-    public void populateDisplayData(Builder builder) {
-      super.populateDisplayData(builder);
-    }
   }
 
   @Test

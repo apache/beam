@@ -44,12 +44,9 @@ from apache_beam.utils.windowed_value import WindowedValue
 class ProcessKeyedElementsViaKeyedWorkItemsOverride(PTransformOverride):
   """A transform override for ProcessElements transform."""
 
-  def get_matcher(self):
-    def _matcher(applied_ptransform):
-      return isinstance(
-          applied_ptransform.transform, ProcessKeyedElements)
-
-    return _matcher
+  def matches(self, applied_ptransform):
+    return isinstance(
+        applied_ptransform.transform, ProcessKeyedElements)
 
   def get_replacement_transform(self, ptransform):
     return ProcessKeyedElementsViaKeyedWorkItems(ptransform)

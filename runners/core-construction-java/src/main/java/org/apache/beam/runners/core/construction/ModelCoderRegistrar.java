@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.runners.core.construction.UrnUtils.validateCommonUrn;
+
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
@@ -41,14 +43,14 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
   @VisibleForTesting
   static final BiMap<Class<? extends Coder>, String> BEAM_MODEL_CODER_URNS =
       ImmutableBiMap.<Class<? extends Coder>, String>builder()
-          .put(ByteArrayCoder.class, "urn:beam:coders:bytes:0.1")
-          .put(KvCoder.class, "urn:beam:coders:kv:0.1")
-          .put(VarLongCoder.class, "urn:beam:coders:varint:0.1")
-          .put(IntervalWindowCoder.class, "urn:beam:coders:interval_window:0.1")
-          .put(IterableCoder.class, "urn:beam:coders:stream:0.1")
-          .put(LengthPrefixCoder.class, "urn:beam:coders:length_prefix:0.1")
-          .put(GlobalWindow.Coder.class, "urn:beam:coders:global_window:0.1")
-          .put(FullWindowedValueCoder.class, "urn:beam:coders:windowed_value:0.1")
+          .put(ByteArrayCoder.class, validateCommonUrn("beam:coder:bytes:v1"))
+          .put(KvCoder.class, validateCommonUrn("beam:coder:kv:v1"))
+          .put(VarLongCoder.class, validateCommonUrn("beam:coder:varint:v1"))
+          .put(IntervalWindowCoder.class, validateCommonUrn("beam:coder:interval_window:v1"))
+          .put(IterableCoder.class, validateCommonUrn("beam:coder:iterable:v1"))
+          .put(LengthPrefixCoder.class, validateCommonUrn("beam:coder:length_prefix:v1"))
+          .put(GlobalWindow.Coder.class, validateCommonUrn("beam:coder:global_window:v1"))
+          .put(FullWindowedValueCoder.class, validateCommonUrn("beam:coder:windowed_value:v1"))
           .build();
 
   @VisibleForTesting

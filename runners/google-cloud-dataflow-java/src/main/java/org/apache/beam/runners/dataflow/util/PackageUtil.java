@@ -32,9 +32,6 @@ import com.google.common.hash.Hashing;
 import com.google.common.io.ByteSource;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.Closeable;
 import java.io.File;
@@ -47,7 +44,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -61,6 +60,7 @@ import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MimeTypes;
+import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -95,9 +95,9 @@ class PackageUtil implements Closeable {
    */
   private static final ApiErrorExtractor ERROR_EXTRACTOR = new ApiErrorExtractor();
 
-  private final ListeningExecutorService executorService;
+  private final ExecutorService executorService;
 
-  private PackageUtil(ListeningExecutorService executorService) {
+  private PackageUtil(ExecutorService executorService) {
     this.executorService = executorService;
   }
 
@@ -107,7 +107,7 @@ class PackageUtil implements Closeable {
             MoreExecutors.platformThreadFactory())));
   }
 
-  public static PackageUtil withExecutorService(ListeningExecutorService executorService) {
+  public static PackageUtil withExecutorService(ExecutorService executorService) {
     return new PackageUtil(executorService);
   }
 
@@ -134,10 +134,10 @@ class PackageUtil implements Closeable {
   }
 
   /** Asynchronously computes {@link PackageAttributes} for a single staged file. */
-  private ListenableFuture<PackageAttributes> computePackageAttributes(
+  private CompletionStage<PackageAttributes> computePackageAttributes(
       final DataflowPackage source, final String stagingPath) {
 
-    return executorService.submit(
+    return MoreFutures.supplyAsync(
         () -> {
           final File file = new File(source.getLocation());
           if (!file.exists()) {
@@ -150,7 +150,8 @@ class PackageUtil implements Closeable {
             attributes = attributes.withPackageName(source.getName());
           }
           return attributes;
-        });
+        },
+        executorService);
   }
 
   private boolean alreadyStaged(PackageAttributes attributes) throws IOException {
@@ -165,12 +166,12 @@ class PackageUtil implements Closeable {
   }
 
   /** Stages one file ("package") if necessary. */
-  public ListenableFuture<StagingResult> stagePackage(
+  public CompletionStage<StagingResult> stagePackage(
       final PackageAttributes attributes,
       final Sleeper retrySleeper,
       final CreateOptions createOptions) {
-    return executorService.submit(
-        () -> stagePackageSynchronously(attributes, retrySleeper, createOptions));
+    return MoreFutures.supplyAsync(
+        () -> stagePackageSynchronously(attributes, retrySleeper, createOptions), executorService);
   }
 
   /** Synchronously stages a package, with retry and backoff for resiliency. */
@@ -265,7 +266,7 @@ class PackageUtil implements Closeable {
   /**
    * Transfers the classpath elements to the staging location using a default {@link Sleeper}.
    *
-   * @see {@link #stageClasspathElements(Collection, String, Sleeper, CreateOptions)}
+   * @see #stageClasspathElements(Collection, String, Sleeper, CreateOptions)
    */
   List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, String stagingPath, CreateOptions createOptions) {
@@ -275,7 +276,7 @@ class PackageUtil implements Closeable {
   /**
    * Transfers the classpath elements to the staging location using default settings.
    *
-   * @see {@link #stageClasspathElements(Collection, String, Sleeper, CreateOptions)}
+   * @see #stageClasspathElements(Collection, String, Sleeper, CreateOptions)
    */
   List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, String stagingPath) {
@@ -286,11 +287,11 @@ class PackageUtil implements Closeable {
   public DataflowPackage stageToFile(
       byte[] bytes, String target, String stagingPath, CreateOptions createOptions) {
     try {
-      return stagePackage(
-              PackageAttributes.forBytesToStage(bytes, target, stagingPath),
-              DEFAULT_SLEEPER,
-              createOptions)
-          .get()
+      return MoreFutures.get(
+              stagePackage(
+                  PackageAttributes.forBytesToStage(bytes, target, stagingPath),
+                  DEFAULT_SLEEPER,
+                  createOptions))
           .getPackageAttributes()
           .getDestination();
     } catch (InterruptedException e) {
@@ -331,7 +332,7 @@ class PackageUtil implements Closeable {
 
     final AtomicInteger numUploaded = new AtomicInteger(0);
     final AtomicInteger numCached = new AtomicInteger(0);
-    List<ListenableFuture<DataflowPackage>> destinationPackages = new ArrayList<>();
+    List<CompletionStage<DataflowPackage>> destinationPackages = new ArrayList<>();
 
     for (String classpathElement : classpathElements) {
       DataflowPackage sourcePackage = new DataflowPackage();
@@ -350,15 +351,14 @@ class PackageUtil implements Closeable {
         continue;
       }
 
-      // TODO: Java 8 / Guava 23.0: FluentFuture
-      ListenableFuture<StagingResult> stagingResult =
-          Futures.transformAsync(
-              computePackageAttributes(sourcePackage, stagingPath),
-              packageAttributes -> stagePackage(packageAttributes, retrySleeper, createOptions));
+      CompletionStage<StagingResult> stagingResult =
+          computePackageAttributes(sourcePackage, stagingPath)
+              .thenComposeAsync(
+                  packageAttributes ->
+                      stagePackage(packageAttributes, retrySleeper, createOptions));
 
-      ListenableFuture<DataflowPackage> stagedPackage =
-          Futures.transform(
-              stagingResult,
+      CompletionStage<DataflowPackage> stagedPackage =
+          stagingResult.thenApply(
               stagingResult1 -> {
                 if (stagingResult1.alreadyStaged()) {
                   numCached.incrementAndGet();
@@ -372,19 +372,19 @@ class PackageUtil implements Closeable {
     }
 
     try {
-      ListenableFuture<List<DataflowPackage>> stagingFutures =
-          Futures.allAsList(destinationPackages);
+      CompletionStage<List<DataflowPackage>> stagingFutures =
+          MoreFutures.allAsList(destinationPackages);
       boolean finished = false;
       do {
         try {
-          stagingFutures.get(3L, TimeUnit.MINUTES);
+          MoreFutures.get(stagingFutures, 3L, TimeUnit.MINUTES);
           finished = true;
         } catch (TimeoutException e) {
           // finished will still be false
           LOG.info("Still staging {} files", classpathElements.size());
         }
       } while (!finished);
-      List<DataflowPackage> stagedPackages = stagingFutures.get();
+      List<DataflowPackage> stagedPackages = MoreFutures.get(stagingFutures);
       LOG.info(
           "Staging files complete: {} files cached, {} files newly uploaded",
           numCached.get(), numUploaded.get());

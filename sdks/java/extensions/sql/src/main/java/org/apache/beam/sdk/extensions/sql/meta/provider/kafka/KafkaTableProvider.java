@@ -18,17 +18,17 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getBeamSqlRecordTypeFromTable;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.MetaUtils.getRowTypeFromTable;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
+import org.apache.beam.sdk.values.RowType;
 
 /**
  * Kafka table provider.
@@ -47,7 +47,7 @@ import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
  */
 public class KafkaTableProvider implements TableProvider {
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    BeamRecordSqlType recordType = getBeamSqlRecordTypeFromTable(table);
+    RowType rowType = getRowTypeFromTable(table);
 
     JSONObject properties = table.getProperties();
     String bootstrapServers = properties.getString("bootstrap.servers");
@@ -56,7 +56,7 @@ public class KafkaTableProvider implements TableProvider {
     for (Object topic : topicsArr) {
       topics.add(topic.toString());
     }
-    BeamKafkaCSVTable txtTable = new BeamKafkaCSVTable(recordType, bootstrapServers, topics);
+    BeamKafkaCSVTable txtTable = new BeamKafkaCSVTable(rowType, bootstrapServers, topics);
     return txtTable;
   }
 
@@ -65,6 +65,10 @@ public class KafkaTableProvider implements TableProvider {
   }
 
   @Override public void createTable(Table table) {
+    // empty
+  }
+
+  @Override public void dropTable(String tableName) {
     // empty
   }
 

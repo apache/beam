@@ -35,10 +35,3 @@ dependencies {
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.mongo:1.50.1"
   testCompile "de.flapdoodle.embed:de.flapdoodle.embed.process:1.50.1"
 }
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests

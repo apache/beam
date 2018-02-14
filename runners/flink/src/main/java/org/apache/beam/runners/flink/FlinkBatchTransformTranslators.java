@@ -115,7 +115,8 @@ class FlinkBatchTransformTranslators {
     TRANSLATORS.put(PTransformTranslation.FLATTEN_TRANSFORM_URN,
         new FlattenPCollectionTranslatorBatch());
 
-    TRANSLATORS.put(PTransformTranslation.WINDOW_TRANSFORM_URN, new WindowAssignTranslatorBatch());
+    TRANSLATORS.put(
+        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslatorBatch());
 
     TRANSLATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoTranslatorBatch());
 

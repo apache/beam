@@ -36,6 +36,8 @@ from collections import namedtuple
 
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
@@ -75,7 +77,7 @@ SourceBundle = namedtuple(
 class SourceBase(HasDisplayData, urns.RunnerApiFn):
   """Base class for all sources that can be passed to beam.io.Read(...).
   """
-  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_SOURCE)
+  urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
 
 
 class BoundedSource(SourceBase):
@@ -832,7 +834,7 @@ class Read(ptransform.PTransform):
             'source_dd': self.source}
 
   def to_runner_api_parameter(self, context):
-    return (urns.READ_TRANSFORM,
+    return (common_urns.READ_TRANSFORM,
             beam_runner_api_pb2.ReadPayload(
                 source=self.source.to_runner_api(context),
                 is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
@@ -845,7 +847,7 @@ class Read(ptransform.PTransform):
 
 
 ptransform.PTransform.register_urn(
-    urns.READ_TRANSFORM,
+    common_urns.READ_TRANSFORM,
     beam_runner_api_pb2.ReadPayload,
     Read.from_runner_api_parameter)
 

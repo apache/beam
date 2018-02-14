@@ -26,10 +26,8 @@ import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.google.common.collect.ImmutableList;
-
 import java.util.Collections;
 import java.util.List;
-
 import org.joda.time.Instant;
 import org.junit.Test;
 

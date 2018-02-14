@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.DoFn;
  * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
  * increasing fashion.
  */
-public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
+public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long> {
   private OffsetRange range;
   @Nullable private Long lastClaimedOffset = null;
   @Nullable private Long lastAttemptedOffset = null;
@@ -46,11 +46,8 @@ public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
 
   @Override
   public synchronized OffsetRange checkpoint() {
-    if (lastClaimedOffset == null) {
-      OffsetRange res = range;
-      range = new OffsetRange(range.getFrom(), range.getFrom());
-      return res;
-    }
+    checkState(
+        lastClaimedOffset != null, "Can't checkpoint before any offset was successfully claimed");
     OffsetRange res = new OffsetRange(lastClaimedOffset + 1, range.getTo());
     this.range = new OffsetRange(range.getFrom(), lastClaimedOffset + 1);
     return res;
@@ -64,7 +61,8 @@ public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
    * @return {@code true} if the offset was successfully claimed, {@code false} if it is outside the
    *     current {@link OffsetRange} of this tracker (in that case this operation is a no-op).
    */
-  public synchronized boolean tryClaim(long i) {
+  @Override
+  protected synchronized boolean tryClaimImpl(Long i) {
     checkArgument(
         lastAttemptedOffset == null || i > lastAttemptedOffset,
         "Trying to claim offset %s while last attempted was %s",

@@ -39,9 +39,7 @@ import com.amazonaws.services.kinesis.model.ProvisionedThroughputExceededExcepti
 import com.amazonaws.services.kinesis.model.Shard;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.StreamDescription;
-
 import java.util.List;
-
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
 import org.junit.Test;

@@ -74,6 +74,8 @@ class StateSamplerTest(unittest.TestCase):
       self.assertIn(counter.name, expected_counter_values)
       expected_value = expected_counter_values[counter.name]
       actual_value = counter.value()
+      deviation = float(abs(actual_value - expected_value)) / expected_value
+      logging.info('Sampling deviation from expectation: %f', deviation)
       self.assertGreater(actual_value, expected_value * 0.75)
       self.assertLess(actual_value, expected_value * 1.25)
 

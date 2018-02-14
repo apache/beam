@@ -23,11 +23,9 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
-
 import org.apache.beam.runners.gearpump.translators.GroupByKeyTranslator.GearpumpWindowFn;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;

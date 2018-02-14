@@ -67,6 +67,9 @@ repositories {
   maven { url "https://repository.apache.org/content/repositories/releases" }
 }
 
+// Apply a plugin which enables configuring projects imported into Intellij.
+apply plugin: "idea"
+
 // Provide code coverage
 // TODO: Should this only apply to Java projects?
 apply plugin: "jacoco"
@@ -156,16 +159,16 @@ class JavaNatureConfiguration {
 //                  Will become a runtime dependency of the generated Maven pom.
 //  * testCompile - Required during compilation or runtime of the test source set.
 //                  This must be shaded away in the shaded test jar.
-//  * testShadow  - Required during compilation or runtime of the test source set.
+//  * shadowTest  - Required during compilation or runtime of the test source set.
 //                  TODO: Figure out whether this should be a test scope dependency
 //                  of the generated Maven pom.
 //
 // When creating a cross-project dependency between two Java projects, one should only rely on the shaded configurations.
 // This allows for compilation/test execution to occur against the final artifact that will be provided to users.
-// This is by done by referencing the "shadow" or "testShadow" configuration as so:
+// This is by done by referencing the "shadow" or "shadowTest" configuration as so:
 //   dependencies {
 //     shadow project(path: "other:java:project1", configuration: "shadow")
-//     testShadow project(path: "other:java:project2", configuration: "testShadow")
+//     shadowTest project(path: "other:java:project2", configuration: "shadowTest")
 //   }
 // This will ensure the correct set of transitive dependencies from those projects are correctly added to the
 // main and test source set runtimes.
@@ -200,6 +203,13 @@ ext.applyJavaNature = {
   tasks.withType(Test) {
     useJUnit { }
   }
+
+  // Ensure that tests are packaged and part of the artifact set.
+  task packageTests(type: Jar) {
+    classifier = 'tests'
+    from sourceSets.test.output
+  }
+  artifacts.archives packageTests
 
   // Configures annotation processing for commonly used annotation processors
   // across all Java projects.
@@ -236,6 +246,9 @@ ext.applyJavaNature = {
     configProperties = [ "checkstyle.suppressions.file": project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml") ]
     showViolations = true
     maxErrors = 0
+  }
+  checkstyle {
+    toolVersion = "8.7"
   }
 
   // Apply the eclipse and apt-eclipse plugins.  This adds the "eclipse" task and
@@ -313,7 +326,10 @@ ext.applyJavaNature = {
       testCompile.extendsFrom shadowTest
     }
 
-    // TODO: Figure out how to create ShadowJar task for testShadowJar here
+    // Ensure that shaded classes are part of the artifact set.
+    artifacts.archives shadowJar
+
+    // TODO: Figure out how to create ShadowJar task for ShadowTestJar here
     // that is extendable within each sub-project with any additional includes.
     // This could mirror the "shadowJar" configuration block.
     // Optionally, we could also copy the shading configuration from the main
@@ -344,10 +360,22 @@ ext.applyJavaNature = {
   // which chooses the latest version available.
   //
   // TODO: Figure out whether we should force all dependency conflict resolution
-  // to occur in the "shadow" and "testShadow" configurations.
+  // to occur in the "shadow" and "shadowTest" configurations.
   configurations.all {
     resolutionStrategy {
       force library.java.values()
+    }
+  }
+
+  def aptGeneratedMain = "${project.buildDir}/generated/source/apt/main"
+  def aptGeneratedTest = "${project.buildDir}/generated/source/apt/test"
+  idea {
+    module {
+      sourceDirs += file(aptGeneratedMain)
+      generatedSourceDirs += file(aptGeneratedMain)
+
+      testSourceDirs += file(aptGeneratedTest)
+      generatedSourceDirs += file(aptGeneratedTest)
     }
   }
 }
@@ -361,30 +389,26 @@ ext.applyGoNature = {
     goVersion = '1.9'
   }
 
-  // GoGradle fails in a parallel build during dependency resolution/installation.
-  // Force a dependency between all GoGradle projects during dependency resolution/installation.
-  // TODO: Figure out how to do this by automatically figuring out the task dependency DAG
-  // based upon task type.
-  List<String> goProjects = [
-      ":sdks:go",
-      ":runners:gcp:gcemd",
-      ":runners:gcp:gcsproxy",
-      ":sdks:python:container",
-      ":sdks:java:container",
-  ]
-  if (!goProjects.contains(project.path)) {
-    throw new GradleException(project.path + " has not been defined within the list of well known go projects within build_rules.gradle.")
+  repositories {
+    golang {
+      // Gogradle doesn't like thrift: https://github.com/gogradle/gogradle/issues/183
+      root 'git.apache.org/thrift.git'
+      emptyDir()
+    }
+    golang {
+      root 'github.com/apache/thrift'
+      emptyDir()
+    }
   }
-  int index = goProjects.indexOf(project.path)
-  if (index != 0) {
-    String previous = goProjects.get(index - 1)
-    println "Forcing: '" + previous + "' to be evaulated before '" + project.path + "'"
-    evaluationDependsOn(previous)
-    afterEvaluate {
-      println "Forcing: '" + project.path + ":resolveBuildDependencies' must run after '" + previous + ":installDependencies'"
-      tasks.getByPath(project.path + ":resolveBuildDependencies").mustRunAfter tasks.getByPath(previous + ":installDependencies")
-      println "Forcing: '" + project.path + ":resolveTestDependencies' must run after '" + previous + ":installDependencies'"
-      tasks.getByPath(project.path + ":resolveTestDependencies").mustRunAfter tasks.getByPath(previous + ":installDependencies")
+
+  idea {
+    module {
+      // The gogradle plugin downloads all dependencies into the source tree here,
+      // which is a path baked into golang
+      excludeDirs += file("${project.path}/vendor")
+
+      // gogradle's private working directory
+      excludeDirs += file("${project.path}/.gogradle")
     }
   }
 }
@@ -430,6 +454,26 @@ ext.applyGrpcNature = {
       }
     }
   }
+
+  def generatedProtoMainJavaDir = "${project.buildDir}/generated/source/proto/main/java"
+  def generatedProtoTestJavaDir = "${project.buildDir}/generated/source/proto/test/java"
+  def generatedGrpcMainJavaDir = "${project.buildDir}/generated/source/proto/main/grpc"
+  def generatedGrpcTestJavaDir = "${project.buildDir}/generated/source/proto/test/grpc"
+  idea {
+    module {
+      sourceDirs += file(generatedProtoMainJavaDir)
+      generatedSourceDirs += file(generatedProtoMainJavaDir)
+
+      testSourceDirs += file(generatedProtoTestJavaDir)
+      generatedSourceDirs += file(generatedProtoTestJavaDir)
+
+      sourceDirs += file(generatedGrpcMainJavaDir)
+      generatedSourceDirs += file(generatedGrpcMainJavaDir)
+
+      testSourceDirs += file(generatedGrpcTestJavaDir)
+      generatedSourceDirs += file(generatedGrpcTestJavaDir)
+    }
+  }
 }
 
 /*************************************************************************************************/
@@ -440,5 +484,3 @@ ext.applyAvroNature = {
   println "applyAvroNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.commercehub.gradle.plugin.avro"
 }
-
-

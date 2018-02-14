@@ -182,7 +182,7 @@ class _GrpcDataChannel(DataChannel):
           data = received.get(timeout=1)
         except queue.Empty:
           if self._exc_info:
-            raise exc_info[0], exc_info[1], exc_info[2]
+            raise self.exc_info[0], self.exc_info[1], self.exc_info[2]
         else:
           if not data.data and data.target in expected_targets:
             done_targets.append(data.target)

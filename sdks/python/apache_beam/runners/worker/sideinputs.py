@@ -106,7 +106,7 @@ class PrefetchingSourceSetIterable(object):
   def _reader_thread(self):
     # pylint: disable=too-many-nested-blocks
     experiments = set(
-        RuntimeValueProvider('experiments', str, '').get().split(','))
+        RuntimeValueProvider.get_value('experiments', str, '').split(','))
     try:
       while True:
         try:

@@ -295,7 +295,7 @@ public class DoFnInvokersTest {
   private static class SomeRestriction {}
 
   private abstract static class SomeRestrictionTracker
-      implements RestrictionTracker<SomeRestriction> {}
+      extends RestrictionTracker<SomeRestriction, Void> {}
 
   private static class SomeRestrictionCoder extends AtomicCoder<SomeRestriction> {
     public static SomeRestrictionCoder of() {
@@ -385,7 +385,7 @@ public class DoFnInvokersTest {
               }
 
               @Override
-              public RestrictionTracker<?> restrictionTracker() {
+              public RestrictionTracker<?, ?> restrictionTracker() {
                 return tracker;
               }
             }));
@@ -399,7 +399,13 @@ public class DoFnInvokersTest {
     }
   }
 
-  private static class DefaultTracker implements RestrictionTracker<RestrictionWithDefaultTracker> {
+  private static class DefaultTracker
+      extends RestrictionTracker<RestrictionWithDefaultTracker, Void> {
+    @Override
+    protected boolean tryClaimImpl(Void position) {
+      throw new UnsupportedOperationException();
+    }
+
     @Override
     public RestrictionWithDefaultTracker currentRestriction() {
       throw new UnsupportedOperationException();
@@ -653,7 +659,7 @@ public class DoFnInvokersTest {
           }
 
           @Override
-          public RestrictionTracker<?> restrictionTracker() {
+          public RestrictionTracker<?, ?> restrictionTracker() {
             return null; // will not be touched
           }
         });

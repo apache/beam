@@ -104,9 +104,6 @@ public class DelegateCoderTest implements Serializable {
     CoderProperties.coderSerializable(TEST_CODER);
   }
 
-  private static final String TEST_ENCODING_ID = "test-encoding-id";
-  private static final String TEST_ALLOWED_ENCODING = "test-allowed-encoding";
-
   @Test
   public void testCoderEquals() throws Exception {
     DelegateCoder.CodingFunction<Integer, Integer> identityFn = input -> input;

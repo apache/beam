@@ -200,6 +200,13 @@ public class WindowingStrategyTranslation implements Serializable {
   public static final String FIXED_WINDOWS_FN = "beam:windowfn:fixed_windows:v0.1";
   public static final String SLIDING_WINDOWS_FN = "beam:windowfn:sliding_windows:v0.1";
   public static final String SESSION_WINDOWS_FN = "beam:windowfn:session_windows:v0.1";
+  static {
+    // Out-of-line to facilitate use in the case statements below.
+    UrnUtils.validateCommonUrn(GLOBAL_WINDOWS_FN);
+    UrnUtils.validateCommonUrn(FIXED_WINDOWS_FN);
+    UrnUtils.validateCommonUrn(SLIDING_WINDOWS_FN);
+    UrnUtils.validateCommonUrn(SESSION_WINDOWS_FN);
+  }
   // This URN says that the WindowFn is just a UDF blob the Java SDK understands
   // TODO: standardize such things
   public static final String SERIALIZED_JAVA_WINDOWFN_URN = "beam:windowfn:javasdk:v0.1";

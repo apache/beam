@@ -716,6 +716,13 @@ public class DataflowPipelineTranslator {
                 context.addStep(transform, "CollectionToSingleton");
             PCollection<ElemT> input = context.getInput(transform);
             stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+            WindowingStrategy<?, ?> windowingStrategy = input.getWindowingStrategy();
+            stepContext.addInput(
+                PropertyNames.WINDOWING_STRATEGY,
+                byteArrayToJsonString(serializeWindowingStrategy(windowingStrategy)));
+            stepContext.addInput(
+                PropertyNames.IS_MERGING_WINDOW_FN,
+                !windowingStrategy.getWindowFn().isNonMerging());
             stepContext.addCollectionToSingletonOutput(
                 input, PropertyNames.OUTPUT, transform.getView());
           }
