@@ -28,13 +28,15 @@ For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
 
+from past.builtins import basestring
+from past.builtins import long
+from past.builtins import unicode
+
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
-
-from past.builtins import basestring, unicode, long
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -51,7 +53,7 @@ except ImportError:
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
-from past.utils import old_div
+
 
 class CoderImpl(object):
   """For internal use only; no backwards-compatibility guarantees."""
@@ -381,8 +383,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     span_micros = value.end.micros - value.start.micros
-    out.write_bigendian_uint64(self._from_normal_time(old_div(value.end.micros, 1000)))
-    out.write_var_int64(old_div(span_micros, 1000))
+    out.write_bigendian_uint64(self._from_normal_time(value.end.micros // 1000))
+    out.write_var_int64(span_micros // 1000)
 
   def decode_from_stream(self, in_, nested):
     end_millis = self._to_normal_time(in_.read_bigendian_uint64())
@@ -396,7 +398,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
     span = value.end.micros - value.start.micros
-    return 8 + get_varint_size(old_div(span, 1000))
+    return 8 + get_varint_size(span // 1000)
 
 
 class TimestampCoderImpl(StreamCoderImpl):
@@ -693,7 +695,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
         # precision of timestamps.
         self._from_normal_time(
-            restore_sign * old_div(abs(wv.timestamp_micros), 1000)))
+            restore_sign * (abs(wv.timestamp_micros) // 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
     # TODO(BEAM-1522): Remove the hard coding here once PaneInfo is supported.
@@ -708,9 +710,9 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
-    if timestamp == -(old_div(abs(MIN_TIMESTAMP.micros), 1000)):
+    if timestamp == -(abs(MIN_TIMESTAMP.micros) // 1000):
       timestamp = MIN_TIMESTAMP.micros
-    elif timestamp == (old_div(MAX_TIMESTAMP.micros, 1000)):
+    elif timestamp == (MAX_TIMESTAMP.micros // 1000):
       timestamp = MAX_TIMESTAMP.micros
     else:
       timestamp *= 1000

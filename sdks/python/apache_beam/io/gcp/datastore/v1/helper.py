@@ -26,6 +26,8 @@ import sys
 import time
 from socket import error as SocketError
 
+from past.builtins import unicode
+
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
@@ -46,8 +48,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 # pylint: enable=ungrouped-imports
-
-from past.builtins import unicode
 
 
 def key_comparator(k1, k2):

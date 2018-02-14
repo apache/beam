@@ -20,10 +20,10 @@ from __future__ import absolute_import
 
 import logging
 import math
+import sys
 import unittest
 
 import dill
-import sys
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
@@ -85,10 +85,10 @@ class CodersTest(unittest.TestCase):
         cls._observe_nested(c)
 
   def assertItemsEqual(self, a, b):
-     if sys.version_info[0] >= 3:
-       self.assertCountEqual(a, b)
-     else:
-       super(CodersTest, self).assertItemsEqual(a, b)
+    if sys.version_info[0] >= 3:
+      self.assertCountEqual(a, b)
+    else:
+      super(CodersTest, self).assertItemsEqual(a, b)
 
   def check_coder(self, coder, *values):
     self._observe(coder)

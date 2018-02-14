@@ -30,6 +30,8 @@ prefix the PATH_TO_HTML where they are included followed by a descriptive
 string. The tags can contain only letters, digits and _.
 """
 
+from past.builtins import unicode
+
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -39,8 +41,6 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import PTransform
-
-from past.builtins import unicode
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.

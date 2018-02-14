@@ -22,13 +22,17 @@ to the Dataflow Service for remote execution by a worker.
 """
 from __future__ import absolute_import
 
+# See https://github.com/PyCQA/pylint/issues/1160 :(
+# pylint: disable=wrong-import-position,wrong-import-order
 from future import standard_library
 standard_library.install_aliases()
 import logging
 import threading
 import time
 import traceback
-import urllib.request, urllib.parse, urllib.error
+import urllib.request
+import urllib.parse
+import urllib.error
 from collections import defaultdict
 
 import apache_beam as beam
@@ -54,6 +58,7 @@ from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils.plugin import BeamPlugin
+# pylint: enable=wrong-import-position,wrong-import-order
 
 __all__ = ['DataflowRunner']
 
@@ -281,7 +286,7 @@ class DataflowRunner(PipelineRunner):
 
     # Performing configured PTransform overrides.
     # Imported here to avoid circular dependencies.
-    # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
+    # TODO: Remove the apache_beam.pipeline dependency CreatePTransformOverride
     from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
 
     pipeline.replace_all(CreatePTransformOverride())

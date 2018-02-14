@@ -22,6 +22,8 @@ from __future__ import absolute_import
 import operator
 import random
 
+from past.builtins import long
+
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
@@ -35,8 +37,6 @@ from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-
-from past.builtins import long
 
 __all__ = [
     'Count',

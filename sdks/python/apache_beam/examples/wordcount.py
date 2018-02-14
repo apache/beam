@@ -23,6 +23,8 @@ import argparse
 import logging
 import re
 
+from past.builtins import unicode
+
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
@@ -30,8 +32,6 @@ from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-
-from past.builtins import unicode
 
 
 class WordExtractingDoFn(beam.DoFn):

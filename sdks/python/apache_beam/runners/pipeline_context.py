@@ -20,9 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-
-from builtins import object
 import sys
+from builtins import object
 
 from apache_beam import coders
 from apache_beam import pipeline
@@ -74,7 +73,7 @@ class _PipelineContextMap(object):
     try:
       if myid not in self._id_to_obj:
         self._id_to_obj[myid] = self._obj_type.from_runner_api(
-          self._id_to_proto[myid], self._pipeline_context)
+            self._id_to_proto[myid], self._pipeline_context)
       return self._id_to_obj[myid]
     except:
       raise Exception("Error occured fetching id " +

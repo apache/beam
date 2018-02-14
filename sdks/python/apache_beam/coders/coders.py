@@ -23,11 +23,6 @@ from __future__ import absolute_import
 
 import base64
 import sys
-if sys.version_info[0] == 2:
-  import cPickle as pickle
-else:
-  import pickle as pickle
-  from past.builtins import unicode
 
 import google.protobuf
 from google.protobuf import wrappers_pb2
@@ -38,6 +33,12 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
 
+if sys.version_info[0] == 2:
+  import cPickle as pickle
+else:
+  import pickle as pickle
+  from past.builtins import unicode
+
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from .stream import get_varint_size
@@ -46,7 +47,7 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 # Avoid dependencies on the full SDK.
 try:
   # Import dill from the pickler module to make sure our monkey-patching of dill
@@ -67,7 +68,7 @@ __all__ = ['Coder',
 
 def serialize_coder(coder):
   from apache_beam.internal import pickler
-  # TODO: Do we need this class name for anything or could we just simplify this?
+  # TODO: Do we need this class name for anything or could we just simplify?
   result = '%s$%s' % (coder.__class__.__name__, pickler.dumps(coder).decode())
   return result
 

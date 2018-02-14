@@ -23,6 +23,8 @@ For internal use only; no backwards-compatibility guarantees.
 from abc import ABCMeta
 from abc import abstractmethod
 
+from future.utils import with_metaclass
+
 from apache_beam import coders
 from apache_beam import core
 from apache_beam import pvalue
@@ -31,7 +33,6 @@ from apache_beam.transforms import window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-from future.utils import with_metaclass
 
 __all__ = [
     'Event',

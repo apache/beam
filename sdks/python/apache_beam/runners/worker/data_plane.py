@@ -29,11 +29,11 @@ import sys
 import threading
 
 import grpc
+from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
-from future.utils import with_metaclass
 
 # This module is experimental. No backwards-compatibility guarantees.
 

@@ -26,8 +26,6 @@ from six import integer_types
 
 from apache_beam.io import iobase
 
-from past.builtins import long
-
 __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
 

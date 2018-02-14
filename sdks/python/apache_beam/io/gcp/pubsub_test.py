@@ -21,6 +21,7 @@ import logging
 import unittest
 
 import hamcrest as hc
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
@@ -40,8 +41,6 @@ try:
 except ImportError:
   pubsub = None
 # pylint: enable=wrong-import-order, wrong-import-position
-
-from past.builtins import unicode
 
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')

@@ -53,6 +53,8 @@ import os
 import shutil
 import tempfile
 
+from future.utils import with_metaclass
+
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
@@ -70,7 +72,6 @@ from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
-from future.utils import with_metaclass
 
 __all__ = ['Pipeline', 'PTransformOverride']
 

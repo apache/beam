@@ -26,6 +26,8 @@ from __future__ import absolute_import
 
 import re
 
+from past.builtins import unicode
+
 from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
@@ -35,9 +37,6 @@ from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
-
-
-from past.builtins import unicode
 
 __all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub']
 

@@ -20,16 +20,16 @@ from __future__ import absolute_import
 
 import abc
 import bz2
-import logging
 import io
+import logging
 import os
 import time
 import zlib
 
+from future.utils import with_metaclass
 from six import integer_types
 
 from apache_beam.utils.plugin import BeamPlugin
-from future.utils import with_metaclass
 
 logger = logging.getLogger(__name__)
 
@@ -238,7 +238,7 @@ class CompressedFile(object):
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
-    io = io.StringIO()
+    sio = io.StringIO()
     while True:
       # Ensure that the internal buffer has at least half the read_size. Going
       # with half the _read_size (as opposed to a full _read_size) to ensure
@@ -247,11 +247,11 @@ class CompressedFile(object):
       self._fetch_to_internal_buffer(self._read_size / 2)
       line = self._read_from_internal_buffer(
           lambda: self._read_buffer.readline())
-      io.write(line)
+      sio.write(line)
       if line.endswith('\n') or not line:
         break  # Newline or EOF reached.
 
-    return io.getvalue()
+    return sio.getvalue()
 
   def closed(self):
     return not self._file or self._file.closed()

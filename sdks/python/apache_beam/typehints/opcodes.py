@@ -47,8 +47,6 @@ from .typehints import List
 from .typehints import Tuple
 from .typehints import Union
 
-from past.builtins import unicode
-
 
 def pop_one(state, unused_arg):
   del state.stack[-1:]

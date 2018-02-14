@@ -23,6 +23,8 @@ import copy
 import inspect
 import types
 
+from past.builtins import basestring
+
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -54,8 +56,6 @@ from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
-
-from past.builtins import basestring
 
 __all__ = [
     'DoFn',
@@ -1434,6 +1434,7 @@ class _GroupAlsoByWindow(ParDo):
     self._check_pcollection(pcoll)
     return pvalue.PCollection(pcoll.pipeline)
 
+
 class _GroupAlsoByWindowDoFn(DoFn):
   # TODO(robertwb): Support combiner lifting.
 
@@ -1547,7 +1548,7 @@ class Windowing(object):
 
   def __hash__(self):
     return hash((self.windowfn, self.triggerfn, self.accumulation_mode,
-         self.timestamp_combiner))
+                 self.timestamp_combiner))
 
   def is_default(self):
     return self._is_default

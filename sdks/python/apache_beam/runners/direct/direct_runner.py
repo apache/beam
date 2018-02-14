@@ -51,8 +51,6 @@ from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
 from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.ptransform import PTransform
 
-from past.builtins import unicode
-
 # Note that the BundleBasedDirectRunner and SwitchingDirectRunner names are
 # experimental and have no backwards compatibility guarantees.
 __all__ = ['BundleBasedDirectRunner',
