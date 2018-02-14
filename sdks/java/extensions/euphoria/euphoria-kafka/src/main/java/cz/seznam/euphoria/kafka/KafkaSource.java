@@ -15,38 +15,38 @@
  */
 package cz.seznam.euphoria.kafka;
 
-import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
-import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
 import cz.seznam.euphoria.core.client.io.UnboundedDataSource;
 import cz.seznam.euphoria.core.client.io.UnboundedPartition;
 import cz.seznam.euphoria.core.client.io.UnboundedReader;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
+import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
+import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import static java.util.Objects.requireNonNull;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
+
+import static java.util.Objects.requireNonNull;
 
 public class KafkaSource
     implements UnboundedDataSource<Pair<byte[], byte[]>, Long> {
 
-  // config options
   public static final String CFG_RESET_OFFSET_TIMESTAMP_MILLIS = "reset.offset.timestamp.millis";
   public static final String CFG_STOP_AT_TIMESTAMP_MILLIS = "stop.at.timestamp.millis";
 
@@ -127,8 +127,7 @@ public class KafkaSource
       implements UnboundedPartition<Pair<byte[], byte[]>, Long> {
 
     private final String brokerList;
-    private final String topicId;
-    private final int partition;
+    private final TopicPartition topicPartition;
     @Nullable
     private final Settings config;
     private final long startOffset;
@@ -137,15 +136,14 @@ public class KafkaSource
     private final long stopReadingAtStamp;
 
     KafkaPartition(
-        String brokerList, String topicId,
-        int partition,
+        String brokerList,
+        TopicPartition topicPartition,
         @Nullable Settings config,
         long startOffset,
         long stopReadingAtStamp) {
 
       this.brokerList = brokerList;
-      this.topicId = topicId;
-      this.partition = partition;
+      this.topicPartition = topicPartition;
       this.config = config;
       this.startOffset = startOffset;
       this.stopReadingAtStamp = stopReadingAtStamp;
@@ -154,17 +152,16 @@ public class KafkaSource
 
     @Override
     public UnboundedReader<Pair<byte[], byte[]>, Long> openReader() throws IOException {
-      Consumer<byte[], byte[]> c =
+      final Consumer<byte[], byte[]> c =
           KafkaUtils.newConsumer(brokerList, null, config);
-      TopicPartition tp = new TopicPartition(topicId, partition);
-      ArrayList<TopicPartition> partitionList = Lists.newArrayList(tp);
+      final List<TopicPartition> partitionList = Collections.singletonList(topicPartition);
       c.assign(partitionList);
       if (startOffset > 0) {
-        c.seek(tp, startOffset);
+        c.seek(topicPartition, startOffset);
       } else if (startOffset == 0) {
         c.seekToBeginning(partitionList);
       }
-      return new ConsumerReader(c, tp, stopReadingAtStamp);
+      return new ConsumerReader(c, topicPartition, stopReadingAtStamp);
     }
 
   }
@@ -188,8 +185,10 @@ public class KafkaSource
 
   @Override
   public List<UnboundedPartition<Pair<byte[], byte[]>, Long>> getPartitions() {
+
     long offsetTimestamp = -1L;
     long stopReadingAtStamp = Long.MAX_VALUE;
+
     if (config != null) {
       offsetTimestamp = config.getLong(CFG_RESET_OFFSET_TIMESTAMP_MILLIS, -1L);
       if (offsetTimestamp > 0) {
@@ -207,47 +206,76 @@ public class KafkaSource
             stopReadingAtStamp);
       }
     }
-    try (Consumer<?, ?> c = newConsumer(
+
+    return getPartitions(offsetTimestamp, stopReadingAtStamp);
+  }
+
+    private List<UnboundedPartition<Pair<byte[], byte[]>, Long>> getPartitions(
+        long startTimestamp, long endTimestamp) {
+    try (Consumer<byte[], byte[]> consumer = newConsumer(
         brokerList, "euphoria.partition-probe-" + UUID.randomUUID().toString(),
         config)) {
 
-      final Map<Integer, Long> offs;
-      try {
-        offs = offsetTimestamp > 0
-            ? KafkaUtils.getOffsetsBeforeTimestamp(brokerList, topicId, offsetTimestamp)
-            : Collections.emptyMap();
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      List<PartitionInfo> ps = c.partitionsFor(topicId);
+      final List<PartitionInfo> partitions = consumer.partitionsFor(topicId);
 
-      if (ps.isEmpty()) {
+      // sanity check
+
+      if (partitions.isEmpty()) {
         throw new IllegalStateException("No kafka partitions found for topic " + topicId);
       }
 
-      final long stopAtStamp = stopReadingAtStamp;
-      final long defaultOffsetTimestamp = offsetTimestamp;
-      return ps.stream()
-              .map((PartitionInfo p) -> {
-                if (p.leader().id() == -1) {
-                  throw new IllegalStateException("Leader not available");
-                }
+      partitions.forEach(p -> {
+        if (p.leader().id() == -1) {
+          throw new IllegalStateException(
+              "Leader for partition [" + p.partition() + "] is not for available");
+        }
+      });
 
-                return new KafkaPartition(
-                        brokerList, topicId, p.partition(),
-                        config,
-                        offs.getOrDefault(p.partition(), defaultOffsetTimestamp),
-                        stopAtStamp);
-              })
-              .collect(Collectors.toList());
+      // convert to topic partitions
+
+      final List<TopicPartition> topicPartitions = partitions.stream()
+          .map(p -> new TopicPartition(p.topic(), p.partition()))
+          .collect(Collectors.toList());
+
+      // resolve offsets to read from
+
+      final Map<TopicPartition, OffsetAndTimestamp> offsets;
+      if (startTimestamp > 0) {
+        final Map<TopicPartition, Long> offsetsToFetch = new HashMap<>();
+        for (PartitionInfo partition : partitions) {
+          offsetsToFetch.put(
+              new TopicPartition(partition.topic(), partition.partition()),
+              startTimestamp);
+        }
+        offsets =
+            consumer.offsetsForTimes(offsetsToFetch);
+      } else {
+        offsets = Collections.emptyMap();
+      }
+
+      return topicPartitions
+          .stream()
+          .map(tp -> {
+            final long offset = offsets.containsKey(tp)
+                ? offsets.get(tp).offset()
+                : startTimestamp;
+
+            return new KafkaPartition(
+                brokerList,
+                tp,
+                config,
+                offset,
+                endTimestamp);
+          })
+          .collect(Collectors.toList());
     }
   }
 
   @VisibleForTesting
-  Consumer<byte[], byte[]> newConsumer(String brokerList, @Nullable String groupId, @Nullable Settings config) {
+  Consumer<byte[], byte[]> newConsumer(
+      String brokerList, @Nullable String groupId, @Nullable Settings config) {
     return KafkaUtils.newConsumer(
-            brokerList, "euphoria.partition-probe-" + UUID.randomUUID().toString(),
-            config);
+        brokerList, groupId, config);
   }
 
   @Override
