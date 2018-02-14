@@ -43,7 +43,7 @@ configurations {
 }
 
 
-def calcite_version = "1.13.0"
+def calcite_version = "1.15.0"
 def avatica_version = "1.10.0"
 
 dependencies {

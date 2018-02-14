@@ -35,7 +35,7 @@
   <properties>
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
-    <calcite.version>1.13.0</calcite.version>
+    <calcite.version>1.15.0</calcite.version>
     <avatica.version>1.10.0</avatica.version>
     <mockito.version>1.9.5</mockito.version>
     
