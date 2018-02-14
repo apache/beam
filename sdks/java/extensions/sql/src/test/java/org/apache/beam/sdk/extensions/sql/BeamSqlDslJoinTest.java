@@ -200,7 +200,7 @@ public class BeamSqlDslJoinTest {
 
     PAssert
         .that(
-            inputs.apply("sql", BeamSql.queryMulti(sql)))
+            inputs.apply("sql", BeamSql.query(sql)))
         .containsInAnyOrder(
         TestUtils.RowsBuilder
             .of(
@@ -234,7 +234,7 @@ public class BeamSqlDslJoinTest {
 
     thrown.expectCause(expectedSingleFireTrigger());
 
-    inputs.apply("sql", BeamSql.queryMulti(sql));
+    inputs.apply("sql", BeamSql.query(sql));
 
     pipeline.run();
   }
@@ -254,7 +254,7 @@ public class BeamSqlDslJoinTest {
 
     thrown.expectCause(expectedSingleFireTrigger());
 
-    inputs.apply("sql", BeamSql.queryMulti(sql));
+    inputs.apply("sql", BeamSql.query(sql));
 
     pipeline.run();
   }
@@ -280,7 +280,7 @@ public class BeamSqlDslJoinTest {
 
     thrown.expectCause(expectedSingleFireTrigger());
 
-    inputs.apply("sql", BeamSql.queryMulti(sql));
+    inputs.apply("sql", BeamSql.query(sql));
 
     pipeline.run();
   }
@@ -307,7 +307,7 @@ public class BeamSqlDslJoinTest {
 
     thrown.expectCause(expectedSingleFireTrigger());
 
-    inputs.apply("sql", BeamSql.queryMulti(sql));
+    inputs.apply("sql", BeamSql.query(sql));
 
     pipeline.run();
   }
@@ -341,7 +341,7 @@ public class BeamSqlDslJoinTest {
     return tuple(
         "ORDER_DETAILS1", ORDER_DETAILS1.buildIOReader(pipeline).setCoder(SOURCE_CODER),
         "ORDER_DETAILS2", ORDER_DETAILS2.buildIOReader(pipeline).setCoder(SOURCE_CODER))
-        .apply("join", BeamSql.queryMulti(sql))
+        .apply("join", BeamSql.query(sql))
         .setCoder(RESULT_CODER);
   }
 

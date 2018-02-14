@@ -145,7 +145,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testAggregationFunctions", BeamSql.queryMulti(sql));
+            .apply("testAggregationFunctions", BeamSql.query(sql));
 
     RowType resultType =
         RowSqlType
@@ -230,7 +230,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + "FROM PCOLLECTION GROUP BY f_int2";
 
     PCollection<Row> result =
-        boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
+        boundedInput3.apply("testAggregationWithDecimalValue",
+                            BeamSql.query(sql));
 
     PAssert.that(result).satisfies(new CheckerBigDecimalDivide());
 
@@ -304,7 +305,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + " GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testTumbleWindow", BeamSql.queryMulti(sql));
+            .apply("testTumbleWindow", BeamSql.query(sql));
 
     RowType resultType =
         RowSqlType
@@ -397,7 +398,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + " GROUP BY f_int2, SESSION(f_timestamp, INTERVAL '5' MINUTE)";
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
-            .apply("testSessionWindow", BeamSql.queryMulti(sql));
+            .apply("testSessionWindow", BeamSql.query(sql));
 
     RowType resultType =
         RowSqlType
@@ -431,7 +432,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + "GROUP BY f_int2, TUMBLE(f_long, INTERVAL '1' HOUR)";
     PCollection<Row> result =
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), boundedInput1)
-            .apply("testWindowOnNonTimestampField", BeamSql.queryMulti(sql));
+            .apply("testWindowOnNonTimestampField", BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
