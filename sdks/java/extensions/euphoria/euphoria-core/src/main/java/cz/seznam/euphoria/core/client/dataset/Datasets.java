@@ -33,15 +33,15 @@ public class Datasets {
    * @param <OUT> the type of elements in the output dataset
    *
    * @param flow the flow to associate the output dataset with
-   * @param input the input dataset the output dataset is indirectly derived from
+   * @param bounded {@code true} if the output dataset should be bounded
    * @param op the operator producing the output dataset
    *
    * @return a dataset representing the output of the given operator
    */
   public static <IN, OUT> Dataset<OUT> createOutputFor(
-      Flow flow, Dataset<IN> input, Operator<IN, OUT> op) {
+      Flow flow, boolean bounded, Operator<IN, OUT> op) {
 
-    return new OutputDataset<>(flow, op, input.isBounded());
+    return new OutputDataset<>(flow, op, bounded);
   }
 
   /**

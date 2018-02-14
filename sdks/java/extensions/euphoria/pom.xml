@@ -227,7 +227,7 @@
           <forkCount>1</forkCount>
           <threadCount>1</threadCount>
           <runOrder>hourly</runOrder>
-          <argLine>-Xmx512m</argLine>
+          <argLine>-Xmx512m -Dsun.io.serialization.extendedDebugInfo</argLine>
         </configuration>
       </plugin>
     </plugins>

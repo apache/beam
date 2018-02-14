@@ -19,6 +19,7 @@ import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.executor.AbstractExecutor;
+import cz.seznam.euphoria.core.util.Settings;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -30,18 +31,24 @@ import org.joda.time.Duration;
 public class BeamExecutor extends AbstractExecutor{
 
   private final PipelineOptions options;
+  private final Settings settings;
   private Duration allowedLateness = Duration.ZERO;
 
   private AccumulatorProvider.Factory accumulatorFactory =
       VoidAccumulatorProvider.Factory.get();
 
   public BeamExecutor(PipelineOptions options) {
+    this(options, new Settings());
+  }
+
+  public BeamExecutor(PipelineOptions options, Settings settings) {
     this.options = options;
+    this.settings = settings;
   }
 
   protected Result execute(Flow flow) {
     final Pipeline pipeline = FlowTranslator.toPipeline(
-        flow, accumulatorFactory, options, allowedLateness);
+        flow, accumulatorFactory, options, settings, allowedLateness);
     final PipelineResult result = pipeline.run();
     // @todo handle result
     result.waitUntilFinish();
