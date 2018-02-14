@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -40,6 +42,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 import org.mockito.runners.MockitoJUnitRunner;
 import org.mockito.stubbing.Answer;
 
@@ -48,6 +51,9 @@ import org.mockito.stubbing.Answer;
  */
 @RunWith(MockitoJUnitRunner.class)
 public class ShardReadersPoolTest {
+
+  /** Default maximum wait time to prevent running CountDownLatch.await() forever. */
+  private static final int AWAIT_TIMEOUT = 10;
 
   @Mock
   private ShardRecordsIterator firstIterator, secondIterator, thirdIterator, fourthIterator;
@@ -194,12 +200,20 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldStopReadingShardAfterReceivingShardClosedException() throws Exception {
+    CountDownLatch firstIteratorLatch = new CountDownLatch(1);
+    CountDownLatch secondIteratorLatch = new CountDownLatch(2);
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
     when(firstIterator.findSuccessiveShardRecordIterators())
         .thenReturn(Collections.emptyList());
+    doAnswer(new CountDownAnswer<>(firstIteratorLatch)).when(firstIterator).close();
+    when(secondIterator.readNextBatch())
+
+        .thenAnswer(new CountDownAnswer<>(Collections.emptyList(), secondIteratorLatch))
+        .thenAnswer(new CountDownAnswer<>(Collections.emptyList(), secondIteratorLatch));
 
     shardReadersPool.start();
-    Thread.sleep(200);
+    firstIteratorLatch.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
+    secondIteratorLatch.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
 
     verify(firstIterator, times(1)).readNextBatch();
     verify(secondIterator, atLeast(2)).readNextBatch();
@@ -208,12 +222,25 @@ public class ShardReadersPoolTest {
   @Test
   public void shouldStartReadingSuccessiveShardsAfterReceivingShardClosedException()
       throws Exception {
+    CountDownLatch firstIteratorLatch = new CountDownLatch(1);
+    CountDownLatch thirdIteratorLatch = new CountDownLatch(2);
+    CountDownLatch fourthIteratorLatch = new CountDownLatch(2);
+
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
     when(firstIterator.findSuccessiveShardRecordIterators())
         .thenReturn(asList(thirdIterator, fourthIterator));
+    doAnswer(new CountDownAnswer<>(firstIteratorLatch)).when(firstIterator).close();
+    when(thirdIterator.readNextBatch())
+        .thenAnswer(new CountDownAnswer<>(Collections.emptyList(), thirdIteratorLatch))
+        .thenAnswer(new CountDownAnswer<>(Collections.emptyList(), thirdIteratorLatch));
+    when(fourthIterator.readNextBatch())
+        .thenAnswer(new CountDownAnswer<>(Collections.emptyList(), fourthIteratorLatch))
+        .thenAnswer(new CountDownAnswer<>(Collections.emptyList(), fourthIteratorLatch));
 
     shardReadersPool.start();
-    Thread.sleep(1500);
+    firstIteratorLatch.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
+    thirdIteratorLatch.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
+    fourthIteratorLatch.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
 
     verify(thirdIterator, atLeast(2)).readNextBatch();
     verify(fourthIterator, atLeast(2)).readNextBatch();
@@ -221,26 +248,31 @@ public class ShardReadersPoolTest {
 
   @Test
   public void shouldStopReadersPoolWhenLastShardReaderStopped() throws Exception {
+    CountDownLatch firstIteratorLatch = new CountDownLatch(1);
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
     when(firstIterator.findSuccessiveShardRecordIterators())
         .thenReturn(Collections.emptyList());
+    doAnswer(new CountDownAnswer<>(firstIteratorLatch)).when(firstIterator).close();
 
     shardReadersPool.start();
-    Thread.sleep(200);
+    firstIteratorLatch.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
 
     verify(firstIterator, times(1)).readNextBatch();
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-3598")
   public void shouldStopReadersPoolAlsoWhenExceptionsOccurDuringStopping() throws Exception {
+    CountDownLatch firstIteratorLatch = new CountDownLatch(1);
+
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
     when(firstIterator.findSuccessiveShardRecordIterators())
         .thenThrow(TransientKinesisException.class)
         .thenReturn(Collections.emptyList());
+    doAnswer(new CountDownAnswer<>(firstIteratorLatch)).when(firstIterator).close();
+
 
     shardReadersPool.start();
-    Thread.sleep(200);
+    firstIteratorLatch.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
 
     verify(firstIterator, times(2)).readNextBatch();
   }
@@ -259,19 +291,38 @@ public class ShardReadersPoolTest {
   }
 
   @Test
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-3605")
   public void shouldForgetClosedShardIterator() throws Exception {
+    CountDownLatch firstIteratorLatch = new CountDownLatch(1);
     when(firstIterator.readNextBatch()).thenThrow(KinesisShardClosedException.class);
-    when(firstIterator.findSuccessiveShardRecordIterators())
-        .thenReturn(Collections.emptyList());
+    when(firstIterator.findSuccessiveShardRecordIterators()).thenReturn(Collections.emptyList());
+    doAnswer(new CountDownAnswer<>(firstIteratorLatch)).when(firstIterator).close();
 
     shardReadersPool.start();
-    Thread.sleep(200);
+    firstIteratorLatch.await(AWAIT_TIMEOUT, TimeUnit.SECONDS);
 
     KinesisReaderCheckpoint checkpointMark = shardReadersPool.getCheckpointMark();
     assertThat(checkpointMark.iterator())
         .extracting("shardId", String.class)
         .containsOnly("shard2")
         .doesNotContain("shard1");
+  }
+
+  class CountDownAnswer<T> implements Answer<T> {
+    T answer;
+    CountDownLatch latch;
+
+    CountDownAnswer(CountDownLatch latch) {
+      this.latch = latch;
+    }
+
+    CountDownAnswer(T answer, CountDownLatch latch) {
+      this.answer = answer;
+      this.latch = latch;
+    }
+
+    @Override public T answer(InvocationOnMock invocation) {
+      latch.countDown();
+      return answer;
+    }
   }
 }

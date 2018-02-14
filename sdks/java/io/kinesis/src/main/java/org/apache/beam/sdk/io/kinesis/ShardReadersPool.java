@@ -129,6 +129,7 @@ class ShardReadersPool {
           // immediately.
           waitUntilAllShardRecordsRead(shardRecordsIterator);
           readFromSuccessiveShards(shardRecordsIterator);
+          shardRecordsIterator.close();
           break;
         }
         for (KinesisRecord kinesisRecord : kinesisRecords) {

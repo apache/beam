@@ -118,4 +118,10 @@ class ShardRecordsIterator {
     }
     return successiveShardRecordIterators;
   }
+
+  /**
+   * This dummy method is used for testing purposes to detect that current iterator has been
+   * finished.
+   */
+  void close() {}
 }
