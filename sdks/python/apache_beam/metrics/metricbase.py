@@ -94,14 +94,20 @@ class Counter(Metric):
 
 
 class Distribution(Metric):
-  """Distribution Metric interface. Allows statistics about the distribution
-    of a variable to be collected during pipeline execution."""
+  """Distribution Metric interface.
+
+  Allows statistics about the distribution of a variable to be collected during
+  pipeline execution."""
+
   def update(self, value):
     raise NotImplementedError
 
 
 class Gauge(Metric):
-  """Gauge Metric interface. Allows to track the latest value of a variable
-    during pipeline execution."""
+  """Gauge Metric interface.
+
+  Allows tracking of the latest value of a variable during pipeline
+  execution."""
+
   def set(self, value):
     raise NotImplementedError
