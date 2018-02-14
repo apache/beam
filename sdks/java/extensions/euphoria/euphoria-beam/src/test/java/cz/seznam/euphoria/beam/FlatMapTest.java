@@ -19,7 +19,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
-import cz.seznam.euphoria.core.testing.DatasetAssert;
+import cz.seznam.euphoria.testing.DatasetAssert;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;

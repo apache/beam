@@ -21,7 +21,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>cz.seznam.euphoria</groupId>
   <artifactId>euphoria-parent</artifactId>
-  <version>0.8-SNAPSHOT</version>
+  <version>0.9-SNAPSHOT</version>
   <packaging>pom</packaging>
   <inceptionYear>2016</inceptionYear>
 
@@ -67,6 +67,7 @@
   </developers>
 
   <modules>
+    <module>euphoria-beam</module>
     <module>euphoria-core</module>
     <module>euphoria-examples</module>
     <module>euphoria-flink</module>

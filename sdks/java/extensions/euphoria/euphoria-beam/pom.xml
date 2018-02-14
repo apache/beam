@@ -16,32 +16,32 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <parent>
-    <artifactId>euphoria-parent</artifactId>
-    <groupId>cz.seznam.euphoria</groupId>
-    <version>0.9-SNAPSHOT</version>
-  </parent>
-  <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
-  <artifactId>euphoria-hadoop</artifactId>
+  <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>cz.seznam.euphoria</groupId>
+    <artifactId>euphoria-parent</artifactId>
+    <version>0.9-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <properties>
+    <beam.version>2.2.0</beam.version>
+  </properties>
+
+  <artifactId>euphoria-beam</artifactId>
   <packaging>jar</packaging>
 
   <name>${project.groupId}:${project.artifactId}</name>
   <description>
-    DataSource and DataSink implementations based on HadoopInput/OutputFormats
+    Executor implementation for Apache Beam.
   </description>
 
   <dependencies>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-core</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>euphoria-testing</artifactId>
     </dependency>
 
     <dependency>
@@ -50,15 +50,14 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-      <version>${hadoop.version}</version>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-mapreduce-client-core</artifactId>
-      <version>${hadoop.version}</version>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+      <version>${beam.version}</version>
     </dependency>
 
     <dependency>
@@ -68,7 +67,26 @@
 
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>euphoria-local</artifactId>
+      <artifactId>euphoria-operator-testkit</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>cz.seznam.euphoria</groupId>
+      <artifactId>euphoria-testing</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-direct-java</artifactId>
+      <version>${beam.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+      <version>1.7.25</version>
       <scope>test</scope>
     </dependency>
 
@@ -78,23 +96,6 @@
       <scope>test</scope>
     </dependency>
 
-    <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client</artifactId>
-      <version>${hadoop.version}</version>
-      <scope>test</scope>
-    </dependency>
-
   </dependencies>
-
-  <properties>
-    <hadoop.version>2.7.4</hadoop.version>
-  </properties>
 
 </project>
