@@ -457,18 +457,14 @@ data within your driver program. From there, <code class="highlighter-rouge">PCo
 outputs for each step in your pipeline.</p>
   </li>
   <li>
-    <p><code class="highlighter-rouge">Transform</code>: A <code class="highlighter-rouge">Transform</code> represents a data processing operation, or a step,
-in your pipeline. Every <code class="highlighter-rouge">Transform</code> takes one or more <code class="highlighter-rouge">PCollection</code> objects as
+    <p><code class="highlighter-rouge">PTransform</code>: A <code class="highlighter-rouge">PTransform</code> represents a data processing operation, or a step,
+in your pipeline. Every <code class="highlighter-rouge">PTransform</code> takes one or more <code class="highlighter-rouge">PCollection</code> objects as
 input, performs a processing function that you provide on the elements of that
-<code class="highlighter-rouge">PCollection</code>, and produces one or more output <code class="highlighter-rouge">PCollection</code> objects.</p>
+<code class="highlighter-rouge">PCollection</code>, and produces zero or more output <code class="highlighter-rouge">PCollection</code> objects.</p>
   </li>
   <li>
-    <p>I/O <code class="highlighter-rouge">Source</code> and <code class="highlighter-rouge">Sink</code>: Beam provides <code class="highlighter-rouge">Source</code> and <code class="highlighter-rouge">Sink</code> APIs to represent
-reading and writing data, respectively. <code class="highlighter-rouge">Source</code> encapsulates the code
-necessary to read data into your Beam pipeline from some external source, such
-as cloud file storage or a subscription to a streaming data source. <code class="highlighter-rouge">Sink</code>
-likewise encapsulates the code necessary to write the elements of a
-<code class="highlighter-rouge">PCollection</code> to an external data sink.</p>
+    <p>I/O transforms: Beam comes with a number of “IOs” - library <code class="highlighter-rouge">PTransform</code>s that
+read or write data to various external storage systems.</p>
   </li>
 </ul>
 
@@ -477,16 +473,19 @@ likewise encapsulates the code necessary to write the elements of a
 <ul>
   <li>Create a <code class="highlighter-rouge">Pipeline</code> object and set the pipeline execution options, including
 the Pipeline Runner.</li>
-  <li>Create an initial <code class="highlighter-rouge">PCollection</code> for pipeline data, either using the <code class="highlighter-rouge">Source</code>
-API to read data from an external source, or using a <code class="highlighter-rouge">Create</code> transform to
+  <li>Create an initial <code class="highlighter-rouge">PCollection</code> for pipeline data, either using the IOs
+to read data from an external storage system, or using a <code class="highlighter-rouge">Create</code> transform to
 build a <code class="highlighter-rouge">PCollection</code> from in-memory data.</li>
-  <li>Apply <strong>Transforms</strong> to each <code class="highlighter-rouge">PCollection</code>. Transforms can change, filter,
+  <li>Apply <strong>PTransforms</strong> to each <code class="highlighter-rouge">PCollection</code>. Transforms can change, filter,
 group, analyze, or otherwise process the elements in a <code class="highlighter-rouge">PCollection</code>. A
 transform creates a new output <code class="highlighter-rouge">PCollection</code> <em>without consuming the input
 collection</em>. A typical pipeline applies subsequent transforms to the each new
-output <code class="highlighter-rouge">PCollection</code> in turn until processing is complete.</li>
-  <li>Output the final, transformed <code class="highlighter-rouge">PCollection</code>(s), typically using the <code class="highlighter-rouge">Sink</code> API
-to write data to an external source.</li>
+output <code class="highlighter-rouge">PCollection</code> in turn until processing is complete. However, note that
+a pipeline does not have to be a single straight line of transforms applied
+one after another: think of <code class="highlighter-rouge">PCollection</code>s as variables and <code class="highlighter-rouge">PTransform</code>s as
+functions applied to these variables: the shape of the pipeline can be an
+arbitrarily complex processing graph.</li>
+  <li>Use IOs to write the final, transformed <code class="highlighter-rouge">PCollection</code>(s) to an external source.</li>
   <li><strong>Run</strong> the pipeline using the designated Pipeline Runner.</li>
 </ul>
 
@@ -2237,7 +2236,7 @@ of the multi-collection types for the relevant type parameter.</p>
 
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengths</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
-    <span class="c"># transform logic goes here</span>
+    <span class="c"># Transform logic goes here.</span>
     <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
 </code></pre>
 </div>
@@ -2264,7 +2263,7 @@ value.</p>
 
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="k">class</span> <span class="nc">ComputeWordLengths</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
   <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
-    <span class="c"># transform logic goes here</span>
+    <span class="c"># Transform logic goes here.</span>
     <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
 </code></pre>
 </div>
@@ -2290,8 +2289,8 @@ is a useful starting point when you want to write new composite PTransforms.</p>
 <h2 id="pipeline-io">5. Pipeline I/O</h2>
 
 <p>When you create a pipeline, you often need to read data from some external
-source, such as a file in external data sink or a database. Likewise, you may
-want your pipeline to output its result data to a similar external data sink.
+source, such as a file or a database. Likewise, you may
+want your pipeline to output its result data to an external storage system.
 Beam provides read and write transforms for a <a href="/documentation/io/built-in/">number of common data storage
 types</a>. If you want your pipeline
 to read from or write to a data storage format that isn’t supported by the

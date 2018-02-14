@@ -497,21 +497,22 @@
 
 <div class="highlighter-rouge"><pre class="highlight"><code>class SimpleKVSink(iobase.Sink):
 
-  def __init__(self, url, final_table_name):
+  def __init__(self, simplekv, url, final_table_name):
+    self._simplekv = simplekv
     self._url = url
     self._final_table_name = final_table_name
 
   def initialize_write(self):
-    access_token = simplekv.connect(self._url)
+    access_token = self._simplekv.connect(self._url)
     return access_token
 
   def open_writer(self, access_token, uid):
     table_name = 'table' + uid
-    return SimpleKVWriter(access_token, table_name)
+    return SimpleKVWriter(self._simplekv, access_token, table_name)
 
   def finalize_write(self, access_token, table_names):
     for i, table_name in enumerate(table_names):
-      simplekv.rename_table(
+      self._simplekv.rename_table(
           access_token, table_name, self._final_table_name + str(i))
 </code></pre>
 </div>
@@ -520,15 +521,16 @@
 
 <div class="highlighter-rouge"><pre class="highlight"><code>class SimpleKVWriter(iobase.Writer):
 
-  def __init__(self, access_token, table_name):
+  def __init__(self, simplekv, access_token, table_name):
+    self._simplekv = simplekv
     self._access_token = access_token
     self._table_name = table_name
-    self._table = simplekv.open_table(access_token, table_name)
+    self._table = self._simplekv.open_table(access_token, table_name)
 
   def write(self, record):
     key, value = record
 
-    simplekv.write_to_table(self._access_token, self._table, key, value)
+    self._simplekv.write_to_table(self._access_token, self._table, key, value)
 
   def close(self):
     return self._table_name
@@ -541,7 +543,7 @@
   kvs = p | 'CreateKVs' &gt;&gt; beam.Create(KVs)
 
   kvs | 'WriteToSimpleKV' &gt;&gt; beam.io.Write(
-      SimpleKVSink('http://url_to_simple_kv/', final_table_name))
+      SimpleKVSink(simplekv, 'http://url_to_simple_kv/', final_table_name))
 </code></pre>
 </div>
 
@@ -561,12 +563,12 @@
 
 <div class="highlighter-rouge"><pre class="highlight"><code>class ReadFromCountingSource(PTransform):
 
-  def __init__(self, count, **kwargs):
-    super(ReadFromCountingSource, self).__init__(**kwargs)
+  def __init__(self, count):
+    super(ReadFromCountingSource, self).__init__()
     self._count = count
 
   def expand(self, pcoll):
-    return pcoll | iobase.Read(_CountingSource(count))
+    return pcoll | iobase.Read(_CountingSource(self._count))
 </code></pre>
 </div>
 
@@ -581,13 +583,15 @@ numbers = p | 'ProduceNumbers' &gt;&gt; ReadFromCountingSource(count)
 
 <div class="highlighter-rouge"><pre class="highlight"><code>class WriteToKVSink(PTransform):
 
-  def __init__(self, url, final_table_name, **kwargs):
+  def __init__(self, simplekv, url, final_table_name, **kwargs):
+    self._simplekv = simplekv
     super(WriteToKVSink, self).__init__(**kwargs)
     self._url = url
     self._final_table_name = final_table_name
 
   def expand(self, pcoll):
-    return pcoll | iobase.Write(_SimpleKVSink(self._url,
+    return pcoll | iobase.Write(_SimpleKVSink(self._simplekv,
+                                              self._url,
                                               self._final_table_name))
 </code></pre>
 </div>
@@ -597,7 +601,7 @@ numbers = p | 'ProduceNumbers' &gt;&gt; ReadFromCountingSource(count)
 <div class="highlighter-rouge"><pre class="highlight"><code>with beam.Pipeline(options=PipelineOptions()) as p:
   kvs = p | 'CreateKVs' &gt;&gt; beam.core.Create(KVs)
   kvs | 'WriteToSimpleKV' &gt;&gt; WriteToKVSink(
-      'http://url_to_simple_kv/', final_table_name)
+      simplekv, 'http://url_to_simple_kv/', final_table_name)
 </code></pre>
 </div>
 
