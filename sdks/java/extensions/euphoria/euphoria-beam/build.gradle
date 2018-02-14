@@ -1,5 +1,5 @@
 ext {
-  beamVersion = '2.1.0'
+  beamVersion = '2.2.0'
 }
 
 dependencies {
@@ -7,9 +7,9 @@ dependencies {
   compile "org.apache.beam:beam-sdks-java-core:${beamVersion}"
   compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
   testCompile project(':euphoria-operator-testkit')
-  testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
+  testCompile project(':euphoria-testing')
   testCompile "org.apache.beam:beam-runners-direct-java:${beamVersion}"
-  testCompile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.25'
+  testCompile group: 'org.slf4j', name: 'slf4j-log4j12', version: slf4jVersion
 }
 
 test.testLogging.showStandardStreams = true

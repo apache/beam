@@ -9,3 +9,5 @@ out/
 .gradle/
 build/
 /.nb-gradle/
+**/*.xml.versionsBackup
+**/dependency-reduced-pom.xml
