@@ -1118,7 +1118,7 @@ def model_multiple_pcollections_partition(contents, output_path):
     fortieth_percentile = by_decile[4]
     # [END model_multiple_pcollections_partition_40th]
 
-    ([by_decile[d] for d in xrange(10) if d != 4] + [fortieth_percentile]
+    ([by_decile[d] for d in range(10) if d != 4] + [fortieth_percentile]
      | beam.Flatten()
      | beam.io.WriteToText(output_path))
 
