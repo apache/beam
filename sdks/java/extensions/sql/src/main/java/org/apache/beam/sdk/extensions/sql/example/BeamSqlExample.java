@@ -86,7 +86,7 @@ class BeamSqlExample {
     // Case 2. run the query with BeamSql.query over result PCollection of case 1.
     PCollection<Row> outputStream2 =
         PCollectionTuple.of(new TupleTag<>("CASE1_RESULT"), outputStream)
-            .apply(BeamSql.queryMulti("select c2, sum(c3) from CASE1_RESULT group by c2"));
+            .apply(BeamSql.query("select c2, sum(c3) from CASE1_RESULT group by c2"));
 
     // print the output record of case 2;
     outputStream2.apply(
