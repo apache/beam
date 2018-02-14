@@ -764,4 +764,94 @@ public class GreedyPipelineFuserTest {
                 .withNoOutputs()
                 .withTransforms("sideRead")));
   }
+
+  /*
+   * impulse -> .out -> ( read -> .out --> goTransform -> .out )
+   *                                    \
+   *                                     -> pyTransform -> .out )
+   * becomes (impulse.out) -> read -> (read.out)
+   *         (read.out) -> goTransform
+   *         (read.out) -> pyTransform
+   */
+  @Test
+  public void compositesIgnored() {
+    Components components =
+        partialComponents
+            .toBuilder()
+            .putTransforms(
+                "read",
+                PTransform.newBuilder()
+                    .putInputs("input", "impulse.out")
+                    .putOutputs("output", "read.out")
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                            .setPayload(
+                                ParDoPayload.newBuilder()
+                                    .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                                    .build()
+                                    .toByteString()))
+                    .build())
+            .putPcollections("read.out", PCollection.newBuilder().setUniqueName("read.out").build())
+            .putTransforms(
+                "goTransform",
+                PTransform.newBuilder()
+                    .putInputs("input", "read.out")
+                    .putOutputs("output", "go.out")
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                            .setPayload(
+                                ParDoPayload.newBuilder()
+                                    .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("go"))
+                                    .build()
+                                    .toByteString()))
+                    .build())
+            .putPcollections("go.out", PCollection.newBuilder().setUniqueName("go.out").build())
+            .putTransforms(
+                "pyTransform",
+                PTransform.newBuilder()
+                    .putInputs("input", "read.out")
+                    .putOutputs("output", "py.out")
+                    .setSpec(
+                        FunctionSpec.newBuilder()
+                            .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
+                            .setPayload(
+                                WindowIntoPayload.newBuilder()
+                                    .setWindowFn(
+                                        SdkFunctionSpec.newBuilder().setEnvironmentId("py"))
+                                    .build()
+                                    .toByteString()))
+                    .build())
+            .putPcollections("py.out", PCollection.newBuilder().setUniqueName("py.out").build())
+            .putTransforms(
+                "compositeMultiLang",
+                PTransform.newBuilder()
+                    .putInputs("input", "impulse.out")
+                    .putOutputs("pyOut", "py.out")
+                    .putOutputs("goOut", "go.out")
+                    .addSubtransforms("read")
+                    .addSubtransforms("goTransform")
+                    .addSubtransforms("pyTransform")
+                    .build())
+            .build();
+    FusedPipeline fused =
+        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+
+    // Impulse is the runner transform
+    assertThat(fused.getRunnerExecutedTransforms(), hasSize(1));
+    assertThat(fused.getFusedStages(), hasSize(3));
+    assertThat(
+        fused.getFusedStages(),
+        containsInAnyOrder(
+            ExecutableStageMatcher.withInput("impulse.out")
+                .withOutputs("read.out")
+                .withTransforms("read"),
+            ExecutableStageMatcher.withInput("read.out")
+                .withNoOutputs()
+                .withTransforms("pyTransform"),
+            ExecutableStageMatcher.withInput("read.out")
+                .withNoOutputs()
+                .withTransforms("goTransform")));
+  }
 }
