@@ -60,7 +60,7 @@ class BeamExecutorContext {
   private final Pipeline pipeline;
   private final Duration allowedLateness;
 
-  private final Settings settings = new Settings();
+  private final Settings settings;
 
   private final AccumulatorProvider.Factory accumulatorFactory;
 
@@ -68,11 +68,13 @@ class BeamExecutorContext {
       DAG<Operator<?, ?>> dag,
       AccumulatorProvider.Factory accumulatorFactory,
       Pipeline pipeline,
+      Settings settings,
       Duration allowedLateness) {
 
     this.dag = dag;
     this.accumulatorFactory = accumulatorFactory;
     this.pipeline = pipeline;
+    this.settings = settings;
     this.allowedLateness = allowedLateness;
   }
 
@@ -97,8 +99,9 @@ class BeamExecutorContext {
         .collect(toList());
   }
 
-  Optional<PCollection<?>> getPCollection(Dataset<?> dataset) {
-    return Optional.ofNullable(outputs.get(dataset));
+  @SuppressWarnings("unchecked")
+  <T> Optional<PCollection<T>> getPCollection(Dataset<T> dataset) {
+    return Optional.ofNullable((PCollection) outputs.get(dataset));
   }
 
   <T> void setPCollection(Dataset<T> dataset, PCollection<T> coll) {
