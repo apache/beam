@@ -23,6 +23,7 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * @param <O> the type of the user defined euphoria operator definition
  */
+@FunctionalInterface
 interface OperatorTranslator<O extends Operator> {
 
   /**
