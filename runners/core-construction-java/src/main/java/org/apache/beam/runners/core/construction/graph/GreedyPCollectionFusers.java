@@ -43,6 +43,8 @@ class GreedyPCollectionFusers {
               GreedyPCollectionFusers::canFuseAssignWindows)
           .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, GreedyPCollectionFusers::canAlwaysFuse)
           .put(
+              // GroupByKeys are runner-implemented only. PCollections consumed by a GroupByKey must
+              // be materialized
               PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, GreedyPCollectionFusers::cannotFuse)
           .put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, GreedyPCollectionFusers::cannotFuse)
           .build();

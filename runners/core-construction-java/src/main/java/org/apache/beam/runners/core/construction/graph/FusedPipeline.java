@@ -20,12 +20,12 @@ package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
 import java.util.Set;
-import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 
 /**
- * A Collection of {@link ExecutableStage}, executed in some {@link Environment}, and transforms
- * that a pipeline runner is responsible for executing.
+ * A {@link Pipeline} which has been separated into collections of executable components.
  */
 @AutoValue
 public abstract class FusedPipeline {
@@ -34,6 +34,13 @@ public abstract class FusedPipeline {
     return new AutoValue_FusedPipeline(environmentalStages, runnerStages);
   }
 
+  /**
+   * The {@link ExecutableStage executable stages} that are executed by SDK harnesses.
+   */
   public abstract Set<ExecutableStage> getFusedStages();
+
+  /**
+   * The {@link PTransform PTransforms} that a runner is responsible for executing.
+   */
   public abstract Set<PTransformNode> getRunnerExecutedTransforms();
 }

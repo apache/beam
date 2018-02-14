@@ -22,19 +22,24 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.NavigableSet;
 import java.util.Queue;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -43,24 +48,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Fuses a {@link Pipeline} into some set of single-environment executable transforms. */
+// The use of NavigableSets everywhere provides consistent ordering but may be overkill for this
+// cause.
 public class GreedyPipelineFuser {
   private static final Logger LOG = LoggerFactory.getLogger(GreedyPipelineFuser.class);
 
   private final QueryablePipeline pipeline;
   private final Map<CollectionConsumer, ExecutableStage> consumedCollectionsAndTransforms =
       new HashMap<>();
-  private final Set<PTransformNode> unfusedTransforms = new HashSet<>();
-  private final Set<ExecutableStage> stages = new HashSet<>();
+  private final Set<PTransformNode> unfusedTransforms = new LinkedHashSet<>();
+  private final Set<ExecutableStage> stages = new LinkedHashSet<>();
 
   private GreedyPipelineFuser(Pipeline p) {
     this.pipeline = QueryablePipeline.fromComponents(p.getComponents());
-    Collection<Set<CollectionConsumer>> rootStages = new ArrayList<>();
+    NavigableSet<CollectionConsumer> rootConsumers = new TreeSet<>();
     for (PTransformNode pTransformNode : pipeline.getRootTransforms()) {
-      // This will usually be a single node, either downstream of an Impulse or a Read node
-      Collection<Set<CollectionConsumer>> rootNodeStageRoots = getRootEnvTransforms(pTransformNode);
-      rootStages.addAll(rootNodeStageRoots);
+      // This will usually be a single node, the downstream of an Impulse, but may be of any size
+      rootConsumers.addAll(getRootEnvTransforms(pTransformNode));
     }
-    fusePipeline(rootStages);
+    fusePipeline(groupSiblings(rootConsumers));
   }
 
   public static FusedPipeline fuse(Pipeline p) {
@@ -68,47 +74,68 @@ public class GreedyPipelineFuser {
     return FusedPipeline.of(fuser.stages, fuser.unfusedTransforms);
   }
 
-  private void fusePipeline(Collection<Set<CollectionConsumer>> initialConsumers) {
-    Queue<Set<CollectionConsumer>> siblingSets = new ArrayDeque<>();
-    siblingSets.addAll(initialConsumers);
-    while (!siblingSets.isEmpty()) {
+  /**
+   * Fuses a {@link Pipeline} into a collection of {@link ExecutableStage}.
+   *
+   * <p>The input is the initial collection of siblings sets which will be fused into {@link
+   * ExecutableStage stages}. A sibling in this context represents a pair of (PCollection,
+   * PTransform), where the PTransform consumes input elements on a per-element basis from the
+   * PCollection, represented by a {@link CollectionConsumer}. A sibling set is a collection of
+   * siblings which can execute within a single {@link ExecutableStage}, determined by {@link
+   * GreedyPCollectionFusers#isCompatible(PTransformNode, PTransformNode, QueryablePipeline)}.
+   *
+   * <p>While a pending sibling set exists:
+   *
+   * <ul>
+   *   <li>Retrieve a pending sibling set from the front of the queue.
+   *   <li>If the pending sibling set has already been created, continue. Each materialized {@link
+   *       PTransformNode} can be consumed by any number of {@link ExecutableStage stages}, but each
+   *       {@link PTransformNode} may only be present in a single stage rooted at a single {@link
+   *       PCollectionNode}, otherwise it will process elements of that {@link PCollectionNode}
+   *       multiple times.
+   *   <li>Create a {@link GreedilyFusedExecutableStage} with those siblings as the initial
+   *       consuming transforms of the stage
+   *   <li>For each materialized {@link PCollectionNode}, find all of the descendant in-environment
+   *       consumers. See {@link #getDescendantConsumersInEnv(PCollectionNode)} for details.
+   *   <li>Construct all of the sibling sets from the descendant in-environment consumers, and add
+   *       them to the queue of sibling sets.
+   * </ul>
+   */
+  private void fusePipeline(NavigableSet<NavigableSet<CollectionConsumer>> initialConsumers) {
+    Queue<Set<CollectionConsumer>> pendingSiblingSets = new ArrayDeque<>();
+    pendingSiblingSets.addAll(initialConsumers);
+    while (!pendingSiblingSets.isEmpty()) {
       // Only introduce new PCollection consumers. Not performing this introduces potential
       // duplicate paths through the pipeline.
-      Set<CollectionConsumer> sibs = siblingSets.poll();
+      Set<CollectionConsumer> candidateSiblings = pendingSiblingSets.poll();
       Set<CollectionConsumer> siblingSet =
-          sibs.stream()
-              .filter(
-                  collectionConsumer ->
-                      !consumedCollectionsAndTransforms.containsKey(collectionConsumer))
-              .collect(Collectors.toSet());
+          Sets.difference(candidateSiblings, consumedCollectionsAndTransforms.keySet());
       checkState(
-          siblingSet.equals(sibs) || siblingSet.isEmpty(),
+          siblingSet.equals(candidateSiblings) || siblingSet.isEmpty(),
           "Inconsistent collection of siblings reported for a %s. Initial attempt missed %s",
           PCollectionNode.class.getSimpleName(),
-          Sets.difference(sibs, siblingSet));
+          siblingSet);
       if (siblingSet.isEmpty()) {
-        LOG.debug("Filtered out duplicate stage root {}", sibs);
+        LOG.debug("Filtered out duplicate stage root {}", candidateSiblings);
         continue;
       }
+      // Create the stage with these siblings as the initial consuming transforms
       ExecutableStage stage = fuseSiblings(siblingSet);
+      // Mark each of the root transforms of the stage as consuming the input PCollection, so we
+      // don't place them in multiple stages.
       for (CollectionConsumer sibling : siblingSet) {
-        ExecutableStage oldStage = consumedCollectionsAndTransforms.put(sibling, stage);
-        // This should never happen; we filter out all of the existing consumers
-        checkState(
-            oldStage == null,
-            "Multiple %s registered for %s %s: %s and %s",
-            ExecutableStage.class.getSimpleName(),
-            CollectionConsumer.class.getSimpleName(),
-            sibling,
-            stage,
-            oldStage);
+        consumedCollectionsAndTransforms.put(sibling, stage);
       }
       stages.add(stage);
       for (PCollectionNode materializedOutput : stage.getOutputPCollections()) {
-        Set<CollectionConsumer> materializedConsumers =
-            getDownstreamInEnvConsumers(materializedOutput);
-        Collection<Set<CollectionConsumer>> siblings = groupSiblings(materializedConsumers);
-        siblingSets.addAll(siblings);
+        // Get all of the descendant consumers of each materialized PCollection, and add them to the
+        // queue of pending siblings.
+        NavigableSet<CollectionConsumer> materializedConsumers =
+            getDescendantConsumersInEnv(materializedOutput);
+        NavigableSet<NavigableSet<CollectionConsumer>> siblings =
+            groupSiblings(materializedConsumers);
+
+        pendingSiblingSets.addAll(siblings);
       }
     }
     // TODO: Stages can be fused with each other, if doing so does not introduce duplicate paths
@@ -116,33 +143,57 @@ public class GreedyPipelineFuser {
     // as can compatible producers/consumers if a PCollection is only materialized once.
   }
 
-  private Collection<Set<CollectionConsumer>> getRootEnvTransforms(PTransformNode rootNode) {
+  private Set<CollectionConsumer> getRootEnvTransforms(
+      PTransformNode rootNode) {
     checkArgument(
         rootNode.getTransform().getInputsCount() == 0,
         "%s is not at the root of the graph (consumes %s)",
         PTransformNode.class.getSimpleName(),
         rootNode.getTransform().getInputsMap());
-    if (pipeline.getEnvironment(rootNode).isPresent()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "%s requires all root nodes to be runner-implemented %s primitives",
-              GreedyPipelineFuser.class.getSimpleName(),
-              PTransformTranslation.IMPULSE_TRANSFORM_URN));
-    } else {
-      unfusedTransforms.add(rootNode);
-      Set<CollectionConsumer> environmentNodes = new HashSet<>();
-      // Walk down until the first environments are found, and fuse them as appropriate.
-      for (PCollectionNode output : pipeline.getOutputPCollections(rootNode)) {
-        environmentNodes.addAll(getDownstreamInEnvConsumers(output));
-      }
-      return groupSiblings(environmentNodes);
+    checkArgument(
+        !pipeline.getEnvironment(rootNode).isPresent(),
+        "%s requires all root nodes to be runner-implemented %s primitives",
+        GreedyPipelineFuser.class.getSimpleName(),
+        PTransformTranslation.IMPULSE_TRANSFORM_URN);
+    unfusedTransforms.add(rootNode);
+    Set<CollectionConsumer> environmentNodes = new HashSet<>();
+    // Walk down until the first environments are found, and fuse them as appropriate.
+    for (PCollectionNode output : pipeline.getOutputPCollections(rootNode)) {
+      environmentNodes.addAll(getDescendantConsumersInEnv(output));
     }
+    return environmentNodes;
   }
 
-  private Set<CollectionConsumer> getDownstreamInEnvConsumers(PCollectionNode inputPCollection) {
-    Set<CollectionConsumer> downstreamConsumers = new HashSet<>();
+  /**
+   * Retrieve all descendant {@link PTransformNode PTransforms} which are executed within an {@link
+   * Environment}, such that there is a path between this input {@link PCollectionNode} and the
+   * descendant {@link PTransformNode} with no intermediate {@link PTransformNode} which executes
+   * within an environment.
+   *
+   * <p>This occurs as follows:
+   *
+   * <ul>
+   *   <li>For each consumer of the input {@link PCollectionNode}:
+   *       <ul>
+   *         <li>If that {@link PTransformNode} executes within an environment, add it to the
+   *             collection of descendants
+   *         <li>If that {@link PTransformNode} does not execute within an environment, for each
+   *             output {@link PCollectionNode} that that {@link PTransformNode} produces, add the
+   *             result of recursively applying this method to that {@link PCollectionNode}.
+   *       </ul>
+   * </ul>
+   *
+   * <p>As {@link PCollectionNode PCollections} output by a {@link PTransformNode} that executes
+   * within an {@link Environment} are not recursively inspected, {@link PTransformNode PTransforms}
+   * reachable only via a path including that node as an intermediate node cannot be returned as a
+   * descendant consumer of the original {@link PCollectionNode}.
+   */
+  private NavigableSet<CollectionConsumer> getDescendantConsumersInEnv(
+      PCollectionNode inputPCollection) {
+    NavigableSet<CollectionConsumer> downstreamConsumers = new TreeSet<>();
     for (PTransformNode consumer : pipeline.getPerElementConsumers(inputPCollection)) {
       if (pipeline.getEnvironment(consumer).isPresent()) {
+        // The base case: this descendant consumes elements from
         downstreamConsumers.add(CollectionConsumer.of(inputPCollection, consumer));
       } else {
         LOG.debug(
@@ -151,25 +202,51 @@ public class GreedyPipelineFuser {
             consumer.getId());
         unfusedTransforms.add(consumer);
         for (PCollectionNode output : pipeline.getOutputPCollections(consumer)) {
-          downstreamConsumers.addAll(getDownstreamInEnvConsumers(output));
+          // Recurse to all of the ouput PCollections of this PTransform.
+          downstreamConsumers.addAll(getDescendantConsumersInEnv(output));
         }
       }
     }
     return downstreamConsumers;
   }
 
-  // Aww.
-  private Collection<Set<CollectionConsumer>> groupSiblings(Set<CollectionConsumer> newConsumers) {
-    // This is just a way to make sure we don't go over nodes that are not fusible by construction
-    Multimap<PCollectionNode, Set<CollectionConsumer>> compatibleConsumers =
-        ArrayListMultimap.create();
+  /**
+   * The minimum requirement to fuse two {@link CollectionConsumer consumers} as siblings.
+   *
+   * <p>This is the minimum requirement for {@link PTransformNode transforms} to be siblings.
+   * Different {@link PTransformNode transforms} may have additional restrictions.
+   */
+  @AutoValue
+  abstract static class SiblingKey {
+    abstract PCollectionNode getInputCollection();
+    abstract Environment getEnv();
+  }
+
+  /**
+   * Produce the set of sets of {@link CollectionConsumer consumers} that can be fused into a single
+   * {@link ExecutableStage}. This identifies available siblings for sibling fusion.
+   *
+   * <p>For each set in the returned collection, each of {@link CollectionConsumer consumers}
+   * present consumes from the same {@link PCollection} and is compatible, as determined by {@link
+   * GreedyPCollectionFusers#isCompatible(PTransformNode, PTransformNode, QueryablePipeline)}.
+   *
+   * <p>Each input {@link CollectionConsumer} must have an associated {@link Environment}.
+   */
+  private NavigableSet<NavigableSet<CollectionConsumer>> groupSiblings(
+      NavigableSet<CollectionConsumer>
+          newConsumers /* Use a navigable set for consistent iteration order */) {
+    Multimap<SiblingKey, NavigableSet<CollectionConsumer>> compatibleConsumers =
+        HashMultimap.create();
     // This is O(N**2) with the number of siblings we consider, which is generally the number of
     // parallel consumers of a PCollection. This usually is unlikely to be high,
-    // but it is pretty significant slowdown. TODO: Easy updates, like add environments here?
+    // but has potential to be a pretty significant slowdown.
     for (CollectionConsumer newConsumer : newConsumers) {
-      boolean foundSet = false;
-      for (Set<CollectionConsumer> existingConsumers :
-          compatibleConsumers.get(newConsumer.consumedCollection())) {
+      SiblingKey key =
+          new AutoValue_GreedyPipelineFuser_SiblingKey(
+              newConsumer.consumedCollection(),
+              pipeline.getEnvironment(newConsumer.consumingTransform()).get());
+      boolean foundSiblings = false;
+      for (Set<CollectionConsumer> existingConsumers : compatibleConsumers.get(key)) {
         if (existingConsumers
             .stream()
             .allMatch(
@@ -180,17 +257,22 @@ public class GreedyPipelineFuser {
                         newConsumer.consumingTransform(),
                         pipeline))) {
           existingConsumers.add(newConsumer);
-          foundSet = true;
+          foundSiblings = true;
           break;
         }
       }
-      if (!foundSet) {
-        Set<CollectionConsumer> newConsumerSet = new HashSet<>();
+      if (!foundSiblings) {
+        NavigableSet<CollectionConsumer> newConsumerSet = new TreeSet<>();
         newConsumerSet.add(newConsumer);
-        compatibleConsumers.put(newConsumer.consumedCollection(), newConsumerSet);
+        compatibleConsumers.put(key, newConsumerSet);
       }
     }
-    return compatibleConsumers.values();
+    // Order sibling sets by their least siblings. This is stable across the order siblings are
+    // generated, given stable IDs.
+    NavigableSet<NavigableSet<CollectionConsumer>> orderedSiblings =
+        new TreeSet<>(Comparator.comparing(SortedSet::first));
+    orderedSiblings.addAll(compatibleConsumers.values());
+    return orderedSiblings;
   }
 
   private ExecutableStage fuseSiblings(Set<CollectionConsumer> mutuallyCompatible) {
@@ -204,8 +286,16 @@ public class GreedyPipelineFuser {
             .collect(Collectors.toSet()));
   }
 
+  /**
+   * A ({@link PCollectionNode}, {@link PTransformNode}) pair representing a single {@link
+   * PTransformNode} consuming a single materialized {@link PCollectionNode}.
+   *
+   * <p>For convenience, {@link CollectionConsumer} implements {@link Comparable}. The natural
+   * ordering of {@link CollectionConsumer} is first by the ID of the {@link #consumedCollection()},
+   * then by the ID of the {@link #consumingTransform()}.
+   */
   @AutoValue
-  abstract static class CollectionConsumer {
+  abstract static class CollectionConsumer implements Comparable<CollectionConsumer> {
     static CollectionConsumer of(PCollectionNode collection, PTransformNode consumer) {
       return new AutoValue_GreedyPipelineFuser_CollectionConsumer(collection, consumer);
     }
@@ -213,10 +303,19 @@ public class GreedyPipelineFuser {
     abstract PCollectionNode consumedCollection();
 
     abstract PTransformNode consumingTransform();
-  }
 
-  public static Collection<RunnerApi.PTransform> createFusedStages(Pipeline p) {
-    new GreedyPipelineFuser(p);
-    throw new UnsupportedOperationException();
+    /**
+     * {@inheritDoc}.
+     *
+     * <p>The natural ordering of {@link CollectionConsumer} is first by the ID of the {@link
+     * #consumedCollection()}, then by the ID of the {@link #consumingTransform()}.
+     */
+    @Override
+    public int compareTo(CollectionConsumer that) {
+      return ComparisonChain.start()
+          .compare(this.consumedCollection().getId(), that.consumedCollection().getId())
+          .compare(this.consumingTransform().getId(), that.consumingTransform().getId())
+          .result();
+    }
   }
 }
