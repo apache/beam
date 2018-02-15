@@ -119,7 +119,7 @@ println()
 * 6. Run Streaming wordcount with DirectRunner
 *
 * */
-t.run("gcloud components install alpha")
+t.run("gcloud components list")
 // create pubsub topics
 create_pubsub(t)
 
