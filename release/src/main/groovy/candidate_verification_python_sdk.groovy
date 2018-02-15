@@ -93,6 +93,7 @@ println()
 * 5. Run wordcount with DataflowRunner
 *
 * */
+/*
 cmd.setLength(0) // clear the cmd buffer
 cmd.append("python -m apache_beam.examples.wordcount ")
     .append("--output gs://${PythonReleaseConfiguration.BUCKET_NAME}/${PythonReleaseConfiguration.WORDCOUNT_OUTPUT} ")
@@ -113,7 +114,7 @@ t.run("gsutil ls gs://${PythonReleaseConfiguration.BUCKET_NAME}")
 // clean output files from GCS
 t.run("gsutil rm gs://${PythonReleaseConfiguration.BUCKET_NAME}/${PythonReleaseConfiguration.WORDCOUNT_OUTPUT}-*")
 println()
-
+*/
 
 /*
 * 6. Run Streaming wordcount with DirectRunner
@@ -224,7 +225,8 @@ private void update_gcloud(TestScripts t){
     t.run("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz")
     t.run("tar xf gcloud.tar.gz")
     t.run("./google-cloud-sdk/install.sh --quiet")
-    t.run(". ./google-cloud-sdk/path.bash.inc")
+    //t.run(". ./google-cloud-sdk/path.bash.inc")
+    t.run("./google-cloud-sdk/bin/gcloud init")
     t.run("gcloud components update --quiet || echo 'gcloud components update failed'")
     t.run("gcloud --version")
 }
