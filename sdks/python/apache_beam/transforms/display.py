@@ -44,6 +44,8 @@ import json
 from datetime import datetime
 from datetime import timedelta
 
+import six
+
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 
 
@@ -167,7 +169,7 @@ class DisplayDataItem(object):
   display item belongs to.
   """
   typeDict = {str:'STRING',
-              unicode:'STRING',
+              six.text_type:'STRING',
               int:'INTEGER',
               float:'FLOAT',
               bool: 'BOOLEAN',

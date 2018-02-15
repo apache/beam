@@ -26,6 +26,8 @@ from __future__ import absolute_import
 import argparse
 import logging
 
+import six
+
 import apache_beam as beam
 import apache_beam.transforms.window as window
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -65,7 +67,7 @@ def run(argv=None):
     transformed = (lines
                    # Use a pre-defined function that imports the re package.
                    | 'Split' >> (
-                       beam.FlatMap(split_fn).with_output_types(unicode))
+                       beam.FlatMap(split_fn).with_output_types(six.text_type))
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                    | beam.WindowInto(window.FixedWindows(15, 0))
                    | 'Group' >> beam.GroupByKey()

@@ -50,6 +50,8 @@ import argparse
 import logging
 import re
 
+import six
+
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
@@ -101,7 +103,7 @@ def run(argv=None):
     counts = (
         lines
         | 'Split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-                      .with_output_types(unicode))
+                      .with_output_types(six.text_type))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
         | 'GroupAndSum' >> beam.CombinePerKey(sum))
 

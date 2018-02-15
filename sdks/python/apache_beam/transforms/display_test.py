@@ -22,7 +22,9 @@ from __future__ import absolute_import
 import unittest
 from datetime import datetime
 
+# pylint: disable=ungrouped-imports
 import hamcrest as hc
+import six
 from hamcrest.core.base_matcher import BaseMatcher
 
 import apache_beam as beam
@@ -30,6 +32,8 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
+
+# pylint: enable=ungrouped-imports
 
 
 class DisplayDataItemMatcher(BaseMatcher):
@@ -161,7 +165,7 @@ class DisplayDataTest(unittest.TestCase):
   def test_unicode_type_display_data(self):
     class MyDoFn(beam.DoFn):
       def display_data(self):
-        return {'unicode_string': unicode('my string'),
+        return {'unicode_string': six.text_type('my string'),
                 'unicode_literal_string': u'my literal string'}
 
     fn = MyDoFn()
