@@ -72,7 +72,7 @@ t.run("virtualenv temp_virtualenv")
 t.run(". temp_virtualenv/bin/activate && python setup.py sdist && pip install dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz[gcp]")
 t.run("gcloud --version | head -1 | awk \'{print \$4}\'")
 if(t.output() < "189") {
-    update_gcloud(t, temp_dir)
+    t.run("bash ${t.sourceDir()}/update_gcloud_sdk.sh ${temp_dir}")
 }
 println()
 
@@ -171,7 +171,7 @@ println()
 //streaming_wordcount_dataflow_thread.stop()
 //
 //// clean up pubsub topics and subscription and delete dataflow job
-//cleanup_pubsub(t)
+cleanup_pubsub(t)
 //t.run('gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d\' \' -f1')
 //def running_job = t.output()
 //t.run("gcloud dataflow jobs cancel ${running_job}")
@@ -213,16 +213,4 @@ private void print_separator(String description, String cmd=''){
         println(cmd.toString())
     }
     println("----------------------------------------------------------------")
-}
-
-private void update_gcloud(TestScripts t, String temp_dir){
-    StringBuilder gcloud_installation = new StringBuilder()
-    t.run('pwd')
-    gcloud_installation.append("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz && ")
-    .append("tar xf gcloud.tar.gz && ")
-    .append("./google-cloud-sdk/install.sh --quiet && ")
-    .append(". ./google-cloud-sdk/path.bash.inc && ")
-//    .append("gcloud components update --quiet && ")
-    .append("gcloud --version")
-    t.run(gcloud_installation.toString())
 }

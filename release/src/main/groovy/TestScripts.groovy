@@ -70,6 +70,10 @@ class TestScripts {
      return var.gcsBucket
    }
 
+   def sourceDir() {
+     return System.getProperty("user.dir")
+   }
+
    // Both documents the overal scenario and creates a clean temp directory
    def describe(String desc) {
      var.startDir = File.createTempDir()
@@ -120,7 +124,7 @@ class TestScripts {
 
    // Run a single command, capture output, verify return code is 0
    private void _execute(String cmd) {
-     def shell = "sh -c cmd".split(' ')
+     def shell = "bash -c cmd".split(' ')
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
      pb.directory(var.curDir)
