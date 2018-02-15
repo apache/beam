@@ -161,6 +161,6 @@ def convert_to_beam_types(args):
     a dictionary with the same keys, and values which have been converted.
   """
   if isinstance(args, dict):
-    return {k: convert_to_beam_type(v) for k, v in args.iteritems()}
+    return {k: convert_to_beam_type(v) for k, v in args.items()}
   else:
     return [convert_to_beam_type(v) for v in args]
