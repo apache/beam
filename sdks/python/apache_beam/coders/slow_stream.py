@@ -35,7 +35,7 @@ class OutputStream(object):
     self.data = []
 
   def write(self, b, nested=False):
-    assert isinstance(b, basestring, bytes), \
+    assert isinstance(b, (basestring, bytes)), \
             "%r is not a basestring or bytes it is a %r" % (b, type(b))
     if nested:
       self.write_var_int64(len(b))
