@@ -22,6 +22,8 @@ from __future__ import absolute_import
 import operator
 import random
 
+from past.builtins import long
+
 from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform

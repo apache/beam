@@ -260,7 +260,7 @@ class _BatchSizeEstimator(object):
     odd_one_out = [sorted_data[-1]] if len(sorted_data) % 2 == 1 else []
     # Sort the pairs by how different they are.
     pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
-                   key=lambda ((x1, _1), (x2, _2)): x2 / x1)
+                   key=lambda x_y_x2_y2: x_y_x2_y2[1][0] / x_y_x2_y2[0][0])
     # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
     threshold = 2 * len(pairs) / 3
     self._data = (

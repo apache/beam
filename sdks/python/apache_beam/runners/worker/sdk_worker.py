@@ -21,7 +21,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-import Queue as queue
+import queue
 import sys
 import threading
 import traceback

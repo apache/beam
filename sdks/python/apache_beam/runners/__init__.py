@@ -19,6 +19,7 @@
 
 This package defines runners, which are used to execute a pipeline.
 """
+from __future__ import absolute_import
 
 from apache_beam.runners.direct.direct_runner import DirectRunner
 from apache_beam.runners.runner import PipelineRunner

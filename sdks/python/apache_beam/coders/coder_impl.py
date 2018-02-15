@@ -28,7 +28,9 @@ For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
 
-from types import NoneType
+from past.builtins import basestring
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
@@ -184,7 +186,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     self._step_label = step_label
 
   def _check_safe(self, value):
-    if isinstance(value, (str, unicode, long, int, float)):
+    if isinstance(value, (str, basestring, bytes, long, int, float)):
       pass
     elif value is None:
       pass
@@ -264,7 +266,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
-    if t is NoneType:
+    if value is None:
       stream.write_byte(NONE_TYPE)
     elif t is int:
       stream.write_byte(INT_TYPE)
@@ -272,10 +274,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is float:
       stream.write_byte(FLOAT_TYPE)
       stream.write_bigendian_double(value)
-    elif t is str:
+    elif t is bytes:
       stream.write_byte(STR_TYPE)
       stream.write(value, nested)
-    elif t is unicode:
+    elif t is str or t is basestring or t is unicode:
       unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
       stream.write(unicode_value.encode('utf-8'), nested)
@@ -289,7 +291,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
       stream.write_var_int64(len(dict_value))
-      for k, v in dict_value.iteritems():
+      for k, v in dict_value.items():
         self.encode_to_stream(k, stream, True)
         self.encode_to_stream(v, stream, True)
     elif t is bool:
@@ -315,7 +317,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       vlen = stream.read_var_int64()
       vlist = [self.decode_from_stream(stream, True) for _ in range(vlen)]
       if t == LIST_TYPE:
-        return vlist
+        return list(vlist)
       elif t == TUPLE_TYPE:
         return tuple(vlist)
       return set(vlist)
@@ -344,6 +346,8 @@ class BytesCoderImpl(CoderImpl):
     return in_stream.read_all(nested)
 
   def encode(self, value):
+    if (not isinstance(value, bytes)) and isinstance(value, str):
+      return value.encode("LATIN-1")
     assert isinstance(value, bytes), (value, type(value))
     return value
 
@@ -379,8 +383,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     span_micros = value.end.micros - value.start.micros
-    out.write_bigendian_uint64(self._from_normal_time(value.end.micros / 1000))
-    out.write_var_int64(span_micros / 1000)
+    out.write_bigendian_uint64(self._from_normal_time(value.end.micros // 1000))
+    out.write_var_int64(span_micros // 1000)
 
   def decode_from_stream(self, in_, nested):
     end_millis = self._to_normal_time(in_.read_bigendian_uint64())
@@ -394,7 +398,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
     span = value.end.micros - value.start.micros
-    return 8 + get_varint_size(span / 1000)
+    return 8 + get_varint_size(span // 1000)
 
 
 class TimestampCoderImpl(StreamCoderImpl):
@@ -691,7 +695,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
         # precision of timestamps.
         self._from_normal_time(
-            restore_sign * (abs(wv.timestamp_micros) / 1000)))
+            restore_sign * (abs(wv.timestamp_micros) // 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
     # TODO(BEAM-1522): Remove the hard coding here once PaneInfo is supported.
@@ -706,9 +710,9 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
-    if timestamp == -(abs(MIN_TIMESTAMP.micros) / 1000):
+    if timestamp == -(abs(MIN_TIMESTAMP.micros) // 1000):
       timestamp = MIN_TIMESTAMP.micros
-    elif timestamp == (MAX_TIMESTAMP.micros / 1000):
+    elif timestamp == (MAX_TIMESTAMP.micros // 1000):
       timestamp = MAX_TIMESTAMP.micros
     else:
       timestamp *= 1000

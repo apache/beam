@@ -23,6 +23,8 @@ import copy
 import inspect
 import types
 
+from past.builtins import basestring
+
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -1544,6 +1546,10 @@ class Windowing(object):
           and self.timestamp_combiner == other.timestamp_combiner)
     return False
 
+  def __hash__(self):
+    return hash((self.windowfn, self.triggerfn, self.accumulation_mode,
+                 self.timestamp_combiner))
+
   def is_default(self):
     return self._is_default
 
@@ -1762,7 +1768,7 @@ class Create(PTransform):
         self._coder = coder
         self._serialized_values = []
         self._total_size = 0
-        self._serialized_values = serialized_values
+        self._serialized_values = list(serialized_values)
         self._total_size = sum(map(len, self._serialized_values))
 
       def read(self, range_tracker):

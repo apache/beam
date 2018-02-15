@@ -20,12 +20,13 @@ from __future__ import absolute_import
 
 import abc
 import bz2
-import cStringIO
+import io
 import logging
 import os
 import time
 import zlib
 
+from future.utils import with_metaclass
 from six import integer_types
 
 from apache_beam.utils.plugin import BeamPlugin
@@ -122,7 +123,7 @@ class CompressedFile(object):
 
     if self.readable():
       self._read_size = read_size
-      self._read_buffer = cStringIO.StringIO()
+      self._read_buffer = io.StringIO()
       self._read_position = 0
       self._read_eof = False
 
@@ -237,7 +238,7 @@ class CompressedFile(object):
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
-    io = cStringIO.StringIO()
+    sio = io.StringIO()
     while True:
       # Ensure that the internal buffer has at least half the read_size. Going
       # with half the _read_size (as opposed to a full _read_size) to ensure
@@ -246,11 +247,11 @@ class CompressedFile(object):
       self._fetch_to_internal_buffer(self._read_size / 2)
       line = self._read_from_internal_buffer(
           lambda: self._read_buffer.readline())
-      io.write(line)
+      sio.write(line)
       if line.endswith('\n') or not line:
         break  # Newline or EOF reached.
 
-    return io.getvalue()
+    return sio.getvalue()
 
   def closed(self):
     return not self._file or self._file.closed()
@@ -423,14 +424,13 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(BeamPlugin):
+class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
   implement. Clients should use the FileSystems class to interact with
   the correct file system based on the provided file pattern scheme.
   """
-  __metaclass__ = abc.ABCMeta
   CHUNK_SIZE = 1  # Chuck size in the batch operations
 
   def __init__(self, pipeline_options):

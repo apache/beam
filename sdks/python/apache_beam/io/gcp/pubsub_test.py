@@ -21,6 +21,7 @@ import logging
 import unittest
 
 import hamcrest as hc
+from past.builtins import unicode
 
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub

@@ -74,7 +74,6 @@ has some examples.
 
 import sys
 
-
 if not (sys.version_info[0] == 2 and sys.version_info[1] == 7):
   raise RuntimeError(
       'The Apache Beam SDK for Python is supported only on Python 2.7. '

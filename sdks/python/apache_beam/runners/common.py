@@ -499,7 +499,6 @@ class DoFnRunner(Receiver):
       raise
     step_annotation = " [while running '%s']" % self.step_name
     # To emulate exception chaining (not available in Python 2).
-    original_traceback = sys.exc_info()[2]
     try:
       # Attempt to construct the same kind of exception
       # with an augmented message.
@@ -508,11 +507,25 @@ class DoFnRunner(Receiver):
     except:  # pylint: disable=bare-except
       # If anything goes wrong, construct a RuntimeError whose message
       # records the original exception's type and message.
-      new_exn = RuntimeError(
-          traceback.format_exception_only(type(exn), exn)[-1].strip()
-          + step_annotation)
-      new_exn._tagged_with_step = True
-    raise new_exn, None, original_traceback
+      # PEP-3134 means we can just wrap
+      if sys.version_info[0] == 3:
+        raise Exception(step_annotation)
+      else:
+        # To emulate exception chaining (not available in Python 2).
+        try:
+          # Attempt to construct the same kind of exception
+          # with an augmented message.
+          new_exn = type(exn)(exn.args[0] + step_annotation, *exn.args[1:])
+          new_exn._tagged_with_step = True  # Could raise attribute error.
+        except:  # pylint: disable=bare-except
+          # If anything goes wrong, construct a RuntimeError whose message
+          # records the original exception's type and message.
+          new_exn = RuntimeError(
+              traceback.format_exception_only(type(exn), exn)[-1].strip()
+              + step_annotation)
+          new_exn._tagged_with_step = True
+          new_exn.args = exn.args
+          raise new_exn
 
 
 class OutputProcessor(object):

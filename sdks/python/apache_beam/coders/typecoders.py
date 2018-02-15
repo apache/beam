@@ -64,6 +64,8 @@ example, the above function can be decorated::
 See apache_beam.typehints.decorators module for more details.
 """
 
+from past.builtins import unicode
+
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
 

@@ -20,12 +20,19 @@
 The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
+from __future__ import absolute_import
 
+# See https://github.com/PyCQA/pylint/issues/1160 :(
+# pylint: disable=wrong-import-position,wrong-import-order
+from future import standard_library
+standard_library.install_aliases()
 import logging
 import threading
 import time
 import traceback
-import urllib
+import urllib.request
+import urllib.parse
+import urllib.error
 from collections import defaultdict
 
 import apache_beam as beam
@@ -51,6 +58,7 @@ from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils.plugin import BeamPlugin
+# pylint: enable=wrong-import-position,wrong-import-order
 
 __all__ = ['DataflowRunner']
 
@@ -71,14 +79,6 @@ class DataflowRunner(PipelineRunner):
   # not change.
   # For internal SDK use only. This should not be updated by Beam pipeline
   # authors.
-
-  # Imported here to avoid circular dependencies.
-  # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
-  from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
-
-  _PTRANSFORM_OVERRIDES = [
-      CreatePTransformOverride(),
-  ]
 
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
@@ -285,7 +285,11 @@ class DataflowRunner(PipelineRunner):
         return_context=True)
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+    # Imported here to avoid circular dependencies.
+    # TODO: Remove the apache_beam.pipeline dependency CreatePTransformOverride
+    from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
+
+    pipeline.replace_all(CreatePTransformOverride())
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = pipeline._options.view_as(SetupOptions)
@@ -883,12 +887,12 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def byte_array_to_json_string(raw_bytes):
     """Implements org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString."""
-    return urllib.quote(raw_bytes)
+    return urllib.parse.quote(raw_bytes)
 
   @staticmethod
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
-    return urllib.unquote(encoded_string)
+    return urllib.parse.unquote(encoded_string)
 
 
 class DataflowPipelineResult(PipelineResult):

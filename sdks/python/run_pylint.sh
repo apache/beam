@@ -72,6 +72,9 @@ ISORT_EXCLUDED=(
   "iobase_test.py"
   "fast_coders_test.py"
   "slow_coders_test.py"
+  "dataflow_runner.py"
+  "auth.py"
+  "hadoopfilesystem.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do

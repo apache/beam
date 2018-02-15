@@ -26,6 +26,8 @@ from __future__ import absolute_import
 
 import re
 
+from past.builtins import unicode
+
 from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write

@@ -21,6 +21,9 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 import struct
+import sys
+
+from past.builtins import basestring
 
 
 class OutputStream(object):
@@ -32,13 +35,20 @@ class OutputStream(object):
     self.data = []
 
   def write(self, b, nested=False):
-    assert isinstance(b, str)
+    assert isinstance(b, (basestring, bytes)), \
+            "%r is not a basestring or bytes it is a %r" % (b, type(b))
     if nested:
       self.write_var_int64(len(b))
-    self.data.append(b)
+    if isinstance(b, bytes):
+      self.data.append(b)
+    else:
+      self.data.append(b.encode("LATIN-1"))
 
   def write_byte(self, val):
-    self.data.append(chr(val))
+    if sys.version_info[0] == 3:
+      self.data.append(bytes(chr(val), "latin1"))
+    else:
+      self.data.append(chr(val))
 
   def write_var_int64(self, v):
     if v < 0:
@@ -67,7 +77,7 @@ class OutputStream(object):
     self.write(struct.pack('>d', v))
 
   def get(self):
-    return ''.join(self.data)
+    return b''.join(self.data)
 
   def size(self):
     return len(self.data)
@@ -108,7 +118,10 @@ class InputStream(object):
   A pure Python implementation of stream.InputStream."""
 
   def __init__(self, data):
-    self.data = data
+    if sys.version_info[0] == 3 and isinstance(data, str):
+      self.data = bytes(data, "latin-1")
+    else:
+      self.data = data
     self.pos = 0
 
   def size(self):
@@ -123,13 +136,16 @@ class InputStream(object):
 
   def read_byte(self):
     self.pos += 1
-    return ord(self.data[self.pos - 1])
+    if sys.version_info[0] == 3:
+      return self.data[self.pos - 1]
+    else:
+      return ord(self.data[self.pos - 1])
 
   def read_var_int64(self):
     shift = 0
     result = 0
     while True:
-      byte = self.read_byte()
+      byte = int(self.read_byte())
       if byte < 0:
         raise RuntimeError('VarLong not terminated.')
 

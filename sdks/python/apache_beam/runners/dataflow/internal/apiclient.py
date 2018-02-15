@@ -27,7 +27,7 @@ import os
 import re
 import time
 from datetime import datetime
-from StringIO import StringIO
+from io import StringIO
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
@@ -48,6 +48,8 @@ from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
+
+from past.builtins import unicode
 
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
