@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -79,6 +80,11 @@ public class ShardReadersPoolTest {
     shardReadersPool = Mockito.spy(new ShardReadersPool(kinesis, checkpoint));
     doReturn(firstIterator).when(shardReadersPool).createShardIterator(kinesis, firstCheckpoint);
     doReturn(secondIterator).when(shardReadersPool).createShardIterator(kinesis, secondCheckpoint);
+  }
+
+  @After
+  public void clean() {
+    shardReadersPool.stop();
   }
 
   @Test
