@@ -119,7 +119,6 @@ println()
 * 6. Run Streaming wordcount with DirectRunner
 *
 * */
-t.run("gcloud components list")
 // create pubsub topics
 create_pubsub(t)
 
@@ -186,25 +185,25 @@ t.done()
 private void run_pubsub_publish(TestScripts t){
     def words = ["hello world!", "I like cats!", "Python", "hello Python", "hello Python"]
     words.each {
-        t.run("gcloud alpha pubsub topics publish ${PythonReleaseConfiguration.PUBSUB_TOPIC1} \"${it}\"")
+        t.run("gcloud pubsub topics publish ${PythonReleaseConfiguration.PUBSUB_TOPIC1} --message \"${it}\"")
     }
     t.run("sleep 25")
 }
 
 private void run_pubsub_pull(TestScripts t){
-    t.run("gcloud alpha pubsub subscriptions pull --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION} --limit=100 --auto-ack")
+    t.run("gcloud pubsub subscriptions pull --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION} --limit=100 --auto-ack")
 }
 
 private void create_pubsub(TestScripts t){
-    t.run("gcloud alpha pubsub topics create --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC1}")
-    t.run("gcloud alpha pubsub topics create --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
-    t.run("gcloud alpha pubsub subscriptions create --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION} --topic ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
+    t.run("gcloud pubsub topics create --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC1}")
+    t.run("gcloud pubsub topics create --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
+    t.run("gcloud pubsub subscriptions create --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION} --topic ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
 }
 
 private void cleanup_pubsub(TestScripts t){
-    t.run("gcloud alpha pubsub topics delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC1}")
-    t.run("gcloud alpha pubsub topics delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
-    t.run("gcloud alpha pubsub subscriptions delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION}")
+    t.run("gcloud pubsub topics delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC1}")
+    t.run("gcloud pubsub topics delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
+    t.run("gcloud pubsub subscriptions delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION}")
 }
 
 private void print_separator(String description, String cmd=''){
