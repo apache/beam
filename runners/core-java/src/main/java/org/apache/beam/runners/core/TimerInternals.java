@@ -175,6 +175,8 @@ public interface TimerInternals {
 
     public abstract TimeDomain getDomain();
 
+    // When adding a new field, make sure to add it to the compareTo() method.
+
     /**
      * Construct a {@link TimerData} for the given parameters, where the timer ID is automatically
      * generated.
@@ -201,8 +203,9 @@ public interface TimerInternals {
     /**
      * {@inheritDoc}.
      *
-     * <p>The ordering of {@link TimerData} that are not in the same namespace or domain is
-     * arbitrary.
+     * <p>Used for sorting {@link TimerData} by timestamp. Furthermore, we compare timers by all the
+     * other fields so that {@code compareTo()} only returns 0 when {@code equals()} returns 0.
+     * This ensures consistent sort order.
      */
     @Override
     public int compareTo(TimerData that) {
@@ -212,7 +215,8 @@ public interface TimerInternals {
       ComparisonChain chain =
           ComparisonChain.start()
               .compare(this.getTimestamp(), that.getTimestamp())
-              .compare(this.getDomain(), that.getDomain());
+              .compare(this.getDomain(), that.getDomain())
+              .compare(this.getTimerId(), that.getTimerId());
       if (chain.result() == 0 && !this.getNamespace().equals(that.getNamespace())) {
         // Obtaining the stringKey may be expensive; only do so if required
         chain = chain.compare(getNamespace().stringKey(), that.getNamespace().stringKey());
