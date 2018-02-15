@@ -43,6 +43,7 @@ StringBuilder cmd = new StringBuilder()
 * */
 println "python sdk validation start"
 t.run("pwd")
+String temp_dir = t.output()
 t.run("wget ${PythonReleaseConfiguration.CANDIDATE_URL}${PythonReleaseConfiguration.SHA1_FILE_NAME}")
 t.run("wget ${PythonReleaseConfiguration.CANDIDATE_URL}${PythonReleaseConfiguration.MD5_FILE_NAME}")
 t.run("wget ${PythonReleaseConfiguration.CANDIDATE_URL}${PythonReleaseConfiguration.BEAM_PYTHON_SDK}")
@@ -71,7 +72,11 @@ t.run("pip install --upgrade setuptools pip")
 t.run("pip --version")
 t.run("virtualenv temp_virtualenv")
 t.run(". temp_virtualenv/bin/activate && python setup.py sdist && pip install dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz[gcp]")
-update_gcloud(t)
+t.run("gcloud --version | head -1 | awk \'{print \$4}\'")
+if(t.output() < "186"){
+    println "lalala update gcloud"
+    update_gcloud(t, temp_dir)
+}
 println()
 
 
@@ -118,11 +123,6 @@ println()
 *
 * */
 // update gcloud and create pubsub topics
-t.run("gcloud --version | head -1 | awk \'{print \$4}\'")
-if(t.output() < "186"){
-    println "lalala update gcloud"
-    update_gcloud(t)
-}
 create_pubsub(t)
 
 cmd.setLength(0) // clear the cmd buffer
@@ -218,12 +218,22 @@ private void print_separator(String description, String cmd=''){
     println("----------------------------------------------------------------")
 }
 
-private void update_gcloud(TestScripts t){
-    t.run("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz")
-    t.run("tar xf gcloud.tar.gz")
-//    t.run("./google-cloud-sdk/install.sh --quiet")
-//    t.run(". ./google-cloud-sdk/path.bash.inc")
-//    t.run("gcloud components update --quiet || echo 'gcloud components update failed'")
-    t.run("./google-cloud-sdk/install.sh --quiet && . ./google-cloud-sdk/path.bash.inc && gcloud components update --quiet")
-    t.run("gcloud --version")
+private void update_gcloud(TestScripts t, String temp_dir){
+    StringBuilder gcloud_installation = new StringBuilder()
+    gcloud_installation.append("pushd ${temp_dir} && ")
+    .append("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz && ")
+    .append("tar xf gcloud.tar.gz && ")
+    .append("./google-cloud-sdk/install.sh --quiet && ")
+    .append(". ./google-cloud-sdk/path.bash.inc && ")
+    .append("gcloud components update --quiet && ")
+    .append("popd")
+    .append("gcloud --version")
+    t.run(gcloud_installation.toString())
+//    t.run("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz")
+//    t.run("tar xf gcloud.tar.gz")
+////    t.run("./google-cloud-sdk/install.sh --quiet")
+////    t.run(". ./google-cloud-sdk/path.bash.inc")
+////    t.run("gcloud components update --quiet || echo 'gcloud components update failed'")
+//    t.run("./google-cloud-sdk/install.sh --quiet && . ./google-cloud-sdk/path.bash.inc && gcloud components update --quiet")
+//    t.run("gcloud --version")
 }
