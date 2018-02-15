@@ -119,8 +119,12 @@ println()
 * 6. Run Streaming wordcount with DirectRunner
 *
 * */
-// create pubsub topics
-t.run("gcloud --version")
+// update gcloud and create pubsub topics
+t.run("gcloud --version | head -1 | awk \'{print \$4}\'")
+if(t.output() < "186"){
+    println "lalala update gcloud"
+    update_gcloud(t)
+}
 create_pubsub(t)
 
 cmd.setLength(0) // clear the cmd buffer
@@ -214,4 +218,13 @@ private void print_separator(String description, String cmd=''){
         println(cmd.toString())
     }
     println("----------------------------------------------------------------")
+}
+
+private void update_gcloud(TestScripts t){
+    t.run("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz")
+    t.run("tar xf gcloud.tar.gz")
+    t.run("./google-cloud-sdk/install.sh --quiet")
+    t.run(". ./google-cloud-sdk/path.bash.inc")
+    t.run("gcloud components update --quiet || echo 'gcloud components update failed'")
+    t.run("gcloud --version")
 }
