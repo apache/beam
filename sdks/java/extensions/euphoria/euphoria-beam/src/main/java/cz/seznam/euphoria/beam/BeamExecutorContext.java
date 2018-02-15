@@ -55,7 +55,7 @@ import org.joda.time.Duration;
  */
 class BeamExecutorContext {
 
-  private final DAG<Operator<?, ?>> dag;
+  private DAG<Operator<?, ?>> dag;
   private final Map<Dataset<?>, PCollection<?>> outputs = new HashMap<>();
   private final Pipeline pipeline;
   private final Duration allowedLateness;
@@ -79,11 +79,15 @@ class BeamExecutorContext {
   }
 
   <IN> PCollection<IN> getInput(Operator<IN, ?> operator) {
+    System.err.println(" *** getting input of " + operator);
     return Iterables.getOnlyElement(getInputs(operator));
   }
 
   @SuppressWarnings("unchecked")
   <IN> List<PCollection<IN>> getInputs(Operator<IN, ?> operator) {
+    System.err.println(
+        " *** operator " + operator + " has parents "
+            + dag.getNode(operator).getParents());
     return dag
         .getNode(operator)
         .getParents()
@@ -106,7 +110,7 @@ class BeamExecutorContext {
 
   <T> void setPCollection(Dataset<T> dataset, PCollection<T> coll) {
     final PCollection<?> prev = outputs.put(dataset, coll);
-    if (prev != null) {
+    if (prev != null && prev != coll) {
       throw new IllegalStateException(
          "Dataset(" + dataset + ") already materialized.");
     }
@@ -200,6 +204,10 @@ class BeamExecutorContext {
 
   Duration getAllowedLateness(Operator<?, ?> operator) {
     return allowedLateness;
+  }
+
+  void setTranslationDAG(DAG<Operator<?, ?>> dag) {
+    this.dag = dag;
   }
 
 }

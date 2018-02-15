@@ -64,7 +64,7 @@ public class BeamFlowTest {
   public void testPipelineFromBeam() {
     List<Integer> inputs = Arrays.asList(1, 2, 3, 4, 5);
     Pipeline pipeline = Pipeline.create(options());
-    BeamFlow flow = BeamFlow.create();
+    BeamFlow flow = BeamFlow.create(pipeline);
     PCollection<Integer> input = pipeline.apply(Create.of(inputs))
         .setTypeDescriptor(TypeDescriptor.of(Integer.class));
     Dataset<Integer> ds = flow.wrapped(input);
@@ -73,7 +73,6 @@ public class BeamFlowTest {
         .using(e -> e + 1)
         .output()
         .persist(sink);
-    flow.into(pipeline);
     pipeline.run().waitUntilFinish();
     DatasetAssert.unorderedEquals(sink.getOutputs(), 2, 3, 4, 5, 6);
   }
@@ -82,14 +81,13 @@ public class BeamFlowTest {
   public void testPipelineToAndFromBeam() {
     List<Integer> inputs = Arrays.asList(1, 2, 3, 4, 5);
     Pipeline pipeline = Pipeline.create(options());
-    BeamFlow flow = BeamFlow.create();
+    BeamFlow flow = BeamFlow.create(pipeline);
     PCollection<Integer> input = pipeline.apply(Create.of(inputs))
         .setTypeDescriptor(TypeDescriptor.of(Integer.class));
     Dataset<Integer> ds = flow.wrapped(input);
     Dataset<Integer> output = FlatMap.of(ds)
         .using((Integer e, Collector<Integer> c) -> c.collect(e + 1))
         .output();
-    flow.into(pipeline);
     PCollection<Integer> unwrapped = flow.unwrapped(output);
     PAssert.that(unwrapped)
         .containsInAnyOrder(2, 3, 4, 5, 6);

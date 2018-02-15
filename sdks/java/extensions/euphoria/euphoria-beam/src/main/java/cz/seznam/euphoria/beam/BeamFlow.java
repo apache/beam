@@ -16,6 +16,7 @@
 
 package cz.seznam.euphoria.beam;
 
+import avro.shaded.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -25,7 +26,9 @@ import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.util.Settings;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -73,22 +76,38 @@ public class BeamFlow extends Flow {
     return new BeamFlow(null, settings);
   }
 
+  /**
+   * Create flow from pipeline.
+   * @param pipeline the pipeline to wrap into new flow
+   * @return constructed flow
+   */
+  public static BeamFlow create(Pipeline pipeline) {
+    return new BeamFlow(pipeline);
+  }
+
 
   private final transient Map<PCollection<?>, Dataset<?>> wrapped = new HashMap<>();
   private Duration allowedLateness = Duration.ZERO;
   private AccumulatorProvider.Factory accumulatorFactory = VoidAccumulatorProvider.getFactory();
   private transient BeamExecutorContext context;
+  @Nullable
+  private transient Pipeline pipeline;
 
   /**
    * Construct the {@link BeamFlow}.
    * @param name name of the flow (optional)
    * @param settings settings to be used
    */
-  BeamFlow(
+  private BeamFlow(
       @Nullable String name,
       Settings settings) {
 
     super(name, settings);
+  }
+
+  private BeamFlow(Pipeline pipeline) {
+    super(null, new Settings());
+    this.pipeline = pipeline;
   }
 
   /**
@@ -117,6 +136,7 @@ public class BeamFlow extends Flow {
   /**
    * Write transformations of this flow to given {@link Pipeline}.
    */
+  /*
   @SuppressWarnings("unchecked")
   public void into(Pipeline pipeline) {
     final DAG<Operator<?, ?>> dag = FlowTranslator.toDAG(this);
@@ -134,6 +154,7 @@ public class BeamFlow extends Flow {
 
     FlowTranslator.updateContextBy(dag, context);
   }
+  */
 
   /**
    * Wrap given {@link PCollection} as {@link Dataset} into this flow.
@@ -168,13 +189,54 @@ public class BeamFlow extends Flow {
 
   private <T> Dataset<T> newDataset(PCollection<T> coll) {
     Operator<?, T> wrap = new WrappedPCollectionOperator<>(this, coll);
-    super.add(wrap);
+    add(wrap);
     return wrap.output();
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public <IN, OUT, T extends Operator<IN, OUT>> T add(T t) {
-    return super.add(t);
+  public <IN, OUT, T extends Operator<IN, OUT>> T add(T operator) {
+    System.err.println(" **** ADD " + pipeline);
+    T ret = super.add(operator);
+    if (pipeline != null) {
+      if (context == null) {
+        context = new BeamExecutorContext(
+            DAG.empty(), accumulatorFactory, pipeline, getSettings(),
+            org.joda.time.Duration.millis(allowedLateness.toMillis()));
+      }
+      List<Operator<?, ?>> inputOperators = operator.listInputs()
+          .stream()
+          .map(d -> (Operator<?, ?>) new WrappedPCollectionOperator(this, unwrapped(d), d))
+          .collect(Collectors.toList());
+      final DAG<Operator<?, ?>> dag;
+      if (inputOperators.isEmpty()) {
+        dag = DAG.of(operator);
+      } else {
+        dag = DAG.of(inputOperators);
+        dag.add(operator, inputOperators);
+      }
+      DAG<Operator<?, ?>> unfolded = FlowTranslator.unfold(dag);
+      context.setTranslationDAG(unfolded);
+      FlowTranslator.updateContextBy(unfolded, context);
+      // register the output of the sub-dag as output of the original operator
+      Dataset<OUT> output = operator.output();
+      Dataset<OUT> dagOutput = (Dataset) Iterables.getOnlyElement(
+          unfolded.getLeafs()).get().output();
+      if (output != dagOutput) {
+        context.setPCollection(output, unwrapped(dagOutput));
+      }
+    }
+    return ret;
+  }
+
+  /**
+   * Specify allowed lateness for all reducing operations.
+   * @param allowedLateness the allowed lateness
+   * @return this
+   */
+  public BeamFlow withAllowedLateness(Duration allowedLateness) {
+    this.allowedLateness = allowedLateness;
+    return this;
   }
 
 }
