@@ -539,7 +539,8 @@ class _ExecutorServiceParallelExecutor(object):
     def _should_shutdown(self):
       """Checks whether the pipeline is completed and should be shut down.
 
-      If there is anything in the queue of tasks to do, do not shut down.
+      If there is anything in the queue of tasks to do or
+      if there are any realtime timers set, do not shut down.
 
       Otherwise, check if all the transforms' watermarks are complete.
       If they are not, the pipeline is not progressing (stall detected).
@@ -554,6 +555,12 @@ class _ExecutorServiceParallelExecutor(object):
       if self._is_executing():
         # There are some bundles still in progress.
         return False
+
+      watermark_manager = self._executor.evaluation_context._watermark_manager
+      _, any_unfired_realtime_timers = watermark_manager.extract_all_timers()
+      if any_unfired_realtime_timers:
+        return False
+
       else:
         if self._executor.evaluation_context.is_done():
           self._executor.visible_updates.offer(
@@ -594,13 +601,7 @@ class _ExecutorServiceParallelExecutor(object):
       """Checks whether the job is still executing.
 
       Returns:
-        True if there are any timers set or if there is at least
-        one non-blocked TransformExecutor active."""
-
-      watermark_manager = self._executor.evaluation_context._watermark_manager
-      _, any_unfired_realtime_timers = watermark_manager.extract_all_timers()
-      if any_unfired_realtime_timers:
-        return True
+        True if there is at least one non-blocked TransformExecutor active."""
 
       executors = self._executor.transform_executor_services.executors
       if not executors:
