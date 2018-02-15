@@ -46,7 +46,9 @@ class TestCounterCell(unittest.TestCase):
     for t in threads:
       t.join()
 
-    total = (self.NUM_ITERATIONS * (self.NUM_ITERATIONS-1)/2 * self.NUM_THREADS)
+    total = (self.NUM_ITERATIONS
+             * (self.NUM_ITERATIONS - 1) // 2
+             * self.NUM_THREADS)
     self.assertEqual(c.get_cumulative(), total)
 
   def test_basic_operations(self):
@@ -86,7 +88,9 @@ class TestDistributionCell(unittest.TestCase):
     for t in threads:
       t.join()
 
-    total = (self.NUM_ITERATIONS * (self.NUM_ITERATIONS-1)/2 * self.NUM_THREADS)
+    total = (self.NUM_ITERATIONS
+             * (self.NUM_ITERATIONS - 1) // 2
+             * self.NUM_THREADS)
 
     count = (self.NUM_ITERATIONS * self.NUM_THREADS)
 
