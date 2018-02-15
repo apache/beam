@@ -120,6 +120,7 @@ println()
 *
 * */
 // create pubsub topics
+t.run("gcloud --version")
 create_pubsub(t)
 
 cmd.setLength(0) // clear the cmd buffer
