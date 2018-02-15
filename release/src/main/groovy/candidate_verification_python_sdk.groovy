@@ -203,7 +203,7 @@ private void create_pubsub(TestScripts t){
     t.run("gcloud pubsub subscriptions create --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION} --topic ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
 }
 
-private void cleanup_pubsub(TestScripts t){. ./google-cloud-sdk/path.bash.inc
+private void cleanup_pubsub(TestScripts t){
     t.run("gcloud pubsub topics delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC1}")
     t.run("gcloud pubsub topics delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
     t.run("gcloud pubsub subscriptions delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION}")
