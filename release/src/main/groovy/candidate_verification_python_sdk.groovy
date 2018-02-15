@@ -68,12 +68,10 @@ t.see("OK")
 print_separator("Creating new virtualenv and installing the SDK")
 t.run("unzip ${PythonReleaseConfiguration.BEAM_PYTHON_RELEASE}")
 t.run("cd apache-beam-${PythonReleaseConfiguration.VERSION}/sdks/python/")
-//t.run("pip install --upgrade setuptools pip")
-//t.run("pip --version")
 t.run("virtualenv temp_virtualenv")
 t.run(". temp_virtualenv/bin/activate && python setup.py sdist && pip install dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz[gcp]")
 t.run("gcloud --version | head -1 | awk \'{print \$4}\'")
-if(t.output() < "186"){
+if(t.output() < "189") {
     update_gcloud(t, temp_dir)
 }
 println()
@@ -144,39 +142,39 @@ streaming_wordcount_thread.stop()
 println()
 
 
-/*
- * 7. Run Streaming Wordcount with DataflowRunner
-* */
-cmd.setLength(0) //clear the cmd buffer
-cmd.append("python -m apache_beam.examples.streaming_wordcount ")
-    .append("--streaming ")
-    .append("--job_name pyflow-wordstream-candidate ")
-    .append("--project ${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ")
-    .append("--runner DataflowRunner ")
-    .append("--input_topic projects/${PythonReleaseConfiguration.STREAMING_PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC1} ")
-    .append("--output_topic projects/${PythonReleaseConfiguration.STREAMING_PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC2} ")
-    .append("--staging_location gs://${PythonReleaseConfiguration.STREAMING_BUCKET_NAME}${PythonReleaseConfiguration.STREAMING_TEMP_DIR} ")
-    .append("--temp_location gs://${PythonReleaseConfiguration.STREAMING_BUCKET_NAME}${PythonReleaseConfiguration.STREAMING_TEMP_DIR} ")
-    .append("--num_workers ${PythonReleaseConfiguration.NUM_WORKERS} ")
-    .append("--sdk_location dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz ")
-
-print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
-def streaming_wordcount_dataflow_thread = Thread.start(){
-    t.run(cmd.toString())
-}
-t.run("sleep 15")
-
-// verify result
-run_pubsub_publish(t)
-run_pubsub_pull(t)
-t.see("like: 1")
-streaming_wordcount_dataflow_thread.stop()
-
-// clean up pubsub topics and subscription and delete dataflow job
-cleanup_pubsub(t)
-t.run('gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d\' \' -f1')
-def running_job = t.output()
-t.run("gcloud dataflow jobs cancel ${running_job}")
+///*
+// * 7. Run Streaming Wordcount with DataflowRunner
+//* */
+//cmd.setLength(0) //clear the cmd buffer
+//cmd.append("python -m apache_beam.examples.streaming_wordcount ")
+//    .append("--streaming ")
+//    .append("--job_name pyflow-wordstream-candidate ")
+//    .append("--project ${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ")
+//    .append("--runner DataflowRunner ")
+//    .append("--input_topic projects/${PythonReleaseConfiguration.STREAMING_PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC1} ")
+//    .append("--output_topic projects/${PythonReleaseConfiguration.STREAMING_PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC2} ")
+//    .append("--staging_location gs://${PythonReleaseConfiguration.STREAMING_BUCKET_NAME}${PythonReleaseConfiguration.STREAMING_TEMP_DIR} ")
+//    .append("--temp_location gs://${PythonReleaseConfiguration.STREAMING_BUCKET_NAME}${PythonReleaseConfiguration.STREAMING_TEMP_DIR} ")
+//    .append("--num_workers ${PythonReleaseConfiguration.NUM_WORKERS} ")
+//    .append("--sdk_location dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz ")
+//
+//print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
+//def streaming_wordcount_dataflow_thread = Thread.start(){
+//    t.run(cmd.toString())
+//}
+//t.run("sleep 15")
+//
+//// verify result
+//run_pubsub_publish(t)
+//run_pubsub_pull(t)
+//t.see("like: 1")
+//streaming_wordcount_dataflow_thread.stop()
+//
+//// clean up pubsub topics and subscription and delete dataflow job
+//cleanup_pubsub(t)
+//t.run('gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d\' \' -f1')
+//def running_job = t.output()
+//t.run("gcloud dataflow jobs cancel ${running_job}")
 
 println '*********************************'
 println 'Verification Complete'
@@ -220,12 +218,11 @@ private void print_separator(String description, String cmd=''){
 private void update_gcloud(TestScripts t, String temp_dir){
     StringBuilder gcloud_installation = new StringBuilder()
     t.run('pwd')
-    gcloud_installation.append("cd ${temp_dir} && ")
     gcloud_installation.append("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz && ")
     .append("tar xf gcloud.tar.gz && ")
     .append("./google-cloud-sdk/install.sh --quiet && ")
     .append(". ./google-cloud-sdk/path.bash.inc && ")
-    .append("gcloud components update --quiet && ")
+//    .append("gcloud components update --quiet && ")
     .append("gcloud --version")
     t.run(gcloud_installation.toString())
 }
