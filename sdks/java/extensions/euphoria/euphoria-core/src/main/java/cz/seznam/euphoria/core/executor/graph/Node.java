@@ -45,6 +45,13 @@ public final class Node<T> {
     this.parents.addAll(parents);
   }
 
+  /**
+   * @return {@code true} if this is root node, {@code false} otherwise
+   */
+  public boolean isRoot() {
+    return parents.isEmpty();
+  }
+
   public List<Node<T>> getParents() {
     return Collections.unmodifiableList(parents);
   }

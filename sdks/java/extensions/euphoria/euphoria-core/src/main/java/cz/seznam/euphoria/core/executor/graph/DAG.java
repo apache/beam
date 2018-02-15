@@ -137,6 +137,16 @@ public class DAG<T> {
 
 
   /**
+   * Check if the graph already contains given element.
+   * @param elem the element to search for
+   * @return {@code true} if the graph contains the element, {@code false} otherwise
+   */
+  public boolean contains(T elem) {
+    return nodeMap.get(elem) != null;
+  }
+  
+
+  /**
    * Retrieves the node for the given value.
    *
    * @param elem the element to find in this DAG
