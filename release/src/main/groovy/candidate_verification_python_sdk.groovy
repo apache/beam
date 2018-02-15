@@ -221,10 +221,10 @@ private void print_separator(String description, String cmd=''){
 }
 
 private void update_gcloud(TestScripts t){
-    t.run("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz")
+    t.run("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz")
     t.run("tar xf gcloud.tar.gz")
     t.run("./google-cloud-sdk/install.sh --quiet")
     t.run(". ./google-cloud-sdk/path.bash.inc")
-    //t.run("gcloud components update --quiet || echo 'gcloud components update failed'")
+    t.run("gcloud components update --quiet || echo 'gcloud components update failed'")
     t.run("gcloud --version")
 }
