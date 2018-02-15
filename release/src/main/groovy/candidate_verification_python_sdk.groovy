@@ -70,10 +70,6 @@ t.run("cd apache-beam-${PythonReleaseConfiguration.VERSION}/sdks/python/")
 t.run("pip install --upgrade setuptools pip")
 t.run("pip --version")
 t.run("virtualenv temp_virtualenv")
-
-//t.run(". temp_virtualenv/bin/activate")
-//t.run("python setup.py sdist")
-//t.run("pip install dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz[gcp]")
 t.run(". temp_virtualenv/bin/activate && python setup.py sdist && pip install dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz[gcp]")
 update_gcloud(t)
 println()
@@ -207,7 +203,7 @@ private void create_pubsub(TestScripts t){
     t.run("gcloud pubsub subscriptions create --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION} --topic ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
 }
 
-private void cleanup_pubsub(TestScripts t){
+private void cleanup_pubsub(TestScripts t){. ./google-cloud-sdk/path.bash.inc
     t.run("gcloud pubsub topics delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC1}")
     t.run("gcloud pubsub topics delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_TOPIC2}")
     t.run("gcloud pubsub subscriptions delete --project=${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ${PythonReleaseConfiguration.PUBSUB_SUBSCRIPTION}")
@@ -225,8 +221,9 @@ private void print_separator(String description, String cmd=''){
 private void update_gcloud(TestScripts t){
     t.run("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz")
     t.run("tar xf gcloud.tar.gz")
-    t.run("./google-cloud-sdk/install.sh --quiet")
-    t.run(". ./google-cloud-sdk/path.bash.inc")
-    //t.run("gcloud components update --quiet || echo 'gcloud components update failed'")
+//    t.run("./google-cloud-sdk/install.sh --quiet")
+//    t.run(". ./google-cloud-sdk/path.bash.inc")
+//    t.run("gcloud components update --quiet || echo 'gcloud components update failed'")
+    t.run("./google-cloud-sdk/install.sh --quiet && . ./google-cloud-sdk/path.bash.inc && gcloud components update --quiet")
     t.run("gcloud --version")
 }
