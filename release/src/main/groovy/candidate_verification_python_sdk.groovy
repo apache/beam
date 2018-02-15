@@ -74,7 +74,6 @@ t.run("virtualenv temp_virtualenv")
 t.run(". temp_virtualenv/bin/activate && python setup.py sdist && pip install dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz[gcp]")
 t.run("gcloud --version | head -1 | awk \'{print \$4}\'")
 if(t.output() < "186"){
-    println "lalala update gcloud"
     update_gcloud(t, temp_dir)
 }
 println()
@@ -122,7 +121,7 @@ println()
 * 6. Run Streaming wordcount with DirectRunner
 *
 * */
-// update gcloud and create pubsub topics
+//create pubsub topics
 create_pubsub(t)
 
 cmd.setLength(0) // clear the cmd buffer
@@ -220,6 +219,8 @@ private void print_separator(String description, String cmd=''){
 
 private void update_gcloud(TestScripts t, String temp_dir){
     StringBuilder gcloud_installation = new StringBuilder()
+    t.run('pwd')
+    gcloud_installation.append("cd ${temp_dir} && ")
     gcloud_installation.append("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz && ")
     .append("tar xf gcloud.tar.gz && ")
     .append("./google-cloud-sdk/install.sh --quiet && ")
@@ -227,11 +228,4 @@ private void update_gcloud(TestScripts t, String temp_dir){
     .append("gcloud components update --quiet && ")
     .append("gcloud --version")
     t.run(gcloud_installation.toString())
-//    t.run("curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz")
-//    t.run("tar xf gcloud.tar.gz")
-////    t.run("./google-cloud-sdk/install.sh --quiet")
-////    t.run(". ./google-cloud-sdk/path.bash.inc")
-////    t.run("gcloud components update --quiet || echo 'gcloud components update failed'")
-//    t.run("./google-cloud-sdk/install.sh --quiet && . ./google-cloud-sdk/path.bash.inc && gcloud components update --quiet")
-//    t.run("gcloud --version")
 }
