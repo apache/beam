@@ -102,7 +102,7 @@ public class CombineFnTester {
       } else {
         accumulator = fn.mergeAccumulators(Arrays.asList(accumulator, inputAccum));
       }
-      fn.extractOutput(accumulator); // Extract output to simulate multiple firings.
+      fn.extractOutput(accumulator); // Extract output to simulate multiple firings
     }
     assertThat(fn.extractOutput(accumulator), matcher);
   }

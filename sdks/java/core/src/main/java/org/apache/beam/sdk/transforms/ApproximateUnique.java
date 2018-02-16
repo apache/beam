@@ -394,11 +394,11 @@ public class ApproximateUnique {
     @Override
     public LargestUnique mergeAccumulators(Iterable<LargestUnique> heaps) {
       Iterator<LargestUnique> iterator = heaps.iterator();
-      LargestUnique heap = iterator.next();
+      LargestUnique accumulator = iterator.next();
       while (iterator.hasNext()) {
-        iterator.next().heap.forEach(h -> heap.add(h));
+        iterator.next().heap.forEach(h -> accumulator.add(h));
       }
-      return heap;
+      return accumulator;
     }
 
     @Override
