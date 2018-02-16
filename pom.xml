@@ -2183,6 +2183,14 @@
               <rules>
                 <enforceBytecodeVersion>
                   <maxJdkVersion>1.8</maxJdkVersion>
+                  <!--
+                    Multi release jars that are Java 8 compatible should pass,
+                    but the extra-enforcer-plugin does not detect them
+                    correctly so we should ignore them explicitly.
+                    -->
+                  <ignoreClasses>
+                    <ignoreClass>module-info</ignoreClass>
+                  </ignoreClasses>
                   <excludes>
                     <!--
                       Supplied by the user JDK and compiled with matching
