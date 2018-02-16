@@ -220,5 +220,5 @@ public class CombineTranslationTest {
     public int hashCode() {
       return TestCombineFnWithContext.class.hashCode();
     }
-  };
+  }
 }
