@@ -30,9 +30,9 @@ set -e
 set -v
 
 print_separator() {
-    echo "--------------------------------------------"
+    echo "############################################################################"
     echo $1
-    echo "--------------------------------------------"
+    echo "############################################################################"
 }
 
 update_gcloud() {
@@ -169,7 +169,7 @@ else
 	complete "failed when running wordcount example with DirectRunner"
 	exit 1
 fi
-echo "wordcount successfully run on DirectRunner"
+echo "SUCCEED: wordcount successfully run on DirectRunner."
 
 
 #
@@ -200,7 +200,7 @@ do
 done
 # clean output files from GCS
 gsutil rm gs://$BUCKET_NAME/$WORDCOUNT_OUTPUT-*
-echo "wordcount successfully run on DataflowRunner"
+echo "SUCCEED: wordcount successfully run on DataflowRunner."
 
 
 #
@@ -223,12 +223,12 @@ pull_result=$(run_pubsub_pull)
 should_see="like: 1"
 if [[ $pull_result = *"$should_see"* ]]
 then
-    echo " The streaming wordcount example running successfully on DirectRunner"
+    echo "SUCCEED: The streaming wordcount example running successfully on DirectRunner."
 else
-    echo "ERROR: The streaming wordcount example failed on DirectRunner"
+    echo "ERROR: The streaming wordcount example failed on DirectRunner."
     cleanup_pubsub
     kill -9 $pid
-    complete "failed when running streaming wordcount example with DirectRunner"
+    complete "failed when running streaming wordcount example with DirectRunner."
     exit 1
 fi
 kill -9 $pid
@@ -262,19 +262,17 @@ pull_result=$(run_pubsub_pull)
 echo $pull_result
 if [[ $pull_result = *"$should_see"* ]]
 then
-    echo " The streaming wordcount example running successfully on DataflowRunner"
+    echo "SUCCEED: The streaming wordcount example running successfully on DataflowRunner."
 else
-    echo "ERROR: The streaming wordcount example failed on DataflowRunner"
+    echo "ERROR: The streaming wordcount example failed on DataflowRunner."
     cleanup_pubsub
     kill -9 $pid
     gcloud dataflow jobs cancel $running_job
-    complete "failed when running streaming wordcount example with DataflowRunner"
+    complete "failed when running streaming wordcount example with DataflowRunner."
     exit 1
 fi
 kill -9 $pid
-
 gcloud dataflow jobs cancel $running_job
-
-
 cleanup_pubsub
+
 complete "Succeed"
