@@ -93,10 +93,10 @@ class DirectMetric(object):
   def __init__(self, aggregator):
     self.aggregator = aggregator
     self._attempted_lock = threading.Lock()
-    self.finished_attempted = aggregator.zero()
+    self.finished_attempted = aggregator.identity_element()
     self.inflight_attempted = {}
     self._committed_lock = threading.Lock()
-    self.finished_committed = aggregator.zero()
+    self.finished_committed = aggregator.identity_element()
 
   def commit_logical(self, bundle, update):
     with self._committed_lock:
