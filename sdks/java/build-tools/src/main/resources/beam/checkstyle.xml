@@ -379,6 +379,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
     WHITESPACE CHECKS
 
     -->
+    <module name="EmptyLineSeparator">
+      <property name="allowNoEmptyLineBetweenFields" value="false"/>
+      <property name="allowMultipleEmptyLines" value="true"/>
+      <property name="allowMultipleEmptyLinesInsideClassMembers" value="true"/>
+      <property name="tokens" value="IMPORT,CLASS_DEF" />
+      <!-- eventually start adding: ,INTERFACE_DEF,ENUM_DEF,
+           STATIC_INIT,INSTANCE_INIT,METHOD_DEF,CTOR_DEF, VARIABLE_DEF -->
+    </module>
 
     <module name="WhitespaceAround">
       <!-- Checks that various tokens are surrounded by whitespace.

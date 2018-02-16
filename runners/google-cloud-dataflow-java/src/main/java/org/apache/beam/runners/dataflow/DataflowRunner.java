@@ -876,6 +876,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         }
       }
     }
+
     BoundednessVisitor visitor = new BoundednessVisitor();
     p.traverseTopologically(visitor);
     return visitor.boundedness == IsBounded.UNBOUNDED;
@@ -1540,6 +1541,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .setCoder(source.getOutputCoder());
     }
   }
+
   /**
    * A marker {@link DoFn} for writing the contents of a {@link PCollection} to a streaming
    * {@link PCollectionView} backend implementation.
