@@ -38,6 +38,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -239,6 +241,126 @@ public class GreedilyFusedExecutableStageTest {
     assertThat(subgraph.getOutputPCollections(), emptyIterable());
     assertThat(
         subgraph.toPTransform().getSubtransformsList(), containsInAnyOrder("parDo", "window"));
+  }
+
+  @Test
+  public void materializesWithStatefulConsumer() {
+    // (impulse.out) -> parDo -> (parDo.out)
+    // (parDo.out) -> stateful -> stateful.out
+    // stateful has a state spec which prevents it from fusing with an upstream ParDo
+    PTransform parDoTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "impulse.out")
+            .putOutputs("output", "parDo.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .build()
+                            .toByteString()))
+            .build();
+    PTransform statefulTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "parDo.out")
+            .putOutputs("output", "stateful.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putStateSpecs("state", StateSpec.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+
+    QueryablePipeline p =
+        QueryablePipeline.fromComponents(
+            partialComponents
+                .toBuilder()
+                .putTransforms("parDo", parDoTransform)
+                .putPcollections(
+                    "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+                .putTransforms("stateful", statefulTransform)
+                .putPcollections(
+                    "stateful.out", PCollection.newBuilder().setUniqueName("stateful.out").build())
+                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .build());
+
+    ExecutableStage subgraph =
+        GreedilyFusedExecutableStage.forGrpcPortRead(
+            p,
+            impulseOutputNode,
+            ImmutableSet.of(PipelineNode.pTransform("parDo", parDoTransform)));
+    assertThat(
+        subgraph.getOutputPCollections(),
+        contains(
+            PipelineNode.pCollection(
+                "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())));
+    assertThat(
+        subgraph.toPTransform().getSubtransformsList(), containsInAnyOrder("parDo"));
+  }
+
+  @Test
+  public void materializesWithConsumerWithTimer() {
+    // (impulse.out) -> parDo -> (parDo.out)
+    // (parDo.out) -> timer -> timer.out
+    // timer has a timer spec which prevents it from fusing with an upstream ParDo
+    PTransform parDoTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "impulse.out")
+            .putOutputs("output", "parDo.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .build()
+                            .toByteString()))
+            .build();
+    PTransform timerTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "parDo.out")
+            .putOutputs("output", "timer.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+
+    QueryablePipeline p =
+        QueryablePipeline.fromComponents(
+            partialComponents
+                .toBuilder()
+                .putTransforms("parDo", parDoTransform)
+                .putPcollections(
+                    "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+                .putTransforms("timer", timerTransform)
+                .putPcollections(
+                    "timer.out", PCollection.newBuilder().setUniqueName("timer.out").build())
+                .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+                .build());
+
+    ExecutableStage subgraph =
+        GreedilyFusedExecutableStage.forGrpcPortRead(
+            p,
+            impulseOutputNode,
+            ImmutableSet.of(PipelineNode.pTransform("parDo", parDoTransform)));
+    assertThat(
+        subgraph.getOutputPCollections(),
+        contains(
+            PipelineNode.pCollection(
+                "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())));
+    assertThat(
+        subgraph.toPTransform().getSubtransformsList(), containsInAnyOrder("parDo"));
   }
 
   @Test
