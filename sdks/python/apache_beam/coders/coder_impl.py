@@ -52,6 +52,11 @@ except ImportError:
   from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
+try:
+  long        # Python 2
+except NameError:
+  long = int  # Python 3
+
 
 class CoderImpl(object):
   """For internal use only; no backwards-compatibility guarantees."""
