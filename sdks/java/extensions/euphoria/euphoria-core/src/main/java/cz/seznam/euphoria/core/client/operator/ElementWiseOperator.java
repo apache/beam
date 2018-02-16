@@ -18,6 +18,9 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
+
+import java.util.Set;
 
 /**
  * Operator working element-wise, with no context between elements.
@@ -29,9 +32,9 @@ public abstract class ElementWiseOperator<IN, OUT>
 
   protected final Dataset<OUT> output;
 
-  protected ElementWiseOperator(String name, Flow flow, Dataset<IN> input) {
+  protected ElementWiseOperator(String name, Flow flow, Dataset<IN> input, Set<OutputHint> outputHints) {
     super(name, flow, input);
-    this.output = createOutput(input);
+    this.output = createOutput(input, outputHints);
   }
 
   @Override

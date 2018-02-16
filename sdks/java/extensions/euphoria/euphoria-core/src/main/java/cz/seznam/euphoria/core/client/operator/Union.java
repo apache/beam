@@ -20,12 +20,16 @@ import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * The union of at least two datasets of the same type.<p>
@@ -119,9 +123,9 @@ public class Union<IN> extends Operator<IN, IN> {
     }
 
     @Override
-    public Dataset<IN> output() {
+    public Dataset<IN> output(OutputHint... outputHints) {
       final Flow flow = dataSets.get(0).getFlow();
-      final Union<IN> union = new Union<>(name, flow, dataSets);
+      final Union<IN> union = new Union<>(name, flow, dataSets, Sets.newHashSet(outputHints));
       flow.add(union);
       return union.output();
     }
@@ -176,6 +180,11 @@ public class Union<IN> extends Operator<IN, IN> {
 
   @SuppressWarnings("unchecked")
   Union(String name, Flow flow, List<Dataset<IN>> dataSets) {
+    this(name, flow, dataSets, Collections.emptySet());
+  }
+
+  @SuppressWarnings("unchecked")
+  Union(String name, Flow flow, List<Dataset<IN>> dataSets, Set<OutputHint> outputHints) {
     super(name, flow);
     Preconditions.checkArgument(
         dataSets.size() > 1,
@@ -184,7 +193,7 @@ public class Union<IN> extends Operator<IN, IN> {
         dataSets.stream().map(Dataset::getFlow).distinct().count() == 1,
         "Only data sets from the same flow can be passed to Union.");
     this.dataSets = dataSets;
-    this.output = createOutput(dataSets.get(0));
+    this.output = createOutput(dataSets.get(0), outputHints);
   }
 
   /**

@@ -20,9 +20,8 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.client.util.Pair;
-
-import java.util.Set;
 
 /**
  * Common methods used in operator builders to share related javadoc
@@ -94,7 +93,7 @@ public class Builders {
      *
      * @return the dataset representing the new operator's output
      */
-    Dataset<T> output();
+    Dataset<T> output(OutputHint... outputHints);
   }
 
   public interface OutputValues<K, V> extends Output<Pair<K, V>> {
@@ -106,24 +105,13 @@ public class Builders {
      *
      * @return the dataset representing the new operator's output
      */
-    default Dataset<V> outputValues() {
+    default Dataset<V> outputValues(OutputHint... outputHints) {
       return MapElements
           .named("extract-values")
           .of(output())
           .using(Pair::getSecond)
-          .output();
+          .output(outputHints);
     }
-  }
-
-  public interface OutputWithHint<T, HINT extends Hint> extends Output<T> {
-
-    /**
-     * Add runtime specific hints for the operator
-     *
-     * @param hints runtime specific hints
-     * @return output builder
-     */
-    Output<T> withHints(Set<HINT> hints);
   }
 
 }

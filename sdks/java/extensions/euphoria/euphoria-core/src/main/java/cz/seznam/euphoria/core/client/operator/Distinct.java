@@ -24,11 +24,14 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Operator outputting distinct (based on {@link Object#equals}) elements.
@@ -126,8 +129,7 @@ public class Distinct<IN, ELEM, W extends Window>
       return new OutputBuilder<>(name, input, mapper, windowing);
     }
 
-    @Override
-    public Dataset<ELEM> output() {
+    public Dataset<ELEM> output(OutputHint... outputHints) {
       return new OutputBuilder<>(name, input, mapper, null).output();
     }
   }
@@ -149,10 +151,10 @@ public class Distinct<IN, ELEM, W extends Window>
     }
 
     @Override
-    public Dataset<ELEM> output() {
+    public Dataset<ELEM> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
       Distinct<IN, ELEM, W> distinct = new Distinct<>(
-          name, flow, input, mapper, windowing);
+          name, flow, input, mapper, windowing, Sets.newHashSet(outputHints));
       flow.add(distinct);
       return distinct.output();
     }
@@ -190,9 +192,10 @@ public class Distinct<IN, ELEM, W extends Window>
            Flow flow,
            Dataset<IN> input,
            UnaryFunction<IN, ELEM> mapper,
-           @Nullable Windowing<IN, W> windowing) {
+           @Nullable Windowing<IN, W> windowing,
+           Set<OutputHint> outputHints) {
 
-    super(name, flow, input, mapper, windowing);
+    super(name, flow, input, mapper, windowing, outputHints);
   }
 
   @Override

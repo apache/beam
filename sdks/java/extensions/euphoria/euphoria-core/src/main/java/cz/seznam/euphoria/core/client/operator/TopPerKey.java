@@ -23,8 +23,8 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -32,8 +32,11 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
+import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
 
@@ -222,9 +225,9 @@ public class TopPerKey<
     }
 
     @Override
-    public Dataset<Triple<K, V, S>> output() {
+    public Dataset<Triple<K, V, S>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(
-          name, input, keyFn, valueFn, scoreFn, null).output();
+          name, input, keyFn, valueFn, scoreFn, null).output(outputHints);
     }
   }
 
@@ -247,11 +250,11 @@ public class TopPerKey<
     }
 
     @Override
-    public Dataset<Triple<K, V, S>> output() {
+    public Dataset<Triple<K, V, S>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
       TopPerKey<IN, K, V, S, W> top =
           new TopPerKey<>(flow, name, input, keyFn, valueFn,
-                  scoreFn, windowing);
+              scoreFn, windowing, Sets.newHashSet(outputHints));
       flow.add(top);
       return top.output();
     }
@@ -296,8 +299,9 @@ public class TopPerKey<
             UnaryFunction<IN, KEY> keyFn,
             UnaryFunction<IN, VALUE> valueFn,
             UnaryFunction<IN, SCORE> scoreFn,
-            @Nullable Windowing<IN, W> windowing) {
-    super(name, flow, input, keyFn, windowing);
+            @Nullable Windowing<IN, W> windowing,
+            Set<OutputHint> outputHints) {
+    super(name, flow, input, keyFn, windowing, outputHints);
 
     this.valueFn = valueFn;
     this.scoreFn = scoreFn;

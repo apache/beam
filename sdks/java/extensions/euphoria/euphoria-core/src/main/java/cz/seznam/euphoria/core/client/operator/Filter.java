@@ -21,9 +21,12 @@ import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Operator performing a filter operation.
@@ -94,9 +97,9 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
     }
 
     @Override
-    public Dataset<IN> output() {
+    public Dataset<IN> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      Filter<IN> filter = new Filter<>(name, flow, input, predicate);
+      Filter<IN> filter = new Filter<>(name, flow, input, predicate, Sets.newHashSet(outputHints));
       flow.add(filter);
 
       return filter.output();
@@ -134,8 +137,9 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
 
   final UnaryPredicate<IN> predicate;
 
-  Filter(String name, Flow flow, Dataset<IN> input, UnaryPredicate<IN> predicate) {
-    super(name, flow, input);
+  Filter(String name, Flow flow, Dataset<IN> input, UnaryPredicate<IN> predicate, Set<OutputHint>
+      outputHints) {
+    super(name, flow, input, outputHints);
     this.predicate = predicate;
   }
 

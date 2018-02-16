@@ -40,7 +40,6 @@ import java.util.Optional;
  *   <li>{@code by .......................} {@link UnaryFunction}s transforming left and right elements into keys
  *   <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element from joined window
  *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
- *   <li>{@code [withHints] ..............} specify hints about runtime data characteristics, see {@link JoinHint}
  *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  *
