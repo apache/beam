@@ -17,12 +17,19 @@
 package cz.seznam.euphoria.beam;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.operator.AssignEventTime;
+import cz.seznam.euphoria.core.client.operator.CountByKey;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
+import cz.seznam.euphoria.core.client.operator.ReduceWindow;
+import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.testing.DatasetAssert;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
@@ -91,6 +98,51 @@ public class BeamFlowTest {
     PCollection<Integer> unwrapped = flow.unwrapped(output);
     PAssert.that(unwrapped)
         .containsInAnyOrder(2, 3, 4, 5, 6);
+    pipeline.run();
+  }
+
+  @SuppressWarnings("unchecked")
+  public void testPipelineWithRBK() {
+    String raw = "hi there hi hi sue bob hi sue ZOW bob";
+    List<String> words = Arrays.asList(raw.split(" "));
+    Pipeline pipeline = Pipeline.create(options());
+    BeamFlow flow = BeamFlow.create(pipeline);
+    PCollection<String> input = pipeline.apply(
+        Create.of(words)).setTypeDescriptor(TypeDescriptor.of(String.class));
+    Dataset<String> dataset = flow.wrapped(input);
+    Dataset<Pair<String, Long>> output = CountByKey.of(dataset)
+        .keyBy(e -> e)
+        .output();
+    PCollection<Pair<String, Long>> beamOut = flow.unwrapped(output);
+    PAssert.that(beamOut)
+        .containsInAnyOrder(
+            Pair.of("hi", 4L),
+            Pair.of("there", 1L),
+            Pair.of("sue", 2L),
+            Pair.of("ZOW", 1L),
+            Pair.of("bob", 2L));
+    pipeline.run();
+  }
+
+  public void testPipelineWithEventTime() {
+    List<Pair<Integer, Long>> raw = Arrays.asList(
+        Pair.of(1, 1000L), Pair.of(2, 1500L), Pair.of(3, 1800L), // first window
+        Pair.of(4, 2000L), Pair.of(5, 2500L));                   // second window
+    Pipeline pipeline = Pipeline.create(options());
+    BeamFlow flow = BeamFlow.create(pipeline);
+    PCollection<Pair<Integer, Long>> input = pipeline.apply(Create.of(raw));
+    Dataset<Pair<Integer, Long>> dataset = flow.wrapped(input);
+    Dataset<Pair<Integer, Long>> timeAssigned = AssignEventTime.of(dataset)
+        .using(Pair::getSecond)
+        .output();
+    Dataset<Integer> output = ReduceWindow.of(timeAssigned)
+        .valueBy(Pair::getFirst)
+        .combineBy(Sums.ofInts())
+        .windowBy(Time.of(Duration.ofSeconds(1)))
+        .output();
+    PCollection<Integer> beamOut = flow.unwrapped(output);
+    PAssert.that(beamOut)
+        .containsInAnyOrder(6, 9);
     pipeline.run();
   }
 

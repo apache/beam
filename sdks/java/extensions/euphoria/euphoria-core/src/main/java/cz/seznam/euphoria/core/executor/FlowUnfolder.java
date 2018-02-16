@@ -166,7 +166,6 @@ public class FlowUnfolder {
 
         modified.traverse().forEach(m -> {
           List<Operator<?, ?>> parents = getParents(m, datasetProducers);
-          System.err.println(" *** unfolding operator " + n.get() + " to part " + m.get() + " with parents " + parents);
           ret.add(m.get(), parents);
           datasetProducers.put(m.get().output(), Optional.of(m.get()));
         });

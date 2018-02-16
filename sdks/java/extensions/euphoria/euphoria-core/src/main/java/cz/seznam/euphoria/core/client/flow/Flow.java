@@ -147,6 +147,16 @@ public class Flow implements Serializable {
     return add(operator, null);
   }
 
+
+  /**
+   * Called when a {@link Dataset} is persisted via {@link Dataset#persist}.
+   * @param <T> type parameter
+   * @param dataset the dataset that was persisted
+   */
+  public <T> void onPersisted(Dataset<T> dataset) {
+    // nop by default
+  }
+
   /**
    * Adds a new operator to the flow.
    *

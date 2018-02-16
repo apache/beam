@@ -79,15 +79,11 @@ class BeamExecutorContext {
   }
 
   <IN> PCollection<IN> getInput(Operator<IN, ?> operator) {
-    System.err.println(" *** getting input of " + operator);
     return Iterables.getOnlyElement(getInputs(operator));
   }
 
   @SuppressWarnings("unchecked")
   <IN> List<PCollection<IN>> getInputs(Operator<IN, ?> operator) {
-    System.err.println(
-        " *** operator " + operator + " has parents "
-            + dag.getNode(operator).getParents());
     return dag
         .getNode(operator)
         .getParents()

@@ -111,7 +111,6 @@ class FlowTranslator {
                   "Dataset " + op.output() + " has not been " +
                   "materialized"));
           DataSink<?> sink = op.output().getOutputSink();
-          System.err.println(" *** Sink for " + op + " is " + sink);
           if (sink != null) {
             // the leaf might be consumed by some other Beam transformation
             // so the sink might be null
