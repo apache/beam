@@ -16,16 +16,20 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * A transformation of a dataset from one type into another allowing user code
@@ -142,9 +146,9 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
 
     @Override
-    public Dataset<OUT> output() {
+    public Dataset<OUT> output(OutputHint... outputHints) {
       return new OutputBuilder<>(
-          this.using.name, this.using.input, this.functor, null).output();
+          this.using.name, this.using.input, this.functor, null).output(outputHints);
     }
   }
 
@@ -166,9 +170,10 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
 
     @Override
-    public Dataset<OUT> output() {
+    public Dataset<OUT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      FlatMap<IN, OUT> map = new FlatMap<>(name, flow, input, functor, evtTimeFn);
+      FlatMap<IN, OUT> map = new FlatMap<>(name, flow, input, functor, evtTimeFn, Sets.newHashSet
+          (outputHints));
       flow.add(map);
       return map.output();
     }
@@ -207,10 +212,17 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
 
   FlatMap(String name, Flow flow, Dataset<IN> input,
           UnaryFunctor<IN, OUT> functor,
-          @Nullable ExtractEventTime<IN> evtTimeFn) {
-    super(name, flow, input);
+          @Nullable ExtractEventTime<IN> evtTimeFn,
+          Set<OutputHint> outputHints) {
+    super(name, flow, input, outputHints);
     this.functor = functor;
     this.eventTimeFn = evtTimeFn;
+  }
+
+  FlatMap(String name, Flow flow, Dataset<IN> input,
+          UnaryFunctor<IN, OUT> functor,
+          @Nullable ExtractEventTime<IN> evtTimeFn) {
+    this(name, flow, input, functor, evtTimeFn, Collections.emptySet());
   }
 
   /**

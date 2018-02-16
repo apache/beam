@@ -23,13 +23,17 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * A {@link ReduceStateByKey} operator is a stateful, complex, lower-level-api,
@@ -277,10 +281,10 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public Dataset<Pair<KEY, OUT>> output() {
+    public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
           stateFactory, stateMerger, null)
-          .output();
+          .output(outputHints);
     }
   }
 
@@ -303,13 +307,13 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public Dataset<Pair<KEY, OUT>> output() {
+    public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
 
       ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W>
           reduceStateByKey =
           new ReduceStateByKey<>(name, flow, input, keyExtractor, valueExtractor,
-              windowing, stateFactory, stateMerger);
+              windowing, stateFactory, stateMerger, Sets.newHashSet(outputHints));
       flow.add(reduceStateByKey);
 
       return reduceStateByKey.output();
@@ -355,9 +359,21 @@ public class ReduceStateByKey<
                    UnaryFunction<IN, VALUE> valueExtractor,
                    @Nullable Windowing<IN, W> windowing,
                    StateFactory<VALUE, OUT, STATE> stateFactory,
-                   StateMerger<VALUE, OUT, STATE> stateMerger)
-  {
-    super(name, flow, input, keyExtractor, windowing);
+                   StateMerger<VALUE, OUT, STATE> stateMerger) {
+    this(name, flow, input, keyExtractor, valueExtractor, windowing, stateFactory, stateMerger,
+        Collections.emptySet());
+  }
+
+  ReduceStateByKey(String name,
+                   Flow flow,
+                   Dataset<IN> input,
+                   UnaryFunction<IN, KEY> keyExtractor,
+                   UnaryFunction<IN, VALUE> valueExtractor,
+                   @Nullable Windowing<IN, W> windowing,
+                   StateFactory<VALUE, OUT, STATE> stateFactory,
+                   StateMerger<VALUE, OUT, STATE> stateMerger,
+                   Set<OutputHint> outputHints) {
+    super(name, flow, input, keyExtractor, windowing, outputHints);
     this.stateFactory = stateFactory;
     this.valueExtractor = valueExtractor;
     this.stateCombiner = stateMerger;

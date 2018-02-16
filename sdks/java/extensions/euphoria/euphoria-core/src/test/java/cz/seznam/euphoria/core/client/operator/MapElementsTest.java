@@ -17,11 +17,10 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.io.Context;
+import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.*;
 
 public class MapElementsTest {
 
@@ -81,5 +80,19 @@ public class MapElementsTest {
 
     MapElements map = (MapElements) flow.operators().iterator().next();
     assertEquals("MapElements", map.getName());
+  }
+
+  @Test
+  public void testBuild_Hints() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 1);
+
+    Dataset<String> dataSetWithHint = MapElements.of(dataset).using(i -> i).output(SizeHint.FITS_IN_MEMORY);
+
+    assertTrue(dataSetWithHint.getHints().contains(SizeHint.FITS_IN_MEMORY));
+    assertEquals(1, dataSetWithHint.getHints().size());
+
+    Dataset<String> dataSetWithoutHint = MapElements.of(dataset).using(i -> i).output();
+    assertEquals(0, dataSetWithoutHint.getHints().size());
   }
 }

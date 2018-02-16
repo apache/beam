@@ -16,14 +16,17 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import java.util.Objects;
+import java.util.Set;
 
 /** A convenient alias for assignment of event time.
  *
@@ -87,9 +90,10 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
     }
 
     @Override
-    public Dataset<IN> output() {
+    public Dataset<IN> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      AssignEventTime<IN> op = new AssignEventTime<>(name, flow, input, eventTimeFn);
+      AssignEventTime<IN> op = new AssignEventTime<>(name, flow, input, eventTimeFn, Sets.newHashSet
+          (outputHints));
       flow.add(op);
       return op.output();
     }
@@ -98,8 +102,8 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
   private final ExtractEventTime<IN> eventTimeFn;
 
   AssignEventTime(String name, Flow flow, Dataset<IN> input,
-                  ExtractEventTime<IN> eventTimeFn) {
-    super(name, flow, input);
+                  ExtractEventTime<IN> eventTimeFn, Set<OutputHint> outputHints) {
+    super(name, flow, input, outputHints);
     this.eventTimeFn = eventTimeFn;
   }
 

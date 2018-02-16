@@ -18,11 +18,11 @@ package cz.seznam.euphoria.fluent;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.operator.Builders.Output;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.Union;
-import cz.seznam.euphoria.core.client.operator.Builders.Output;
 import cz.seznam.euphoria.core.executor.Executor;
 
 import static java.util.Objects.requireNonNull;
