@@ -168,6 +168,7 @@
     <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
+    <extra-enforcer-rules.version>1.0-beta-7</extra-enforcer-rules.version>
     <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
     <maven-gpg-plugin.version>1.6</maven-gpg-plugin.version>
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
@@ -2222,7 +2223,7 @@
           <dependency>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>extra-enforcer-rules</artifactId>
-            <version>1.0-beta-6</version>
+            <version>${extra-enforcer-rules.version}</version>
           </dependency>
         </dependencies>
       </plugin>
