@@ -380,8 +380,8 @@ class BundleBasedDirectRunner(PipelineRunner):
     return result
 
 
-# Use the BundleBasedDirectRunner as the default.
-DirectRunner = BundleBasedDirectRunner
+# Use the SwitchingDirectRunner as the default.
+DirectRunner = SwitchingDirectRunner
 
 
 class DirectPipelineResult(PipelineResult):
