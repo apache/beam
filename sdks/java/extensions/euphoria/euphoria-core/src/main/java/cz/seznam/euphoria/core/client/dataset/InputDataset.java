@@ -58,6 +58,15 @@ class InputDataset<T> implements Dataset<T> {
         "The input dataset is already stored.");
   }
 
+  /**
+   * Input Dataset doesn't have hints
+   * @return empty set
+   */
+  @Override
+  public Set<OutputHint> getHints() {
+    return Collections.emptySet();
+  }
+
   @Override
   public Flow getFlow() {
     return flow;

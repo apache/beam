@@ -23,11 +23,14 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Operator counting elements with same key.
@@ -100,8 +103,8 @@ public class CountByKey<IN, KEY, W extends Window>
     }
 
     @Override
-    public Dataset<Pair<KEY, Long>> output() {
-      return windowBy(null).output();
+    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
+      return windowBy(null).output(outputHints);
     }
   }
 
@@ -122,10 +125,10 @@ public class CountByKey<IN, KEY, W extends Window>
     }
 
     @Override
-    public Dataset<Pair<KEY, Long>> output() {
+    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
       CountByKey<IN, KEY, W> count = new CountByKey<>(
-              name, flow, input, keyExtractor, windowing);
+          name, flow, input, keyExtractor, windowing, Sets.newHashSet(outputHints));
       flow.add(count);
       return count.output();
     }
@@ -163,9 +166,10 @@ public class CountByKey<IN, KEY, W extends Window>
              Flow flow,
              Dataset<IN> input,
              UnaryFunction<IN, KEY> extractor,
-             @Nullable Windowing<IN, W> windowing) {
+             @Nullable Windowing<IN, W> windowing,
+             Set<OutputHint> outputHints) {
 
-    super(name, flow, input, extractor, windowing);
+    super(name, flow, input, extractor, windowing, outputHints);
   }
 
   @Override

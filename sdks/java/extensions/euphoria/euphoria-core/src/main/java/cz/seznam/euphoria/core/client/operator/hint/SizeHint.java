@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.operator;
+package cz.seznam.euphoria.core.client.operator.hint;
 
-import cz.seznam.euphoria.core.annotation.audience.Audience;
-
-import java.io.Serializable;
-
-@Audience(Audience.Type.INTERNAL)
-public interface Hint extends Serializable {
-
+/**
+ * Extra information for runner about Dataset size
+ */
+public enum SizeHint implements OutputHint {
+  /**
+   * Indicate to runner that dataset can fit in memory and this information
+   * could be used for optimization (e.g. Broadcast hash join)
+   */
+  FITS_IN_MEMORY
 }

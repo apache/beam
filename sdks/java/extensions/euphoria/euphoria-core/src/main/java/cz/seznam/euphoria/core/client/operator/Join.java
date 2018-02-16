@@ -26,6 +26,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
@@ -35,11 +36,11 @@ import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
@@ -58,7 +59,6 @@ import java.util.Set;
  *   <li>{@code by .......................} {@link UnaryFunction}s transforming left and right elements into keys
  *   <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element from joined window
  *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
- *   <li>{@code [withHints] ..............} specify hints about runtime data characteristics, see {@link JoinHint}
  *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
  *
@@ -75,7 +75,7 @@ import java.util.Set;
 public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W, Join<LEFT, RIGHT, KEY, OUT, W>>
-    implements HintAware<JoinHint>, Builders.OutputValues<KEY, OUT> {
+    implements Builders.OutputValues<KEY, OUT> {
 
   public enum Type {
     INNER,
@@ -156,7 +156,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   }
 
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
-      implements Builders.OutputWithHint<Pair<KEY, OUT>, JoinHint>,
+      implements Builders.Output<Pair<KEY, OUT>>,
       Builders.OutputValues<KEY, OUT>,
       OptionalMethodBuilder<WindowingBuilder<LEFT, RIGHT, KEY, OUT>> {
 
@@ -186,69 +186,19 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     }
 
     @Override
-    public Dataset<Pair<KEY, OUT>> output() {
-      return windowBy(null).withHints(Collections.emptySet()).output();
+    public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
+      return windowBy(null).output(outputHints);
     }
 
-    @Override
-    public OutputBuilder<LEFT, RIGHT, KEY, OUT, Window> withHints(Set<JoinHint> hints) {
-      return windowBy(null).withHints(hints);
-    }
-
-    public <W extends Window> HintBuilderOutput<LEFT, RIGHT, KEY, OUT, W> windowBy(
+    public <W extends Window> OutputBuilder<LEFT, RIGHT, KEY, OUT, W> windowBy(
         Windowing<Either<LEFT, RIGHT>, W> windowing) {
-      return new HintBuilderOutput<>(name, left, right, leftKeyExtractor,
+      return new OutputBuilder<>(name, left, right, leftKeyExtractor,
           rightKeyExtractor, joinFunc, type, windowing);
     }
   }
 
-  public static class HintBuilderOutput<LEFT, RIGHT, KEY, OUT, W extends Window>
-      implements Builders.OutputWithHint<Pair<KEY, OUT>, JoinHint>,
-          Builders.OutputValues<KEY, OUT> {
-
-    private final String name;
-    private final Dataset<LEFT> left;
-    private final Dataset<RIGHT> right;
-    private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
-    private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
-    private final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
-    private final Type type;
-
-    @Nullable
-    private final Windowing<Either<LEFT, RIGHT>, W> windowing;
-
-    HintBuilderOutput(String name,
-                      Dataset<LEFT> left,
-                      Dataset<RIGHT> right,
-                      UnaryFunction<LEFT, KEY> leftKeyExtractor,
-                      UnaryFunction<RIGHT, KEY> rightKeyExtractor,
-                      BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
-                      Type type,
-                      @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing) {
-      this.name = Objects.requireNonNull(name);
-      this.left = Objects.requireNonNull(left);
-      this.right = Objects.requireNonNull(right);
-      this.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
-      this.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
-      this.joinFunc = Objects.requireNonNull(joinFunc);
-      this.type = Objects.requireNonNull(type);
-      this.windowing = windowing;
-    }
-
-    @Override
-    public Dataset<Pair<KEY, OUT>> output() {
-      return withHints(Collections.emptySet()).output();
-    }
-
-    @Override
-    public OutputBuilder<LEFT, RIGHT, KEY, OUT, W> withHints(Set<JoinHint> hints) {
-      return new OutputBuilder<>(name, left, right, leftKeyExtractor,
-          rightKeyExtractor, joinFunc, type, windowing, hints);
-    }
-  }
-
   public static class OutputBuilder<LEFT, RIGHT, KEY, OUT, W extends Window>
-      implements Builders.OutputValues<KEY, OUT> {
+      implements Builders.OutputValues<KEY, OUT>, Builders.Output<Pair<KEY, OUT>> {
 
     private final String name;
     private final Dataset<LEFT> left;
@@ -260,7 +210,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
     @Nullable
     private final Windowing<Either<LEFT, RIGHT>, W> windowing;
-    private final Set<JoinHint> hints;
 
     OutputBuilder(String name,
                   Dataset<LEFT> left,
@@ -269,8 +218,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                   UnaryFunction<RIGHT, KEY> rightKeyExtractor,
                   BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
                   Type type,
-                  @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-                  Set<JoinHint> hints) {
+                  @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing) {
       this.name = Objects.requireNonNull(name);
       this.left = Objects.requireNonNull(left);
       this.right = Objects.requireNonNull(right);
@@ -279,15 +227,14 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       this.joinFunc = Objects.requireNonNull(joinFunc);
       this.type = Objects.requireNonNull(type);
       this.windowing = windowing;
-      this.hints = Objects.requireNonNull(hints);
     }
 
     @Override
-    public Dataset<Pair<KEY, OUT>> output() {
+    public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
       final Flow flow = left.getFlow();
       final Join<LEFT, RIGHT, KEY, OUT, W> join = new Join<>(
           name, flow, left, right, leftKeyExtractor,
-          rightKeyExtractor, joinFunc, type, windowing, hints);
+          rightKeyExtractor, joinFunc, type, windowing, Sets.newHashSet(outputHints));
       flow.add(join);
       return join.output();
     }
@@ -302,7 +249,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   @VisibleForTesting final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
 
   private final Type type;
-  private final Set<JoinHint> hints;
 
   Join(String name,
        Flow flow,
@@ -312,7 +258,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
        BinaryFunctor<LEFT, RIGHT, OUT> functor,
        Type type,
        @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-       Set<JoinHint> hints) {
+       Set<OutputHint> outputHints) {
     super(name, flow, windowing, (Either<LEFT, RIGHT> elem) -> {
       if (elem.isLeft()) {
         return leftKeyExtractor.apply(elem.left());
@@ -325,10 +271,9 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     this.rightKeyExtractor = rightKeyExtractor;
     this.functor = functor;
     @SuppressWarnings("unchecked")
-    Dataset<Pair<KEY, OUT>> output = createOutput((Dataset) left);
+    Dataset<Pair<KEY, OUT>> output = createOutput((Dataset) left, outputHints);
     this.output = output;
     this.type = type;
-    this.hints = Objects.requireNonNull(hints);
   }
 
   @Override
@@ -339,6 +284,11 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
   @Override
   public Dataset<Pair<KEY, OUT>> output() {
+    return output;
+  }
+
+  @Override
+  public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
     return output;
   }
 
@@ -564,11 +514,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   }
 
   @Override
-  public Set<JoinHint> getHints() {
-    return hints;
-  }
-
-  @Override
   @SuppressWarnings("unchecked")
   public DAG<Operator<?, ?>> getBasicOps() {
     final Flow flow = getFlow();
@@ -603,5 +548,4 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     dag.add(reduce, union);
     return dag;
   }
-
 }

@@ -19,10 +19,12 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Datasets;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 
 import java.io.Serializable;
 import java.util.Collection;
+import java.util.Set;
 
 /**
  * An operator base class. All operators inherit his class.
@@ -69,9 +71,9 @@ public abstract class Operator<IN, OUT> implements Serializable {
    *
    * @return a newly created dataset associated with this operator as its output
    */
-  final Dataset<OUT> createOutput(final Dataset<IN> input) {
+  final Dataset<OUT> createOutput(final Dataset<IN> input, Set<OutputHint> outputHints) {
     Flow flow = input.getFlow();
-    return Datasets.createOutputFor(flow, input, this);
+    return Datasets.createOutputFor(flow, input, this, outputHints);
   }
 
   /**

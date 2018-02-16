@@ -22,9 +22,13 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctionEnv;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Simple one-to-one transformation of input elements. It is a special case of
@@ -107,9 +111,9 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     }
 
     @Override
-    public Dataset<OUT> output() {
+    public Dataset<OUT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      MapElements<IN, OUT> map = new MapElements<>(name, flow, input, mapper);
+      MapElements<IN, OUT> map = new MapElements<>(name, flow, input, mapper, Sets.newHashSet(outputHints));
       flow.add(map);
 
       return map.output();
@@ -150,14 +154,14 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
               Flow flow,
               Dataset<IN> input,
               UnaryFunction<IN, OUT> mapper) {
-    this(name, flow, input, (el, ctx) -> mapper.apply(el));
+    this(name, flow, input, (el, ctx) -> mapper.apply(el), Collections.emptySet());
   }
 
   MapElements(String name,
               Flow flow,
               Dataset<IN> input,
-              UnaryFunctionEnv<IN, OUT> mapper) {
-    super(name, flow, input);
+              UnaryFunctionEnv<IN, OUT> mapper, Set<OutputHint> outputHints) {
+    super(name, flow, input, outputHints);
     this.mapper = mapper;
   }
 

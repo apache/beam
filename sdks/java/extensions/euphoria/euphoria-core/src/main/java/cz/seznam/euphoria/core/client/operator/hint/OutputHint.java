@@ -13,27 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.operator;
+package cz.seznam.euphoria.core.client.operator.hint;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
-@Audience(Audience.Type.CLIENT)
-public class JoinHints {
+import java.io.Serializable;
 
-  private static final BroadcastHashJoin BROADCAST_HASH_JOIN = new BroadcastHashJoin();
-
-  public static BroadcastHashJoin broadcastHashJoin() {
-    return BROADCAST_HASH_JOIN;
-  }
-
-  /**
-   * Broadcasts optional join side to all executors.
-   */
-  public static class BroadcastHashJoin implements JoinHint {
-
-    private BroadcastHashJoin() {
-
-    }
-  }
+/**
+ * Specify hints about runtime data characteristics
+ */
+@Audience(Audience.Type.INTERNAL)
+public interface OutputHint extends Serializable {
 
 }
