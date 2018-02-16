@@ -21,9 +21,6 @@ package org.apache.beam.runners.core.construction.graph;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Iterables;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
@@ -83,21 +80,6 @@ public class QueryablePipeline {
    * {@link PTransformNode} any number of times with different local names.
    */
   private final Network<PipelineNode, PipelineEdge> pipelineNetwork;
-
-  private final LoadingCache<PipelineNode, Long> nodeWeights =
-      CacheBuilder.newBuilder()
-          .build(
-              new CacheLoader<PipelineNode, Long>() {
-                @Override
-                public Long load(PipelineNode node) throws Exception {
-                  // root nodes have weight 1;
-                  long weight = 1;
-                  for (PipelineNode pred : pipelineNetwork.predecessors(node)) {
-                    weight += nodeWeights.get(pred);
-                  }
-                  return weight;
-                }
-              });
 
   private QueryablePipeline(Components allComponents) {
     this.components = retainOnlyPrimitives(allComponents);
