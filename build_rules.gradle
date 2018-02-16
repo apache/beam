@@ -367,15 +367,31 @@ ext.applyJavaNature = {
     }
   }
 
-  def aptGeneratedMain = "${project.buildDir}/generated/source/apt/main"
-  def aptGeneratedTest = "${project.buildDir}/generated/source/apt/test"
+  // These directories for when build actions are delegated to Gradle
+  def gradleAptGeneratedMain = "${project.buildDir}/generated/source/apt/main"
+  def gradleAptGeneratedTest = "${project.buildDir}/generated/source/apt/test"
+
+  // These directories for when build actions are executed by Idea
+  // IntelliJ does not add these source roots (that it owns!) unless hinted
+  def ideaRoot = "${project.projectDir}/out"
+  def ideaAptGeneratedMain = "${ideaRoot}/production/classes/generated"
+  def ideaAptGeneratedTest = "${ideaRoot}/test/classes/generated_test"
+
   idea {
     module {
-      sourceDirs += file(aptGeneratedMain)
-      generatedSourceDirs += file(aptGeneratedMain)
+      sourceDirs += file(gradleAptGeneratedMain)
+      testSourceDirs += file(gradleAptGeneratedTest)
 
-      testSourceDirs += file(aptGeneratedTest)
-      generatedSourceDirs += file(aptGeneratedTest)
+      sourceDirs += file(ideaAptGeneratedMain)
+      testSourceDirs += file(ideaAptGeneratedTest)
+
+      generatedSourceDirs += [
+        file(gradleAptGeneratedMain),
+        file(gradleAptGeneratedTest),
+        file(ideaAptGeneratedMain),
+        file(ideaAptGeneratedTest)
+      ]
+
     }
   }
 }
