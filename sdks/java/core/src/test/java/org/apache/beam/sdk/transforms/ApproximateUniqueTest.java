@@ -302,20 +302,12 @@ public class ApproximateUniqueTest implements Serializable {
   }
 
   /**
-   * Test ApproximateUniqueCombineFn. TestPipeline does not use combiners.
+   * Test ApproximateUniqueCombineFn. TestPipeline does seem to test merging partial results.
    */
-  @RunWith(Parameterized.class)
+  @RunWith(JUnit4.class)
   public static class ApproximateUniqueCombineFnTest {
 
-    @Parameterized.Parameter
-    public long elementCount;
-    @Parameterized.Parameter(1)
-    public long uniqueCount;
-    @Parameterized.Parameter(2)
-    public int sampleSize;
-
-    @Test
-    public void testCombineFn() {
+    private void runCombineFnTest(long elementCount, long uniqueCount, int sampleSize) {
       List<Double> input = LongStream
         .range(0, elementCount)
         .mapToObj(i -> 1.0 / (i % uniqueCount  + 1))
@@ -328,20 +320,19 @@ public class ApproximateUniqueTest implements Serializable {
       );
     }
 
-    @Parameterized.Parameters(name = "elements_{0}_unique_{1}_sample_{2}")
-    public static Iterable<Object[]> data() {
-      return ImmutableList.<Object[]>builder()
-        .add(
-          new Object[] {
-            1000, 100, 16
-          },
-          new Object[] {
-            1000, 800, 100
-          },
-          new Object[] {
-            200, 100, 150 // Exact match expected.
-          })
-        .build();
+    @Test
+    public void testFnWithSmallerFractionOfUniques() {
+      runCombineFnTest(1000, 100, 16);
+    }
+
+    @Test
+    public void testWithLargerFractionOfUniques() {
+      runCombineFnTest(1000, 800, 100);
+    }
+
+    @Test
+    public void testWithLargeSampleSize() {
+      runCombineFnTest(200, 100, 150);
     }
   }
 
