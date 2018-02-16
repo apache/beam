@@ -140,7 +140,7 @@ class CounterCell(Counter, MetricCell):
   """
   def __init__(self, *args):
     super(CounterCell, self).__init__(*args)
-    self.value = 0
+    self.value = CounterAggregator.identity_element()
 
   def combine(self, other):
     result = CounterCell()
@@ -170,7 +170,7 @@ class DistributionCell(Distribution, MetricCell):
   """
   def __init__(self, *args):
     super(DistributionCell, self).__init__(*args)
-    self.data = DistributionAggregator.zero()
+    self.data = DistributionAggregator.identity_element()
 
   def combine(self, other):
     result = DistributionCell()
@@ -211,7 +211,7 @@ class GaugeCell(Gauge, MetricCell):
   """
   def __init__(self, *args):
     super(GaugeCell, self).__init__(*args)
-    self.data = GaugeAggregator.zero()
+    self.data = GaugeAggregator.identity_element()
 
   def combine(self, other):
     result = GaugeCell()
@@ -417,7 +417,13 @@ class MetricAggregator(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Base interface for aggregating metric data during pipeline execution."""
-  def zero(self):
+
+  def identity_element(self):
+    """Returns the identical element of an Aggregation.
+
+    For the identity element, it must hold that
+     Aggregator.combine(any_element, identity_element) == any_element.
+    """
     raise NotImplementedError
 
   def combine(self, updates):
@@ -435,7 +441,7 @@ class CounterAggregator(MetricAggregator):
   Values aggregated should be ``int`` objects.
   """
   @staticmethod
-  def zero():
+  def identity_element():
     return 0
 
   def combine(self, x, y):
@@ -453,7 +459,7 @@ class DistributionAggregator(MetricAggregator):
   Values aggregated should be ``DistributionData`` objects.
   """
   @staticmethod
-  def zero():
+  def identity_element():
     return DistributionData(0, 0, None, None)
 
   def combine(self, x, y):
@@ -471,7 +477,7 @@ class GaugeAggregator(MetricAggregator):
   Values aggregated should be ``GaugeData`` objects.
   """
   @staticmethod
-  def zero():
+  def identity_element():
     return GaugeData(None, timestamp=0)
 
   def combine(self, x, y):
