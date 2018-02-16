@@ -209,4 +209,4 @@ class DataflowMetrics(MetricResults):
             'distributions': [elm for elm in metric_results
                               if self.matches(filter, elm.key)
                               and DataflowMetrics._is_distribution(elm)],
-            'gauges': []} # Gauges are not currently supported by dataflow
+            'gauges': []}  # TODO(pabloem): Add Gauge support for dataflow.
