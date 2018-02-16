@@ -44,6 +44,7 @@ sdks/python/apache_beam/portability/common_urns.py
 **/*.iml
 **/*.ipr
 **/*.iws
+**/out/**/*
 
 # Ignore Eclipse files.
 **/.classpath
