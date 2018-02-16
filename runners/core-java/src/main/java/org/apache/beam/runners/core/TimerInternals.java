@@ -55,10 +55,11 @@ public interface TimerInternals {
    *
    * <p>It is an error to set a timer for two different time domains.
    */
-  void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
+  void setTimer(StateNamespace namespace, String timerId, Instant target, Instant outputTimestamp,
+      TimeDomain timeDomain);
 
   /**
-   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}.
+   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, Instant, TimeDomain)}.
    */
   @Deprecated
   void setTimer(TimerData timerData);
@@ -193,7 +194,7 @@ public interface TimerInternals {
         String timerId, StateNamespace namespace, Instant timestamp, Instant outputTimestamp,
         TimeDomain domain) {
       return new AutoValue_TimerInternals_TimerData(
-          timerId, namespace, timestamp, outputTimestamp,domain);
+          timerId, namespace, timestamp, outputTimestamp, domain);
     }
 
     /**
@@ -260,7 +261,7 @@ public interface TimerInternals {
   /**
    * Used for sorting {@link TimerData} by output timestamp of the timer.
    */
-  public class TimerOutputTimestampComparator implements Comparator<TimerData> {
+  class TimerOutputTimestampComparator implements Comparator<TimerData> {
 
     @Override
     public int compare(TimerData timer1, TimerData timer2) {
@@ -303,6 +304,7 @@ public interface TimerInternals {
       STRING_CODER.encode(timer.getTimerId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
+      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
       STRING_CODER.encode(timer.getDomain().name(), outStream);
     }
 
@@ -313,8 +315,9 @@ public interface TimerInternals {
       StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
+      Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, namespace, timestamp, domain);
+      return TimerData.of(timerId, namespace, timestamp, outputTimestamp, domain);
     }
 
     @Override

@@ -103,12 +103,12 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   @Override
   public void setTimer(StateNamespace namespace, String timerId, Instant target,
-      TimeDomain timeDomain) {
-    setTimer(TimerData.of(timerId, namespace, target, timeDomain));
+      Instant outputTimestamp, TimeDomain timeDomain) {
+    setTimer(TimerData.of(timerId, namespace, target, outputTimestamp, timeDomain));
   }
 
   /**
-   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}.
+   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, Instant, TimeDomain)}.
    */
   @Deprecated
   @Override
