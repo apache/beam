@@ -90,13 +90,16 @@ BEAM_PYTHON_RELEASE="apache-beam-$VERSION-source-release.zip"
 PROJECT_ID='my-first-project-190318'
 BUCKET_NAME='yifan_auto_verification_test_bucket'
 TEMP_DIR='/temp'
+#STREAMING_PROJECT_ID='google.com:dataflow-streaming'
+#STREAMING_BUCKET_NAME='python-streaming-test'
+#STREAMING_TEMP_DIR='/temp'
 
-# PROJECT_ID='apache-beam-testing'
-# BUCKET_NAME='temp-storage-for-release-validation-tests'
-# TEMP_DIR='/quickstart'
-STREAMING_PROJECT_ID='google.com:dataflow-streaming'
-STREAMING_BUCKET_NAME='python-streaming-test'
-STREAMING_TEMP_DIR='/temp'
+#PROJECT_ID='apache-beam-testing'
+#BUCKET_NAME='temp-storage-for-release-validation-tests'
+#TEMP_DIR='/quickstart'
+STREAMING_PROJECT_ID='apache-beam-testing'
+STREAMING_BUCKET_NAME='temp-storage-for-release-validation-tests'
+STREAMING_TEMP_DIR='/quickstart'
 NUM_WORKERS=1
 WORDCOUNT_OUTPUT='wordcount_direct.txt'
 PUBSUB_TOPIC1='wordstream-python-topic-1'
@@ -166,13 +169,12 @@ else
 	complete "failed when running wordcount example with DirectRunner"
 	exit 1
 fi
+echo "wordcount successfully run on DirectRunner"
 
 
 #
 # 5. Run wordcount with DataflowRunner
 #
-
-
 
 
 #
@@ -186,6 +188,7 @@ python -m apache_beam.examples.streaming_wordcount \
 --input_topic projects/$STREAMING_PROJECT_ID/topics/$PUBSUB_TOPIC1 \
 --output_topic projects/$STREAMING_PROJECT_ID/topics/$PUBSUB_TOPIC2 \
 --streaming &
+pid=$!
 
 sleep 15
 # verify result
@@ -198,9 +201,13 @@ then
 else
     echo "ERROR: The streaming wordcount example failed on DirectRunner"
     cleanup_pubsub
+    kill -9 $pid
     complete "failed when running streaming wordcount example with DirectRunner"
     exit 1
 fi
+kill -9 $pid
+
+
 
 
 cleanup_pubsub

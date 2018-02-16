@@ -145,36 +145,36 @@ println()
 ///*
 // * 7. Run Streaming Wordcount with DataflowRunner
 //* */
-//cmd.setLength(0) //clear the cmd buffer
-//cmd.append("python -m apache_beam.examples.streaming_wordcount ")
-//    .append("--streaming ")
-//    .append("--job_name pyflow-wordstream-candidate ")
-//    .append("--project ${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ")
-//    .append("--runner DataflowRunner ")
-//    .append("--input_topic projects/${PythonReleaseConfiguration.STREAMING_PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC1} ")
-//    .append("--output_topic projects/${PythonReleaseConfiguration.STREAMING_PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC2} ")
-//    .append("--staging_location gs://${PythonReleaseConfiguration.STREAMING_BUCKET_NAME}${PythonReleaseConfiguration.STREAMING_TEMP_DIR} ")
-//    .append("--temp_location gs://${PythonReleaseConfiguration.STREAMING_BUCKET_NAME}${PythonReleaseConfiguration.STREAMING_TEMP_DIR} ")
-//    .append("--num_workers ${PythonReleaseConfiguration.NUM_WORKERS} ")
-//    .append("--sdk_location dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz ")
-//
-//print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
-//def streaming_wordcount_dataflow_thread = Thread.start(){
-//    t.run(cmd.toString())
-//}
-//t.run("sleep 15")
-//
-//// verify result
-//run_pubsub_publish(t)
-//run_pubsub_pull(t)
-//t.see("like: 1")
-//streaming_wordcount_dataflow_thread.stop()
-//
-//// clean up pubsub topics and subscription and delete dataflow job
+cmd.setLength(0) //clear the cmd buffer
+cmd.append("python -m apache_beam.examples.streaming_wordcount ")
+    .append("--streaming ")
+    .append("--job_name pyflow-wordstream-candidate ")
+    .append("--project ${PythonReleaseConfiguration.STREAMING_PROJECT_ID} ")
+    .append("--runner DataflowRunner ")
+    .append("--input_topic projects/${PythonReleaseConfiguration.STREAMING_PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC1} ")
+    .append("--output_topic projects/${PythonReleaseConfiguration.STREAMING_PROJECT_ID}/topics/${PythonReleaseConfiguration.PUBSUB_TOPIC2} ")
+    .append("--staging_location gs://${PythonReleaseConfiguration.STREAMING_BUCKET_NAME}${PythonReleaseConfiguration.STREAMING_TEMP_DIR} ")
+    .append("--temp_location gs://${PythonReleaseConfiguration.STREAMING_BUCKET_NAME}${PythonReleaseConfiguration.STREAMING_TEMP_DIR} ")
+    .append("--num_workers ${PythonReleaseConfiguration.NUM_WORKERS} ")
+    .append("--sdk_location dist/apache-beam-${PythonReleaseConfiguration.VERSION}.tar.gz ")
+
+print_separator("Running Streaming wordcount example with DirectRunner with command: ", cmd.toString())
+def streaming_wordcount_dataflow_thread = Thread.start(){
+    t.run(cmd.toString())
+}
+t.run("sleep 15")
+
+// verify result
+run_pubsub_publish(t)
+run_pubsub_pull(t)
+t.see("like: 1")
+streaming_wordcount_dataflow_thread.stop()
+
+// clean up pubsub topics and subscription and delete dataflow job
 cleanup_pubsub(t)
-//t.run('gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d\' \' -f1')
-//def running_job = t.output()
-//t.run("gcloud dataflow jobs cancel ${running_job}")
+t.run('gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d\' \' -f1')
+def running_job = t.output()
+t.run("gcloud dataflow jobs cancel ${running_job}")
 
 println '*********************************'
 println 'Verification Complete'
