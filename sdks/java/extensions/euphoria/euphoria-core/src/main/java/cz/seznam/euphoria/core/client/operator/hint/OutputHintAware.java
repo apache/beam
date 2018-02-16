@@ -13,11 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.operator;
+package cz.seznam.euphoria.core.client.operator.hint;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
-@Audience(Audience.Type.INTERNAL)
-public interface JoinHint extends Hint {
+import java.util.Set;
 
+@Audience(Audience.Type.INTERNAL)
+public interface OutputHintAware<HINT extends OutputHint> {
+
+  /**
+   * Returns all hints for the operator or Dataset.
+   *
+   * @return hints for the operator or Dataset
+   */
+  Set<HINT> getHints();
 }

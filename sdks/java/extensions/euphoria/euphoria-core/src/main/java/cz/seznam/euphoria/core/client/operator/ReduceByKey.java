@@ -27,10 +27,10 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import cz.seznam.euphoria.core.client.io.SpillTools;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
@@ -40,11 +40,15 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.util.SingleValueContext;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -96,6 +100,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
         IN, IN, IN, KEY, Pair<KEY, OUT>, W,
         ReduceByKey<IN, KEY, VALUE, OUT, W>>
     implements Builders.OutputValues<KEY, OUT> {
+
 
   public static class OfBuilder implements Builders.Of {
     private final String name;
@@ -279,12 +284,13 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     }
 
     @Override
-    public Dataset<Pair<KEY, OUT>> output() {
+    public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
       return new DatasetBuilder5<>(
           name, input, keyExtractor, valueExtractor,
-          reducer, null, valuesComparator).output();
+          reducer, null, valuesComparator).output(outputHints);
     }
   }
+
 
 
   public static class SortableDatasetBuilder4<IN, KEY, VALUE, OUT>
@@ -319,7 +325,6 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   }
 
 
-
   public static class DatasetBuilder5<IN, KEY, VALUE, OUT, W extends Window>
       extends DatasetBuilder4<IN, KEY, VALUE, OUT>
       implements Builders.OutputValues<KEY, OUT> {
@@ -341,11 +346,11 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     }
 
     @Override
-    public Dataset<Pair<KEY, OUT>> output() {
+    public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
       ReduceByKey<IN, KEY, VALUE, OUT, W> reduce = new ReduceByKey<>(
               name, flow, input, keyExtractor, valueExtractor,
-              windowing, reducer, valuesComparator);
+          windowing, reducer, valuesComparator, Sets.newHashSet(outputHints));
       flow.add(reduce);
       return reduce.output();
     }
@@ -395,9 +400,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     this(
         name, flow, input, keyExtractor, valueExtractor,
         windowing, (ReduceFunctor<VALUE, OUT>) toReduceFunctor(reducer),
-        null);
+        null, Collections.emptySet());
   }
-
 
   ReduceByKey(String name,
               Flow flow,
@@ -407,8 +411,21 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
               @Nullable Windowing<IN, W> windowing,
               ReduceFunctor<VALUE, OUT> reducer,
               @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
+    this(name, flow, input, keyExtractor, valueExtractor, windowing, reducer, valueComparator,
+        Collections.emptySet());
+  }
 
-    super(name, flow, input, keyExtractor, windowing);
+  ReduceByKey(String name,
+              Flow flow,
+              Dataset<IN> input,
+              UnaryFunction<IN, KEY> keyExtractor,
+              UnaryFunction<IN, VALUE> valueExtractor,
+              @Nullable Windowing<IN, W> windowing,
+              ReduceFunctor<VALUE, OUT> reducer,
+              @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator,
+              Set<OutputHint> outputHints) {
+
+    super(name, flow, input, keyExtractor, windowing, outputHints);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
     this.valueComparator = valueComparator;
@@ -424,6 +441,11 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
   public UnaryFunction<IN, VALUE> getValueExtractor() {
     return valueExtractor;
+  }
+
+  @Override
+  public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
+    return output();
   }
 
   @SuppressWarnings("unchecked")

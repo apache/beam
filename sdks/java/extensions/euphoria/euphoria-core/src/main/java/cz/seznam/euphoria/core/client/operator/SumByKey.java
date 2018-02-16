@@ -23,12 +23,16 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Operator for summing of long values extracted from elements. The sum is operated upon
@@ -93,7 +97,7 @@ public class SumByKey<IN, KEY, W extends Window>
   }
   public static class ValueByBuilder<IN, KEY>
       implements Builders.WindowBy<IN, ByBuilder2<IN, KEY>>,
-          Builders.Output<Pair<KEY, Long>>,
+      Builders.Output<Pair<KEY, Long>>,
           Builders.OutputValues<KEY, Long> {
 
 
@@ -118,9 +122,9 @@ public class SumByKey<IN, KEY, W extends Window>
     }
 
     @Override
-    public Dataset<Pair<KEY, Long>> output() {
+    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(name, input, keyExtractor, e -> 1L, null)
-          .output();
+          .output(outputHints);
     }
 
   }
@@ -154,7 +158,7 @@ public class SumByKey<IN, KEY, W extends Window>
     }
 
     @Override
-    public Dataset<Pair<KEY, Long>> output() {
+    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
       return new OutputBuilder<>(
           name, input, keyExtractor, valueExtractor, null)
           .output();
@@ -177,12 +181,12 @@ public class SumByKey<IN, KEY, W extends Window>
       this.windowing = windowing;
     }
     @Override
-    public Dataset<Pair<KEY, Long>> output() {
+    public Dataset<Pair<KEY, Long>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
       SumByKey<IN, KEY, W> sumByKey =
           new SumByKey<>(
               name, flow, input, keyExtractor, valueExtractor,
-              windowing);
+              windowing, Sets.newHashSet(outputHints));
       flow.add(sumByKey);
       return sumByKey.output();
     }
@@ -223,9 +227,18 @@ public class SumByKey<IN, KEY, W extends Window>
            Dataset<IN> input,
            UnaryFunction<IN, KEY> keyExtractor,
            UnaryFunction<IN, Long> valueExtractor,
-           @Nullable Windowing<IN, W> windowing)
-  {
-    super(name, flow, input, keyExtractor, windowing);
+           @Nullable Windowing<IN, W> windowing) {
+    this(name, flow, input, keyExtractor, valueExtractor, windowing, Collections.emptySet());
+  }
+
+  SumByKey(String name,
+           Flow flow,
+           Dataset<IN> input,
+           UnaryFunction<IN, KEY> keyExtractor,
+           UnaryFunction<IN, Long> valueExtractor,
+           @Nullable Windowing<IN, W> windowing,
+           Set<OutputHint> outputHints) {
+    super(name, flow, input, keyExtractor, windowing, outputHints);
     this.valueExtractor = valueExtractor;
   }
 

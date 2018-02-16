@@ -20,9 +20,12 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
+import cz.seznam.euphoria.core.client.operator.hint.OutputHintAware;
+
+import javax.annotation.Nullable;
 import java.io.Serializable;
 import java.util.Collection;
-import javax.annotation.Nullable;
 
 /**
  * A dataset abstraction.
@@ -30,7 +33,7 @@ import javax.annotation.Nullable;
  * @param <T> type of elements of this data set
  */
 @Audience(Audience.Type.CLIENT)
-public interface Dataset<T> extends Serializable {
+public interface Dataset<T> extends OutputHintAware<OutputHint>, Serializable {
 
   /**
    * @return the flow associated with this data set

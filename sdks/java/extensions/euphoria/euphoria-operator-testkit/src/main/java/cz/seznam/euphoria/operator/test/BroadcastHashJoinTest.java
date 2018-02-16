@@ -17,13 +17,13 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.operator.JoinHints;
 import cz.seznam.euphoria.core.client.operator.LeftJoin;
+import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.RightJoin;
+import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -40,11 +40,10 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Pair<Integer, String>> getOutput(
           Dataset<Integer> left, Dataset<Long> right) {
-        return LeftJoin.of(left, right)
+        return LeftJoin.of(left, MapElements.of(right).using(i -> i).output(SizeHint.FITS_IN_MEMORY))
             .by(e -> e, e -> (int) (e % 10))
             .using((Integer l, Optional<Long> r, Collector<String> c) ->
                 c.collect(l + "+" + r.orElse(null)))
-            .withHints(Sets.newHashSet(JoinHints.broadcastHashJoin()))
             .output();
       }
 
@@ -81,11 +80,10 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Pair<Integer, String>> getOutput(
           Dataset<Integer> left, Dataset<Long> right) {
-        return RightJoin.of(left, right)
+        return RightJoin.of(MapElements.of(left).using(i -> i).output(SizeHint.FITS_IN_MEMORY), right)
             .by(e -> e, e -> (int) (e % 10))
             .using((Optional<Integer> l, Long r, Collector<String> c) ->
                 c.collect(l.orElse(null) + "+" + r))
-            .withHints(Sets.newHashSet(JoinHints.broadcastHashJoin()))
             .output();
       }
 
@@ -123,11 +121,10 @@ public class BroadcastHashJoinTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Pair<String, String>> getOutput(
           Dataset<String> left, Dataset<Integer> right) {
-        return LeftJoin.of(left, right)
+        return LeftJoin.of(left, MapElements.of(right).using(i -> i).output(SizeHint.FITS_IN_MEMORY))
             .by(e -> e, e -> e % 2 == 0 ? sameHashCodeKey2 : sameHashCodeKey1)
             .using((String l, Optional<Integer> r, Collector<String> c) ->
                 c.collect(l + "+" + r.orElse(null)))
-            .withHints(Sets.newHashSet(JoinHints.broadcastHashJoin()))
             .output();
       }
 
