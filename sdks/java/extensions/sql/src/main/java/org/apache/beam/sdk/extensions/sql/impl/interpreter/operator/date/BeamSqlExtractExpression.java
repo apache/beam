@@ -18,11 +18,8 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -44,55 +41,51 @@ import org.apache.calcite.sql.type.SqlTypeName;
  *   <li>DAYOFYEAR(date) =&gt; EXTRACT(DOY FROM date)</li>
  *   <li>DAYOFMONTH(date) =&gt; EXTRACT(DAY FROM date)</li>
  *   <li>DAYOFWEEK(date) =&gt; EXTRACT(DOW FROM date)</li>
+ *   <li>HOUR(date) =&gt; EXTRACT(HOUR FROM date)</li>
+ *   <li>MINUTE(date) =&gt; EXTRACT(MINUTE FROM date)</li>
+ *   <li>SECOND(date) =&gt; EXTRACT(SECOND FROM date)</li>
  * </ul>
  */
 public class BeamSqlExtractExpression extends BeamSqlExpression {
-  private static final Map<TimeUnitRange, Integer> typeMapping = new HashMap<>();
-  static {
-    typeMapping.put(TimeUnitRange.DOW, Calendar.DAY_OF_WEEK);
-    typeMapping.put(TimeUnitRange.DOY, Calendar.DAY_OF_YEAR);
-    typeMapping.put(TimeUnitRange.WEEK, Calendar.WEEK_OF_YEAR);
-  }
-
   public BeamSqlExtractExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.BIGINT);
   }
   @Override public boolean accept() {
     return operands.size() == 2
-        && opType(1) == SqlTypeName.BIGINT;
+        && opType(1) == SqlTypeName.TIMESTAMP;
   }
 
   @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    Long time = opValueEvaluated(1, inputRow, window);
+    Date time = opValueEvaluated(1, inputRow, window);
 
     TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(0)).getValue();
 
     switch (unit) {
       case YEAR:
+      case QUARTER:
       case MONTH:
       case DAY:
-        Long timeByDay = time / 1000 / 3600 / 24;
+      case DOW:
+      case WEEK:
+      case DOY:
+      case CENTURY:
+      case MILLENNIUM:
+        Long timeByDay = time.getTime() / DateTimeUtils.MILLIS_PER_DAY;
         Long extracted = DateTimeUtils.unixDateExtract(
             unit,
             timeByDay
         );
         return BeamSqlPrimitive.of(outputType, extracted);
 
-      case DOY:
-      case DOW:
-      case WEEK:
-        Calendar calendar = Calendar.getInstance();
-        calendar.setTime(new Date(time));
-        return BeamSqlPrimitive.of(outputType, (long) calendar.get(typeMapping.get(unit)));
-
-      case QUARTER:
-        calendar = Calendar.getInstance();
-        calendar.setTime(new Date(time));
-        long ret = calendar.get(Calendar.MONTH) / 3;
-        if (ret * 3 < calendar.get(Calendar.MONTH)) {
-          ret += 1;
-        }
-        return BeamSqlPrimitive.of(outputType, ret);
+      case HOUR:
+      case MINUTE:
+      case SECOND:
+        int timeInDay = (int) (time.getTime() % DateTimeUtils.MILLIS_PER_DAY);
+        extracted = (long) DateTimeUtils.unixTimeExtract(
+            unit,
+            timeInDay
+        );
+        return BeamSqlPrimitive.of(outputType, extracted);
 
       default:
         throw new UnsupportedOperationException(
