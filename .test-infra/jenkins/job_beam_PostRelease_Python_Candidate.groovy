@@ -43,13 +43,6 @@ job('beam_PostRelease_Python_Candidate') {
             './gradlew :release:runPythonReleaseCandidate',
             'Run Python ReleaseCandidate')
 
-//    steps {
-//        gradle {
-//            rootBuildScriptDir(common_job_properties.checkoutDir)
-//            tasks('release:runPythonReleaseCandidate')
-//        }
-//    }
-
     // Execute shell command to test Python SDK.
     steps {
         shell('cd ' + common_job_properties.checkoutDir + ' && bash release/src/main/groovy/run_python_PostRelease_Validation.sh')
