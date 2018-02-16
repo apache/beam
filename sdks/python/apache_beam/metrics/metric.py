@@ -29,6 +29,7 @@ import inspect
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
+from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import MetricName
 
 __all__ = ['Metrics', 'MetricsFilter']
@@ -75,6 +76,22 @@ class Metrics(object):
     namespace = Metrics.get_namespace(namespace)
     return Metrics.DelegatingDistribution(MetricName(namespace, name))
 
+  @staticmethod
+  def gauge(namespace, name):
+    """Obtains or creates a Gauge metric.
+
+    Gauge metrics are restricted to integer-only values.
+
+    Args:
+      namespace: A class or string that gives the namespace to a metric
+      name: A string that gives a unique name to a metric
+
+    Returns:
+      A Distribution object.
+    """
+    namespace = Metrics.get_namespace(namespace)
+    return Metrics.DelegatingGauge(MetricName(namespace, name))
+
   class DelegatingCounter(Counter):
     def __init__(self, metric_name):
       self.metric_name = metric_name
@@ -93,9 +110,17 @@ class Metrics(object):
       if container is not None:
         container.get_distribution(self.metric_name).update(value)
 
+  class DelegatingGauge(Gauge):
+    def __init__(self, metric_name):
+      self.metric_name = metric_name
+
+    def set(self, value):
+      container = MetricsEnvironment.current_container()
+      if container is not None:
+        container.get_gauge(self.metric_name).set(value)
+
 
 class MetricResults(object):
-
   @staticmethod
   def _matches_name(filter, metric_key):
     if not filter.names and not filter.namespaces:

@@ -72,8 +72,11 @@ class TestMetricsContainer(unittest.TestCase):
       counter = mc.get_counter(MetricName('namespace', 'name{}'.format(i)))
       distribution = mc.get_distribution(
           MetricName('namespace', 'name{}'.format(i)))
+      gauge = mc.get_gauge(MetricName('namespace', 'name{}'.format(i)))
+
       counter.inc(i)
       distribution.update(i)
+      gauge.set(i)
       if i % 2 == 0:
         # Some are left to be DIRTY (i.e. not yet committed).
         # Some are left to be CLEAN (i.e. already committed).
@@ -82,25 +85,37 @@ class TestMetricsContainer(unittest.TestCase):
       # Assert: Counter/Distribution is DIRTY or COMMITTING (not CLEAN)
       self.assertEqual(distribution.commit.before_commit(), True)
       self.assertEqual(counter.commit.before_commit(), True)
+      self.assertEqual(gauge.commit.before_commit(), True)
       distribution.commit.after_commit()
       counter.commit.after_commit()
+      gauge.commit.after_commit()
       # Assert: Counter/Distribution has been committed, therefore it's CLEAN
       self.assertEqual(counter.commit.state, CellCommitState.CLEAN)
       self.assertEqual(distribution.commit.state, CellCommitState.CLEAN)
+      self.assertEqual(gauge.commit.state, CellCommitState.CLEAN)
       clean_values.append(i)
 
     # Retrieve NON-COMMITTED updates.
     logical = mc.get_updates()
     self.assertEqual(len(logical.counters), 5)
     self.assertEqual(len(logical.distributions), 5)
+    self.assertEqual(len(logical.gauges), 5)
+
+    self.assertEqual(set(dirty_values),
+                     set([v.value for _, v in logical.gauges.items()]))
     self.assertEqual(set(dirty_values),
                      set([v for _, v in logical.counters.items()]))
+
     # Retrieve ALL updates.
     cumulative = mc.get_cumulative()
     self.assertEqual(len(cumulative.counters), 10)
     self.assertEqual(len(cumulative.distributions), 10)
+    self.assertEqual(len(cumulative.gauges), 10)
+
     self.assertEqual(set(dirty_values + clean_values),
                      set([v for _, v in cumulative.counters.items()]))
+    self.assertEqual(set(dirty_values + clean_values),
+                     set([v.value for _, v in cumulative.gauges.items()]))
 
 
 class TestMetricsEnvironment(unittest.TestCase):
