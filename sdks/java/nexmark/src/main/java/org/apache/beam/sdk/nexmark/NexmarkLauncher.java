@@ -83,6 +83,7 @@ import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery3;
 import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery5;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -1209,7 +1210,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         new NexmarkSqlQuery(configuration, new SqlQuery2(configuration.auctionSkip)),
         new NexmarkSqlQuery(configuration, new SqlQuery3(configuration)),
         null,
-        new NexmarkSqlQuery(configuration, new SqlQuery5(configuration)));
+        new NexmarkSqlQuery(configuration, new SqlQuery5(configuration)),
+        null,
+        new NexmarkSqlQuery(configuration, new SqlQuery7(configuration)));
   }
 
   private List<NexmarkQuery> createJavaQueries() {
