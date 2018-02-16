@@ -169,8 +169,11 @@ fi
 
 
 #
-# 5. TODO Run wordcount with DataflowRunner
+# 5. Run wordcount with DataflowRunner
 #
+
+
+
 
 #
 # 6. Run Streaming wordcount with DirectRunner
