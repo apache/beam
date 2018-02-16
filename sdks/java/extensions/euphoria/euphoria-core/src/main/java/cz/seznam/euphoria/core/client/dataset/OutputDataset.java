@@ -57,6 +57,7 @@ class OutputDataset<T> implements Dataset<T> {
   @Override
   public void persist(DataSink<T> sink) {
     outputSink = sink;
+    getFlow().onPersisted(this);
   }
 
   @Nullable
