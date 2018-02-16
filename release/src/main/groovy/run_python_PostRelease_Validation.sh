@@ -36,7 +36,8 @@ print_separator() {
 }
 
 update_gcloud() {
-    curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
+    curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz \
+    --output gcloud.tar.gz
     tar xf gcloud.tar.gz
     ./google-cloud-sdk/install.sh --quiet
     . ./google-cloud-sdk/path.bash.inc
@@ -97,9 +98,9 @@ BEAM_PYTHON_RELEASE="apache-beam-$VERSION-source-release.zip"
 PROJECT_ID='apache-beam-testing'
 BUCKET_NAME='temp-storage-for-release-validation-tests'
 TEMP_DIR='/quickstart'
-STREAMING_PROJECT_ID='apache-beam-testing'
-STREAMING_BUCKET_NAME='temp-storage-for-release-validation-tests'
-STREAMING_TEMP_DIR='/quickstart'
+STREAMING_PROJECT_ID='google.com:clouddfe'
+STREAMING_BUCKET_NAME='yifanzou_test'
+STREAMING_TEMP_DIR='/temp'
 NUM_WORKERS=1
 WORDCOUNT_OUTPUT='wordcount_direct.txt'
 PUBSUB_TOPIC1='wordstream-python-topic-1'
