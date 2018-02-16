@@ -158,7 +158,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
     aggCalls = new ArrayList<>();
     aggCalls.add(
         new AggregateCall(
-            new SqlCountAggFunction(),
+            new SqlCountAggFunction("COUNT"),
             false,
             Arrays.asList(),
             new BasicSqlType(RelDataTypeSystem.DEFAULT, SqlTypeName.BIGINT),
