@@ -17,6 +17,7 @@
 package cz.seznam.euphoria.beam;
 
 import avro.shaded.com.google.common.collect.Iterables;
+import cz.seznam.euphoria.beam.io.BeamWriteSink;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -188,6 +189,7 @@ public class BeamFlow extends Flow {
   }
 
   private <T> Dataset<T> newDataset(PCollection<T> coll) {
+    ensureContext();
     Operator<?, T> wrap = new WrappedPCollectionOperator<>(this, coll);
     add(wrap);
     return wrap.output();
@@ -196,14 +198,9 @@ public class BeamFlow extends Flow {
   @SuppressWarnings("unchecked")
   @Override
   public <IN, OUT, T extends Operator<IN, OUT>> T add(T operator) {
-    System.err.println(" **** ADD " + pipeline);
     T ret = super.add(operator);
     if (pipeline != null) {
-      if (context == null) {
-        context = new BeamExecutorContext(
-            DAG.empty(), accumulatorFactory, pipeline, getSettings(),
-            org.joda.time.Duration.millis(allowedLateness.toMillis()));
-      }
+      ensureContext();
       List<Operator<?, ?>> inputOperators = operator.listInputs()
           .stream()
           .map(d -> (Operator<?, ?>) new WrappedPCollectionOperator(this, unwrapped(d), d))
@@ -227,6 +224,24 @@ public class BeamFlow extends Flow {
       }
     }
     return ret;
+  }
+
+  private void ensureContext() {
+    if (context == null) {
+      context = new BeamExecutorContext(
+          DAG.empty(), accumulatorFactory, pipeline, getSettings(),
+          org.joda.time.Duration.millis(allowedLateness.toMillis()));
+    }
+  }
+
+  @Override
+  public <T> void onPersisted(Dataset<T> dataset) {
+    if (pipeline != null) {
+      PCollection<T> coll = context.getPCollection(dataset).orElseThrow(
+          () -> new IllegalStateException(
+              "Persisting dataset not created by this flow! Fix code!"));
+      coll.apply(BeamWriteSink.wrap(dataset.getOutputSink()));
+    }
   }
 
   /**
