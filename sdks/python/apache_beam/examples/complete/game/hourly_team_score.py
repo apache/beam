@@ -156,43 +156,6 @@ class TeamScoresDict(beam.DoFn):
     }
 
 
-class WriteToBigQuery(beam.PTransform):
-  """Generate, format, and write BigQuery table row information."""
-  def __init__(self, table_name, dataset, schema):
-    """Initializes the transform.
-    Args:
-      table_name: Name of the BigQuery table to use.
-      dataset: Name of the dataset to use.
-      schema: Dictionary in the format {'column_name': 'bigquery_type'}
-    """
-    super(WriteToBigQuery, self).__init__()
-    self.table_name = table_name
-    self.dataset = dataset
-    self.schema = schema
-
-  def get_schema(self):
-    """Build the output table schema."""
-    return ', '.join(
-        '%s:%s' % (col, self.schema[col]) for col in self.schema)
-
-  def get_table(self, pipeline):
-    """Utility to construct an output table reference."""
-    project = pipeline.options.view_as(GoogleCloudOptions).project
-    return '%s:%s.%s' % (project, self.dataset, self.table_name)
-
-  def expand(self, pcoll):
-    table = self.get_table(pcoll.pipeline)
-    return (
-        pcoll
-        | 'ConvertToRow' >> beam.Map(
-            lambda elem: {col: elem[col] for col in self.schema})
-        | beam.io.Write(beam.io.BigQuerySink(
-            table,
-            schema=self.get_schema(),
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
-
-
 # [START main]
 class HourlyTeamScore(beam.PTransform):
   def __init__(self, start_min, stop_min, window_duration):
@@ -278,7 +241,8 @@ def run(argv=None):
   options = PipelineOptions(pipeline_args)
 
   # We also require the --project option to access --dataset
-  if options.view_as(GoogleCloudOptions).project is None:
+  project = options.view_as(GoogleCloudOptions).project
+  if project is None:
     parser.print_usage()
     print(sys.argv[0] + ': error: argument --project is required')
     sys.exit(1)
@@ -287,18 +251,23 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   options.view_as(SetupOptions).save_main_session = True
 
+  table_spec = '{}:{}.{}'.format(project, args.dataset, args.table_name)
+  table_schema = (
+      'team:STRING, '
+      'total_score:INTEGER, '
+      'window_start:STRING')
+
   with beam.Pipeline(options=options) as p:
     (p  # pylint: disable=expression-not-assigned
      | 'ReadInputText' >> beam.io.ReadFromText(args.input)
      | 'HourlyTeamScore' >> HourlyTeamScore(
          args.start_min, args.stop_min, args.window_duration)
      | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
-     | 'WriteTeamScoreSums' >> WriteToBigQuery(
-         args.table_name, args.dataset, {
-             'team': 'STRING',
-             'total_score': 'INTEGER',
-             'window_start': 'STRING',
-         }))
+     | 'WriteTeamScoreSums' >> beam.io.WriteToBigQuery(
+         table_spec,
+         schema=table_schema,
+         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
 # [END main]
 
 
