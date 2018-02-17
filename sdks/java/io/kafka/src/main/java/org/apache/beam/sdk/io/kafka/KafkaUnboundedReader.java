@@ -137,17 +137,17 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     Map<String, Object> offsetConsumerConfig = new HashMap<>(spec.getConsumerConfig());
     offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
     offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-    // Force read isolation level to 'read_uncommitted' (default) for offset consumer. This
-    // consumer fetch latest offset for two purposes : (a) to calculate backlog (number of records
-    // yet to be consumed) (b) to advance watermark if the backlog is zero. Correct thing to do
+    // Force read isolation level to 'read_uncommitted' for offset consumer. This consumer
+    // fetches latest offset for two reasons : (a) to calculate backlog (number of records
+    // yet to be consumed) (b) to advance watermark if the backlog is zero. The right thing to do
     // for (a) is to leave this config unchanged from the main config (i.e. if there are records
-    // that can't be read because there are some uncommitted records before them, they shouldn't
-    // ideally count towards backlog when it is set to "read_committed" by the user. But (b)
+    // that can't be read because of uncommitted records before them, they shouldn't
+    // ideally count towards backlog when "read_committed" is enabled. But (b)
     // requires finding out if there are any records left to be read (committed or uncommitted).
     // Rather than using two separate consumers we will go with better support for (b). If we do
-    // hit a case where a lot records are not readable (due to some stuck transaction), the
-    // pipeline would report more backlog, but would not be able to read the input. CPU consumed
-    // on the workers would be low and will likely avoid avoid unnecessary upscale.
+    // hit a case where a lot of records are not readable (due to some stuck transactions), the
+    // pipeline would report more backlog, but would not be able to consume it. It might be ok
+    // since CPU consumed on the workers would be low and will likely avoid unnecessary upscale.
     offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
 
     offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
@@ -207,13 +207,13 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         // and 'curRecord' remains unchanged. The runner should close this reader.
         // TODO: write records that can't be deserialized to a "dead-letter" additional output.
         KafkaRecord<K, V> record = new KafkaRecord<>(
-          rawRecord.topic(),
-          rawRecord.partition(),
-          rawRecord.offset(),
-          consumerSpEL.getRecordTimestamp(rawRecord),
-          consumerSpEL.getRecordTimestamptType(rawRecord),
-          keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
-          valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
+            rawRecord.topic(),
+            rawRecord.partition(),
+            rawRecord.offset(),
+            consumerSpEL.getRecordTimestamp(rawRecord),
+            consumerSpEL.getRecordTimestamptType(rawRecord),
+            keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
+            valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
 
         curTimestamp = pState.timestampPolicy
           .getTimestampForRecord(pState.mkTimestampPolicyContext(), record);

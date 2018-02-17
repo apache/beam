@@ -108,7 +108,8 @@ class ConsumerSpEL {
     } else {
       return KafkaTimestampType.NO_TIMESTAMP_TYPE;
     }
-   }
+  }
+
   public boolean hasOffsetsForTimes() {
     return hasOffsetsForTimes;
   }

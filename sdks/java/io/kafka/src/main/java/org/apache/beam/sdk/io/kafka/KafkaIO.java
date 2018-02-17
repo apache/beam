@@ -114,7 +114,7 @@ import org.slf4j.LoggerFactory;
  *       // settings for ConsumerConfig. e.g :
  *       .updateConsumerProperties(ImmutableMap.of("receive.buffer.bytes", 1024 * 1024))
  *
- *       // set event times and watermark based on LogAppendTime. To provide custom timestamp
+ *       // set event times and watermark based on LogAppendTime. To provide a custom
  *       // policy see withTimestampPolicyFactory(). withProcessingTime() is the default.
  *       .withLogAppendTime()
  *

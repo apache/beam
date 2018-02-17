@@ -575,7 +575,6 @@ public class KafkaIOTest {
         Long.valueOf(numElements))));
   }
 
-
   private static class RemoveKafkaMetadata<K, V> extends DoFn<KafkaRecord<K, V>, KV<K, V>> {
     @ProcessElement
     public void processElement(ProcessContext ctx) {
