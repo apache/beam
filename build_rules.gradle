@@ -218,7 +218,7 @@ ext.applyJavaNature = {
     // Note that these plugins specifically use the compileOnly and testCompileOnly
     // configurations because they are never required to be shaded or become a
     // dependency of the output.
-    def auto_value = "com.google.auto.value:auto-value:1.5.1"
+    def auto_value = "com.google.auto.value:auto-value:1.5.3"
     def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
 
     compileOnly auto_value
