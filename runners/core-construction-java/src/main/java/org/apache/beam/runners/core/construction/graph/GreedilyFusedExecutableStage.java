@@ -20,13 +20,16 @@ package org.apache.beam.runners.core.construction.graph;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.MoreObjects;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -173,6 +176,7 @@ public class GreedilyFusedExecutableStage implements ExecutableStage {
     return Collections.unmodifiableSet(materializedPCollections);
   }
 
+  @Override
   public Collection<PTransformNode> getTransforms() {
     return Collections.unmodifiableSet(fusedTransforms);
   }
@@ -191,5 +195,39 @@ public class GreedilyFusedExecutableStage implements ExecutableStage {
     }
     pt.setSpec(FunctionSpec.newBuilder().setUrn(ExecutableStage.URN));
     return pt.build();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof ExecutableStage)) {
+      return false;
+    }
+    ExecutableStage that = (ExecutableStage) o;
+    return Objects.equals(this.getEnvironment(), that.getEnvironment())
+        && Objects.equals(this.getInputPCollection(), that.getInputPCollection())
+        && Objects.equals(this.getOutputPCollections(), that.getOutputPCollections())
+        && Objects.equals(this.getTransforms(), that.getTransforms());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        getEnvironment(), getInputPCollection(), getOutputPCollections(), getTransforms());
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(GreedilyFusedExecutableStage.class)
+        .add("inputPCollection", inputPCollection.getId())
+        .add(
+            "outputPCollections",
+            materializedPCollections
+                .stream()
+                .map(PCollectionNode::getId)
+                .collect(Collectors.toList()))
+        .add(
+            "transforms",
+            fusedTransforms.stream().map(PTransformNode::getId).collect(Collectors.toList()))
+        .toString();
   }
 }
