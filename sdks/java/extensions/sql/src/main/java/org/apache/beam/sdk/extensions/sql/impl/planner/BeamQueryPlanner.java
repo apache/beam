@@ -124,7 +124,7 @@ public class BeamQueryPlanner {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
     // the input PCollectionTuple is empty, and be rebuilt in BeamIOSourceRel.
-    return relNode.buildBeamPipeline(PCollectionTuple.empty(basePipeline), sqlEnv);
+    return PCollectionTuple.empty(basePipeline).apply(relNode.toPTransform(sqlEnv));
   }
 
   /**

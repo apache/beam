@@ -62,12 +62,13 @@ public class BeamSetOperatorRelBase {
     this.all = all;
   }
 
-  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    PCollection<Row> leftRows = BeamSqlRelUtils.getBeamRelInput(inputs.get(0))
-        .buildBeamPipeline(inputPCollections, sqlEnv);
-    PCollection<Row> rightRows = BeamSqlRelUtils.getBeamRelInput(inputs.get(1))
-        .buildBeamPipeline(inputPCollections, sqlEnv);
+  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections, BeamSqlEnv sqlEnv) {
+    PCollection<Row> leftRows =
+        inputPCollections.apply(
+            "left", BeamSqlRelUtils.getBeamRelInput(inputs.get(0)).toPTransform(sqlEnv));
+    PCollection<Row> rightRows =
+        inputPCollections.apply(
+            "right", BeamSqlRelUtils.getBeamRelInput(inputs.get(1)).toPTransform(sqlEnv));
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();

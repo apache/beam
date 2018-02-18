@@ -21,6 +21,7 @@ import com.google.common.base.Joiner;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -50,26 +51,38 @@ public class BeamIOSinkRel extends TableModify implements BeamRelNode {
         getOperation(), getUpdateColumnList(), getSourceExpressionList(), isFlattened());
   }
 
-  /**
-   * Note that {@code BeamIOSinkRel} returns the input PCollection,
-   * which is the persisted PCollection.
-   */
   @Override
-  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    RelNode input = getInput();
-    String stageName = BeamSqlRelUtils.getStageName(this);
-
-    PCollection<Row> upstream =
-        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
-
-    String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
-
-    BeamSqlTable targetTable = sqlEnv.findTable(sourceName);
-
-    upstream.apply(stageName, targetTable.buildIOWriter());
-
-    return upstream;
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
+    return new Transform(sqlEnv);
   }
 
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+
+    private final BeamSqlEnv sqlEnv;
+
+    private Transform(BeamSqlEnv sqlEnv) {
+      this.sqlEnv = sqlEnv;
+    }
+
+    /**
+     * Note that {@code BeamIOSinkRel} returns the input PCollection, which is the persisted
+     * PCollection.
+     */
+    @Override
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+      RelNode input = getInput();
+      String stageName = BeamSqlRelUtils.getStageName(BeamIOSinkRel.this);
+
+      PCollection<Row> upstream =
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform(sqlEnv));
+
+      String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
+
+      BeamSqlTable targetTable = sqlEnv.findTable(sourceName);
+
+      upstream.apply(stageName, targetTable.buildIOWriter());
+
+      return upstream;
+    }
+  }
 }

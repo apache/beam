@@ -30,6 +30,7 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransfor
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
@@ -77,15 +78,24 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public PCollection<Row> buildBeamPipeline(
-      PCollectionTuple inputPCollections,
-      BeamSqlEnv sqlEnv) throws Exception {
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
+    return new Transform(sqlEnv);
+  }
+
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+    private final BeamSqlEnv sqlEnv;
+
+    private Transform(BeamSqlEnv sqlEnv) {
+      this.sqlEnv = sqlEnv;
+    }
+
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
 
     RelNode input = getInput();
-    String stageName = BeamSqlRelUtils.getStageName(this) + "_";
+      String stageName = BeamSqlRelUtils.getStageName(BeamAggregationRel.this) + "_";
 
-    PCollection<Row> upstream =
-        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
+      PCollection<Row> upstream =
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform(sqlEnv));
     if (windowField.isPresent()) {
       upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
           .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
@@ -187,6 +197,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     return
         RowType
             .newField(aggCall.name, CalciteUtils.toCoder(aggCall.type.getSqlTypeName()));
+  }
   }
 
   @Override

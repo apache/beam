@@ -22,6 +22,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExec
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlFilterFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -49,23 +50,32 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
   }
 
   @Override
-  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    RelNode input = getInput();
-    String stageName = BeamSqlRelUtils.getStageName(this);
-
-    PCollection<Row> upstream =
-        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
-
-    BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(this);
-
-    PCollection<Row> filterStream = upstream
-        .apply(
-            stageName,
-            ParDo.of(new BeamSqlFilterFn(getRelTypeName(), executor)));
-    filterStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
-
-    return filterStream;
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
+    return new Transform(sqlEnv);
   }
 
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+    private final BeamSqlEnv sqlEnv;
+
+    private Transform(BeamSqlEnv sqlEnv) {
+      this.sqlEnv = sqlEnv;
+    }
+
+    @Override
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+      RelNode input = getInput();
+      String stageName = BeamSqlRelUtils.getStageName(BeamFilterRel.this);
+
+      PCollection<Row> upstream =
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform(sqlEnv));
+
+      BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(BeamFilterRel.this);
+
+      PCollection<Row> filterStream =
+          upstream.apply(stageName, ParDo.of(new BeamSqlFilterFn(getRelTypeName(), executor)));
+      filterStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
+
+      return filterStream;
+    }
+  }
 }

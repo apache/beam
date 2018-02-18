@@ -28,6 +28,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -58,28 +59,36 @@ public class BeamValuesRel extends Values implements BeamRelNode {
 
   }
 
-  @Override public PCollection<Row> buildBeamPipeline(
-      PCollectionTuple inputPCollections,
-      BeamSqlEnv sqlEnv) throws Exception {
+  @Override
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
+    return new Transform(sqlEnv);
+  }
 
-    String stageName = BeamSqlRelUtils.getStageName(this);
-    if (tuples.isEmpty()) {
-      throw new IllegalStateException("Values with empty tuples!");
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+
+    private final BeamSqlEnv sqlEnv;
+
+    private Transform(BeamSqlEnv sqlEnv) {
+      this.sqlEnv = sqlEnv;
     }
 
-    RowType rowType = CalciteUtils.toBeamRowType(this.getRowType());
+    @Override
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
 
-    List<Row> rows =
-        tuples
-            .stream()
-            .map(tuple -> tupleToRow(rowType, tuple))
-            .collect(toList());
+      String stageName = BeamSqlRelUtils.getStageName(BeamValuesRel.this);
+      if (tuples.isEmpty()) {
+        throw new IllegalStateException("Values with empty tuples!");
+      }
 
-    return
-        inputPCollections
-            .getPipeline()
-            .apply(stageName, Create.of(rows))
-            .setCoder(rowType.getRowCoder());
+      RowType rowType = CalciteUtils.toBeamRowType(getRowType());
+
+      List<Row> rows = tuples.stream().map(tuple -> tupleToRow(rowType, tuple)).collect(toList());
+
+      return inputPCollections
+          .getPipeline()
+          .apply(stageName, Create.of(rows))
+          .setCoder(rowType.getRowCoder());
+    }
   }
 
   private Row tupleToRow(RowType rowType, ImmutableList<RexLiteral> tuple) {
