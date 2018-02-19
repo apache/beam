@@ -1203,15 +1203,15 @@ public class FileIO {
               MoreObjects.firstNonNull(
                   getFilenamePrefix(), StaticValueProvider.of("output")),
               MoreObjects.firstNonNull(getFilenameSuffix(), StaticValueProvider.of("")));
-          if (getOutputDirectory() != null) {
-            constantFileNaming = relativeFileNaming(getOutputDirectory(), constantFileNaming);
-          }
         } else {
           checkArgument(
               getFilenamePrefix() == null, ".to(FileNaming) is incompatible with .withSuffix()");
           checkArgument(
               getFilenameSuffix() == null, ".to(FileNaming) is incompatible with .withPrefix()");
           constantFileNaming = getConstantFileNaming();
+        }
+        if (getOutputDirectory() != null) {
+          constantFileNaming = relativeFileNaming(getOutputDirectory(), constantFileNaming);
         }
         fileNamingFn =
             fn(SerializableFunctions.<DestinationT, FileNaming>constant(constantFileNaming));
