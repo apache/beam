@@ -1,0 +1,7 @@
+apache\_beam\.coders\.typecoders module
+=======================================
+
+.. automodule:: apache_beam.coders.typecoders
+    :members:
+    :undoc-members:
+    :show-inheritance:

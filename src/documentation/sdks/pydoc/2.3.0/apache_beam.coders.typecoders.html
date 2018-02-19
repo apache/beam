@@ -1,0 +1,306 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.coders.typecoders module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.coders package" href="apache_beam.coders.html"/>
+        <link rel="next" title="apache_beam.internal package" href="apache_beam.internal.html"/>
+        <link rel="prev" title="apache_beam.coders.slow_stream module" href="apache_beam.coders.slow_stream.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.coders.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.coders.coders.html">apache_beam.coders.coders module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.coders.observable.html">apache_beam.coders.observable module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.coders.slow_stream.html">apache_beam.coders.slow_stream module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.coders.typecoders module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.coders.html">apache_beam.coders package</a> &raquo;</li>
+        
+      <li>apache_beam.coders.typecoders module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.coders.typecoders.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.coders.typecoders">
+<span id="apache-beam-coders-typecoders-module"></span><h1>apache_beam.coders.typecoders module<a class="headerlink" href="#module-apache_beam.coders.typecoders" title="Permalink to this headline">¶</a></h1>
+<p>Type coders registration.</p>
+<p>This module contains functionality to define and use coders for custom classes.
+Let’s say we have a class Xyz and we are processing a PCollection with elements
+of type Xyz. If we do not register a coder for Xyz, a default pickle-based
+fallback coder will be used. This can be undesirable for two reasons. First, we
+may want a faster coder or a more space efficient one. Second, the pickle-based
+coder is not deterministic in the sense that objects like dictionaries or sets
+are not guaranteed to be encoded in the same way every time (elements are not
+really ordered).</p>
+<dl class="docutils">
+<dt>Two (sometimes three) steps are needed to define and use a custom coder:</dt>
+<dd><ul class="first last simple">
+<li>define the coder class</li>
+<li>associate the code with the class (a.k.a. coder registration)</li>
+<li>typehint DoFns or transforms with the new class or composite types using
+the class.</li>
+</ul>
+</dd>
+</dl>
+<p>A coder class is defined by subclassing from CoderBase and defining the
+encode_to_bytes and decode_from_bytes methods. The framework uses duck-typing
+for coders so it is not strictly required to subclass from CoderBase as long as
+the encode/decode methods are defined.</p>
+<p>Registering a coder class is made with a register_coder() call:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">coders</span>
+<span class="o">...</span>
+<span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">register_coder</span><span class="p">(</span><span class="n">Xyz</span><span class="p">,</span> <span class="n">XyzCoder</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Additionally, DoFns and PTransforms may need type hints. This is not always
+necessary since there is functionality to infer the return types of DoFns by
+analyzing the code. For instance, for the function below the return type of
+‘Xyz’ will be inferred:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">MakeXyzs</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">Xyz</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If Xyz is inferred then its coder will be used whenever the framework needs to
+serialize data (e.g., writing to the shuffler subsystem responsible for group by
+key operations). If a typehint is needed it can be specified by decorating the
+DoFns or using with_input_types/with_output_types methods on PTransforms. For
+example, the above function can be decorated:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="nd">@with_output_types</span><span class="p">(</span><span class="n">Xyz</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">MakeXyzs</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+  <span class="k">return</span> <span class="n">complex_operation_returning_Xyz</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See apache_beam.typehints.decorators module for more details.</p>
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.internal.html" class="btn btn-neutral float-right" title="apache_beam.internal package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.coders.slow_stream.html" class="btn btn-neutral" title="apache_beam.coders.slow_stream module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
