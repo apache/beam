@@ -103,12 +103,13 @@
       <artifactId>hamcrest-core</artifactId>
       <scope>test</scope>
     </dependency>
-
+    
     <dependency>
       <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <artifactId>hamcrest-library</artifactId>
       <scope>test</scope>
     </dependency>
+    
   </dependencies>
 
   <profiles>
