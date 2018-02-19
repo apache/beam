@@ -626,7 +626,8 @@ logical windows based on when those scores occurred in event time.</em></p>
   <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">pipeline_args</span><span class="p">)</span>
 
   <span class="c"># We also require the --project option to access --dataset</span>
-  <span class="k">if</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+  <span class="n">project</span> <span class="o">=</span> <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">GoogleCloudOptions</span><span class="p">)</span><span class="o">.</span><span class="n">project</span>
+  <span class="k">if</span> <span class="n">project</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
     <span class="n">parser</span><span class="o">.</span><span class="n">print_usage</span><span class="p">()</span>
     <span class="k">print</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s">': error: argument --project is required'</span><span class="p">)</span>
     <span class="n">sys</span><span class="o">.</span><span class="nb">exit</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
@@ -635,18 +636,23 @@ logical windows based on when those scores occurred in event time.</em></p>
   <span class="c"># workflow rely on global context (e.g., a module imported at module level).</span>
   <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="bp">True</span>
 
+  <span class="n">table_spec</span> <span class="o">=</span> <span class="s">'{}:{}.{}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">project</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">table_name</span><span class="p">)</span>
+  <span class="n">table_schema</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="s">'team:STRING, '</span>
+      <span class="s">'total_score:INTEGER, '</span>
+      <span class="s">'window_start:STRING'</span><span class="p">)</span>
+
   <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
     <span class="p">(</span><span class="n">p</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
      <span class="o">|</span> <span class="s">'ReadInputText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="nb">input</span><span class="p">)</span>
      <span class="o">|</span> <span class="s">'HourlyTeamScore'</span> <span class="o">&gt;&gt;</span> <span class="n">HourlyTeamScore</span><span class="p">(</span>
          <span class="n">args</span><span class="o">.</span><span class="n">start_min</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">stop_min</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">window_duration</span><span class="p">)</span>
      <span class="o">|</span> <span class="s">'TeamScoresDict'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">TeamScoresDict</span><span class="p">())</span>
-     <span class="o">|</span> <span class="s">'WriteTeamScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToBigQuery</span><span class="p">(</span>
-         <span class="n">args</span><span class="o">.</span><span class="n">table_name</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="p">{</span>
-             <span class="s">'team'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
-             <span class="s">'total_score'</span><span class="p">:</span> <span class="s">'INTEGER'</span><span class="p">,</span>
-             <span class="s">'window_start'</span><span class="p">:</span> <span class="s">'STRING'</span><span class="p">,</span>
-         <span class="p">}))</span>
+     <span class="o">|</span> <span class="s">'WriteTeamScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToBigQuery</span><span class="p">(</span>
+         <span class="n">table_spec</span><span class="p">,</span>
+         <span class="n">schema</span><span class="o">=</span><span class="n">table_schema</span><span class="p">,</span>
+         <span class="n">create_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_IF_NEEDED</span><span class="p">,</span>
+         <span class="n">write_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_APPEND</span><span class="p">))</span>
 </code></pre>
 </div>
 
@@ -991,6 +997,13 @@ late results.</em></p>
 <span class="c"># updates for late data. Uses the side input derived above --the set of</span>
 <span class="c"># suspected robots-- to filter out scores from those users from the sum.</span>
 <span class="c"># Write the results to BigQuery.</span>
+<span class="n">team_table_spec</span> <span class="o">=</span> <span class="n">table_spec_prefix</span> <span class="o">+</span> <span class="s">'_teams'</span>
+<span class="n">team_table_schema</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s">'team:STRING, '</span>
+    <span class="s">'total_score:INTEGER, '</span>
+    <span class="s">'window_start:STRING, '</span>
+    <span class="s">'processing_time: STRING'</span><span class="p">)</span>
+
 <span class="p">(</span><span class="n">raw_events</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
  <span class="o">|</span> <span class="s">'WindowIntoFixedWindows'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
      <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="n">fixed_window_duration</span><span class="p">))</span>
@@ -1041,6 +1054,9 @@ between instances are.</em></p>
 <span class="c"># from further activity. Find and record the mean session lengths.</span>
 <span class="c"># This information could help the game designers track the changing user</span>
 <span class="c"># engagement as their set of game changes.</span>
+<span class="n">session_table_spec</span> <span class="o">=</span> <span class="n">table_spec_prefix</span> <span class="o">+</span> <span class="s">'_sessions'</span>
+<span class="n">session_table_schema</span> <span class="o">=</span> <span class="s">'mean_duration:FLOAT'</span>
+
 <span class="p">(</span><span class="n">user_events</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
  <span class="o">|</span> <span class="s">'WindowIntoSessions'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
      <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">Sessions</span><span class="p">(</span><span class="n">session_gap</span><span class="p">),</span>
@@ -1084,10 +1100,11 @@ between instances are.</em></p>
 <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombineGlobally</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">combiners</span><span class="o">.</span><span class="n">MeanCombineFn</span><span class="p">())</span><span class="o">.</span><span class="n">without_defaults</span><span class="p">()</span>
 <span class="o">|</span> <span class="s">'FormatAvgSessionLength'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
     <span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="p">{</span><span class="s">'mean_duration'</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">elem</span><span class="p">)})</span>
-<span class="o">|</span> <span class="s">'WriteAvgSessionLength'</span> <span class="o">&gt;&gt;</span> <span class="n">WriteToBigQuery</span><span class="p">(</span>
-    <span class="n">args</span><span class="o">.</span><span class="n">table_name</span> <span class="o">+</span> <span class="s">'_sessions'</span><span class="p">,</span> <span class="n">args</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="p">{</span>
-        <span class="s">'mean_duration'</span><span class="p">:</span> <span class="s">'FLOAT'</span><span class="p">,</span>
-    <span class="p">}))</span>
+<span class="o">|</span> <span class="s">'WriteAvgSessionLength'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToBigQuery</span><span class="p">(</span>
+    <span class="n">session_table_spec</span><span class="p">,</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">session_table_schema</span><span class="p">,</span>
+    <span class="n">create_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">CREATE_IF_NEEDED</span><span class="p">,</span>
+    <span class="n">write_disposition</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">BigQueryDisposition</span><span class="o">.</span><span class="n">WRITE_APPEND</span><span class="p">))</span>
 </code></pre>
 </div>
 

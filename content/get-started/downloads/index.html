@@ -119,12 +119,13 @@
   <li><a href="#api-stability">API stability</a></li>
   <li><a href="#releases">Releases</a>
     <ul>
-      <li><a href="#section">2.2.0 (2017-12-02)</a></li>
-      <li><a href="#section-1">2.1.0 (2017-08-23)</a></li>
-      <li><a href="#section-2">2.0.0 (2017-05-17)</a></li>
-      <li><a href="#section-3">0.6.0 (2017-03-11)</a></li>
-      <li><a href="#section-4">0.5.0 (2017-02-02)</a></li>
-      <li><a href="#section-5">0.4.0 (2016-12-29)</a></li>
+      <li><a href="#section">2.3.0 (2018-01-30)</a></li>
+      <li><a href="#section-1">2.2.0 (2017-12-02)</a></li>
+      <li><a href="#section-2">2.1.0 (2017-08-23)</a></li>
+      <li><a href="#section-3">2.0.0 (2017-05-17)</a></li>
+      <li><a href="#section-4">0.6.0 (2017-03-11)</a></li>
+      <li><a href="#section-5">0.5.0 (2017-02-02)</a></li>
+      <li><a href="#section-6">0.4.0 (2016-12-29)</a></li>
       <li><a href="#incubating-2016-10-31">0.3.0-incubating (2016-10-31)</a></li>
       <li><a href="#incubating-2016-08-08">0.2.0-incubating (2016-08-08)</a></li>
       <li><a href="#incubating-2016-06-15">0.1.0-incubating (2016-06-15)</a></li>
@@ -139,7 +140,7 @@
         <h1 id="apache-beam8482-downloads">Apache Beam™ Downloads</h1>
 
 <blockquote>
-  <p>Beam SDK 2.2.0 is the latest released version.</p>
+  <p>Beam SDK 2.3.0 is the latest released version.</p>
 </blockquote>
 
 <h2 id="using-a-central-repository">Using a central repository</h2>
@@ -154,12 +155,12 @@ with the <code class="highlighter-rouge">DirectRunner</code>, add the following 
 <div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
   &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
   &lt;artifactId&gt;beam-sdks-java-core&lt;/artifactId&gt;
-  &lt;version&gt;2.2.0&lt;/version&gt;
+  &lt;version&gt;2.3.0&lt;/version&gt;
 &lt;/dependency&gt;
 &lt;dependency&gt;
   &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
   &lt;artifactId&gt;beam-runners-direct-java&lt;/artifactId&gt;
-  &lt;version&gt;2.2.0&lt;/version&gt;
+  &lt;version&gt;2.3.0&lt;/version&gt;
   &lt;scope&gt;runtime&lt;/scope&gt;
 &lt;/dependency&gt;
 </code></pre>
@@ -168,7 +169,7 @@ with the <code class="highlighter-rouge">DirectRunner</code>, add the following 
 <p>Similarly in Python, if you are using PyPI and want to use the SDK for Python
 with <code class="highlighter-rouge">DirectRunner</code>, add the following requirement to your <code class="highlighter-rouge">setup.py</code> file:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>apache-beam==2.2.0
+<div class="highlighter-rouge"><pre class="highlight"><code>apache-beam==2.3.0
 </code></pre>
 </div>
 
@@ -192,7 +193,7 @@ the form <code class="highlighter-rouge">major.minor.incremental</code> and are 
   <li>incremental version for forward-compatible bug fixes</li>
 </ul>
 
-<p>Please note that APIs marked <a href="/documentation/sdks/javadoc/2.2.0/org/apache/beam/sdk/annotations/Experimental.html"><code class="highlighter-rouge">@Experimental</code></a>
+<p>Please note that APIs marked <a href="/documentation/sdks/javadoc/2.3.0/org/apache/beam/sdk/annotations/Experimental.html"><code class="highlighter-rouge">@Experimental</code></a>
 may change at any point and are not guaranteed to remain compatible across versions.</p>
 
 <p>Additionally, any API may change before the first stable release, i.e., between
@@ -200,32 +201,37 @@ versions denoted <code class="highlighter-rouge">0.x.y</code>.</p>
 
 <h2 id="releases">Releases</h2>
 
-<h3 id="section">2.2.0 (2017-12-02)</h3>
+<h3 id="section">2.3.0 (2018-01-30)</h3>
+<p>Official <a href="https://www.apache.org/dyn/closer.cgi?filename=beam/2.3.0/apache-beam-2.3.0-source-release.zip&amp;action=download">source code download</a>.</p>
+
+<p><a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12341608">Release notes</a>.</p>
+
+<h3 id="section-1">2.2.0 (2017-12-02)</h3>
 <p>Official <a href="https://www.apache.org/dyn/closer.cgi?filename=beam/2.2.0/apache-beam-2.2.0-source-release.zip&amp;action=download">source code download</a>.</p>
 
 <p><a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12341044">Release notes</a>.</p>
 
-<h3 id="section-1">2.1.0 (2017-08-23)</h3>
+<h3 id="section-2">2.1.0 (2017-08-23)</h3>
 <p>Official <a href="https://www.apache.org/dyn/closer.cgi?filename=beam/2.1.0/apache-beam-2.1.0-source-release.zip&amp;action=download">source code download</a>.</p>
 
 <p><a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12340528">Release notes</a>.</p>
 
-<h3 id="section-2">2.0.0 (2017-05-17)</h3>
+<h3 id="section-3">2.0.0 (2017-05-17)</h3>
 <p>Official <a href="https://www.apache.org/dyn/closer.cgi?filename=beam/2.0.0/apache-beam-2.0.0-source-release.zip&amp;action=download">source code download</a>.</p>
 
 <p><a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12339746">Release notes</a>.</p>
 
-<h3 id="section-3">0.6.0 (2017-03-11)</h3>
+<h3 id="section-4">0.6.0 (2017-03-11)</h3>
 <p>Official <a href="https://www.apache.org/dyn/closer.cgi?filename=beam/0.6.0/apache-beam-0.6.0-source-release.zip&amp;action=download">source code download</a>.</p>
 
 <p><a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12339256">Release notes</a>.</p>
 
-<h3 id="section-4">0.5.0 (2017-02-02)</h3>
+<h3 id="section-5">0.5.0 (2017-02-02)</h3>
 <p>Official <a href="https://www.apache.org/dyn/closer.cgi?filename=beam/0.5.0/apache-beam-0.5.0-source-release.zip&amp;action=download">source code download</a>.</p>
 
 <p><a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12338859">Release notes</a>.</p>
 
-<h3 id="section-5">0.4.0 (2016-12-29)</h3>
+<h3 id="section-6">0.4.0 (2016-12-29)</h3>
 <p>Official <a href="https://www.apache.org/dyn/closer.cgi?filename=beam/0.4.0/apache-beam-0.4.0-source-release.zip&amp;action=download">source code download</a>.</p>
 
 <p><a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12338590">Release notes</a>.</p>

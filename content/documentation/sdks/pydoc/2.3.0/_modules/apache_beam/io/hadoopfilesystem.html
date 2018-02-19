@@ -1,0 +1,519 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.hadoopfilesystem &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.io.hadoopfilesystem</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.io.hadoopfilesystem</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;:class:`~apache_beam.io.filesystem.FileSystem` implementation for accessing</span>
+<span class="sd">Hadoop Distributed File System files.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">posixpath</span>
+<span class="kn">import</span> <span class="nn">re</span>
+
+<span class="kn">from</span> <span class="nn">hdfs3</span> <span class="k">import</span> <span class="n">HDFileSystem</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">BeamIOError</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">CompressedFile</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">CompressionTypes</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">FileMetadata</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">FileSystem</span>
+<span class="kn">from</span> <span class="nn">apache_beam.io.filesystem</span> <span class="k">import</span> <span class="n">MatchResult</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;HadoopFileSystem&#39;</span><span class="p">]</span>
+
+<span class="n">_HDFS_PREFIX</span> <span class="o">=</span> <span class="s1">&#39;hdfs:/&#39;</span>
+<span class="n">_URL_RE</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^&#39;</span> <span class="o">+</span> <span class="n">_HDFS_PREFIX</span> <span class="o">+</span> <span class="sa">r</span><span class="s1">&#39;(/.*)&#39;</span><span class="p">)</span>
+<span class="n">_COPY_BUFFER_SIZE</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="mi">16</span>
+
+
+<span class="c1"># TODO(udim): Add @retry.with_exponential_backoff to some functions, like in</span>
+<span class="c1"># gcsio.py.</span>
+
+
+<div class="viewcode-block" id="HadoopFileSystem"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem">[docs]</a><span class="k">class</span> <span class="nc">HadoopFileSystem</span><span class="p">(</span><span class="n">FileSystem</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;``FileSystem`` implementation that supports HDFS.</span>
+
+<span class="sd">  URL arguments to methods expect strings starting with ``hdfs://``.</span>
+
+<span class="sd">  Uses client library :class:`hdfs3.core.HDFileSystem`.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pipeline_options</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes a connection to HDFS.</span>
+
+<span class="sd">    Connection configuration is done using :doc:`hdfs`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">HadoopFileSystem</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">pipeline_options</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_hdfs_client</span> <span class="o">=</span> <span class="n">HDFileSystem</span><span class="p">()</span>
+
+<div class="viewcode-block" id="HadoopFileSystem.scheme"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.scheme">[docs]</a>  <span class="nd">@classmethod</span>
+  <span class="k">def</span> <span class="nf">scheme</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;hdfs&#39;</span></div>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Verifies that url begins with hdfs:// prefix, strips it and adds a</span>
+<span class="sd">    leading /.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">      ValueError if url doesn&#39;t begin with hdfs://.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      url: A URL in the form hdfs://path/...</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      For an input of &#39;hdfs://path/...&#39;, will return &#39;/path/...&#39;.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">_URL_RE</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Could not parse url: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">url</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+<div class="viewcode-block" id="HadoopFileSystem.join"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.join">[docs]</a>  <span class="k">def</span> <span class="nf">join</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base_url</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Join two or more pathname components.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      base_url: string path of the first component of the path.</span>
+<span class="sd">        Must start with hdfs://.</span>
+<span class="sd">      paths: path components to be added</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      Full url after combining all the passed components.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">basepath</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">base_url</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_HDFS_PREFIX</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_join</span><span class="p">(</span><span class="n">basepath</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_join</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">basepath</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">basepath</span><span class="p">,</span> <span class="o">*</span><span class="n">paths</span><span class="p">)</span>
+
+<div class="viewcode-block" id="HadoopFileSystem.split"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.split">[docs]</a>  <span class="k">def</span> <span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+    <span class="n">rel_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="n">head</span><span class="p">,</span> <span class="n">tail</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">rel_path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_HDFS_PREFIX</span> <span class="o">+</span> <span class="n">head</span><span class="p">,</span> <span class="n">tail</span></div>
+
+<div class="viewcode-block" id="HadoopFileSystem.mkdirs"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.mkdirs">[docs]</a>  <span class="k">def</span> <span class="nf">mkdirs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exists</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="ne">IOError</span><span class="p">(</span><span class="s1">&#39;Path already exists: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mkdirs</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_mkdirs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_hdfs_client</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="HadoopFileSystem.match"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.match">[docs]</a>  <span class="k">def</span> <span class="nf">match</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url_patterns</span><span class="p">,</span> <span class="n">limits</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">limits</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="n">limits</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">url_patterns</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">url_patterns</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">limits</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">BeamIOError</span><span class="p">(</span>
+          <span class="s1">&#39;Patterns and limits should be equal in length: </span><span class="si">%d</span><span class="s1"> != </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+              <span class="nb">len</span><span class="p">(</span><span class="n">url_patterns</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">limits</span><span class="p">)))</span>
+
+    <span class="c1"># TODO(udim): Update client to allow batched results.</span>
+    <span class="k">def</span> <span class="nf">_match</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">,</span> <span class="n">limit</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Find all matching paths to the pattern provided.&quot;&quot;&quot;</span>
+      <span class="n">file_infos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdfs_client</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">,</span> <span class="n">detail</span><span class="o">=</span><span class="kc">True</span><span class="p">)[:</span><span class="n">limit</span><span class="p">]</span>
+      <span class="n">metadata_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">FileMetadata</span><span class="p">(</span><span class="n">file_info</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">],</span> <span class="n">file_info</span><span class="p">[</span><span class="s1">&#39;size&#39;</span><span class="p">])</span>
+                       <span class="k">for</span> <span class="n">file_info</span> <span class="ow">in</span> <span class="n">file_infos</span><span class="p">]</span>
+      <span class="k">return</span> <span class="n">MatchResult</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">,</span> <span class="n">metadata_list</span><span class="p">)</span>
+
+    <span class="n">exceptions</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">url_pattern</span><span class="p">,</span> <span class="n">limit</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">url_patterns</span><span class="p">,</span> <span class="n">limits</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">path_pattern</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">url_pattern</span><span class="p">)</span>
+        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_match</span><span class="p">(</span><span class="n">path_pattern</span><span class="p">,</span> <span class="n">limit</span><span class="p">))</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+        <span class="n">exceptions</span><span class="p">[</span><span class="n">url_pattern</span><span class="p">]</span> <span class="o">=</span> <span class="n">e</span>
+
+    <span class="k">if</span> <span class="n">exceptions</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">BeamIOError</span><span class="p">(</span><span class="s1">&#39;Match operation failed&#39;</span><span class="p">,</span> <span class="n">exceptions</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+  <span class="k">def</span> <span class="nf">_open_hdfs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">mime_type</span> <span class="o">!=</span> <span class="s1">&#39;application/octet-stream&#39;</span><span class="p">:</span>
+      <span class="n">logging</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Mime types are not supported. Got non-default mime_type:&#39;</span>
+                      <span class="s1">&#39; </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">compression_type</span> <span class="o">==</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">:</span>
+      <span class="n">compression_type</span> <span class="o">=</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">detect_compression_type</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdfs_client</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mode</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">compression_type</span> <span class="o">!=</span> <span class="n">CompressionTypes</span><span class="o">.</span><span class="n">UNCOMPRESSED</span><span class="p">:</span>
+      <span class="n">res</span> <span class="o">=</span> <span class="n">CompressedFile</span><span class="p">(</span><span class="n">res</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">res</span>
+
+<div class="viewcode-block" id="HadoopFileSystem.create"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.create">[docs]</a>  <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+             <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      *hdfs3.core.HDFile*: An Python File-like object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_create</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+              <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open_hdfs</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">)</span>
+
+<div class="viewcode-block" id="HadoopFileSystem.open"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.open">[docs]</a>  <span class="k">def</span> <span class="nf">open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+           <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns:</span>
+<span class="sd">      *hdfs3.core.HDFile*: An Python File-like object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_open</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">mime_type</span><span class="o">=</span><span class="s1">&#39;application/octet-stream&#39;</span><span class="p">,</span>
+            <span class="n">compression_type</span><span class="o">=</span><span class="n">CompressionTypes</span><span class="o">.</span><span class="n">AUTO</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open_hdfs</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">,</span> <span class="n">mime_type</span><span class="p">,</span> <span class="n">compression_type</span><span class="p">)</span>
+
+<div class="viewcode-block" id="HadoopFileSystem.copy"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.copy">[docs]</a>  <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_file_names</span><span class="p">,</span> <span class="n">destination_file_names</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Will overwrite files and directories in destination_file_names.</span>
+
+<span class="sd">    Raises ``BeamIOError`` if any error occurred.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      source_file_names: iterable of URLs.</span>
+<span class="sd">      destination_file_names: iterable of URLs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">destination_file_names</span><span class="p">):</span>
+      <span class="k">raise</span> <span class="n">BeamIOError</span><span class="p">(</span>
+          <span class="s1">&#39;source_file_names and destination_file_names should &#39;</span>
+          <span class="s1">&#39;be equal in length: </span><span class="si">%d</span><span class="s1"> != </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span>
+              <span class="nb">len</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">destination_file_names</span><span class="p">)))</span>
+
+    <span class="k">def</span> <span class="nf">_copy_file</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">destination</span><span class="p">):</span>
+      <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open</span><span class="p">(</span><span class="n">source</span><span class="p">)</span> <span class="k">as</span> <span class="n">f1</span><span class="p">:</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span> <span class="k">as</span> <span class="n">f2</span><span class="p">:</span>
+          <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">buf</span> <span class="o">=</span> <span class="n">f1</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">_COPY_BUFFER_SIZE</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">buf</span><span class="p">:</span>
+              <span class="k">break</span>
+            <span class="n">f2</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">buf</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_copy_path</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">destination</span><span class="p">):</span>
+      <span class="sd">&quot;&quot;&quot;Recursively copy the file tree from the source to the destination.&quot;&quot;&quot;</span>
+      <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdfs_client</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
+        <span class="n">_copy_file</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">destination</span><span class="p">)</span>
+        <span class="k">return</span>
+
+      <span class="k">for</span> <span class="n">path</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdfs_client</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">source</span><span class="p">):</span>
+        <span class="k">for</span> <span class="nb">dir</span> <span class="ow">in</span> <span class="n">dirs</span><span class="p">:</span>
+          <span class="n">new_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_join</span><span class="p">(</span><span class="n">destination</span><span class="p">,</span> <span class="nb">dir</span><span class="p">)</span>
+          <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exists</span><span class="p">(</span><span class="n">new_dir</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mkdirs</span><span class="p">(</span><span class="n">new_dir</span><span class="p">)</span>
+
+        <span class="n">rel_path</span> <span class="o">=</span> <span class="n">posixpath</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">source</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">rel_path</span> <span class="o">==</span> <span class="s1">&#39;.&#39;</span><span class="p">:</span>
+          <span class="n">rel_path</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+          <span class="n">_copy_file</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">file</span><span class="p">),</span>
+                     <span class="bp">self</span><span class="o">.</span><span class="n">_join</span><span class="p">(</span><span class="n">destination</span><span class="p">,</span> <span class="n">rel_path</span><span class="p">,</span> <span class="n">file</span><span class="p">))</span>
+
+    <span class="n">exceptions</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">source</span><span class="p">,</span> <span class="n">destination</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">,</span> <span class="n">destination_file_names</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">rel_source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+        <span class="n">rel_destination</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+        <span class="n">_copy_path</span><span class="p">(</span><span class="n">rel_source</span><span class="p">,</span> <span class="n">rel_destination</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+        <span class="n">exceptions</span><span class="p">[(</span><span class="n">source</span><span class="p">,</span> <span class="n">destination</span><span class="p">)]</span> <span class="o">=</span> <span class="n">e</span>
+
+    <span class="k">if</span> <span class="n">exceptions</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">BeamIOError</span><span class="p">(</span><span class="s1">&#39;Copy operation failed&#39;</span><span class="p">,</span> <span class="n">exceptions</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HadoopFileSystem.rename"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.rename">[docs]</a>  <span class="k">def</span> <span class="nf">rename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source_file_names</span><span class="p">,</span> <span class="n">destination_file_names</span><span class="p">):</span>
+    <span class="n">exceptions</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">source</span><span class="p">,</span> <span class="n">destination</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">source_file_names</span><span class="p">,</span> <span class="n">destination_file_names</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">rel_source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+        <span class="n">rel_destination</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">destination</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdfs_client</span><span class="o">.</span><span class="n">mv</span><span class="p">(</span><span class="n">rel_source</span><span class="p">,</span> <span class="n">rel_destination</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="n">BeamIOError</span><span class="p">(</span>
+              <span class="s1">&#39;libhdfs error in renaming </span><span class="si">%s</span><span class="s1"> to </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">destination</span><span class="p">))</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+        <span class="n">exceptions</span><span class="p">[(</span><span class="n">source</span><span class="p">,</span> <span class="n">destination</span><span class="p">)]</span> <span class="o">=</span> <span class="n">e</span>
+
+    <span class="k">if</span> <span class="n">exceptions</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">BeamIOError</span><span class="p">(</span><span class="s1">&#39;Rename operation failed&#39;</span><span class="p">,</span> <span class="n">exceptions</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="HadoopFileSystem.exists"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.exists">[docs]</a>  <span class="k">def</span> <span class="nf">exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Checks existence of url in HDFS.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      url: String in the form hdfs://...</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">      True if url exists as a file or directory in HDFS.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exists</span><span class="p">(</span><span class="n">path</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_exists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Returns True if path exists as a file or directory in HDFS.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      path: String in the form /...</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_hdfs_client</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="HadoopFileSystem.delete"><a class="viewcode-back" href="../../../apache_beam.io.hadoopfilesystem.html#apache_beam.io.hadoopfilesystem.HadoopFileSystem.delete">[docs]</a>  <span class="k">def</span> <span class="nf">delete</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">urls</span><span class="p">):</span>
+    <span class="n">exceptions</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_hdfs_client</span><span class="o">.</span><span class="n">rm</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">recursive</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>  <span class="c1"># pylint: disable=broad-except</span>
+        <span class="n">exceptions</span><span class="p">[</span><span class="n">url</span><span class="p">]</span> <span class="o">=</span> <span class="n">e</span>
+
+    <span class="k">if</span> <span class="n">exceptions</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">BeamIOError</span><span class="p">(</span><span class="s2">&quot;Delete operation failed&quot;</span><span class="p">,</span> <span class="n">exceptions</span><span class="p">)</span></div></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

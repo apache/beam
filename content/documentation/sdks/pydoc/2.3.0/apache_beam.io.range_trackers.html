@@ -1,0 +1,479 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.range_trackers module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.io package" href="apache_beam.io.html"/>
+        <link rel="next" title="apache_beam.io.restriction_trackers module" href="apache_beam.io.restriction_trackers.html"/>
+        <link rel="prev" title="apache_beam.io.localfilesystem module" href="apache_beam.io.localfilesystem.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.avroio.html">apache_beam.io.avroio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.concat_source.html">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsink.html">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsource.html">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystem.html">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystems.html">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.hadoopfilesystem.html">apache_beam.io.hadoopfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.iobase.html">apache_beam.io.iobase module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.localfilesystem.html">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.restriction_trackers.html">apache_beam.io.restriction_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.source_test_utils.html">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.textio.html">apache_beam.io.textio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.tfrecordio.html">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.vcfio.html">apache_beam.io.vcfio module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.io.html">apache_beam.io package</a> &raquo;</li>
+        
+      <li>apache_beam.io.range_trackers module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.io.range_trackers.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.io.range_trackers">
+<span id="apache-beam-io-range-trackers-module"></span><h1>apache_beam.io.range_trackers module<a class="headerlink" href="#module-apache_beam.io.range_trackers" title="Permalink to this headline">¶</a></h1>
+<p>iobase.RangeTracker implementations provided with Apache Beam.</p>
+<dl class="class">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker">
+<em class="property">class </em><code class="descclassname">apache_beam.io.range_trackers.</code><code class="descname">OffsetRangeTracker</code><span class="sig-paren">(</span><em>start</em>, <em>end</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.RangeTracker" title="apache_beam.io.iobase.RangeTracker"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.iobase.RangeTracker</span></code></a></p>
+<p>A ‘RangeTracker’ for non-negative positions of type ‘long’.</p>
+<dl class="attribute">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.OFFSET_INFINITY">
+<code class="descname">OFFSET_INFINITY</code><em class="property"> = inf</em><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.OFFSET_INFINITY" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.start_position">
+<code class="descname">start_position</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker.start_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.start_position" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.stop_position">
+<code class="descname">stop_position</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker.stop_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.stop_position" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.last_record_start">
+<code class="descname">last_record_start</code><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.last_record_start" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.try_claim">
+<code class="descname">try_claim</code><span class="sig-paren">(</span><em>record_start</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker.try_claim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.try_claim" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.set_current_position">
+<code class="descname">set_current_position</code><span class="sig-paren">(</span><em>record_start</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker.set_current_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.set_current_position" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.try_split">
+<code class="descname">try_split</code><span class="sig-paren">(</span><em>split_offset</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker.try_split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.try_split" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.fraction_consumed">
+<code class="descname">fraction_consumed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker.fraction_consumed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.fraction_consumed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.position_at_fraction">
+<code class="descname">position_at_fraction</code><span class="sig-paren">(</span><em>fraction</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker.position_at_fraction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.position_at_fraction" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.split_points">
+<code class="descname">split_points</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker.split_points"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.split_points" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OffsetRangeTracker.set_split_points_unclaimed_callback">
+<code class="descname">set_split_points_unclaimed_callback</code><span class="sig-paren">(</span><em>callback</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OffsetRangeTracker.set_split_points_unclaimed_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OffsetRangeTracker.set_split_points_unclaimed_callback" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker">
+<em class="property">class </em><code class="descclassname">apache_beam.io.range_trackers.</code><code class="descname">OrderedPositionRangeTracker</code><span class="sig-paren">(</span><em>start_position=None</em>, <em>stop_position=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OrderedPositionRangeTracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.RangeTracker" title="apache_beam.io.iobase.RangeTracker"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.iobase.RangeTracker</span></code></a></p>
+<p>An abstract base class for range trackers whose positions are comparable.</p>
+<p>Subclasses only need to implement the mapping from position ranges
+to and from the closed interval [0, 1].</p>
+<dl class="attribute">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker.UNSTARTED">
+<code class="descname">UNSTARTED</code><em class="property"> = &lt;object object&gt;</em><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker.UNSTARTED" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker.start_position">
+<code class="descname">start_position</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OrderedPositionRangeTracker.start_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker.start_position" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker.stop_position">
+<code class="descname">stop_position</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OrderedPositionRangeTracker.stop_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker.stop_position" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker.try_claim">
+<code class="descname">try_claim</code><span class="sig-paren">(</span><em>position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OrderedPositionRangeTracker.try_claim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker.try_claim" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker.position_at_fraction">
+<code class="descname">position_at_fraction</code><span class="sig-paren">(</span><em>fraction</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OrderedPositionRangeTracker.position_at_fraction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker.position_at_fraction" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker.try_split">
+<code class="descname">try_split</code><span class="sig-paren">(</span><em>position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OrderedPositionRangeTracker.try_split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker.try_split" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker.fraction_consumed">
+<code class="descname">fraction_consumed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OrderedPositionRangeTracker.fraction_consumed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker.fraction_consumed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker.position_to_fraction">
+<code class="descname">position_to_fraction</code><span class="sig-paren">(</span><em>pos</em>, <em>start</em>, <em>end</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OrderedPositionRangeTracker.position_to_fraction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker.position_to_fraction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a position <cite>pos</cite> betweeen <cite>start</cite> and <cite>end</cite> (inclusive) to a
+fraction between 0 and 1.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.OrderedPositionRangeTracker.fraction_to_position">
+<code class="descname">fraction_to_position</code><span class="sig-paren">(</span><em>fraction</em>, <em>start</em>, <em>end</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#OrderedPositionRangeTracker.fraction_to_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker.fraction_to_position" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a fraction between 0 and 1 to a position between start and end.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker">
+<em class="property">class </em><code class="descclassname">apache_beam.io.range_trackers.</code><code class="descname">UnsplittableRangeTracker</code><span class="sig-paren">(</span><em>range_tracker</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.RangeTracker" title="apache_beam.io.iobase.RangeTracker"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.iobase.RangeTracker</span></code></a></p>
+<p>A RangeTracker that always ignores split requests.</p>
+<p>This can be used to make a given
+<a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.RangeTracker" title="apache_beam.io.iobase.RangeTracker"><code class="xref py py-class docutils literal"><span class="pre">RangeTracker</span></code></a> object unsplittable by
+ignoring all calls to <a class="reference internal" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.try_split" title="apache_beam.io.range_trackers.UnsplittableRangeTracker.try_split"><code class="xref py py-meth docutils literal"><span class="pre">try_split()</span></code></a>. All other calls will be delegated
+to the given <a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.RangeTracker" title="apache_beam.io.iobase.RangeTracker"><code class="xref py py-class docutils literal"><span class="pre">RangeTracker</span></code></a>.</p>
+<p>Initializes UnsplittableRangeTracker.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>range_tracker</strong> (<a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.RangeTracker" title="apache_beam.io.iobase.RangeTracker"><em>RangeTracker</em></a>) – a
+<a class="reference internal" href="apache_beam.io.iobase.html#apache_beam.io.iobase.RangeTracker" title="apache_beam.io.iobase.RangeTracker"><code class="xref py py-class docutils literal"><span class="pre">RangeTracker</span></code></a> to which all method
+calls expect calls to <a class="reference internal" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.try_split" title="apache_beam.io.range_trackers.UnsplittableRangeTracker.try_split"><code class="xref py py-meth docutils literal"><span class="pre">try_split()</span></code></a> will be delegated.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker.start_position">
+<code class="descname">start_position</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker.start_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.start_position" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker.stop_position">
+<code class="descname">stop_position</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker.stop_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.stop_position" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker.position_at_fraction">
+<code class="descname">position_at_fraction</code><span class="sig-paren">(</span><em>fraction</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker.position_at_fraction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.position_at_fraction" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker.try_claim">
+<code class="descname">try_claim</code><span class="sig-paren">(</span><em>position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker.try_claim"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.try_claim" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker.try_split">
+<code class="descname">try_split</code><span class="sig-paren">(</span><em>position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker.try_split"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.try_split" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker.set_current_position">
+<code class="descname">set_current_position</code><span class="sig-paren">(</span><em>position</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker.set_current_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.set_current_position" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker.fraction_consumed">
+<code class="descname">fraction_consumed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker.fraction_consumed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.fraction_consumed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker.split_points">
+<code class="descname">split_points</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker.split_points"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.split_points" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.range_trackers.UnsplittableRangeTracker.set_split_points_unclaimed_callback">
+<code class="descname">set_split_points_unclaimed_callback</code><span class="sig-paren">(</span><em>callback</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#UnsplittableRangeTracker.set_split_points_unclaimed_callback"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.UnsplittableRangeTracker.set_split_points_unclaimed_callback" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.range_trackers.LexicographicKeyRangeTracker">
+<em class="property">class </em><code class="descclassname">apache_beam.io.range_trackers.</code><code class="descname">LexicographicKeyRangeTracker</code><span class="sig-paren">(</span><em>start_position=None</em>, <em>stop_position=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#LexicographicKeyRangeTracker"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.LexicographicKeyRangeTracker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.io.range_trackers.OrderedPositionRangeTracker" title="apache_beam.io.range_trackers.OrderedPositionRangeTracker"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.io.range_trackers.OrderedPositionRangeTracker</span></code></a></p>
+<p>A range tracker that tracks progress through a lexicographically
+ordered keyspace of strings.</p>
+<dl class="classmethod">
+<dt id="apache_beam.io.range_trackers.LexicographicKeyRangeTracker.fraction_to_position">
+<em class="property">classmethod </em><code class="descname">fraction_to_position</code><span class="sig-paren">(</span><em>fraction</em>, <em>start=None</em>, <em>end=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#LexicographicKeyRangeTracker.fraction_to_position"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.LexicographicKeyRangeTracker.fraction_to_position" title="Permalink to this definition">¶</a></dt>
+<dd><p>Linearly interpolates a key that is lexicographically
+fraction of the way between start and end.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.io.range_trackers.LexicographicKeyRangeTracker.position_to_fraction">
+<em class="property">classmethod </em><code class="descname">position_to_fraction</code><span class="sig-paren">(</span><em>key</em>, <em>start=None</em>, <em>end=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/range_trackers.html#LexicographicKeyRangeTracker.position_to_fraction"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.range_trackers.LexicographicKeyRangeTracker.position_to_fraction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the fraction of keys in the range [start, end) that
+are less than the given key.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.io.restriction_trackers.html" class="btn btn-neutral float-right" title="apache_beam.io.restriction_trackers module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.io.localfilesystem.html" class="btn btn-neutral" title="apache_beam.io.localfilesystem module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

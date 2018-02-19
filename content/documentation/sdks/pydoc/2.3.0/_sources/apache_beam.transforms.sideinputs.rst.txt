@@ -1,0 +1,7 @@
+apache\_beam\.transforms\.sideinputs module
+===========================================
+
+.. automodule:: apache_beam.transforms.sideinputs
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -91,7 +91,7 @@
   <span class="section-nav-list-title">Java SDK</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="/documentation/sdks/javadoc/2.2.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="/documentation/sdks/javadoc/2.3.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -104,7 +104,7 @@
   <span class="section-nav-list-title">Python SDK</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="/documentation/sdks/pydoc/2.2.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="/documentation/sdks/pydoc/2.3.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -177,8 +177,8 @@
 <p>There are two main pieces to the SQL DSL API:</p>
 
 <ul>
-  <li><a href="/documentation/sdks/javadoc/2.2.0/index.html?org/apache/beam/sdk/values/BeamRecord.html">BeamRecord</a>: a new data type used to define composite records (i.e., rows) that consist of multiple, named columns of primitive data types. All SQL DSL queries must be made against collections of type <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code>. Note that <code class="highlighter-rouge">BeamRecord</code> itself is not SQL-specific, however, and may also be used in pipelines that do not utilize SQL.</li>
-  <li><a href="/documentation/sdks/javadoc/2.2.0/index.html?org/apache/beam/sdk/extensions/sql/BeamSql.html">BeamSql</a>: the interface for creating <code class="highlighter-rouge">PTransforms</code> from SQL queries.</li>
+  <li><a href="/documentation/sdks/javadoc/2.3.0/index.html?org/apache/beam/sdk/values/BeamRecord.html">BeamRecord</a>: a new data type used to define composite records (i.e., rows) that consist of multiple, named columns of primitive data types. All SQL DSL queries must be made against collections of type <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code>. Note that <code class="highlighter-rouge">BeamRecord</code> itself is not SQL-specific, however, and may also be used in pipelines that do not utilize SQL.</li>
+  <li><a href="/documentation/sdks/javadoc/2.3.0/index.html?org/apache/beam/sdk/extensions/sql/BeamSql.html">BeamSql</a>: the interface for creating <code class="highlighter-rouge">PTransforms</code> from SQL queries.</li>
 </ul>
 
 <p>We’ll look at each of these below.</p>
@@ -187,7 +187,7 @@
 
 <h3 id="beamrecord">BeamRecord</h3>
 
-<p>Before applying a SQL query to a <code class="highlighter-rouge">PCollection</code>, the data in the collection must be in <code class="highlighter-rouge">BeamRecord</code> format. A <code class="highlighter-rouge">BeamRecord</code> represents a single, immutable row in a Beam SQL <code class="highlighter-rouge">PCollection</code>. The names and types of the fields/columns in the record are defined by its associated <a href="/documentation/sdks/javadoc/2.2.0/index.html?org/apache/beam/sdk/values/BeamRecordType.html">BeamRecordType</a>; for SQL queries, you should use the <a href="/documentation/sdks/javadoc/2.2.0/index.html?org/apache/beam/sdk/extensions/sql/BeamRecordSqlType.html">BeamRecordSqlType</a> subclass (see <a href="#data-types">Data Types</a> for more details on supported primitive data types).</p>
+<p>Before applying a SQL query to a <code class="highlighter-rouge">PCollection</code>, the data in the collection must be in <code class="highlighter-rouge">BeamRecord</code> format. A <code class="highlighter-rouge">BeamRecord</code> represents a single, immutable row in a Beam SQL <code class="highlighter-rouge">PCollection</code>. The names and types of the fields/columns in the record are defined by its associated <a href="/documentation/sdks/javadoc/2.3.0/index.html?org/apache/beam/sdk/values/BeamRecordType.html">BeamRecordType</a>; for SQL queries, you should use the <a href="/documentation/sdks/javadoc/2.3.0/index.html?org/apache/beam/sdk/extensions/sql/BeamRecordSqlType.html">BeamRecordSqlType</a> subclass (see <a href="#data-types">Data Types</a> for more details on supported primitive data types).</p>
 
 <p>A <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> can be created explicitly or implicitly:</p>
 
