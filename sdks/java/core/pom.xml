@@ -323,7 +323,13 @@
 
     <dependency>
       <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <artifactId>hamcrest-core</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
       <scope>provided</scope>
     </dependency>
 
@@ -341,10 +347,17 @@
 
     <dependency>
       <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
+      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
-
+    
+    <dependency>
+      <groupId>org.objenesis</groupId> 
+      <artifactId>objenesis</artifactId>  
+      <version>1.0</version>
+      <scope>test</scope> 
+    </dependency>
+    
     <dependency>
       <groupId>com.esotericsoftware.kryo</groupId>
       <artifactId>kryo</artifactId>
