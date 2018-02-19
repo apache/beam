@@ -135,8 +135,7 @@ class WriteTables<DestinationT>
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(
             c.getPipelineOptions().as(BigQueryOptions.class).getProject());
-        tableDestination = new TableDestination(
-            tableReference, tableDestination.getTableDescription(), tableDestination.getTimePartitioning());
+        tableDestination = tableDestination.withTableReference(tableReference);
       }
 
       Integer partition = c.element().getKey().getShardNumber();
