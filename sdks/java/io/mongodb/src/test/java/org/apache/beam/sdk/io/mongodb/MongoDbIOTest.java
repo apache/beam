@@ -40,11 +40,11 @@ import java.io.Serializable;
 import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
@@ -272,12 +272,25 @@ public class MongoDbIOTest implements Serializable {
 
   @Test
   public void testWriteEmptyCollection() throws Exception {
-    MongoDbIO.Write write =
+    final String emptyCollection = "empty";
+
+    final PCollection<Document> emptyInput =
+        pipeline.apply(
+            Create.empty(
+                SerializableCoder.of(Document.class)));
+
+    emptyInput.apply(
         MongoDbIO.write()
             .withUri("mongodb://localhost:" + port)
-            .withDatabase("test")
-            .withCollection("empty");
-    DoFnTester<Document, Void> fnTester = DoFnTester.of(new MongoDbIO.Write.WriteFn(write));
-    fnTester.processBundle(new ArrayList<>());
+            .withDatabase(DATABASE)
+            .withCollection(emptyCollection));
+
+    pipeline.run();
+
+    final MongoClient client = new MongoClient("localhost", port);
+    final MongoDatabase database = client.getDatabase(DATABASE);
+    final MongoCollection collection = database.getCollection(emptyCollection);
+
+    Assert.assertEquals(0, collection.count());
   }
 }
