@@ -39,6 +39,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -222,6 +223,48 @@ public class FlatMapElementsTest implements Serializable {
               return Collections.singletonList(KV.<K, Void>of(input.getKey(), null));
             }
           }));
+    }
+  }
+
+  /**
+   * Basic test of {@link FlatMapElements} with a lambda (which is instantiated as a
+   * {@link SerializableFunction}).
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapBasicWithLambda() throws Exception {
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(FlatMapElements
+            // Note that the input type annotation is required.
+            .into(TypeDescriptors.integers())
+            .via((Integer i) -> ImmutableList.of(i, -i)));
+
+    PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
+    pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link FlatMapElements} with a method reference.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapMethodReference() throws Exception {
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(FlatMapElements
+            // Note that the input type annotation is required.
+            .into(TypeDescriptors.integers())
+            .via(new Negater()::numAndNegation));
+
+    PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
+    pipeline.run();
+  }
+
+  private static class Negater implements Serializable {
+    public List<Integer> numAndNegation(int input) {
+      return ImmutableList.of(input, -input);
     }
   }
 }

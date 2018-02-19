@@ -40,7 +40,6 @@
     <module>container</module>
     <module>core</module>
     <module>io</module>
-    <module>java8tests</module>
     <module>maven-archetypes</module>
     <module>extensions</module>
     <module>fn-execution</module>
