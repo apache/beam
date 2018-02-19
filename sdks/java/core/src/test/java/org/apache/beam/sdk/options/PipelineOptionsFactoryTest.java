@@ -19,8 +19,10 @@ package org.apache.beam.sdk.options;
 
 import static java.util.Locale.ROOT;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -1826,4 +1828,36 @@ public class PipelineOptionsFactoryTest {
       PipelineOptionsFactory.resetCache();
     }
   }
+
+  @Test
+  public void testDefaultMethodIgnoresDefaultImplementation() {
+    OptionsWithDefaultMethod optsWithDefault =
+        PipelineOptionsFactory.as(OptionsWithDefaultMethod.class);
+    assertThat(optsWithDefault.getValue(), nullValue());
+
+    optsWithDefault.setValue(12.25);
+    assertThat(optsWithDefault.getValue(), equalTo(12.25));
+  }
+
+  private interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
+
+  @Test
+  public void testDefaultMethodInExtendedClassIgnoresDefaultImplementation() {
+    OptionsWithDefaultMethod extendedOptsWithDefault =
+        PipelineOptionsFactory.as(ExtendedOptionsWithDefault.class);
+    assertThat(extendedOptsWithDefault.getValue(), nullValue());
+
+    extendedOptsWithDefault.setValue(Double.NEGATIVE_INFINITY);
+    assertThat(extendedOptsWithDefault.getValue(), equalTo(Double.NEGATIVE_INFINITY));
+  }
+
+  private interface OptionsWithDefaultMethod extends PipelineOptions {
+    default Number getValue() {
+      return 1024;
+    }
+
+    void setValue(Number value);
+  }
+
+
 }
