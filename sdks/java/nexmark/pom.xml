@@ -257,12 +257,6 @@
       <artifactId>hamcrest-core</artifactId>
       <scope>compile</scope>
     </dependency>
-    <dependency>
-    
-      <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-library</artifactId>
-      <scope>compile</scope>
-    </dependency>
     
     <dependency>
       <groupId>org.apache.beam</groupId>
