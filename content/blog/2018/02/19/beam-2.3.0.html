@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apache Beam 2.3.0</title>
+  <meta name="description" content="We are glad to present the new 2.3.0 release of Beam. This release includesmultiple fixes and new functionalities.">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/blog/2018/02/19/beam-2.3.0.html" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body ">
+    <nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
+        </li>
+        <li>
+          <a href="/documentation/">Documentation</a>
+        </li>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
+        </li>
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+    <div class="body__contained">
+      
+
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Apache Beam 2.3.0</h1>
+    <p class="post-meta"><time datetime="2018-02-19T00:00:01-08:00" itemprop="datePublished">Feb 19, 2018</time> •  Ismaël Mejía [<a href="https://twitter.com/iemejia">@iemejia</a>]
+</p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>We are glad to present the new 2.3.0 release of Beam. This release includes
+multiple fixes and new functionalities. <!--more--> For more information
+please check the detailed release notes.</p>
+
+<h1 id="new-features--improvements">New Features / Improvements</h1>
+
+<h2 id="beam-moves-to-java-8">Beam moves to Java 8</h2>
+
+<p>The supported version of Java for Beam is now Java 8. The code and examples have
+been refactored to use multiple of the advantages of the language, e.g. lambdas,
+streams, improved type inference, etc.</p>
+
+<h2 id="spark-runner-is-now-based-on-spark-2x">Spark runner is now based on Spark 2.x</h2>
+
+<p>Spark runner moves forward into the Spark 2.x development line, this would allow
+to benefit of improved performance, as well as open the runner for future
+compatibility with the Structured Streaming APIs. Notice that support for Spark
+1.x is finished with this release.</p>
+
+<h2 id="amazon-web-services-s3-filesystem-support">Amazon Web Services S3 Filesystem support</h2>
+
+<p>Beam already supported AWS S3 via HadoopFileSystem, but this version brings a
+native implementation with the corresponding performance advantages of the S3
+filesystem.</p>
+
+<h2 id="general-purpose-writing-to-files">General-purpose writing to files</h2>
+
+<p>This release contains a new transform, FileIO.write() / writeDynamic() that
+implements a general-purpose fluent and Java8-friendly API for writing to files
+using a FileIO.Sink. This API has similar capabilities to DynamicDestinations
+APIs from Beam 2.2 but is much easier to use and extend. The DynamicDestinations
+APIs for writing to files are deprecated by it, as is FileBasedSink.</p>
+
+<h2 id="splittable-dofn-support-on-the-python-sdk">Splittable DoFn support on the Python SDK</h2>
+
+<p>This release adds the Splittable DoFn API for Python SDK and adds Splittable
+DoFn support for Python streaming DirectRunner.</p>
+
+<h2 id="portability">Portability</h2>
+
+<p>Progress continues to being able to execute Python on runners other then Google
+Cloud Dataflow and the Go SDK on any runner.</p>
+
+<h1 id="miscellaneous-fixes">Miscellaneous Fixes</h1>
+
+<h2 id="sdks">SDKs</h2>
+
+<ul>
+  <li>MapElements and FlatMapElements support using side inputs using the new
+interface Contextful.Fn. For library authors, this interface is the
+recommended choice for user-code callbacks that may use side inputs.</li>
+  <li>Introduces the family of Reify transforms for converting between explicit and
+implicit representations of various Beam entities.</li>
+  <li>Introduces two transforms for approximate sketching of data: Count-Min Sketch
+(approximate element frequency estimation) and HyperLogLog (approximate
+cardinality estimation).</li>
+</ul>
+
+<h2 id="runners">Runners</h2>
+
+<ul>
+  <li>Staging files on Dataflow shows progress</li>
+  <li>Flink runner is based now on Flink version 1.4.0</li>
+</ul>
+
+<h2 id="ios">IOs</h2>
+
+<ul>
+  <li>BigtableIO now supports ValueProvider configuration</li>
+  <li>BigQueryIO supports writing bounded collections to tables with partition
+decorators</li>
+  <li>KafkaIO moves to version 1.0 (it is still backwards compatible with versions &gt;= 0.9.x.x)</li>
+  <li>Added IO source for VCF files (Python)</li>
+  <li>Added support for backoff on deadlocks in JdbcIO.write() and connection
+improvement</li>
+  <li>Improved performance of KinesisIO.read()</li>
+  <li>Many improvements to TikaIO</li>
+</ul>
+
+<h1 id="list-of-contributors">List of Contributors</h1>
+
+<p>According to git shortlog, the following 80 people contributed to the 2.3.0 release. Thank you to all contributors!</p>
+
+<p>Ahmet Altay, Alan Myrvold, Alex Amato, Alexey Romanenko, Ankur Goenka, Anton Kedin, Arnaud Fournier, Alexey Romanenko, Asha Rostamianfar, Ben Chambers, Ben Sidhom, Bill Neubauer, Brian Foo, cclauss, Chamikara Jayalath, Charles Chen, Colm O hEigeartaigh, Daniel Oliveira, Dariusz Aniszewski, David Cavazos, David Sabater, David Sabater Dinter, Dawid Wysakowicz, Dmytro Ivanov, Etienne Chauchot, Eugene Kirpichov, Exprosed, Grzegorz Kołakowski, Henning Rohde, Holden Karau, Huygaa Batsaikhan, Ilya Figotin, Innocent Djiofack, Ismaël Mejía, Itamar Ostricher, Jacky, Jacob Marble, James Xu, Jean-Baptiste Onofré, Jeremie Lenfant-Engelmann, Kamil Szewczyk, Kenneth Knowles, Lukasz Cwik, Łukasz Gajowy, Luke Zhu, Mairbek Khadikov, María García Herrero, Marian Dvorsky, Mark Liu, melissa, Miles Saul, mingmxu, Motty Gruda, nerdynick, Neville Li, Nigel Kilmer, Pablo, Pawel Kaczmarczyk, Petr Shevtsov, Rafal Wojdyla, Raghu Angadi, Robert Bradshaw, Robert Burke, Romain Manni-Bucau, Ryan Niemocienski, Ryan Skraba, Sam Whittle, Scott Wegner, Shashank Prabhakara, Solomon Duskis, Thomas Groh, Thomas Weise, Udi Meiri, Valentyn Tymofieiev, wtanaka.com, XuMingmin, zhouhai02, Zohar Yahav, 琨瑜.</p>
+
+
+  </div>
+
+</article>
+
+    </div>
+    <footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/team/">Team</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>
