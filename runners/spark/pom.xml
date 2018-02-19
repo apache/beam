@@ -324,7 +324,18 @@
         </exclusion>
       </exclusions>
     </dependency>
+    
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-core</artifactId>
+      <scope>provided</scope>
+    </dependency>
 
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
+      <scope>provided</scope>
+    </dependency>
     <!-- Depend on test jar to scan for ValidatesRunner tests -->
     <dependency>
       <groupId>org.apache.beam</groupId>

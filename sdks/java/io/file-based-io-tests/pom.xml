@@ -330,6 +330,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-library</artifactId>
+            <scope>test</scope>
+        </dependency>        
+        <dependency>
             <groupId>org.apache.beam</groupId>
             <artifactId>beam-sdks-java-io-common</artifactId>
             <scope>test</scope>
