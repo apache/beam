@@ -187,6 +187,12 @@
       <artifactId>hamcrest-core</artifactId>
       <scope>provided</scope>
     </dependency>
+    
+     <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
+      <scope>provided</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.mockito</groupId>
