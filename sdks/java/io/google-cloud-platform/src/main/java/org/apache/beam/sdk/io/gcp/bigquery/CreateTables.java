@@ -127,8 +127,7 @@ public class CreateTables<DestinationT>
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(
             context.getPipelineOptions().as(BigQueryOptions.class).getProject());
-        tableDestination =
-            new TableDestination(tableReference, tableDestination.getTableDescription());
+        tableDestination = tableDestination.withTableReference(tableReference);
       }
       if (createDisposition == CreateDisposition.CREATE_NEVER) {
         return tableDestination;
