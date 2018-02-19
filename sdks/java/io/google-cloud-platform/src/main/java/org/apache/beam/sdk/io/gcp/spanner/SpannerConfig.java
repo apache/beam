@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.spanner.DatabaseClient;
@@ -27,6 +28,7 @@ import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
+import java.util.Collections;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -150,7 +152,10 @@ public abstract class SpannerConfig implements Serializable {
       builder.setHost(getHost());
     }
     ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
-    builder.setUserAgentPrefix(USER_AGENT_PREFIX + "/" + releaseInfo.getVersion());
+    builder.setHeaderProvider(
+        FixedHeaderProvider.create(
+            Collections.singletonMap(
+                "user-agent", USER_AGENT_PREFIX + "/" + releaseInfo.getVersion())));
     SpannerOptions options = builder.build();
     Spanner spanner = options.getService();
     DatabaseClient databaseClient = spanner.getDatabaseClient(
