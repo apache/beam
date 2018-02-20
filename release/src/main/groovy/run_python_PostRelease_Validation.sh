@@ -88,19 +88,19 @@ BEAM_PYTHON_RELEASE="apache-beam-$VERSION-source-release.zip"
 
 # Cloud Configurations
 # for local test
-PROJECT_ID='my-first-project-190318'
-BUCKET_NAME='yifan_auto_verification_test_bucket'
-TEMP_DIR='/temp'
-STREAMING_PROJECT_ID='google.com:dataflow-streaming'
-STREAMING_BUCKET_NAME='python-streaming-test'
-STREAMING_TEMP_DIR='/temp'
+#PROJECT_ID='my-first-project-190318'
+#BUCKET_NAME='yifan_auto_verification_test_bucket'
+#TEMP_DIR='/temp'
+#STREAMING_PROJECT_ID='google.com:dataflow-streaming'
+#STREAMING_BUCKET_NAME='python-streaming-test'
+#STREAMING_TEMP_DIR='/temp'
 
-#PROJECT_ID='apache-beam-testing'
-#BUCKET_NAME='temp-storage-for-release-validation-tests'
-#TEMP_DIR='/quickstart'
-#STREAMING_PROJECT_ID='apache-beam-testing'
-#STREAMING_BUCKET_NAME='temp-storage-for-release-validation-tests'
-#STREAMING_TEMP_DIR='/quickstart'
+PROJECT_ID='apache-beam-testing'
+BUCKET_NAME='temp-storage-for-release-validation-tests'
+TEMP_DIR='/quickstart'
+STREAMING_PROJECT_ID='apache-beam-testing'
+STREAMING_BUCKET_NAME='temp-storage-for-release-validation-tests'
+STREAMING_TEMP_DIR='/quickstart'
 NUM_WORKERS=1
 WORDCOUNT_OUTPUT='wordcount_direct.txt'
 PUBSUB_TOPIC1='wordstream-python-topic-1'
