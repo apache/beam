@@ -40,11 +40,7 @@ job('beam_PerformanceTests_JDBC') {
     def pipelineArgs = [
             tempRoot            : 'gs://temp-storage-for-perf-tests',
             project             : 'apache-beam-testing',
-            numberOfRecords     : '5000000',
-            postgresUsername    : 'postgres',
-            postgresDatabaseName: 'postgres',
-            postgresPassword    : 'uuinkks',
-            postgresSsl         : 'false'
+            numberOfRecords     : '5000000'
     ]
 
     def testArgs = [
