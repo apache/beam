@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -86,7 +87,6 @@ public class BeamFlow extends Flow {
     return new BeamFlow(pipeline);
   }
 
-
   private final transient Map<PCollection<?>, Dataset<?>> wrapped = new HashMap<>();
   private Duration allowedLateness = Duration.ZERO;
   private AccumulatorProvider.Factory accumulatorFactory = VoidAccumulatorProvider.getFactory();
@@ -133,29 +133,6 @@ public class BeamFlow extends Flow {
         this, accumulatorFactory, options, getSettings(),
         org.joda.time.Duration.millis(allowedLateness.toMillis()));
   }
-
-  /**
-   * Write transformations of this flow to given {@link Pipeline}.
-   */
-  /*
-  @SuppressWarnings("unchecked")
-  public void into(Pipeline pipeline) {
-    final DAG<Operator<?, ?>> dag = FlowTranslator.toDAG(this);
-
-    if (context != null) {
-      throw new IllegalStateException("The flow can be translated to Pipeline only once!");
-    }
-    context = new BeamExecutorContext(
-        dag, accumulatorFactory, pipeline, getSettings(),
-        org.joda.time.Duration.millis(allowedLateness.toMillis()));
-
-    wrapped.forEach((col, ds) -> {
-      context.setPCollection((Dataset) ds, (PCollection) col);
-    });
-
-    FlowTranslator.updateContextBy(dag, context);
-  }
-  */
 
   /**
    * Wrap given {@link PCollection} as {@link Dataset} into this flow.
@@ -252,6 +229,17 @@ public class BeamFlow extends Flow {
   public BeamFlow withAllowedLateness(Duration allowedLateness) {
     this.allowedLateness = allowedLateness;
     return this;
+  }
+
+  /**
+   * Retrieve {@link Pipeline} associated with this {@link BeamFlow}.
+   * @return associated pipeline
+   * @throws NullPointerException when the flow has no associated pipeline.
+   * Note that the flow has associated pipeline if and only if it was created
+   * by {@link create(Pipeline)}.
+   */
+  public Pipeline getPipeline() {
+    return Objects.requireNonNull(pipeline);
   }
 
 }

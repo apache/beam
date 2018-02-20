@@ -27,7 +27,7 @@
   </parent>
 
   <properties>
-    <beam.version>2.2.0</beam.version>
+    <beam.version>2.3.0</beam.version>
   </properties>
 
   <artifactId>euphoria-beam</artifactId>
