@@ -38,9 +38,10 @@ job('beam_PerformanceTests_JDBC') {
             'Run Java JdbcIO Performance Test')
 
     def pipelineArgs = [
-            tempRoot            : 'gs://temp-storage-for-perf-tests',
-            project             : 'apache-beam-testing',
-            numberOfRecords     : '5000000'
+            tempRoot       : 'gs://temp-storage-for-perf-tests',
+            project        : 'apache-beam-testing',
+            postgresPort   : '5432',
+            numberOfRecords: '5000000'
     ]
 
     def testArgs = [
