@@ -2218,6 +2218,8 @@
               <rules>
                 <bannedDependencies>
                   <excludes>
+                    <exclude>org.mockito:mockito-all</exclude>
+                    <exclude>org.hamcrest:hamcrest-all</exclude>
                     <exclude>com.google.guava:guava-jdk5</exclude>
                     <exclude>com.google.protobuf:protobuf-lite</exclude>
                   </excludes>
