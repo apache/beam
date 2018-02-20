@@ -70,9 +70,9 @@ job('beam_PerformanceTests_JDBC'){
     steps {
         // create kubernetes config if not exists
         shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
+        shell('kubectl delete rc postgres || kubectl delete service postgres || kubectl delete service postgres-for-dev')
     }
 
-    common_job_properties.buildPerformanceTest(delegate, argMap)
 }
 
 static def makePathAbsolute(String path) {
