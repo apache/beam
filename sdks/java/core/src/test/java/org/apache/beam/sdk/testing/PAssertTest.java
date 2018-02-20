@@ -90,6 +90,7 @@ public class PAssertTest implements Serializable {
 
   private static class NotSerializableObjectCoder extends AtomicCoder<NotSerializableObject> {
     private NotSerializableObjectCoder() { }
+
     private static final NotSerializableObjectCoder INSTANCE = new NotSerializableObjectCoder();
 
     @JsonCreator
