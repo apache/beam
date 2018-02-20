@@ -163,9 +163,11 @@ public class BeamSqlEnv implements Serializable {
 
   private static class BeamCalciteTable implements ScannableTable, Serializable {
     private RowType beamRowType;
+
     public BeamCalciteTable(RowType beamRowType) {
       this.beamRowType = beamRowType;
     }
+
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
       return CalciteUtils.toCalciteRowType(this.beamRowType)

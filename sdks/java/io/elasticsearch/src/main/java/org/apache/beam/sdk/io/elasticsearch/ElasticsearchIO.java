@@ -472,6 +472,7 @@ public class ElasticsearchIO {
       this.numSlices = numSlices;
       this.sliceId = sliceId;
     }
+
     @Override
     public List<? extends BoundedSource<String>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {

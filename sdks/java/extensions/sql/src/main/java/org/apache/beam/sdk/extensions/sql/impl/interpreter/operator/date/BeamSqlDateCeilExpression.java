@@ -37,6 +37,7 @@ public class BeamSqlDateCeilExpression extends BeamSqlExpression {
   public BeamSqlDateCeilExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.TIMESTAMP);
   }
+
   @Override public boolean accept() {
     return operands.size() == 2
         && opType(1) == SqlTypeName.SYMBOL;
