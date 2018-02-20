@@ -18,6 +18,7 @@
  */
 
 import groovy.util.CliBuilder
+import java.util.stream.*
 
 /*
  * Scripting functions to make writing a test similar to the quickstart
@@ -69,6 +70,10 @@ class TestScripts {
      return var.gcsBucket
    }
 
+   def sourceDir() {
+     return System.getProperty("user.dir")
+   }
+
    // Both documents the overal scenario and creates a clean temp directory
    def describe(String desc) {
      var.startDir = File.createTempDir()
@@ -105,6 +110,11 @@ class TestScripts {
      println "Verified $expected"
    }
 
+   // Return console output for the latest command
+   public String output(){
+       return var.lastText
+   }
+
    // Cleanup and print success
    public void done() {
      var.startDir.deleteDir()
@@ -114,7 +124,7 @@ class TestScripts {
 
    // Run a single command, capture output, verify return code is 0
    private void _execute(String cmd) {
-     def shell = "sh -c cmd".split(' ')
+     def shell = "bash -c cmd".split(' ')
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
      pb.directory(var.curDir)
@@ -129,8 +139,11 @@ class TestScripts {
      proc.waitFor()
      var.lastText = text.toString().trim()
      if (proc.exitValue() != 0) {
+       InputStream errorStream = proc.getErrorStream()
+       String errorMessage = new BufferedReader(new InputStreamReader(errorStream))
+       .lines().collect(Collectors.joining("\n"));
        println var.lastText
-       _error("Failed command")
+       _error("Failed command: \n" + errorMessage)
      }
    }
 
