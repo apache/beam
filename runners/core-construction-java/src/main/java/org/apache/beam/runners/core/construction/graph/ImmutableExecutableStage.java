@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
@@ -32,7 +33,8 @@ abstract class ImmutableExecutableStage implements ExecutableStage {
       PCollectionNode input,
       Collection<PTransformNode> transforms,
       Collection<PCollectionNode> outputs) {
-    return new AutoValue_ImmutableExecutableStage(environment, input, transforms, outputs);
+    return new AutoValue_ImmutableExecutableStage(
+        environment, input, ImmutableSet.copyOf(transforms), ImmutableSet.copyOf(outputs));
   }
 
   // Redefine the methods to have a known order.

@@ -136,7 +136,7 @@ public class ExecutableStageTest {
     QueryablePipeline p = QueryablePipeline.fromComponents(components);
 
     ExecutableStage subgraph =
-        GreedilyFusedExecutableStage.forGrpcPortRead(
+        GreedyStageFuser.forGrpcPortRead(
             p,
             PipelineNode.pCollection(
                 "impulse.out", PCollection.newBuilder().setUniqueName("impulse.out").build()),
