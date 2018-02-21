@@ -47,6 +47,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -71,6 +72,9 @@ public class CoderTranslationTest {
           .add(GlobalWindow.Coder.INSTANCE)
           .add(
               FullWindowedValueCoder.of(
+                  IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
+          .add(
+              WindowedValue.FullWindowedValueCoderWithRetractions.of(
                   IterableCoder.of(VarLongCoder.of()), IntervalWindowCoder.of()))
           .build();
 
