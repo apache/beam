@@ -63,6 +63,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
+import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -89,7 +90,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -1473,57 +1473,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
       return PTransformReplacement.of(
-          transform.getPipeline().begin(), new FnApiBoundedRead<>(transform.getTransform()));
+          transform.getPipeline().begin(),
+          JavaReadViaImpulse.bounded(transform.getTransform().getSource()));
     }
 
     @Override
     public Map<PValue, ReplacementOutput> mapOutputs(
         Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
       return ReplacementOutputs.singleton(outputs, newOutput);
-    }
-  }
-
-  /**
-   * Specialized implementation for {@link org.apache.beam.sdk.io.Read.Bounded Read.Bounded} for the
-   * Dataflow runner in streaming mode.
-   */
-  private static class FnApiBoundedRead<T> extends PTransform<PBegin, PCollection<T>> {
-    private final BoundedSource<T> source;
-
-    public FnApiBoundedRead(Read.Bounded<T> transform) {
-      this.source = transform.getSource();
-    }
-
-    @Override
-    public final PCollection<T> expand(PBegin input) {
-      return input
-          .apply(Impulse.create())
-          .apply(
-              ParDo.of(
-                  new DoFn<byte[], BoundedSource<T>>() {
-                    @ProcessElement
-                    public void process(ProcessContext c) throws Exception {
-                      for (BoundedSource<T> split :
-                          source.split(64L << 20, c.getPipelineOptions())) {
-                        c.output(split);
-                      }
-                    }
-                  }))
-          .setCoder((Coder<BoundedSource<T>>) SerializableCoder.of((Class) BoundedSource.class))
-          .apply(Reshuffle.viaRandomKey())
-          .apply(
-              ParDo.of(
-                  new DoFn<BoundedSource<T>, T>() {
-                    @ProcessElement
-                    public void process(ProcessContext c) throws Exception {
-                      BoundedSource.BoundedReader<T> reader =
-                          c.element().createReader(c.getPipelineOptions());
-                      for (boolean more = reader.start(); more; more = reader.advance()) {
-                        c.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
-                      }
-                    }
-                  }))
-          .setCoder(source.getOutputCoder());
     }
   }
 
