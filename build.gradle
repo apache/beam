@@ -242,6 +242,7 @@ rat {
     "**/*.iml",
     "**/*.ipr",
     "**/*.iws",
+    "**/out/**/*",
 
     // .gitignore: Ignore Eclipse files.
     "**/.classpath",
