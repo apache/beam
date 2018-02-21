@@ -77,6 +77,14 @@ class CoderImpl(object):
     """Decodes an object to an unnested string."""
     raise NotImplementedError
 
+  def encode_nested(self, value):
+    out = create_OutputStream()
+    self.encode_to_stream(value, out, True)
+    return out.get()
+
+  def decode_nested(self, encoded):
+    return self.decode_from_stream(create_InputStream(encoded), True)
+
   def estimate_size(self, value, nested=False):
     """Estimates the encoded size of the given value, in bytes."""
     return self._get_nested_size(len(self.encode(value)), nested)

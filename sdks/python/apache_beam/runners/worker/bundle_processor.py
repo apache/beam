@@ -134,21 +134,55 @@ class StateBackedSideInputMap(object):
           multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
               ptransform_id=self._transform_id,
               side_input_id=self._tag,
-              window=self._target_window_coder.encode(target_window)))
-      element_coder_impl = self._element_coder.get_impl()
+              window=self._target_window_coder.encode(target_window),
+              key=''))
       state_handler = self._state_handler
+      access_pattern = self._side_input_data.access_pattern
 
       class AllElements(object):
+        def __init__(self, state_key, coder):
+          self._state_key = state_key
+          self._coder_impl = coder.get_impl()
+
         def __iter__(self):
           # TODO(robertwb): Support pagination.
           input_stream = coder_impl.create_InputStream(
-              state_handler.blocking_get(state_key, None))
+              state_handler.blocking_get(self._state_key, None))
           while input_stream.size() > 0:
-            yield element_coder_impl.decode_from_stream(input_stream, True)
+            yield self._coder_impl.decode_from_stream(input_stream, True)
 
         def __reduce__(self):
           return list, (list(self),)
-      self._cache[target_window] = self._side_input_data.view_fn(AllElements())
+
+      if access_pattern == common_urns.ITERABLE_SIDE_INPUT:
+        raw_view = AllElements(state_key, self._element_coder)
+
+      elif access_pattern == common_urns.MULTIMAP_SIDE_INPUT:
+        cache = {}
+        key_coder_impl = self._element_coder.key_coder().get_impl()
+        value_coder = self._element_coder.value_coder()
+
+        class MultiMap(object):
+          def __getitem__(self, key):
+            if key not in cache:
+              keyed_state_key = beam_fn_api_pb2.StateKey()
+              keyed_state_key.CopyFrom(state_key)
+              keyed_state_key.multimap_side_input.key = (
+                  key_coder_impl.encode_nested(key))
+              cache[key] = AllElements(keyed_state_key, value_coder)
+            return cache[key]
+
+          def __reduce__(self):
+            # TODO(robertwb): Figure out how to support this.
+            raise TypeError(common_urns.MULTIMAP_SIDE_INPUT)
+
+        raw_view = MultiMap()
+
+      else:
+        raise ValueError(
+            "Unknown access pattern: '%s'" % access_pattern)
+
+      self._cache[target_window] = self._side_input_data.view_fn(raw_view)
     return self._cache[target_window]
 
   def is_globally_windowed(self):
