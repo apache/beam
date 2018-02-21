@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -54,11 +55,11 @@ public class AuctionPrice implements KnownSize, Serializable {
   };
 
   @JsonProperty
-  private final long auction;
+  public final long auction;
 
   /** Price in cents. */
   @JsonProperty
-  private final long price;
+  public final long price;
 
   // For Avro only.
   @SuppressWarnings("unused")
@@ -70,6 +71,25 @@ public class AuctionPrice implements KnownSize, Serializable {
   public AuctionPrice(long auction, long price) {
     this.auction = auction;
     this.price = price;
+  }
+
+  @Override
+  public boolean equals(Object otherObject) {
+    if (this == otherObject) {
+      return true;
+    }
+    if (otherObject == null || getClass() != otherObject.getClass()) {
+      return false;
+    }
+
+    AuctionPrice other = (AuctionPrice) otherObject;
+    return Objects.equals(auction, other.auction)
+        && Objects.equals(price, other.price);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(auction, price);
   }
 
   @Override
