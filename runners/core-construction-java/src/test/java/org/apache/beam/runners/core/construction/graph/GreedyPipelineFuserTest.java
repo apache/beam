@@ -32,6 +32,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.model.pipeline.v1.RunnerApi.StateSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TimerSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.junit.Before;
@@ -763,6 +765,143 @@ public class GreedyPipelineFuserTest {
             ExecutableStageMatcher.withInput("sideImpulse.out")
                 .withNoOutputs()
                 .withTransforms("sideRead")));
+  }
+
+  /*
+   * impulse -> .out -> parDo -> .out -> stateful -> .out
+   * becomes
+   * (impulse.out) -> parDo -> (parDo.out)
+   * (parDo.out) -> stateful
+   */
+  @Test
+  public void statefulParDoRootsStage() {
+    // (impulse.out) -> parDo -> (parDo.out)
+    // (parDo.out) -> stateful -> stateful.out
+    // stateful has a state spec which prevents it from fusing with an upstream ParDo
+    PTransform parDoTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "impulse.out")
+            .putOutputs("output", "parDo.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .build()
+                            .toByteString()))
+            .build();
+    PTransform statefulTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "parDo.out")
+            .putOutputs("output", "stateful.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putStateSpecs("state", StateSpec.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+
+    Components components =
+        partialComponents
+            .toBuilder()
+            .putTransforms("parDo", parDoTransform)
+            .putPcollections(
+                "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+            .putTransforms("stateful", statefulTransform)
+            .putPcollections(
+                "stateful.out", PCollection.newBuilder().setUniqueName("stateful.out").build())
+            .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+            .build();
+    FusedPipeline fused =
+        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+
+    assertThat(
+        fused.getRunnerExecutedTransforms(),
+        containsInAnyOrder(
+            PipelineNode.pTransform("impulse", components.getTransformsOrThrow("impulse"))));
+    assertThat(
+        fused.getFusedStages(),
+        containsInAnyOrder(
+            ExecutableStageMatcher.withInput("impulse.out")
+                .withOutputs("parDo.out")
+                .withTransforms("parDo"),
+            ExecutableStageMatcher.withInput("parDo.out")
+                .withNoOutputs()
+                .withTransforms("stateful")));
+  }
+
+  /*
+   * impulse -> .out -> parDo -> .out -> timer -> .out
+   * becomes
+   * (impulse.out) -> parDo -> (parDo.out)
+   * (parDo.out) -> timer
+   */
+  @Test
+  public void parDoWithTimerRootsStage() {
+    // (impulse.out) -> parDo -> (parDo.out)
+    // (parDo.out) -> timer -> timer.out
+    // timer has a timer spec which prevents it from fusing with an upstream ParDo
+    PTransform parDoTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "impulse.out")
+            .putOutputs("output", "parDo.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .build()
+                            .toByteString()))
+            .build();
+    PTransform timerTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "parDo.out")
+            .putOutputs("output", "timer.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putTimerSpecs("timer", TimerSpec.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+
+    Components components =
+        partialComponents
+            .toBuilder()
+            .putTransforms("parDo", parDoTransform)
+            .putPcollections(
+                "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+            .putTransforms("timer", timerTransform)
+            .putPcollections(
+                "timer.out", PCollection.newBuilder().setUniqueName("timer.out").build())
+            .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
+            .build();
+
+    FusedPipeline fused =
+        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+
+    assertThat(
+        fused.getRunnerExecutedTransforms(),
+        containsInAnyOrder(
+            PipelineNode.pTransform("impulse", components.getTransformsOrThrow("impulse"))));
+    assertThat(
+        fused.getFusedStages(),
+        containsInAnyOrder(
+            ExecutableStageMatcher.withInput("impulse.out")
+                .withOutputs("parDo.out")
+                .withTransforms("parDo"),
+            ExecutableStageMatcher.withInput("parDo.out")
+                .withNoOutputs()
+                .withTransforms("timer")));
   }
 
   /*
