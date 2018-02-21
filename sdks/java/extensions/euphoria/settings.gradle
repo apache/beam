@@ -12,6 +12,7 @@ include ':euphoria-operator-testkit'
 include ':euphoria-hadoop'
 include ':euphoria-kafka'
 include ':euphoria-hbase'
+include ':euphoria-avro'
 
 // ~ executors
 include ':euphoria-local'
