@@ -157,8 +157,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
               (PCollection<KV<K, Iterable<V>>>)
                   Iterables.getOnlyElement(application.getOutputs().values()));
       outputBundles.add(bundle);
-      CopyOnAccessInMemoryStateInternals stateInternals =
-          (CopyOnAccessInMemoryStateInternals) stepContext.stateInternals();
+      CopyOnAccessInMemoryStateInternals stateInternals = stepContext.stateInternals();
       DirectTimerInternals timerInternals = stepContext.timerInternals();
       RunnerApi.Trigger runnerApiTrigger =
           TriggerTranslation.toProto(windowingStrategy.getTrigger());

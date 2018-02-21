@@ -258,21 +258,29 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   * specified to be applied, but more properties can still be specified.
   */
   @Experimental(Kind.TRIGGER)
- public Window<T> discardingFiredPanes() {
-   return toBuilder().setAccumulationMode(AccumulationMode.DISCARDING_FIRED_PANES).build();
- }
+  public Window<T> discardingFiredPanes() {
+    return toBuilder().setAccumulationMode(AccumulationMode.DISCARDING_FIRED_PANES).build();
+  }
 
- /**
+  /**
   * Returns a new {@code Window} {@code PTransform} that uses the registered WindowFn and
   * Triggering behavior, and that accumulates elements in a pane after they are triggered.
   *
   * <p>Does not modify this transform.  The resulting {@code PTransform} is sufficiently
   * specified to be applied, but more properties can still be specified.
   */
- @Experimental(Kind.TRIGGER)
- public Window<T> accumulatingFiredPanes() {
-   return toBuilder().setAccumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES).build();
- }
+  @Experimental(Kind.TRIGGER)
+  public Window<T> accumulatingFiredPanes() {
+    return toBuilder().setAccumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES).build();
+  }
+
+  @Experimental(Kind.TRIGGER)
+  public Window<T> accumulatingAndRetractingFiredPanes() {
+    return
+        toBuilder()
+            .setAccumulationMode(AccumulationMode.ACCUMULATING_AND_RETRACTING_FIRED_PLANES)
+            .build();
+  }
 
   /**
    * Override the amount of lateness allowed for data elements in the output {@link PCollection}
