@@ -126,6 +126,7 @@ class JavaNatureConfiguration {
   double javaVersion = 1.8        // Controls the JDK source language and target compatibility
   boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
   boolean enableShadow = true     // Controls whether the shadow plugin is enabled and configured
+  String artifactId = null        // Sets the maven publication artifact id
 }
 
 // Configures a project with a default set of plugins that should apply to all Java projects.
@@ -177,7 +178,7 @@ ext.applyJavaNature = {
   println "applyJavaNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
   JavaNatureConfiguration configuration = it ? it as JavaNatureConfiguration : new JavaNatureConfiguration()
-  apply plugin: "maven"
+  apply plugin: "maven-publish"
   apply plugin: "java"
 
   // Configure the Java compiler source language and target compatibility levels. Also ensure that
@@ -328,6 +329,26 @@ ext.applyJavaNature = {
 
     // Ensure that shaded classes are part of the artifact set.
     artifacts.archives shadowJar
+
+    if (configuration.artifactId) {
+      // If a publication artifact id is supplied, publish the shadow jar.
+      publishing {
+        publications {
+          mavenJava(MavenPublication) {
+            artifact(shadowJar) {
+              groupId "org.apache.beam"
+              artifactId configuration.artifactId
+              // Strip the "shaded" classifier.
+              classifier null
+              // Set readable name to project description.
+              pom.withXml {
+                asNode().appendNode('name', description)
+              }
+            }
+          }
+        }
+      }
+    }
 
     // TODO: Figure out how to create ShadowJar task for ShadowTestJar here
     // that is extendable within each sub-project with any additional includes.
