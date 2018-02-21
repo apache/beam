@@ -59,7 +59,9 @@ public class StateFetchingIterators {
    * pre-fetch any future chunks and blocks whenever required to fetch the next block.
    */
   static class LazyBlockingStateFetchingIterator implements Iterator<ByteString> {
-    private enum State { READ_REQUIRED, HAS_NEXT, EOF };
+
+    private enum State { READ_REQUIRED, HAS_NEXT, EOF }
+
     private final BeamFnStateClient beamFnStateClient;
     private final StateRequest stateRequestForFirstChunk;
     private State currentState;

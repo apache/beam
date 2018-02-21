@@ -37,6 +37,7 @@ public class BeamSqlDateFloorExpression extends BeamSqlExpression {
   public BeamSqlDateFloorExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.DATE);
   }
+
   @Override public boolean accept() {
     return operands.size() == 2
         && opType(1) == SqlTypeName.SYMBOL;

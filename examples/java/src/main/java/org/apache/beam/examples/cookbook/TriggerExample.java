@@ -367,6 +367,7 @@ public class TriggerExample {
     public FormatTotalFlow(String triggerType) {
       this.triggerType = triggerType;
     }
+
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {
       String[] values = c.element().getValue().split(",");

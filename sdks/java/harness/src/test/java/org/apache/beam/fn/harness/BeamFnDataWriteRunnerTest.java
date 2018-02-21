@@ -102,6 +102,7 @@ public class BeamFnDataWriteRunnerTest {
       throw new ExceptionInInitializerError(e);
     }
   }
+
   private static final BeamFnApi.Target OUTPUT_TARGET = BeamFnApi.Target.newBuilder()
       .setPrimitiveTransformReference("1")
       .setName("out")

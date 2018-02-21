@@ -383,9 +383,10 @@ page at http://checkstyle.sourceforge.net/config.html -->
       <property name="allowNoEmptyLineBetweenFields" value="false"/>
       <property name="allowMultipleEmptyLines" value="true"/>
       <property name="allowMultipleEmptyLinesInsideClassMembers" value="true"/>
-      <property name="tokens" value="IMPORT,CLASS_DEF" />
-      <!-- eventually start adding: ,INTERFACE_DEF,ENUM_DEF,
-           STATIC_INIT,INSTANCE_INIT,METHOD_DEF,CTOR_DEF, VARIABLE_DEF -->
+      <property name="tokens" value="IMPORT,CLASS_DEF,INTERFACE_DEF,STATIC_INIT,
+                                     INSTANCE_INIT,ENUM_DEF,CTOR_DEF" />
+           <!-- we don't want blank lines between member variables, so don't use VARIABLE_DEF -->
+           <!-- eventually add: METHOD_DEF -->
     </module>
 
     <module name="WhitespaceAround">
