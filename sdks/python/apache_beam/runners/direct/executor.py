@@ -357,6 +357,9 @@ class Executor(object):
   def await_completion(self):
     self._executor.await_completion()
 
+  def shutdown(self):
+    self._executor.request_shutdown()
+
 
 class _ExecutorServiceParallelExecutor(object):
   """An internal implementation for Executor."""
