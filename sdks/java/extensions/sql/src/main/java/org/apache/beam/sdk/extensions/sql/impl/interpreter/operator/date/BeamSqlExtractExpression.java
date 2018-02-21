@@ -50,6 +50,7 @@ public class BeamSqlExtractExpression extends BeamSqlExpression {
   public BeamSqlExtractExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.BIGINT);
   }
+
   @Override public boolean accept() {
     return operands.size() == 2
         && opType(1) == SqlTypeName.TIMESTAMP;

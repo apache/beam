@@ -107,6 +107,7 @@ public class BeamFnDataReadRunnerTest {
       throw new ExceptionInInitializerError(e);
     }
   }
+
   private static final BeamFnApi.Target INPUT_TARGET = BeamFnApi.Target.newBuilder()
       .setPrimitiveTransformReference("1")
       .setName("out")
