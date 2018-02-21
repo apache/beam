@@ -38,7 +38,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -123,8 +122,6 @@ public class CombineTranslation {
     RunnerApi.SdkFunctionSpec getCombineFn();
 
     Coder<?> getAccumulatorCoder();
-
-    Map<String, RunnerApi.SideInput> getSideInputs();
   }
 
   /** Produces a {@link RunnerApi.CombinePayload} from a portable {@link CombineLike}. */
@@ -132,7 +129,6 @@ public class CombineTranslation {
       CombineLike combine, SdkComponents components) throws IOException {
     return RunnerApi.CombinePayload.newBuilder()
         .setAccumulatorCoderId(components.registerCoder(combine.getAccumulatorCoder()))
-        .putAllSideInputs(combine.getSideInputs())
         .setCombineFn(combine.getCombineFn())
         .build();
   }
@@ -172,48 +168,8 @@ public class CombineTranslation {
               throw new IllegalStateException(e);
             }
           }
-
-          @Override
-          public Map<String, SideInput> getSideInputs() {
-            Map<String, SideInput> sideInputs = new HashMap<>();
-            for (PCollectionView<?> sideInput : combine.getTransform().getSideInputs()) {
-              sideInputs.put(
-                  sideInput.getTagInternal().getId(),
-                  ParDoTranslation.translateView(sideInput, components));
-            }
-            return sideInputs;
-          }
         },
         components);
-  }
-
-  public static List<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> application)
-      throws IOException {
-    PTransform<?, ?> transform = application.getTransform();
-    if (transform instanceof Combine.PerKey) {
-      return ((Combine.PerKey<?, ?, ?>) transform).getSideInputs();
-    }
-
-    SdkComponents sdkComponents = SdkComponents.create();
-    RunnerApi.PTransform combineProto = PTransformTranslation.toProto(application, sdkComponents);
-    CombinePayload payload = CombinePayload.parseFrom(combineProto.getSpec().getPayload());
-
-    List<PCollectionView<?>> views = new ArrayList<>();
-    RehydratedComponents components =
-        RehydratedComponents.forComponents(sdkComponents.toComponents());
-    for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
-      String sideInputTag = sideInputEntry.getKey();
-      RunnerApi.SideInput sideInput = sideInputEntry.getValue();
-      PCollection<?> originalPCollection =
-          checkNotNull(
-              (PCollection<?>) application.getInputs().get(new TupleTag<>(sideInputTag)),
-              "no input with tag %s",
-              sideInputTag);
-      views.add(
-          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection,
-              combineProto, components));
-    }
-    return views;
   }
 
   private static class RawCombine<K, InputT, AccumT, OutputT>
@@ -275,30 +231,6 @@ public class CombineTranslation {
     public Coder<?> getAccumulatorCoder() {
       return accumulatorCoder;
     }
-
-    @Override
-    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      Map<TupleTag<?>, PValue> additionalInputs = new HashMap<>();
-      for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
-        try {
-          additionalInputs.put(
-              new TupleTag<>(sideInputEntry.getKey()),
-              rehydratedComponents.getPCollection(
-                  protoTransform.getInputsOrThrow(sideInputEntry.getKey())));
-        } catch (IOException exc) {
-          throw new IllegalStateException(
-              String.format(
-                  "Could not find input with name %s for %s transform",
-                  sideInputEntry.getKey(), Combine.class.getSimpleName()));
-        }
-      }
-      return additionalInputs;
-    }
-
-    @Override
-    public Map<String, SideInput> getSideInputs() {
-      return payload.getSideInputsMap();
-    }
   }
 
   @VisibleForTesting
@@ -308,10 +240,8 @@ public class CombineTranslation {
     GlobalCombineFn<?, ?, ?> combineFn = combine.getTransform().getFn();
     try {
       Coder<?> accumulatorCoder = extractAccumulatorCoder(combineFn, (AppliedPTransform) combine);
-      Map<String, SideInput> sideInputs = new HashMap<>();
       return RunnerApi.CombinePayload.newBuilder()
           .setAccumulatorCoderId(sdkComponents.registerCoder(accumulatorCoder))
-          .putAllSideInputs(sideInputs)
           .setCombineFn(toProto(combineFn, sdkComponents))
           .build();
     } catch (CannotProvideCoderException e) {
