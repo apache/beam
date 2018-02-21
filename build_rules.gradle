@@ -262,15 +262,6 @@ ext.applyJavaNature = {
   // Enables a plugin which can apply code formatting to source.
   // TODO: Should this plugin be enabled for all projects?
   apply plugin: "com.diffplug.gradle.spotless"
-  spotless {
-    java {
-      target rootProject.fileTree(rootProject.rootDir) {
-        include 'sdks/java/**/*.java'
-      }
-      // Code formatting disabled because style rules are out of date.
-      // eclipse().configFile(rootProject.file('sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml'))
-    }
-  }
 
   // Enables a plugin which performs code analysis for common bugs.
   // This plugin is configured to only analyze the "main" source set.
