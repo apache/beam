@@ -21,6 +21,7 @@ package org.apache.beam.runners.core.construction.graph;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -131,27 +132,39 @@ class GreedyPCollectionFusers {
       // The PCollection's producer and this ParDo execute in different environments, so fusion
       // is never possible.
       return false;
-    } else if (!pipeline.getSideInputs(parDo).isEmpty()) {
-      // At execution time, a Runner is required to only provide inputs to a PTransform that, at the
-      // time the PTransform processes them, the associated window is ready in all side inputs that
-      // the PTransform consumes. For an arbitrary stage, it is significantly complex for the runner
-      // to determine this for each input. As a result, we break fusion to simplify this inspection.
-      // In general, a ParDo which consumes side inputs cannot be fused into an executable subgraph
-      // alongside any transforms which are upstream of any of its side inputs.
+    }
+    if (!pipeline.getSideInputs(parDo).isEmpty()) {
+      // At execution time, a Runner is required to only provide inputs to a PTransform that, at
+      // the time the PTransform processes them, the associated window is ready in all side inputs
+      // that the PTransform consumes. For an arbitrary stage, it is significantly complex for the
+      // runner to determine this for each input. As a result, we break fusion to simplify this
+      // inspection. In general, a ParDo which consumes side inputs cannot be fused into an
+      // executable stage alongside any transforms which are upstream of any of its side inputs.
       return false;
+    } else {
+      try {
+        ParDoPayload payload =
+            ParDoPayload.parseFrom(parDo.getTransform().getSpec().getPayload());
+        if (payload.getStateSpecsCount() > 0 || payload.getTimerSpecsCount() > 0) {
+          // Inputs to a ParDo that uses State or Timers must be key-partitioned, and elements for
+          // a key must execute serially. To avoid checking if the rest of the stage is
+          // key-partitioned and preserves keys, these ParDos do not fuse into an existing stage.
+          return false;
+        }
+      } catch (InvalidProtocolBufferException e) {
+        throw new IllegalArgumentException(e);
+      }
     }
     return true;
   }
 
   private static boolean parDoCompatibility(
       PTransformNode parDo, PTransformNode other, QueryablePipeline pipeline) {
-    if (!pipeline.getSideInputs(parDo).isEmpty()) {
-      // This is a convenience rather than a strict requirement. In general, a ParDo that consumes
-      // side inputs can be fused with other transforms in the same environment which are not
-      // upstream of any of the side inputs.
-      return false;
-    }
-    return compatibleEnvironments(parDo, other, pipeline);
+    // This is a convenience rather than a strict requirement. In general, a ParDo that consumes
+    // side inputs can be fused with other transforms in the same environment which are not
+    // upstream of any of the side inputs.
+    return pipeline.getSideInputs(parDo).isEmpty()
+        && compatibleEnvironments(parDo, other, pipeline);
   }
 
   /**
