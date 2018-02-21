@@ -170,12 +170,8 @@ class DataflowMetrics(MetricResults):
                             lambda x: x.key == 'min').value.integer_value
       dist_max = _get_match(metric.distribution.object_value.properties,
                             lambda x: x.key == 'max').value.integer_value
-      dist_mean = _get_match(metric.distribution.object_value.properties,
-                             lambda x: x.key == 'mean').value.integer_value
-      # Calculating dist_sum with a hack, as distribution sum is not yet
-      # available in the Dataflow API.
-      # TODO(pabloem) Switch to "sum" field once it's available in the API
-      dist_sum = dist_count * dist_mean
+      dist_sum = _get_match(metric.distribution.object_value.properties,
+                            lambda x: x.key == 'sum').value.integer_value
       return DistributionResult(
           DistributionData(
               dist_sum, dist_count, dist_min, dist_max))
