@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.calcite.plan.Convention;
@@ -25,25 +26,32 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalTableScan;
 
-/**
- * A {@code ConverterRule} to replace {@link TableScan} with
- * {@link BeamIOSourceRel}.
- *
- */
+/** A {@code ConverterRule} to replace {@link TableScan} with {@link BeamIOSourceRel}. */
 public class BeamIOSourceRule extends ConverterRule {
-  public static final BeamIOSourceRule INSTANCE = new BeamIOSourceRule();
 
-  private BeamIOSourceRule() {
-    super(LogicalTableScan.class, Convention.NONE, BeamLogicalConvention.INSTANCE,
+  private final BeamSqlEnv sqlEnv;
+
+  public static BeamIOSourceRule forSqlEnv(BeamSqlEnv sqlEnv) {
+    return new BeamIOSourceRule(sqlEnv);
+  }
+
+  private BeamIOSourceRule(BeamSqlEnv sqlEnv) {
+    super(
+        LogicalTableScan.class,
+        Convention.NONE,
+        BeamLogicalConvention.INSTANCE,
         "BeamIOSourceRule");
+    this.sqlEnv = sqlEnv;
   }
 
   @Override
   public RelNode convert(RelNode rel) {
     final TableScan scan = (TableScan) rel;
 
-    return new BeamIOSourceRel(scan.getCluster(),
-        scan.getTraitSet().replace(BeamLogicalConvention.INSTANCE), scan.getTable());
+    return new BeamIOSourceRel(
+        sqlEnv,
+        scan.getCluster(),
+        scan.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+        scan.getTable());
   }
-
 }

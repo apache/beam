@@ -71,7 +71,7 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
           sqlEnv
               .getPlanner()
               .convertToBeamRel(queryString())
-              .toPTransform(sqlEnv));
+              .toPTransform());
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }

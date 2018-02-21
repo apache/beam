@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlFilterFn;
@@ -50,16 +49,11 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
-    return new Transform(sqlEnv);
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
   }
 
   private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-    private final BeamSqlEnv sqlEnv;
-
-    private Transform(BeamSqlEnv sqlEnv) {
-      this.sqlEnv = sqlEnv;
-    }
 
     @Override
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
@@ -67,7 +61,7 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
       String stageName = BeamSqlRelUtils.getStageName(BeamFilterRel.this);
 
       PCollection<Row> upstream =
-          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform(sqlEnv));
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
 
       BeamSqlExpressionExecutor executor = new BeamSqlFnExecutor(BeamFilterRel.this);
 

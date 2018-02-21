@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -31,5 +30,5 @@ public interface BeamRelNode extends RelNode {
    * A {@link BeamRelNode} is a recursive structure, the {@code BeamQueryPlanner} visits it with a
    * DFS(Depth-First-Search) algorithm.
    */
-  PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv);
+  PTransform<PCollectionTuple, PCollection<Row>> toPTransform();
 }

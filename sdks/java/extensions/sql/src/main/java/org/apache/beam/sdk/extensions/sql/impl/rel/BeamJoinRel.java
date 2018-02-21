@@ -93,7 +93,10 @@ import org.apache.calcite.util.Pair;
  * </ul>
  */
 public class BeamJoinRel extends Join implements BeamRelNode {
+  private final BeamSqlEnv sqlEnv;
+
   public BeamJoinRel(
+      BeamSqlEnv sqlEnv,
       RelOptCluster cluster,
       RelTraitSet traits,
       RelNode left,
@@ -102,6 +105,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       Set<CorrelationId> variablesSet,
       JoinRelType joinType) {
     super(cluster, traits, left, right, condition, variablesSet, joinType);
+    this.sqlEnv = sqlEnv;
   }
 
   @Override
@@ -112,22 +116,16 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       RelNode right,
       JoinRelType joinType,
       boolean semiJoinDone) {
-    return new BeamJoinRel(getCluster(), traitSet, left, right, conditionExpr, variablesSet,
+    return new BeamJoinRel(sqlEnv, getCluster(), traitSet, left, right, conditionExpr, variablesSet,
         joinType);
   }
 
   @Override
-  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform(BeamSqlEnv sqlEnv) {
-    return new Transform(sqlEnv);
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
   }
 
   private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
-
-    private final BeamSqlEnv sqlEnv;
-
-    private Transform(BeamSqlEnv sqlEnv) {
-      this.sqlEnv = sqlEnv;
-    }
 
     @Override
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
@@ -140,9 +138,9 @@ public class BeamJoinRel extends Join implements BeamRelNode {
             .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
       }
 
-      PCollection<Row> leftRows = inputPCollections.apply("left", leftRelNode.toPTransform(sqlEnv));
+      PCollection<Row> leftRows = inputPCollections.apply("left", leftRelNode.toPTransform());
       PCollection<Row> rightRows =
-          inputPCollections.apply("right", rightRelNode.toPTransform(sqlEnv));
+          inputPCollections.apply("right", rightRelNode.toPTransform());
 
       verifySupportedTrigger(leftRows);
       verifySupportedTrigger(rightRows);
@@ -382,7 +380,7 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       BeamRelNode rightRelNode,
       PCollectionTuple inputPCollections,
       BeamSqlEnv sqlEnv) {
-    PCollection<Row> factStream = inputPCollections.apply(leftRelNode.toPTransform(sqlEnv));
+    PCollection<Row> factStream = inputPCollections.apply(leftRelNode.toPTransform());
     BeamSqlSeekableTable seekableTable = getSeekableTableFromRelNode(rightRelNode, sqlEnv);
 
     return factStream.apply(
