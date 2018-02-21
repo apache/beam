@@ -359,7 +359,8 @@ class GaugeData(object):
 
   @staticmethod
   def from_runner_api(proto):
-    gauge_timestamp = proto.timestamp.seconds + proto.timestamp.nanos / 10**9
+    gauge_timestamp = (proto.timestamp.seconds +
+                       float(proto.timestamp.nanos) / 10**9)
     return GaugeData(proto.value, timestamp=gauge_timestamp)
 
 
