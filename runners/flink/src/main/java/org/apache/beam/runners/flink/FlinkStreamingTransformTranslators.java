@@ -41,6 +41,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
@@ -50,7 +51,6 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.SingletonKey
 import org.apache.beam.runners.flink.translation.wrappers.streaming.SplittableDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WindowDoFnOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.WorkItemKeySelector;
-import org.apache.beam.runners.flink.translation.wrappers.streaming.io.BoundedSourceWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.coders.Coder;
@@ -273,9 +273,11 @@ class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
-      TypeInformation<WindowedValue<T>> outputTypeInfo =
-          context.getTypeInfo(context.getOutput(transform));
-
+      Coder<T> coder = context.getOutput(transform).getCoder();
+      TypeInformation<WindowedValue<ValueWithRecordId<T>>> outputTypeInfo =
+          new CoderTypeInformation<>(WindowedValue.getFullCoder(
+              ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
+              output.getWindowingStrategy().getWindowFn().windowCoder()));
 
       BoundedSource<T> rawSource;
       try {
@@ -286,14 +288,16 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
+      UnboundedSource<T, ?> adaptedRawSource = new BoundedToUnboundedSourceAdapter<>(rawSource);
+      DataStream<WindowedValue<ValueWithRecordId<T>>> source;
       String fullName = getCurrentTransformName(context);
       DataStream<WindowedValue<T>> source;
       try {
-        BoundedSourceWrapper<T> sourceWrapper =
-            new BoundedSourceWrapper<>(
+        UnboundedSourceWrapper<T, ?> sourceWrapper =
+            new UnboundedSourceWrapper<>(
                 fullName,
                 context.getPipelineOptions(),
-                rawSource,
+                adaptedRawSource,
                 context.getExecutionEnvironment().getParallelism());
         source = context
             .getExecutionEnvironment()
@@ -303,7 +307,18 @@ class FlinkStreamingTransformTranslators {
             "Error while translating BoundedSource: " + rawSource, e);
       }
 
-      context.setOutputDataStream(output, source);
+      // get rid of the additional wrapping with ValueWithRecordId
+      SingleOutputStreamOperator<WindowedValue<T>> mappedSource = source
+          .map(new MapFunction<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>>() {
+            @Override
+            public WindowedValue<T> map(WindowedValue<ValueWithRecordId<T>> value)
+                throws Exception {
+              T originalValue = value.getValue().getValue();
+              return WindowedValue
+                  .of(originalValue, value.getTimestamp(), value.getWindows(), value.getPane());
+            }
+          });
+      context.setOutputDataStream(output, mappedSource);
     }
   }
 
