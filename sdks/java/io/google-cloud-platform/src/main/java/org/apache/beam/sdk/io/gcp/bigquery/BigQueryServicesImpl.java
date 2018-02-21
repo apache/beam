@@ -69,7 +69,6 @@ import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -212,23 +211,20 @@ class BigQueryServicesImpl implements BigQueryServices {
         Sleeper sleeper,
         BackOff backoff) throws IOException, InterruptedException {
       JobReference jobRef = job.getJobReference();
-      Exception lastException = null;
+      Exception lastException;
       do {
         try {
           client.jobs().insert(jobRef.getProjectId(), job).execute();
           LOG.info("Started BigQuery job: {}.\n{}", jobRef,
               formatBqStatusCommand(jobRef.getProjectId(), jobRef.getJobId()));
           return; // SUCCEEDED
-        } catch (GoogleJsonResponseException e) {
+        } catch (IOException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
+            LOG.info("BigQuery job " + jobRef + " already exists, will not retry inserting it:", e);
             return; // SUCCEEDED
           }
           // ignore and retry
-          LOG.info("Ignore the error and retry inserting the job.", e);
-          lastException = e;
-        } catch (IOException e) {
-          // ignore and retry
-          LOG.info("Ignore the error and retry inserting the job.", e);
+          LOG.info("Failed to insert job " + jobRef + ", will retry:", e);
           lastException = e;
         }
       } while (nextBackOff(sleeper, backoff));
@@ -256,22 +252,20 @@ class BigQueryServicesImpl implements BigQueryServices {
         JobReference jobRef,
         Sleeper sleeper,
         BackOff backoff) throws InterruptedException {
-      Instant nextLog = Instant.now().plus(POLLING_LOG_GAP);
       do {
         try {
           Job job = client.jobs().get(jobRef.getProjectId(), jobRef.getJobId()).execute();
           JobStatus status = job.getStatus();
           if (status != null && status.getState() != null && status.getState().equals("DONE")) {
+            LOG.info("BigQuery job {} completed in state DONE", jobRef);
             return job;
           }
           // The job is not DONE, wait longer and retry.
-          if (Instant.now().isAfter(nextLog)) {
-            LOG.info("Still waiting for BigQuery job {}\n{}",
-                jobRef.getJobId(),
-                formatBqStatusCommand(
-                    jobRef.getProjectId(), jobRef.getJobId()));
-            nextLog = Instant.now().plus(POLLING_LOG_GAP);
-          }
+          LOG.info(
+              "Still waiting for BigQuery job {}, currently in status {}\n{}",
+              jobRef.getJobId(),
+              status,
+              formatBqStatusCommand(jobRef.getProjectId(), jobRef.getJobId()));
         } catch (IOException e) {
           // ignore and retry
           LOG.info("Ignore the error and retry polling job status.", e);
