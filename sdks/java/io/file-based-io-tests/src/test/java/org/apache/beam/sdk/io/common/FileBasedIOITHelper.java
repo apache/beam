@@ -19,16 +19,8 @@
 package org.apache.beam.sdk.io.common;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import java.io.IOException;
-import java.util.Collections;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -82,22 +74,4 @@ public class FileBasedIOITHelper {
     }
   }
 
-  /**
-   * Deletes matching files using the FileSystems API.
-   */
-  public static class DeleteFileFn extends DoFn<String, Void> {
-
-    @ProcessElement
-    public void processElement(ProcessContext c) throws IOException {
-      MatchResult match = Iterables
-          .getOnlyElement(FileSystems.match(Collections.singletonList(c.element())));
-
-      Set<ResourceId> resourceIds = new HashSet<>();
-      for (MatchResult.Metadata metadataElem : match.metadata()) {
-        resourceIds.add(metadataElem.resourceId());
-      }
-
-      FileSystems.delete(resourceIds);
-    }
-  }
 }

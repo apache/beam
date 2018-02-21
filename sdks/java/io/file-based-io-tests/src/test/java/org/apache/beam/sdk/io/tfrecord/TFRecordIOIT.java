@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipeline
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TFRecordIO;
+import org.apache.beam.sdk.io.common.DeleteFileFn;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
@@ -121,7 +122,7 @@ public class TFRecordIOIT {
         .apply(Create.of(filenamePattern))
         .apply(
             "Delete test files",
-            ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+            ParDo.of(new DeleteFileFn())
                 .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
     readPipeline.run().waitUntilFinish();
   }
