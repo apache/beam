@@ -169,8 +169,11 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       return new CheckpointCoder<>(boundedSource.getDefaultOutputCoder());
     }
 
+    /**
+     * A marker representing the progress and state of an {@link BoundedToUnboundedSourceAdapter}.
+     */
     @VisibleForTesting
-    static class Checkpoint<T> implements UnboundedSource.CheckpointMark {
+    public static class Checkpoint<T> implements UnboundedSource.CheckpointMark {
       private final @Nullable List<TimestampedValue<T>> residualElements;
       private final @Nullable BoundedSource<T> residualSource;
 
