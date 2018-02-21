@@ -212,8 +212,11 @@ class MetricsContainer(object):
         [beam_fn_api_pb2.Metrics.User(
             metric_name=k.to_runner_api(),
             distribution_data=v.get_cumulative().to_runner_api())
-         for k, v in self.distributions.items()]
-        #TODO(pabloem): Add gauge metrics.
+         for k, v in self.distributions.items()] +
+        [beam_fn_api_pb2.Metrics.User(
+            metric_name=k.to_runner_api(),
+            gauge_data=v.get_cumulative().to_runner_api())
+         for k, v in self.gauges.items()]
     )
 
 

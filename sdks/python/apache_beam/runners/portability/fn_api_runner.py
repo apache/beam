@@ -1181,6 +1181,7 @@ class FnApiMetrics(metrics.metric.MetricResults):
   def __init__(self, step_metrics):
     self._counters = {}
     self._distributions = {}
+    self._gauges = {}
     for step_metric in step_metrics.values():
       for ptransform_id, ptransform in step_metric.ptransforms.items():
         for proto in ptransform.user:
@@ -1194,6 +1195,11 @@ class FnApiMetrics(metrics.metric.MetricResults):
                 key] = metrics.cells.DistributionResult(
                     metrics.cells.DistributionData.from_runner_api(
                         proto.distribution_data))
+          elif proto.HasField('gauge_data'):
+            self._gauges[
+                key] = metrics.cells.GaugeResult(
+                    metrics.cells.GaugeData.from_runner_api(
+                        proto.gauge_data))
 
   def query(self, filter=None):
     counters = [metrics.execution.MetricResult(k, v, v)
@@ -1202,9 +1208,13 @@ class FnApiMetrics(metrics.metric.MetricResults):
     distributions = [metrics.execution.MetricResult(k, v, v)
                      for k, v in self._distributions.items()
                      if self.matches(filter, k)]
+    gauges = [metrics.execution.MetricResult(k, v, v)
+              for k, v in self._gauges.items()
+              if self.matches(filter, k)]
 
     return {'counters': counters,
-            'distributions': distributions}
+            'distributions': distributions,
+            'gauges': gauges}
 
 
 class RunnerResult(runner.PipelineResult):

@@ -28,6 +28,8 @@ from __future__ import division
 import threading
 import time
 
+from google.protobuf import timestamp_pb2
+
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import Gauge
@@ -348,7 +350,17 @@ class GaugeData(object):
   def singleton(value, timestamp=None):
     return GaugeData(value, timestamp=timestamp)
 
-  #TODO(pabloem) - Add to_runner_api, and from_runner_api
+  def to_runner_api(self):
+    seconds = int(self.timestamp)
+    nanos = int((self.timestamp - seconds) * 10**9)
+    gauge_timestamp = timestamp_pb2.Timestamp(seconds=seconds, nanos=nanos)
+    return beam_fn_api_pb2.Metrics.User.GaugeData(
+        value=self.value, timestamp=gauge_timestamp)
+
+  @staticmethod
+  def from_runner_api(proto):
+    gauge_timestamp = proto.timestamp.seconds + proto.timestamp.nanos / 10**9
+    return GaugeData(proto.value, timestamp=gauge_timestamp)
 
 
 class DistributionData(object):
