@@ -1754,10 +1754,10 @@ public class PipelineOptionsFactory {
               FluentIterable.from(validatedPipelineOptionsInterfaces).append(iface).toSet();
       // Validate that the view of all currently passed in options classes is well formed.
       if (!combinedCache.containsKey(combinedPipelineOptionsInterfaces)) {
+        final Class<?>[] interfaces = combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY);
         @SuppressWarnings("unchecked")
-        Class<T> allProxyClass =
-                (Class<T>) Proxy.getProxyClass(ReflectHelpers.findClassLoader(),
-                        combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY));
+        Class<T> allProxyClass = (Class<T>) Proxy.getProxyClass(
+          ReflectHelpers.findClassLoader(interfaces), interfaces);
         try {
           List<PropertyDescriptor> propertyDescriptors =
                   validateClass(iface, validatedPipelineOptionsInterfaces, allProxyClass);
@@ -1772,7 +1772,7 @@ public class PipelineOptionsFactory {
       if (!interfaceCache.containsKey(iface)) {
         @SuppressWarnings({"rawtypes", "unchecked"})
         Class<T> proxyClass = (Class<T>) Proxy.getProxyClass(
-                ReflectHelpers.findClassLoader(), new Class[] {iface});
+                ReflectHelpers.findClassLoader(iface), new Class[] {iface});
         try {
           List<PropertyDescriptor> propertyDescriptors =
                   validateClass(iface, validatedPipelineOptionsInterfaces, proxyClass);
