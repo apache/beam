@@ -2877,7 +2877,7 @@ for more information.</p>
 into fixed windows, each one minute in length:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
-    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">fixed_windowed_items</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">fixedWindowedItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">))));</span>
 </code></pre>
 </div>
@@ -2895,7 +2895,7 @@ into sliding time windows. Each window is 30 minutes in length, and a new window
 begins every five seconds:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
-    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">sliding_windowed_items</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">slidingWindowedItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">SlidingWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">every</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">5</span><span class="o">))));</span>
 </code></pre>
 </div>
@@ -2913,7 +2913,7 @@ into session windows, where each session must be separated by a time gap of at
 least 10 minutes:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
-    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">session_windowed_items</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">sessionWindowedItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">Sessions</span><span class="o">.</span><span class="na">withGapDuration</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">10</span><span class="o">))));</span>
 </code></pre>
 </div>
@@ -2934,7 +2934,7 @@ elements to a single global window. The following example code shows how to set
 a single global window for a <code class="highlighter-rouge">PCollection</code>:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
-    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">batch_items</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">batchItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="k">new</span> <span class="n">GlobalWindows</span><span class="o">()));</span>
 </code></pre>
 </div>
@@ -2997,7 +2997,7 @@ demonstrates a windowing strategy that will allow late data up to two days after
 the end of a window.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">items</span> <span class="o">=</span> <span class="o">...;</span>
-    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">fixed_windowed_items</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">fixedWindowedItems</span> <span class="o">=</span> <span class="n">items</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
               <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardDays</span><span class="o">(</span><span class="mi">2</span><span class="o">)));</span>
 </code></pre>
