@@ -262,6 +262,15 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
+    public void outputRetractionOf(
+        KV<K, Iterable<V>> output,
+        Instant timestamp,
+        Collection<? extends BoundedWindow> windows,
+        PaneInfo pane) {
+      bundle.add(WindowedValue.retractionOf(output, timestamp, windows, pane));
+    }
+
+    @Override
     public <AdditionalOutputT> void outputWindowedValue(
         TupleTag<AdditionalOutputT> tag,
         AdditionalOutputT output,

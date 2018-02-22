@@ -125,6 +125,15 @@ public class SplittableDoFnOperator<
               }
 
               @Override
+              public void outputRetractionOf(OutputT output,
+                                             Instant timestamp,
+                                             Collection<? extends BoundedWindow> windows,
+                                             PaneInfo pane) {
+                throw new UnsupportedOperationException(
+                    "Retractions are not supported by Flink runner");
+              }
+
+              @Override
               public <AdditionalOutputT> void outputWindowedValue(
                   TupleTag<AdditionalOutputT> tag,
                   AdditionalOutputT output,

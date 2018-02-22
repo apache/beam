@@ -96,6 +96,14 @@ public class GroupAlsoByWindowViaWindowSetNewDoFn<
       }
 
       @Override
+      public void outputRetractionOf(KV<K, OutputT> output,
+                                     Instant timestamp,
+                                     Collection<? extends BoundedWindow> windows,
+                                     PaneInfo pane) {
+        throw new UnsupportedOperationException("Retractions are not supported");
+      }
+
+      @Override
       public <AdditionalOutputT> void outputWindowedValue(
               TupleTag<AdditionalOutputT> tag,
               AdditionalOutputT output,

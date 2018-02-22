@@ -44,7 +44,7 @@ import org.joda.time.Instant;
  */
 class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   public interface OnTriggerCallbacks<OutputT> {
-    void output(OutputT toOutput);
+    void output(OutputT toOutput, boolean isRetraction);
   }
 
   private final K key;
@@ -97,12 +97,25 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   public ReduceFn<K, InputT, OutputT, W>.ProcessValueContext forValue(
-      W window, InputT value, Instant timestamp, StateStyle style) {
-    return new ProcessValueContextImpl(stateAccessor(window, style), value, timestamp);
+      W window,
+      InputT value,
+      Instant timestamp,
+      StateStyle style,
+      boolean isRetraction) {
+
+    return new ProcessValueContextImpl(
+        stateAccessor(window, style),
+        value,
+        timestamp,
+        isRetraction);
   }
 
-  public ReduceFn<K, InputT, OutputT, W>.OnTriggerContext forTrigger(W window,
-      PaneInfo pane, StateStyle style, OnTriggerCallbacks<OutputT> callbacks) {
+  public ReduceFn<K, InputT, OutputT, W>.OnTriggerContext forTrigger(
+      W window,
+      PaneInfo pane,
+      StateStyle style,
+      OnTriggerCallbacks<OutputT> callbacks) {
+
     return new OnTriggerContextImpl(stateAccessor(window, style), pane, callbacks);
   }
 
@@ -342,14 +355,19 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private final Instant timestamp;
     private final StateAccessorImpl<K, W> state;
     private final TimersImpl timers;
+    private final boolean isRetraction;
 
-    private ProcessValueContextImpl(StateAccessorImpl<K, W> state,
-        InputT value, Instant timestamp) {
+    private ProcessValueContextImpl(
+        StateAccessorImpl<K, W> state,
+        InputT value,
+        Instant timestamp,
+        boolean isRetraction) {
       reduceFn.super();
       this.state = state;
       this.value = value;
       this.timestamp = timestamp;
       this.timers = new TimersImpl(state.namespace());
+      this.isRetraction = isRetraction;
     }
 
     @Override
@@ -386,6 +404,11 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     public Timers timers() {
       return timers;
     }
+
+    @Override
+    public boolean isRetraction() {
+      return isRetraction;
+    }
   }
 
   private class OnTriggerContextImpl extends ReduceFn<K, InputT, OutputT, W>.OnTriggerContext {
@@ -394,7 +417,9 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     private final OnTriggerCallbacks<OutputT> callbacks;
     private final TimersImpl timers;
 
-    private OnTriggerContextImpl(StateAccessorImpl<K, W> state, PaneInfo pane,
+    private OnTriggerContextImpl(
+        StateAccessorImpl<K, W> state,
+        PaneInfo pane,
         OnTriggerCallbacks<OutputT> callbacks) {
       reduceFn.super();
       this.state = state;
@@ -429,8 +454,8 @@ class ReduceFnContextFactory<K, InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
-    public void output(OutputT value) {
-      callbacks.output(value);
+    public void output(OutputT value, boolean isRetraction) {
+      callbacks.output(value, isRetraction);
     }
 
     @Override

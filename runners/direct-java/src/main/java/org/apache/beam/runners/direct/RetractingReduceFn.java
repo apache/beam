@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.runners.core.StateTags.bag;
 import static org.apache.beam.runners.core.StateTags.makeSystemTagInternal;
+import static org.apache.beam.sdk.util.WindowedValue.IS_RETRACTION;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -80,9 +81,8 @@ class RetractingReduceFn<K, InputT, W extends BoundedWindow>
 
   @Override
   public void processValue(ProcessValueContext c) {
-//    StateTag<BagState<InputT>> tag =
-//        c.isRetraction() ? retractedTag : newTag;
-//    c.state().access(tag).add(c.value());
+    StateTag<BagState<InputT>> tag = c.isRetraction() ? retractedTag : newTag;
+    c.state().access(tag).add(c.value());
   }
 
   @Override
@@ -105,10 +105,11 @@ class RetractingReduceFn<K, InputT, W extends BoundedWindow>
             .filter(elem -> !retractedElements.contains(elem))
             .collect(Collectors.toList());
 
-//    c.outputRetraction(previousOutput);
+    c.output(previousOutput, IS_RETRACTION);
 
     clearState(c);
     newOutput.forEach(buffer::add);
+    c.output(newOutput);
   }
 
   @Override

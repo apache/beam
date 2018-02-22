@@ -609,6 +609,14 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
     }
 
     @Override
+    public void outputRetractionOf(KV<String, OutputT> output,
+                                   Instant timestamp,
+                                   Collection<? extends BoundedWindow> windows,
+                                   PaneInfo pane) {
+      throw new UnsupportedOperationException("Retractions are not supported");
+    }
+
+    @Override
     public <AdditionalOutputT> void outputWindowedValue(
         TupleTag<AdditionalOutputT> tag,
         AdditionalOutputT output,
