@@ -20,8 +20,12 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 from abc import ABCMeta
 from abc import abstractmethod
+
+import six
 
 from apache_beam import coders
 from apache_beam import core
@@ -41,10 +45,8 @@ __all__ = [
     ]
 
 
-class Event(object):
+class Event(six.with_metaclass(ABCMeta, object)):
   """Test stream event to be emitted during execution of a TestStream."""
-
-  __metaclass__ = ABCMeta
 
   def __cmp__(self, other):
     if type(self) is not type(other):
