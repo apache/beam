@@ -19,6 +19,7 @@
 package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.io.BaseEncoding;
 import io.grpc.stub.StreamObserver;
@@ -27,8 +28,10 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestResponse;
@@ -43,11 +46,11 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.Artifac
  * artifacts in memory..
  */
 public class InMemoryArtifactStagerService extends ArtifactStagingServiceImplBase {
-  private final Map<ArtifactMetadata, byte[]> artifactBytes;
-  private Manifest manifest;
+  private final ConcurrentMap<ArtifactMetadata, byte[]> artifactBytes;
+  private final AtomicReference<Manifest> manifest = new AtomicReference<>();
 
   public InMemoryArtifactStagerService() {
-    artifactBytes = new HashMap<>();
+    artifactBytes = new ConcurrentHashMap<>();
   }
 
   @Override
@@ -60,7 +63,11 @@ public class InMemoryArtifactStagerService extends ArtifactStagingServiceImplBas
   public void commitManifest(
       ArtifactApi.CommitManifestRequest request,
       StreamObserver<ArtifactApi.CommitManifestResponse> responseObserver) {
-    this.manifest = request.getManifest();
+    checkState(
+        this.manifest.compareAndSet(null, request.getManifest()),
+        "Already committed a %s %s",
+        Manifest.class.getSimpleName(),
+        manifest.get());
     responseObserver.onNext(CommitManifestResponse.getDefaultInstance());
     responseObserver.onCompleted();
   }
@@ -70,7 +77,7 @@ public class InMemoryArtifactStagerService extends ArtifactStagingServiceImplBas
   }
 
   public Manifest getManifest() {
-    return manifest;
+    return manifest.get();
   }
 
   private class BufferingObserver implements StreamObserver<PutArtifactRequest> {
