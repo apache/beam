@@ -22,10 +22,22 @@ import re
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
-# All filesystem implements should be added here
+
+# All filesystem implements should be added here as
+# best effort imports. We don't want to force loading
+# a module if the user doesn't supply the correct
+# packages that these filesystems rely on.
+#
 # pylint: disable=wrong-import-position, unused-import
-from apache_beam.io.hadoopfilesystem import HadoopFileSystem
-from apache_beam.io.localfilesystem import LocalFileSystem
+try:
+  from apache_beam.io.hadoopfilesystem import HadoopFileSystem
+except ImportError:
+  pass
+
+try:
+  from apache_beam.io.localfilesystem import LocalFileSystem
+except ImportError:
+  pass
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
