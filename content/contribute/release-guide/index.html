@@ -163,6 +163,7 @@
       <li><a href="#create-a-release-branch">Create a release branch</a></li>
       <li><a href="#update-the-python-sdk-version">Update the Python SDK version</a></li>
       <li><a href="#update-release-specific-configurations">Update release specific configurations</a></li>
+      <li><a href="#start-a-snapshot-build">Start a snapshot build</a></li>
       <li><a href="#checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</a></li>
     </ul>
   </li>
@@ -236,6 +237,7 @@
       <li><a href="#create-a-release-branch" id="markdown-toc-create-a-release-branch">Create a release branch</a></li>
       <li><a href="#update-the-python-sdk-version" id="markdown-toc-update-the-python-sdk-version">Update the Python SDK version</a></li>
       <li><a href="#update-release-specific-configurations" id="markdown-toc-update-release-specific-configurations">Update release specific configurations</a></li>
+      <li><a href="#start-a-snapshot-build" id="markdown-toc-start-a-snapshot-build">Start a snapshot build</a></li>
       <li><a href="#checklist-to-proceed-to-the-next-step-1" id="markdown-toc-checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</a></li>
     </ul>
   </li>
@@ -541,6 +543,13 @@ DEVELOPMENT_VERSION="${NEXT_VERSION}-SNAPSHOT"
 <a href="https://github.com/apache/beam/commit/f572328ce23e70adee8001e3d10f1479bd9a380d">example</a></li>
 </ol>
 
+<h3 id="start-a-snapshot-build">Start a snapshot build</h3>
+
+<p>Start a build of <a href="https://builds.apache.org/view/A-D/view/Beam/job/beam_Release_NightlySnapshot/">the nightly snapshot</a>.
+Some processes, including our archetype tests, rely on having a live SNAPSHOT of the current version
+from the <code class="highlighter-rouge">master</code> branch. Once the release branch is cut, these SNAPSHOT versions are no longer found,
+so builds will be broken until a new snapshot is available.</p>
+
 <h3 id="checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</h3>
 
 <ol>
@@ -554,6 +563,7 @@ DEVELOPMENT_VERSION="${NEXT_VERSION}-SNAPSHOT"
   <li>Combined javadoc has the appropriate contents.</li>
   <li>Release branch has been created</li>
   <li>Originating branch has the version information updated to the new version</li>
+  <li>Nightly snapshot is in progress (do revisit it continually)</li>
 </ol>
 
 <hr />
