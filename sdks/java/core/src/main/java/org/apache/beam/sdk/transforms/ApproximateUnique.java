@@ -23,7 +23,7 @@ import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
-import java.util.PriorityQueue;
+import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -319,7 +319,8 @@ public class ApproximateUnique {
      * A heap utility class to efficiently track the largest added elements.
      */
     public static class LargestUnique implements Serializable {
-      private PriorityQueue<Long> heap = new PriorityQueue<>();
+      private TreeSet<Long> heap = new TreeSet<>();
+      private long minHash = Long.MAX_VALUE;
       private final long sampleSize;
 
       /**
@@ -336,14 +337,16 @@ public class ApproximateUnique {
        * to be) in the heap.
        */
       public boolean add(long value) {
-        if (heap.size() >= sampleSize && value < heap.element()) {
+        if (heap.size() >= sampleSize && value < minHash) {
           return false; // Common case as input size increases.
         }
-        if (!heap.contains(value)) {
-          if (heap.size() >= sampleSize) {
-            heap.remove();
+        if (heap.add(value)) {
+          if (heap.size() > sampleSize) {
+            heap.remove(minHash);
+            minHash = heap.first();
+          } else if (value < minHash) {
+            minHash = value;
           }
-          heap.add(value);
         }
         return true;
       }
@@ -352,8 +355,7 @@ public class ApproximateUnique {
         if (heap.size() < sampleSize) {
           return (long) heap.size();
         } else {
-          long smallestSampleHash = heap.element();
-          double sampleSpaceSize = Long.MAX_VALUE - (double) smallestSampleHash;
+          double sampleSpaceSize = Long.MAX_VALUE - (double) minHash;
           // This formula takes into account the possibility of hash collisions,
           // which become more likely than not for 2^32 distinct elements.
           // Note that log(1+x) ~ x for small x, so for sampleSize << maxHash
