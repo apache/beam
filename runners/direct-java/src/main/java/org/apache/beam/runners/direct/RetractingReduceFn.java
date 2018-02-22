@@ -105,7 +105,9 @@ class RetractingReduceFn<K, InputT, W extends BoundedWindow>
             .filter(elem -> !retractedElements.contains(elem))
             .collect(Collectors.toList());
 
-    c.output(previousOutput, IS_RETRACTION);
+    if (previousOutput.size() > 0) {
+      c.output(previousOutput, IS_RETRACTION);
+    }
 
     clearState(c);
     newOutput.forEach(buffer::add);
