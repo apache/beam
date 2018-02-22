@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
@@ -224,32 +225,7 @@ public class UnboundedSourceWrapper<
             serializedOptions.get(),
             metricContainer);
 
-    if (localReaders.size() == 0) {
-      // do nothing, but still look busy ...
-      // also, output a Long.MAX_VALUE watermark since we know that we're not
-      // going to emit anything
-      // we can't return here since Flink requires that all operators stay up,
-      // otherwise checkpointing would not work correctly anymore
-      ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
-
-      // wait until this is canceled
-      final Object waitLock = new Object();
-      while (isRunning) {
-        try {
-          // Flink will interrupt us at some point
-          //noinspection SynchronizationOnLocalVariableOrMethodParameter
-          synchronized (waitLock) {
-            // don't wait indefinitely, in case something goes horribly wrong
-            waitLock.wait(1000);
-          }
-        } catch (InterruptedException e) {
-          if (!isRunning) {
-            // restore the interrupted state, and fall through the loop
-            Thread.currentThread().interrupt();
-          }
-        }
-      }
-    } else if (localReaders.size() == 1) {
+    if (localReaders.size() == 1) {
       // the easy case, we just read from one reader
       UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
 
@@ -305,7 +281,35 @@ public class UnboundedSourceWrapper<
           hadData = false;
         }
       }
+    }
 
+    ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+
+    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
+    if (!options.isShutdownSourcesOnFinalWatermark()) {
+      // do nothing, but still look busy ...
+      // we can't return here since Flink requires that all operators stay up,
+      // otherwise checkpointing would not work correctly anymore
+      //
+      // See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue
+
+      // wait until this is canceled
+      final Object waitLock = new Object();
+      while (isRunning) {
+        try {
+          // Flink will interrupt us at some point
+          //noinspection SynchronizationOnLocalVariableOrMethodParameter
+          synchronized (waitLock) {
+            // don't wait indefinitely, in case something goes horribly wrong
+            waitLock.wait(1000);
+          }
+        } catch (InterruptedException e) {
+          if (!isRunning) {
+            // restore the interrupted state, and fall through the loop
+            Thread.currentThread().interrupt();
+          }
+        }
+      }
     }
   }
 
