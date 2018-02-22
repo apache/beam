@@ -116,7 +116,7 @@ class FakeHdfs(object):
       raise ValueError('list must be called on a directory, got file: %s', path)
 
     result = []
-    for file in self.files.itervalues():
+    for file in self.files.values():
       if file.stat['path'].startswith(path):
         fs = file.get_file_status()
         result.append((fs[hdfs._FILE_STATUS_PATH_SUFFIX], fs))

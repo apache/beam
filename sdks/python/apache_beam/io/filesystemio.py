@@ -16,21 +16,23 @@
 #
 """Utilities for ``FileSystem`` implementations."""
 
+from __future__ import absolute_import
+
 import abc
 import io
 import os
+
+import six
 
 __all__ = ['Downloader', 'Uploader', 'DownloaderStream', 'UploaderStream',
            'PipeStream']
 
 
-class Downloader(object):
+class Downloader(six.with_metaclass(abc.ABCMeta, object)):
   """Download interface for a single file.
 
   Implementations should support random access reads.
   """
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractproperty
   def size(self):
@@ -52,10 +54,8 @@ class Downloader(object):
     """
 
 
-class Uploader(object):
+class Uploader(six.with_metaclass(abc.ABCMeta, object)):
   """Upload interface for a single file."""
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def put(self, data):

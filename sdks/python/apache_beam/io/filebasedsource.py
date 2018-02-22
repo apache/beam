@@ -26,7 +26,9 @@ For an example implementation of :class:`FileBasedSource` see
 :class:`~apache_beam.io._AvroSource`.
 """
 
-from six import integer_types
+from __future__ import absolute_import
+
+import six
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
@@ -98,12 +100,12 @@ class FileBasedSource(iobase.BoundedSource):
         result.
     """
 
-    if not isinstance(file_pattern, (basestring, ValueProvider)):
+    if not isinstance(file_pattern, (six.string_types, ValueProvider)):
       raise TypeError('%s: file_pattern must be of type string'
                       ' or ValueProvider; got %r instead'
                       % (self.__class__.__name__, file_pattern))
 
-    if isinstance(file_pattern, basestring):
+    if isinstance(file_pattern, six.string_types):
       file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
 
@@ -234,11 +236,11 @@ class _SingleFileSource(iobase.BoundedSource):
 
   def __init__(self, file_based_source, file_name, start_offset, stop_offset,
                min_bundle_size=0, splittable=True):
-    if not isinstance(start_offset, integer_types):
+    if not isinstance(start_offset, six.integer_types):
       raise TypeError(
           'start_offset must be a number. Received: %r' % start_offset)
     if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
-      if not isinstance(stop_offset, integer_types):
+      if not isinstance(stop_offset, six.integer_types):
         raise TypeError(
             'stop_offset must be a number. Received: %r' % stop_offset)
       if start_offset >= stop_offset:

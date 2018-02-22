@@ -26,7 +26,7 @@ import os
 import time
 import zlib
 
-from six import integer_types
+import six
 
 from apache_beam.utils.plugin import BeamPlugin
 
@@ -82,7 +82,7 @@ class CompressionTypes(object):
     """Returns the compression type of a file (based on its suffix)."""
     compression_types_by_suffix = {'.bz2': cls.BZIP2, '.gz': cls.GZIP}
     lowercased_path = file_path.lower()
-    for suffix, compression_type in compression_types_by_suffix.iteritems():
+    for suffix, compression_type in compression_types_by_suffix.items():
       if lowercased_path.endswith(suffix):
         return compression_type
     return cls.UNCOMPRESSED
@@ -373,10 +373,12 @@ class FileMetadata(object):
   """Metadata about a file path that is the output of FileSystem.match
   """
   def __init__(self, path, size_in_bytes):
-    assert isinstance(path, basestring) and path, "Path should be a string"
-    assert isinstance(size_in_bytes, integer_types) and size_in_bytes >= 0, \
-        "Invalid value for size_in_bytes should %s (of type %s)" % (
-            size_in_bytes, type(size_in_bytes))
+    assert isinstance(path, six.string_types) and path, \
+        "Path should be a string"
+    assert (isinstance(size_in_bytes, six.integer_types)
+            and size_in_bytes >= 0), \
+        ("Invalid value for size_in_bytes should %s (of type %s)"
+         % (size_in_bytes, type(size_in_bytes)))
     self.path = path
     self.size_in_bytes = size_in_bytes
 
@@ -423,14 +425,13 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(BeamPlugin):
+class FileSystem(six.with_metaclass(abc.ABCMeta, BeamPlugin)):
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
   implement. Clients should use the FileSystems class to interact with
   the correct file system based on the provided file pattern scheme.
   """
-  __metaclass__ = abc.ABCMeta
   CHUNK_SIZE = 1  # Chuck size in the batch operations
 
   def __init__(self, pipeline_options):

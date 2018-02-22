@@ -26,6 +26,8 @@ from __future__ import absolute_import
 
 import re
 
+import six
+
 from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
@@ -72,7 +74,7 @@ class ReadStringsFromPubSub(PTransform):
     pcoll = pvalue.pipeline | Read(self._source)
     pcoll.element_type = bytes
     pcoll = pcoll | 'DecodeString' >> Map(lambda b: b.decode('utf-8'))
-    pcoll.element_type = unicode
+    pcoll.element_type = six.text_type
     return pcoll
 
 

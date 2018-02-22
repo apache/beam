@@ -26,6 +26,7 @@ import logging
 import traceback
 from collections import namedtuple
 
+import six
 import vcf
 
 from apache_beam.coders import coders
@@ -369,7 +370,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
       if record.FILTER is not None:
         variant.filters.extend(
             record.FILTER if record.FILTER else [PASS_FILTER])
-      for k, v in record.INFO.iteritems():
+      for k, v in six.iteritems(record.INFO):
         # Special case: END info value specifies end of the record, so adjust
         # variant.end and do not include it as part of variant.info.
         if k == END_INFO_KEY:
@@ -404,7 +405,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           # Note: this is already done for INFO fields in PyVCF.
           if (field in formats and
               formats[field].num is None and
-              isinstance(data, (int, float, long, basestring, bool))):
+              isinstance(data, (int, float, long, six.string_types, bool))):
             data = [data]
           call.info[field] = data
         variant.calls.append(call)
