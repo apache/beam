@@ -17,6 +17,9 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode
+    .ACCUMULATING_AND_RETRACTING_FIRED_PLANES;
+
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -27,6 +30,7 @@ import org.apache.beam.runners.core.GroupAlsoByWindowsAggregators;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputWindowedValue;
+import org.apache.beam.runners.core.ReduceFn;
 import org.apache.beam.runners.core.ReduceFnRunner;
 import org.apache.beam.runners.core.SystemReduceFn;
 import org.apache.beam.runners.core.TimerInternals;
@@ -111,7 +115,7 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
     private final Collection<UncommittedBundle<?>> outputBundles;
     private final ImmutableList.Builder<WindowedValue<KeyedWorkItem<K, V>>> unprocessedElements;
 
-    private final SystemReduceFn<K, V, Iterable<V>, Iterable<V>, BoundedWindow> reduceFn;
+    private final ReduceFn<K, V, Iterable<V>, BoundedWindow> reduceFn;
     private final Counter droppedDueToClosedWindow;
     private final Counter droppedDueToLateness;
 
@@ -139,12 +143,22 @@ class GroupAlsoByWindowEvaluatorFactory implements TransformEvaluatorFactory {
 
       Coder<V> valueCoder =
           application.getTransform().getValueCoder(inputBundle.getPCollection().getCoder());
-      reduceFn = SystemReduceFn.buffering(valueCoder);
+      reduceFn = getReduceFn(windowingStrategy.getMode(), valueCoder);
       droppedDueToClosedWindow = Metrics.counter(GroupAlsoByWindowEvaluator.class,
           GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_CLOSED_WINDOW_COUNTER);
       droppedDueToLateness = Metrics.counter(GroupAlsoByWindowEvaluator.class,
           GroupAlsoByWindowsAggregators.DROPPED_DUE_TO_LATENESS_COUNTER);
     }
+
+    private ReduceFn<K, V, Iterable<V>, BoundedWindow> getReduceFn(
+        WindowingStrategy.AccumulationMode accumulationMode,
+        Coder<V> valueCoder) {
+
+      return (accumulationMode == ACCUMULATING_AND_RETRACTING_FIRED_PLANES)
+          ? RetractingReduceFn.of(valueCoder)
+          : SystemReduceFn.buffering(valueCoder);
+    }
+
 
     @Override
     public void processElement(WindowedValue<KeyedWorkItem<K, V>> element) throws Exception {
