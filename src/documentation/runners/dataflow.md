@@ -64,6 +64,60 @@ For more information, see the *Before you begin* section of the [Cloud Dataflow 
 
 <span class="language-py">This section is not applicable to the Beam SDK for Python.</span>
 
+### Self executing JAR
+
+{:.language-py}
+This section is not applicable to the Beam SDK for Python.
+
+{:.language-java}
+In some cases, such as starting a pipeline using a scheduler such as [Apache AirFlow](https://airflow.apache.org), you must have a self-contained application. You can pack a self-executing JAR by explicitly adding the following dependency on the Project section of your pom.xml, in addition to the adding existing dependency shown in the previous section.
+
+```java
+<dependency>
+    <groupId>org.apache.beam</groupId>
+    <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
+    <version>${beam.version}</version>
+    <scope>runtime</scope>
+</dependency>
+```
+
+{:.language-java}
+Then, add the mainClass name in the Maven JAR plugin.
+
+```java
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-jar-plugin</artifactId>
+  <version>${maven-jar-plugin.version}</version>
+  <configuration>
+    <archive>
+      <manifest>
+        <addClasspath>true</addClasspath>
+        <classpathPrefix>lib/</classpathPrefix>
+        <mainClass>YOUR_MAIN_CLASS_NAME</mainClass>
+      </manifest>
+    </archive>
+  </configuration>
+</plugin>
+```
+
+{:.language-java}
+After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is `beam-examples` and the version is 1.0.0) the following output.
+
+```java
+beam-examples-bundled-1.0.0.jar
+```
+
+{:.language-java}
+To run the self-executing JAR on Cloud Dataflow, use the following command.
+
+```java
+java -jar target/beam-examples-bundled-1.0.0.jar \
+  --runner=DataflowRunner \
+  --project=<YOUR_GCP_PROJECT_ID> \
+  --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/
+```
+
 ### Authentication
 
 Before running your pipeline, you must authenticate with the Google Cloud Platform. Run the following command to get [Application Default Credentials](https://developers.google.com/identity/protocols/application-default-credentials).
