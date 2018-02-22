@@ -73,10 +73,12 @@ class FuzzedExponentialIntervals(object):
   def __init__(self, initial_delay_secs, num_retries, factor=2, fuzz=0.5,
                max_delay_secs=60 * 60 * 1):
     self._initial_delay_secs = initial_delay_secs
+    if num_retries > 10000:
+      raise ValueError('num_retries parameter cannot exceed 10000.')
     self._num_retries = num_retries
     self._factor = factor
     if not 0 <= fuzz <= 1:
-      raise ValueError('Fuzz parameter expected to be in [0, 1] range.')
+      raise ValueError('fuzz parameter expected to be in [0, 1] range.')
     self._fuzz = fuzz
     self._max_delay_secs = max_delay_secs
 
