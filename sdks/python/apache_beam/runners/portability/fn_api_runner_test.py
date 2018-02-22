@@ -97,6 +97,15 @@ class FnApiRunnerTest(
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': [1]})]))
 
+  def test_multimap_side_input(self):
+    with self.create_pipeline() as p:
+      main = p | 'main' >> beam.Create(['a', 'b'])
+      side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
+      assert_that(
+          main | beam.Map(lambda k, d: (k, sorted(d[k])),
+                          beam.pvalue.AsMultiMap(side)),
+          equal_to([('a', [1, 3]), ('b', [2])]))
+
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
