@@ -126,7 +126,8 @@ public class DataStreams {
    * first access to {@link #next()} or {@link #hasNext()}.
    */
   public static class DataStreamDecoder<T> implements Iterator<T> {
-    private enum State { READ_REQUIRED, HAS_NEXT, EOF };
+
+    private enum State { READ_REQUIRED, HAS_NEXT, EOF }
 
     private final CountingInputStream countingInputStream;
     private final PushbackInputStream pushbackInputStream;

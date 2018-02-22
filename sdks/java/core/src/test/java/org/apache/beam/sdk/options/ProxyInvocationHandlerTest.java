@@ -74,7 +74,7 @@ public class ProxyInvocationHandlerTest {
   @Rule public TestRule resetPipelineOptionsRegistry = new ExternalResource() {
     @Override
     protected void before() {
-      PipelineOptionsFactory.resetRegistry();
+      PipelineOptionsFactory.resetCache();
     }
   };
 
@@ -468,7 +468,7 @@ public class ProxyInvocationHandlerTest {
     PipelineOptionsFactory.register(FooOptions.class);
     assertThat(PipelineOptionsFactory.getRegisteredOptions(), hasItem(FooOptions.class));
 
-    PipelineOptionsFactory.resetRegistry();
+    PipelineOptionsFactory.resetCache();
     assertEquals(defaultRegistry, PipelineOptionsFactory.getRegisteredOptions());
   }
 

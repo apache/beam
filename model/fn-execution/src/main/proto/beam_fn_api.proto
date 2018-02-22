@@ -307,6 +307,12 @@ message Metrics {
       int64 max = 4;
     }
 
+    // Data associated with a Gauge metric.
+    message GaugeData {
+      int64 value = 1;
+      google.protobuf.Timestamp timestamp = 2;
+    }
+
     // (Required) The identifier for this metric.
     MetricName metric_name = 1;
 
@@ -314,6 +320,7 @@ message Metrics {
     oneof data {
       CounterData counter_data = 1001;
       DistributionData distribution_data = 1002;
+      GaugeData gauge_data = 1003;
     }
   }
 

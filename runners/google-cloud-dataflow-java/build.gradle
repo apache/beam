@@ -17,7 +17,8 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false /* BEAM-925 */)
+applyJavaNature(enableFindbugs: false /* BEAM-925 */,
+    artifactId: "beam-runners-google-cloud-dataflow-java")
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 
