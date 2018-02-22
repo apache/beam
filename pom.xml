@@ -145,7 +145,7 @@
     <mockito.version>1.9.5</mockito.version>
     <netty.version>4.1.8.Final</netty.version>
     <netty.tcnative.version>1.1.33.Fork26</netty.tcnative.version>
-    <protobuf.version>3.2.0</protobuf.version>
+    <protobuf.version>3.5.1</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.25</slf4j.version>
     <spanner.version>0.34.0-beta</spanner.version>
