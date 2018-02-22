@@ -31,6 +31,7 @@ from StringIO import StringIO
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
+import six
 
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
@@ -287,7 +288,7 @@ class Job(object):
     def decode_shortstrings(input_buffer, errors='strict'):
       """Decoder (to Unicode) that suppresses long base64 strings."""
       shortened, length = encode_shortstrings(input_buffer, errors)
-      return unicode(shortened), length
+      return six.text_type(shortened), length
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':

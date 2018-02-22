@@ -207,6 +207,7 @@ public class WindowingStrategyTranslation implements Serializable {
     UrnUtils.validateCommonUrn(SLIDING_WINDOWS_FN);
     UrnUtils.validateCommonUrn(SESSION_WINDOWS_FN);
   }
+
   // This URN says that the WindowFn is just a UDF blob the Java SDK understands
   // TODO: standardize such things
   public static final String SERIALIZED_JAVA_WINDOWFN_URN = "beam:windowfn:javasdk:v0.1";

@@ -23,6 +23,7 @@ import java.util.Calendar;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCastExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDefaultExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -383,6 +384,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "DATETIME_PLUS":
           return new BeamSqlDatetimePlusExpression(subExps);
 
+        //DEFAULT keyword for UDF with optional parameter
+        case "DEFAULT":
+          return new BeamSqlDefaultExpression();
 
         case "CASE":
           ret = new BeamSqlCaseExpression(subExps);

@@ -20,6 +20,8 @@ package org.apache.beam.runners.core.construction.graph;
 
 import com.google.auto.value.AutoValue;
 import java.util.Set;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components.Builder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
@@ -43,4 +45,40 @@ public abstract class FusedPipeline {
    * The {@link PTransform PTransforms} that a runner is responsible for executing.
    */
   public abstract Set<PTransformNode> getRunnerExecutedTransforms();
+
+  /**
+   * Return a {@link Components} like the {@code base} components, but with the only transforms
+   * equal to this fused pipeline.
+   *
+   * <p>The only composites will be the stages returned by {@link #getFusedStages()}.
+   */
+  public Components asComponents(Components base) {
+    Builder newComponents = base.toBuilder().clearTransforms();
+    for (PTransformNode runnerExecuted : getRunnerExecutedTransforms()) {
+      newComponents.putTransforms(runnerExecuted.getId(), runnerExecuted.getTransform());
+    }
+    for (ExecutableStage stage : getFusedStages()) {
+      for (PTransformNode fusedTransform : stage.getTransforms()) {
+        newComponents.putTransforms(fusedTransform.getId(), fusedTransform.getTransform());
+      }
+      newComponents.putTransforms(stageId(stage, newComponents), stage.toPTransform());
+    }
+    return newComponents.build();
+  }
+
+  private String stageId(ExecutableStage stage, Components.Builder cbuilder) {
+    int i = 0;
+    String name;
+    do {
+      // Instead this could include the name of the root transforms
+      name =
+          String.format(
+              "%s/%s.%s",
+              stage.getInputPCollection().getPCollection().getUniqueName(),
+              stage.getEnvironment().getUrl(),
+              i);
+      i++;
+    } while (cbuilder.containsTransforms(name));
+    return name;
+  }
 }

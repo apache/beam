@@ -29,6 +29,7 @@ from concurrent import futures
 import grpc
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
+from apache_beam import coders
 from apache_beam import metrics
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import registry
@@ -144,10 +145,20 @@ class _WindowGroupingBuffer(object):
   def __init__(self, side_input_data):
     # Here's where we would use a different type of partitioning
     # (e.g. also by key) for a different access pattern.
-    assert side_input_data.access_pattern == common_urns.ITERABLE_SIDE_INPUT
+    if side_input_data.access_pattern == common_urns.ITERABLE_SIDE_INPUT:
+      self._kv_extrator = lambda value: ('', value)
+      self._key_coder = coders.SingletonCoder('')
+      self._value_coder = side_input_data.coder.wrapped_value_coder
+    elif side_input_data.access_pattern == common_urns.MULTIMAP_SIDE_INPUT:
+      self._kv_extrator = lambda value: value
+      self._key_coder = side_input_data.coder.wrapped_value_coder.key_coder()
+      self._value_coder = (
+          side_input_data.coder.wrapped_value_coder.value_coder())
+    else:
+      raise ValueError(
+          "Unknown access pattern: '%s'" % side_input_data.access_pattern)
     self._windowed_value_coder = side_input_data.coder
     self._window_coder = side_input_data.coder.window_coder
-    self._value_coder = side_input_data.coder.wrapped_value_coder
     self._values_by_window = collections.defaultdict(list)
 
   def append(self, elements_data):
@@ -155,17 +166,20 @@ class _WindowGroupingBuffer(object):
     while input_stream.size() > 0:
       windowed_value = self._windowed_value_coder.get_impl(
           ).decode_from_stream(input_stream, True)
+      key, value = self._kv_extrator(windowed_value.value)
       for window in windowed_value.windows:
-        self._values_by_window[window].append(windowed_value.value)
+        self._values_by_window[key, window].append(value)
 
-  def items(self):
+  def encoded_items(self):
     value_coder_impl = self._value_coder.get_impl()
-    for window, values in self._values_by_window.items():
+    key_coder_impl = self._key_coder.get_impl()
+    for (key, window), values in self._values_by_window.items():
       encoded_window = self._window_coder.encode(window)
+      encoded_key = key_coder_impl.encode_nested(key)
       output_stream = create_OutputStream()
       for value in values:
         value_coder_impl.encode_to_stream(value, output_stream, True)
-      yield encoded_window, output_stream.get()
+      yield encoded_key, encoded_window, output_stream.get()
 
 
 class FnApiRunner(runner.PipelineRunner):
@@ -882,12 +896,13 @@ class FnApiRunner(runner.PipelineRunner):
       elements_by_window = _WindowGroupingBuffer(si)
       for element_data in pcoll_buffers[pcoll_id]:
         elements_by_window.append(element_data)
-      for window, elements_data in elements_by_window.items():
+      for key, window, elements_data in elements_by_window.encoded_items():
         state_key = beam_fn_api_pb2.StateKey(
             multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
                 ptransform_id=transform_id,
                 side_input_id=tag,
-                window=window))
+                window=window,
+                key=key))
         controller.state_handler.blocking_append(state_key, elements_data, None)
 
     def get_buffer(pcoll_id):
@@ -1147,7 +1162,7 @@ class ProgressRequester(threading.Thread):
         self._latest_progress = progress_result.process_bundle_progress
         if self._callback:
           self._callback(self._latest_progress)
-      except Exception, exn:
+      except Exception as exn:
         logging.error("Bad progress: %s", exn)
       time.sleep(self._frequency)
 
@@ -1181,6 +1196,7 @@ class FnApiMetrics(metrics.metric.MetricResults):
   def __init__(self, step_metrics):
     self._counters = {}
     self._distributions = {}
+    self._gauges = {}
     for step_metric in step_metrics.values():
       for ptransform_id, ptransform in step_metric.ptransforms.items():
         for proto in ptransform.user:
@@ -1194,6 +1210,11 @@ class FnApiMetrics(metrics.metric.MetricResults):
                 key] = metrics.cells.DistributionResult(
                     metrics.cells.DistributionData.from_runner_api(
                         proto.distribution_data))
+          elif proto.HasField('gauge_data'):
+            self._gauges[
+                key] = metrics.cells.GaugeResult(
+                    metrics.cells.GaugeData.from_runner_api(
+                        proto.gauge_data))
 
   def query(self, filter=None):
     counters = [metrics.execution.MetricResult(k, v, v)
@@ -1202,9 +1223,13 @@ class FnApiMetrics(metrics.metric.MetricResults):
     distributions = [metrics.execution.MetricResult(k, v, v)
                      for k, v in self._distributions.items()
                      if self.matches(filter, k)]
+    gauges = [metrics.execution.MetricResult(k, v, v)
+              for k, v in self._gauges.items()
+              if self.matches(filter, k)]
 
     return {'counters': counters,
-            'distributions': distributions}
+            'distributions': distributions,
+            'gauges': gauges}
 
 
 class RunnerResult(runner.PipelineResult):

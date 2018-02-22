@@ -26,21 +26,26 @@ import org.apache.beam.sdk.values.KV;
  * partition id, and offset).
  */
 public class KafkaRecord<K, V> implements Serializable {
+  // This is based on {@link ConsumerRecord} received from Kafka Consumer.
+  // The primary difference is that this contains deserialized key and value, and runtime
+  // Kafka version agnostic (e.g. Kafka version 0.9.x does not have timestamp fields).
 
   private final String topic;
   private final int partition;
   private final long offset;
   private final KV<K, V> kv;
   private final long timestamp;
+  private final KafkaTimestampType timestampType;
 
   public KafkaRecord(
       String topic,
       int partition,
       long offset,
       long timestamp,
+      KafkaTimestampType timestampType,
       K key,
       V value) {
-    this(topic, partition, offset, timestamp, KV.of(key, value));
+    this(topic, partition, offset, timestamp, timestampType, KV.of(key, value));
   }
 
   public KafkaRecord(
@@ -48,13 +53,16 @@ public class KafkaRecord<K, V> implements Serializable {
       int partition,
       long offset,
       long timestamp,
+      KafkaTimestampType timestampType,
       KV<K, V> kv) {
     this.topic = topic;
     this.partition = partition;
     this.offset = offset;
     this.timestamp = timestamp;
+    this.timestampType = timestampType;
     this.kv = kv;
   }
+
 
   public String getTopic() {
     return topic;
@@ -74,6 +82,10 @@ public class KafkaRecord<K, V> implements Serializable {
 
   public long getTimestamp() {
     return timestamp;
+  }
+
+  public KafkaTimestampType getTimestampType() {
+    return timestampType;
   }
 
   @Override

@@ -65,6 +65,7 @@ public class Snippets {
       this.source = "";
       this.quote = "";
     }
+
     public Quote(String source, String quote) {
       this.source = source;
       this.quote = quote;
@@ -84,6 +85,7 @@ public class Snippets {
       this.day = 0;
       this.maxTemp = 0.0f;
     }
+
     public WeatherData(long year, long month, long day, double maxTemp) {
       this.year = year;
       this.month = month;

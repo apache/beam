@@ -207,7 +207,7 @@ public class JmsIOTest {
 
     PAssert
         .thatSingleton(output.apply("Count", Count.<String>globally()))
-        .isEqualTo(new Long(1));
+        .isEqualTo(1L);
     pipeline.run();
 
     connection = connectionFactory.createConnection(USERNAME, PASSWORD);

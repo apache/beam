@@ -1,0 +1,69 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol buffer definition for session serialization files
+ */
+
+syntax = "proto3";
+
+package session;
+
+import "beam_fn_api.proto";
+
+message Header {
+  string version = 1; // version identifier of the session schema
+  string sdk_version = 2; // build information for the SDK that generated the session.
+  int64 max_msg_len = 3; // maximum length of a single entry
+}
+
+message Footer {
+  // The main use case for this is to make it clear the whole session
+  // file is complete. Improvements to this message could include writing
+  // an index for contents in the file, a la Google sstables.
+}
+
+enum Kind {
+  INVALID = 0;
+  INSTRUCTION_REQUEST = 1;
+  INSTRUCTION_RESPONSE = 2;
+  DATA_RECEIVED = 3;
+  DATA_SENT = 4;
+  LOG_ENTRIES = 5;
+  HEADER = 6;
+  FOOTER = 7;
+}
+
+message EntryHeader {
+  int64 len = 1;
+  Kind kind = 2;
+}
+
+message Entry {
+  Kind kind = 1;
+  oneof msg {
+    org.apache.beam.model.fn_execution.v1.InstructionRequest inst_req= 1000;
+    org.apache.beam.model.fn_execution.v1.InstructionResponse inst_resp= 1001;
+    org.apache.beam.model.fn_execution.v1.Elements elems = 1002;
+    org.apache.beam.model.fn_execution.v1.LogEntry.List log_entries = 1003;
+    Header header = 1004;
+    Footer footer = 1005;
+  }
+
+  int64 timestamp = 2;
+}

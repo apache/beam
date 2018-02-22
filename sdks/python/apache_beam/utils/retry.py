@@ -25,6 +25,7 @@ should find all such places. For this reason even places where retry is not
 needed right now use a @retry.no_retries decorator.
 """
 
+
 import logging
 import random
 import sys
@@ -73,10 +74,12 @@ class FuzzedExponentialIntervals(object):
   def __init__(self, initial_delay_secs, num_retries, factor=2, fuzz=0.5,
                max_delay_secs=60 * 60 * 1):
     self._initial_delay_secs = initial_delay_secs
+    if num_retries > 10000:
+      raise ValueError('num_retries parameter cannot exceed 10000.')
     self._num_retries = num_retries
     self._factor = factor
     if not 0 <= fuzz <= 1:
-      raise ValueError('Fuzz parameter expected to be in [0, 1] range.')
+      raise ValueError('fuzz parameter expected to be in [0, 1] range.')
     self._fuzz = fuzz
     self._max_delay_secs = max_delay_secs
 
@@ -187,7 +190,7 @@ def with_exponential_backoff(
               sleep_interval = next(retry_intervals)
             except StopIteration:
               # Re-raise the original exception since we finished the retries.
-              six.reraise(exn, None, exn_traceback)  # pylint: disable=raising-bad-type
+              six.raise_from(exn, exn_traceback)
 
             logger(
                 'Retry with exponential backoff: waiting for %s seconds before '

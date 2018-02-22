@@ -19,8 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
 
 import static java.math.BigDecimal.ZERO;
-import static org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceAccumulator
-    .newVarianceAccumulator;
+import static org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceAccumulator.newVarianceAccumulator;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 

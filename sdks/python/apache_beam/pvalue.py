@@ -26,6 +26,7 @@ produced when the pipeline gets executed.
 
 from __future__ import absolute_import
 
+import collections
 import itertools
 
 from apache_beam import coders
@@ -506,6 +507,33 @@ class AsDict(AsSideInput):
         common_urns.ITERABLE_SIDE_INPUT,
         self._window_mapping_fn,
         dict,
+        self._input_element_coder())
+
+
+class AsMultiMap(AsSideInput):
+  """Marker specifying a PCollection to be used as an indexable side input.
+
+  Similar to AsDict, but multiple values may be associated per key, and
+  the keys are fetched lazily rather than all having to fit in memory.
+
+  Intended for use in side-argument specification---the same places where
+  AsSingleton and AsIter are used, but returns an interface that allows
+  key lookup.
+  """
+
+  @staticmethod
+  def _from_runtime_iterable(it, options):
+    # Legacy implementation.
+    result = collections.defaultdict(list)
+    for k, v in it:
+      result[k].append(v)
+    return result
+
+  def _side_input_data(self):
+    return SideInputData(
+        common_urns.MULTIMAP_SIDE_INPUT,
+        self._window_mapping_fn,
+        lambda x: x,
         self._input_element_coder())
 
 

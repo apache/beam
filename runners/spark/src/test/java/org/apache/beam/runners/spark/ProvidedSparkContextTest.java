@@ -114,7 +114,7 @@ public class ProvidedSparkContextTest {
         try {
             p.run().waitUntilFinish();
             fail("Should throw an exception when The provided Spark context is null or stopped");
-        } catch (RuntimeException e){
+        } catch (RuntimeException e) {
             assert(e.getMessage().contains(PROVIDED_CONTEXT_EXCEPTION));
         }
     }

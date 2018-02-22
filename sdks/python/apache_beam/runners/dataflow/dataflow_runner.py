@@ -754,6 +754,10 @@ class DataflowRunner(PipelineRunner):
       if transform.source.id_label:
         step.add_property(PropertyNames.PUBSUB_ID_LABEL,
                           transform.source.id_label)
+      if transform.source.with_attributes:
+        # Setting this property signals Dataflow runner to return full
+        # PubsubMessages instead of just the payload.
+        step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
     else:
       raise ValueError(
           'Source %r has unexpected format %s.' % (

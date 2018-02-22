@@ -208,6 +208,13 @@ class common_job_properties {
       '--none--')
   }
 
+  // Sets this as a cron job, running on a schedule.
+  static void setCronJob(context, String buildSchedule) {
+    context.triggers {
+      cron(buildSchedule)
+    }
+  }
+
   // Sets common config for PostCommit jobs.
   static void setPostCommit(context,
                             String buildSchedule = '0 */6 * * *',

@@ -28,6 +28,8 @@ import threading
 import traceback
 from weakref import WeakValueDictionary
 
+import six
+
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
 
@@ -357,6 +359,9 @@ class Executor(object):
   def await_completion(self):
     self._executor.await_completion()
 
+  def shutdown(self):
+    self._executor.request_shutdown()
+
 
 class _ExecutorServiceParallelExecutor(object):
   """An internal implementation for Executor."""
@@ -398,7 +403,7 @@ class _ExecutorServiceParallelExecutor(object):
     try:
       if update.exception:
         t, v, tb = update.exc_info
-        raise t, v, tb
+        six.reraise(t, v, tb)
     finally:
       self.executor_service.shutdown()
       self.executor_service.await_completion()

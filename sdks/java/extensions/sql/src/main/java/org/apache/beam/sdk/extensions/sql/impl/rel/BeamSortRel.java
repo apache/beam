@@ -25,10 +25,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -119,41 +119,49 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    RelNode input = getInput();
-    PCollection<Row> upstream = BeamSqlRelUtils.getBeamRelInput(input)
-        .buildBeamPipeline(inputPCollections, sqlEnv);
-    Type windowType = upstream.getWindowingStrategy().getWindowFn()
-        .getWindowTypeDescriptor().getType();
-    if (!windowType.equals(GlobalWindow.class)) {
-      throw new UnsupportedOperationException(
-          "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
-    }
+  @Override
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
+  }
 
-    BeamSqlRowComparator comparator = new BeamSqlRowComparator(fieldIndices, orientation,
-        nullsFirst);
-    // first find the top (offset + count)
-    PCollection<List<Row>> rawStream =
-        upstream
-            .apply(
-                "extractTopOffsetAndFetch",
-                Top.of(startIndex + count, comparator).withoutDefaults())
-            .setCoder(ListCoder.of(upstream.getCoder()));
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
 
-    // strip the `leading offset`
-    if (startIndex > 0) {
-      rawStream =
-          rawStream
+    @Override
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+      RelNode input = getInput();
+      PCollection<Row> upstream =
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+      Type windowType =
+          upstream.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor().getType();
+      if (!windowType.equals(GlobalWindow.class)) {
+        throw new UnsupportedOperationException(
+            "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
+      }
+
+      BeamSqlRowComparator comparator =
+          new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+      // first find the top (offset + count)
+      PCollection<List<Row>> rawStream =
+          upstream
               .apply(
-                  "stripLeadingOffset", ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+                  "extractTopOffsetAndFetch",
+                  Top.of(startIndex + count, comparator).withoutDefaults())
               .setCoder(ListCoder.of(upstream.getCoder()));
+
+      // strip the `leading offset`
+      if (startIndex > 0) {
+        rawStream =
+            rawStream
+                .apply(
+                    "stripLeadingOffset", ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+                .setCoder(ListCoder.of(upstream.getCoder()));
+      }
+
+      PCollection<Row> orderedStream = rawStream.apply("flatten", Flatten.iterables());
+      orderedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
+
+      return orderedStream;
     }
-
-    PCollection<Row> orderedStream = rawStream.apply("flatten", Flatten.iterables());
-    orderedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
-
-    return orderedStream;
   }
 
   private static class SubListFn<T> extends DoFn<List<T>, List<T>> {
@@ -233,4 +241,5 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       return 0;
     }
   }
+
 }

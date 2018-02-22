@@ -24,12 +24,12 @@ import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rule.AggregateWindowField;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.WithTimestamps;
@@ -77,15 +77,19 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   @Override
-  public PCollection<Row> buildBeamPipeline(
-      PCollectionTuple inputPCollections,
-      BeamSqlEnv sqlEnv) throws Exception {
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
 
     RelNode input = getInput();
-    String stageName = BeamSqlRelUtils.getStageName(this) + "_";
+      String stageName = BeamSqlRelUtils.getStageName(BeamAggregationRel.this) + "_";
 
-    PCollection<Row> upstream =
-        BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
+      PCollection<Row> upstream =
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
     if (windowField.isPresent()) {
       upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
           .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
@@ -187,6 +191,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     return
         RowType
             .newField(aggCall.name, CalciteUtils.toCoder(aggCall.type.getSqlTypeName()));
+  }
   }
 
   @Override

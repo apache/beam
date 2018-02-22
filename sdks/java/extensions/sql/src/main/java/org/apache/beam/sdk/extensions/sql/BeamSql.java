@@ -90,4 +90,5 @@ public class BeamSql {
   public static QueryTransform query(String sqlQuery) {
     return QueryTransform.withQueryString(sqlQuery);
   }
+
 }

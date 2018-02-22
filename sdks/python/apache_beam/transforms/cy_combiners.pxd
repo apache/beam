@@ -90,3 +90,13 @@ cdef class AnyAccumulator(object):
   cpdef add_input(self, bint element)
   @cython.locals(accumulator=AnyAccumulator)
   cpdef merge(self, accumulators)
+
+cdef class DistributionAccumulator(object):
+  cdef public int64_t min
+  cdef public int64_t max
+  cdef public int64_t count
+  cdef public int64_t sum
+  cdef public int64_t first_bucket_offset
+  cdef public list buckets
+  cdef public int64_t buckets_per_10
+  cpdef add_input(self, int64_t element)
