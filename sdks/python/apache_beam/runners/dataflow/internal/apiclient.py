@@ -19,6 +19,8 @@
 
 Dataflow client utility functions."""
 
+from __future__ import absolute_import
+
 import codecs
 import getpass
 import json
@@ -29,6 +31,7 @@ import time
 from datetime import datetime
 from StringIO import StringIO
 
+import six
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
 
@@ -251,7 +254,7 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue())
 
       options_dict = {k: v
-                      for k, v in sdk_pipeline_options.iteritems()
+                      for k, v in sdk_pipeline_options.items()
                       if v is not None}
       options_dict["pipelineUrl"] = pipeline_url
       self.proto.sdkPipelineOptions.additionalProperties.append(
@@ -287,7 +290,7 @@ class Job(object):
     def decode_shortstrings(input_buffer, errors='strict'):
       """Decoder (to Unicode) that suppresses long base64 strings."""
       shortened, length = encode_shortstrings(input_buffer, errors)
-      return unicode(shortened), length
+      return six.text_type(shortened), length
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':

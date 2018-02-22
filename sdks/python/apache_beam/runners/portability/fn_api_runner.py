@@ -20,7 +20,6 @@
 import collections
 import copy
 import logging
-import Queue as queue
 import re
 import threading
 import time
@@ -28,7 +27,9 @@ from concurrent import futures
 
 import grpc
 
-import apache_beam as beam  # pylint: disable=ungrouped-imports
+# pylint: disable=ungrouped-imports,wrong-import-order
+import apache_beam as beam
+import six.moves.queue as queue
 from apache_beam import coders
 from apache_beam import metrics
 from apache_beam.coders import WindowedValueCoder
@@ -49,6 +50,9 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
+
+# pylint: enable=ungrouped-imports,wrong-import-order
+
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -1162,7 +1166,7 @@ class ProgressRequester(threading.Thread):
         self._latest_progress = progress_result.process_bundle_progress
         if self._callback:
           self._callback(self._latest_progress)
-      except Exception, exn:
+      except Exception as exn:
         logging.error("Bad progress: %s", exn)
       time.sleep(self._frequency)
 

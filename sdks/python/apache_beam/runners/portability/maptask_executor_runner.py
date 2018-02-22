@@ -391,7 +391,7 @@ class GroupingOutputBuffer(object):
   def freeze(self):
     if not self.frozen:
       self._encoded_elements = [self.grouped_coder.encode(kv)
-                                for kv in self.elements.iteritems()]
+                                for kv in self.elements.items()]
     self.frozen = True
     return self._encoded_elements
 

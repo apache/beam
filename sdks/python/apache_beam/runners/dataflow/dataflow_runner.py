@@ -25,7 +25,6 @@ import logging
 import threading
 import time
 import traceback
-import urllib
 from collections import defaultdict
 
 import apache_beam as beam
@@ -51,6 +50,8 @@ from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
 from apache_beam.utils.plugin import BeamPlugin
+from six.moves.urllib.parse import quote
+from six.moves.urllib.parse import unquote
 
 __all__ = ['DataflowRunner']
 
@@ -883,12 +884,12 @@ class DataflowRunner(PipelineRunner):
   @staticmethod
   def byte_array_to_json_string(raw_bytes):
     """Implements org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString."""
-    return urllib.quote(raw_bytes)
+    return quote(raw_bytes)
 
   @staticmethod
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
-    return urllib.unquote(encoded_string)
+    return unquote(encoded_string)
 
 
 class DataflowPipelineResult(PipelineResult):

@@ -21,14 +21,15 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-import Queue as queue
 import sys
 import threading
 import traceback
 from concurrent import futures
 
 import grpc
+import six
 
+import six.moves.queue as queue
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
@@ -288,7 +289,7 @@ class GrpcStateHandler(object):
     self._requests.put(request)
     while not future.wait(timeout=1):
       if self._exc_info:
-        raise self._exc_info[0], self._exc_info[1], self._exc_info[2]
+        six.reraise(self._exc_info[0], self._exc_info[1], self._exc_info[2])
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]

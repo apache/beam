@@ -14,6 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import absolute_import
+from __future__ import print_function
+
 import functools
 import logging
 import time
@@ -66,17 +69,17 @@ class FnApiRunnerTest(
           res,
           equal_to([
               # The window [0, 5) maps to the window [0, 7).
-              (0, range(7)),
-              (1, range(7)),
-              (2, range(7)),
-              (3, range(7)),
-              (4, range(7)),
+              (0, list(range(7))),
+              (1, list(range(7))),
+              (2, list(range(7))),
+              (3, list(range(7))),
+              (4, list(range(7))),
               # The window [5, 10) maps to the window [7, 14).
-              (5, range(7, 10)),
-              (6, range(7, 10)),
-              (7, range(7, 10)),
-              (8, range(7, 10)),
-              (9, range(7, 10))]),
+              (5, list(range(7, 10))),
+              (6, list(range(7, 10))),
+              (7, list(range(7, 10))),
+              (8, list(range(7, 10))),
+              (9, list(range(7, 10)))]),
           label='windowed')
 
   def test_flattened_side_input(self):
@@ -218,7 +221,7 @@ class FnApiRunnerTest(
           m_out.processed_elements.measured.output_element_counts['twice'])
 
     except:
-      print res._metrics_by_stage
+      print(res._metrics_by_stage)
       raise
 
   # Inherits all tests from maptask_executor_runner.MapTaskExecutorRunner

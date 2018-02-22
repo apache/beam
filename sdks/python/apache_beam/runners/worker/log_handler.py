@@ -16,13 +16,15 @@
 #
 """Beam fn API log handler."""
 
+from __future__ import absolute_import
+
 import logging
 import math
-import Queue as queue
 import threading
 
 import grpc
 
+import six.moves.queue as queue
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 

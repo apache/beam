@@ -34,7 +34,7 @@ class StreamingCreate(PTransform):
 
   def __init__(self, values, coder):
     self.coder = coder
-    self.encoded_values = map(coder.encode, values)
+    self.encoded_values = list(map(coder.encode, values))
 
   class DecodeAndEmitDoFn(DoFn):
     """A DoFn which stores encoded versions of elements.

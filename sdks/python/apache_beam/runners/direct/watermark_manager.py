@@ -194,7 +194,7 @@ class _TransformWatermarks(object):
 
   def hold(self, keyed_earliest_holds):
     with self._lock:
-      for key, hold_value in keyed_earliest_holds.iteritems():
+      for key, hold_value in keyed_earliest_holds.items():
         self._keyed_earliest_holds[key] = hold_value
         if (hold_value is None or
             hold_value == WatermarkManager.WATERMARK_POS_INF):
@@ -256,7 +256,7 @@ class _TransformWatermarks(object):
     with self._lock:
       fired_timers = []
       has_realtime_timer = False
-      for encoded_key, state in self._keyed_states.iteritems():
+      for encoded_key, state in self._keyed_states.items():
         timers, had_realtime_timer = state.get_timers(
             watermark=self._input_watermark,
             processing_time=self._clock.time())

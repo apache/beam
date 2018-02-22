@@ -145,7 +145,7 @@ class DataflowMetrics(MetricResults):
 
     # Now we create the MetricResult elements.
     result = []
-    for metric_key, metric in metrics_by_name.iteritems():
+    for metric_key, metric in metrics_by_name.items():
       attempted = self._get_metric_value(metric['tentative'])
       committed = self._get_metric_value(metric['committed'])
       if attempted is None or committed is None:
