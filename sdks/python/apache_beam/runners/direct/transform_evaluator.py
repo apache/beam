@@ -399,12 +399,13 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       if should_create:
         subscription_name = 'beam_%d_%x' % (
             int(time.time()), random.randrange(1 << 32))
-      cls._subscription_cache[transform] = _PubSubSubscriptionWrapper(
+      wrapper = _PubSubSubscriptionWrapper(
           pubsub.Client(project=project).topic(topic).subscription(
               subscription_name),
           should_create)
       if should_create:
-        cls._subscription_cache[transform].subscription.create()
+        wrapper.subscription.create()
+      cls._subscription_cache[transform] = wrapper
     return cls._subscription_cache[transform].subscription
 
   def start_bundle(self):
