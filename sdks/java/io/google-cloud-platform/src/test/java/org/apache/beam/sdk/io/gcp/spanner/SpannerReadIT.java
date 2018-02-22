@@ -145,6 +145,48 @@ public class SpannerReadIT {
         p.apply(
             SpannerIO.read()
                 .withSpannerConfig(spannerConfig)
+                .withTable(options.getTable())
+                .withColumns("Key", "Value")
+                .withTransaction(tx));
+    PAssert.thatSingleton(output.apply("Count rows", Count.<Struct>globally())).isEqualTo(5L);
+    p.run();
+  }
+
+  @Test
+  public void testQuery() throws Exception {
+    DatabaseClient databaseClient =
+        spanner.getDatabaseClient(
+            DatabaseId.of(
+                project, options.getInstanceId(), databaseName));
+
+    List<Mutation> mutations = new ArrayList<>();
+    for (int i = 0; i < 5L; i++) {
+      mutations.add(
+          Mutation.newInsertOrUpdateBuilder(options.getTable())
+              .set("key")
+              .to((long) i)
+              .set("value")
+              .to(RandomUtils.randomAlphaNumeric(100))
+              .build());
+    }
+
+    databaseClient.writeAtLeastOnce(mutations);
+
+    SpannerConfig spannerConfig = SpannerConfig.create()
+        .withProjectId(project)
+        .withInstanceId(options.getInstanceId())
+        .withDatabaseId(databaseName);
+
+    PCollectionView<Transaction> tx =
+        p.apply(
+            SpannerIO.createTransaction()
+                .withSpannerConfig(spannerConfig)
+                .withTimestampBound(TimestampBound.strong()));
+
+    PCollection<Struct> output =
+        p.apply(
+            SpannerIO.read()
+                .withSpannerConfig(spannerConfig)
                 .withQuery("SELECT * FROM " + options.getTable())
                 .withTransaction(tx));
     PAssert.thatSingleton(output.apply("Count rows", Count.globally())).isEqualTo(5L);
