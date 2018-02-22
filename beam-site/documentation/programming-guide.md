@@ -2233,7 +2233,7 @@ into fixed windows, each one minute in length:
 
 ```java
     PCollection<String> items = ...;
-    PCollection<String> fixed_windowed_items = items.apply(
+    PCollection<String> fixedWindowedItems = items.apply(
         Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
 ```
 ```py
@@ -2249,7 +2249,7 @@ begins every five seconds:
 
 ```java
     PCollection<String> items = ...;
-    PCollection<String> sliding_windowed_items = items.apply(
+    PCollection<String> slidingWindowedItems = items.apply(
         Window.<String>into(SlidingWindows.of(Duration.standardMinutes(30)).every(Duration.standardSeconds(5))));
 ```
 ```py
@@ -2265,7 +2265,7 @@ least 10 minutes:
 
 ```java
     PCollection<String> items = ...;
-    PCollection<String> session_windowed_items = items.apply(
+    PCollection<String> sessionWindowedItems = items.apply(
         Window.<String>into(Sessions.withGapDuration(Duration.standardMinutes(10))));
 ```
 ```py
@@ -2284,7 +2284,7 @@ a single global window for a `PCollection`:
 
 ```java
     PCollection<String> items = ...;
-    PCollection<String> batch_items = items.apply(
+    PCollection<String> batchItems = items.apply(
         Window.<String>into(new GlobalWindows()));
 ```
 ```py
@@ -2343,7 +2343,7 @@ the end of a window.
 
 ```java
     PCollection<String> items = ...;
-    PCollection<String> fixed_windowed_items = items.apply(
+    PCollection<String> fixedWindowedItems = items.apply(
         Window.<String>into(FixedWindows.of(Duration.standardMinutes(1)))
               .withAllowedLateness(Duration.standardDays(2)));
 ```
