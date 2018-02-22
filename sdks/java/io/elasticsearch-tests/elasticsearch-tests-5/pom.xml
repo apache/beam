@@ -41,12 +41,12 @@
             <artifactId>framework</artifactId>
             <version>${elasticsearch.version}</version>
             <scope>test</scope>
-            <exclusions>  
-                <exclusion>  
-                    <groupId>org.hamcrest</groupId>  
-                    <artifactId>hamcrest-all</artifactId>  
-                </exclusion>  
-            </exclusions>  
+            <exclusions>
+                <exclusion>
+                    <groupId>org.hamcrest</groupId>
+                    <artifactId>hamcrest-all</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!--to enable rest connection on embeded elasticsearch-->
@@ -81,7 +81,6 @@
     </dependencies>
     <build>
         <plugins>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
