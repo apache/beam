@@ -381,4 +381,27 @@ class common_job_properties {
       }
     }
   }
+
+  /**
+   * Transforms pipeline options to a string of format like below:
+   * ["--pipelineOption=123", "--pipelineOption2=abc", ...]
+   *
+   * @param pipelineOptions A map of pipeline options.
+   */
+  static String joinPipelineOptions(Map pipelineOptions) {
+    List<String> pipelineArgList = []
+    pipelineOptions.each({
+      key, value -> pipelineArgList.add("\"--$key=$value\"")
+    })
+    return "[" + pipelineArgList.join(',') + "]"
+  }
+
+
+  /**
+   * Returns absolute path to beam project's files.
+   * @param path A relative path to project resource.
+   */
+  static String makePathAbsolute(String path) {
+    return '"$WORKSPACE/' + path + '"'
+  }
 }
