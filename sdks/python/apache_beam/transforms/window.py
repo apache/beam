@@ -51,6 +51,7 @@ from __future__ import absolute_import
 
 import abc
 
+import six
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
 
@@ -108,10 +109,8 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(urns.RunnerApiFn):
+class WindowFn(six.with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
   """An abstract windowing function defining a basic assign and merge."""
-
-  __metaclass__ = abc.ABCMeta
 
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""

@@ -17,6 +17,8 @@
 
 """Unit tests for side inputs."""
 
+from __future__ import absolute_import
+
 import logging
 import unittest
 
@@ -194,7 +196,7 @@ class SideInputsTest(unittest.TestCase):
         [[actual_elem, actual_list, actual_dict]] = actual
         equal_to([expected_elem])([actual_elem])
         equal_to(expected_list)(actual_list)
-        equal_to(expected_pairs)(actual_dict.iteritems())
+        equal_to(expected_pairs)(actual_dict.items())
       return match
 
     assert_that(results, matcher(1, a_list, some_pairs))
@@ -284,8 +286,8 @@ class SideInputsTest(unittest.TestCase):
       def match(actual):
         [[actual_elem, actual_dict1, actual_dict2]] = actual
         equal_to([expected_elem])([actual_elem])
-        equal_to(expected_kvs)(actual_dict1.iteritems())
-        equal_to(expected_kvs)(actual_dict2.iteritems())
+        equal_to(expected_kvs)(actual_dict1.items())
+        equal_to(expected_kvs)(actual_dict2.items())
       return match
 
     assert_that(results, matcher(1, some_kvs))

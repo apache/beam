@@ -25,6 +25,8 @@ import contextlib
 import random
 import time
 
+import six
+
 from apache_beam import typehints
 from apache_beam.metrics import Metrics
 from apache_beam.transforms import window
@@ -109,12 +111,12 @@ class CoGroupByKey(PTransform):
     super(CoGroupByKey, self).__init__()
     self.pipeline = kwargs.pop('pipeline', None)
     if kwargs:
-      raise ValueError('Unexpected keyword arguments: %s' % kwargs.keys())
+      raise ValueError('Unexpected keyword arguments: %s' % list(kwargs.keys()))
 
   def _extract_input_pvalues(self, pvalueish):
     try:
       # If this works, it's a dict.
-      return pvalueish, tuple(pvalueish.viewvalues())
+      return pvalueish, tuple(six.viewvalues(pvalueish))
     except AttributeError:
       pcolls = tuple(pvalueish)
       return pcolls, pcolls
@@ -141,15 +143,15 @@ class CoGroupByKey(PTransform):
       # If pcolls is a dict, we turn it into (tag, pcoll) pairs for use in the
       # general-purpose code below. The result value constructor creates dicts
       # whose keys are the tags.
-      result_ctor_arg = pcolls.keys()
+      result_ctor_arg = list(pcolls.keys())
       result_ctor = lambda tags: dict((tag, []) for tag in tags)
-      pcolls = pcolls.items()
+      pcolls = list(pcolls.items())
     except AttributeError:
       # Otherwise, pcolls is a list/tuple, so we turn it into (index, pcoll)
       # pairs. The result value constructor makes tuples with len(pcolls) slots.
       pcolls = list(enumerate(pcolls))
       result_ctor_arg = len(pcolls)
-      result_ctor = lambda size: tuple([] for _ in xrange(size))
+      result_ctor = lambda size: tuple([] for _ in range(size))
 
     # Check input PCollections for PCollection-ness, and that they all belong
     # to the same pipeline.
@@ -260,7 +262,7 @@ class _BatchSizeEstimator(object):
     odd_one_out = [sorted_data[-1]] if len(sorted_data) % 2 == 1 else []
     # Sort the pairs by how different they are.
     pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
-                   key=lambda ((x1, _1), (x2, _2)): x2 / x1)
+                   key=lambda p1_p2: p1_p2[1][0] / p1_p2[0][0])
     # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
     threshold = 2 * len(pairs) / 3
     self._data = (
@@ -283,7 +285,7 @@ class _BatchSizeEstimator(object):
           self._min_batch_size + 1))
 
     # Linear regression for y = a + bx, where x is batch size and y is time.
-    xs, ys = zip(*self._data)
+    xs, ys = list(zip(*self._data))
     n = float(len(self._data))
     xbar = sum(xs) / n
     ybar = sum(ys) / n
@@ -360,7 +362,7 @@ class _WindowAwareBatchingDoFn(DoFn):
       self._batch_size = self._batch_size_estimator.next_batch_size()
     elif len(self._batches) > self._MAX_LIVE_WINDOWS:
       window, _ = sorted(
-          self._batches.items(),
+          list(self._batches.items()),
           key=lambda window_batch: len(window_batch[1]),
           reverse=True)[0]
       with self._batch_size_estimator.record_time(self._batch_size):
