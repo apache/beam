@@ -28,8 +28,6 @@ For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
 
-from types import NoneType
-
 import six
 
 from apache_beam.coders import observable
@@ -279,7 +277,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
-    if t is NoneType:
+    if value is None:
       stream.write_byte(NONE_TYPE)
     elif t is int:
       stream.write_byte(INT_TYPE)

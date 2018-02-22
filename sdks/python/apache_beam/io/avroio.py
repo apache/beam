@@ -42,7 +42,6 @@ that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
 
-import cStringIO
 import os
 import zlib
 from functools import partial
@@ -59,6 +58,11 @@ from apache_beam.io import iobase
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
+
+try:
+  from cStringIO import StringIO as BytesIO
+except ImportError:
+  from io import BytesIO
 
 __all__ = ['ReadFromAvro', 'ReadAllFromAvro', 'WriteToAvro']
 
@@ -311,7 +315,7 @@ class _AvroBlock(object):
       # We take care to avoid extra copies of data while slicing large objects
       # by use of a buffer.
       result = snappy.decompress(buffer(data)[:-4])
-      avroio.BinaryDecoder(cStringIO.StringIO(data[-4:])).check_crc32(result)
+      avroio.BinaryDecoder(BytesIO(data[-4:])).check_crc32(result)
       return result
     else:
       raise ValueError('Unknown codec: %r', codec)
@@ -321,7 +325,7 @@ class _AvroBlock(object):
 
   def records(self):
     decoder = avroio.BinaryDecoder(
-        cStringIO.StringIO(self._decompressed_block_bytes))
+        BytesIO(self._decompressed_block_bytes))
     reader = avroio.DatumReader(
         writers_schema=self._schema, readers_schema=self._schema)
 
