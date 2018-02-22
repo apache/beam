@@ -98,7 +98,7 @@ public class BeamSqlDslBase {
   }
 
   @Before
-  public void preparePCollections(){
+  public void preparePCollections() {
     boundedInput1 = PBegin.in(pipeline).apply("boundedInput1",
         Create.of(rowsInTableA).withCoder(rowTypeInTableA.getRowCoder()));
 

@@ -30,6 +30,7 @@ public class CheckSize implements SerializableFunction<Iterable<Row>, Void> {
   public CheckSize(int size) {
     this.size = size;
   }
+
   @Override public Void apply(Iterable<Row> input) {
     int count = 0;
     for (Row row : input) {

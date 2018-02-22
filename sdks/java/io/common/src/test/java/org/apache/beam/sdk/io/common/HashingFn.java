@@ -52,6 +52,25 @@ public class HashingFn extends CombineFn<String, HashingFn.Accum, String> {
     private void writeObject(ObjectOutputStream out) throws IOException {
       out.defaultWriteObject();
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      Accum accum = (Accum) o;
+
+      return hashCode != null ? hashCode.equals(accum.hashCode) : accum.hashCode == null;
+    }
+
+    @Override
+    public int hashCode() {
+      return hashCode != null ? hashCode.hashCode() : 0;
+    }
   }
 
   @Override

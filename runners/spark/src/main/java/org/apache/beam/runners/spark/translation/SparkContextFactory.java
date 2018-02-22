@@ -80,7 +80,7 @@ public final class SparkContextFactory {
     if (usesProvidedSparkContext) {
       LOG.info("Using a provided Spark Context");
       JavaSparkContext jsc = contextOptions.getProvidedSparkContext();
-      if (jsc == null || jsc.sc().isStopped()){
+      if (jsc == null || jsc.sc().isStopped()) {
         LOG.error("The provided Spark context " + jsc + " was not created or was stopped");
         throw new RuntimeException("The provided Spark context was not created or was stopped");
       }

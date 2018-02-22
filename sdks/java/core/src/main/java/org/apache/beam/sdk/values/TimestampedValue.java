@@ -95,6 +95,12 @@ public class TimestampedValue<V> {
       return new TimestampedValueCoder<>(valueCoder);
     }
 
+    @Override
+    public Object structuralValue(TimestampedValue<T> value) {
+      Object structuralValue = valueCoder.structuralValue(value.getValue());
+      return TimestampedValue.of(structuralValue, value.getTimestamp());
+    }
+
     @SuppressWarnings("unchecked")
     TimestampedValueCoder(Coder<T> valueCoder) {
       this.valueCoder = checkNotNull(valueCoder);

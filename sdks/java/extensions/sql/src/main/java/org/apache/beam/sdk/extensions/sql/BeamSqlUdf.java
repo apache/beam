@@ -35,7 +35,7 @@ import org.apache.beam.sdk.annotations.Experimental;
  * }</pre></blockquote>
  *
  * <p>The first parameter is named "s" and is mandatory,
- * and the second parameter is named "n" and is optional.
+ * and the second parameter is named "n" and is optional(always NULL if not specified).
  */
 @Experimental
 public interface BeamSqlUdf extends Serializable {

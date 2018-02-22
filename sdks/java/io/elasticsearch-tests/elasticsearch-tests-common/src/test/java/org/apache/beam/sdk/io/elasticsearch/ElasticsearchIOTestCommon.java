@@ -127,7 +127,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   void testReadWithQuery() throws Exception {
-    if (!useAsITests){
+    if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
 

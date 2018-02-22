@@ -23,7 +23,9 @@ import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RE
 import static org.apache.beam.sdk.transforms.Contextful.fn;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.Serializable;
@@ -425,6 +427,23 @@ public class FileIO {
     @Override
     public String toString() {
       return "ReadableFile{metadata=" + metadata + ", compression=" + compression + '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ReadableFile that = (ReadableFile) o;
+      return Objects.equal(metadata, that.metadata) && compression == that.compression;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(metadata, compression);
     }
   }
 
@@ -1147,6 +1166,52 @@ public class FileIO {
       return toBuilder().setIgnoreWindowing(true).build();
     }
 
+    @VisibleForTesting
+    Contextful<Fn<DestinationT, FileNaming>> resolveFileNamingFn() {
+      if (getDynamic()) {
+        checkArgument(
+                getConstantFileNaming() == null,
+                "when using writeDynamic(), must use versions of .withNaming() "
+                        + "that take functions from DestinationT");
+        checkArgument(getFilenamePrefix() == null, ".withPrefix() requires write()");
+        checkArgument(getFilenameSuffix() == null, ".withSuffix() requires write()");
+        checkArgument(
+                getFileNamingFn() != null,
+                "when using writeDynamic(), must specify "
+                        + ".withNaming() taking a function form DestinationT");
+        return fn(
+                        (element, c) -> {
+                          FileNaming naming = getFileNamingFn().getClosure().apply(element, c);
+                          return getOutputDirectory() == null
+                                  ? naming
+                                  : relativeFileNaming(getOutputDirectory(), naming);
+                        },
+                        getFileNamingFn().getRequirements());
+      } else {
+        checkArgument(getFileNamingFn() == null,
+                ".withNaming() taking a function from DestinationT requires writeDynamic()");
+        FileNaming constantFileNaming;
+        if (getConstantFileNaming() == null) {
+          constantFileNaming = defaultNaming(
+                  MoreObjects.firstNonNull(
+                          getFilenamePrefix(), StaticValueProvider.of("output")),
+                  MoreObjects.firstNonNull(getFilenameSuffix(), StaticValueProvider.of("")));
+        } else {
+          checkArgument(
+                  getFilenamePrefix() == null,
+                  ".to(FileNaming) is incompatible with .withSuffix()");
+          checkArgument(
+                  getFilenameSuffix() == null,
+                  ".to(FileNaming) is incompatible with .withPrefix()");
+          constantFileNaming = getConstantFileNaming();
+        }
+        if (getOutputDirectory() != null) {
+          constantFileNaming = relativeFileNaming(getOutputDirectory(), constantFileNaming);
+        }
+        return fn(SerializableFunctions.<DestinationT, FileNaming>constant(constantFileNaming));
+      }
+    }
+
     @Override
     public WriteFilesResult<DestinationT> expand(PCollection<UserT> input) {
       Write.Builder<DestinationT, UserT> resolvedSpec = new AutoValue_FileIO_Write.Builder<>();
@@ -1172,52 +1237,7 @@ public class FileIO {
         resolvedSpec.setDestinationCoder((Coder) VoidCoder.of());
       }
 
-      // Resolve fileNamingFn
-      Contextful<Fn<DestinationT, FileNaming>> fileNamingFn;
-      if (getDynamic()) {
-        checkArgument(
-            getConstantFileNaming() == null,
-            "when using writeDynamic(), must use versions of .withNaming() "
-                + "that take functions from DestinationT");
-        checkArgument(getFilenamePrefix() == null, ".withPrefix() requires write()");
-        checkArgument(getFilenameSuffix() == null, ".withSuffix() requires write()");
-        checkArgument(
-            getFileNamingFn() != null,
-            "when using writeDynamic(), must specify "
-                + ".withNaming() taking a function form DestinationT");
-        fileNamingFn =
-            Contextful.fn(
-                (element, c) -> {
-                  FileNaming naming = getFileNamingFn().getClosure().apply(element, c);
-                  return getOutputDirectory() == null
-                      ? naming
-                      : relativeFileNaming(getOutputDirectory(), naming);
-                },
-                getFileNamingFn().getRequirements());
-      } else {
-        checkArgument(getFileNamingFn() == null,
-            ".withNaming() taking a function from DestinationT requires writeDynamic()");
-        FileNaming constantFileNaming;
-        if (getConstantFileNaming() == null) {
-          constantFileNaming = defaultNaming(
-              MoreObjects.firstNonNull(
-                  getFilenamePrefix(), StaticValueProvider.of("output")),
-              MoreObjects.firstNonNull(getFilenameSuffix(), StaticValueProvider.of("")));
-          if (getOutputDirectory() != null) {
-            constantFileNaming = relativeFileNaming(getOutputDirectory(), constantFileNaming);
-          }
-        } else {
-          checkArgument(
-              getFilenamePrefix() == null, ".to(FileNaming) is incompatible with .withSuffix()");
-          checkArgument(
-              getFilenameSuffix() == null, ".to(FileNaming) is incompatible with .withPrefix()");
-          constantFileNaming = getConstantFileNaming();
-        }
-        fileNamingFn =
-            fn(SerializableFunctions.<DestinationT, FileNaming>constant(constantFileNaming));
-      }
-
-      resolvedSpec.setFileNamingFn(fileNamingFn);
+      resolvedSpec.setFileNamingFn(resolveFileNamingFn());
       resolvedSpec.setEmptyWindowDestination(getEmptyWindowDestination());
       if (getTempDirectory() == null) {
         checkArgument(

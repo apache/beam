@@ -41,6 +41,7 @@ public class TableRowJsonCoderTest {
     public TableRowBuilder() {
       row = new TableRow();
     }
+
     public TableRowBuilder set(String fieldName, Object value) {
       row.set(fieldName, value);
       return this;

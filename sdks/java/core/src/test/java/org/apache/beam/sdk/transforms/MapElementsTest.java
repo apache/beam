@@ -38,6 +38,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -294,6 +295,68 @@ public class MapElementsTest implements Serializable {
               return KV.of(input.getKey(), null);
             }
           }));
+    }
+  }
+
+  /**
+   * Basic test of {@link MapElements} with a lambda (which is instantiated as a {@link
+   * SerializableFunction}).
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapLambda() throws Exception {
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(MapElements
+            // Note that the type annotation is required.
+            .into(TypeDescriptors.integers())
+            .via((Integer i) -> i * 2));
+
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
+    pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link MapElements} with a lambda wrapped into a {@link SimpleFunction} to
+   * remember its type.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapWrappedLambda() throws Exception {
+
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                MapElements
+                    .via(new SimpleFunction<Integer, Integer>((Integer i) -> i * 2) {}));
+
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
+    pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link MapElements} with a method reference.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapMethodReference() throws Exception {
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(MapElements
+            // Note that the type annotation is required.
+            .into(TypeDescriptors.integers())
+            .via(new Doubler()::doubleIt));
+
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
+    pipeline.run();
+  }
+
+  private static class Doubler implements Serializable {
+    public int doubleIt(int val) {
+      return val * 2;
     }
   }
 }

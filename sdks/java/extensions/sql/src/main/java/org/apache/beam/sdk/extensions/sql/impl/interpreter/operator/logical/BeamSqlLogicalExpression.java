@@ -29,6 +29,7 @@ public abstract class BeamSqlLogicalExpression extends BeamSqlExpression {
   private BeamSqlLogicalExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
+
   public BeamSqlLogicalExpression(List<BeamSqlExpression> operands) {
     this(operands, SqlTypeName.BOOLEAN);
   }

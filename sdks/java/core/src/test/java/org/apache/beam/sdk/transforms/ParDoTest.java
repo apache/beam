@@ -513,7 +513,7 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo
-            .of(new DoFn<Integer, Void>(){
+            .of(new DoFn<Integer, Void>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(additionalOutputTag, c.element());
@@ -965,6 +965,7 @@ public class ParDoTest implements Serializable {
 
   private static class TestDummyCoder extends AtomicCoder<TestDummy> {
     private TestDummyCoder() { }
+
     private static final TestDummyCoder INSTANCE = new TestDummyCoder();
 
     @JsonCreator
@@ -1017,6 +1018,7 @@ public class ParDoTest implements Serializable {
     public MainOutputDummyFn(TupleTag<Integer> intOutputTag) {
       this.intOutputTag = intOutputTag;
     }
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(new TestDummy());

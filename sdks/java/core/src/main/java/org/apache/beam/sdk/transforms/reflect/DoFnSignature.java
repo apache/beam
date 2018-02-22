@@ -375,6 +375,7 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class WindowParameter extends Parameter {
       WindowParameter() {}
+
       public abstract TypeDescriptor<? extends BoundedWindow> windowT();
     }
 
@@ -387,6 +388,7 @@ public abstract class DoFnSignature {
     public abstract static class RestrictionTrackerParameter extends Parameter {
       // Package visible for AutoValue
       RestrictionTrackerParameter() {}
+
       public abstract TypeDescriptor<?> trackerT();
     }
 
@@ -400,6 +402,7 @@ public abstract class DoFnSignature {
     public abstract static class StateParameter extends Parameter {
       // Package visible for AutoValue
       StateParameter() {}
+
       public abstract StateDeclaration referent();
     }
 
@@ -411,6 +414,7 @@ public abstract class DoFnSignature {
     public abstract static class TimerParameter extends Parameter {
       // Package visible for AutoValue
       TimerParameter() {}
+
       public abstract TimerDeclaration referent();
     }
   }

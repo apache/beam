@@ -29,6 +29,7 @@ import sys
 import threading
 
 import grpc
+import six
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -182,7 +183,8 @@ class _GrpcDataChannel(DataChannel):
           data = received.get(timeout=1)
         except queue.Empty:
           if self._exc_info:
-            raise self.exc_info[0], self.exc_info[1], self.exc_info[2]
+            t, v, tb = self._exc_info
+            six.reraise(t, v, tb)
         else:
           if not data.data and data.target in expected_targets:
             done_targets.append(data.target)

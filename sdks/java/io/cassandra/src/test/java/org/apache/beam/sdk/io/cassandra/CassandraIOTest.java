@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;
+import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -263,6 +264,23 @@ public class CassandraIOTest implements Serializable {
 
     public String toString() {
       return id + ":" + name;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      Scientist scientist = (Scientist) o;
+      return id == scientist.id && Objects.equal(name, scientist.name);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(name, id);
     }
   }
 }

@@ -67,10 +67,11 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
     try {
       return
+          inputTuple.apply(
           sqlEnv
               .getPlanner()
               .convertToBeamRel(queryString())
-              .buildBeamPipeline(inputTuple, sqlEnv);
+              .toPTransform());
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }

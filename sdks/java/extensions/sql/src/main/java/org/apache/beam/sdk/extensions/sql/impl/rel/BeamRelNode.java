@@ -17,23 +17,18 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.RelNode;
 
-/**
- * A new method {@link #buildBeamPipeline(PCollectionTuple, BeamSqlEnv)} is added.
- */
+/** A {@link RelNode} that can also give a {@link PTransform} that implements the expression. */
 public interface BeamRelNode extends RelNode {
 
   /**
-   * A {@link BeamRelNode} is a recursive structure, the
-   * {@code BeamQueryPlanner} visits it with a DFS(Depth-First-Search)
-   * algorithm.
+   * A {@link BeamRelNode} is a recursive structure, the {@code BeamQueryPlanner} visits it with a
+   * DFS(Depth-First-Search) algorithm.
    */
-  PCollection<Row> buildBeamPipeline(
-      PCollectionTuple inputPCollections, BeamSqlEnv sqlEnv)
-      throws Exception;
+  PTransform<PCollectionTuple, PCollection<Row>> toPTransform();
 }

@@ -49,7 +49,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
   }
 
   @Test
-  public void testLargerThan(){
+  public void testLargerThan() {
     BeamSqlGreaterThanExpression exp1 = new BeamSqlGreaterThanExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
@@ -62,7 +62,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
   }
 
   @Test
-  public void testLargerThanEqual(){
+  public void testLargerThanEqual() {
     BeamSqlGreaterThanOrEqualsExpression exp1 = new BeamSqlGreaterThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
@@ -75,7 +75,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
   }
 
   @Test
-  public void testLessThan(){
+  public void testLessThan() {
     BeamSqlLessThanExpression exp1 = new BeamSqlLessThanExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1),
             BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1)));
@@ -88,7 +88,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
   }
 
   @Test
-  public void testLessThanEqual(){
+  public void testLessThanEqual() {
     BeamSqlLessThanOrEqualsExpression exp1 = new BeamSqlLessThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2),
             BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 8.9)));
@@ -101,7 +101,7 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
   }
 
   @Test
-  public void testNotEqual(){
+  public void testNotEqual() {
     BeamSqlNotEqualsExpression exp1 = new BeamSqlNotEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));

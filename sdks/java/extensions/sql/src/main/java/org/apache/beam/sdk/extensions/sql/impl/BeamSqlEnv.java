@@ -55,11 +55,10 @@ import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.Frameworks;
 
 /**
- * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and
- * {@link BeamSqlCli}.
+ * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
  *
- * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions,
- * and a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
+ * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions, and a
+ * {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
 public class BeamSqlEnv implements Serializable {
   transient SchemaPlus schema;
@@ -69,7 +68,7 @@ public class BeamSqlEnv implements Serializable {
   public BeamSqlEnv() {
     tables = new HashMap<>(16);
     schema = Frameworks.createRootSchema(true);
-    planner = new BeamQueryPlanner(schema);
+    planner = new BeamQueryPlanner(this, schema);
   }
 
   /**
@@ -151,21 +150,23 @@ public class BeamSqlEnv implements Serializable {
         schema.add(tableName, new BeamCalciteTable(table.getRowType()));
       }
     }
-    planner = new BeamQueryPlanner(schema);
+    planner = new BeamQueryPlanner(this, schema);
   }
 
   /**
    * Find {@link BaseBeamTable} by table name.
    */
-  public BeamSqlTable findTable(String tableName){
+  public BeamSqlTable findTable(String tableName) {
     return planner.getSourceTables().get(tableName);
   }
 
   private static class BeamCalciteTable implements ScannableTable, Serializable {
     private RowType beamRowType;
+
     public BeamCalciteTable(RowType beamRowType) {
       this.beamRowType = beamRowType;
     }
+
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
       return CalciteUtils.toCalciteRowType(this.beamRowType)
@@ -214,6 +215,6 @@ public class BeamSqlEnv implements Serializable {
 
     tables = new HashMap<String, BeamSqlTable>(16);
     schema = Frameworks.createRootSchema(true);
-    planner = new BeamQueryPlanner(schema);
+    planner = new BeamQueryPlanner(this, schema);
   }
 }

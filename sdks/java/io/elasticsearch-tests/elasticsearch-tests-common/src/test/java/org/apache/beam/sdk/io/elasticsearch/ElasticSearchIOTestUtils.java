@@ -48,7 +48,7 @@ class ElasticSearchIOTestUtils {
     } catch (IOException e) {
       // it is fine to ignore this expression as deleteIndex occurs in @before,
       // so when the first tests is run, the index does not exist yet
-      if (!e.getMessage().contains("index_not_found_exception")){
+      if (!e.getMessage().contains("index_not_found_exception")) {
         throw e;
       }
     }
@@ -99,7 +99,7 @@ class ElasticSearchIOTestUtils {
       // we call upgrade before any doc have been written
       // (when there are fewer docs processed than batchSize).
       // In that cases index/type has not been created (created upon first doc insertion)
-      if (!e.getMessage().contains("index_not_found_exception")){
+      if (!e.getMessage().contains("index_not_found_exception")) {
         throw e;
       }
     }

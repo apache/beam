@@ -117,7 +117,7 @@ public class MultiDoFnFunction<InputT, OutputT>
       }
       final InMemoryStateInternals<?> stateInternals = InMemoryStateInternals.forKey(key);
       timerInternals = new InMemoryTimerInternals();
-      context = new StepContext(){
+      context = new StepContext() {
         @Override
         public StateInternals stateInternals() {
           return stateInternals;

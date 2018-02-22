@@ -147,14 +147,18 @@ class TfIdf(beam.PTransform):
     #
     # This calculation uses a side input, a Dataflow-computed auxiliary value
     # presented to each invocation of our MapFn lambda. The second argument to
-    # the lambda (called total---note that we are unpacking the first argument)
+    # the function (called total---note that the first argument is a tuple)
     # receives the value we listed after the lambda in Map(). Additional side
     # inputs (and ordinary Python values, too) can be provided to MapFns and
     # DoFns in this way.
+    def div_word_count_by_total(word_count, total):
+      (word, count) = word_count
+      return (word, float(count) / total)
+
     word_to_df = (
         word_to_doc_count
         | 'ComputeDocFrequencies' >> beam.Map(
-            lambda (word, count), total: (word, float(count) / total),
+            div_word_count_by_total,
             AsSingleton(total_documents)))
 
     # Join the term frequency and document frequency collections,
