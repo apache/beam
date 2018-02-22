@@ -17,14 +17,16 @@
  */
 package org.apache.beam.sdk.io.xml;
 
+import static org.apache.beam.sdk.io.common.IOTestHelper.appendTimestampSuffix;
+
 import com.google.common.collect.ImmutableMap;
 import java.nio.charset.Charset;
-import java.util.Date;
 import java.util.Map;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.DeleteFileFn;
 import org.apache.beam.sdk.io.common.HashingFn;
+import org.apache.beam.sdk.io.common.IOTestHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -60,6 +62,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class XmlIOIT {
 
+  private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
+    100_000, "af7775de90d0b0c8bbc36273fbca26fe"
+  );
+
   private static Integer numberOfRecords;
 
   private static String filenamePrefix;
@@ -76,13 +82,9 @@ public class XmlIOIT {
       .testingPipelineOptions()
       .as(IOTestPipelineOptions.class);
 
-    filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     numberOfRecords = options.getNumberOfRecords();
     charset = Charset.forName(options.getCharset());
-  }
-
-  private static String appendTimestampToPrefix(String filenamePrefix) {
-    return String.format("%s_%s", filenamePrefix, new Date().getTime());
   }
 
   @Test
@@ -108,27 +110,13 @@ public class XmlIOIT {
       .apply("Map birds to strings", MapElements.via(new BirdToString()))
       .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = getExpectedHashForRecordCount(numberOfRecords);
+    String expectedHash = IOTestHelper.getHashForRecordCount(numberOfRecords, EXPECTED_HASHES);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     testFileNames.apply("Delete test files", ParDo.of(new DeleteFileFn())
         .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
-  }
-
-  private static String getExpectedHashForRecordCount(int numberOfRecords) {
-    Map<Integer, String> expectedHashes = ImmutableMap.of(
-      100_000, "af7775de90d0b0c8bbc36273fbca26fe"
-    );
-
-    String hash = expectedHashes.get(numberOfRecords);
-    if (hash == null) {
-      throw new UnsupportedOperationException(
-        String.format("No hash for that line count: %s", numberOfRecords)
-      );
-    }
-    return hash;
   }
 
   private static class LongToBird extends SimpleFunction<Long, Bird> {

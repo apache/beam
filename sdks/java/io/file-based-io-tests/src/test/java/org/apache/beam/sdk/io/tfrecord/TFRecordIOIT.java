@@ -19,9 +19,9 @@
 package org.apache.beam.sdk.io.tfrecord;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampToPrefix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
+import static org.apache.beam.sdk.io.common.IOTestHelper.appendTimestampSuffix;
 
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -81,7 +81,7 @@ public class TFRecordIOIT {
     IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     compressionType = Compression.valueOf(options.getCompressionType());
   }
 

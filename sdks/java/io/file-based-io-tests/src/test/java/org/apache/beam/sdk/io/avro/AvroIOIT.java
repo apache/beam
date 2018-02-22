@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.avro;
 
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampToPrefix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
+import static org.apache.beam.sdk.io.common.IOTestHelper.appendTimestampSuffix;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -86,7 +86,7 @@ public class AvroIOIT {
     IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
   }
 
   @Test

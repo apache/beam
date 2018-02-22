@@ -18,8 +18,9 @@
 
 package org.apache.beam.sdk.io.common;
 
+import static org.apache.beam.sdk.io.common.IOTestHelper.getHashForRecordCount;
+
 import com.google.common.collect.ImmutableMap;
-import java.util.Date;
 import java.util.Map;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
@@ -43,10 +44,6 @@ public class FileBasedIOITHelper {
     return PipelineOptionsValidator.validate(IOTestPipelineOptions.class, options);
   }
 
-  public static String appendTimestampToPrefix(String filenamePrefix) {
-    return String.format("%s_%s", filenamePrefix, new Date().getTime());
-  }
-
   public static String getExpectedHashForLineCount(int lineCount) {
     Map<Integer, String> expectedHashes = ImmutableMap.of(
         100_000, "4c8bb3b99dcc59459b20fefba400d446",
@@ -54,13 +51,7 @@ public class FileBasedIOITHelper {
         100_000_000, "6ce05f456e2fdc846ded2abd0ec1de95"
     );
 
-    String hash = expectedHashes.get(lineCount);
-    if (hash == null) {
-      throw new UnsupportedOperationException(
-          String.format("No hash for that line count: %s", lineCount)
-      );
-    }
-    return hash;
+    return getHashForRecordCount(lineCount, expectedHashes);
   }
 
   /**
