@@ -32,6 +32,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -78,6 +79,9 @@ public class XmlIOIT {
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
 
+  @Rule
+  public TestPipeline readPipeline = TestPipeline.create();
+
   @BeforeClass
   public static void setup() {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
@@ -95,14 +99,16 @@ public class XmlIOIT {
     PCollection<String> testFileNames = pipeline
       .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
       .apply("Create Birds", MapElements.via(new LongToBird()))
-      .apply("Write birds to xml files",
-        FileIO.<Bird>write()
-          .via(XmlIO.sink(Bird.class).withRootElement("birds").withCharset(charset))
-          .to(filenamePrefix).withPrefix("birds").withSuffix(".xml"))
+      .apply("Write birds to xml files", FileIO.<Bird>write()
+          .via(XmlIO.sink(Bird.class)
+            .withRootElement("birds")
+            .withCharset(charset))
+          .to(filenamePrefix)
+          .withPrefix("birds")
+          .withSuffix(".xml"))
       .getPerDestinationOutputFilenames()
       .apply("Prevent fusion", Reshuffle.viaRandomKey())
-      .apply("Get filenames", Values.create());
-
+      .apply("Get file names", Values.create());
 
     PCollection<Bird> birds = testFileNames
       .apply("Find files", FileIO.matchAll())
@@ -123,6 +129,42 @@ public class XmlIOIT {
         .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void writeThenReadViaWriteAndRead() {
+    String filenamePattern = filenamePrefix + "*";
+
+    pipeline
+      .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
+      .apply("Create Birds", MapElements.via(new LongToBird()))
+      .apply("Write birds to xml files", XmlIO.<Bird>write()
+          .to(filenamePrefix)
+          .withRecordClass(Bird.class)
+          .withRootElement("birds")
+          .withCharset(charset));
+
+    pipeline.run().waitUntilFinish();
+
+    PCollection<String> consolidatedHashcode = readPipeline
+      .apply(XmlIO.<Bird>read()
+        .from(filenamePattern)
+        .withRecordClass(Bird.class)
+        .withRootElement("birds")
+        .withRecordElement("bird")
+        .withCharset(charset))
+      .apply("Map birds to strings", MapElements.via(new BirdToString()))
+      .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+
+    String expectedHash = IOTestHelper.getHashForRecordCount(numberOfRecords, EXPECTED_HASHES);
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
+
+    readPipeline
+      .apply("Get file names to delete", Create.of(filenamePattern))
+      .apply("Delete test files", ParDo.of(new DeleteFileFn())
+          .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
+
+    readPipeline.run().waitUntilFinish();
   }
 
   private static class LongToBird extends SimpleFunction<Long, Bird> {
