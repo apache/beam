@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.common.base.Objects;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.google.common.hash.HashingOutputStream;
 import com.google.common.io.ByteStreams;
@@ -367,6 +370,24 @@ public class ApproximateUnique {
             * HASH_SPACE_SIZE / sampleSpaceSize;
           return Math.round(estimate);
         }
+      }
+
+      @Override
+      public boolean equals(Object o) {
+        if (this == o) {
+          return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+          return false;
+        }
+        LargestUnique that = (LargestUnique) o;
+
+        return sampleSize == that.sampleSize && Iterables.elementsEqual(heap, that.heap);
+      }
+
+      @Override
+      public int hashCode() {
+        return Objects.hashCode(Lists.newArrayList(heap), sampleSize);
       }
     }
 

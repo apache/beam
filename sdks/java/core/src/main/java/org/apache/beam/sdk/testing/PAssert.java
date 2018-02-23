@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -185,6 +186,24 @@ public class PAssert {
       AssertionError res = new AssertionError(outputMessage);
       res.setStackTrace(creationStackTrace);
       return res;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      PAssertionSite that = (PAssertionSite) o;
+      return Objects.equal(message, that.message) && Arrays
+          .equals(creationStackTrace, that.creationStackTrace);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(message, Arrays.asList(creationStackTrace));
     }
   }
 

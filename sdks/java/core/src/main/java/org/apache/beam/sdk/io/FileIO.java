@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.transforms.Contextful.fn;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.Serializable;
@@ -426,6 +427,23 @@ public class FileIO {
     @Override
     public String toString() {
       return "ReadableFile{metadata=" + metadata + ", compression=" + compression + '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      ReadableFile that = (ReadableFile) o;
+      return Objects.equal(metadata, that.metadata) && compression == that.compression;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(metadata, compression);
     }
   }
 
