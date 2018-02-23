@@ -139,8 +139,8 @@ public interface FlinkPipelineOptions
 
   /**
    * Whether to shutdown sources when their watermark reaches {@code +Inf}. For production use
-   * cases you want this to be disabled because Flink will currently (versions <= 1.5) stop
-   * doing checkpoints when any operator (which includes sources) is finished.
+   * cases you want this to be disabled because Flink will currently (versions {@literal <=} 1.5)
+   * stop doing checkpoints when any operator (which includes sources) is finished.
    *
    * <p>Please see <a href="https://issues.apache.org/jira/browse/FLINK-2491">FLINK-2491</a> for
    * progress on this issue.
