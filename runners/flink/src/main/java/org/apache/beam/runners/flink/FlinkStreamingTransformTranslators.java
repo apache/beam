@@ -86,18 +86,27 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.functions.StoppableFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.GenericTypeInfo;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.CheckpointListener;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
@@ -273,11 +282,8 @@ class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
-      Coder<T> coder = context.getOutput(transform).getCoder();
-      TypeInformation<WindowedValue<ValueWithRecordId<T>>> outputTypeInfo =
-          new CoderTypeInformation<>(WindowedValue.getFullCoder(
-              ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
-              output.getWindowingStrategy().getWindowFn().windowCoder()));
+      TypeInformation<WindowedValue<T>> outputTypeInfo =
+                    context.getTypeInfo(context.getOutput(transform));
 
       BoundedSource<T> rawSource;
       try {
@@ -288,37 +294,27 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
-      UnboundedSource<T, ?> adaptedRawSource = new BoundedToUnboundedSourceAdapter<>(rawSource);
-      DataStream<WindowedValue<ValueWithRecordId<T>>> source;
       String fullName = getCurrentTransformName(context);
+      UnboundedSource<T, ?> adaptedRawSource = new BoundedToUnboundedSourceAdapter<>(rawSource);
       DataStream<WindowedValue<T>> source;
       try {
-        UnboundedSourceWrapper<T, ?> sourceWrapper =
-            new UnboundedSourceWrapper<>(
+        UnboundedSourceWrapperNoValueWithRecordId<T, ?> sourceWrapper =
+            new UnboundedSourceWrapperNoValueWithRecordId<>(
+                new UnboundedSourceWrapper<>(
                 fullName,
                 context.getPipelineOptions(),
                 adaptedRawSource,
-                context.getExecutionEnvironment().getParallelism());
+                context.getExecutionEnvironment().getParallelism())
+            );
         source = context
             .getExecutionEnvironment()
-            .addSource(sourceWrapper).name(fullName).returns(outputTypeInfo);
+            .addSource(sourceWrapper)
+            .name(fullName)
+            .returns(outputTypeInfo);
       } catch (Exception e) {
-        throw new RuntimeException(
-            "Error while translating BoundedSource: " + rawSource, e);
+        throw new RuntimeException("Error while translating BoundedSource: " + rawSource, e);
       }
-
-      // get rid of the additional wrapping with ValueWithRecordId
-      SingleOutputStreamOperator<WindowedValue<T>> mappedSource = source
-          .map(new MapFunction<WindowedValue<ValueWithRecordId<T>>, WindowedValue<T>>() {
-            @Override
-            public WindowedValue<T> map(WindowedValue<ValueWithRecordId<T>> value)
-                throws Exception {
-              T originalValue = value.getValue().getValue();
-              return WindowedValue
-                  .of(originalValue, value.getTimestamp(), value.getWindows(), value.getPane());
-            }
-          });
-      context.setOutputDataStream(output, mappedSource);
+      context.setOutputDataStream(output, source);
     }
   }
 
@@ -1265,6 +1261,112 @@ class FlinkStreamingTransformTranslators {
     @Override
     public String getUrn(CreateStreamingFlinkView.CreateFlinkPCollectionView<?, ?> transform) {
       return CreateStreamingFlinkView.CREATE_STREAMING_FLINK_VIEW_URN;
+    }
+  }
+
+  /**
+   * Wrapper for {@link UnboundedSourceWrapper}, which simplifies output type, namely, removes
+   * {@link ValueWithRecordId}.
+   */
+  private static class UnboundedSourceWrapperNoValueWithRecordId<
+      OutputT, CheckpointMarkT extends UnboundedSource.CheckpointMark>
+      extends RichParallelSourceFunction<WindowedValue<OutputT>>
+      implements ProcessingTimeCallback, StoppableFunction,
+      CheckpointListener, CheckpointedFunction {
+
+    private final UnboundedSourceWrapper<OutputT, CheckpointMarkT> unboundedSourceWrapper;
+
+    private UnboundedSourceWrapperNoValueWithRecordId(
+        UnboundedSourceWrapper<OutputT, CheckpointMarkT> unboundedSourceWrapper) {
+      this.unboundedSourceWrapper = unboundedSourceWrapper;
+    }
+
+    @Override
+    public void open(Configuration parameters) throws Exception {
+      unboundedSourceWrapper.setRuntimeContext(getRuntimeContext());
+      unboundedSourceWrapper.open(parameters);
+    }
+
+    @Override
+    public void run(SourceContext<WindowedValue<OutputT>> ctx) throws Exception {
+      unboundedSourceWrapper.run(new SourceContextWrapper(ctx));
+    }
+
+    @Override
+    public void initializeState(FunctionInitializationContext context) throws Exception {
+      unboundedSourceWrapper.initializeState(context);
+    }
+
+    @Override
+    public void snapshotState(FunctionSnapshotContext context) throws Exception {
+      unboundedSourceWrapper.snapshotState(context);
+    }
+
+    @Override
+    public void notifyCheckpointComplete(long checkpointId) throws Exception {
+      unboundedSourceWrapper.notifyCheckpointComplete(checkpointId);
+    }
+
+    @Override
+    public void stop() {
+      unboundedSourceWrapper.stop();
+    }
+
+    @Override
+    public void cancel() {
+      unboundedSourceWrapper.cancel();
+    }
+
+    @Override
+    public void onProcessingTime(long timestamp) throws Exception {
+      unboundedSourceWrapper.onProcessingTime(timestamp);
+    }
+
+    private final class SourceContextWrapper implements
+        SourceContext<WindowedValue<ValueWithRecordId<OutputT>>> {
+
+      private final SourceContext<WindowedValue<OutputT>> ctx;
+
+      private SourceContextWrapper(SourceContext<WindowedValue<OutputT>> ctx) {
+        this.ctx = ctx;
+      }
+
+      @Override
+      public void collect(WindowedValue<ValueWithRecordId<OutputT>> element) {
+        OutputT originalValue = element.getValue().getValue();
+        WindowedValue<OutputT> output = WindowedValue
+            .of(originalValue, element.getTimestamp(), element.getWindows(), element.getPane());
+        ctx.collect(output);
+      }
+
+      @Override
+      public void collectWithTimestamp(WindowedValue<ValueWithRecordId<OutputT>> element,
+          long timestamp) {
+        OutputT originalValue = element.getValue().getValue();
+        WindowedValue<OutputT> output = WindowedValue
+            .of(originalValue, element.getTimestamp(), element.getWindows(), element.getPane());
+        ctx.collectWithTimestamp(output, timestamp);
+      }
+
+      @Override
+      public void emitWatermark(Watermark mark) {
+        ctx.emitWatermark(mark);
+      }
+
+      @Override
+      public void markAsTemporarilyIdle() {
+        ctx.markAsTemporarilyIdle();
+      }
+
+      @Override
+      public Object getCheckpointLock() {
+        return ctx.getCheckpointLock();
+      }
+
+      @Override
+      public void close() {
+        ctx.close();
+      }
     }
   }
 }
