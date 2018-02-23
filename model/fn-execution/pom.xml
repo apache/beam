@@ -31,16 +31,6 @@
   <description>Portable definitions for execution user-defined functions</description>
 
   <build>
-    <resources>
-      <resource>
-        <directory>src/test/resources</directory>
-        <filtering>true</filtering>
-      </resource>
-      <resource>
-        <directory>${project.build.directory}/original_sources_to_package</directory>
-      </resource>
-    </resources>
-
     <plugins>
       <!-- Skip the checkstyle plugin on generated code -->
       <plugin>
