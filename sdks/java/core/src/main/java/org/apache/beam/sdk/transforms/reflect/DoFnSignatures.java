@@ -293,6 +293,9 @@ public class DoFnSignatures {
 
     Method processElementMethod =
         findAnnotatedMethod(errors, DoFn.ProcessElement.class, fnClass, true);
+
+    Method processRetractionMethod = findProcessRetractionMethod(errors, fnClass);
+
     Method startBundleMethod = findAnnotatedMethod(errors, DoFn.StartBundle.class, fnClass, false);
     Method finishBundleMethod =
         findAnnotatedMethod(errors, DoFn.FinishBundle.class, fnClass, false);
@@ -354,6 +357,20 @@ public class DoFnSignatures {
             outputT,
             fnContext);
     signatureBuilder.setProcessElement(processElement);
+
+    if (processRetractionMethod != null) {
+      ErrorReporter processRetractionErrors =
+          errors.forMethod(DoFn.ProcessRetraction.class, processRetractionMethod);
+      DoFnSignature.ProcessElementMethod processRetraction =
+          analyzeProcessElementMethod(
+              processRetractionErrors,
+              fnT,
+              processRetractionMethod,
+              inputT,
+              outputT,
+              fnContext);
+      signatureBuilder.setProcessRetraction(processRetraction);
+    }
 
     if (startBundleMethod != null) {
       ErrorReporter startBundleErrors = errors.forMethod(DoFn.StartBundle.class, startBundleMethod);
@@ -425,6 +442,29 @@ public class DoFnSignatures {
     }
 
     return signature;
+  }
+
+  private static Method findProcessRetractionMethod(
+      ErrorReporter errors,
+      Class<? extends DoFn<?, ?>> fnClass) {
+
+    Method processElementMethod =
+        findAnnotatedMethod(errors, DoFn.ProcessElement.class, fnClass, true);
+    Method processRetractionMethod =
+        findAnnotatedMethod(errors, DoFn.ProcessRetraction.class, fnClass, false);
+    Method pureMethod =
+        findAnnotatedMethod(errors, DoFn.Pure.class, fnClass, false);
+
+    if (pureMethod != null) {
+      errors.checkArgument(pureMethod.equals(processElementMethod),
+                           "Only @ProcessElement can be annotated as @Pure, not "
+                           + pureMethod.getName());
+      errors.checkArgument(processRetractionMethod == null,
+                           "Either @ProcessRetraction or @Pure should be specified, not both");
+      return processElementMethod;
+    }
+
+    return processRetractionMethod;
   }
 
   /**
