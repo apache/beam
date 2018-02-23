@@ -155,6 +155,15 @@ message RegisterRequest {
 message RegisterResponse {
 }
 
+// One of the root applications specifying a bundle.
+// See https://s.apache.org/beam-breaking-fusion
+message Application {
+  // The primitive transform and its input to which to pass the element
+  Target target = 1;
+  // The encoded element to pass to the transform.
+  bytes element = 2;
+}
+
 // Definitions that should be used to construct the bundle processing graph.
 message ProcessBundleDescriptor {
   // (Required) A pipeline level unique id which can be used as a reference to
@@ -164,22 +173,46 @@ message ProcessBundleDescriptor {
   // (Required) A map from pipeline-scoped id to PTransform.
   map<string, org.apache.beam.model.pipeline.v1.PTransform> transforms = 2;
 
+  // Specifies that the given elements should be passed to the given transforms
+  // to kick off the bundle. Can be empty - then some of the transforms will
+  // have to start themselves without any input (e.g. the impulse transform or
+  // the read-from-gRPC transform).
+  repeated Application roots = 3;
+
   // (Required) A map from pipeline-scoped id to PCollection.
-  map<string, org.apache.beam.model.pipeline.v1.PCollection> pcollections = 3;
+  map<string, org.apache.beam.model.pipeline.v1.PCollection> pcollections = 4;
 
   // (Required) A map from pipeline-scoped id to WindowingStrategy.
-  map<string, org.apache.beam.model.pipeline.v1.WindowingStrategy> windowing_strategies = 4;
+  map<string, org.apache.beam.model.pipeline.v1.WindowingStrategy> windowing_strategies = 5;
 
   // (Required) A map from pipeline-scoped id to Coder.
-  map<string, org.apache.beam.model.pipeline.v1.Coder> coders = 5;
+  map<string, org.apache.beam.model.pipeline.v1.Coder> coders = 6;
 
   // (Required) A map from pipeline-scoped id to Environment.
-  map<string, org.apache.beam.model.pipeline.v1.Environment> environments = 6;
+  map<string, org.apache.beam.model.pipeline.v1.Environment> environments = 7;
 
   // A descriptor describing the end point to use for State API
   // calls. Required if the Runner intends to send remote references over the
   // data plane or if any of the transforms rely on user state or side inputs.
-  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor state_api_service_descriptor = 8;
+}
+
+// Represents a partition of the bundle into two bundles: a "primary" and
+// a "residual", with the following properties:
+// - The work in primary and residual doesn't overlap, and combined, adds up
+//   to the work in the current bundle if the split hadn't happened.
+// - The current bundle, if it keeps executing, will have done none of the
+//   work under residual roots.
+// - The current bundle, if no further splits happen, will have done exactly
+//   the work under primary_roots.
+// For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
+message BundleSplit {
+  // Root applications that should replace the current bundle.
+  repeated Application primary_roots = 1;
+  // Root applications that have been removed from the current bundle and
+  // have to be executed in a separate bundle (e.g. in parallel on a different
+  // worker, or after the current bundle completes, etc.)
+  repeated Application residual_roots = 2;
 }
 
 // A request to process a given bundle.
@@ -199,6 +232,10 @@ message ProcessBundleResponse {
   // (Optional) If metrics reporting is supported by the SDK, this represents
   // the final metrics to record for this bundle.
   Metrics metrics = 1;
+
+  // (Optional) Specifies that the bundle has been split since the last
+  // ProcessBundleProgressResponse was sent.
+  BundleSplit split = 2;
 }
 
 // A request to report progress information for a given bundle.
@@ -330,6 +367,10 @@ message Metrics {
 message ProcessBundleProgressResponse {
   // (Required)
   Metrics metrics = 1;
+
+  // (Optional) Specifies that the bundle has been split since the last
+  // ProcessBundleProgressResponse was sent.
+  BundleSplit split = 2;
 }
 
 message ProcessBundleSplitRequest {
@@ -337,106 +378,17 @@ message ProcessBundleSplitRequest {
   // instruction id.
   string instruction_reference = 1;
 
-  // (Required) The fraction of work (when compared to the known amount of work)
-  // the process bundle request should try to split at.
-  double fraction = 2;
-}
-
-// urn:org.apache.beam:restriction:element-count:1.0
-message ElementCountRestriction {
-  // A restriction representing the number of elements that should be processed.
-  // Effectively the range [0, count]
-  int64 count = 1;
-}
-
-// urn:org.apache.beam:restriction:element-count-skip:1.0
-message ElementCountSkipRestriction {
-  // A restriction representing the number of elements that should be skipped.
-  // Effectively the range (count, infinity]
-  int64 count = 1;
-}
-
-// Each primitive transform that is splittable is defined by a restriction
-// it is currently processing. During splitting, that currently active
-// restriction (R_initial) is split into 2 components:
-//   * a restriction (R_done) representing all elements that will be fully
-//     processed
-//   * a restriction (R_todo) representing all elements that will not be fully
-//     processed
-//
-// where:
-//   R_initial = R_done ⋃ R_todo
-message PrimitiveTransformSplit {
-  // (Required) A reference to a primitive transform with the given id that
-  // is part of the active process bundle request with the given instruction
-  // id.
-  string primitive_transform_reference = 1;
-
-  // (Required) A function specification describing the restriction
-  // that has been completed by the primitive transform.
-  //
-  // For example, a remote GRPC source will have a specific urn and data
-  // block containing an ElementCountRestriction.
-  org.apache.beam.model.pipeline.v1.FunctionSpec completed_restriction = 2;
-
-  // (Required) A function specification describing the restriction
-  // representing the remainder of work for the primitive transform.
-  //
-  // FOr example, a remote GRPC source will have a specific urn and data
-  // block contain an ElemntCountSkipRestriction.
-  org.apache.beam.model.pipeline.v1.FunctionSpec remaining_restriction = 3;
+  // (Required) Specifies that the runner would like the bundle to ensure
+  // completion before the given deadline, potentially using BundleSplit to
+  // return extra work that can't be completed by the given deadline.
+  // This is a hint - the bundle doesn't *have* to complete by this deadline.
+  // However, if the deadline is in the past, the bundle *must* complete as
+  // soon as possible (e.g. checkpoint).
+  google.protobuf.Timestamp deadline = 2;
 }
 
 message ProcessBundleSplitResponse {
-  // (Optional) A set of split responses for a currently active work item.
-  //
-  // If primitive transform B is a descendant of primitive transform A and both
-  // A and B report a split. Then B's restriction is reported as an element
-  // restriction pair and thus the fully reported restriction is:
-  //   R = A_done
-  //     ⋃ (A_boundary ⋂ B_done)
-  //     ⋃ (A_boundary ⋂ B_todo)
-  //     ⋃ A_todo
-  // If there is a decendant of B named C, then C would similarly report a
-  // set of element pair restrictions.
-  //
-  // This restriction is processed and completed by the currently active process
-  // bundle request:
-  //   A_done ⋃ (A_boundary ⋂ B_done)
-  // and these restrictions will be processed by future process bundle requests:
-  //   A_boundary ⋂ B_todo (passed to SDF B directly)
-  //   A_todo (passed to SDF A directly)
-
-  // If primitive transform B and C are siblings and descendants of A and A, B,
-  // and C report a split. Then B and C's restrictions are relative to A's.
-  //   R = A_done
-  //     ⋃ (A_boundary ⋂ B_done)
-  //     ⋃ (A_boundary ⋂ B_todo)
-  //     ⋃ (A_boundary ⋂ B_todo)
-  //     ⋃ (A_boundary ⋂ C_todo)
-  //     ⋃ A_todo
-  // If there is no descendant of B or C also reporting a split, than
-  //   B_boundary = ∅ and C_boundary = ∅
-  //
-  // This restriction is processed and completed by the currently active process
-  // bundle request:
-  //   A_done ⋃ (A_boundary ⋂ B_done)
-  //          ⋃ (A_boundary ⋂ C_done)
-  // and these restrictions will be processed by future process bundle requests:
-  //   A_boundary ⋂ B_todo (passed to SDF B directly)
-  //   A_boundary ⋂ C_todo (passed to SDF C directly)
-  //   A_todo (passed to SDF A directly)
-  //
-  // Note that descendants splits should only be reported if it is inexpensive
-  // to compute the boundary restriction intersected with descendants splits.
-  // Also note, that the boundary restriction may represent a set of elements
-  // produced by a parent primitive transform which can not be split at each
-  // element or that there are intermediate unsplittable primitive transforms
-  // between an ancestor splittable function and a descendant splittable
-  // function which may have more than one output per element. Finally note
-  // that the descendant splits should only be reported if the split
-  // information is relatively compact.
-  repeated PrimitiveTransformSplit splits = 1;
+  // Empty.
 }
 
 /*
