@@ -17,28 +17,34 @@
  */
 package org.apache.beam.sdk.extensions.sketching;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.clearspring.analytics.stream.Counter;
 import com.clearspring.analytics.stream.StreamSummary;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
-import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -162,13 +168,30 @@ public final class MostFrequent {
 
     @Override
     public PCollection<KV<InputT, Long>> expand(PCollection<InputT> input) {
-      return input
-              .apply("Compute Stream Summary",
-                      Combine.<InputT, StreamSummary<InputT>>globally(MostFrequentFn.
-                              <InputT>create(this.capacity())))
-              .apply("Retrieve k most frequent elements",
-                      ParDo.<StreamSummary<InputT>, KV<InputT, Long>>of(RetrieveTopK.
-                              <InputT>globally(this.topK())));
+      final Coder<InputT> inputCoder = input.getCoder();
+      Class clazz = inputCoder.getEncodedTypeDescriptor().getRawType();
+      PCollection<KV<InputT, Long>> result;
+
+      if (Serializable.class.isAssignableFrom(clazz)) {
+        MostFrequentFn.SerializableElements<InputT> fn = MostFrequentFn.SerializableElements
+            .create(this.capacity());
+
+        result = input
+            .apply("Compute Stream Summary", Combine.globally(fn))
+            .apply("Retrieve k most frequent elements", ParDo
+                .of(RetrieveTopK.globallyUnWrapped(this.topK())))
+            .setCoder(KvCoder.of(input.getCoder(), VarLongCoder.of()));
+      } else {
+        MostFrequentFn.NonSerializableElements<InputT> fn = MostFrequentFn.NonSerializableElements
+            .create(inputCoder).withCapacity(this.capacity());
+
+        result = input
+            .apply("Compute Stream Summary", Combine.globally(fn))
+            .apply("Retrieve k most frequent elements", ParDo
+                .of(RetrieveTopK.globallyWrapped(this.topK())))
+            .setCoder(KvCoder.of(input.getCoder(), VarLongCoder.of()));
+      }
+      return result;
     }
   }
 
@@ -180,7 +203,7 @@ public final class MostFrequent {
    */
   @AutoValue
   public abstract static class PerKeySummary<K, V>
-          extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<KV<V, Long>>>>> {
+          extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, KV<V, Long>>>> {
 
     abstract int capacity();
     abstract int topK();
@@ -223,14 +246,40 @@ public final class MostFrequent {
     }
 
     @Override
-    public PCollection<KV<K, List<KV<V, Long>>>> expand(PCollection<KV<K, V>> input) {
-      return input
-              .apply("Compute Stream Summary",
-                      Combine.<K, V, StreamSummary<V>>perKey(MostFrequentFn.
-                              <V>create(this.capacity())))
-              .apply("Retrieve k most frequent elements",
-                      ParDo.<KV<K, StreamSummary<V>>, KV<K, List<KV<V, Long>>>>
-                              of(RetrieveTopK.<K, V>perKey(this.topK())));
+    public PCollection<KV<K, KV<V, Long>>> expand(PCollection<KV<K, V>> input) {
+      final KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
+      final Coder<V> valueCoder = inputCoder.getValueCoder();
+      Class clazz = inputCoder.getValueCoder().getEncodedTypeDescriptor().getRawType();
+      PCollection<KV<K, KV<V, Long>>> result;
+
+      if (Serializable.class.isAssignableFrom(clazz)) {
+        MostFrequentFn.SerializableElements<V> fn = MostFrequentFn.SerializableElements
+            .create(this.capacity());
+
+        result = input
+            .apply("Compute Stream Summary", Combine.perKey(fn))
+            .apply("Retrieve k most frequent elements", ParDo
+                .of(RetrieveTopK.perKeyUnWrapped(this.topK())))
+            .setCoder(KvCoder.of(
+                inputCoder.getKeyCoder(),
+                KvCoder.of(
+                    inputCoder.getValueCoder(),
+                    VarLongCoder.of())));
+      } else {
+        MostFrequentFn.NonSerializableElements<V> fn = MostFrequentFn.NonSerializableElements
+            .create(valueCoder).withCapacity(this.capacity());
+
+        result = input
+            .apply("Compute Stream Summary", Combine.perKey(fn))
+            .apply("Retrieve k most frequent elements", ParDo
+                .of(RetrieveTopK.perKeyWrapped(this.topK())))
+            .setCoder(KvCoder.of(
+                inputCoder.getKeyCoder(),
+                KvCoder.of(
+                    inputCoder.getValueCoder(),
+                    VarLongCoder.of())));
+      }
+      return result;
     }
   }
 
@@ -248,96 +297,180 @@ public final class MostFrequent {
    *
    * @param <InputT>         the type of the elements being combined
    */
-  public static class MostFrequentFn<InputT>
-          extends Combine.CombineFn<InputT, StreamSummary<InputT>, StreamSummary<InputT>> {
 
-    private int capacity;
+
+  public abstract static class MostFrequentFn<InputT, ElementT>
+      extends CombineFn<InputT, StreamSummary<ElementT>, StreamSummary<ElementT>> {
+
+    int capacity;
 
     private MostFrequentFn(int capacity) {
       this.capacity = capacity;
     }
 
-    public static <T> MostFrequentFn<T> create(int capacity) {
-      if (capacity <= 0) {
-        throw new IllegalArgumentException("Capacity must be greater than 0.");
-      }
-      return new MostFrequentFn<>(capacity);
-    }
-
-    @Override
-    public StreamSummary<InputT> createAccumulator() {
-      return new StreamSummary<>(this.capacity);
-    }
-
-    @Override
-    public StreamSummary<InputT> addInput(StreamSummary<InputT> accumulator, InputT element) {
-      accumulator.offer(element, 1);
-      return accumulator;
-    }
-
-    @Override
-    public StreamSummary<InputT> mergeAccumulators(
-            Iterable<StreamSummary<InputT>> accumulators) {
-      Iterator<StreamSummary<InputT>> it = accumulators.iterator();
-      if (it.hasNext()) {
-        StreamSummary<InputT> mergedAccum = it.next();
-        while (it.hasNext()) {
-          StreamSummary<InputT> other = it.next();
-          List<Counter<InputT>> top = other.topK(capacity);
-          for (Counter<InputT> counter : top) {
-            mergedAccum.offer(counter.getItem(), (int) counter.getCount());
-          }
+    @Override public StreamSummary<ElementT> mergeAccumulators(
+        Iterable<StreamSummary<ElementT>> accumulators) {
+      Iterator<StreamSummary<ElementT>> it = accumulators.iterator();
+      StreamSummary<ElementT> mergedAccum = it.next();
+      while (it.hasNext()) {
+        StreamSummary<ElementT> other = it.next();
+        List<Counter<ElementT>> top = other.topK(other.size());
+        for (Counter<ElementT> counter : top) {
+          mergedAccum.offer(counter.getItem(), (int) counter.getCount());
         }
-        return mergedAccum;
       }
-      return null;
+      return mergedAccum;
     }
 
-    @Override
-    public StreamSummary<InputT> extractOutput(StreamSummary<InputT> accumulator) {
-      return accumulator;
+    @Override public StreamSummary<ElementT> extractOutput(StreamSummary<ElementT> ss) {
+      return ss;
     }
 
-    @Override
-    public Coder<StreamSummary<InputT>> getAccumulatorCoder(CoderRegistry registry,
-                                                       Coder inputCoder) {
-      return new StreamSummaryCoder<>();
-    }
-
-    @Override
-    public Coder<StreamSummary<InputT>> getDefaultOutputCoder(CoderRegistry registry,
-                                                         Coder inputCoder) {
-      return new StreamSummaryCoder<>();
-    }
-
-    @Override
-    public void populateDisplayData(DisplayData.Builder builder) {
+    @Override public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-              .add(DisplayData.item("capacity", capacity)
-                      .withLabel("Maximum number of elements kept tracked by the Summary"));
+          .add(DisplayData
+              .item("capacity", capacity)
+              .withLabel("Capacity of the Stream Summary sketch"));
+    }
+
+    /**
+     *
+     * @param <InputT>
+     */
+    public static class SerializableElements<InputT> extends MostFrequentFn<InputT, InputT> {
+
+      SerializableElements(int capacity) {
+        super(capacity);
+      }
+
+      public static <InputT> SerializableElements<InputT> create(int capacity) {
+        return new SerializableElements<>(capacity);
+      }
+
+      @Override public StreamSummary<InputT> createAccumulator() {
+        return new StreamSummary<>(capacity);
+      }
+
+      @Override public StreamSummary<InputT> addInput(
+          StreamSummary<InputT> accumulator, InputT input) {
+        accumulator.offer(input);
+        return accumulator;
+      }
+    }
+
+    /**
+     *
+     * @param <InputT>
+     */
+    public static class NonSerializableElements<InputT>
+        extends MostFrequentFn<InputT, ElementWrapper<InputT>> {
+
+      Coder<InputT> coder;
+
+      NonSerializableElements(int capacity, Coder<InputT> coder) {
+        super(capacity);
+        this.coder = coder;
+      }
+
+      public static <InputT> NonSerializableElements<InputT> create(Coder<InputT> coder) {
+        return new NonSerializableElements<>(1000, coder);
+      }
+
+      public NonSerializableElements<InputT> withCapacity(int capacity) {
+        checkArgument(capacity > 0, "Capacity must be greater than 0 ! Actual: " + capacity);
+        return new NonSerializableElements<>(capacity, coder);
+      }
+
+      @Override public StreamSummary<ElementWrapper<InputT>> createAccumulator() {
+        return new StreamSummary<>(capacity);
+      }
+
+      @Override public StreamSummary<ElementWrapper<InputT>> addInput(
+          StreamSummary<ElementWrapper<InputT>> accumulator, InputT input) {
+        accumulator.offer(ElementWrapper.of(input, coder));
+        return accumulator;
+      }
     }
   }
 
   /**
+   *
    * @param <T>
    */
-  public static class StreamSummaryCoder<T> extends CustomCoder<StreamSummary<T>> {
+  public static class ElementWrapper<T> implements Serializable {
+    public static <T> ElementWrapper<T> of(T element, Coder<T> coder) {
+      return new ElementWrapper<>(element, coder);
+    }
 
+    private T element;
+    private Coder<T> elemCoder;
+
+    public ElementWrapper() {
+    }
+
+    public ElementWrapper(T element, Coder<T> coder) {
+      this.element = element;
+      this.elemCoder = coder;
+    }
+
+    public T getElement() {
+      return element;
+    }
+
+    public Coder<T> getCoder() {
+      return elemCoder;
+    }
+
+    @Override
+    public int hashCode() {
+      return element.hashCode();
+    }
+
+    @SuppressWarnings("unchecked")
+    protected void readObject(ObjectInputStream in)
+            throws IOException, ClassNotFoundException {
+      elemCoder = (Coder<T>) in.readObject();
+      int length = in.readInt();
+      byte[] elemBytes = new byte[length];
+      for (int i = 0; i < length; i++) {
+       elemBytes[i] = in.readByte();
+      }
+      this.element = CoderUtils.decodeFromByteArray(elemCoder, elemBytes);
+      in.close();
+    }
+
+    protected void writeObject(ObjectOutputStream out)
+            throws IOException {
+      out.writeObject(elemCoder);
+      byte[] elemBytes = CoderUtils.encodeToByteArray(elemCoder, element);
+      int length = elemBytes.length;
+      out.writeInt(length);
+      out.write(elemBytes);
+      out.close();
+    }
+  }
+
+  /**
+   *
+   */
+  public static class StreamSummaryCoder<T>
+          extends CustomCoder<StreamSummary<T>> {
     private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
 
     @Override
-    public void encode(StreamSummary<T> value, OutputStream outStream) throws IOException {
+    public void encode(StreamSummary<T> value, OutputStream outStream)
+            throws IOException {
       BYTE_ARRAY_CODER.encode(value.toBytes(), outStream);
     }
 
     @Override
-    public StreamSummary<T> decode(InputStream inStream) throws IOException {
+    public StreamSummary<T> decode(InputStream inStream)
+            throws IOException {
       try {
         return new StreamSummary<>(BYTE_ARRAY_CODER.decode(inStream));
       } catch (ClassNotFoundException e) {
-        throw new CoderException(e.getMessage()
-                + " The stream summary can't be decoded from the input stream", e);
+        throw new CoderException("The stream cannot be decoded !");
       }
     }
   }
@@ -345,23 +478,35 @@ public final class MostFrequent {
   /**
    *
    */
-  public static class RetrieveTopK {
+  static class RetrieveTopK {
+    /**
+     *
+     * @param topK
+     * @param <T>
+     */
+    public static <T> DoFn<
+        StreamSummary<ElementWrapper<T>>, KV<T, Long>> globallyWrapped(int topK) {
+      return new DoFn<StreamSummary<ElementWrapper<T>>, KV<T, Long>>() {
+        @ProcessElement
+        public void apply(ProcessContext c) {
+          for (KV<ElementWrapper<T>, Long> pair : getTopK(c.element(), topK)) {
+            c.output(KV.of(pair.getKey().getElement(), pair.getValue()));
+          }
+        }
+      };
+    }
 
     /**
      *
      * @param topK
      * @param <T>
-     * @return
      */
-    public static <T> DoFn<StreamSummary<T>, KV<T, Long>> globally(int topK) {
+    public static <T> DoFn<StreamSummary<T>, KV<T, Long>> globallyUnWrapped(int topK) {
       return new DoFn<StreamSummary<T>, KV<T, Long>>() {
-
-        final int topk = topK;
-
         @ProcessElement
         public void apply(ProcessContext c) {
           for (KV<T, Long> pair : getTopK(c.element(), topK)) {
-            c.output(pair);
+            c.output(KV.of(pair.getKey(), pair.getValue()));
           }
         }
       };
@@ -372,17 +517,39 @@ public final class MostFrequent {
      * @param topK
      * @param <K>
      * @param <V>
-     * @return
      */
-    public static <K, V> DoFn<KV<K, StreamSummary<V>>, KV<K, List<KV<V, Long>>>> perKey(int topK) {
-      return new DoFn<KV<K, StreamSummary<V>>, KV<K, List<KV<V, Long>>>>() {
-
-        final int topk = topK;
-
+    public static <K, V> DoFn<
+        KV<K, StreamSummary<V>>, KV<K, KV<V, Long>>> perKeyUnWrapped(int topK) {
+      return new DoFn<KV<K, StreamSummary<V>>, KV<K, KV<V, Long>>>() {
         @ProcessElement
         public void processElement(ProcessContext c) {
           KV<K, StreamSummary<V>> kv = c.element();
-          c.output(KV.of(kv.getKey(), getTopK(kv.getValue(), topK)));
+          for (KV<V, Long> pair : getTopK(kv.getValue(), topK)) {
+            c.output(KV.of(
+                kv.getKey(),
+                KV.of(pair.getKey(), pair.getValue())));
+          }
+        }
+      };
+    }
+
+    /**
+     *
+     * @param topK
+     * @param <K>
+     * @param <V>
+     */
+    public static <K, V> DoFn<
+        KV<K, StreamSummary<ElementWrapper<V>>>, KV<K, KV<V, Long>>> perKeyWrapped(int topK) {
+      return new DoFn<KV<K, StreamSummary<ElementWrapper<V>>>, KV<K, KV<V, Long>>>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+          KV<K, StreamSummary<ElementWrapper<V>>> kv = c.element();
+          for (KV<ElementWrapper<V>, Long> pair : getTopK(kv.getValue(), topK)) {
+            c.output(KV.of(
+                kv.getKey(),
+                KV.of(pair.getKey().getElement(), pair.getValue())));
+          }
         }
       };
     }
@@ -392,7 +559,6 @@ public final class MostFrequent {
      * @param ss
      * @param k
      * @param <T>
-     * @return
      */
     public static <T> List<KV<T, Long>> getTopK(StreamSummary<T> ss, int k) {
       List<KV<T, Long>> mostFrequent = new ArrayList<>(k);
