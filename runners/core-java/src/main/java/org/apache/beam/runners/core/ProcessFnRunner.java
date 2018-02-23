@@ -43,7 +43,7 @@ public class ProcessFnRunner<InputT, OutputT, RestrictionT>
   private final Collection<PCollectionView<?>> views;
   private final ReadyCheckingSideInputReader sideInputReader;
 
-  ProcessFnRunner(
+  public ProcessFnRunner(
       DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> underlying,
       Collection<PCollectionView<?>> views,
       ReadyCheckingSideInputReader sideInputReader) {
