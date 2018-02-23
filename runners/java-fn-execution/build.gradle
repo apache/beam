@@ -48,3 +48,18 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_simple
 }
+
+test {
+  useJUnit {
+    // Exclude tests that need Docker.
+    excludeCategories "org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker"
+  }
+}
+
+task testDocker(type: Test) {
+  group = "Verification"
+  description = "Runs Docker tests"
+  useJUnit {
+    includeCategories "org.apache.beam.runners.fnexecution.environment.testing.NeedsDocker"
+  }
+}
