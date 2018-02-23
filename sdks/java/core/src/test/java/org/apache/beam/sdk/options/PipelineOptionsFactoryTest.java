@@ -60,6 +60,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
+import org.apache.beam.sdk.testing.ClassLoaderRule;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
@@ -83,6 +84,8 @@ public class PipelineOptionsFactoryTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public TestRule restoreSystemProperties = new RestoreSystemProperties();
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(PipelineOptionsFactory.class);
+  @Rule public TestRule classLoaderRule =
+    ClassLoaderRule.build().withPipelineOptionsCacheReset().create();
 
   @Test
   public void testAutomaticRegistrationOfPipelineOptions() {
@@ -1814,19 +1817,14 @@ public class PipelineOptionsFactoryTest {
       name -> name.toLowerCase(ROOT).contains("test"));
     thread.setContextClassLoader(caseLoader);
     PipelineOptionsFactory.resetCache();
-    try {
-      final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
-      final Class optionType = caseLoader.loadClass(
-              "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ClassLoaderTestOptions");
-      final Object options = pipelineOptions.as(optionType);
-      assertSame(caseLoader, options.getClass().getClassLoader());
-      assertSame(optionType.getClassLoader(), options.getClass().getClassLoader());
-      assertSame(testClassLoader, optionType.getInterfaces()[0].getClassLoader());
-      assertTrue(Boolean.class.cast(optionType.getMethod("isOption").invoke(options)));
-    } finally {
-      thread.setContextClassLoader(testClassLoader);
-      PipelineOptionsFactory.resetCache();
-    }
+    final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+    final Class optionType = caseLoader.loadClass(
+            "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ClassLoaderTestOptions");
+    final Object options = pipelineOptions.as(optionType);
+    assertSame(caseLoader, options.getClass().getClassLoader());
+    assertSame(optionType.getClassLoader(), options.getClass().getClassLoader());
+    assertSame(testClassLoader, optionType.getInterfaces()[0].getClassLoader());
+    assertTrue(Boolean.class.cast(optionType.getMethod("isOption").invoke(options)));
   }
 
   @Test
