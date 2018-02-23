@@ -168,7 +168,7 @@ public final class CoderProviders {
     private final Coder<?> coder;
     private final TypeDescriptor<?> type;
 
-    public CoderProviderForCoder(TypeDescriptor<?> type, Coder<?> coder){
+    public CoderProviderForCoder(TypeDescriptor<?> type, Coder<?> coder) {
       this.type = type;
       this.coder = coder;
     }

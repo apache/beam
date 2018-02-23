@@ -85,7 +85,7 @@ public class VarianceFn<T extends Number>
     return new VarianceFn<>(SAMPLE, decimalConverter);
   }
 
-  private VarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter){
+  private VarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter) {
     this.isSample = isSample;
     this.decimalConverter = decimalConverter;
   }

@@ -234,7 +234,7 @@ public class ElasticsearchIO {
      * @param type the document type toward which the requests will be issued
      * @return the connection configuration object
      */
-    public static ConnectionConfiguration create(String[] addresses, String index, String type){
+    public static ConnectionConfiguration create(String[] addresses, String index, String type) {
       checkArgument(addresses != null, "addresses can not be null");
       checkArgument(addresses.length > 0, "addresses can not be empty");
       checkArgument(index != null, "index can not be null");
@@ -479,7 +479,7 @@ public class ElasticsearchIO {
       ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
       this.backendVersion = getBackendVersion(connectionConfiguration);
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
-      if (backendVersion == 2){
+      if (backendVersion == 2) {
         // 1. We split per shard :
         // unfortunately, Elasticsearch 2. x doesn 't provide a way to do parallel reads on a single
         // shard.So we do not use desiredBundleSize because we cannot split shards.
@@ -502,7 +502,7 @@ public class ElasticsearchIO {
           sources.add(new BoundedElasticsearchSource(spec, shardId, null, null, backendVersion));
         }
         checkArgument(!sources.isEmpty(), "No shard found");
-      } else if (backendVersion == 5){
+      } else if (backendVersion == 5) {
         long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
         float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
         int nbBundles = (int) Math.ceil(nbBundlesFloat);
@@ -606,7 +606,7 @@ public class ElasticsearchIO {
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
-      if (source.backendVersion == 5 && source.numSlices != null && source.numSlices > 1){
+      if (source.backendVersion == 5 && source.numSlices != null && source.numSlices > 1) {
         //if there is more than one slice, add the slice to the user query
         String sliceQuery = String
             .format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId,
@@ -621,7 +621,7 @@ public class ElasticsearchIO {
               source.spec.getConnectionConfiguration().getType());
       Map<String, String> params = new HashMap<>();
       params.put("scroll", source.spec.getScrollKeepalive());
-      if (source.backendVersion == 2){
+      if (source.backendVersion == 2) {
         params.put("size", String.valueOf(source.spec.getBatchSize()));
         if (source.shardPreference != null) {
           params.put("preference", "_shards:" + source.shardPreference);
@@ -873,7 +873,7 @@ public class ElasticsearchIO {
           backendVersion);
       return backendVersion;
 
-    } catch (IOException e){
+    } catch (IOException e) {
       throw (new IllegalArgumentException("Cannot get Elasticsearch version"));
     }
   }

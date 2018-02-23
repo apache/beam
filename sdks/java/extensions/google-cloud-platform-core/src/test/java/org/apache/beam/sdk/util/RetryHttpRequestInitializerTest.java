@@ -228,7 +228,7 @@ public class RetryHttpRequestInitializerTest {
   public void testRetryableErrorRetryEnoughTimes() throws IOException {
     when(mockLowLevelRequest.execute()).thenReturn(mockLowLevelResponse);
     final int retries = 10;
-    when(mockLowLevelResponse.getStatusCode()).thenAnswer(new Answer<Integer>(){
+    when(mockLowLevelResponse.getStatusCode()).thenAnswer(new Answer<Integer>() {
       int n = 0;
       @Override
       public Integer answer(InvocationOnMock invocation) {

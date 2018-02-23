@@ -49,7 +49,7 @@ public class GroupByNullKeyTest extends StreamingProgramTestBase implements Seri
       "k: null v: user1 user1 user1 user2 user2 user2 user2 user3"
   };
 
-  public GroupByNullKeyTest(){
+  public GroupByNullKeyTest() {
   }
 
   @Override

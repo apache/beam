@@ -38,7 +38,7 @@ public class BeamPCollectionTable extends BaseBeamTable {
   }
 
   public BeamPCollectionTable(PCollection<Row> upstream,
-      RowType beamRowType){
+      RowType beamRowType) {
     this(beamRowType);
     ioType = upstream.isBounded().equals(IsBounded.BOUNDED)
         ? BeamIOType.BOUNDED : BeamIOType.UNBOUNDED;

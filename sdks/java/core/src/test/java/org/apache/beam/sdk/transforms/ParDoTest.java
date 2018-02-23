@@ -513,7 +513,7 @@ public class ParDoTest implements Serializable {
     PCollectionTuple outputs = pipeline
         .apply(Create.of(inputs))
         .apply(ParDo
-            .of(new DoFn<Integer, Void>(){
+            .of(new DoFn<Integer, Void>() {
                 @ProcessElement
                 public void processElement(ProcessContext c) {
                   c.output(additionalOutputTag, c.element());

@@ -59,9 +59,9 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
   private ConnectionConfiguration connectionConfiguration;
 
-  private String[] fillAddresses(){
+  private String[] fillAddresses() {
     ArrayList<String> result = new ArrayList<>();
-    for (InetSocketAddress address : cluster().httpAddresses()){
+    for (InetSocketAddress address : cluster().httpAddresses()) {
       result.add(String.format("http://%s:%s", address.getHostString(), address.getPort()));
     }
     return result.toArray(new String[result.size()]);
@@ -95,8 +95,8 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Before
-  public void setup(){
-    if (connectionConfiguration == null){
+  public void setup() {
+    if (connectionConfiguration == null) {
       connectionConfiguration = ConnectionConfiguration.create(fillAddresses(), ES_INDEX, ES_TYPE);
       elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(connectionConfiguration,
           getRestClient(), false);
