@@ -43,6 +43,7 @@ dependencies {
   shadow library.java.findbugs_jsr305
   shadow library.java.apex_engine
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  // ApexStateInternalsTest extends abstract StateInternalsTest
   testCompile project(":runners:core-java").sourceSets.test.output
   testCompile library.java.hamcrest_core
   testCompile library.java.junit

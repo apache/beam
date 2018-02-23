@@ -370,6 +370,7 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- SparkStateInternalsTest extends abstract StateInternalsTest -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-java</artifactId>
