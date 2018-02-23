@@ -51,7 +51,6 @@ dependencies {
   compile library.java.slf4j_api
   provided library.java.error_prone_annotations
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":sdks:java:fn-execution").sourceSets.test.output
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core

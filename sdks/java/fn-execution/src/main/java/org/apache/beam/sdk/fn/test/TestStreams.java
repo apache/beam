@@ -20,6 +20,8 @@ package org.apache.beam.sdk.fn.test;
 
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /** Utility methods which enable testing of {@link StreamObserver}s. */
 public class TestStreams {

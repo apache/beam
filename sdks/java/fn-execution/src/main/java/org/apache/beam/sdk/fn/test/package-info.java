@@ -16,11 +16,5 @@
  * limitations under the License.
  */
 
+/** Utilities for testing use of this package. */
 package org.apache.beam.sdk.fn.test;
-
-/**
- * A fork of the Java 8 consumer interface. This exists to enable migration for existing consumers.
- */
-public interface Consumer<T> {
-  void accept(T item);
-}

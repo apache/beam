@@ -21,6 +21,7 @@ package org.apache.beam.sdk.fn.test;
 import com.google.common.util.concurrent.ForwardingExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;

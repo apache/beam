@@ -39,7 +39,6 @@ dependencies {
   shadow library.java.grpc_stub
   shadow library.java.grpc_netty
   shadow library.java.slf4j_api
-  testCompile project(":sdks:java:fn-execution").sourceSets.test.output
   testCompile project(":sdks:java:harness")
   testCompile project(path: ":runners:core-construction-java", configuration: "shadow")
   testCompile library.java.junit
