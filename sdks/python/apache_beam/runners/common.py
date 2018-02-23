@@ -178,8 +178,14 @@ class DoFnInvoker(object):
         signature: a DoFnSignature for the DoFn being invoked.
         context: Context to be used when invoking the DoFn (deprecated).
         side_inputs: side inputs to be used when invoking th process method.
-        input_args: arguments to be used when invoking the process method
-        input_kwargs: kwargs to be used when invoking the process method.
+        input_args: arguments to be used when invoking the process method. Some
+                    of the arguments given here might be placeholders (for
+                    example for side inputs) that get filled before invoking the
+                    process method.
+        input_kwargs: keyword arguments to be used when invoking the process
+                      method. Some of the keyword arguments given here might be
+                      placeholders (for example for side inputs) that get filled
+                      before invoking the process method.
         process_invocation: If True, this function may return an invoker that
                             performs extra optimizations for invoking process()
                             method efficiently.
@@ -206,10 +212,10 @@ class DoFnInvoker(object):
                       process() method should be invoked along with the window
                       the element belongs to.
       output_procesor: if provided given OutputProcessor will be used.
-      additional_args: additional arguments to be passed to the process()
-                       invocation, usually as side inputs.
+      additional_args: additional arguments to be passed to the current
+                      `DoFn.process()` invocation, usually as side inputs.
       additional_kwargs: additional keyword arguments to be passed to the
-                         process method.
+                         current `DoFn.process()` invocation.
     """
     raise NotImplementedError
 
