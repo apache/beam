@@ -133,3 +133,6 @@ cdef class DataflowDistributionCounter(object):
     cdef calculate_bucket_index cannot be called directly from def.
     """
     return self._fast_calculate_bucket_index(element)
+
+  cpdef merge(self, accumulators):
+    pass
