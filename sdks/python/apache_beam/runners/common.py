@@ -197,7 +197,8 @@ class DoFnInvoker(object):
           signature, context, side_inputs, input_args, input_kwargs)
 
   def invoke_process(self, windowed_value, restriction_tracker=None,
-                     output_processor=None):
+                     output_processor=None,
+                     additional_args=None, additional_kwargs=None):
     """Invokes the DoFn.process() function.
 
     Args:
@@ -205,6 +206,10 @@ class DoFnInvoker(object):
                       process() method should be invoked along with the window
                       the element belongs to.
       output_procesor: if provided given OutputProcessor will be used.
+      additional_args: additional arguments to be passed to the process()
+                       invocation, usually as side inputs.
+      additional_kwargs: additional keyword arguments to be passed to the
+                         process method.
     """
     raise NotImplementedError
 
@@ -263,7 +268,8 @@ class SimpleInvoker(DoFnInvoker):
     self.process_method = signature.process_method.method_value
 
   def invoke_process(self, windowed_value, restriction_tracker=None,
-                     output_processor=None):
+                     output_processor=None,
+                     additional_args=None, additional_kwargs=None):
     if not output_processor:
       output_processor = self.output_processor
     output_processor.process_outputs(
@@ -349,7 +355,13 @@ class PerWindowInvoker(DoFnInvoker):
     self.kwargs_for_process = input_kwargs
 
   def invoke_process(self, windowed_value, restriction_tracker=None,
-                     output_processor=None):
+                     output_processor=None,
+                     additional_args=None, additional_kwargs=None):
+    if not additional_args:
+      additional_args = []
+    if not additional_kwargs:
+      additional_kwargs = {}
+
     if not output_processor:
       output_processor = self.output_processor
     self.context.set_element(windowed_value)
@@ -357,7 +369,6 @@ class PerWindowInvoker(DoFnInvoker):
     # or if the process accesses the window parameter. We can just call it once
     # otherwise as none of the arguments are changing
 
-    additional_kwargs = {}
     if restriction_tracker:
       restriction_tracker_param = _find_param_with_default(
           self.signature.process_method,
@@ -371,18 +382,21 @@ class PerWindowInvoker(DoFnInvoker):
       for w in windowed_value.windows:
         self._invoke_per_window(
             WindowedValue(windowed_value.value, windowed_value.timestamp, (w,)),
-            additional_kwargs, output_processor)
+            additional_args, additional_kwargs, output_processor)
     else:
       self._invoke_per_window(
-          windowed_value, additional_kwargs, output_processor)
+          windowed_value, additional_args, additional_kwargs, output_processor)
 
   def _invoke_per_window(
-      self, windowed_value, additional_kwargs, output_processor):
+      self, windowed_value, additional_args,
+      additional_kwargs, output_processor):
     if self.has_windowed_inputs:
       window, = windowed_value.windows
+      side_inputs = [si[window] for si in self.side_inputs]
+      side_inputs.extend(additional_args)
       args_for_process, kwargs_for_process = util.insert_values_in_args(
           self.args_for_process, self.kwargs_for_process,
-          [si[window] for si in self.side_inputs])
+          side_inputs)
     else:
       args_for_process, kwargs_for_process = (
           self.args_for_process, self.kwargs_for_process)
