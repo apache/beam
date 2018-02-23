@@ -255,6 +255,31 @@ class common_job_properties {
     return mapToArgString(joinedArgs)
   }
 
+  static def setupKubernetes(def context, def namespace, def kubeconfigLocation) {
+    context.steps {
+      shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
+      shell("cp /home/jenkins/.kube/config ${kubeconfigLocation}")
+
+      shell("kubectl --kubeconfig=${kubeconfigLocation} create namespace ${namespace}")
+      shell("kubectl --kubeconfig=${kubeconfigLocation} config set-context \$(kubectl config current-context) --namespace=${namespace}")
+    }
+  }
+
+  static def cleanupKubernetes(def context, def namespace, def kubeconfigLocation) {
+    context.steps {
+      shell("kubectl --kubeconfig=${kubeconfigLocation} delete namespace ${namespace}")
+      shell("rm ${kubeconfigLocation}")
+    }
+  }
+
+  static String getKubernetesNamespace(def testName) {
+    return "${testName}-${new Date().getTime()}"
+  }
+
+  static String getKubeconfigLocationForNamespace(def namespace) {
+    return '"$WORKSPACE/' + "config-${namespace}" + '"'
+  }
+
   // Adds the standard performance test job steps.
   static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
