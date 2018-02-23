@@ -171,7 +171,7 @@ def _get_worker_count(pipeline_options):
           re.match(r'worker_threads=(?P<worker_threads>.*)',
                    experiment).group('worker_threads'))
 
-  return 1
+  return 12
 
 
 def _load_main_session(semi_persistent_directory):
