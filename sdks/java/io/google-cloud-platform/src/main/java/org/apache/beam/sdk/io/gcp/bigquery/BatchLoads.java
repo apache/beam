@@ -46,11 +46,9 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -208,8 +206,9 @@ class BatchLoads<DestinationT>
   private WriteResult expandTriggered(PCollection<KV<DestinationT, TableRow>> input) {
     checkArgument(numFileShards > 0);
     Pipeline p = input.getPipeline();
-    final PCollectionView<String> jobIdTokenView = createJobIdView(p);
-    final PCollectionView<String> tempFilePrefixView = createTempFilePrefixView(p, jobIdTokenView);
+    final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
+    final PCollectionView<String> tempFilePrefixView =
+        createTempFilePrefixView(p, loadJobIdPrefixView);
     // The user-supplied triggeringDuration is often chosen to to control how many BigQuery load
     // jobs are generated, to prevent going over BigQuery's daily quota for load jobs. If this
     // is set to a large value, currently we have to buffer all the data unti the trigger fires.
@@ -267,7 +266,7 @@ class BatchLoads<DestinationT>
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
-        writeTempTables(partitions.get(multiPartitionsTag), jobIdTokenView);
+        writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
     tempTables
         // Now that the load job has happened, we want the rename to happen immediately.
         .apply(
@@ -283,17 +282,18 @@ class BatchLoads<DestinationT>
             "WriteRenameTriggered",
             ParDo.of(
                     new WriteRename(
-                        bigQueryServices, jobIdTokenView, writeDisposition, createDisposition))
-                .withSideInputs(jobIdTokenView));
-    writeSinglePartition(partitions.get(singlePartitionTag), jobIdTokenView);
+                        bigQueryServices, loadJobIdPrefixView, writeDisposition, createDisposition))
+                .withSideInputs(loadJobIdPrefixView));
+    writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
   }
 
   // Expand the pipeline when the user has not requested periodically-triggered file writes.
   public WriteResult expandUntriggered(PCollection<KV<DestinationT, TableRow>> input) {
     Pipeline p = input.getPipeline();
-    final PCollectionView<String> jobIdTokenView = createJobIdView(p);
-    final PCollectionView<String> tempFilePrefixView = createTempFilePrefixView(p, jobIdTokenView);
+    final PCollectionView<String> loadJobIdPrefixView = createLoadJobIdPrefixView(p);
+    final PCollectionView<String> tempFilePrefixView =
+        createTempFilePrefixView(p, loadJobIdPrefixView);
     PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal",
@@ -329,7 +329,7 @@ class BatchLoads<DestinationT>
                     .withSideInputs(tempFilePrefixView)
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
-        writeTempTables(partitions.get(multiPartitionsTag), jobIdTokenView);
+        writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
 
     tempTables
         .apply("ReifyRenameInput", new ReifyAsIterable<>())
@@ -338,24 +338,28 @@ class BatchLoads<DestinationT>
             "WriteRenameUntriggered",
             ParDo.of(
                     new WriteRename(
-                        bigQueryServices, jobIdTokenView, writeDisposition, createDisposition))
-                .withSideInputs(jobIdTokenView));
-    writeSinglePartition(partitions.get(singlePartitionTag), jobIdTokenView);
+                        bigQueryServices, loadJobIdPrefixView, writeDisposition, createDisposition))
+                .withSideInputs(loadJobIdPrefixView));
+    writeSinglePartition(partitions.get(singlePartitionTag), loadJobIdPrefixView);
     return writeResult(p);
   }
 
   // Generate the base job id string.
-  private PCollectionView<String> createJobIdView(Pipeline p) {
+  private PCollectionView<String> createLoadJobIdPrefixView(Pipeline p) {
     // Create a singleton job ID token at execution time. This will be used as the base for all
     // load jobs issued from this instance of the transform.
     return p.apply("JobIdCreationRoot", Create.of((Void) null))
         .apply(
             "CreateJobId",
-            MapElements.via(
-                new SimpleFunction<Void, String>() {
-                  @Override
-                  public String apply(Void input) {
-                    return BigQueryHelpers.randomUUIDString();
+            ParDo.of(
+                new DoFn<Void, String>() {
+                  @ProcessElement
+                  public void process(ProcessContext c) {
+                    c.output(
+                        String.format(
+                            "beam_load_%s_%s",
+                            c.getPipelineOptions().getJobName().replaceAll("-", ""),
+                            BigQueryHelpers.randomUUIDString()));
                   }
                 }))
         .apply(View.asSingleton());
@@ -510,8 +514,8 @@ class BatchLoads<DestinationT>
   // tables and rename. We can load these files directly into the target BigQuery table.
   void writeSinglePartition(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input,
-      PCollectionView<String> jobIdTokenView) {
-    List<PCollectionView<?>> sideInputs = Lists.newArrayList(jobIdTokenView);
+      PCollectionView<String> loadJobIdPrefixView) {
+    List<PCollectionView<?>> sideInputs = Lists.newArrayList(loadJobIdPrefixView);
     sideInputs.addAll(dynamicDestinations.getSideInputs());
     Coder<KV<ShardedKey<DestinationT>, List<String>>> partitionsCoder =
         KvCoder.of(
@@ -528,7 +532,7 @@ class BatchLoads<DestinationT>
             new WriteTables<>(
                 true,
                 bigQueryServices,
-                jobIdTokenView,
+                loadJobIdPrefixView,
                 writeDisposition,
                 createDisposition,
                 sideInputs,
