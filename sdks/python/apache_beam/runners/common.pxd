@@ -19,6 +19,9 @@ cimport cython
 
 from apache_beam.utils.windowed_value cimport WindowedValue
 from apache_beam.metrics.execution cimport ScopedMetricsContainer
+from apache_beam.transforms.cy_dataflow_distribution_counter cimport DataflowDistributionCounter
+
+from libc.stdint cimport int64_t
 
 
 cdef type TaggedOutput, TimestampedValue
@@ -87,7 +90,8 @@ cdef class DoFnRunner(Receiver):
 
 
 cdef class OutputProcessor(object):
-  @cython.locals(windowed_value=WindowedValue)
+  @cython.locals(windowed_value=WindowedValue,
+                 output_element_count=int64_t)
   cpdef process_outputs(self, WindowedValue element, results)
 
 
@@ -95,7 +99,7 @@ cdef class _OutputProcessor(OutputProcessor):
   cdef object window_fn
   cdef Receiver main_receivers
   cdef object tagged_receivers
-
+  cdef DataflowDistributionCounter per_element_output_counter
 
 cdef class DoFnContext(object):
   cdef object label
