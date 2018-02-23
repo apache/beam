@@ -31,16 +31,6 @@
   <description>Portable definitions for building pipelines</description>
 
   <build>
-    <resources>
-      <resource>
-        <directory>src/main/resources</directory>
-        <filtering>true</filtering>
-      </resource>
-      <resource>
-        <directory>${project.build.directory}/original_sources_to_package</directory>
-      </resource>
-    </resources>
-
     <plugins>
       <!-- Skip the checkstyle plugin on generated code -->
       <plugin>

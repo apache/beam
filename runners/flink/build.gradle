@@ -65,7 +65,6 @@ dependencies {
   shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
   shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest project(":model:fn-execution").sourceSets.test.output
   shadowTest project(":runners:core-java").sourceSets.test.output
   shadowTest library.java.commons_lang3
   shadowTest library.java.hamcrest_core

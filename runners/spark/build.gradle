@@ -75,7 +75,6 @@ dependencies {
   provided "com.esotericsoftware.kryo:kryo:2.21"
   testCompile project(path: ":sdks:java:io:kafka", configuration: "shadow")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":model:fn-execution").sourceSets.test.output
   testCompile project(":runners:core-java").sourceSets.test.output
   testCompile library.java.avro
   testCompile library.java.kafka_clients
