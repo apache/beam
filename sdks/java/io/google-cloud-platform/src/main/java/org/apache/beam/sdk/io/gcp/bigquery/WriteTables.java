@@ -61,6 +61,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Writes partitions to BigQuery tables.
@@ -77,10 +79,11 @@ import org.apache.beam.sdk.values.TupleTagList;
 class WriteTables<DestinationT>
   extends PTransform<PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
     PCollection<KV<TableDestination, String>>> {
+  private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
-  private final PCollectionView<String> jobIdToken;
+  private final PCollectionView<String> loadJobIdPrefixView;
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
@@ -141,7 +144,7 @@ class WriteTables<DestinationT>
       Integer partition = c.element().getKey().getShardNumber();
       List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
       String jobIdPrefix = BigQueryHelpers.createJobId(
-          c.sideInput(jobIdToken), tableDestination, partition, c.pane().getIndex());
+          c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (!singlePartition) {
         tableReference.setTableId(jobIdPrefix);
@@ -180,14 +183,14 @@ class WriteTables<DestinationT>
   public WriteTables(
       boolean singlePartition,
       BigQueryServices bqServices,
-      PCollectionView<String> jobIdToken,
+      PCollectionView<String> loadJobIdPrefixView,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
       DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
-    this.jobIdToken = jobIdToken;
+    this.loadJobIdPrefixView = loadJobIdPrefixView;
     this.firstPaneWriteDisposition = writeDisposition;
     this.firstPaneCreateDisposition = createDisposition;
     this.sideInputs = sideInputs;
@@ -255,11 +258,15 @@ class WriteTables<DestinationT>
     for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
       String jobId = jobIdPrefix + "-" + i;
       JobReference jobRef = new JobReference().setProjectId(projectId).setJobId(jobId);
+      LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
       jobService.startLoadJob(jobRef, loadConfig);
+      LOG.info("Load job {} started", jobRef);
       Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
       switch (jobStatus) {
         case SUCCEEDED:
+          LOG.info(
+              "Load job {} succeeded. Statistics: {}", jobRef, loadJob.getStatistics());
           if (tableDescription != null) {
             datasetService.patchTableDescription(
                 ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
@@ -267,18 +274,25 @@ class WriteTables<DestinationT>
           }
           return;
         case UNKNOWN:
+          LOG.info(
+              "Load job {} finished in unknown state: {}", jobRef, loadJob.getStatus());
           throw new RuntimeException(
               String.format(
                   "UNKNOWN status of load job [%s]: %s.",
                   jobId, BigQueryHelpers.jobToPrettyString(loadJob)));
         case FAILED:
+          LOG.info(
+              "Load job {} failed, {}: {}",
+              jobRef,
+              (i < BatchLoads.MAX_RETRY_JOBS - 1) ? "will retry" : "will not retry",
+              loadJob.getStatus());
           lastFailedLoadJob = loadJob;
           continue;
         default:
           throw new IllegalStateException(
               String.format(
                   "Unexpected status [%s] of load job: %s.",
-                  jobStatus, BigQueryHelpers.jobToPrettyString(loadJob)));
+                  loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
       }
     }
     throw new RuntimeException(
