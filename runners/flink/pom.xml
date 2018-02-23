@@ -387,6 +387,7 @@
       <scope>test</scope>
     </dependency>
 
+    <!-- FlinkStateInternalsTest extends abstract StateInternalsTest -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-java</artifactId>
