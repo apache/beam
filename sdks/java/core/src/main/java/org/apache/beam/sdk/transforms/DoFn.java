@@ -46,6 +46,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -574,6 +575,59 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   public @interface ProcessElement {}
+
+  /**
+   * Annotation to the method for processing element retractions.
+   *
+   * <p>It is similar to {@link ProcessElement} but the annotated function is supposed to "undo"
+   * the effects of the input element.
+   *
+   * <p>If the {@link PTransform} is pure (annotated with {@link Pure}),
+   * then {@link ProcessRetraction} method is not required, and retractions will be processed
+   * by the {@link ProcessElement} method as normal elements.
+   *
+   * <p>{@link DoFn}s must have either {@link Pure} or {@link ProcessRetraction} methods to support
+   * retractions. Pipelines will be rejected by Beam if the accumulation mode
+   * is {@link AccumulationMode#ACCUMULATING_AND_RETRACTING_FIRED_PLANES}
+   * but some {@link DoFn}s don't have one of these annotations.
+   *
+   * <p>If the pipeline accumulation mode is not
+   * {@link AccumulationMode#ACCUMULATING_AND_RETRACTING_FIRED_PLANES}, then neither {@link Pure}
+   * nor {@link ProcessRetraction} is required.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface ProcessRetraction {}
+
+  /**
+   * Annotates the pure {@link DoFn}s.
+   *
+   * <p>Used together with {@link ProcessElement}.
+   *
+   * <p>{@link DoFn}s annotated with {@link Pure} are assumed by Beam to produce
+   * the same result for the same input and not produce observable side effects
+   * (from Beam's perspective).
+   *
+   * <p>In few cases Beam needs to know how the {@link DoFn} behaves
+   * to guarantee correct results. For example, marking it as {@link Pure}
+   * allows the elements retractions to be transparently processed without adding extra methods to
+   * the {@link DoFn}. If the {@link DoFn} is not pure, then it has to explicitly define
+   * {@link ProcessRetraction} method similar to {@link ProcessElement} to be able to process
+   * retractions of the elements.
+   *
+   * <p>{@link DoFn}s must have either {@link Pure} or {@link ProcessRetraction} methods to support
+   * retractions. Pipelines will be rejected by Beam if the accumulation mode
+   * is {@link AccumulationMode#ACCUMULATING_AND_RETRACTING_FIRED_PLANES}
+   * but some {@link DoFn}s don't have one of these annotations.
+   *
+   * <p>If the pipeline accumulation mode is not
+   * {@link AccumulationMode#ACCUMULATING_AND_RETRACTING_FIRED_PLANES}, then neither {@link Pure}
+   * nor {@link ProcessRetraction} is required.
+   */
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target({ElementType.METHOD})
+  public@interface Pure {}
 
   /**
    * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
