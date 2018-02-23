@@ -65,6 +65,10 @@
     </pluginManagement>
   </build>
 
+  <properties>
+    <io_gcp_grpc.version>1.9.1</io_gcp_grpc.version>
+  </properties>
+
   <profiles>
     <!-- This profile invokes PerfKitBenchmarker, which does benchmarking of
          the IO ITs. The arguments passed to it allow it to invoke mvn again
@@ -180,6 +184,7 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-core</artifactId>
+      <version>${io_gcp_grpc.version}</version>
     </dependency>
 
     <dependency>
@@ -230,21 +235,25 @@
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-auth</artifactId>
+      <version>${io_gcp_grpc.version}</version>
     </dependency>
 
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-netty</artifactId>
+      <version>${io_gcp_grpc.version}</version>
     </dependency>
 
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-handler</artifactId>
+      <version>4.1.17.Final</version>
     </dependency>
 
     <dependency>
       <groupId>io.grpc</groupId>
       <artifactId>grpc-stub</artifactId>
+      <version>${io_gcp_grpc.version}</version>
     </dependency>
 
     <!-- grpc-all does not obey IWYU, so we need to exclude from compile
@@ -253,6 +262,7 @@
       <groupId>io.grpc</groupId>
       <artifactId>grpc-all</artifactId>
       <scope>runtime</scope>
+      <version>${io_gcp_grpc.version}</version>
     </dependency>
 
     <dependency>
@@ -329,6 +339,7 @@
       <groupId>io.netty</groupId>
       <artifactId>netty-tcnative-boringssl-static</artifactId>
       <scope>runtime</scope>
+      <version>2.0.7.Final</version>
     </dependency>
 
     <dependency>
@@ -392,6 +403,12 @@
       <scope>test</scope>
     </dependency>
     
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>

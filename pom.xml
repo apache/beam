@@ -111,7 +111,7 @@
     <avro.version>1.8.2</avro.version>
     <bigquery.version>v2-rev374-1.22.0</bigquery.version>
     <bigtable.version>1.0.0</bigtable.version>
-    <bigtable.proto.version>1.0.0-pre3</bigtable.proto.version>
+    <bigtable.proto.version>1.0.0</bigtable.proto.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
@@ -145,7 +145,7 @@
     <mockito.version>1.9.5</mockito.version>
     <netty.version>4.1.8.Final</netty.version>
     <netty.tcnative.version>1.1.33.Fork26</netty.tcnative.version>
-    <protobuf.version>3.2.0</protobuf.version>
+    <protobuf.version>3.5.1</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.25</slf4j.version>
     <spanner.version>0.20.0-beta</spanner.version>
@@ -1461,6 +1461,13 @@
         <groupId>com.google.guava</groupId>
         <artifactId>guava-testlib</artifactId>
         <version>${guava.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.mockito</groupId>
+        <artifactId>mockito-core</artifactId>
+        <version>${mockito.version}</version>
         <scope>test</scope>
       </dependency>
 
