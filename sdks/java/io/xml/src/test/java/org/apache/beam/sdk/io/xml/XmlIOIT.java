@@ -64,7 +64,9 @@ import org.junit.runners.JUnit4;
 public class XmlIOIT {
 
   private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
-    100_000, "af7775de90d0b0c8bbc36273fbca26fe"
+    1000, "7f51adaf701441ee83459a3f705c1b86",
+    100_000, "af7775de90d0b0c8bbc36273fbca26fe",
+    100_000_000, "bfee52b33aa1552b9c1bfa8bcc41ae80"
   );
 
   private static Integer numberOfRecords;
