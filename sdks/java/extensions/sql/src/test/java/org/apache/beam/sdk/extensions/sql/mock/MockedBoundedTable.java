@@ -62,7 +62,7 @@ public class MockedBoundedTable extends MockedTable {
    *       Types.TIMESTAMP, "order_time")
    * }</pre>
    */
-  public static MockedBoundedTable of(final Object... args){
+  public static MockedBoundedTable of(final Object... args) {
     return new MockedBoundedTable(buildBeamSqlRowType(args));
   }
 

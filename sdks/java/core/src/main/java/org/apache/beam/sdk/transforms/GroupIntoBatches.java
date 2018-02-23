@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  * .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())))
  * .apply(ParDo.of(new DoFn<KV<String, Iterable<String>>, KV<String, String>>() {
  * {@literal @}ProcessElement
- * public void processElement(ProcessContext c){
+ * public void processElement(ProcessContext c) {
  * c.output(KV.of(c.element().getKey(), callWebService(c.element().getValue())));
  * }
  * }));

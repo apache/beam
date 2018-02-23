@@ -49,7 +49,7 @@ public class ExposedByteArrayOutputStreamTest {
   }
 
   @Test
-  public void testWriteZeroLengthArrayWithOffset(){
+  public void testWriteZeroLengthArrayWithOffset() {
     writeToBoth(new byte[0], 0, 0);
     assertStreamContentsEquals(stream, exposedStream);
   }

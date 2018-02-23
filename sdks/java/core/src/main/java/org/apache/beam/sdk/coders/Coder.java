@@ -325,7 +325,7 @@ public abstract class Coder<T> implements Serializable {
    * Returns the {@link TypeDescriptor} for the type encoded.
    */
   @Experimental(Kind.CODER_TYPE_ENCODING)
-  public TypeDescriptor<T> getEncodedTypeDescriptor(){
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return (TypeDescriptor<T>)
         TypeDescriptor.of(getClass()).resolveType(new TypeDescriptor<T>() {}.getType());
   }

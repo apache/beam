@@ -123,7 +123,7 @@ public class DisplayDataMatchersTest {
     Matcher<DisplayData> matcher = hasDisplayItem(hasNamespace(SampleTransform.class));
 
     assertFalse(matcher.matches(DisplayData.from(
-        new PTransform<PCollection<String>, PCollection<String>>(){
+        new PTransform<PCollection<String>, PCollection<String>>() {
           @Override
           public PCollection<String> expand(PCollection<String> input) {
             throw new IllegalArgumentException("Should never be applied");

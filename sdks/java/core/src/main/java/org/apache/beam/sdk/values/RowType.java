@@ -99,42 +99,42 @@ public abstract class RowType implements Serializable{
   /**
    * Return the coder for {@link Row}, which wraps {@link #fieldCoders} for each field.
    */
-  public RowCoder getRowCoder(){
+  public RowCoder getRowCoder() {
     return RowCoder.of(this, fieldCoders());
   }
 
   /**
    * Return the field coder for {@code index}.
    */
-  public Coder getFieldCoder(int index){
+  public Coder getFieldCoder(int index) {
     return fieldCoders().get(index);
   }
 
   /**
    * Returns an immutable list of field names.
    */
-  public List<String> getFieldNames(){
+  public List<String> getFieldNames() {
     return ImmutableList.copyOf(fieldNames());
   }
 
   /**
    * Return the name of field by index.
    */
-  public String getFieldName(int index){
+  public String getFieldName(int index) {
     return fieldNames().get(index);
   }
 
   /**
    * Find the index of a given field.
    */
-  public int indexOf(String fieldName){
+  public int indexOf(String fieldName) {
     return fieldNames().indexOf(fieldName);
   }
 
   /**
    * Return the count of fields.
    */
-  public int getFieldCount(){
+  public int getFieldCount() {
     return fieldNames().size();
   }
 }

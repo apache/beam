@@ -35,7 +35,7 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 
   protected String resultPath;
 
-  public ReadSourceITCase(){
+  public ReadSourceITCase() {
   }
 
   private static final String[] EXPECTED_RESULT = new String[] {

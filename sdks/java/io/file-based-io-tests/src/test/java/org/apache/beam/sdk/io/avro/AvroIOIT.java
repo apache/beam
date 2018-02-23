@@ -127,7 +127,7 @@ public class AvroIOIT {
 
   private static class DeterministicallyConstructAvroRecordsFn extends DoFn<String, GenericRecord> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       c.output(
           new GenericRecordBuilder(AVRO_SCHEMA).set("row", c.element()).build()
       );
@@ -136,7 +136,7 @@ public class AvroIOIT {
 
   private static class ParseAvroRecordsFn extends DoFn<GenericRecord, String> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       c.output(String.valueOf(c.element().get("row")));
     }
   }

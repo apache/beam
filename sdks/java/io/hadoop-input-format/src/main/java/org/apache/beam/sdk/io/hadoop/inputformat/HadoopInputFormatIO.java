@@ -534,7 +534,7 @@ public class HadoopInputFormatIO {
     }
 
     @VisibleForTesting
-    InputFormat<?, ?> getInputFormat(){
+    InputFormat<?, ?> getInputFormat() {
       return inputFormatObj;
     }
 

@@ -1148,7 +1148,7 @@ public class BigtableIOTest {
       return true;
     }
 
-    private boolean rangesContainsKey(List<ByteKeyRange> ranges, ByteKey key){
+    private boolean rangesContainsKey(List<ByteKeyRange> ranges, ByteKey key) {
       for (ByteKeyRange range : ranges) {
         if (range.containsKey(key)) {
           return true;
