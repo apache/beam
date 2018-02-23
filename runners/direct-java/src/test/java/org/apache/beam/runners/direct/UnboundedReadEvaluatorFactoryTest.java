@@ -278,7 +278,7 @@ public class UnboundedReadEvaluatorFactoryTest {
   public void evaluatorReusesReaderAndClosesAtTheEnd() throws Exception {
     int numElements = 1000;
     ContiguousSet<Long> elems = ContiguousSet.create(
-      Range.openClosed(0L, Long.valueOf(numElements)), DiscreteDomain.longs());
+      Range.openClosed(0L, (long) numElements), DiscreteDomain.longs());
     TestUnboundedSource<Long> source =
         new TestUnboundedSource<>(BigEndianLongCoder.of(), elems.toArray(new Long[0]));
     source.advanceWatermarkToInfinity = true;

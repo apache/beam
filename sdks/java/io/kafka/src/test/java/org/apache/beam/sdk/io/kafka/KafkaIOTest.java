@@ -572,7 +572,7 @@ public class KafkaIOTest {
         elementsRead.namespace(),
         elementsRead.name(),
         "readFromKafka",
-        Long.valueOf(numElements))));
+              (long) numElements)));
   }
 
   private static class RemoveKafkaMetadata<K, V> extends DoFn<KafkaRecord<K, V>, KV<K, V>> {
