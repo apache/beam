@@ -105,13 +105,14 @@
       <scope>provided</scope>
     </dependency>
 
-    <!-- Test dependencies -->
+    <!-- We ship test utilities but the user needs to provide JUnit -->
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
-    
+
+    <!-- Test dependencies -->
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-core</artifactId>
