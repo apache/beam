@@ -38,7 +38,7 @@ class CreateTest(unittest.TestCase):
     self.check_read([], self.coder)
     self.check_read([1], self.coder)
     # multiple values.
-    self.check_read(list(range(10)), self.coder)
+    self.check_read(range(10), self.coder)
 
   def check_read(self, values, coder):
     source = Create._create_source_from_iterable(values, coder)
@@ -48,7 +48,7 @@ class CreateTest(unittest.TestCase):
   def test_create_source_read_with_initial_splits(self):
     self.check_read_with_initial_splits([], self.coder, num_splits=2)
     self.check_read_with_initial_splits([1], self.coder, num_splits=2)
-    values = list(range(8))
+    values = range(8)
     # multiple values with a single split.
     self.check_read_with_initial_splits(values, self.coder, num_splits=1)
     # multiple values with a single split with a large desired bundle size

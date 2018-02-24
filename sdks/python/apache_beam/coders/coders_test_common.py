@@ -143,9 +143,9 @@ class CodersTest(unittest.TestCase):
 
   def test_varint_coder(self):
     # Small ints.
-    self.check_coder(coders.VarIntCoder(), *list(range(-10, 10)))
+    self.check_coder(coders.VarIntCoder(), *range(-10, 10))
     # Multi-byte encoding starts at 128
-    self.check_coder(coders.VarIntCoder(), *list(range(120, 140)))
+    self.check_coder(coders.VarIntCoder(), *range(120, 140))
     # Large values
     MAX_64_BIT_INT = 0x7fffffffffffffff
     self.check_coder(coders.VarIntCoder(),

@@ -143,9 +143,9 @@ class CoGroupByKey(PTransform):
       # If pcolls is a dict, we turn it into (tag, pcoll) pairs for use in the
       # general-purpose code below. The result value constructor creates dicts
       # whose keys are the tags.
-      result_ctor_arg = list(pcolls.keys())
+      result_ctor_arg = pcolls.keys()
       result_ctor = lambda tags: dict((tag, []) for tag in tags)
-      pcolls = list(pcolls.items())
+      pcolls = pcolls.items()
     except AttributeError:
       # Otherwise, pcolls is a list/tuple, so we turn it into (index, pcoll)
       # pairs. The result value constructor makes tuples with len(pcolls) slots.
@@ -285,7 +285,7 @@ class _BatchSizeEstimator(object):
           self._min_batch_size + 1))
 
     # Linear regression for y = a + bx, where x is batch size and y is time.
-    xs, ys = list(zip(*self._data))
+    xs, ys = zip(*self._data)
     n = float(len(self._data))
     xbar = sum(xs) / n
     ybar = sum(ys) / n
@@ -362,7 +362,7 @@ class _WindowAwareBatchingDoFn(DoFn):
       self._batch_size = self._batch_size_estimator.next_batch_size()
     elif len(self._batches) > self._MAX_LIVE_WINDOWS:
       window, _ = sorted(
-          list(self._batches.items()),
+          self._batches.items(),
           key=lambda window_batch: len(window_batch[1]),
           reverse=True)[0]
       with self._batch_size_estimator.record_time(self._batch_size):

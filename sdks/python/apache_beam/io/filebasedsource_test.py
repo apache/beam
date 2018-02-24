@@ -183,7 +183,7 @@ class TestConcatSource(unittest.TestCase):
     filebasedsource.MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 2
 
   def test_read(self):
-    sources = [TestConcatSource.DummySource(list(range(start, start + 10)))
+    sources = [TestConcatSource.DummySource(range(start, start + 10))
                for start in [0, 10, 20]]
     concat = ConcatSource(sources)
     range_tracker = concat.get_range_tracker(None, None)
@@ -191,7 +191,7 @@ class TestConcatSource(unittest.TestCase):
     self.assertItemsEqual(list(range(30)), read_data)
 
   def test_split(self):
-    sources = [TestConcatSource.DummySource(list(range(start, start + 10)))
+    sources = [TestConcatSource.DummySource(range(start, start + 10))
                for start in [0, 10, 20]]
     concat = ConcatSource(sources)
     splits = [split for split in concat.split()]
@@ -208,7 +208,7 @@ class TestConcatSource(unittest.TestCase):
     self.assertItemsEqual(list(range(30)), read_data)
 
   def test_estimate_size(self):
-    sources = [TestConcatSource.DummySource(list(range(start, start + 10)))
+    sources = [TestConcatSource.DummySource(range(start, start + 10))
                for start in [0, 10, 20]]
     concat = ConcatSource(sources)
     self.assertEquals(30, concat.estimate_size())

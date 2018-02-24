@@ -61,7 +61,7 @@ class StreamTest(unittest.TestCase):
     self.assertEquals(0xFF, in_s.read_byte())
 
   def test_read_write_large(self):
-    values = list(range(4 * 1024))
+    values = range(4 * 1024)
     out_s = self.OutputStream()
     for v in values:
       out_s.write_bigendian_int64(v)
@@ -78,7 +78,7 @@ class StreamTest(unittest.TestCase):
       self.assertEquals(v, in_s.read_var_int64())
 
   def test_small_var_int64(self):
-    self.run_read_write_var_int64(list(range(-10, 30)))
+    self.run_read_write_var_int64(range(-10, 30))
 
   def test_medium_var_int64(self):
     base = -1.7

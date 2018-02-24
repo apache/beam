@@ -1728,7 +1728,7 @@ class Create(PTransform):
       raise TypeError('PTransform Create: Refusing to treat string as '
                       'an iterable. (string=%r)' % value)
     elif isinstance(value, dict):
-      value = list(value.items())
+      value = value.items()
     self.value = tuple(value)
 
   def infer_output_type(self, unused_input_type):
