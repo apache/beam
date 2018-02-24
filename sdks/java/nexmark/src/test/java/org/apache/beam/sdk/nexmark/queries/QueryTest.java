@@ -48,7 +48,7 @@ public class QueryTest {
   static {
     // careful, results of tests are linked to numEventGenerators because of timestamp generation
     CONFIG.numEventGenerators = 1;
-    CONFIG.numEvents = 1000;
+    CONFIG.numEvents = 5000;
   }
 
   @Rule public TestPipeline p = TestPipeline.create();
