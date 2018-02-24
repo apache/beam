@@ -80,10 +80,10 @@ class ConsumerSpEL {
     }
   }
 
-  public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartitions) {
+  public void evaluateSeek2End(Consumer consumer, TopicPartition topicPartition) {
     StandardEvaluationContext mapContext = new StandardEvaluationContext();
     mapContext.setVariable("consumer", consumer);
-    mapContext.setVariable("tp", topicPartitions);
+    mapContext.setVariable("tp", topicPartition);
     seek2endExpression.getValue(mapContext);
   }
 
@@ -95,11 +95,19 @@ class ConsumerSpEL {
   }
 
   public long getRecordTimestamp(ConsumerRecord<byte[], byte[]> rawRecord) {
-    long timestamp;
-    if (!hasRecordTimestamp || (timestamp = rawRecord.timestamp()) <= 0L) {
-      timestamp = System.currentTimeMillis();
+    if (hasRecordTimestamp) {
+      return rawRecord.timestamp();
     }
-    return timestamp;
+    return -1L; // This is the timestamp used in Kafka for older messages without timestamps.
+  }
+
+  public KafkaTimestampType getRecordTimestamptType(
+    ConsumerRecord<byte[], byte[]> rawRecord) {
+    if (hasRecordTimestamp) {
+      return KafkaTimestampType.forOrdinal(rawRecord.timestampType().ordinal());
+    } else {
+      return KafkaTimestampType.NO_TIMESTAMP_TYPE;
+    }
   }
 
   public boolean hasOffsetsForTimes() {
