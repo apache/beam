@@ -290,7 +290,7 @@ class GrpcStateHandler(object):
     while not future.wait(timeout=1):
       if self._exc_info:
         t, v, tb = self._exc_info
-        six.raise_from(t, v, tb)
+        six.reraise(t, v, tb)
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]

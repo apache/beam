@@ -184,7 +184,7 @@ class _GrpcDataChannel(DataChannel):
         except queue.Empty:
           if self._exc_info:
             t, v, tb = self._exc_info
-            six.raise_from(t, v, tb)
+            six.reraise(t, v, tb)
         else:
           if not data.data and data.target in expected_targets:
             done_targets.append(data.target)
