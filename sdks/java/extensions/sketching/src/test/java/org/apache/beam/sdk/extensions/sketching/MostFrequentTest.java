@@ -67,7 +67,7 @@ public class MostFrequentTest implements Serializable {
 
   private List<Integer> smallStream = initList();
 
-  static List<Integer> initList() {
+  private static List<Integer> initList() {
     List<Integer> list = Arrays.asList(
             1,
             2, 2,
