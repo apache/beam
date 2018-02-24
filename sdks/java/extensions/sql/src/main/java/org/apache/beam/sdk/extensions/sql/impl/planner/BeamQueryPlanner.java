@@ -74,7 +74,7 @@ public class BeamQueryPlanner {
   public static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(
       RelDataTypeSystem.DEFAULT);
 
-  public BeamQueryPlanner(SchemaPlus schema) {
+  public BeamQueryPlanner(BeamSqlEnv sqlEnv, SchemaPlus schema) {
     String defaultCharsetKey = "saffron.default.charset";
     if (System.getProperty(defaultCharsetKey) == null) {
       System.setProperty(defaultCharsetKey, ConversionUtil.NATIVE_UTF16_CHARSET_NAME);
@@ -94,12 +94,17 @@ public class BeamQueryPlanner {
         new CalciteCatalogReader(
             CalciteSchema.from(schema), Collections.emptyList(), TYPE_FACTORY, null));
 
-    FrameworkConfig config = Frameworks.newConfigBuilder()
-        .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build()).defaultSchema(schema)
-        .traitDefs(traitDefs).context(Contexts.EMPTY_CONTEXT).ruleSets(BeamRuleSets.getRuleSets())
-        .costFactory(null).typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
-        .operatorTable(new ChainedSqlOperatorTable(sqlOperatorTables))
-        .build();
+    FrameworkConfig config =
+        Frameworks.newConfigBuilder()
+            .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build())
+            .defaultSchema(schema)
+            .traitDefs(traitDefs)
+            .context(Contexts.EMPTY_CONTEXT)
+            .ruleSets(BeamRuleSets.getRuleSets(sqlEnv))
+            .costFactory(null)
+            .typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
+            .operatorTable(new ChainedSqlOperatorTable(sqlOperatorTables))
+            .build();
     this.planner = Frameworks.getPlanner(config);
 
     for (String t : schema.getTableNames()) {
@@ -124,7 +129,7 @@ public class BeamQueryPlanner {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
     // the input PCollectionTuple is empty, and be rebuilt in BeamIOSourceRel.
-    return relNode.buildBeamPipeline(PCollectionTuple.empty(basePipeline), sqlEnv);
+    return PCollectionTuple.empty(basePipeline).apply(relNode.toPTransform());
   }
 
   /**

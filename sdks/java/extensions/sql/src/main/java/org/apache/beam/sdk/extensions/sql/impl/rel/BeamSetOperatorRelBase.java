@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.io.Serializable;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -62,12 +61,13 @@ public class BeamSetOperatorRelBase {
     this.all = all;
   }
 
-  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    PCollection<Row> leftRows = BeamSqlRelUtils.getBeamRelInput(inputs.get(0))
-        .buildBeamPipeline(inputPCollections, sqlEnv);
-    PCollection<Row> rightRows = BeamSqlRelUtils.getBeamRelInput(inputs.get(1))
-        .buildBeamPipeline(inputPCollections, sqlEnv);
+  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections) {
+    PCollection<Row> leftRows =
+        inputPCollections.apply(
+            "left", BeamSqlRelUtils.getBeamRelInput(inputs.get(0)).toPTransform());
+    PCollection<Row> rightRows =
+        inputPCollections.apply(
+            "right", BeamSqlRelUtils.getBeamRelInput(inputs.get(1)).toPTransform());
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();

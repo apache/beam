@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamJoinRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.calcite.plan.Convention;
@@ -26,28 +27,32 @@ import org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.logical.LogicalJoin;
 
-/**
- * {@code ConverterRule} to replace {@code Join} with {@code BeamJoinRel}.
- */
+/** {@code ConverterRule} to replace {@code Join} with {@code BeamJoinRel}. */
 public class BeamJoinRule extends ConverterRule {
-  public static final BeamJoinRule INSTANCE = new BeamJoinRule();
-  private BeamJoinRule() {
-    super(LogicalJoin.class, Convention.NONE,
-        BeamLogicalConvention.INSTANCE, "BeamJoinRule");
+  private final BeamSqlEnv sqlEnv;
+
+  public static BeamJoinRule forSqlEnv(BeamSqlEnv sqlEnv) {
+    return new BeamJoinRule(sqlEnv);
   }
 
-  @Override public RelNode convert(RelNode rel) {
+  private BeamJoinRule(BeamSqlEnv sqlEnv) {
+    super(LogicalJoin.class, Convention.NONE, BeamLogicalConvention.INSTANCE, "BeamJoinRule");
+    this.sqlEnv = sqlEnv;
+  }
+
+  @Override
+  public RelNode convert(RelNode rel) {
     Join join = (Join) rel;
     return new BeamJoinRel(
+        sqlEnv,
         join.getCluster(),
         join.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
-        convert(join.getLeft(),
-            join.getLeft().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
-        convert(join.getRight(),
-            join.getRight().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+        convert(
+            join.getLeft(), join.getLeft().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
+        convert(
+            join.getRight(), join.getRight().getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         join.getCondition(),
         join.getVariablesSet(),
-        join.getJoinType()
-    );
+        join.getJoinType());
   }
 }
