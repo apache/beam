@@ -109,7 +109,7 @@
 
         To invoke this, run:
 
-        mvn verify -Dio-it-suite -pl sdks/java/io/hadoop/input-format
+        mvn verify -Dio-it-suite -pl sdks/java/io/hadoop-input-format
             -DpkbLocation="path-to-pkb.py" \
             -DintegrationTestPipelineOptions='["-tempRoot=gs://bucket/staging"]'
     -->
@@ -121,7 +121,7 @@
       <properties>
         <!-- This is based on the location of the current pom relative to the root
              See discussion in BEAM-2460 -->
-        <beamRootProjectDir>${project.parent.parent.parent.parent.parent.basedir}</beamRootProjectDir>
+        <beamRootProjectDir>${project.parent.parent.parent.parent.basedir}</beamRootProjectDir>
       </properties>
       <build>
         <plugins>
@@ -170,7 +170,7 @@
                 <argument>${pkbBeamRunnerProfile}</argument>
                 <argument>${pkbBeamRunnerOption}</argument>
                 <!-- specific to this IO -->
-                <argument>-beam_it_module=sdks/java/io/hadoop/input-format</argument>
+                <argument>-beam_it_module=sdks/java/io/hadoop-input-format</argument>
                 <argument>-beam_it_class=org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT</argument>
                 <argument>-beam_options_config_file=${beamRootProjectDir}/.test-infra/kubernetes/postgres/pkb-config.yml</argument>
                 <argument>-beam_kubernetes_scripts=${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres.yml</argument>
@@ -182,7 +182,6 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
-            <version>${surefire-plugin.version}</version>
             <configuration>
               <skipTests>true</skipTests>
             </configuration>
@@ -202,7 +201,7 @@
       <properties>
         <!-- This is based on the location of the current pom relative to the root
              See discussion in BEAM-2460 -->
-        <beamRootProjectDir>${project.parent.parent.parent.parent.parent.basedir}</beamRootProjectDir>
+        <beamRootProjectDir>${project.parent.parent.parent.parent.basedir}</beamRootProjectDir>
       </properties>
       <build>
         <plugins>
@@ -251,7 +250,7 @@
                 <argument>${pkbBeamRunnerProfile}</argument>
                 <argument>${pkbBeamRunnerOption}</argument>
                 <!-- specific to this IO -->
-                <argument>-beam_it_module=sdks/java/io/hadoop/input-format</argument>
+                <argument>-beam_it_module=sdks/java/io/hadoop-input-format</argument>
                 <argument>-beam_it_class=org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT</argument>
                 <argument>-beam_options_config_file=${beamRootProjectDir}/.test-infra/kubernetes/postgres/pkb-config-local.yml</argument>
                 <argument>-beam_kubernetes_scripts=${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres.yml,${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml</argument>
@@ -264,7 +263,6 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
-            <version>${surefire-plugin.version}</version>
             <configuration>
               <skipTests>true</skipTests>
             </configuration>
