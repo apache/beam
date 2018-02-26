@@ -29,7 +29,17 @@ import org.apache.beam.sdk.values.Row;
 @Experimental
 public interface BeamSqlSeekableTable extends Serializable{
   /**
+   * prepare the instance.
+   */
+  void setup();
+
+  /**
    * return a list of {@code Row} with given key set.
    */
   List<Row> seekRow(Row lookupSubRow);
+
+  /**
+   * cleanup resources of the instance.
+   */
+  void teardown();
 }
