@@ -66,7 +66,10 @@
   </build>
 
   <properties>
+    <!-- gRPC and netty dependencies are overriden for google-cloud-platform module. -->
     <io_gcp_grpc.version>1.9.1</io_gcp_grpc.version>
+    <io_gcp_netty.version>4.1.17.Final</io_gcp_netty.version>
+    <io_gcp_netty_tcnative.version>2.0.7.Final</io_gcp_netty_tcnative.version>
   </properties>
 
   <profiles>
@@ -247,7 +250,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-handler</artifactId>
-      <version>4.1.17.Final</version>
+      <version>${io_gcp_netty.version}</version>
     </dependency>
 
     <dependency>
@@ -339,7 +342,7 @@
       <groupId>io.netty</groupId>
       <artifactId>netty-tcnative-boringssl-static</artifactId>
       <scope>runtime</scope>
-      <version>2.0.7.Final</version>
+      <version>${io_gcp_netty_tcnative.version}</version>
     </dependency>
 
     <dependency>

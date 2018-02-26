@@ -19,7 +19,11 @@
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(enableFindbugs: false)
 
+
+// gRPC and netty dependencies are overridden for google-cloud-platform subproject.
 def io_gcp_grpc_version = "1.9.1"
+def io_gcp_netty_version = "4.1.17.Final"
+def io_gcp_netty_tcnative_version = "2.0.7.Final"
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 
@@ -50,7 +54,7 @@ dependencies {
   shadow library.java.datastore_v1_protos
   shadow "io.grpc:grpc-auth:$io_gcp_grpc_version"
   shadow "io.grpc:grpc-netty:$io_gcp_grpc_version"
-  shadow "io.netty:netty-handler:4.1.17.Final"
+  shadow "io.netty:netty-handler:$io_gcp_netty_version"
   shadow "io.grpc:grpc-stub:$io_gcp_grpc_version"
   shadow library.java.joda_time
   shadow library.java.google_cloud_core
@@ -69,7 +73,7 @@ dependencies {
   shadow library.java.proto_google_cloud_spanner_admin_database_v1
   shadow library.java.proto_google_common_protos
   shadow "io.grpc:grpc-all:$io_gcp_grpc_version"
-  shadow "io.netty:netty-tcnative-boringssl-static:2.0.7.Final"
+  shadow "io.netty:netty-tcnative-boringssl-static:$io_gcp_netty_tcnative_version"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":sdks:java:extensions:google-cloud-platform-core").sourceSets.test.output
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
