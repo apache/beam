@@ -710,30 +710,30 @@ instrumenting your pipeline code.</p>
 <p><strong>To run this example in Java:</strong></p>
 
 <div class="runner-direct highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+     -Dexec.args="--output=counts" -Pdirect-runner
 </code></pre>
 </div>
 
 <div class="runner-apex highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+     -Dexec.args="--output=counts --runner=ApexRunner" -Papex-runner
 </code></pre>
 </div>
 
 <div class="runner-flink-local highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+     -Dexec.args="--runner=FlinkRunner --output=counts" -Pflink-runner
 </code></pre>
 </div>
 
 <div class="runner-flink-cluster highlighter-rouge"><pre class="highlight"><code>$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=&lt;flink master&gt; --filesToStage=target/word-count-beam-bundled-0.1.jar \
-                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+                  --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://&lt;flink master&gt;:8081
 </code></pre>
 </div>
 
 <div class="runner-spark highlighter-rouge"><pre class="highlight"><code>$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+     -Dexec.args="--runner=SparkRunner --output=counts" -Pspark-runner
 </code></pre>
 </div>
 
