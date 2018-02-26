@@ -15,29 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql;
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Interface to create a UDF in Beam SQL.
- *
- * <p>A static method {@code eval} is required. Here is an example:
- *
- * <blockquote><pre>
- * public static class MyLeftFunction {
- *   public String eval(
- *       &#64;Parameter(name = "s") String s,
- *       &#64;Parameter(name = "n", optional = true) Integer n) {
- *     return s.substring(0, n == null ? 1 : n);
- *   }
- * }</pre></blockquote>
- *
- * <p>The first parameter is named "s" and is mandatory,
- * and the second parameter is named "n" and is optional(always NULL if not specified).
+ * DEFAULT keyword for UDF with optional parameter.
  */
-@Experimental
-public interface BeamSqlUdf extends Serializable {
-  String UDF_METHOD = "eval";
+public class BeamSqlDefaultExpression extends BeamSqlExpression {
+
+  @Override
+  public boolean accept() {
+    return true;
+  }
+
+  @Override
+  public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+    return BeamSqlPrimitive.of(SqlTypeName.ANY, null);
+  }
+
 }
