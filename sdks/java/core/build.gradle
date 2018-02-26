@@ -53,6 +53,7 @@ dependencies {
   compile library.java.byte_buddy
   compile library.java.commons_compress
   compile library.java.commons_lang3
+  compile library.java.guava_testlib
   compileOnly library.java.findbugs_annotations
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
@@ -65,7 +66,6 @@ dependencies {
   shadow library.java.hamcrest_library
   shadow library.java.junit
   shadow "org.tukaani:xz:1.5"
-  shadowTest library.java.guava_testlib
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
