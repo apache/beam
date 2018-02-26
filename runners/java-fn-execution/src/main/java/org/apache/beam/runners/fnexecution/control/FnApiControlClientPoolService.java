@@ -18,7 +18,10 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
@@ -31,6 +34,8 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
   private final BlockingQueue<FnApiControlClient> clientPool;
+  private final Collection<FnApiControlClient> vendedClients = new ArrayList<>();
+  private AtomicBoolean closed = new AtomicBoolean();
 
   private FnApiControlClientPoolService(BlockingQueue<FnApiControlClient> clientPool) {
     this.clientPool = clientPool;
@@ -61,6 +66,9 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
     LOGGER.info("Beam Fn Control client connected.");
     FnApiControlClient newClient = FnApiControlClient.forRequestObserver(requestObserver);
     try {
+      // Add the client to the pool of vended clients before making it available - we should close
+      // the client when we close even if no one has picked it up yet.
+      vendedClients.add(newClient);
       clientPool.put(newClient);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -70,7 +78,11 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   }
 
   @Override
-  public void close() throws Exception {
-    // The clients in the pool are owned by the consumer, which is responsible for closing them
+  public void close() {
+    if (!closed.getAndSet(true)) {
+      for (FnApiControlClient vended : vendedClients) {
+        vended.close();
+      }
+    }
   }
 }
