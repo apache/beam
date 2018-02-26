@@ -206,7 +206,7 @@ import org.slf4j.LoggerFactory;
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  *
  * <h3>Event Timestamp and Watermark</h3>
- * By default, record timestamp (evnt time) is set to processing time in KafkaIO reader and
+ * By default, record timestamp (event time) is set to processing time in KafkaIO reader and
  * source watermark is current wall time. If a topic has Kafka server-side ingestion timestamp
  * enabled ('LogAppendTime'), it can enabled with {@link Read#withLogAppendTime()}.
  * A custom timestamp policy can be provided by implementing {@link TimestampPolicyFactory}. See
