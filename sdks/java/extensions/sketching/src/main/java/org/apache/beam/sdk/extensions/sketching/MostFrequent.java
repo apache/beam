@@ -22,9 +22,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.clearspring.analytics.stream.Counter;
 import com.clearspring.analytics.stream.StreamSummary;
 import com.google.auto.value.AutoValue;
+import java.io.Externalizable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInput;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
@@ -32,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -54,61 +56,136 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>This class uses the Stream Summary sketch which uses a HashMap to keep track of
  * a certain number of elements considered as the most frequent elements in a stream.
  *
+ * <h2>Brief overview of the sketch</h2>
+ *
+ * <p>The Stream Summary uses a doubly linked-list of buckets in order to order elements
+ * by frequency. Each bucket is associated with a list of Counters, each of them storing
+ * information about one of the tracked elements : value, count and maximum potential error.
+ * <br>
+ *   An element is guaranteed to be in the top K most frequent if its guaranteed number
+ *   of hits, i.e. the {@code count minus error}, is greater than the count of the element at
+ *   the position k+1.
+ * <br>
+ *   <b>WARNING</b>: Information about the error is lost during the parallelization,
+ *   so this value may be underestimated in most cases, that is why the error is
+ *   not output by default. This issue will be solved in the next version of the extension.
+ *
  * <h2>References</h2>
  *
  * <p>This class uses the Space-Saving algorithm, introduced in the paper available <a href=
- * "https://pdfs.semanticscholar.org/72f1/5aba2e67b1cc9cd1fb12c99e101c4c1aae4b.pdf">here</a>.
+ * "https://pdfs.semanticscholar.org/72f1/5aba2e67b1cc9cd1fb12c99e101c3c1aae3b.pdf">here</a>.
  * <br>The implementation of the Stream Summary sketch comes from
  * <a href="https://github.com/addthis/stream-lib">Addthis' library Stream-lib</a>:
  *
  * <h2>Parameters</h2>
  *
- * <p>One unique parameter can be tuned in order to maximize the chances to have acurate results.
+ * <p>Two parameters can be tuned:
  *
- * <p>The Stream Summary uses a doubly linked-list of buckets in order to order elements
- * by frequency. Each bucket is associated with one or more Counters, which store the value
- * of an element as well as its frequency count and maximum potential absolute error {@code e}.
- * <br>An element is guaranteed to be in the top K most frequent if its guaranteed number
- * of hits, i.e. {@code count - e}, is greater than the count of the element at the position k+1.
- * <b>WARNING: Maximum potential error will always be underestimated as information is
- * lost during merging, so be careful when interpreting this value.</b>
+ * <ul>
+ *   <li>The top {@code k} most frequent elements you want to output from the stream.<br>
+ *     By default, {@code k} is set to {@code 100}.
+ *   <li>The {@code capacity} of the Stream Summary sketch. It corresponds to
+ *   the maximum number of elements that can be tracked at once.
+ *   When the maximum {@code capacity} is reached, the least frequent element
+ *   will be replaced by the next untracked element.<br>
+ *     By default, the {@code capacity} is set to {@code 10000} but this value depends
+ *     highly on the use case and more specifically on the order of incoming elements.
+ * </ul>
  *
- * <p>The {@code capacity} of the Stream Summary sketch corresponds to the maximum number
- * of elements that can be tracked at once. They are stored in a HashMap. When the maximum
- * {@code capacity} is reached, the least frequent element will be replaced by the next
- * untracked element, and the value of its frequency will be added as the maximum potential
- * error of the new element.
- * <br> By default, the {@code capacity} is set to 10000 but this value depends highly on
- * the use case.
+ *  <p><b>WARNING</b>: Keep in mind that he {@code capacity} should always be
+ *  significantly higher than {@code k}. One must ask himself the following question:<br>
+ *    What is the lowest rank {@code x} such that any element arriving at a rank {@code y > x}
+ *    has a relatively small probability (you decide) to actually become one the {@code k}
+ *    most frequent elements by the end of the stream ?<br>
+ *      Then the {@code capacity} should at least be equal to {@code x}
  *
- * <p><b>This sketch depends highly on the order of the incoming elements,
- * so please keep in mind the two following points:</b>
- * <li>
- *   <ul> This sketch should always be used in relatively short time windows because some
- *   highly frequent elements could appear late in the process, making them disregarded.</ul>
- *   <ul> If one wants the top k most frequent elements, then the {@code capacity}
- *   of the sketch should be significantly larger than k. It is based on the idea that most
- *   frequent elements will appear soon in the process, putting them on top of the linked-list
- *   so they will never be discarded when maximum {@code capacity} is reached.</ul>
- * </li>
- *
- * @TODO
  * <h2>Examples:</h2>
+ *
+ * <p>There are 2 ways of using this class:
+ *
+ * <ul>
+ *   <li>Use the {@link PTransform}s that return a {@link PCollection} of {@link KV}s,
+ *   each of them associating one of the estimate top {@code k} most frequent elements
+ *   to its frequency count.
+ *   <li>Use one of the two {@link MostFrequentFn} combines that is exposed in order
+ *   to make advanced processing using directly the {@link StreamSummary} sketch. One
+ *   of the combines is used for {@link Serializable} elements while the second one is
+ *   designed to handle non {@link Serializable} elements by wrapping them in an
+ *   {@link ElementWrapper}.
+ * </ul>
+ *
+ * <h3>Using the {@link PTransform}s</h3>
  *
  * <h4>Default globally use</h4>
  *
- * <p>Example of use
- * <pre>{@code PCollection<String> input = ...;
- * PCollection<StreamSummary<String>> ssSketch = input
- *        .apply(MostFrequent.<String>perKey(10000));
- * }</pre>
+ * <pre><code>
+ * {@literal PCollection<MyClass>} input = ...;
+ * {@literal PCollection<KV<MyClass, Long>>} output = input
+ *     .apply(MostFrequent.globally());
+ * </code></pre>
  *
- * <h4>Default perkey use with tuned paramters</h4>
- * <p>Example of use
- * <pre>{@code PCollection<KV<Integer, String>> input = ...;
- * PCollection<KV<Integer, StreamSummary<String>>> ssSketch = input
- *        .apply(MostFrequent.<Integer, String>globally(10000));
- * }</pre>
+ * <h4>Per key use with tuned parameters</h4>
+ *
+ * <pre><code>
+ * int k = 1000;
+ * int capacity = 1000000;
+ * {@literal PCollection<KV<Integer, MyClass>>} input = ...;
+ * {@literal PCollection<KV<Integer, KV<MyClass, Long>>>} output = input
+ *     .apply(MostFrequent.perKey()
+ *        .withCapacity(capacity)
+ *        .topKElements(k));
+ * </code></pre>
+ *
+ * <h3>Using the {@link CombineFn}s</h3>
+ *
+ * <h4>Case with {@link Serializable} elements</h4>
+ *
+ * <pre><code>
+ * int capacity = 1000000;
+ * {@literal PCollection<SerializableClass>} input = ...;
+ * {@literal PCollection<StreamSummarySketch<SerializableClass>>} output = input
+ *     .apply(Combine.globally(MostFrequent.MostFrequentFn.SerializableElements
+ *        .create(capacity)));
+ * </code></pre>
+ *
+ * <h4>Case with non {@link Serializable} elements</h4>
+ *
+ * <pre><code>
+ * int capacity = 1000000;
+ * {@literal PCollection<NonSerializableClass>} input = ...;
+ * {@literal PCollection<StreamSummarySketch<NonSerializableClass>>} output = input
+ *     .apply(Combine.globally(MostFrequent.MostFrequentFn.NonSerializableElements
+ *        .create(new NonSerializableClassCoder())
+ *        .withCapacity(capacity)));
+ * </code></pre>
+ *
+ * <h3>Query the sketch</h3>
+ *
+ * <p>There are two ways of getting top k elements from the sketch:
+ *
+ * <ul>
+ *   <li>Using directly the {@link StreamSummarySketch#estimateTopK(int)} method that
+ *   will return a {@link List} of {@link KV}s pairing elements to their frequency count.
+ *   <li>Using {@link RetrieveTopK} utility class which contains {@link DoFn}s to process
+ *   {@link PCollection} of {@link StreamSummarySketch} globally or per key, with serializable
+ *   or non serializable elements. This {@link DoFn}s are used by default {@link PTransform}s.
+ * </ul>
+ *
+ * <h4>Query the resulting {@link PCollection} containing the sketch.</h4>
+ *
+ * <pre><code>
+ * int k = 100;
+ * int capacity = 100000
+ * {@literal PCollection<StreamSummarySketch<MyClass>>} input = ...;
+ * {@literal PCollection<KV<MyClass, Long>>} output = input
+ *     .apply(MostFrequent.MostFrequentFn.NonSerializableElements
+ *        .create(new MyClassCoder())
+ *        .withCapacity(capacity))
+ *     .apply(ParDo.of(RetrieveTopK.globallyNonSerializable()));
+ * </code></pre>
+ *
+ * <b>Warning: this class is experimental.</b> <br>
+ * Its API is subject to change in future versions of Beam.
  */
 @Experimental
 public final class MostFrequent {
@@ -133,7 +210,7 @@ public final class MostFrequent {
     return PerKeySummary.<K, V>builder().build();
   }
 
-  /** Implementation of {@link #globally()} */
+  /** Implementation of {@link #globally()}. */
   @AutoValue
   public abstract static class GlobalSummary<InputT>
           extends PTransform<PCollection<InputT>, PCollection<KV<InputT, Long>>> {
@@ -185,18 +262,18 @@ public final class MostFrequent {
             .create(this.capacity());
 
         result = input
-            .apply("Compute Stream Summary", Combine.globally(fn))
+            .apply("Compute Stream Summary globally serializable", Combine.globally(fn))
             .apply("Retrieve k most frequent elements", ParDo
-                .of(RetrieveTopK.globallyUnWrapped(this.topK())))
+                .of(RetrieveTopK.globallySerializable(this.topK())))
             .setCoder(KvCoder.of(input.getCoder(), VarLongCoder.of()));
       } else {
         MostFrequentFn.NonSerializableElements<InputT> fn = MostFrequentFn.NonSerializableElements
             .create(inputCoder).withCapacity(this.capacity());
 
         result = input
-            .apply("Compute Stream Summary", Combine.globally(fn))
+            .apply("Compute Stream Summary globally non serializable", Combine.globally(fn))
             .apply("Retrieve k most frequent elements", ParDo
-                .of(RetrieveTopK.globallyWrapped(this.topK())))
+                .of(RetrieveTopK.globallyNonSerializable(this.topK())))
             .setCoder(KvCoder.of(input.getCoder(), VarLongCoder.of()));
       }
       return result;
@@ -256,9 +333,9 @@ public final class MostFrequent {
             .create(this.capacity());
 
         result = input
-            .apply("Compute Stream Summary", Combine.perKey(fn))
+            .apply("Compute Stream Summary per key serializable", Combine.perKey(fn))
             .apply("Retrieve k most frequent elements", ParDo
-                .of(RetrieveTopK.perKeyUnWrapped(this.topK())))
+                .of(RetrieveTopK.perKeySerializable(this.topK())))
             .setCoder(KvCoder.of(
                 inputCoder.getKeyCoder(),
                 KvCoder.of(
@@ -269,9 +346,9 @@ public final class MostFrequent {
             .create(valueCoder).withCapacity(this.capacity());
 
         result = input
-            .apply("Compute Stream Summary", Combine.perKey(fn))
+            .apply("Compute Stream Summary per key non serializable", Combine.perKey(fn))
             .apply("Retrieve k most frequent elements", ParDo
-                .of(RetrieveTopK.perKeyWrapped(this.topK())))
+                .of(RetrieveTopK.perKeyNonSerializable(this.topK())))
             .setCoder(KvCoder.of(
                 inputCoder.getKeyCoder(),
                 KvCoder.of(
@@ -285,15 +362,15 @@ public final class MostFrequent {
   /**
    * Implements the {@link CombineFn} of {@link MostFrequent} transforms.
    *
-   * <p> This is an abstract class. In practice you should use either {@link SerializableElements}
-   * or {@link NonSerializableElements} because in the latter case elements will be wrapped in
-   * {@link ElementWrapper} so they can be serialized thanks to a {@link Coder}.
+   * <p>This is an abstract class. In practice you should use either {@link SerializableElements}
+   * or {@link NonSerializableElements}. In the latter case elements will be wrapped into an
+   * {@link ElementWrapper} so they can be serialized via a {@link Coder}.
    *
    * @param <InputT>         the type of the elements being combined
    * @param <ElementT>       the type of the elements actually taken by the accumulator
    */
   public abstract static class MostFrequentFn<InputT, ElementT>
-      extends CombineFn<InputT, StreamSummary<ElementT>, StreamSummary<ElementT>> {
+      extends CombineFn<InputT, StreamSummarySketch<ElementT>, StreamSummarySketch<ElementT>> {
 
     protected int capacity;
 
@@ -301,21 +378,15 @@ public final class MostFrequent {
       this.capacity = capacity;
     }
 
-    @Override public StreamSummary<ElementT> mergeAccumulators(
-        Iterable<StreamSummary<ElementT>> accumulators) {
-      Iterator<StreamSummary<ElementT>> it = accumulators.iterator();
-      StreamSummary<ElementT> mergedAccum = it.next();
-      while (it.hasNext()) {
-        StreamSummary<ElementT> other = it.next();
-        List<Counter<ElementT>> top = other.topK(other.size());
-        for (Counter<ElementT> counter : top) {
-          mergedAccum.offer(counter.getItem(), (int) counter.getCount());
-        }
-      }
+    @Override public StreamSummarySketch<ElementT> mergeAccumulators(
+        Iterable<StreamSummarySketch<ElementT>> accumulators) {
+      Iterator<StreamSummarySketch<ElementT>> it = accumulators.iterator();
+      StreamSummarySketch<ElementT> mergedAccum = it.next();
+      it.forEachRemaining((StreamSummarySketch<ElementT> accum) -> mergedAccum.merge(accum));
       return mergedAccum;
     }
 
-    @Override public StreamSummary<ElementT> extractOutput(StreamSummary<ElementT> ss) {
+    @Override public StreamSummarySketch<ElementT> extractOutput(StreamSummarySketch<ElementT> ss) {
       return ss;
     }
 
@@ -346,12 +417,12 @@ public final class MostFrequent {
         return new SerializableElements<>(capacity);
       }
 
-      @Override public StreamSummary<InputT> createAccumulator() {
-        return new StreamSummary<>(capacity);
+      @Override public StreamSummarySketch<InputT> createAccumulator() {
+        return new StreamSummarySketch<>(capacity);
       }
 
-      @Override public StreamSummary<InputT> addInput(
-          StreamSummary<InputT> accumulator, InputT input) {
+      @Override public StreamSummarySketch<InputT> addInput(
+          StreamSummarySketch<InputT> accumulator, InputT input) {
         accumulator.offer(input);
         return accumulator;
       }
@@ -396,15 +467,161 @@ public final class MostFrequent {
         return new NonSerializableElements<>(capacity, coder);
       }
 
-      @Override public StreamSummary<ElementWrapper<InputT>> createAccumulator() {
-        return new StreamSummary<>(capacity);
+      @Override public StreamSummarySketch<ElementWrapper<InputT>> createAccumulator() {
+        return new StreamSummarySketch<>(capacity);
       }
 
-      @Override public StreamSummary<ElementWrapper<InputT>> addInput(
-          StreamSummary<ElementWrapper<InputT>> accumulator, InputT input) {
+      @Override public StreamSummarySketch<ElementWrapper<InputT>> addInput(
+          StreamSummarySketch<ElementWrapper<InputT>> accumulator, InputT input) {
         accumulator.offer(ElementWrapper.of(input, coder));
         return accumulator;
       }
+    }
+  }
+
+  /**
+   * Utility class to retrieve the top K elements from a {@link PCollection}
+   * or directly from a {@link StreamSummary} sketch.
+   *
+   * <p>This contains methods that retrieve the top k most frequent elements in
+   * a {@link StreamSummary} sketch. Elements are returned in {@link KV}s with the
+   * element value as key and its estimate frequency as value.
+   */
+  public static class RetrieveTopK {
+
+    /**
+     * {@link DoFn} that retrieves the top k most frequent elements in
+     * a {@link PCollection} of {@link StreamSummarySketch} containing
+     * non serializable objects wrapped in {@link ElementWrapper}.
+     *
+     * @param k     the top k most frequent elements to return
+     */
+    public static <T> DoFn<StreamSummarySketch<ElementWrapper<T>>,
+        KV<T, Long>> globallyNonSerializable(int k) {
+      return new DoFn<StreamSummarySketch<ElementWrapper<T>>, KV<T, Long>>() {
+        @ProcessElement
+        public void apply(ProcessContext c) {
+          for (KV<ElementWrapper<T>, Long> pair : c.element().estimateTopK(k)) {
+            c.output(KV.of(pair.getKey().getElement(), pair.getValue()));
+          }
+        }
+      };
+    }
+
+    /**
+     * {@link DoFn} that retrieves the top k most frequent elements in a
+     * {@link PCollection} of {@link StreamSummarySketch} containing serializable objects.
+     *
+     * @param k     the top k most frequent elements to return
+     */
+    public static <T> DoFn<StreamSummarySketch<T>, KV<T, Long>> globallySerializable(int k) {
+      return new DoFn<StreamSummarySketch<T>, KV<T, Long>>() {
+        @ProcessElement
+        public void apply(ProcessContext c) {
+          List<KV<T, Long>> top = c.element().estimateTopK(k);
+          for (KV<T, Long> pair : top) {
+            c.output(KV.of(pair.getKey(), pair.getValue()));
+          }
+        }
+      };
+    }
+
+    /**
+     * {@link DoFn} that retrieves the top k most frequent elements per key in a
+     * {@link PCollection} of {@link KV}s with {@link StreamSummarySketch} containing
+     * non serializable objects wrapped in {@link ElementWrapper}.
+     *
+     * @param k     the top k most frequent elements to return
+     */
+    public static <K, V> DoFn<KV<K, StreamSummarySketch<ElementWrapper<V>>>,
+        KV<K, KV<V, Long>>> perKeyNonSerializable(int k) {
+      return new DoFn<KV<K, StreamSummarySketch<ElementWrapper<V>>>, KV<K, KV<V, Long>>>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+          KV<K, StreamSummarySketch<ElementWrapper<V>>> kv = c.element();
+          for (KV<ElementWrapper<V>, Long> pair : kv.getValue().estimateTopK(k)) {
+            c.output(KV.of(
+                kv.getKey(),
+                KV.of(pair.getKey().getElement(), pair.getValue())));
+          }
+        }
+      };
+    }
+
+    /**
+     * {@link DoFn} that retrieves the top k most frequent elements per key in a
+     * {@link PCollection} of {@link KV}s with {@link StreamSummarySketch} containing
+     * serializable objects.
+     *
+     * @param k     the top k most frequent elements to return
+     */
+    public static <K, V> DoFn<KV<K, StreamSummarySketch<V>>,
+        KV<K, KV<V, Long>>> perKeySerializable(int k) {
+      return new DoFn<KV<K, StreamSummarySketch<V>>, KV<K, KV<V, Long>>>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+          KV<K, StreamSummarySketch<V>> kv = c.element();
+          for (KV<V, Long> pair : kv.getValue().estimateTopK(k)) {
+            c.output(KV.of(
+                kv.getKey(),
+                KV.of(pair.getKey(), pair.getValue())));
+          }
+        }
+      };
+    }
+  }
+
+  /** Wrap StreamLib's Stream Summary sketch. */
+  public static class StreamSummarySketch<T> extends StreamSummary<T> {
+
+    public StreamSummarySketch() {
+      super();
+    }
+
+    public StreamSummarySketch(int capacity) {
+      super(capacity);
+    }
+
+    /** Merge several {@link StreamSummarySketch} into this one. */
+    public void merge(StreamSummarySketch<T>... sketches) {
+      for (StreamSummarySketch<T> sketch : sketches) {
+        List<Counter<T>> top = sketch.topK(sketch.size());
+        for (Counter<T> counter : top) {
+          offer(counter.getItem(), (int) counter.getCount());
+        }
+      }
+    }
+
+    /**
+     * Retrieves the {@code k} most frequent elements in a {@link StreamSummarySketch}
+     * sketch and returns a list of {@link KV}s where the pair at index i represents
+     * the ith most frequent element associated with its estimate count.
+     *
+     * @param k     the top k most frequent elements to return
+     */
+    public List<KV<T, Long>> estimateTopK(int k) {
+      List<Counter<T>> top = super.topK(k);
+      List<KV<T, Long>> output = new ArrayList<>(k);
+      for (Counter<T> c : top) {
+        output.add(KV.of(c.getItem(), c.getCount()));
+      }
+      return output;
+    }
+
+    @Override
+    public int hashCode() {
+      return this.toString().hashCode();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      } else if (!(o instanceof StreamSummarySketch)) {
+        return false;
+      }
+      StreamSummarySketch that = (StreamSummarySketch) o;
+      return this.toString().equals(that.toString());
     }
   }
 
@@ -413,7 +630,7 @@ public final class MostFrequent {
    * uses the {@link Coder} as serializer. This wrapper is automatically used when calling
    * {@link MostFrequentFn.NonSerializableElements} Combine.
    */
-  public static class ElementWrapper<T> implements Serializable {
+  public static class ElementWrapper<T> implements Externalizable {
     /** Returns a {@link ElementWrapper} with the given element to wrap and its coder. */
     public static <T> ElementWrapper<T> of(T element, Coder<T> coder) {
       return new ElementWrapper<>(element, coder);
@@ -443,153 +660,88 @@ public final class MostFrequent {
       return element.hashCode();
     }
 
-    @SuppressWarnings("unchecked")
-    protected void readObject(ObjectInputStream in)
-            throws IOException, ClassNotFoundException {
-      elemCoder = (Coder<T>) in.readObject();
-      int length = in.readInt();
-      byte[] elemBytes = new byte[length];
-      for (int i = 0; i < length; i++) {
-       elemBytes[i] = in.readByte();
-      }
-      this.element = CoderUtils.decodeFromByteArray(elemCoder, elemBytes);
-      in.close();
+    @Override
+    public String toString() {
+      return element.toString();
     }
 
-    protected void writeObject(ObjectOutputStream out)
-            throws IOException {
-      out.writeObject(elemCoder);
+    @Override
+    public boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      } else if (!(o instanceof ElementWrapper)) {
+        return false;
+      }
+      ElementWrapper that = (ElementWrapper) o;
+      return this.element.equals(that.element);
+    }
+
+    @Override public void writeExternal(ObjectOutput out) throws IOException {
       byte[] elemBytes = CoderUtils.encodeToByteArray(elemCoder, element);
       int length = elemBytes.length;
       out.writeInt(length);
       out.write(elemBytes);
-      out.close();
+      out.writeObject(elemCoder);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override public void readExternal(ObjectInput in)
+        throws IOException, ClassNotFoundException {
+      int length = in.readInt();
+      byte[] elemBytes = new byte[length];
+      for (int i = 0; i < length; i++) {
+        elemBytes[i] = in.readByte();
+      }
+      elemCoder = (Coder<T>) in.readObject();
+      this.element = CoderUtils.decodeFromByteArray(elemCoder, elemBytes);
     }
   }
 
-  /** Coder for {@link StreamSummary} class. */
-  public static class StreamSummaryCoder<T> extends CustomCoder<StreamSummary<T>> {
-    private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
+  /** Coder for {@link StreamSummarySketch} class. */
+  public static class StreamSummarySketchCoder<T> extends CustomCoder<StreamSummarySketch<T>> {
 
     @Override
-    public void encode(StreamSummary<T> value, OutputStream outStream) throws IOException {
-      BYTE_ARRAY_CODER.encode(value.toBytes(), outStream);
+    public void encode(StreamSummarySketch<T> value, OutputStream outStream) throws IOException {
+      ObjectOutputStream oos = new ObjectOutputStream(outStream);
+      value.writeExternal(oos);
     }
 
     @Override
-    public StreamSummary<T> decode(InputStream inStream) throws IOException {
+    public StreamSummarySketch<T> decode(InputStream inStream) throws IOException {
+      ObjectInputStream ois = new ObjectInputStream(inStream);
       try {
-        return new StreamSummary<>(BYTE_ARRAY_CODER.decode(inStream));
+        StreamSummarySketch<T> ss = new StreamSummarySketch<>();
+        ss.readExternal(ois);
+        return ss;
       } catch (ClassNotFoundException e) {
         throw new CoderException("The stream cannot be decoded !");
       }
     }
+
+    @Override public boolean consistentWithEquals() {
+      return true;
+    }
   }
 
-  /**
-   * Utility class to retrieve the top K elements from a {@link PCollection}
-   * or directly from a {@link StreamSummary} sketch.
-   *
-   * <p>This contains methods that retrieve the top k most frequent elements in
-   * a {@link StreamSummary} sketch. Elements are returned in {@link KV}s with the
-   * element value as key and its estimate frequency as value.
-   */
-  public static class RetrieveTopK {
+  /** Coder for {@link ElementWrapper} class. */
+  public static class ElementWrapperCoder<T> extends CustomCoder<ElementWrapper<T>> {
 
-    /**
-     * {@link DoFn} that retrieves the top k most frequent elements in a {@link PCollection} of
-     * {@link StreamSummary} containing non serializable objects wrapped in {@link ElementWrapper}.
-     *
-     * @param k     the top k most frequent elements to return
-     */
-    public static <T> DoFn<
-        StreamSummary<ElementWrapper<T>>, KV<T, Long>> globallyWrapped(int k) {
-      return new DoFn<StreamSummary<ElementWrapper<T>>, KV<T, Long>>() {
-        @ProcessElement
-        public void apply(ProcessContext c) {
-          for (KV<ElementWrapper<T>, Long> pair : getTopK(c.element(), k)) {
-            c.output(KV.of(pair.getKey().getElement(), pair.getValue()));
-          }
-        }
-      };
+    @Override
+    public void encode(ElementWrapper<T> value, OutputStream outStream) throws IOException {
+      ObjectOutputStream oos = new ObjectOutputStream(outStream);
+      value.writeExternal(oos);
     }
 
-    /**
-     * {@link DoFn} that retrieves the top k most frequent elements in a
-     * {@link PCollection} of {@link StreamSummary} containing serializable objects.
-     *
-     * @param k     the top k most frequent elements to return
-     */
-    public static <T> DoFn<StreamSummary<T>, KV<T, Long>> globallyUnWrapped(int k) {
-      return new DoFn<StreamSummary<T>, KV<T, Long>>() {
-        @ProcessElement
-        public void apply(ProcessContext c) {
-          for (KV<T, Long> pair : getTopK(c.element(), k)) {
-            c.output(KV.of(pair.getKey(), pair.getValue()));
-          }
-        }
-      };
-    }
-
-    /**
-     * {@link DoFn} that retrieves the top k most frequent elements per key in a
-     * {@link PCollection} of {@link KV}s with {@link StreamSummary} containing
-     * non serializable objects wrapped in {@link ElementWrapper}.
-     *
-     * @param k     the top k most frequent elements to return
-     */
-    public static <K, V> DoFn<
-        KV<K, StreamSummary<ElementWrapper<V>>>, KV<K, KV<V, Long>>> perKeyWrapped(int k) {
-      return new DoFn<KV<K, StreamSummary<ElementWrapper<V>>>, KV<K, KV<V, Long>>>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          KV<K, StreamSummary<ElementWrapper<V>>> kv = c.element();
-          for (KV<ElementWrapper<V>, Long> pair : getTopK(kv.getValue(), k)) {
-            c.output(KV.of(
-                kv.getKey(),
-                KV.of(pair.getKey().getElement(), pair.getValue())));
-          }
-        }
-      };
-    }
-
-    /**
-     * {@link DoFn} that retrieves the top k most frequent elements per key in a
-     * {@link PCollection} of {@link KV}s with {@link StreamSummary} containing
-     * serializable objects.
-     *
-     * @param k     the top k most frequent elements to return
-     */
-    public static <K, V> DoFn<
-        KV<K, StreamSummary<V>>, KV<K, KV<V, Long>>> perKeyUnWrapped(int k) {
-      return new DoFn<KV<K, StreamSummary<V>>, KV<K, KV<V, Long>>>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          KV<K, StreamSummary<V>> kv = c.element();
-          for (KV<V, Long> pair : getTopK(kv.getValue(), k)) {
-            c.output(KV.of(
-                kv.getKey(),
-                KV.of(pair.getKey(), pair.getValue())));
-          }
-        }
-      };
-    }
-
-    /**
-     * Retrieve the {@code k} most frequent elements in a {@link StreamSummary} sketch
-     * and returns a list of {@link KV}s where the pair at index i represents the ith
-     * most frequent element.
-     * <br><b>If one also wants to retrieve the estimate maximum potential error,
-     * a customized method should be used.</b>
-     *
-     * @param k     the top k most frequent elements to return
-     */
-    public static <T> List<KV<T, Long>> getTopK(StreamSummary<T> ss, int k) {
-      List<KV<T, Long>> mostFrequent = new ArrayList<>(k);
-      for (Counter<T> counter : ss.topK(k)) {
-        mostFrequent.add(KV.of(counter.getItem(), counter.getCount()));
+    @Override
+    public ElementWrapper<T> decode(InputStream inStream) throws IOException {
+      ObjectInputStream ois = new ObjectInputStream(inStream);
+      ElementWrapper<T> decoded = new ElementWrapper<>();
+      try {
+        decoded.readExternal(ois);
+        return decoded;
+      } catch (ClassNotFoundException e) {
+        throw new CoderException("The stream cannot be decoded !");
       }
-      return mostFrequent;
     }
   }
 }

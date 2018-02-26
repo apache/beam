@@ -22,12 +22,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.clearspring.analytics.stream.Counter;
-import com.clearspring.analytics.stream.StreamSummary;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,7 +37,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.extensions.sketching.MostFrequent.ElementWrapper;
 import org.apache.beam.sdk.extensions.sketching.MostFrequent.MostFrequentFn;
-import org.apache.beam.sdk.extensions.sketching.MostFrequent.StreamSummaryCoder;
+import org.apache.beam.sdk.extensions.sketching.MostFrequent.StreamSummarySketch;
+import org.apache.beam.sdk.extensions.sketching.MostFrequent.StreamSummarySketchCoder;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -51,9 +47,7 @@ import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -65,22 +59,40 @@ public class MostFrequentTest implements Serializable {
   @Rule
   public final transient TestPipeline tp = TestPipeline.create();
 
+  private static Schema schema = SchemaBuilder.record("User").fields()
+      .requiredString("Pseudo")
+      .requiredInt("Age")
+      .endRecord();
+  private static Coder<GenericRecord> coder = AvroCoder.of(schema);
+  private List<GenericRecord> avroStream = generateAvroStream();
   private List<Integer> smallStream = initList();
 
-  private static List<Integer> initList() {
+  private List<Integer> initList() {
     List<Integer> list = Arrays.asList(
-            1,
-            2, 2,
-            3, 3, 3,
-            4, 4, 4, 4,
-            5, 5, 5, 5, 5,
-            6, 6, 6, 6, 6, 6,
-            7, 7, 7, 7, 7, 7, 7,
-            8, 8, 8, 8, 8, 8, 8, 8,
-            9, 9, 9, 9, 9, 9, 9, 9, 9,
-            10, 10, 10, 10, 10, 10, 10, 10, 10, 10);
+          1,
+          2, 2,
+          3, 3, 3,
+          4, 4, 4, 4,
+          5, 5, 5, 5, 5,
+          6, 6, 6, 6, 6, 6,
+          7, 7, 7, 7, 7, 7, 7,
+          8, 8, 8, 8, 8, 8, 8, 8,
+          9, 9, 9, 9, 9, 9, 9, 9, 9,
+          10, 10, 10, 10, 10, 10, 10, 10, 10, 10);
     Collections.shuffle(list, new Random(1234));
     return list;
+  }
+
+  private List<GenericRecord> generateAvroStream() {
+    List<GenericRecord> stream = new ArrayList<>();
+    for (int i = 1; i <= 10; i++) {
+      GenericData.Record newRecord = new GenericData.Record(schema);
+      newRecord.put("Pseudo", "User" + i);
+      newRecord.put("Age", i);
+      stream.addAll(Collections.nCopies(i, newRecord));
+    }
+    Collections.shuffle(stream, new Random(1234));
+    return stream;
   }
 
   @Test
@@ -113,70 +125,41 @@ public class MostFrequentTest implements Serializable {
 
   @Test
   public void customObject() {
-    int nUsers = 10;
-    Schema schema =
-            SchemaBuilder.record("User")
-                    .fields()
-                    .requiredString("Pseudo")
-                    .requiredInt("Age")
-                    .endRecord();
-    Coder<GenericRecord> coder = AvroCoder.of(schema);
+    PCollection<GenericRecord> col = tp
+        .apply(
+            "Create stream",
+            Create.of(avroStream).withCoder(coder))
+        .apply(
+            "Test custom object",
+            MostFrequent.<GenericRecord>globally()
+                .withCapacity(10)
+                .topKElements(3))
+        .apply(Keys.<GenericRecord>create());
 
-    List<GenericRecord> stream = new ArrayList<>();
-    for (int i = 1; i <= nUsers; i++) {
-      GenericData.Record newRecord = new GenericData.Record(schema);
-      newRecord.put("Pseudo", "User" + i);
-      newRecord.put("Age", i);
-      stream.addAll(Collections.nCopies(i, newRecord));
-    }
-    PCollection<GenericRecord> results = tp
-            .apply(
-                    "Create stream",
-                    Create.of(stream).withCoder(coder))
-            .apply(
-                    "Test custom object",
-                    MostFrequent.<GenericRecord>globally()
-                            .withCapacity(nUsers)
-                            .topKElements(3))
-            .apply(Keys.<GenericRecord>create());
     tp.run();
   }
 
   @Test
   public void addWrapper() {
-    int nUsers = 10;
-    Schema schema =
-        SchemaBuilder.record("User")
-            .fields()
-            .requiredString("Pseudo")
-            .requiredInt("Age")
-            .endRecord();
-    Coder<GenericRecord> coder = AvroCoder.of(schema);
-    List<GenericRecord> stream = new ArrayList<>();
-    for (int i = 1; i <= nUsers; i++) {
-      GenericData.Record newRecord = new GenericData.Record(schema);
-      newRecord.put("Pseudo", "User" + i);
-      newRecord.put("Age", i);
-      stream.addAll(Collections.nCopies(i, newRecord));
-    }
-
     MostFrequentFn.NonSerializableElements<GenericRecord> fn =
         MostFrequentFn.NonSerializableElements
             .create(coder)
-            .withCapacity(nUsers);
-    StreamSummary<ElementWrapper<GenericRecord>> ss1 = fn.createAccumulator();
-    for (GenericRecord record : stream) {
+            .withCapacity(10);
+    StreamSummarySketch<ElementWrapper<GenericRecord>> ss1 = fn.createAccumulator();
+    for (GenericRecord record : avroStream) {
       ss1 = fn.addInput(ss1, record);
     }
 
-    List<Counter<ElementWrapper<GenericRecord>>> elements = ss1.topK(nUsers);
-    for (int i = nUsers; i > 0; i--) {
-      GenericRecord record = elements.get(i - 1).getItem().getElement();
-      Long count = elements.get(i - 1).getCount();
+    List<Counter<ElementWrapper<GenericRecord>>> elements = ss1.topK(10);
+    int ind = 0;
+    for (int i = 10; i > 0; i--) {
+      GenericRecord record = elements.get(ind).getItem().getElement();
+      Long count = elements.get(ind).getCount();
+      ind++;
 
       assertTrue("Not expected element ! Expected : " + i + " Actual : " + record
           + " with count=" + count, (int) record.get("Age") == i);
-      assertTrue("Not expected element ! Expected : " + i + " Actual : "
+      assertTrue("Not expected count ! Expected : " + i + " Actual : "
           + count + " of element " + record, count == i);
     }
   }
@@ -186,59 +169,42 @@ public class MostFrequentTest implements Serializable {
     Coder<Integer> coder = VarIntCoder.of();
     MostFrequentFn.SerializableElements<Integer> fn = MostFrequentFn.SerializableElements
         .create(10);
-    StreamSummary<Integer> ss1 = fn.createAccumulator();
-    StreamSummary<Integer> ss2 = fn.createAccumulator();
+    StreamSummarySketch<Integer> ss1 = fn.createAccumulator();
+    StreamSummarySketch<Integer> ss2 = fn.createAccumulator();
 
     for (Integer elem : smallStream) {
       ss1.offer(elem);
       ss2.offer(elem);
     }
 
-    StreamSummary<Integer> ss3 = fn.mergeAccumulators(Arrays.asList(ss1, ss2));
-
+    StreamSummarySketch<Integer> ss3 = fn.mergeAccumulators(Arrays.asList(ss1, ss2));
     List<Counter<Integer>> elements = ss3.topK(10);
-
+    int ind = 0;
     for (int i = 10; i > 0; i--) {
-      Integer element = elements.get(i - 1).getItem();
-      Long count = elements.get(i - 1).getCount();
+      Integer element = elements.get(ind).getItem();
+      Long count = elements.get(ind).getCount();
+      ind++;
 
       assertTrue("Not expected element ! Expected : " + i + " Actual : " + element
               + " with count=" + count, element == i);
-      assertTrue("Not expected element ! Expected : " + (2 * i) + " Actual : "
+      assertTrue("Not expected count ! Expected : " + (2 * i) + " Actual : "
               + count + " of element " + element, count == 2 * i);
     }
   }
 
   @Test
-  public void writeReadWrapper() throws IOException, ClassNotFoundException {
-
-    ElementWrapper<Integer> wrapper = ElementWrapper.of(33544, VarIntCoder.of());
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    ObjectOutputStream oos = new ObjectOutputStream(baos);
-
-    wrapper.writeObject(oos);
-
-    ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-    ObjectInputStream ois = new ObjectInputStream(bais);
-
-    ElementWrapper<Integer> read = new ElementWrapper<>();
-    read.readObject(ois);
-
-    assertTrue(wrapper.hashCode() == read.hashCode());
+  public void wrapperCoder() throws Exception {
+    ElementWrapper<GenericRecord> wrapper = ElementWrapper.of(avroStream.get(0), coder);
+    CoderProperties.coderDecodeEncodeEqual(new MostFrequent.ElementWrapperCoder<>(), wrapper);
   }
 
   @Test
-  public void testCoder() throws Exception {
-    StreamSummary<Integer> ssSketch = new StreamSummary<>(5);
-    for (Integer i : smallStream) {
+  public void testSketchCoder() throws Exception {
+    StreamSummarySketch<Integer> ssSketch = new StreamSummarySketch<>(5);
+    for (int i = 0; i < 5; i++) {
       ssSketch.offer(i);
     }
-    Assert.assertTrue(encodeDecode(ssSketch));
-  }
-
-  private <T> boolean encodeDecode(StreamSummary<T> ss) throws IOException {
-    StreamSummary<T> decoded = CoderUtils.clone(new StreamSummaryCoder<T>(), ss);
-    return ss.toString().equals(decoded.toString());
+    CoderProperties.coderDecodeEncodeEqual(new StreamSummarySketchCoder<>(), ssSketch);
   }
 
   @Test
