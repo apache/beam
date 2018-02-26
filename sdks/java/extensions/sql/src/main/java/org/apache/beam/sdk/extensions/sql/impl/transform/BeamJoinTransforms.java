@@ -219,7 +219,12 @@ public class BeamJoinTransforms {
 
     @Override
     public PCollection<Row> expand(PCollection<Row> input) {
-      return input.apply("join_as_lookup", ParDo.of(new DoFn<Row, Row>() {
+      return input.apply("join_as_lookup", ParDo.of(new DoFn<Row, Row>(){
+        @Setup
+        public void setup(){
+          seekableTable.setup();
+        }
+
         @ProcessElement
         public void processElement(ProcessContext context) {
           Row factRow = context.element();
@@ -228,6 +233,11 @@ public class BeamJoinTransforms {
           for (Row lr : lookupRows) {
             context.output(combineTwoRowsIntoOneHelper(factRow, lr));
           }
+        }
+
+        @Teardown
+        public void teardown(){
+          seekableTable.teardown();
         }
 
         private Row extractJoinSubRow(Row factRow) {
