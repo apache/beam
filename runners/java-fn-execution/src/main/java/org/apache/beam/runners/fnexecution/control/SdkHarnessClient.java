@@ -195,8 +195,8 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   public <T> BundleProcessor<T> getProcessor(
-      final BeamFnApi.ProcessBundleDescriptor descriptor,
-      final RemoteInputDestination<WindowedValue<T>> remoteInputDesination) {
+      BeamFnApi.ProcessBundleDescriptor descriptor,
+      RemoteInputDestination<WindowedValue<T>> remoteInputDesination) {
     try {
       return clientProcessors.get(
           descriptor.getId(),
@@ -249,7 +249,7 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {}
+  public void close() {}
 
   /**
    * A pair of {@link Coder} and {@link BeamFnApi.Target} which can be handled by the remote SDK
