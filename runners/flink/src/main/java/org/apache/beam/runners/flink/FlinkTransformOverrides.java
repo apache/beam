@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.flink;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
@@ -30,7 +32,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 
 /** {@link PTransform} overrides for Flink runner. */
 public class FlinkTransformOverrides {
-  public static List<PTransformOverride> getDefaultOverrides(boolean streaming) {
+  public static List<PTransformOverride> getDefaultOverrides(
+      boolean streaming, FlinkPipelineOptions options) {
     ImmutableList.Builder<PTransformOverride> builder = ImmutableList.builder();
     builder
         // TODO: [BEAM-5359] Support @RequiresStableInput on Flink runner
@@ -49,10 +52,16 @@ public class FlinkTransformOverrides {
                     ? new SplittableParDoViaKeyedWorkItems.OverrideFactory()
                     : new SplittableParDoNaiveBounded.OverrideFactory()));
     if (streaming) {
-      builder.add(
-          PTransformOverride.of(
-              PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
-              new CreateStreamingFlinkView.Factory()));
+      builder
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.writeWithRunnerDeterminedSharding(),
+                  new FlinkStreamingPipelineTranslator.StreamingShardedWriteFactory(
+                      checkNotNull(options))))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.urnEqualTo(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN),
+                  new CreateStreamingFlinkView.Factory()));
     }
     return builder.build();
   }
