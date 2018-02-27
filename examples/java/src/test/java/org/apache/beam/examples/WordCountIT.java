@@ -67,6 +67,6 @@ public class WordCountIT {
     options.setOnSuccessMatcher(
         new FileChecksumMatcher(DEFAULT_OUTPUT_CHECKSUM, options.getOutput() + "*-of-*"));
 
-    WordCount.main(TestPipeline.convertToArgs(options));
+    WordCount.runWordCount(options);
   }
 }
