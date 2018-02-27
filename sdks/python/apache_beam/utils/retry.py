@@ -25,6 +25,7 @@ should find all such places. For this reason even places where retry is not
 needed right now use a @retry.no_retries decorator.
 """
 
+
 import logging
 import random
 import sys
@@ -189,7 +190,7 @@ def with_exponential_backoff(
               sleep_interval = next(retry_intervals)
             except StopIteration:
               # Re-raise the original exception since we finished the retries.
-              six.reraise(exn, None, exn_traceback)  # pylint: disable=raising-bad-type
+              six.raise_from(exn, exn_traceback)
 
             logger(
                 'Retry with exponential backoff: waiting for %s seconds before '

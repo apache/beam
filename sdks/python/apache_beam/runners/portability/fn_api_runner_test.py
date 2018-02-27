@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import print_function
+
 import functools
 import logging
 import time
@@ -218,7 +220,7 @@ class FnApiRunnerTest(
           m_out.processed_elements.measured.output_element_counts['twice'])
 
     except:
-      print res._metrics_by_stage
+      print(res._metrics_by_stage)
       raise
 
   # Inherits all tests from maptask_executor_runner.MapTaskExecutorRunner
