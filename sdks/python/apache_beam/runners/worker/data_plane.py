@@ -24,12 +24,13 @@ from __future__ import print_function
 import abc
 import collections
 import logging
-import Queue as queue
 import sys
 import threading
 
 import grpc
+import six
 
+import six.moves.queue as queue
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -49,7 +50,7 @@ class ClosableOutputStream(type(coder_impl.create_OutputStream())):
       self._close_callback(self.get())
 
 
-class DataChannel(object):
+class DataChannel(six.with_metaclass(abc.ABCMeta, object)):
   """Represents a channel for reading and writing data over the data plane.
 
   Read from this channel with the input_elements method::
@@ -67,8 +68,6 @@ class DataChannel(object):
 
     data_channel.close()
   """
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def input_elements(self, instruction_id, expected_targets):
@@ -182,7 +181,7 @@ class _GrpcDataChannel(DataChannel):
           data = received.get(timeout=1)
         except queue.Empty:
           if self._exc_info:
-            raise self.exc_info[0], self.exc_info[1], self.exc_info[2]
+            six.reraise(self.exc_info[0], self.exc_info[1], self.exc_info[2])
         else:
           if not data.data and data.target in expected_targets:
             done_targets.append(data.target)
@@ -270,10 +269,8 @@ class GrpcServerDataChannel(
       yield elements
 
 
-class DataChannelFactory(object):
+class DataChannelFactory(six.with_metaclass(abc.ABCMeta, object)):
   """An abstract factory for creating ``DataChannel``."""
-
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def create_data_channel(self, remote_grpc_port):

@@ -17,6 +17,8 @@
 
 """Tests for the stream implementations."""
 
+from __future__ import absolute_import
+
 import logging
 import math
 import unittest

@@ -445,7 +445,7 @@ class TestEnd2EndWriteAndRead(unittest.TestCase):
       file_path_prefix = temp_dir.create_temp_file('result')
 
       example = tf.train.Example()
-      example.features.feature['int'].int64_list.value.extend(range(3))
+      example.features.feature['int'].int64_list.value.extend(list(range(3)))
       example.features.feature['bytes'].bytes_list.value.extend(
           [b'foo', b'bar'])
 

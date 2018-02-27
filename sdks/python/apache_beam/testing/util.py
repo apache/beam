@@ -157,6 +157,6 @@ def open_shards(glob_pattern):
   """Returns a composite file of all shards matching the given glob pattern."""
   with tempfile.NamedTemporaryFile(delete=False) as f:
     for shard in glob.glob(glob_pattern):
-      f.write(file(shard).read())
+      f.write(open(shard).read())
     concatenated_file_name = f.name
-  return file(concatenated_file_name, 'rb')
+  return open(concatenated_file_name, 'rb')

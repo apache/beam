@@ -22,6 +22,8 @@ from __future__ import absolute_import
 from abc import ABCMeta
 from abc import abstractmethod
 
+import six
+
 __all__ = [
     'TimeDomain',
     ]
@@ -43,10 +45,8 @@ class TimeDomain(object):
     raise ValueError('Unknown time domain: %s' % domain)
 
 
-class TimestampCombinerImpl(object):
+class TimestampCombinerImpl(six.with_metaclass(ABCMeta, object)):
   """Implementation of TimestampCombiner."""
-
-  __metaclass__ = ABCMeta
 
   @abstractmethod
   def assign_output_time(self, window, input_timestamp):
@@ -72,10 +72,8 @@ class TimestampCombinerImpl(object):
     return self.combine_all(merging_timestamps)
 
 
-class DependsOnlyOnWindow(TimestampCombinerImpl):
+class DependsOnlyOnWindow(six.with_metaclass(ABCMeta, TimestampCombinerImpl)):
   """TimestampCombinerImpl that only depends on the window."""
-
-  __metaclass__ = ABCMeta
 
   def combine(self, output_timestamp, other_output_timestamp):
     return output_timestamp

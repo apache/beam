@@ -26,6 +26,8 @@ import collections
 import json
 import logging
 
+import six
+
 import apache_beam as beam
 from apache_beam.coders import WindowedValueCoder
 from apache_beam.coders import coder_impl
@@ -101,7 +103,7 @@ class DataInputOperation(RunnerIOOperation):
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet(self.counter_factory, self.step_name, 0,
-                               next(consumers.itervalues()),
+                               next(six.itervalues(consumers)),
                                self.windowed_coder)]
 
   def process(self, windowed_value):
@@ -281,7 +283,7 @@ class BundleProcessor(object):
     try:
       self.state_sampler.start()
       # Start all operations.
-      for op in reversed(self.ops.values()):
+      for op in reversed(list(self.ops.values())):
         logging.info('start %s', op)
         op.start()
 

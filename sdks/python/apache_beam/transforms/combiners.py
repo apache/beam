@@ -87,7 +87,7 @@ class MeanCombineFn(core.CombineFn):
     return sum_ + element, count + 1
 
   def merge_accumulators(self, accumulators):
-    sums, counts = zip(*accumulators)
+    sums, counts = list(zip(*accumulators))
     return sum(sums), sum(counts)
 
   def extract_output(self, sum_count):

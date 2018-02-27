@@ -20,11 +20,15 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import errno
 import logging
 import sys
 import time
 from socket import error as SocketError
+
+import six
 
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
@@ -251,11 +255,14 @@ def make_kind_stats_query(namespace, kind, latest_timestamp):
   else:
     kind_stat_query.kind.add().name = '__Stat_Ns_Kind__'
 
-  kind_filter = datastore_helper.set_property_filter(
-      query_pb2.Filter(), 'kind_name', PropertyFilter.EQUAL, unicode(kind))
-  timestamp_filter = datastore_helper.set_property_filter(
-      query_pb2.Filter(), 'timestamp', PropertyFilter.EQUAL,
-      latest_timestamp)
+  kind_filter = datastore_helper.set_property_filter(query_pb2.Filter(),
+                                                     'kind_name',
+                                                     PropertyFilter.EQUAL,
+                                                     six.text_type(kind))
+  timestamp_filter = datastore_helper.set_property_filter(query_pb2.Filter(),
+                                                          'timestamp',
+                                                          PropertyFilter.EQUAL,
+                                                          latest_timestamp)
 
   datastore_helper.set_composite_filter(kind_stat_query.filter,
                                         CompositeFilter.AND, kind_filter,

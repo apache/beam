@@ -123,7 +123,7 @@ class FileSystemsTest(unittest.TestCase):
     with self.assertRaisesRegexp(BeamIOError,
                                  r'^Unable to get the Filesystem') as error:
       FileSystems.match([None])
-    self.assertEqual(error.exception.exception_details.keys(), [None])
+    self.assertEqual(list(error.exception.exception_details.keys()), [None])
 
   def test_match_directory(self):
     path1 = os.path.join(self.tmpdir, 'f1')
@@ -157,7 +157,8 @@ class FileSystemsTest(unittest.TestCase):
     with self.assertRaisesRegexp(BeamIOError,
                                  r'^Copy operation failed') as error:
       FileSystems.copy([path1], [path2])
-    self.assertEqual(error.exception.exception_details.keys(), [(path1, path2)])
+    self.assertEqual(list(error.exception.exception_details.keys()),
+                     [(path1, path2)])
 
   def test_copy_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -189,7 +190,8 @@ class FileSystemsTest(unittest.TestCase):
     with self.assertRaisesRegexp(BeamIOError,
                                  r'^Rename operation failed') as error:
       FileSystems.rename([path1], [path2])
-    self.assertEqual(error.exception.exception_details.keys(), [(path1, path2)])
+    self.assertEqual(list(error.exception.exception_details.keys()),
+                     [(path1, path2)])
 
   def test_rename_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -230,4 +232,4 @@ class FileSystemsTest(unittest.TestCase):
     with self.assertRaisesRegexp(BeamIOError,
                                  r'^Delete operation failed') as error:
       FileSystems.delete([path1])
-    self.assertEqual(error.exception.exception_details.keys(), [path1])
+    self.assertEqual(list(error.exception.exception_details.keys()), [path1])

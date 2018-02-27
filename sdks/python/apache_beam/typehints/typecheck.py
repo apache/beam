@@ -20,6 +20,8 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
+
 import collections
 import inspect
 import sys
@@ -205,7 +207,7 @@ class TypeCheckCombineFn(core.CombineFn):
       except TypeCheckError as e:
         error_msg = ('Runtime type violation detected within %s: '
                      '%s' % (self._label, e))
-        raise TypeCheckError, error_msg, sys.exc_info()[2]
+        six.reraise(TypeCheckError, error_msg, sys.exc_info()[2])
     return self._combinefn.add_input(accumulator, element, *args, **kwargs)
 
   def merge_accumulators(self, accumulators, *args, **kwargs):
@@ -220,7 +222,7 @@ class TypeCheckCombineFn(core.CombineFn):
       except TypeCheckError as e:
         error_msg = ('Runtime type violation detected within %s: '
                      '%s' % (self._label, e))
-        raise TypeCheckError, error_msg, sys.exc_info()[2]
+        six.reraise(TypeCheckError, error_msg, sys.exc_info()[2])
     return result
 
 

@@ -22,16 +22,21 @@ Only those coders listed in __all__ are part of the public API of this module.
 from __future__ import absolute_import
 
 import base64
-import cPickle as pickle
 
+# pylint: disable=ungrouped-imports
 import google.protobuf
+import six
 from google.protobuf import wrappers_pb2
 
+import six.moves.cPickle as pickle
 from apache_beam.coders import coder_impl
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
+
+# pylint: enable=ungrouped-imports
+
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -309,7 +314,7 @@ class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   def encode(self, value):
-    if isinstance(value, unicode):
+    if isinstance(value, six.text_type):
       return value.encode('utf-8')
     elif isinstance(value, str):
       return value

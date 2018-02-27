@@ -135,7 +135,9 @@ class CombineTest(unittest.TestCase):
       final_accumulator = combine_fn.merge_accumulators(accumulators)
       self.assertEqual(combine_fn.extract_output(final_accumulator), expected)
 
-    test_combine_fn(combine.TopCombineFn(3), [range(10), range(10)], [9, 9, 8])
+    test_combine_fn(combine.TopCombineFn(3),
+                    [range(10), range(10)],
+                    [9, 9, 8])
     test_combine_fn(combine.TopCombineFn(5),
                     [range(1000), range(100), range(1001)],
                     [1000, 999, 999, 998, 998])
@@ -284,7 +286,7 @@ class CombineTest(unittest.TestCase):
     def matcher():
       def match(actual):
         equal_to([1])([len(actual)])
-        equal_to(pairs)(actual[0].iteritems())
+        equal_to(pairs)(actual[0].items())
       return match
     assert_that(result, matcher())
     pipeline.run()

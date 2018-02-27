@@ -408,6 +408,9 @@ class AnyTypeConstraint(TypeConstraint):
   def __eq__(self, other):
     return type(self) == type(other)
 
+  def __hash__(self):
+    return hash(type(self))
+
   def __repr__(self):
     return 'Any'
 
@@ -419,6 +422,10 @@ class TypeVariable(AnyTypeConstraint):
 
   def __eq__(self, other):
     return type(self) == type(other) and self.name == other.name
+
+  def __hash__(self):
+    # TODO(BEAM-3730): A proper hash causes combiners_test tests to fail
+    return id(self)
 
   def __init__(self, name):
     self.name = name

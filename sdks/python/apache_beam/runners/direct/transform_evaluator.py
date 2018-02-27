@@ -563,7 +563,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     self.runner.finish()
-    bundles = self._tagged_receivers.values()
+    bundles = list(self._tagged_receivers.values())
     result_counters = self._counter_factory.get_counters()
     return TransformResult(
         self, bundles, [], result_counters, None,
@@ -705,7 +705,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = []
     bundle = None
-    for encoded_k, vs in self.gbk_items.iteritems():
+    for encoded_k, vs in self.gbk_items.items():
       if not bundle:
         bundle = self._evaluation_context.create_bundle(
             self.output_pcollection)

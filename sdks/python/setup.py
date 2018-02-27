@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+from __future__ import print_function
+
 """Apache Beam SDK for Python setup file."""
 
 from distutils.version import StrictVersion
@@ -94,9 +96,11 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
+_AVRO = ('avro>=1.8.1,<2.0.0' if sys.version_info[0] == 2
+         else 'avro-python3>=1.8.1,<2.0.0')
 
 REQUIRED_PACKAGES = [
-    'avro>=1.8.1,<2.0.0',
+    _AVRO,
     'crcmod>=1.7,<2.0',
     'dill==0.2.6',
     'grpcio>=1.0,<2',
@@ -159,7 +163,7 @@ def generate_common_urns():
   src_time = os.path.getmtime(src) if os.path.exists(src) else -1
   out_time = os.path.getmtime(out) if os.path.exists(out) else -1
   if src_time > out_time:
-    print 'Regenerating common_urns module.'
+    print('Regenerating common_urns module.')
     urns = {}
     for m in re.finditer(
         r'\b(?:urn:)?beam:(\S+):(\S+):(v\S+)', open(src).read()):
