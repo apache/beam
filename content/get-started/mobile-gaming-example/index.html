@@ -957,8 +957,8 @@ late results.</em></p>
         <span class="n">sum_scores</span>
         <span class="c"># Use the derived mean total score (global_mean_score) as a side input.</span>
         <span class="o">|</span> <span class="s">'ProcessAndFilter'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">score</span><span class="p">),</span> <span class="n">global_mean</span><span class="p">:</span>\
-                <span class="n">score</span> <span class="o">&gt;</span> <span class="n">global_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">SCORE_WEIGHT</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">key_score</span><span class="p">,</span> <span class="n">global_mean</span><span class="p">:</span>\
+                <span class="n">key_score</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">global_mean</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">SCORE_WEIGHT</span><span class="p">,</span>
             <span class="n">global_mean_score</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">filtered</span>
 </code></pre>

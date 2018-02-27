@@ -211,11 +211,13 @@
 <tr>
   <td>Java</td>
   <td>
-    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-file-system">Apache Hadoop File System</a></p>
+    <p>Beam Java supports Apache HDFS, Amazon S3, Google Cloud Storage, and local filesystems.</p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/FileIO.java">FileIO</a> (general-purpose reading, writing, and matching of files)</p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroIO.java">AvroIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextIO.java">TextIO</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TFRecordIO.java">TFRecordIO</a></p>
-    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/">XML</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/xml/src/main/java/org/apache/beam/sdk/io/xml/XmlIO.java">XmlIO</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/java/io/tika/src/main/java/org/apache/beam/sdk/io/tika/TikaIO.java">TikaIO</a></p>
   </td>
   <td>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/kinesis">Amazon Kinesis</a></p>
@@ -235,6 +237,7 @@
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">Google BigQuery</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable">Google Cloud Bigtable</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/datastore">Google Cloud Datastore</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/spanner">Google Cloud Spanner</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jdbc">JDBC</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mongodb">MongoDB</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/redis">Redis</a></p>
@@ -243,9 +246,11 @@
 <tr>
   <td>Python</td>
   <td>
+    <p>Beam Python supports Google Cloud Storage and local filesystems.</p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py">avroio</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/textio.py">textio</a></p>
     <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/tfrecordio.py">tfrecordio</a></p>
+    <p><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/vcfio.py">vcfio</a></p>
   </td>
   <td>
   </td>
@@ -266,8 +271,8 @@
     <th>Name</th><th>Language</th><th>JIRA</th>
   </tr>
   <tr>
-    <td>Amazon S3 File System</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-2500">BEAM-2500</a></td>
+    <td>Apache HDFS support</td><td>Python</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-3099">BEAM-3099</a></td>
   </tr>
   <tr>
     <td>Apache DistributedLog</td><td>Java</td>
@@ -286,16 +291,8 @@
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1893">BEAM-1893</a></td>
   </tr>
   <tr>
-    <td>Google Cloud Spanner</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1542">BEAM-1542</a></td>
-  </tr>
-  <tr>
     <td>InfluxDB</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-2546">BEAM-2546</a></td>
-  </tr>
-  <tr>
-    <td>JSON</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1581">BEAM-1581</a></td>
   </tr>
   <tr>
     <td>Memcached</td><td>Java</td>
@@ -312,10 +309,6 @@
   <tr>
     <td>RestIO</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1946">BEAM-1946</a></td>
-  </tr>
-  <tr>
-    <td>TikaIO</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-2328">BEAM-2328</a></td>
   </tr>
 </table>
 
