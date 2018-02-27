@@ -672,6 +672,82 @@ class IterableCoderImpl(SequenceCoderImpl):
     return components
 
 
+class PaneInfoEncoding(object):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Encoding used to describe a PaneInfo descriptor.  A PaneInfo descriptor
+  can be encoded in three different ways: with a single byte (FIRST), with a
+  single byte followed by a varint describing a single index (ONE_INDEX) or
+  with a single byte followed by two varints describing two separate indices:
+  the index and nonspeculative index.
+  """
+
+  FIRST = 0
+  ONE_INDEX = 1
+  TWO_INDICES = 2
+
+
+class PaneInfoCoderImpl(StreamCoderImpl):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Coder for a PaneInfo descriptor."""
+
+  def _choose_encoding(self, value):
+    if ((value.index == 0 and value.nonspeculative_index == 0) or
+        value.timing == windowed_value.PaneInfoTiming.UNKNOWN):
+      return PaneInfoEncoding.FIRST
+    elif (value.index == value.nonspeculative_index or
+          value.timing == windowed_value.PaneInfoTiming.EARLY):
+      return PaneInfoEncoding.ONE_INDEX
+    else:
+      return PaneInfoEncoding.TWO_INDICES
+
+  def encode_to_stream(self, value, out, nested):
+    encoding_type = self._choose_encoding(value)
+    out.write_byte(value.encoded_byte | (encoding_type << 4))
+    if encoding_type == PaneInfoEncoding.FIRST:
+      return
+    elif encoding_type == PaneInfoEncoding.ONE_INDEX:
+      out.write_var_int64(value.index)
+    elif encoding_type == PaneInfoEncoding.TWO_INDICES:
+      out.write_var_int64(value.index)
+      out.write_var_int64(value.nonspeculative_index)
+    else:
+      raise NotImplementedError('Invalid PaneInfoEncoding: %s' % encoding_type)
+
+  def decode_from_stream(self, in_stream, nested):
+    encoded_first_byte = in_stream.read_byte()
+    base = windowed_value._BYTE_TO_PANE_INFO[encoded_first_byte & 0xF]
+    assert base is not None
+    encoding_type = encoded_first_byte >> 4
+    if encoding_type == PaneInfoEncoding.FIRST:
+      return base
+    elif encoding_type == PaneInfoEncoding.ONE_INDEX:
+      index = in_stream.read_var_int64()
+      if base.timing == windowed_value.PaneInfoTiming.EARLY:
+        nonspeculative_index = -1
+      else:
+        nonspeculative_index = index
+    elif encoding_type == PaneInfoEncoding.TWO_INDICES:
+      index = in_stream.read_var_int64()
+      nonspeculative_index = in_stream.read_var_int64()
+    else:
+      raise NotImplementedError('Invalid PaneInfoEncoding: %s' % encoding_type)
+    return windowed_value.PaneInfo(
+        base.is_first, base.is_last, base.timing, index, nonspeculative_index)
+
+  def estimate_size(self, value, nested=False):
+    """Estimates the encoded size of the given value, in bytes."""
+    size = 1
+    encoding_type = self._choose_encoding(value)
+    if encoding_type == PaneInfoEncoding.ONE_INDEX:
+      size += get_varint_size(value.index)
+    elif encoding_type == PaneInfoEncoding.TWO_INDICES:
+      size += get_varint_size(value.index)
+      size += get_varint_size(value.nonspeculative_index)
+    return size
+
+
 class WindowedValueCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -694,6 +770,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     self._value_coder = value_coder
     self._timestamp_coder = timestamp_coder
     self._windows_coder = TupleSequenceCoderImpl(window_coder)
+    self._pane_info_coder = PaneInfoCoderImpl()
 
   def encode_to_stream(self, value, out, nested):
     wv = value  # type cast
@@ -709,8 +786,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
             restore_sign * (abs(wv.timestamp_micros) / 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
-    # TODO(BEAM-1522): Remove the hard coding here once PaneInfo is supported.
-    out.write_byte(0xF)
+    self._pane_info_coder.encode_to_stream(wv.pane_info, out, True)
     self._value_coder.encode_to_stream(wv.value, out, nested)
 
   def decode_from_stream(self, in_stream, nested):
@@ -734,15 +810,14 @@ class WindowedValueCoderImpl(StreamCoderImpl):
 
     windows = self._windows_coder.decode_from_stream(in_stream, True)
     # Read PaneInfo encoded byte.
-    # TODO(BEAM-1522): Ignored for now but should be converted to pane info once
-    # it is supported.
-    in_stream.read_byte()
+    pane_info = self._pane_info_coder.decode_from_stream(in_stream, True)
     value = self._value_coder.decode_from_stream(in_stream, nested)
     return windowed_value.create(
         value,
         # Avoid creation of Timestamp object.
         timestamp,
-        windows)
+        windows,
+        pane_info)
 
   def get_estimated_size_and_observables(self, value, nested=False):
     """Returns estimated size of value along with any nested observables."""
@@ -761,8 +836,8 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         self._timestamp_coder.estimate_size(value.timestamp, nested=True))
     estimated_size += (
         self._windows_coder.estimate_size(value.windows, nested=True))
-    # for pane info
-    estimated_size += 1
+    estimated_size += (
+        self._pane_info_coder.estimate_size(value.pane_info, nested=True))
     return estimated_size, observables
 
 

@@ -275,6 +275,38 @@ class CodersTest(unittest.TestCase):
                           iterable_coder.decode(
                               iterable_coder.encode(iter_generator(count))))
 
+  def test_windowedvalue_coder_paneinfo(self):
+    coder = coders.WindowedValueCoder(coders.VarIntCoder(),
+                                      coders.GlobalWindowCoder())
+    test_paneinfo_values = [
+        windowed_value.PANE_INFO_UNKNOWN,
+        windowed_value.PaneInfo(
+            True, True, windowed_value.PaneInfoTiming.EARLY, 0, -1),
+        windowed_value.PaneInfo(
+            True, False, windowed_value.PaneInfoTiming.ON_TIME, 0, 0),
+        windowed_value.PaneInfo(
+            True, False, windowed_value.PaneInfoTiming.ON_TIME, 10, 0),
+        windowed_value.PaneInfo(
+            False, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 23),
+        windowed_value.PaneInfo(
+            False, True, windowed_value.PaneInfoTiming.ON_TIME, 12, 23),
+        windowed_value.PaneInfo(
+            False, False, windowed_value.PaneInfoTiming.LATE, 0, 123),]
+
+    test_values = [windowed_value.WindowedValue(123, 234, (GlobalWindow(),), p)
+                   for p in test_paneinfo_values]
+
+    # Test unnested.
+    self.check_coder(coder, windowed_value.WindowedValue(
+        123, 234, (GlobalWindow(),), windowed_value.PANE_INFO_UNKNOWN))
+    for value in test_values:
+      self.check_coder(coder, value)
+
+    # Test nested.
+    for value1 in test_values:
+      for value2 in test_values:
+        self.check_coder(coders.TupleCoder((coder, coder)), (value1, value2))
+
   def test_windowed_value_coder(self):
     coder = coders.WindowedValueCoder(coders.VarIntCoder(),
                                       coders.GlobalWindowCoder())
