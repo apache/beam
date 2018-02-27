@@ -98,7 +98,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
 
     RowType subStrRowType = RowSqlType.builder()
         .withIntegerField("f_int")
-        .withIntegerField("sub_string")
+        .withVarcharField("sub_string")
         .build();
     Row subStrRow = Row.withRowType(subStrRowType).addValues(2, "s").build();
     PAssert.that(result3).containsInAnyOrder(subStrRow);
