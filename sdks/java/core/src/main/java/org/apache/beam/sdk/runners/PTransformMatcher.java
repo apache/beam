@@ -32,4 +32,12 @@ import org.apache.beam.sdk.transforms.PTransform;
 @Experimental(Kind.CORE_RUNNERS_ONLY)
 public interface PTransformMatcher {
   boolean matches(AppliedPTransform<?, ?, ?> application);
+
+  default PTransformMatcher and(PTransformMatcher matcher) {
+    return application -> this.matches(application) && matcher.matches(application);
+  }
+
+  default PTransformMatcher or(PTransformMatcher matcher) {
+    return application -> this.matches(application) || matcher.matches(application);
+  }
 }
