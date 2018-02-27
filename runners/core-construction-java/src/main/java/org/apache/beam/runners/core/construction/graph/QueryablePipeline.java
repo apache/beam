@@ -28,12 +28,14 @@ import com.google.common.graph.NetworkBuilder;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -168,6 +170,16 @@ public class QueryablePipeline {
         PCollectionNode.class.getSimpleName(),
         unproducedCollections);
     return network;
+  }
+
+  public Iterable<PTransformNode> getTopologicallyOrderedTransforms() {
+    return StreamSupport.stream(
+            Networks.topologicalOrder(pipelineNetwork, Comparator.comparing(PipelineNode::getId))
+                .spliterator(),
+            false)
+        .filter(PTransformNode.class::isInstance)
+        .map(PTransformNode.class::cast)
+        .collect(Collectors.toList());
   }
 
   /**
