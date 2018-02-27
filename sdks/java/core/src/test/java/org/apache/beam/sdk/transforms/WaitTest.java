@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -185,6 +186,18 @@ public class WaitTest implements Serializable {
 
   @Test
   @Category({NeedsRunner.class, UsesTestStream.class})
+  public void testWaitBoundedInDefaultWindow() {
+    testWaitWithParameters(
+        Duration.standardMinutes(1) /* duration */,
+        Duration.standardSeconds(15) /* lateness */,
+        20 /* numMainElements */,
+        null,
+        20 /* numSignalElements */,
+        null);
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesTestStream.class})
   public void testWaitWithSomeSignalWindowsEmpty() {
     testWaitWithParameters(
         Duration.standardMinutes(1) /* duration */,
@@ -204,41 +217,55 @@ public class WaitTest implements Serializable {
    * @param duration event-time duration of both inputs
    * @param lateness bound on the lateness of elements in both inputs
    * @param numMainElements number of elements in the main input
-   * @param mainWindowFn windowing function of the main input
+   * @param mainWindowFn windowing function of the main input. If null, then main input will use
+   *     default windowing, and will be marked bounded.
    * @param numSignalElements number of elements in the signal input
-   * @param signalWindowFn windowing function of the signal input.
+   * @param signalWindowFn windowing function of the signal input. If null, then signal input will
+   *     use default windowing, and will be marked bounded.
    */
   private void testWaitWithParameters(
       Duration duration,
       Duration lateness,
       int numMainElements,
-      WindowFn<? super Long, ?> mainWindowFn,
+      @Nullable WindowFn<? super Long, ?> mainWindowFn,
       int numSignalElements,
-      WindowFn<? super Long, ?> signalWindowFn) {
+      @Nullable WindowFn<? super Long, ?> signalWindowFn) {
     TEST_WAIT_MAX_MAIN_TIMESTAMP.set(null);
 
     Instant base = Instant.now();
 
     PCollection<Long> input =
-        generateStreamWithBoundedDisorder("main", base, duration, numMainElements, lateness)
-            .apply(
-                "Window main",
-                Window.<Long>into(mainWindowFn)
-                    .discardingFiredPanes()
-                    // Use an aggressive trigger for main input and signal to get more
-                    // frequent / aggressive verification.
-                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-                    .withAllowedLateness(lateness))
-            .apply("Fire main", new Fire<>());
+        generateStreamWithBoundedDisorder("main", base, duration, numMainElements, lateness);
+    if (mainWindowFn == null) {
+      input.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
+    } else {
+      input =
+          input.apply(
+              "Window main",
+              Window.<Long>into(mainWindowFn)
+                  .discardingFiredPanes()
+                  // Use an aggressive trigger for main input and signal to get more
+                  // frequent / aggressive verification.
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .withAllowedLateness(lateness));
+    }
+    input = input.apply("Fire main", new Fire<>());
 
     PCollection<Long> signal =
-        generateStreamWithBoundedDisorder("signal", base, duration, numSignalElements, lateness)
-            .apply(
-                "Window signal",
-                Window.<Long>into(signalWindowFn)
-                    .discardingFiredPanes()
-                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-                    .withAllowedLateness(lateness))
+        generateStreamWithBoundedDisorder("signal", base, duration, numSignalElements, lateness);
+    if (signalWindowFn == null) {
+      signal.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
+    } else {
+      signal =
+          signal.apply(
+              "Window signal",
+              Window.<Long>into(signalWindowFn)
+                  .discardingFiredPanes()
+                  .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                  .withAllowedLateness(lateness));
+    }
+    signal =
+        signal
             .apply("Fire signal", new Fire<>())
             .apply(
                 "Check sequencing",
