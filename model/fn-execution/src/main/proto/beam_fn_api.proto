@@ -41,6 +41,7 @@ option java_outer_classname = "BeamFnApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 
 /*
  * Constructs that define the pipeline shape.
@@ -155,15 +156,6 @@ message RegisterRequest {
 message RegisterResponse {
 }
 
-// One of the root applications specifying a bundle.
-// See https://s.apache.org/beam-breaking-fusion
-message Application {
-  // The primitive transform and its input to which to pass the element
-  Target target = 1;
-  // The encoded element to pass to the transform.
-  bytes element = 2;
-}
-
 // Definitions that should be used to construct the bundle processing graph.
 message ProcessBundleDescriptor {
   // (Required) A pipeline level unique id which can be used as a reference to
@@ -173,28 +165,22 @@ message ProcessBundleDescriptor {
   // (Required) A map from pipeline-scoped id to PTransform.
   map<string, org.apache.beam.model.pipeline.v1.PTransform> transforms = 2;
 
-  // Specifies that the given elements should be passed to the given transforms
-  // to kick off the bundle. Can be empty - then some of the transforms will
-  // have to start themselves without any input (e.g. the impulse transform or
-  // the read-from-gRPC transform).
-  repeated Application roots = 3;
-
   // (Required) A map from pipeline-scoped id to PCollection.
-  map<string, org.apache.beam.model.pipeline.v1.PCollection> pcollections = 4;
+  map<string, org.apache.beam.model.pipeline.v1.PCollection> pcollections = 3;
 
   // (Required) A map from pipeline-scoped id to WindowingStrategy.
-  map<string, org.apache.beam.model.pipeline.v1.WindowingStrategy> windowing_strategies = 5;
+  map<string, org.apache.beam.model.pipeline.v1.WindowingStrategy> windowing_strategies = 4;
 
   // (Required) A map from pipeline-scoped id to Coder.
-  map<string, org.apache.beam.model.pipeline.v1.Coder> coders = 6;
+  map<string, org.apache.beam.model.pipeline.v1.Coder> coders = 5;
 
   // (Required) A map from pipeline-scoped id to Environment.
-  map<string, org.apache.beam.model.pipeline.v1.Environment> environments = 7;
+  map<string, org.apache.beam.model.pipeline.v1.Environment> environments = 6;
 
   // A descriptor describing the end point to use for State API
   // calls. Required if the Runner intends to send remote references over the
   // data plane or if any of the transforms rely on user state or side inputs.
-  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor state_api_service_descriptor = 8;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
 }
 
 // Represents a partition of the bundle into two bundles: a "primary" and
@@ -207,8 +193,32 @@ message ProcessBundleDescriptor {
 //   the work under primary_roots.
 // For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
 message BundleSplit {
+  // One of the root applications specifying the scope of work for a bundle.
+  message Application {
+    // (Required) The primitive transform to which to pass the element
+    string ptransform_id = 1;
+
+    // (Required) Name of the transform's input to which to pass the element.
+    string input_id = 2;
+
+    // (Required) The encoded element to pass to the transform.
+    bytes element = 3;
+
+    // Approximate lower bounds on timestamps of elements that this PTransform
+    // will produce into each of its output PCollections, when invoked on this
+    // element. Keyed by the transform's local output name.
+    map<string, int64> output_watermarks = 4;
+
+    // Approximate fraction of all work of the current bundle (before split)
+    // represented by invoking this Application and its downstream applications.
+    // The sum of fraction_of_work between all primary_roots and residual_roots
+    // must add up to approximately 1.0.
+    google.protobuf.DoubleValue fraction_of_work = 5;
+  }
+
   // Root applications that should replace the current bundle.
   repeated Application primary_roots = 1;
+
   // Root applications that have been removed from the current bundle and
   // have to be executed in a separate bundle (e.g. in parallel on a different
   // worker, or after the current bundle completes, etc.)
@@ -378,13 +388,18 @@ message ProcessBundleSplitRequest {
   // instruction id.
   string instruction_reference = 1;
 
-  // (Required) Specifies that the runner would like the bundle to ensure
-  // completion before the given deadline, potentially using BundleSplit to
-  // return extra work that can't be completed by the given deadline.
-  // This is a hint - the bundle doesn't *have* to complete by this deadline.
-  // However, if the deadline is in the past, the bundle *must* complete as
-  // soon as possible (e.g. checkpoint).
-  google.protobuf.Timestamp deadline = 2;
+  // Specifies that the runner would like the bundle to split itself using
+  // BundleSplit, and give up some of the work that the bundle hasn't started
+  // doing yet, so that it can be done in a separate bundle (perhaps in
+  // parallel with the current bundle).
+  //
+  // The value is the fraction of unstarted work to keep. E.g. 0 means give up
+  // as much as possible of unstarted work (e.g. checkpoint), 0.5 means give
+  // up about half of the unstarted work, etc.
+  // This is a hint and the value is approximate.
+  //
+  // The value is relative to the current scope of work of the bundle.
+  google.protobuf.DoubleValue fraction_of_remainder = 2;
 }
 
 message ProcessBundleSplitResponse {
