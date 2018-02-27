@@ -130,8 +130,6 @@ public class CassandraIOIT implements Serializable {
             CassandraTestDataSet.getCluster(options),
             CassandraTestDataSet.TABLE_WRITE_NAME));
 
-    TestPipeline.convertToArgs(options);
-
     ArrayList<ScientistForWrite> data = new ArrayList<>();
     for (int i = 0; i < 1000; i++) {
       ScientistForWrite scientist = new ScientistForWrite();

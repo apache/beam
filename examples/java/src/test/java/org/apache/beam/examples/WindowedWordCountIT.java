@@ -181,7 +181,7 @@ public class WindowedWordCountIT {
     options.setOnSuccessMatcher(
         new WordCountsMatcher(expectedWordCounts, expectedOutputFiles));
 
-    WindowedWordCount.main(TestPipeline.convertToArgs(options));
+    WindowedWordCount.runWindowedWordCount(options);
   }
 
   /**

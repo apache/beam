@@ -144,9 +144,7 @@ public class BigQueryTornadoes {
     void setOutput(String value);
   }
 
-  public static void main(String[] args) {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-
+  static void runBigQueryTornadoes(Options options) {
     Pipeline p = Pipeline.create(options);
 
     // Build the table schema for the output table.
@@ -164,5 +162,11 @@ public class BigQueryTornadoes {
          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
+  }
+
+  public static void main(String[] args) {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+    runBigQueryTornadoes(options);
   }
 }
