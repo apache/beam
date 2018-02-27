@@ -975,7 +975,12 @@ public class GreedyPipelineFuserTest {
                     .build())
             .build();
     FusedPipeline fused =
-        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+        GreedyPipelineFuser.fuse(
+            Pipeline.newBuilder()
+                .addRootTransformIds("impulse")
+                .addRootTransformIds("compositeMultiLang")
+                .setComponents(components)
+                .build());
 
     // Impulse is the runner transform
     assertThat(fused.getRunnerExecutedTransforms(), hasSize(1));
