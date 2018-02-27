@@ -63,6 +63,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -504,27 +505,49 @@ public class DirectRunnerTest implements Serializable {
   @Test
   public void testUserException() throws Exception {
     Pipeline p = getPipeline();
-    PCollection<Long> pcollection = p.apply("Step 1", Create.of(1))
+    p.apply("Step 1", Create.of(1))
         .apply("Step 2", ParDo.of(new DoFn<Integer, Long>() {
           @ProcessElement
           public void processElement(ProcessContext c) {
             throw new IllegalStateException("Custom exception element " + c.element());
           }
-        })).setCoder(VarLongCoder.of());
-    pcollection
-        .apply("Unreachable",
-            ParDo.of(
-                new DoFn<Long, Long>() {
-                  @ProcessElement
-                  public void unreachable(ProcessContext c) {
-                    fail("Pipeline should fail to encode a null Long in VarLongCoder");
-                  }
-                }));
+        }));
 
     thrown.expectCause(
         new ThrowableMessageMatcher<IllegalArgumentException>(equalTo("Custom exception "
             + "element 1")));
     thrown.expectMessage("Exception occurred while executing transform Step 2");
+    p.run();
+  }
+
+  @Test
+  public void testUserExceptionCompositeTransform() throws Exception {
+    Pipeline p = getPipeline();
+    PCollection<Integer> pcollection = p.apply("Step 1", Create.of(1))
+        .apply("Step 2", new PTransform<PCollection<Integer>, PCollection<Integer>>() {
+
+          @Override public PCollection<Integer> expand(PCollection<Integer> input) {
+            PCollection<Integer> updated = input
+                .apply("Nested 1", ParDo.of(new DoFn<Integer, Integer>() {
+
+                  @ProcessElement public void processElement(ProcessContext c) {
+                    c.output(c.element());
+                  }
+                }));
+
+            return updated.apply("Nested 2", ParDo.of(new DoFn<Integer, Integer>() {
+
+              @ProcessElement public void processElement(ProcessContext c) {
+                throw new IllegalStateException("Custom exception element " + c.element());
+              }
+            }));
+          }
+        });
+
+    thrown.expectCause(
+        new ThrowableMessageMatcher<IllegalArgumentException>(equalTo("Custom exception "
+            + "element 1")));
+    thrown.expectMessage("Exception occurred while executing transform Step 2/Nested 2");
     p.run();
   }
 
