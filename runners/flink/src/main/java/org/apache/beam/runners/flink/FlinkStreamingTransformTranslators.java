@@ -148,6 +148,11 @@ class FlinkStreamingTransformTranslators {
     return urn == null ? null : TRANSLATORS.get(urn);
   }
 
+  @SuppressWarnings("unchecked")
+  private static String getCurrentTransformName(FlinkStreamingTranslationContext context) {
+    return context.getCurrentTransform().getFullName();
+  }
+
   // --------------------------------------------------------------------------------------------
   //  Transformation Implementations
   // --------------------------------------------------------------------------------------------
@@ -183,17 +188,17 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
+      String fullName = getCurrentTransformName(context);
       try {
-
         UnboundedSourceWrapper<T, ?> sourceWrapper =
             new UnboundedSourceWrapper<>(
-                context.getCurrentTransform().getFullName(),
+                fullName,
                 context.getPipelineOptions(),
                 rawSource,
                 context.getExecutionEnvironment().getParallelism());
         nonDedupSource = context
             .getExecutionEnvironment()
-            .addSource(sourceWrapper).name(transform.getName()).returns(withIdTypeInfo);
+            .addSource(sourceWrapper).name(fullName).returns(withIdTypeInfo);
 
         if (rawSource.requiresDeduping()) {
           source =
@@ -281,17 +286,18 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
+      String fullName = getCurrentTransformName(context);
       DataStream<WindowedValue<T>> source;
       try {
         BoundedSourceWrapper<T> sourceWrapper =
             new BoundedSourceWrapper<>(
-                context.getCurrentTransform().getFullName(),
+                fullName,
                 context.getPipelineOptions(),
                 rawSource,
                 context.getExecutionEnvironment().getParallelism());
         source = context
             .getExecutionEnvironment()
-            .addSource(sourceWrapper).name(transform.getName()).returns(outputTypeInfo);
+            .addSource(sourceWrapper).name(fullName).returns(outputTypeInfo);
       } catch (Exception e) {
         throw new RuntimeException(
             "Error while translating BoundedSource: " + rawSource, e);
@@ -468,7 +474,7 @@ class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT> doFnOperator =
             doFnOperatorFactory.createDoFnOperator(
                 doFn,
-                context.getCurrentTransform().getFullName(),
+                getCurrentTransformName(context),
                 sideInputs,
                 mainOutputTag,
                 additionalOutputTags,
@@ -491,7 +497,7 @@ class FlinkStreamingTransformTranslators {
         DoFnOperator<InputT, OutputT> doFnOperator =
             doFnOperatorFactory.createDoFnOperator(
                 doFn,
-                context.getCurrentTransform().getFullName(),
+                getCurrentTransformName(context),
                 sideInputs,
                 mainOutputTag,
                 additionalOutputTags,
@@ -587,7 +593,7 @@ class FlinkStreamingTransformTranslators {
       }
 
       ParDoTranslationHelper.translateParDo(
-          transform.getName(),
+          getCurrentTransformName(context),
           doFn,
           context.getInput(transform),
           sideInputs,
@@ -636,7 +642,7 @@ class FlinkStreamingTransformTranslators {
         FlinkStreamingTranslationContext context) {
 
       ParDoTranslationHelper.translateParDo(
-          transform.getName(),
+          getCurrentTransformName(context),
           transform.newProcessFn(transform.getFn()),
           context.getInput(transform),
           transform.getSideInputs(),
@@ -796,10 +802,11 @@ class FlinkStreamingTransformTranslators {
 
       TupleTag<KV<K, Iterable<InputT>>> mainTag = new TupleTag<>("main output");
 
+      String fullName = getCurrentTransformName(context);
       WindowDoFnOperator<K, InputT, Iterable<InputT>> doFnOperator =
           new WindowDoFnOperator<>(
               reduceFn,
-              context.getCurrentTransform().getFullName(),
+              fullName,
               (Coder) windowedWorkItemCoder,
               mainTag,
               Collections.emptyList(),
@@ -815,13 +822,9 @@ class FlinkStreamingTransformTranslators {
       @SuppressWarnings("unchecked")
       SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<InputT>>>> outDataStream =
           keyedWorkItemStream
-              .transform(
-                  transform.getName(),
-                  outputTypeInfo,
-                  (OneInputStreamOperator) doFnOperator);
+              .transform(fullName, outputTypeInfo, (OneInputStreamOperator) doFnOperator);
 
       context.setOutputDataStream(context.getOutput(transform), outDataStream);
-
     }
   }
 
@@ -916,13 +919,13 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
+      String fullName = getCurrentTransformName(context);
       if (sideInputs.isEmpty()) {
-
         TupleTag<KV<K, OutputT>> mainTag = new TupleTag<>("main output");
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
-                context.getCurrentTransform().getFullName(),
+                fullName,
                 (Coder) windowedWorkItemCoder,
                 mainTag,
                 Collections.emptyList(),
@@ -938,7 +941,7 @@ class FlinkStreamingTransformTranslators {
         @SuppressWarnings("unchecked")
         SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream =
             keyedWorkItemStream.transform(
-                transform.getName(), outputTypeInfo, (OneInputStreamOperator) doFnOperator);
+                fullName, outputTypeInfo, (OneInputStreamOperator) doFnOperator);
 
         context.setOutputDataStream(context.getOutput(transform), outDataStream);
       } else {
@@ -949,7 +952,7 @@ class FlinkStreamingTransformTranslators {
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
             new WindowDoFnOperator<>(
                 reduceFn,
-                context.getCurrentTransform().getFullName(),
+                fullName,
                 (Coder) windowedWorkItemCoder,
                 mainTag,
                 Collections.emptyList(),
@@ -969,7 +972,7 @@ class FlinkStreamingTransformTranslators {
             WindowedValue<KV<K, OutputT>>> rawFlinkTransform = new TwoInputTransformation<>(
             keyedWorkItemStream.getTransformation(),
             transformSideInputs.f1.broadcast().getTransformation(),
-            transform.getName(),
+            fullName,
             (TwoInputStreamOperator) doFnOperator,
             outputTypeInfo,
             keyedWorkItemStream.getParallelism());
