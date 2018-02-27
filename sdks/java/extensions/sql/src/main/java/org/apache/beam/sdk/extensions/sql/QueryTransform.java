@@ -27,16 +27,21 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
+import org.joda.time.Duration;
 
 /**
  * A {@link PTransform} representing an execution plan for a SQL query.
@@ -51,6 +56,10 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   abstract String queryString();
   abstract List<UdfDefinition> udfDefinitions();
   abstract List<UdafDefinition> udafDefinitions();
+  abstract boolean customizedTriggerAccumulationMode();
+  abstract Trigger trigger();
+  abstract AccumulationMode accumulationMode();
+  abstract Duration allowedLatency();
 
   @Override
   public PCollection<Row> expand(PInput input) {
@@ -64,6 +73,9 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
 
     sqlEnv.registerPCollectionTuple(inputTuple);
     registerFunctions(sqlEnv);
+
+    sqlEnv.withCustTriggerPolicy(customizedTriggerAccumulationMode(), trigger(),
+        accumulationMode(), allowedLatency());
 
     try {
       return
@@ -115,6 +127,10 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
             .setQueryString(queryString)
             .setUdafDefinitions(Collections.emptyList())
             .setUdfDefinitions(Collections.emptyList())
+            .setCustomizedTriggerAccumulationMode(false)
+            .setTrigger(DefaultTrigger.of())
+            .setAccumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .setAllowedLatency(Duration.ZERO)
             .build();
   }
 
@@ -147,6 +163,34 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
   }
 
   /**
+   * Set a customized {@link Trigger} used in this query, to overwrite the default
+   * {@link DefaultTrigger}. If the query doesn't have an aggregation, it's ignored.
+   */
+  @Experimental
+  public QueryTransform withTrigger(Trigger trigger){
+    return toBuilder().setCustomizedTriggerAccumulationMode(true).setTrigger(trigger).build();
+  }
+
+  /**
+   * Set a customized {@link AccumulationMode} used in this query.
+   * If the query doesn't have an aggregation, it's ignored.
+   */
+  @Experimental
+  public QueryTransform withAccumulationMode(AccumulationMode mode){
+    return toBuilder().setCustomizedTriggerAccumulationMode(true).setAccumulationMode(mode).build();
+  }
+
+  /**
+   * Set a customized {@code allowedLatency} used in this query.
+   * If the query doesn't have an aggregation, it's ignored.
+   */
+  @Experimental
+  public QueryTransform withAllowedLatency(Duration allowedLatency){
+    return toBuilder().setCustomizedTriggerAccumulationMode(true)
+        .setAllowedLatency(allowedLatency).build();
+  }
+
+  /**
    * register a {@link Combine.CombineFn} as UDAF function used in this query.
    */
   public QueryTransform registerUdaf(String functionName, Combine.CombineFn combineFn) {
@@ -171,6 +215,10 @@ public abstract class QueryTransform extends PTransform<PInput, PCollection<Row>
     abstract Builder setQueryString(String queryString);
     abstract Builder setUdfDefinitions(List<UdfDefinition> udfDefinitions);
     abstract Builder setUdafDefinitions(List<UdafDefinition> udafDefinitions);
+    abstract Builder setCustomizedTriggerAccumulationMode(boolean isCustomized);
+    abstract Builder setTrigger(Trigger trigger);
+    abstract Builder setAccumulationMode(AccumulationMode mode);
+    abstract Builder setAllowedLatency(Duration allowedLatency);
 
     abstract QueryTransform build();
   }

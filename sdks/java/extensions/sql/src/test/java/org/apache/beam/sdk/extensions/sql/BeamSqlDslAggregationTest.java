@@ -30,6 +30,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
@@ -559,6 +561,42 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             rowsWithSingleIntField("sum", Arrays.asList(3, 3, 9, 6)));
 
     pipeline.run();
+  }
+
+  @Test
+  public void runTumbleWindowWithCustTriggerPolicy() throws Exception {
+    String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
+        + " TUMBLE_START(f_timestamp, INTERVAL '1' HOUR) AS `window_start`"
+        + " FROM PCOLLECTION"
+        + " GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
+    PCollection<Row> result =
+        unboundedInput1.apply("testHopWindow", BeamSql.query(sql)
+            .withTrigger(
+                AfterWatermark.pastEndOfWindow().withEarlyFirings(AfterPane.elementCountAtLeast(2))
+                )
+            .withAccumulationMode(AccumulationMode.ACCUMULATING_FIRED_PANES)
+            .withAllowedLatency(Duration.ZERO));
+
+    RowType resultType =
+        RowSqlType
+            .builder()
+            .withIntegerField("f_int2")
+            .withBigIntField("size")
+            .withTimestampField("window_start")
+            .build();
+
+    List<Row> expectedRows =
+        TestUtils.RowsBuilder
+            .of(resultType)
+            .addRows(
+                0, 2L, FORMAT.parse("2017-01-01 01:00:00"),
+                0, 3L, FORMAT.parse("2017-01-01 01:00:00"),
+                0, 1L, FORMAT.parse("2017-01-01 02:00:00"))
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(expectedRows);
+
+    pipeline.run().waitUntilFinish();
   }
 
   private List<Row> rowsWithSingleIntField(String fieldName, List<Integer> values) {
