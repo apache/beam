@@ -106,20 +106,17 @@ import org.slf4j.LoggerFactory;
  *       .withKeyDeserializer(LongDeserializer.class)
  *       .withValueDeserializer(StringDeserializer.class)
  *
- *       // above four are required configuration. returns PCollection<KafkaRecord<Long, String>>
+ *       // Above four are required configuration. returns PCollection<KafkaRecord<Long, String>>
  *
- *       // rest of the settings are optional :
+ *       // Rest of the settings are optional :
  *
  *       // you can further customize KafkaConsumer used to read the records by adding more
  *       // settings for ConsumerConfig. e.g :
- *       .updateConsumerProperties(ImmutableMap.of("receive.buffer.bytes", 1024 * 1024))
+ *       .updateConsumerProperties(ImmutableMap.of("group.id", "my_beam_app_1"))
  *
  *       // set event times and watermark based on LogAppendTime. To provide a custom
  *       // policy see withTimestampPolicyFactory(). withProcessingTime() is the default.
  *       .withLogAppendTime()
- *
- *       // custom function for watermark (default is record timestamp)
- *       .withWatermarkFn(new MyWatermarkFunction())
  *
  *       // restrict reader to committed messages on Kafka (see method documentation).
  *       .withReadCommitted()
@@ -209,12 +206,11 @@ import org.slf4j.LoggerFactory;
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  *
  * <h3>Event Timestamp and Watermark</h3>
- * By default record timestamp and watermark are based on processing time in KafkaIO reader.
- * This can be overridden by providing {@code WatermarkFn} with
- * {@link Read#withWatermarkFn(SerializableFunction)}, and {@code TimestampFn} with
- * {@link Read#withTimestampFn(SerializableFunction)}.<br>
- * Note that {@link KafkaRecord#getTimestamp()} reflects timestamp provided by Kafka if any,
- * otherwise it is set to processing time.
+ * By default, record timestamp (event time) is set to processing time in KafkaIO reader and
+ * source watermark is current wall time. If a topic has Kafka server-side ingestion timestamp
+ * enabled ('LogAppendTime'), it can enabled with {@link Read#withLogAppendTime()}.
+ * A custom timestamp policy can be provided by implementing {@link TimestampPolicyFactory}. See
+ * {@link Read#withTimestampPolicyFactory(TimestampPolicyFactory)} for more information.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class KafkaIO {
