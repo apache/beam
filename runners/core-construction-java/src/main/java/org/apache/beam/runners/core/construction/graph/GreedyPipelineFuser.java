@@ -93,7 +93,7 @@ public class GreedyPipelineFuser {
    *       {@link PTransformNode} may only be present in a single stage rooted at a single {@link
    *       PCollectionNode}, otherwise it will process elements of that {@link PCollectionNode}
    *       multiple times.
-   *   <li>Create a {@link GreedilyFusedExecutableStage} with those siblings as the initial
+   *   <li>Create a {@link GreedyStageFuser} with those siblings as the initial
    *       consuming transforms of the stage
    *   <li>For each materialized {@link PCollectionNode}, find all of the descendant in-environment
    *       consumers. See {@link #getDescendantConsumersInEnv(PCollectionNode)} for details.
@@ -277,7 +277,7 @@ public class GreedyPipelineFuser {
 
   private ExecutableStage fuseSiblings(Set<CollectionConsumer> mutuallyCompatible) {
     PCollectionNode rootCollection = mutuallyCompatible.iterator().next().consumedCollection();
-    return GreedilyFusedExecutableStage.forGrpcPortRead(
+    return GreedyStageFuser.forGrpcPortRead(
         pipeline,
         rootCollection,
         mutuallyCompatible

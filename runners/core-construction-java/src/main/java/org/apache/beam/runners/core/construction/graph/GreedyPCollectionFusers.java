@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -29,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.Flatten;
 
@@ -74,10 +76,13 @@ class GreedyPCollectionFusers {
       GreedyPCollectionFusers::unknownTransformCompatibility;
 
   public static boolean canFuse(
-      PTransformNode transformNode, ExecutableStage subgraph, QueryablePipeline pipeline) {
+      PTransformNode transformNode,
+      Environment environment,
+      Collection<PCollectionNode> stagePCollections,
+      QueryablePipeline pipeline) {
     return URN_FUSIBILITY_CHECKERS
         .getOrDefault(transformNode.getTransform().getSpec().getUrn(), DEFAULT_FUSIBILITY_CHECKER)
-        .canFuse(transformNode, subgraph, pipeline);
+        .canFuse(transformNode, environment, stagePCollections, pipeline);
   }
 
   public static boolean isCompatible(
@@ -101,7 +106,11 @@ class GreedyPCollectionFusers {
     /**
      * Determine if a {@link PTransformNode} can be fused into an existing {@link ExecutableStage}.
      */
-    boolean canFuse(PTransformNode consumer, ExecutableStage subgraph, QueryablePipeline pipeline);
+    boolean canFuse(
+        PTransformNode transformNode,
+        Environment environment,
+        Collection<PCollectionNode> stagePCollections,
+        QueryablePipeline pipeline);
   }
 
   private interface CompatibilityChecker {
@@ -121,14 +130,17 @@ class GreedyPCollectionFusers {
    * contain data for the side input window that contains the element.
    */
   private static boolean canFuseParDo(
-      PTransformNode parDo, ExecutableStage stage, QueryablePipeline pipeline) {
+      PTransformNode parDo,
+      Environment environment,
+      Collection<PCollectionNode> stagePCollections,
+      QueryablePipeline pipeline) {
     Optional<Environment> env = pipeline.getEnvironment(parDo);
     checkArgument(
         env.isPresent(),
         "A %s must have an %s associated with it",
         ParDoPayload.class.getSimpleName(),
         Environment.class.getSimpleName());
-    if (!env.get().equals(stage.getEnvironment())) {
+    if (!env.get().equals(environment)) {
       // The PCollection's producer and this ParDo execute in different environments, so fusion
       // is never possible.
       return false;
@@ -171,10 +183,13 @@ class GreedyPCollectionFusers {
    * A WindowInto can be fused into a stage if it executes in the same Environment as that stage.
    */
   private static boolean canFuseAssignWindows(
-      PTransformNode window, ExecutableStage stage, QueryablePipeline pipeline) {
+      PTransformNode window,
+      Environment environmemnt,
+      @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
+      QueryablePipeline pipeline) {
     // WindowInto transforms may not have an environment
     Optional<Environment> windowEnvironment = pipeline.getEnvironment(window);
-    return stage.getEnvironment().equals(windowEnvironment.orElse(null));
+    return environmemnt.equals(windowEnvironment.orElse(null));
   }
 
   private static boolean compatibleEnvironments(
@@ -232,14 +247,16 @@ class GreedyPCollectionFusers {
    */
   private static boolean canAlwaysFuse(
       @SuppressWarnings("unused") PTransformNode flatten,
-      @SuppressWarnings("unused") ExecutableStage stage,
+      @SuppressWarnings("unused") Environment environment,
+      @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
     return true;
   }
 
   private static boolean cannotFuse(
       @SuppressWarnings("unused") PTransformNode cannotFuse,
-      @SuppressWarnings("unused") ExecutableStage stage,
+      @SuppressWarnings("unused") Environment environment,
+      @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
     return false;
   }
@@ -256,7 +273,8 @@ class GreedyPCollectionFusers {
 
   private static boolean unknownTransformFusion(
       PTransformNode transform,
-      @SuppressWarnings("unused") ExecutableStage stage,
+      @SuppressWarnings("unused") Environment environment,
+      @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
     throw new IllegalArgumentException(
         String.format("Unknown URN %s", transform.getTransform().getSpec().getUrn()));
