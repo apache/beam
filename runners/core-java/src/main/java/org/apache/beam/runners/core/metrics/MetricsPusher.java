@@ -42,7 +42,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public class MetricsPusher implements Serializable {
 
-  public static final long DEFAULT_PERIOD = 5L;
   private static volatile MetricsPusher instance;
   private static MetricsSink metricsSink;
   private static long period;
@@ -81,10 +80,7 @@ public class MetricsPusher implements Serializable {
       default:
         metricsSink = new DummyMetricsSink();
     }
-    period =
-        pipelineOptions.getMetricsPushPeriod() != null
-            ? pipelineOptions.getMetricsPushPeriod()
-            : DEFAULT_PERIOD;
+    period = pipelineOptions.getMetricsPushPeriod();
   }
 
   /**

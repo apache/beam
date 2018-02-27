@@ -93,7 +93,7 @@ public class SparkMetricsPusherTest {
 
     pipeline.run();
     // give metrics pusher time to push
-    Thread.sleep((MetricsPusher.DEFAULT_PERIOD + 1L) * 1000);
+    Thread.sleep((pipeline.getOptions().getMetricsPushPeriod() + 1L) * 1000);
     assertThat(DummyMetricsSink.getCounterValue(), is(6L));
   }
 
@@ -119,7 +119,7 @@ public class SparkMetricsPusherTest {
 
     pipeline.run();
     // give metrics pusher time to push
-    Thread.sleep((MetricsPusher.DEFAULT_PERIOD + 1L) * 1000);
+    Thread.sleep((pipeline.getOptions().getMetricsPushPeriod() + 1L) * 1000);
     assertThat(DummyMetricsSink.getCounterValue(), is(6L));
   }
 
