@@ -72,11 +72,15 @@ class RetractingReduceFn<K, InputT, W extends BoundedWindow>
   @Override
   public void prefetchOnMerge(MergingStateAccessor<K, W> state) {
     StateMerging.prefetchBags(state, bufferTag);
+    StateMerging.prefetchBags(state, retractedTag);
+    StateMerging.prefetchBags(state, newTag);
   }
 
   @Override
   public void onMerge(OnMergeContext c) {
     StateMerging.mergeBags(c.state(), bufferTag);
+    StateMerging.mergeBags(c.state(), retractedTag);
+    StateMerging.mergeBags(c.state(), newTag);
   }
 
   @Override

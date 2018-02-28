@@ -153,14 +153,8 @@ public class ParDoRetractionsTest implements Serializable {
             .apply("groupByKey", GroupByKey.create())
             .apply("processGroupingsAndRetractions",
                    retractionAwareParDo(
-                       group ->
-                           KV.of(
-                               NOT_RETRACTION,
-                               toList(group.getValue())),
-                       retraction ->
-                           KV.of(
-                               IS_RETRACTION,
-                               toList(retraction.getValue()))))
+                       grouped -> KV.of(NOT_RETRACTION, toList(grouped.getValue())),
+                       retracted -> KV.of(IS_RETRACTION, toList(retracted.getValue()))))
             .setCoder(retractionsKvCoder());
 
     PAssert
@@ -211,7 +205,6 @@ public class ParDoRetractionsTest implements Serializable {
 
     for (TestPojo pojo : pojos) {
       values = values.advanceWatermarkTo(pojo.eventTimestamp());
-      // values = values.addElements(TimestampedValue.of(pojo, pojo.eventTimestamp()));
       values = values.addElements(pojo);
     }
 

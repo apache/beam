@@ -342,13 +342,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     return (signature.processRetraction() == null)
         ? ExceptionMethod.throwing(IllegalArgumentException.class,
-                                   "Attempted to process a retraction of an element, "
-                                   + "but no method annotated with either "
-                                   + "@Pure or @ProcessRetraction found in the DoFn class. "
-                                   + "This can happen if you enabled retractions mode for the "
-                                   + "pipeline but "
-                                   + "did not update the DoFns to process retractions. "
-                                   + "See documentation on how retractions mode work.")
+                                   String.format(
+                                       "Attempted to process a retraction of an element by '%s', "
+                                       + "but no method annotated with either "
+                                       + "@Pure or @ProcessRetraction found in the DoFn class. "
+                                       + "This can happen if you enabled retractions mode for the "
+                                       + "pipeline but "
+                                       + "did not update the DoFns to process retractions. "
+                                       + "See documentation on how retractions mode work.",
+                                       signature.fnClass()))
         : new ProcessElementDelegation(clazzDescription, signature.processRetraction());
   }
 
