@@ -93,7 +93,11 @@ def createValidatesRunnerTask(Map m) {
     group = "Verification"
     def runnerType = config.streaming ? "streaming" : "batch"
     description = "Validates the ${runnerType} runner"
-    def pipelineOptions = JsonOutput.toJson(["--runner=TestFlinkRunner", "--streaming=${config.streaming}"])
+    def pipelineOptions = JsonOutput.toJson([
+        "--runner=TestFlinkRunner",
+        "--streaming=${config.streaming}",
+        "--parallelism=1"
+    ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
