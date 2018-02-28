@@ -31,6 +31,7 @@ import six
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
+from apache_beam.utils.annotations import deprecated
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -50,6 +51,7 @@ except ImportError:
 # pylint: enable=ungrouped-imports
 
 
+@deprecated(since="v2.4")
 def key_comparator(k1, k2):
   """A comparator for Datastore keys.
 
@@ -78,6 +80,7 @@ def key_comparator(k1, k2):
   return 0
 
 
+@deprecated(since="v2.4")
 def compare_path(p1, p2):
   """A comparator for key path.
 
@@ -90,7 +93,7 @@ def compare_path(p1, p2):
   3. If no `id` is defined for both paths, then their `names` are compared.
   """
 
-  result = cmp(p1.kind, p2.kind)
+  result = (p1.kind > p2.kind) - (p1.kind < p2.kind)
   if result != 0:
     return result
 
@@ -98,12 +101,12 @@ def compare_path(p1, p2):
     if not p2.HasField('id'):
       return -1
 
-    return cmp(p1.id, p2.id)
+    return (p1.id > p2.id) - (p1.id < p2.id)
 
   if p2.HasField('id'):
     return 1
 
-  return cmp(p1.name, p2.name)
+  return (p1.name > p2.name) - (p1.name < p2.name)
 
 
 def get_datastore(project):
