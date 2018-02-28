@@ -1076,12 +1076,20 @@ def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
   # [END model_bigqueryio_write_input]
 
   # [START model_bigqueryio_write]
+  quotes | beam.io.Write(beam.io.gcp.bigquery.BigQuerySink(
+      table_spec,
+      schema=table_schema,
+      write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED))
+  # [END model_bigqueryio_write]
+
+  # [START model_bigqueryio_writetobigquery]
   quotes | beam.io.WriteToBigQuery(
       table_spec,
       schema=table_schema,
       write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
       create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
-  # [END model_bigqueryio_write]
+  # [END model_bigqueryio_writetobigquery]
 
 
 def model_composite_transform_example(contents, output_path):
