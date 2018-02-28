@@ -40,12 +40,12 @@ import org.joda.time.Instant;
 /**
  * Session window test.
  */
-public class TopWikipediaSessionsITCase extends StreamingProgramTestBase implements Serializable {
+public class TopWikipediaSessionsTest extends StreamingProgramTestBase implements Serializable {
 
   protected String resultDir;
   protected String resultPath;
 
-  public TopWikipediaSessionsITCase() {
+  public TopWikipediaSessionsTest() {
   }
 
   static final String[] EXPECTED_RESULT = new String[] {

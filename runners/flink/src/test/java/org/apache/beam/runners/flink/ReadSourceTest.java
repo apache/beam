@@ -31,11 +31,11 @@ import org.apache.flink.test.util.JavaProgramTestBase;
 /**
  * Reads from a bounded source in batch execution.
  */
-public class ReadSourceITCase extends JavaProgramTestBase {
+public class ReadSourceTest extends JavaProgramTestBase {
 
   protected String resultPath;
 
-  public ReadSourceITCase() {
+  public ReadSourceTest() {
   }
 
   private static final String[] EXPECTED_RESULT = new String[] {
