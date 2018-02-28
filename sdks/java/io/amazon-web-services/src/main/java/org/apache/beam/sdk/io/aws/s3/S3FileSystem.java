@@ -551,6 +551,8 @@ class S3FileSystem extends FileSystem<S3ResourceId> {
     List<PartETag> eTags = new ArrayList<>();
 
     final long objectSize = objectMetadata.getContentLength();
+    // extra validation in case a caller calls directly S3FileSystem.multipartCopy
+    // without using S3FileSystem.copy in the future
     if (objectSize == 0) {
       final CopyPartRequest copyPartRequest =
           new CopyPartRequest()
