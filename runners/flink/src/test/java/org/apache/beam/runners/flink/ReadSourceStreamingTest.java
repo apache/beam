@@ -29,12 +29,12 @@ import org.apache.flink.streaming.util.StreamingProgramTestBase;
 /**
  * Reads from a bounded source in streaming.
  */
-public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
+public class ReadSourceStreamingTest extends StreamingProgramTestBase {
 
   protected String resultDir;
   protected String resultPath;
 
-  public ReadSourceStreamingITCase() {
+  public ReadSourceStreamingTest() {
   }
 
   private static final String[] EXPECTED_RESULT = new String[] {
