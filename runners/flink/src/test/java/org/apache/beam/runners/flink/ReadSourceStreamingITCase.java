@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.base.Joiner;
+import java.io.File;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
@@ -30,6 +31,7 @@ import org.apache.flink.streaming.util.StreamingProgramTestBase;
  */
 public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
 
+  protected String resultDir;
   protected String resultPath;
 
   public ReadSourceStreamingITCase() {
@@ -40,12 +42,16 @@ public class ReadSourceStreamingITCase extends StreamingProgramTestBase {
 
   @Override
   protected void preSubmit() throws Exception {
-    resultPath = getTempDirPath("result");
+    // Beam Write will add shard suffix to fileName, see ShardNameTemplate.
+    // So tempFile need have a parent to compare.
+    File resultParent = createAndRegisterTempFile("result");
+    resultDir = resultParent.toURI().toString();
+    resultPath = new File(resultParent, "file.txt").getAbsolutePath();
   }
 
   @Override
   protected void postSubmit() throws Exception {
-    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
+    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultDir);
   }
 
   @Override
