@@ -50,6 +50,7 @@ WindowFn.
 from __future__ import absolute_import
 
 import abc
+from functools import total_ordering
 
 from google.protobuf import duration_pb2
 from google.protobuf import timestamp_pb2
@@ -177,6 +178,7 @@ class WindowFn(urns.RunnerApiFn):
   urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_WINDOWFN)
 
 
+@total_ordering
 class BoundedWindow(object):
   """A window for timestamps in range (-infinity, end).
 
@@ -190,12 +192,17 @@ class BoundedWindow(object):
   def max_timestamp(self):
     return self.end.predecessor()
 
-  def __cmp__(self, other):
-    # Order first by endpoint, then arbitrarily.
-    return cmp(self.end, other.end) or cmp(hash(self), hash(other))
-
   def __eq__(self, other):
-    raise NotImplementedError
+    return type(self) is type(other) and self.end == other.end
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
+
+  def __lt__(self, other):
+    if type(self) is not type(other):
+      return type(self) < type(other)
+    # Order first by endpoint, then arbitrarily.
+    return (self.end, hash(self)) < (other.end, hash(other))
 
   def __hash__(self):
     return hash(self.end)
@@ -220,7 +227,9 @@ class IntervalWindow(BoundedWindow):
     return hash((self.start, self.end))
 
   def __eq__(self, other):
-    return self.start == other.start and self.end == other.end
+    return type(self) == type(other) and \
+      self.start == other.start and \
+      self.end == other.end
 
   def __repr__(self):
     return '[%s, %s)' % (float(self.start), float(self.end))
@@ -233,6 +242,7 @@ class IntervalWindow(BoundedWindow):
         min(self.start, other.start), max(self.end, other.end))
 
 
+@total_ordering
 class TimestampedValue(object):
   """A timestamped value having a value and a timestamp.
 
@@ -245,10 +255,16 @@ class TimestampedValue(object):
     self.value = value
     self.timestamp = Timestamp.of(timestamp)
 
-  def __cmp__(self, other):
+  def __eq__(self, other):
+    return self.value == other.value and self.timestamp == other.timestamp
+
+  def __hash_(self):
+    return hash(self.value) ^ hash(self.timestamp) << 1
+
+  def __lt__(self, other):
     if type(self) is not type(other):
-      return cmp(type(self), type(other))
-    return cmp((self.value, self.timestamp), (other.value, other.timestamp))
+      return type(self) < type(other)
+    return (self.value, self.timestamp) < (other.value, other.timestamp)
 
 
 class GlobalWindow(BoundedWindow):
