@@ -80,7 +80,7 @@ from apache_beam.utils import processes
 BEAM_CONTAINER_VERSION = 'beam-master-20180228'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20171222'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20180228'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
