@@ -27,8 +27,6 @@ description = "Apache Beam :: Runners :: Direct Java"
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
  */
 evaluationDependsOn(":model:fn-execution")
 evaluationDependsOn(":runners:core-construction-java")
@@ -52,7 +50,7 @@ dependencies {
   shadow library.java.hamcrest_core
   shadow library.java.junit
   shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest project(":runners:core-java").sourceSets.test.output
+  shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
   shadowTest project(":model:fn-execution").sourceSets.test.output
   shadowTest library.java.guava_testlib
   shadowTest library.java.slf4j_jdk14
