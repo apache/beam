@@ -71,7 +71,7 @@ class SwitchingDirectRunner(PipelineRunner):
     use_fnapi_runner = True
 
     # Streaming mode is not yet supported on the FnApiRunner.
-    if pipeline.options.view_as(StandardOptions).streaming:
+    if pipeline._options.view_as(StandardOptions).streaming:
       use_fnapi_runner = False
 
     from apache_beam.pipeline import PipelineVisitor
