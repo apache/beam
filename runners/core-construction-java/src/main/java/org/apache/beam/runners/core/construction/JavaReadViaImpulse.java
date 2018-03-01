@@ -64,6 +64,8 @@ public class JavaReadViaImpulse {
             ReadTranslation.sourceIsBounded(transform) == PCollection.IsBounded.BOUNDED);
   }
 
+  // TODO: https://issues.apache.org/jira/browse/BEAM-3859 Support unbounded reads via impulse.
+
   private static class BoundedReadViaImpulse<T> extends PTransform<PBegin, PCollection<T>> {
     private final BoundedSource<T> source;
 
