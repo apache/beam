@@ -31,9 +31,9 @@ import org.joda.time.Instant;
 import org.junit.Test;
 
 /**
- * Test class for JsonMetricsSerializer.
+ * Test class for MetricsHttpSink.
  */
-public class JsonMetricsSerializerTest {
+public class MetricsHttpSinkTest {
 
   @Test public void testSerializer() throws Exception {
     MetricQueryResults metricQueryResults =
@@ -220,10 +220,10 @@ public class JsonMetricsSerializerTest {
                     });
           }
         };
-    JsonMetricsSerializer jsonMetricsSerializer = new JsonMetricsSerializer();
-    String serializeMetrics = jsonMetricsSerializer.serializeMetrics(metricQueryResults);
+    MetricsHttpSink metricsHttpSink = new MetricsHttpSink("dummyUrl");
+    String serializeMetrics = metricsHttpSink.serializeMetrics(metricQueryResults);
     assertEquals(
-        "Errror in serialization using JsonMetricsSerializer",
+        "Errror in serialization",
         "{\"counters\":[{\"name\":\"ns1/n1\",\"step\":\"s1\",\"attempted\":20}],"
             + "\"distributions\":[{\"name\":\"ns1/n2\",\"step\":\"s2\",\"attempted\":"
             + "{\"min\":3,\"max\":9,\"sum\":25,\"count\":4,\"mean\":6.250}}],\"gauges\":"
