@@ -45,7 +45,29 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+}
+
+// Create a shaded test jar.
+task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+  classifier = "shaded-tests"
+  from sourceSets.test.output
+  configurations = [project.configurations.testRuntime]
+  dependencies {
+    exclude(".*")
+    include(dependency(library.java.guava))
+  }
+  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
+    // com.google.common is too generic, need to exclude guava-testlib
+    exclude "com.google.common.collect.testing.**"
+    exclude "com.google.common.escape.testing.**"
+    exclude "com.google.common.testing.**"
+    exclude "com.google.common.util.concurrent.testing.**"
+  }
+}
+
+artifacts {
+  shadowTest shadowTestJar
 }
