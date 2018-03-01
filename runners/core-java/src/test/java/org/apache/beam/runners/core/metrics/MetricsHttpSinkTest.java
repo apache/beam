@@ -27,6 +27,8 @@ import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.joda.time.Instant;
 import org.junit.Test;
 
@@ -220,7 +222,7 @@ public class MetricsHttpSinkTest {
                     });
           }
         };
-    MetricsHttpSink metricsHttpSink = new MetricsHttpSink("dummyUrl");
+    MetricsHttpSink metricsHttpSink = new MetricsHttpSink(PipelineOptionsFactory.create());
     String serializeMetrics = metricsHttpSink.serializeMetrics(metricQueryResults);
     assertEquals(
         "Errror in serialization",

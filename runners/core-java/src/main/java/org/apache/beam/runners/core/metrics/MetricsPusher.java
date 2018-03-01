@@ -33,7 +33,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.InstanceBuilder;
 
 /**
  * Component that regularly merges metrics and pushes them to a metrics sink. It needs to be a
@@ -60,7 +62,14 @@ public class MetricsPusher implements Serializable {
       MetricsContainerStepMap metricsContainerStepMap, PipelineOptions pipelineOptions) {
     if (instance == null) {
       instance = new MetricsPusher();
-      configureFromPipelineOptions(pipelineOptions);
+      period = pipelineOptions.getMetricsPushPeriod();
+      // calls the constructor of MetricsSink implementation specified in
+      // pipelineOptions.getMetricsSink() passing the pipelineOptions
+      metricsSink =
+          InstanceBuilder.ofType(MetricsSink.class)
+              .fromClass(pipelineOptions.getMetricsSink())
+              .withArg(PipelineOptions.class, pipelineOptions)
+              .build();
       metricsContainerStepMaps = new ArrayList<>();
       start();
     }
@@ -70,17 +79,6 @@ public class MetricsPusher implements Serializable {
       Then the singleton needs to register a new metricsContainerStepMap to merge
       */
     addMetricsContainerStepMap(metricsContainerStepMap);
-  }
-
-  private static void configureFromPipelineOptions(PipelineOptions pipelineOptions) {
-    switch (pipelineOptions.getMetricsSink()) {
-      case "org.apache.beam.runners.core.metrics.MetricsHttpSink":
-        metricsSink = new MetricsHttpSink(pipelineOptions.getMetricsHttpSinkUrl());
-        break;
-      default:
-        metricsSink = new DummyMetricsSink();
-    }
-    period = pipelineOptions.getMetricsPushPeriod();
   }
 
   /**
