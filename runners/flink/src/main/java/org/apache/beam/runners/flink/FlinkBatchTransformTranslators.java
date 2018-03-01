@@ -44,6 +44,7 @@ import org.apache.beam.runners.flink.translation.functions.FlinkReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkStatefulDoFnFunction;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
 import org.apache.beam.runners.flink.translation.types.KvKeySelector;
+import org.apache.beam.runners.flink.translation.wrappers.ImpulseInputFormat;
 import org.apache.beam.runners.flink.translation.wrappers.SourceInputFormat;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -103,6 +104,8 @@ class FlinkBatchTransformTranslators {
       FlinkBatchPipelineTranslator.BatchTransformTranslator> TRANSLATORS = new HashMap<>();
 
   static {
+    TRANSLATORS.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslatorBatch());
+
     TRANSLATORS.put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
         new CreatePCollectionViewTranslatorBatch());
 
@@ -133,6 +136,28 @@ class FlinkBatchTransformTranslators {
   @SuppressWarnings("unchecked")
   private static String getCurrentTransformName(FlinkBatchTranslationContext context) {
     return context.getCurrentTransform().getFullName();
+  }
+
+  private static class ImpulseTranslatorBatch implements
+      FlinkBatchPipelineTranslator.BatchTransformTranslator<
+          PTransform<PBegin, PCollection<byte[]>>> {
+
+    @Override
+    public void translateNode(PTransform<PBegin, PCollection<byte[]>> transform,
+        FlinkBatchTranslationContext context) {
+      String name = transform.getName();
+      PCollection<byte[]> output = context.getOutput(transform);
+
+      TypeInformation<WindowedValue<byte[]>> typeInformation = context.getTypeInfo(output);
+      DataSource<WindowedValue<byte[]>> dataSource = new DataSource<>(
+          context.getExecutionEnvironment(),
+          new ImpulseInputFormat(),
+          typeInformation,
+          name);
+
+      context.setOutputDataSet(output, dataSource);
+    }
+
   }
 
   private static class ReadSourceTranslatorBatch<T>
