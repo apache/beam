@@ -24,24 +24,9 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
  * This is the default Metrics Sink that just store in a static field the first counter (if it
  * exists) attempted value. This is usefull for tests.
  */
-public class DummyMetricsSink extends MetricsSink<Long> {
+public class DummyMetricsSink implements MetricsSink<Long> {
   private static long counterValue;
 
-  @Override protected MetricsSerializer<Long> provideSerializer() {
-    return new MetricsSerializer<Long>() {
-
-      @Override
-      public Long serializeMetrics(MetricQueryResults metricQueryResults) throws Exception {
-        return metricQueryResults.counters().iterator().hasNext()
-            ? metricQueryResults.counters().iterator().next().attempted()
-            : 0L;
-      }
-    };
-  }
-
-  @Override protected void writeSerializedMetrics(Long metrics) throws Exception {
-    setCounterValue(metrics);
-  }
   public static long getCounterValue(){
     return counterValue;
   }
@@ -51,5 +36,13 @@ public class DummyMetricsSink extends MetricsSink<Long> {
 
   public static void clear(){
     counterValue = 0L;
+  }
+
+  @Override public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
+    Long metrics =
+        metricQueryResults.counters().iterator().hasNext()
+            ? metricQueryResults.counters().iterator().next().attempted()
+            : 0L;
+    setCounterValue(metrics);
   }
 }

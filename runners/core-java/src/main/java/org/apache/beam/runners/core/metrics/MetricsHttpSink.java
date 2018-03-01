@@ -23,9 +23,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import javax.xml.ws.http.HTTPException;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
-public class MetricsHttpSink extends MetricsSink<String> {
+public class MetricsHttpSink implements MetricsSink<String> {
   private final String urlString;
 
   /** @param urlString the URL of the endpoint */
@@ -33,14 +34,10 @@ public class MetricsHttpSink extends MetricsSink<String> {
       this.urlString = urlString;
   }
 
-  @Override
-  protected MetricsSerializer<String> provideSerializer() {
-    return new JsonMetricsSerializer();
-  }
-
-  @Override
-  protected void writeSerializedMetrics(String metrics) throws Exception {
+  @Override public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     URL url = new URL(urlString);
+    MetricsSerializer<String> metricsSerializer = new JsonMetricsSerializer();
+    String metrics = metricsSerializer.serializeMetrics(metricQueryResults);
     byte[] postData = metrics.getBytes(StandardCharsets.UTF_8);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
     connection.setDoOutput(true);
