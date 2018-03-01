@@ -17,12 +17,14 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import com.google.auto.value.AutoValue;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collection;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -32,6 +34,8 @@ import org.apache.beam.model.pipeline.v1.StandardWindowFns;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.FixedWindowsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SessionsPayload;
 import org.apache.beam.model.pipeline.v1.StandardWindowFns.SlidingWindowsPayload;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -41,10 +45,13 @@ import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
 import org.apache.beam.sdk.transforms.windowing.Window.OnTimeBehavior;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 /** Utilities for working with {@link WindowingStrategy WindowingStrategies}. */
 public class WindowingStrategyTranslation implements Serializable {
@@ -218,8 +225,9 @@ public class WindowingStrategyTranslation implements Serializable {
    * input {@link WindowFn}.
    */
   public static SdkFunctionSpec toProto(WindowFn<?, ?> windowFn, SdkComponents components) {
-    ByteString serializedFn = ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowFn));
-    if (windowFn instanceof GlobalWindows) {
+    if (windowFn instanceof RawWindowFn) {
+      return ((RawWindowFn<?, ?>) windowFn).getFunctionSpec();
+    } else if (windowFn instanceof GlobalWindows) {
       return SdkFunctionSpec.newBuilder()
           .setEnvironmentId(
               components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
@@ -267,6 +275,8 @@ public class WindowingStrategyTranslation implements Serializable {
                   .setPayload(sessionsPayload.toByteString()))
           .build();
     } else {
+      ByteString serializedFn =
+          ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowFn));
       return SdkFunctionSpec.newBuilder()
           .setEnvironmentId(
               components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
@@ -389,12 +399,12 @@ public class WindowingStrategyTranslation implements Serializable {
           return Sessions.withGapDuration(
               Duration.millis(Durations.toMillis(sessionParams.getGapSize())));
         case SERIALIZED_JAVA_WINDOWFN_URN:
+          // Is this allowed in this method?
           return (WindowFn<?, ?>)
               SerializableUtils.deserializeFromByteArray(
                   windowFnSpec.getSpec().getPayload().toByteArray(), "WindowFn");
         default:
-          throw new IllegalArgumentException(
-              "Unknown or unsupported WindowFn: " + windowFnSpec.getSpec().getUrn());
+          return RawWindowFn.forFunctionSpec(windowFnSpec);
       }
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException(
@@ -404,6 +414,66 @@ public class WindowingStrategyTranslation implements Serializable {
               WindowFn.class.getSimpleName(),
               windowFnSpec.getSpec().getUrn()),
           e);
+    }
+  }
+
+  @AutoValue
+  abstract static class RawWindowFn<T, W extends BoundedWindow> extends WindowFn<T, W> {
+    static <T, W extends BoundedWindow> WindowFn<T, W> forFunctionSpec(
+        SdkFunctionSpec functionSpec) {
+      return new AutoValue_WindowingStrategyTranslation_RawWindowFn(functionSpec);
+    }
+
+    abstract SdkFunctionSpec getFunctionSpec();
+
+    @Override
+    public Collection<W> assignWindows(AssignContext c) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void mergeWindows(MergeContext c) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean isCompatible(WindowFn<?, ?> other) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Coder<W> windowCoder() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public WindowMappingFn<W> getDefaultWindowMappingFn() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void verifyCompatibility(WindowFn<?, ?> other) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Instant getOutputTime(Instant inputTimestamp, W window) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean isNonMerging() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean assignsToOneWindow() {
+      throw new UnsupportedOperationException()
+    }
+
+    @Override
+    public TypeDescriptor<W> getWindowTypeDescriptor() {
+      throw new UnsupportedOperationException()
     }
   }
 }

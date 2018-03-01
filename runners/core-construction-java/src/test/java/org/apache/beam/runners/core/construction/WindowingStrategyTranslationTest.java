@@ -22,7 +22,11 @@ import static org.junit.Assert.assertThat;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+import com.google.protobuf.ByteString;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.runners.core.construction.WindowingStrategyTranslation.RawWindowFn;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -64,13 +68,15 @@ public class WindowingStrategyTranslationTest {
   public static Iterable<ToProtoAndBackSpec> data() {
     return ImmutableList.of(
         toProtoAndBackSpec(WindowingStrategy.globalDefault()),
-        toProtoAndBackSpec(WindowingStrategy.of(
-            FixedWindows.of(Duration.millis(11)).withOffset(Duration.millis(3)))),
-        toProtoAndBackSpec(WindowingStrategy.of(
-            SlidingWindows.of(Duration.millis(37)).every(Duration.millis(3))
-                .withOffset(Duration.millis(2)))),
-        toProtoAndBackSpec(WindowingStrategy.of(
-            Sessions.withGapDuration(Duration.millis(389)))),
+        toProtoAndBackSpec(
+            WindowingStrategy.of(
+                FixedWindows.of(Duration.millis(11)).withOffset(Duration.millis(3)))),
+        toProtoAndBackSpec(
+            WindowingStrategy.of(
+                SlidingWindows.of(Duration.millis(37))
+                    .every(Duration.millis(3))
+                    .withOffset(Duration.millis(2)))),
+        toProtoAndBackSpec(WindowingStrategy.of(Sessions.withGapDuration(Duration.millis(389)))),
         toProtoAndBackSpec(
             WindowingStrategy.of(REPRESENTATIVE_WINDOW_FN)
                 .withClosingBehavior(ClosingBehavior.FIRE_ALWAYS)
@@ -84,7 +90,18 @@ public class WindowingStrategyTranslationTest {
                 .withMode(AccumulationMode.DISCARDING_FIRED_PANES)
                 .withTrigger(REPRESENTATIVE_TRIGGER)
                 .withAllowedLateness(Duration.millis(93))
-                .withTimestampCombiner(TimestampCombiner.LATEST)));
+                .withTimestampCombiner(TimestampCombiner.LATEST)),
+        toProtoAndBackSpec(
+            WindowingStrategy.of(
+                RawWindowFn.forFunctionSpec(
+                    SdkFunctionSpec.newBuilder()
+                        .setEnvironmentId("env")
+                        .setSpec(
+                            FunctionSpec.newBuilder()
+                                .setUrn("env_custom_window_fn")
+                                .setPayload(ByteString.EMPTY)
+                                .build())
+                        .build()))));
   }
 
   @Parameter(0)
@@ -115,6 +132,9 @@ public class WindowingStrategyTranslationTest {
         WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
         Matchers.equalTo(windowingStrategy.fixDefaults()));
 
+    if (windowingStrategy.getWindowFn() instanceof RawWindowFn) {
+      return;
+    }
     protoComponents.getCoder(
         components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
     assertThat(
