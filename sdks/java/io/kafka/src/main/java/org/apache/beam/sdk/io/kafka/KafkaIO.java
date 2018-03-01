@@ -80,9 +80,6 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An unbounded source and a sink for <a href="http://kafka.apache.org/">Kafka</a> topics.
- * Kafka version 0.9 and 0.10 are supported. If you need a specific version of Kafka
- * client(e.g. 0.9 for 0.9 servers, or 0.10 for security features), specify explicit
- * kafka-client dependency.
  *
  * <h3>Reading from Kafka topics</h3>
  *
@@ -205,12 +202,18 @@ import org.slf4j.LoggerFactory;
  * <em>auto commit</em> (for external monitoring or other purposes), you can set
  * <tt>"group.id"</tt>, <tt>"enable.auto.commit"</tt>, etc.
  *
- * <h3>Event Timestamp and Watermark</h3>
+ * <h3>Event Timestamps and Watermark</h3>
  * By default, record timestamp (event time) is set to processing time in KafkaIO reader and
  * source watermark is current wall time. If a topic has Kafka server-side ingestion timestamp
  * enabled ('LogAppendTime'), it can enabled with {@link Read#withLogAppendTime()}.
  * A custom timestamp policy can be provided by implementing {@link TimestampPolicyFactory}. See
  * {@link Read#withTimestampPolicyFactory(TimestampPolicyFactory)} for more information.
+ *
+ * <h3>Supported Kakfa Client Versions</h3>
+ * KafkaIO relies <i>kafka-clients</i> for all its interactions with the Kafka cluster.
+ * <i>kafka-clients</i> versions 0.10.1 and newer are supported at runtime. Please ensure that
+ * the version included with the application is compatible with the version of your Kafka cluster.
+ * Kafka client usually fails to initialize with a clear error message in case of incompatibility.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class KafkaIO {
