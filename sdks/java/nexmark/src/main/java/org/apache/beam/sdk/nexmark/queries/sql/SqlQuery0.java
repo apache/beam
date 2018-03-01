@@ -50,7 +50,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>{@link Bid} events are used here at the moment, ås they are most numerous
  * with default configuration.
  */
-public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Bid>> {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY =
       BeamSql.query("SELECT * FROM PCOLLECTION");
@@ -60,17 +60,23 @@ public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Row>> 
   }
 
   @Override
-  public PCollection<Row> expand(PCollection<Event> allEvents) {
+  public PCollection<Bid> expand(PCollection<Event> allEvents) {
 
     RowCoder bidRowCoder = getBidRowCoder();
 
     PCollection<Row> bidEventsRows = allEvents
         .apply(Filter.by(IS_BID))
-        .apply(ToRow.parDo())
+        .apply(getName() + ".ToRow", ToRow.parDo())
         .apply(getName() + ".Serialize", logBytesMetric(bidRowCoder))
         .setCoder(bidRowCoder);
 
-    return bidEventsRows.apply(QUERY).setCoder(bidRowCoder);
+    PCollection<Row> queryResultsRows = bidEventsRows
+        .apply(QUERY)
+        .setCoder(bidRowCoder);
+
+    return queryResultsRows
+        .apply(bidParDo())
+        .setCoder(Bid.CODER);
   }
 
   private PTransform<? super PCollection<Row>, PCollection<Row>> logBytesMetric(
@@ -94,5 +100,9 @@ public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Row>> 
 
   private RowCoder getBidRowCoder() {
     return ModelAdaptersMapping.ADAPTERS.get(Bid.class).getRowType().getRowCoder();
+  }
+
+  private ParDo.SingleOutput<Row, Bid> bidParDo() {
+    return ModelAdaptersMapping.ADAPTERS.get(Bid.class).parDo();
   }
 }

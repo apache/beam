@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -32,8 +31,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -60,19 +57,11 @@ public class SqlQuery7Test {
       new Event(BIDS.get(3)),
       new Event(BIDS.get(4)));
 
-  private static final RowType RESULT_ROW_TYPE =
-      RowSqlType
-          .builder()
-          .withBigIntField("auction")
-          .withBigIntField("price")
-          .withBigIntField("bidder")
-          .build();
-
-  public static final List<Row> RESULTS = ImmutableList.of(
-      newResultRow(4L, 3L, 2L),
-      newResultRow(1L, 2L, 3L),
-      newResultRow(2L, 2L, 3L),
-      newResultRow(2L, 2L, 5L));
+  public static final List<Bid> RESULTS = ImmutableList.of(
+      BIDS.get(0),
+      BIDS.get(1),
+      BIDS.get(2),
+      BIDS.get(4));
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
@@ -96,24 +85,5 @@ public class SqlQuery7Test {
         price,
         432342L + index * config.windowSizeSec * 1000,
         "extra_" + auction);
-  }
-
-  private static Row newBidRow(Bid bid) {
-    return
-        Row
-            .withRowType(BID_ADAPTER.getRowType())
-            .addValues(BID_ADAPTER.getFieldsValues(bid))
-            .build();
-  }
-
-  private static Row newResultRow(
-      long auctionId, long bidder, long price) {
-
-    return
-        Row
-            .withRowType(RESULT_ROW_TYPE)
-            .addValues(
-                auctionId, price, bidder)
-            .build();
   }
 }

@@ -28,6 +28,7 @@ import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -47,14 +48,14 @@ import org.apache.beam.sdk.values.TupleTag;
  *
  * <p>We will use a shorter window to help make testing easier.</p>
  */
-public class SqlQuery7 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery7 extends PTransform<PCollection<Event>, PCollection<Bid>> {
 
   private static final String QUERY_TEMPLATE = ""
-      + " SELECT B.auction, B.price, B.bidder "
-      + "    FROM (SELECT B.auction, B.price, B.bidder, "
+      + " SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra "
+      + "    FROM (SELECT B.auction, B.price, B.bidder, B.dateTime, B.extra, "
       + "       TUMBLE_START(B.dateTime, INTERVAL '%1$d' SECOND) AS starttime "
       + "    FROM Bid B "
-      + "    GROUP BY B.auction, B.price, B.bidder, "
+      + "    GROUP BY B.auction, B.price, B.bidder, B.dateTime, B.extra, "
       + "       TUMBLE(B.dateTime, INTERVAL '%1$d' SECOND)) B "
       + " JOIN (SELECT MAX(B1.price) AS maxprice, "
       + "       TUMBLE_START(B1.dateTime, INTERVAL '%1$d' SECOND) AS starttime "
@@ -73,19 +74,28 @@ public class SqlQuery7 extends PTransform<PCollection<Event>, PCollection<Row>> 
   }
 
   @Override
-  public PCollection<Row> expand(PCollection<Event> allEvents) {
+  public PCollection<Bid> expand(PCollection<Event> allEvents) {
     RowCoder bidRecordCoder = getBidRowCoder();
 
     PCollection<Row> bids = allEvents
         .apply(Filter.by(IS_BID))
-        .apply(ToRow.parDo())
+        .apply(getName() + ".ToRow", ToRow.parDo())
         .setCoder(bidRecordCoder);
 
-    return PCollectionTuple.of(new TupleTag<>("Bid"), bids)
-        .apply(query);
+    PCollection<Row> queryResultsRows =
+        PCollectionTuple.of(new TupleTag<>("Bid"), bids)
+            .apply(query);
+
+    return queryResultsRows
+        .apply(bidParDo())
+        .setCoder(Bid.CODER);
   }
 
   private RowCoder getBidRowCoder() {
     return ADAPTERS.get(Bid.class).getRowType().getRowCoder();
+  }
+
+  private ParDo.SingleOutput<Row, Bid> bidParDo() {
+    return ADAPTERS.get(Bid.class).parDo();
   }
 }
