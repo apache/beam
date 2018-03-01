@@ -70,7 +70,7 @@ task needsRunnerTests(type: Test) {
   group = "Verification"
   description = "Runs tests that require a runner to validate that piplines/transforms work correctly"
 
-  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false"])
+  def pipelineOptions = JsonOutput.toJson(["--runner=DirectRunner", "--runnerDeterminedSharding=false", "--protoTranslation"])
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
   classpath = configurations.needsRunner
