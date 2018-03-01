@@ -30,14 +30,15 @@ import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsSink;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
 public class MetricsHttpSink implements MetricsSink<String> {
   private final String urlString;
 
-  /** @param urlString the URL of the endpoint */
-  public MetricsHttpSink(String urlString) {
-      this.urlString = urlString;
+  public MetricsHttpSink(PipelineOptions pipelineOptions) {
+      this.urlString = pipelineOptions.getMetricsHttpSinkUrl();
   }
 
   @Override public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {

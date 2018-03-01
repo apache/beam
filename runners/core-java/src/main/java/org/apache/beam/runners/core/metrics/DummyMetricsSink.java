@@ -19,12 +19,17 @@
 package org.apache.beam.runners.core.metrics;
 
 import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricsSink;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * This is the default Metrics Sink that just store in a static field the first counter (if it
  * exists) attempted value. This is usefull for tests.
  */
 public class DummyMetricsSink implements MetricsSink<Long> {
+
+  public DummyMetricsSink(PipelineOptions pipelineOptions) {}
+
   private static long counterValue;
 
   public static long getCounterValue(){
