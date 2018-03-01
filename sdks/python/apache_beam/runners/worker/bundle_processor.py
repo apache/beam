@@ -36,6 +36,7 @@ from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.runners.worker import statesampler
@@ -147,7 +148,7 @@ class StateBackedSideInputMap(object):
         def __iter__(self):
           # TODO(robertwb): Support pagination.
           input_stream = coder_impl.create_InputStream(
-              state_handler.blocking_get(self._state_key, None))
+              state_handler.blocking_get(self._state_key))
           while input_stream.size() > 0:
             yield self._coder_impl.decode_from_stream(input_stream, True)
 
@@ -157,7 +158,9 @@ class StateBackedSideInputMap(object):
       if access_pattern == common_urns.ITERABLE_SIDE_INPUT:
         raw_view = AllElements(state_key, self._element_coder)
 
-      elif access_pattern == common_urns.MULTIMAP_SIDE_INPUT:
+      elif (access_pattern == common_urns.MULTIMAP_SIDE_INPUT or
+            access_pattern ==
+            dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN):
         cache = {}
         key_coder_impl = self._element_coder.key_coder().get_impl()
         value_coder = self._element_coder.value_coder()
@@ -433,7 +436,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
   source = pickler.loads(base64.b64encode(parameter))
   spec = operation_specs.WorkerRead(
       iobase.SourceBundle(1.0, source, None, None),
-      [WindowedValueCoder(source.default_output_coder())])
+      [factory.get_only_output_coder(transform_proto)])
   return factory.augment_oldstyle_op(
       operations.ReadOperation(
           transform_proto.unique_name,
