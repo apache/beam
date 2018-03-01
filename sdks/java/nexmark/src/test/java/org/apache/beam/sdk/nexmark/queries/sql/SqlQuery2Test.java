@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
+import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
@@ -30,7 +31,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -61,15 +61,15 @@ public class SqlQuery2Test {
       new Event(BIDS.get(6)),
       new Event(BIDS.get(7)));
 
-  private static final List<Row> BIDS_EVEN_ROWS = ImmutableList.of(
-      newBidRow(BIDS.get(1)),
-      newBidRow(BIDS.get(3)),
-      newBidRow(BIDS.get(5)),
-      newBidRow(BIDS.get(7)));
+  private static final List<AuctionPrice> BIDS_EVEN = ImmutableList.of(
+      newAuctionPrice(BIDS.get(1)),
+      newAuctionPrice(BIDS.get(3)),
+      newAuctionPrice(BIDS.get(5)),
+      newAuctionPrice(BIDS.get(7)));
 
-  private static final List<Row> BIDS_EVERY_THIRD_ROW = ImmutableList.of(
-      newBidRow(BIDS.get(2)),
-      newBidRow(BIDS.get(5)));
+  private static final List<AuctionPrice> BIDS_EVERY_THIRD = ImmutableList.of(
+      newAuctionPrice(BIDS.get(2)),
+      newAuctionPrice(BIDS.get(5)));
 
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
@@ -83,7 +83,7 @@ public class SqlQuery2Test {
 
     PAssert
         .that(bids.apply(new SqlQuery2(2)))
-        .containsInAnyOrder(BIDS_EVEN_ROWS);
+        .containsInAnyOrder(BIDS_EVEN);
 
     testPipeline.run();
   }
@@ -97,7 +97,7 @@ public class SqlQuery2Test {
 
     PAssert
         .that(bids.apply(new SqlQuery2(3)))
-        .containsInAnyOrder(BIDS_EVERY_THIRD_ROW);
+        .containsInAnyOrder(BIDS_EVERY_THIRD);
 
     testPipeline.run();
   }
@@ -106,11 +106,7 @@ public class SqlQuery2Test {
     return new Bid(id, 3L, 100L, 432342L + id, "extra_" + id);
   }
 
-  private static Row newBidRow(Bid bid) {
-    return
-        Row
-            .withRowType(BID_ADAPTER.getRowType())
-            .addValues(BID_ADAPTER.getFieldsValues(bid))
-            .build();
+  private static AuctionPrice newAuctionPrice(Bid bid) {
+    return new AuctionPrice(bid.auction, bid.price);
   }
 }
