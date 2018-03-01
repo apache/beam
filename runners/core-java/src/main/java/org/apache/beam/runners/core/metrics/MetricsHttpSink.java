@@ -18,12 +18,18 @@
 
 package org.apache.beam.runners.core.metrics;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import java.io.DataOutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import javax.xml.ws.http.HTTPException;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
 public class MetricsHttpSink implements MetricsSink<String> {
@@ -36,8 +42,7 @@ public class MetricsHttpSink implements MetricsSink<String> {
 
   @Override public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     URL url = new URL(urlString);
-    MetricsSerializer<String> metricsSerializer = new JsonMetricsSerializer();
-    String metrics = metricsSerializer.serializeMetrics(metricQueryResults);
+    String metrics = serializeMetrics(metricQueryResults);
     byte[] postData = metrics.getBytes(StandardCharsets.UTF_8);
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
     connection.setDoOutput(true);
@@ -55,5 +60,82 @@ public class MetricsHttpSink implements MetricsSink<String> {
     if (responseCode != 200){
       throw new MetricsPusher.MetricsPushException(new HTTPException(responseCode));
     }
+  }
+  @VisibleForTesting
+  String serializeMetrics(MetricQueryResults metricQueryResults) throws Exception {
+    StringBuffer json = new StringBuffer();
+    json.append("{");
+    json.append("\"counters\":[");
+
+    int i = 0;
+    for (MetricResult<Long> result : metricQueryResults.counters()) {
+      i++;
+      json.append("{");
+      String name = result.name().namespace() + "/" + result.name().name();
+      json.append(String.format("\"name\":\"%s\",", name));
+      String step = result.step();
+      json.append(String.format("\"step\":\"%s\",", step));
+      Long attempted = result.attempted();
+      json.append(String.format("\"attempted\":%d", attempted));
+      json.append("}");
+      if (i < Iterables.size(metricQueryResults.counters())) {
+        json.append(",");
+      }
+    }
+    json.append("]");
+    json.append(",");
+    json.append("\"distributions\":[");
+    i = 0;
+    for (MetricResult<DistributionResult> result : metricQueryResults.distributions()) {
+      i++;
+      json.append("{");
+      String name = result.name().namespace() + "/" + result.name().name();
+      json.append(String.format("\"name\":\"%s\",", name));
+      String step = result.step();
+      json.append(String.format("\"step\":\"%s\",", step));
+      DistributionResult attempted = result.attempted();
+      json.append("\"attempted\":");
+      json.append("{");
+
+      json.append(String.format("\"min\":%d,", attempted.min()));
+      json.append(String.format("\"max\":%d,", attempted.max()));
+      json.append(String.format("\"sum\":%d,", attempted.sum()));
+      json.append(String.format("\"count\":%d,", attempted.count()));
+      json.append(String.format(Locale.ROOT, "\"mean\":%.3f", attempted.mean()));
+      json.append("}");
+
+      json.append("}");
+      if (i < Iterables.size(metricQueryResults.distributions())) {
+        json.append(",");
+      }
+    }
+    json.append("]");
+    json.append(",");
+    json.append("\"gauges\":[");
+    i = 0;
+    for (MetricResult<GaugeResult> result : metricQueryResults.gauges()) {
+      i++;
+      json.append("{");
+      String name = result.name().namespace() + "/" + result.name().name();
+      json.append(String.format("\"name\":\"%s\",", name));
+      String step = result.step();
+      json.append(String.format("\"step\":\"%s\",", step));
+      GaugeResult attempted = result.attempted();
+      json.append("\"attempted\":");
+      json.append("{");
+
+      json.append(String.format("\"value\":%d,", attempted.value()));
+      json.append(String.format("\"timestamp\":\"%s\"", attempted.timestamp().toString()));
+      json.append("}");
+
+      json.append("}");
+      if (i < Iterables.size(metricQueryResults.gauges())) {
+        json.append(",");
+      }
+    }
+    json.append("]");
+
+    json.append("}");
+    return json.toString();
   }
 }
