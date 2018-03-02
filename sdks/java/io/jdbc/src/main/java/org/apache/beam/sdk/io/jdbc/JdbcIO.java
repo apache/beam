@@ -174,6 +174,7 @@ public class JdbcIO {
   }
 
   private static final long DEFAULT_BATCH_SIZE = 1000L;
+  private static final int FETCH_SIZE = 50_000;
 
   /**
    * Write data to a JDBC datasource.
@@ -561,7 +562,9 @@ public class JdbcIO {
 
     @ProcessElement
     public void processElement(ProcessContext context) throws Exception {
-      try (PreparedStatement statement = connection.prepareStatement(query.get())) {
+      try (PreparedStatement statement = connection.prepareStatement(query.get(),
+              ResultSet.TYPE_FORWARD_ONLY,ResultSet.CONCUR_READ_ONLY)) {
+        statement.setFetchSize(FETCH_SIZE);
         parameterSetter.setParameters(context.element(), statement);
         try (ResultSet resultSet = statement.executeQuery()) {
           while (resultSet.next()) {
