@@ -159,7 +159,7 @@ def generate_common_urns():
   src_time = os.path.getmtime(src) if os.path.exists(src) else -1
   out_time = os.path.getmtime(out) if os.path.exists(out) else -1
   if src_time > out_time:
-    print 'Regenerating common_urns module.'
+    print('Regenerating common_urns module.')
     urns = {}
     for m in re.finditer(
         r'\b(?:urn:)?beam:(\S+):(\S+):(v\S+)', open(src).read()):
