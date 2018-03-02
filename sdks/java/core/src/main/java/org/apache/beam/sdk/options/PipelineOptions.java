@@ -395,31 +395,31 @@ public interface PipelineOptions extends HasDisplayData {
   }
 
   @Description("The beam sink class to which the metrics will be pushed")
-  @Default.InstanceFactory(DummyMetricsSink.class)
+  @Default.InstanceFactory(NoOpMetricsSink.class)
   Class<? extends MetricsSink<?>>  getMetricsSink();
   void setMetricsSink(Class<? extends MetricsSink<?>> metricsSink);
 
   /**
-   * A {@link DefaultValueFactory} that obtains the class of the {@code DummyMetricsSink} if it exists
+   * A {@link DefaultValueFactory} that obtains the class of the {@code NoOpMetricsSink} if it exists
    * on the classpath, and throws an exception otherwise.
    *
-       * <p>As the {@code DummyMetricsSink} is in an independent module, it cannot be directly referenced
+       * <p>As the {@code NoOpMetricsSink} is in an independent module, it cannot be directly referenced
    * as the {@link Default}. However, it should still be used if available.
    */
-  class DummyMetricsSink implements DefaultValueFactory<Class<? extends MetricsSink<?>>> {
+  class NoOpMetricsSink implements DefaultValueFactory<Class<? extends MetricsSink<?>>> {
     @Override
     public Class<? extends MetricsSink<?>> create(PipelineOptions options) {
       try {
         @SuppressWarnings({"unchecked", "rawtypes"})
-        Class<? extends MetricsSink<?>> dummyMetricsSink =
+        Class<? extends MetricsSink<?>> noOpMetricsSinkClass =
             (Class<? extends MetricsSink<?>>)
                 Class.forName(
-                    "org.apache.beam.runners.core.metrics.DummyMetricsSink", true,
+                    "org.apache.beam.runners.core.metrics.NoOpMetricsSink", true,
                     ReflectHelpers.findClassLoader());
-        return dummyMetricsSink;
+        return noOpMetricsSinkClass;
       } catch (ClassNotFoundException e) {
         throw new IllegalArgumentException(String.format(
-            "DummyMetricsSink was not found on classpath"));
+            "NoOpMetricsSink was not found on classpath"));
       }
     }
   }

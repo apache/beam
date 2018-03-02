@@ -21,8 +21,7 @@ package org.apache.beam.runners.spark.metrics;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import org.apache.beam.runners.core.metrics.DummyMetricsSink;
-import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.core.metrics.TestMetricsSink;
 import org.apache.beam.runners.spark.ReuseSparkContextRule;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
@@ -30,6 +29,7 @@ import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
@@ -63,7 +63,9 @@ public class SparkMetricsPusherTest {
 
   @Before
   public void init(){
-    DummyMetricsSink.clear();
+    TestMetricsSink.clear();
+    PipelineOptions options = pipeline.getOptions();
+    options.setMetricsSink(TestMetricsSink.class);
   }
 
   @Category(StreamingTest.class)
@@ -94,7 +96,7 @@ public class SparkMetricsPusherTest {
     pipeline.run();
     // give metrics pusher time to push
     Thread.sleep((pipeline.getOptions().getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(DummyMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(), is(6L));
   }
 
   private static class CountingDoFn extends DoFn<Integer, Integer>{
@@ -120,7 +122,7 @@ public class SparkMetricsPusherTest {
     pipeline.run();
     // give metrics pusher time to push
     Thread.sleep((pipeline.getOptions().getMetricsPushPeriod() + 1L) * 1000);
-    assertThat(DummyMetricsSink.getCounterValue(), is(6L));
+    assertThat(TestMetricsSink.getCounterValue(), is(6L));
   }
 
 }
