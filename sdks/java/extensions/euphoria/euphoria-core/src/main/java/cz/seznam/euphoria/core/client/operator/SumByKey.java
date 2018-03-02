@@ -246,7 +246,7 @@ public class SumByKey<IN, KEY, W extends Window>
   public DAG<Operator<?, ?>> getBasicOps() {
     ReduceByKey<IN, KEY, Long, Long, W> reduceByKey =
         new ReduceByKey<>(getName(), input.getFlow(), input,
-        keyExtractor, valueExtractor, windowing, Sums.ofLongs());
+        keyExtractor, valueExtractor, windowing, Sums.ofLongs(), getHints());
     return DAG.of(reduceByKey);
   }
 }

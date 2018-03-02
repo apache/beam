@@ -19,7 +19,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
+import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.junit.Test;
 
@@ -198,7 +198,6 @@ public class JoinTest {
     assertTrue(join.getWindowing() instanceof Time);
   }
 
-
   @Test
   @SuppressWarnings("unchecked")
   public void testBuild_Hints() {
@@ -206,21 +205,40 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 1);
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
-    Join.named("Join1")
-        .of(MapElements.of(left).using(i -> i).output(new TestHint(), new TestHint2()),
+
+    Dataset<String> outputDataset = Join.named("Join1")
+        .of(MapElements.of(left).using(i -> i).output(new Util.TestHint(), new Util.TestHint2()),
             right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> {
           // no-op
         })
-        .output();
+        .outputValues(SizeHint.FITS_IN_MEMORY);
 
-    Join join = (Join) flow.operators().stream().filter(op -> op instanceof Join).findFirst().get();
-    assertTrue(join.listInputs().stream().anyMatch(input -> ((Dataset) input).getHints().contains(new
-        TestHint())));
-    assertTrue(join.listInputs().stream().anyMatch(input -> ((Dataset) input).getHints().contains(new
-        TestHint2())));
-    assertEquals(2, ((Dataset) join.listInputs().stream().findFirst().get()).getHints().size());
+    assertTrue(outputDataset.getProducer().getHints().contains(SizeHint.FITS_IN_MEMORY));
+
+    Join join = (Join) flow.operators()
+        .stream()
+        .filter(op -> op instanceof Join)
+        .findFirst()
+        .get();
+    assertTrue(join.listInputs()
+        .stream()
+        .anyMatch(input ->
+            ((Dataset) input).getProducer().getHints().contains(new Util.TestHint())));
+
+    assertTrue(join.listInputs()
+        .stream()
+        .anyMatch(input ->
+            ((Dataset) input).getProducer().getHints().contains(new Util.TestHint2())));
+
+    assertEquals(2,
+        ((Dataset) join.listInputs()
+            .stream()
+            .findFirst()
+            .get()
+        ).getProducer().getHints().size());
+
   }
 
   @Test
@@ -231,7 +249,9 @@ public class JoinTest {
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
     Join.named("Join1")
-        .of(MapElements.of(left).using(i -> i).output(new TestHint(), new TestHint2(), new TestHint2()),
+        .of(MapElements.of(left)
+                .using(i -> i)
+                .output(new Util.TestHint(), new Util.TestHint2(), new Util.TestHint2()),
             right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> {
@@ -240,39 +260,31 @@ public class JoinTest {
         .windowBy(Time.of(Duration.ofHours(1)))
         .output();
 
-    Join join = (Join) flow.operators().stream().filter(op -> op instanceof Join).findFirst().get();
-    assertTrue(join.listInputs().stream().anyMatch(input -> ((Dataset) input).getHints().contains(new
-        TestHint())));
-    assertTrue(join.listInputs().stream().anyMatch(input -> ((Dataset) input).getHints().contains(new
-        TestHint2())));
-    assertEquals(2, ((Dataset) join.listInputs().stream().findFirst().get()).getHints().size());
+    Join join = (Join) flow.operators()
+        .stream()
+        .filter(op -> op instanceof Join)
+        .findFirst()
+        .get();
+    assertTrue(join.listInputs()
+        .stream()
+        .anyMatch(input ->
+            ((Dataset) input).getProducer().getHints().contains(new Util.TestHint())));
+
+    assertTrue(join.listInputs()
+        .stream()
+        .anyMatch(input ->
+            ((Dataset) input)
+                .getProducer()
+                .getHints()
+                .contains(new Util.TestHint2())));
+
+    assertEquals(2,
+        ((Dataset) join.listInputs()
+            .stream()
+            .findFirst()
+            .get()
+        ).getProducer().getHints().size());
+
     assertTrue(join.getWindowing() instanceof Time);
-  }
-
-  private static class TestHint implements OutputHint {
-
-    @Override
-    public int hashCode() {
-      return 0;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return obj instanceof TestHint;
-    }
-  }
-
-  private static class TestHint2 implements OutputHint {
-
-
-    @Override
-    public int hashCode() {
-      return 0;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return obj instanceof TestHint2;
-    }
   }
 }

@@ -92,8 +92,8 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
     @Override
     public Dataset<IN> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      AssignEventTime<IN> op = new AssignEventTime<>(name, flow, input, eventTimeFn, Sets.newHashSet
-          (outputHints));
+      AssignEventTime<IN> op = new AssignEventTime<>(name, flow, input, eventTimeFn,
+          Sets.newHashSet(outputHints));
       flow.add(op);
       return op.output();
     }
@@ -111,7 +111,7 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
   public DAG<Operator<?, ?>> getBasicOps() {
     return DAG.of(new FlatMap<>(
         getName(), getFlow(), input,
-        (i, c) -> c.collect(i), eventTimeFn));
+        (i, c) -> c.collect(i), eventTimeFn, getHints()));
   }
 
   /**

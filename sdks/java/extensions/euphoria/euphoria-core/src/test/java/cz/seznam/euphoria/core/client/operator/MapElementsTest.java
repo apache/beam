@@ -89,10 +89,10 @@ public class MapElementsTest {
 
     Dataset<String> dataSetWithHint = MapElements.of(dataset).using(i -> i).output(SizeHint.FITS_IN_MEMORY);
 
-    assertTrue(dataSetWithHint.getHints().contains(SizeHint.FITS_IN_MEMORY));
-    assertEquals(1, dataSetWithHint.getHints().size());
+    assertTrue(dataSetWithHint.getProducer().getHints().contains(SizeHint.FITS_IN_MEMORY));
+    assertEquals(1, dataSetWithHint.getProducer().getHints().size());
 
     Dataset<String> dataSetWithoutHint = MapElements.of(dataset).using(i -> i).output();
-    assertEquals(0, dataSetWithoutHint.getHints().size());
+    assertEquals(0, dataSetWithoutHint.getProducer().getHints().size());
   }
 }

@@ -24,6 +24,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.Join;
+import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -58,9 +59,15 @@ public class BroadcastHashJoinTranslator implements SparkOperatorTranslator<Join
   static boolean wantTranslate(Join o) {
     return o.listInputs()
         .stream()
-        .anyMatch(input -> ((Dataset) input).getHints().contains(SizeHint.FITS_IN_MEMORY))
+        .anyMatch(input -> hasSizeHint(((Dataset) input).getProducer()))
         && (o.getType() == Join.Type.LEFT || o.getType() == Join.Type.RIGHT)
         && !(o.getWindowing() instanceof MergingWindowing);
+  }
+
+  static boolean hasSizeHint(Operator operator) {
+    return operator != null &&
+        operator.getHints() != null &&
+        operator.getHints().contains(SizeHint.FITS_IN_MEMORY);
   }
 
   @Override
@@ -71,7 +78,7 @@ public class BroadcastHashJoinTranslator implements SparkOperatorTranslator<Join
     Preconditions.checkArgument(
         operator.listInputs()
             .stream()
-            .anyMatch(input -> ((Dataset) input).getHints().contains(SizeHint.FITS_IN_MEMORY)),
+            .anyMatch(input -> hasSizeHint(((Dataset) input).getProducer())),
         "Missing broadcastHashJoin hint");
     Preconditions.checkArgument(
         operator.getType() == Join.Type.LEFT || operator.getType() == Join.Type.RIGHT,

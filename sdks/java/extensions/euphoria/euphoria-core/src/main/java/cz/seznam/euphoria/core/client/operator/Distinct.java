@@ -30,6 +30,7 @@ import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
@@ -206,10 +207,11 @@ public class Distinct<IN, ELEM, W extends Window>
         new ReduceByKey<>(name,
             flow, input, getKeyExtractor(), e -> null,
             windowing,
-            (CombinableReduceFunction<Void>) e -> null);
+            (CombinableReduceFunction<Void>) e -> null,
+            Collections.emptySet());
 
     MapElements format = new MapElements<>(
-        getName() + "::" + "Map", flow, reduce.output(), Pair::getFirst);
+        getName() + "::" + "Map", flow, reduce.output(), Pair::getFirst, getHints());
 
     DAG<Operator<?, ?>> dag = DAG.of(reduce);
     dag.add(format, reduce);

@@ -359,18 +359,6 @@ public class ReduceStateByKey<
                    UnaryFunction<IN, VALUE> valueExtractor,
                    @Nullable Windowing<IN, W> windowing,
                    StateFactory<VALUE, OUT, STATE> stateFactory,
-                   StateMerger<VALUE, OUT, STATE> stateMerger) {
-    this(name, flow, input, keyExtractor, valueExtractor, windowing, stateFactory, stateMerger,
-        Collections.emptySet());
-  }
-
-  ReduceStateByKey(String name,
-                   Flow flow,
-                   Dataset<IN> input,
-                   UnaryFunction<IN, KEY> keyExtractor,
-                   UnaryFunction<IN, VALUE> valueExtractor,
-                   @Nullable Windowing<IN, W> windowing,
-                   StateFactory<VALUE, OUT, STATE> stateFactory,
                    StateMerger<VALUE, OUT, STATE> stateMerger,
                    Set<OutputHint> outputHints) {
     super(name, flow, input, keyExtractor, windowing, outputHints);
