@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
 import org.apache.beam.sdk.testing.UsesCounterMetrics;
@@ -61,7 +62,9 @@ public class MetricsPusherTest {
 
   @Before
   public void init(){
-    DummyMetricsSink.clear();
+    TestMetricsSink.clear();
+    PipelineOptions options = pipeline.getOptions();
+    options.setMetricsSink(TestMetricsSink.class);
   }
 
   @Category({ValidatesRunner.class, UsesAttemptedMetrics.class, UsesCounterMetrics.class})
@@ -72,6 +75,6 @@ public class MetricsPusherTest {
         GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
         .apply(ParDo.of(new CountingDoFn()));
     pipeline.run();
-    assertThat(DummyMetricsSink.getCounterValue(), is(NUM_ELEMENTS));
+    assertThat(TestMetricsSink.getCounterValue(), is(NUM_ELEMENTS));
   }
 }

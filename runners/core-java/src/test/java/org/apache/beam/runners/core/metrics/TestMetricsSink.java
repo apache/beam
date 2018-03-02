@@ -23,20 +23,17 @@ import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * This is the default Metrics Sink that just store in a static field the first counter (if it
+ * This sink just stores in a static field the first counter (if it
  * exists) attempted value. This is usefull for tests.
  */
-public class DummyMetricsSink implements MetricsSink<Long> {
+public class TestMetricsSink implements MetricsSink<Long> {
 
-  public DummyMetricsSink(PipelineOptions pipelineOptions) {}
+  public TestMetricsSink(PipelineOptions pipelineOptions) {}
 
   private static long counterValue;
 
   public static long getCounterValue(){
     return counterValue;
-  }
-  private static void setCounterValue(Long value){
-    counterValue = value;
   }
 
   public static void clear(){
@@ -44,10 +41,9 @@ public class DummyMetricsSink implements MetricsSink<Long> {
   }
 
   @Override public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
-    Long metrics =
+    counterValue =
         metricQueryResults.counters().iterator().hasNext()
             ? metricQueryResults.counters().iterator().next().attempted()
             : 0L;
-    setCounterValue(metrics);
   }
 }
