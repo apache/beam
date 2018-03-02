@@ -37,6 +37,8 @@ public abstract class Operator<IN, OUT> implements Serializable {
   /** Associated Flow. */
   private final Flow flow;
 
+  private Set<OutputHint> hints;
+
   protected Operator(String name, Flow flow) {
     this.name = name;
     this.flow = flow;
@@ -73,7 +75,12 @@ public abstract class Operator<IN, OUT> implements Serializable {
    */
   final Dataset<OUT> createOutput(final Dataset<IN> input, Set<OutputHint> outputHints) {
     Flow flow = input.getFlow();
-    return Datasets.createOutputFor(flow, input, this, outputHints);
+    this.hints = outputHints;
+    return Datasets.createOutputFor(flow, input, this);
+  }
+
+  public Set<OutputHint> getHints() {
+    return hints;
   }
 
   /**

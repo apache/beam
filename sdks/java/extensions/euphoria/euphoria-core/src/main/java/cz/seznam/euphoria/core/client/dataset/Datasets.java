@@ -19,9 +19,6 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
-import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
-
-import java.util.Set;
 
 /**
  * Various dataset related utils.
@@ -42,9 +39,9 @@ public class Datasets {
    * @return a dataset representing the output of the given operator
    */
   public static <IN, OUT> Dataset<OUT> createOutputFor(
-      Flow flow, Dataset<IN> input, Operator<IN, OUT> op, Set<OutputHint> outputHints) {
+      Flow flow, Dataset<IN> input, Operator<IN, OUT> op) {
 
-    return new OutputDataset<>(flow, op, input.isBounded(), outputHints);
+    return new OutputDataset<>(flow, op, input.isBounded());
   }
 
   /**

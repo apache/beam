@@ -160,6 +160,15 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
   MapElements(String name,
               Flow flow,
               Dataset<IN> input,
+              UnaryFunction<IN, OUT> mapper,
+              Set<OutputHint> outputHints) {
+    this(name, flow, input, (el, ctx) -> mapper.apply(el), outputHints);
+  }
+
+
+  MapElements(String name,
+              Flow flow,
+              Dataset<IN> input,
               UnaryFunctionEnv<IN, OUT> mapper, Set<OutputHint> outputHints) {
     super(name, flow, input, outputHints);
     this.mapper = mapper;
@@ -175,7 +184,7 @@ public class MapElements<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     return DAG.of(
         // do not use the client API here, because it modifies the Flow!
         new FlatMap<IN, OUT>(getName(), getFlow(), input,
-            (i, c) -> c.collect(mapper.apply(i, c.asContext())), null));
+            (i, c) -> c.collect(mapper.apply(i, c.asContext())), null, getHints()));
   }
 
   public UnaryFunctionEnv<IN, OUT> getMapper() {

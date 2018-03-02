@@ -15,9 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.operator.hint;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * Extra information for runner about Dataset size
  */
+@Audience(Audience.Type.CLIENT)
 public enum SizeHint implements OutputHint {
   /**
    * Indicate to runner that dataset can fit in memory and this information
