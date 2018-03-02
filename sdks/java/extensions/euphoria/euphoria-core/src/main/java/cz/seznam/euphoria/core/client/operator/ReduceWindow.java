@@ -299,7 +299,7 @@ public class ReduceWindow<
       rbk = new ReduceByKey<>(
           getName() + "::ReduceByKey", getFlow(), input,
           getKeyExtractor(), valueExtractor,
-          windowing, reducer, valueComparator);
+          windowing, reducer, valueComparator, getHints());
       dag.add(rbk);
     } else {
       // otherwise we use attached windowing, therefore
@@ -315,7 +315,7 @@ public class ReduceWindow<
       rbk = new ReduceByKey<>(
           getName() + "::ReduceByKey::attached", getFlow(), map.output(),
           Pair::getFirst, p -> valueExtractor.apply(p.getSecond()),
-          null, reducer, valueComparator);
+          null, reducer, valueComparator, getHints());
       dag.add(map);
       dag.add(rbk);
     }

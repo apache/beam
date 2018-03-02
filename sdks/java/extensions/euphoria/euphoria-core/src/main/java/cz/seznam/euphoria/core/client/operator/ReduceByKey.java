@@ -98,8 +98,7 @@ import java.util.stream.StreamSupport;
 public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Pair<KEY, OUT>, W,
-        ReduceByKey<IN, KEY, VALUE, OUT, W>>
-    implements Builders.OutputValues<KEY, OUT> {
+        ReduceByKey<IN, KEY, VALUE, OUT, W>> {
 
 
   public static class OfBuilder implements Builders.Of {
@@ -349,7 +348,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
       ReduceByKey<IN, KEY, VALUE, OUT, W> reduce = new ReduceByKey<>(
-              name, flow, input, keyExtractor, valueExtractor,
+          name, flow, input, keyExtractor, valueExtractor,
           windowing, reducer, valuesComparator, Sets.newHashSet(outputHints));
       flow.add(reduce);
       return reduce.output();
@@ -396,23 +395,12 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
               UnaryFunction<IN, KEY> keyExtractor,
               UnaryFunction<IN, VALUE> valueExtractor,
               @Nullable Windowing<IN, W> windowing,
-              CombinableReduceFunction<OUT> reducer) {
+              CombinableReduceFunction<OUT> reducer,
+              Set<OutputHint> outputHints) {
     this(
         name, flow, input, keyExtractor, valueExtractor,
         windowing, (ReduceFunctor<VALUE, OUT>) toReduceFunctor(reducer),
-        null, Collections.emptySet());
-  }
-
-  ReduceByKey(String name,
-              Flow flow,
-              Dataset<IN> input,
-              UnaryFunction<IN, KEY> keyExtractor,
-              UnaryFunction<IN, VALUE> valueExtractor,
-              @Nullable Windowing<IN, W> windowing,
-              ReduceFunctor<VALUE, OUT> reducer,
-              @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
-    this(name, flow, input, keyExtractor, valueExtractor, windowing, reducer, valueComparator,
-        Collections.emptySet());
+        null, outputHints);
   }
 
   ReduceByKey(String name,
@@ -443,11 +431,6 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     return valueExtractor;
   }
 
-  @Override
-  public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
-    return output();
-  }
-
   @SuppressWarnings("unchecked")
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
@@ -460,7 +443,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     Operator reduceState = new ReduceStateByKey(getName(),
         flow, input, keyExtractor, valueExtractor,
         windowing,
-        stateFactory, stateCombine);
+        stateFactory, stateCombine, getHints());
     return DAG.of(reduceState);
   }
 
