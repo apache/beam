@@ -256,9 +256,6 @@ class TimestampedValue(object):
   def __eq__(self, other):
     return self.value == other.value and self.timestamp == other.timestamp
 
-  def __hash_(self):
-    return hash(self.value) ^ hash(self.timestamp) << 1
-
   def __lt__(self, other):
     if type(self) is not type(other):
       raise TypeError("Can not compare type %s and %s" %
