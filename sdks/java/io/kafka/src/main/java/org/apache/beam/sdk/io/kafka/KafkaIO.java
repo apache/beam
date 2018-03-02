@@ -209,11 +209,13 @@ import org.slf4j.LoggerFactory;
  * A custom timestamp policy can be provided by implementing {@link TimestampPolicyFactory}. See
  * {@link Read#withTimestampPolicyFactory(TimestampPolicyFactory)} for more information.
  *
- * <h3>Supported Kakfa Client Versions</h3>
- * KafkaIO relies <i>kafka-clients</i> for all its interactions with the Kafka cluster.
- * <i>kafka-clients</i> versions 0.10.1 and newer are supported at runtime. Please ensure that
- * the version included with the application is compatible with the version of your Kafka cluster.
- * Kafka client usually fails to initialize with a clear error message in case of incompatibility.
+ * <h3>Supported Kafka Client Versions</h3>
+ * KafkaIO relies on <i>kafka-clients</i> for all its interactions with the Kafka cluster.
+ * <i>kafka-clients</i> versions 0.10.1 and newer are supported at runtime. The older versions
+ * 0.9.x - 0.10.0.0 are also supported, but are deprecated and likely be removed in near future.
+ * Please ensure that the version included with the application is compatible with the version of
+ * your Kafka cluster. Kafka client usually fails to initialize with a clear error message in
+ * case of incompatibility.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class KafkaIO {
