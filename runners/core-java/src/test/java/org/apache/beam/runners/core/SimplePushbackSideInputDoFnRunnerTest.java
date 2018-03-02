@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -246,6 +247,11 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     List<TimerData> firedTimers;
     private boolean started = false;
     private boolean finished = false;
+
+    @Override
+    public DoFn<InputT, OutputT> getFn() {
+      return null;
+    }
 
     @Override
     public void startBundle() {
