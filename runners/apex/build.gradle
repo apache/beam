@@ -109,4 +109,4 @@ task validatesRunner {
 }
 
 // Generates :beam-runners-apex:runQuickstartJavaApex
-createJavaQuickstartValidationTask(name: 'Apex')
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner:'Apex')

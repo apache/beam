@@ -20,7 +20,7 @@
 class QuickstartArchetype {
   def static generate(TestScripts t) {
     // Generate a maven project from the snapshot repository
-    t.run """mvn archetype:generate \
+    String output_text = t.run """mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
       -DarchetypeVersion=${t.ver()} \
@@ -31,12 +31,14 @@ class QuickstartArchetype {
       -DinteractiveMode=false"""
 
     // Check if it was generated
-    t.see "[INFO] BUILD SUCCESS"
+    t.see "[INFO] BUILD SUCCESS", output_text
     t.run "cd word-count-beam"
-    t.run "ls"
-    t.see "pom.xml"
-    t.see "src"
-    t.run "ls src/main/java/org/apache/beam/examples/"
-    t.see "WordCount.java"
+    output_text = t.run "ls"
+    t.see "pom.xml", output_text
+    t.see "src", output_text
+    String wordcounts = t.run "ls src/main/java/org/apache/beam/examples/"
+    t.see "WordCount.java", wordcounts
+    String games = t.run "ls src/main/java/org/apache/beam/examples/complete/game/"
+    t.see "UserScore.java", games
   }
 }

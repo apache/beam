@@ -48,14 +48,14 @@ job('beam_PostRelease_NightlySnapshot') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      './gradlew :release:runQuickstartsJava',
+      './gradlew :release:runJavaExamplesValidationTask',
       'Run Dataflow PostRelease')
 
   steps {
     // Run a quickstart from https://beam.apache.org/get-started/quickstart-java
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':release:runQuickstartsJava')
+      tasks(':release:runJavaExamplesValidationTask')
       common_job_properties.setGradleSwitches(delegate)
       switches('-Pver=$snapshot_version -Prepourl=$snapshot_url')
     }
