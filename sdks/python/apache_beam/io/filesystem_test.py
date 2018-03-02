@@ -212,3 +212,8 @@ atomized in instants hammered around the
         self.assertEqual(current_offset, readable.tell())
         if not line:
           break
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
