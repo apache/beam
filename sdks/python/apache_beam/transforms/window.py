@@ -200,12 +200,9 @@ class BoundedWindow(object):
 
   def __lt__(self, other):
     if type(self) is not type(other):
-      return type(self) < type(other)
+      raise TypeError("Can not compare type %s and %s" % (type(self), type(other)))
     # Order first by endpoint, then arbitrarily.
     return (self.end, hash(self)) < (other.end, hash(other))
-
-  def __hash__(self):
-    return hash(self.end)
 
   def __repr__(self):
     return '[?, %s)' % float(self.end)
@@ -263,7 +260,7 @@ class TimestampedValue(object):
 
   def __lt__(self, other):
     if type(self) is not type(other):
-      return type(self) < type(other)
+      raise TypeError("Can not compare type %s and %s" % (type(self), type(other)))
     return (self.value, self.timestamp) < (other.value, other.timestamp)
 
 
