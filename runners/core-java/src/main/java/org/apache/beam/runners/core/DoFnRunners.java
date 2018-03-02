@@ -52,7 +52,7 @@ public class DoFnRunners {
    * compressed {@link WindowedValue}. It is the responsibility of the runner to perform any key
    * partitioning needed, etc.
    */
-  public static <InputT, OutputT> SimpleDoFnRunner<InputT, OutputT> simpleRunner(
+  public static <InputT, OutputT> DoFnRunner<InputT, OutputT> simpleRunner(
       PipelineOptions options,
       DoFn<InputT, OutputT> fn,
       SideInputReader sideInputReader,
