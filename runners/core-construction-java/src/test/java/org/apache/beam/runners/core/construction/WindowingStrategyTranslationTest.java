@@ -99,7 +99,7 @@ public class WindowingStrategyTranslationTest {
                         .setSpec(
                             FunctionSpec.newBuilder()
                                 .setUrn("env_custom_window_fn")
-                                .setPayload(ByteString.EMPTY)
+                                .setPayload(ByteString.copyFrom(new byte[] {0, -1, 127, -128, 63}))
                                 .build())
                         .build()))));
   }

@@ -428,52 +428,59 @@ public class WindowingStrategyTranslation implements Serializable {
 
     @Override
     public Collection<W> assignWindows(AssignContext c) {
-      throw new UnsupportedOperationException();
+      throw unsupported();
     }
 
     @Override
     public void mergeWindows(MergeContext c) {
-      throw new UnsupportedOperationException();
+      throw unsupported();
     }
 
     @Override
     public boolean isCompatible(WindowFn<?, ?> other) {
-      throw new UnsupportedOperationException();
+      throw unsupported();
     }
 
     @Override
     public Coder<W> windowCoder() {
-      throw new UnsupportedOperationException();
+      throw unsupported();
     }
 
     @Override
     public WindowMappingFn<W> getDefaultWindowMappingFn() {
-      throw new UnsupportedOperationException();
+      throw unsupported();
     }
 
     @Override
     public void verifyCompatibility(WindowFn<?, ?> other) {
-      throw new UnsupportedOperationException();
+      throw unsupported();
     }
 
     @Override
     public Instant getOutputTime(Instant inputTimestamp, W window) {
-      throw new UnsupportedOperationException();
+      throw unsupported();
     }
 
     @Override
     public boolean isNonMerging() {
-      throw new UnsupportedOperationException();
+      throw unsupported();
     }
 
     @Override
     public boolean assignsToOneWindow() {
-      throw new UnsupportedOperationException()
+      throw unsupported();
     }
 
     @Override
     public TypeDescriptor<W> getWindowTypeDescriptor() {
-      throw new UnsupportedOperationException()
+      throw unsupported();
+    }
+
+    private UnsupportedOperationException unsupported() {
+      return new UnsupportedOperationException(
+          String.format(
+              "%s cannot be used as a Java %s",
+              RawWindowFn.class.getSimpleName(), WindowFn.class.getSimpleName()));
     }
   }
 }
