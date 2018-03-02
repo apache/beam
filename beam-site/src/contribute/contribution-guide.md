@@ -248,7 +248,8 @@ To Check for lint errors locally, install "tox" package and run following
 command.
 
     $ pip install tox
-    $ tox -e lint
+    $ tox -e lint_py2,lint_py3
+
 
 Beam supports running Python SDK tests using Maven. For this, navigate to root
 directory of your Apache Beam clone and execute following command. Currently
