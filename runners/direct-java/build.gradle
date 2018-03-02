@@ -97,5 +97,18 @@ task needsRunnerTests(type: Test) {
   }
 }
 
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
+def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
+def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
+
 // Generates :beam-runners-direct-java:runQuickstartJavaDirect
-createJavaQuickstartValidationTask(name: 'Direct')
+createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'Direct')
+
+// Generates :beam-runners-direct-java:runMobileGamingJavaDirect
+createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
+  runner: 'Direct',
+  gcpProject: gcpProject,
+  gcsBucket: gcsBucket,
+  bqDataset: bqDataset,
+  pubsubTopic: pubsubTopic)
