@@ -52,7 +52,7 @@ import java.util.Set;
 )
 public class CountByKey<IN, KEY, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, KEY, Pair<KEY, Long>, W, CountByKey<IN, KEY, W>> {
+    IN, IN, IN, KEY, Pair<KEY, Long>, W, CountByKey<IN, KEY, W>> {
 
   public static class OfBuilder implements Builders.Of {
     private final String name;
@@ -175,12 +175,13 @@ public class CountByKey<IN, KEY, W extends Window>
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     SumByKey<IN, KEY, W> sum = new SumByKey<>(
-            getName(),
-            input.getFlow(),
-            input,
-            keyExtractor,
-            e -> 1L,
-            windowing);
+        getName(),
+        input.getFlow(),
+        input,
+        keyExtractor,
+        e -> 1L,
+        windowing,
+        getHints());
     return DAG.of(sum);
   }
 }

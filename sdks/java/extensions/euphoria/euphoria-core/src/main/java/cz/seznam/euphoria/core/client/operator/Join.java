@@ -74,8 +74,7 @@ import java.util.Set;
 )
 public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
-    Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W, Join<LEFT, RIGHT, KEY, OUT, W>>
-    implements Builders.OutputValues<KEY, OUT> {
+    Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W, Join<LEFT, RIGHT, KEY, OUT, W>> {
 
   public enum Type {
     INNER,
@@ -284,11 +283,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
   @Override
   public Dataset<Pair<KEY, OUT>> output() {
-    return output;
-  }
-
-  @Override
-  public Dataset<Pair<KEY, OUT>> output(OutputHint... outputHints) {
     return output;
   }
 
@@ -525,8 +519,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
         getName() + "::Map-right", flow, right, Either::right);
 
     final Union<Either<LEFT, RIGHT>> union =
-        new Union<>(getName() + "::Union", flow, Arrays.asList(
-            leftMap.output(), rightMap.output()));
+        new Union<>(getName() + "::Union", flow,
+            Arrays.asList(leftMap.output(), rightMap.output()));
 
     final ReduceStateByKey<Either<LEFT, RIGHT>, KEY, Either<LEFT, RIGHT>, OUT, StableJoinState, W>
         reduce = new ReduceStateByKey(
@@ -541,7 +535,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
           return ctx == null
               ? new StableJoinState(storages)
               : new EarlyEmittingJoinState(storages, ctx);
-        }, new StateSupport.MergeFromStateMerger<>());
+        }, new StateSupport.MergeFromStateMerger<>(),
+        getHints());
 
     final DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
     dag.add(union, leftMap, rightMap);

@@ -36,6 +36,7 @@ import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.Set;
 
 import static java.util.Objects.requireNonNull;
@@ -330,7 +331,7 @@ public class TopPerKey<
                 windowing,
                 (StateContext context, Collector<Pair<VALUE, SCORE>> collector) -> {
                   return new MaxScored<>(context.getStorageProvider());
-                }, stateCombiner);
+                }, stateCombiner, Collections.emptySet());
 
     MapElements<Pair<KEY, Pair<VALUE, SCORE>>, Triple<KEY, VALUE, SCORE>>
         format =
@@ -338,7 +339,8 @@ public class TopPerKey<
             e -> Triple.of(
                 e.getFirst(),
                 e.getSecond().getFirst(),
-                e.getSecond().getSecond()));
+                e.getSecond().getSecond()),
+            getHints());
 
     DAG<Operator<?, ?>> dag = DAG.of(reduce);
     dag.add(format, reduce);

@@ -33,15 +33,13 @@ class OutputDataset<T> implements Dataset<T> {
   private final Flow flow;
   private final Operator<?, T> producer;
   private final boolean bounded;
-  private final Set<OutputHint> outputHints;
 
   private DataSink<T> outputSink = null;
 
-  public OutputDataset(Flow flow, Operator<?, T> producer, boolean bounded, Set<OutputHint> outputHints) {
+  public OutputDataset(Flow flow, Operator<?, T> producer, boolean bounded) {
     this.flow = flow;
     this.producer = producer;
     this.bounded = bounded;
-    this.outputHints = outputHints;
   }
 
   @Nullable
@@ -80,10 +78,5 @@ class OutputDataset<T> implements Dataset<T> {
   @Override
   public Collection<Operator<?, ?>> getConsumers() {
     return flow.getConsumersOf(this);
-  }
-
-  @Override
-  public Set<OutputHint> getHints() {
-    return outputHints;
   }
 }

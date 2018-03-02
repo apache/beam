@@ -172,8 +172,8 @@ public class FlatMap<IN, OUT> extends ElementWiseOperator<IN, OUT> {
     @Override
     public Dataset<OUT> output(OutputHint... outputHints) {
       Flow flow = input.getFlow();
-      FlatMap<IN, OUT> map = new FlatMap<>(name, flow, input, functor, evtTimeFn, Sets.newHashSet
-          (outputHints));
+      FlatMap<IN, OUT> map = new FlatMap<>(name, flow, input, functor, evtTimeFn,
+          Sets.newHashSet(outputHints));
       flow.add(map);
       return map.output();
     }

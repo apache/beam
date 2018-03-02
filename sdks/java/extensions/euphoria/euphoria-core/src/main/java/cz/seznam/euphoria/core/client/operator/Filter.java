@@ -137,8 +137,10 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
 
   final UnaryPredicate<IN> predicate;
 
-  Filter(String name, Flow flow, Dataset<IN> input, UnaryPredicate<IN> predicate, Set<OutputHint>
-      outputHints) {
+  Filter(String name,
+         Flow flow, Dataset<IN> input,
+         UnaryPredicate<IN> predicate,
+         Set<OutputHint> outputHints) {
     super(name, flow, input, outputHints);
     this.predicate = predicate;
   }
@@ -155,6 +157,8 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
           if (predicate.apply(elem)) {
             collector.collect(elem);
           }
-        }, null));
+        },
+        null,
+        getHints()));
   }
 }
