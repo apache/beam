@@ -61,6 +61,11 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   }
 
   @Override
+  public DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getFn() {
+    return doFnRunner.getFn();
+  }
+
+  @Override
   public void startBundle() {
     doFnRunner.startBundle();
   }
