@@ -40,7 +40,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 /**
  * Component that regularly merges metrics and pushes them to a metrics sink. It needs to be a
  * singleton because spark runner might call initAccumulators several times and this method calls
- * {@link MetricsPusher#init} and needs to be idempotent
+ * {@link MetricsPusher#init} and needs to be idempotent.
  */
 public class MetricsPusher implements Serializable {
 
@@ -71,7 +71,9 @@ public class MetricsPusher implements Serializable {
               .withArg(PipelineOptions.class, pipelineOptions)
               .build();
       metricsContainerStepMaps = new ArrayList<>();
-      start();
+      if (!(metricsSink instanceof NoOpMetricsSink)) {
+        start();
+      }
     }
     /*
       MetricsPusher.init will be called several times in a pipeline
@@ -111,28 +113,29 @@ public class MetricsPusher implements Serializable {
   }
 
   public static void pushMetrics(){
-    try {
-      // merge metrics
-      for (MetricsContainerStepMap metricsContainerStepMap : metricsContainerStepMaps) {
-        MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
-        MetricQueryResults metricQueryResults =
-            metricResults.queryMetrics(MetricsFilter.builder().build());
-        if ((Iterables.size(metricQueryResults.distributions()) != 0)
-            || (Iterables.size(metricQueryResults.gauges()) != 0)
-            || (Iterables.size(metricQueryResults.counters()) != 0)) {
-          metricsSink.writeMetrics(metricQueryResults);
+    if (!(metricsSink instanceof NoOpMetricsSink)) {
+      try {
+        // merge metrics
+        for (MetricsContainerStepMap metricsContainerStepMap : metricsContainerStepMaps) {
+          MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
+          MetricQueryResults metricQueryResults = metricResults
+              .queryMetrics(MetricsFilter.builder().build());
+          if ((Iterables.size(metricQueryResults.distributions()) != 0) || (Iterables.size(metricQueryResults.gauges()) != 0)
+              || (Iterables.size(metricQueryResults.counters()) != 0)) {
+            metricsSink.writeMetrics(metricQueryResults);
+          }
         }
-      }
-      if (pipelineResult != null) {
-        PipelineResult.State pipelineState = pipelineResult.getState();
-        if (pipelineState.isTerminal()) {
-          tearDown();
+        if (pipelineResult != null) {
+          PipelineResult.State pipelineState = pipelineResult.getState();
+          if (pipelineState.isTerminal()) {
+            tearDown();
+          }
         }
-      }
 
-    } catch (Exception e) {
-      MetricsPushException metricsPushException = new MetricsPushException(e);
-      metricsPushException.printStackTrace();
+      } catch (Exception e) {
+        MetricsPushException metricsPushException = new MetricsPushException(e);
+        metricsPushException.printStackTrace();
+      }
     }
   }
 
