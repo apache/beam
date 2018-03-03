@@ -741,20 +741,18 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames) throws IOException {
       int numFiles = resultsToFinalFilenames.size();
 
-        LOG.debug("Copying {} files.", numFiles);
-        List<ResourceId> srcFiles = new ArrayList<>();
-        List<ResourceId> dstFiles = new ArrayList<>();
-        for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
-          srcFiles.add(entry.getKey().getTempFilename());
-          dstFiles.add(entry.getValue());
-          LOG.info(
-              "Will copy temporary file {} to final location {}",
-              entry.getKey(),
-              entry.getValue());
-        }
-        // During a failure case, files may have been deleted in an earlier step. Thus
-        // we ignore missing files here.
-        FileSystems.copy(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
+      LOG.debug("Copying {} files.", numFiles);
+      List<ResourceId> srcFiles = new ArrayList<>();
+      List<ResourceId> dstFiles = new ArrayList<>();
+      for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
+        srcFiles.add(entry.getKey().getTempFilename());
+        dstFiles.add(entry.getValue());
+        LOG.info(
+            "Will copy temporary file {} to final location {}", entry.getKey(), entry.getValue());
+      }
+      // During a failure case, files may have been deleted in an earlier step. Thus
+      // we ignore missing files here.
+      FileSystems.copy(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
       removeTemporaryFiles(srcFiles);
     }
 

@@ -59,8 +59,15 @@ class ProcessKeyedElementsViaKeyedWorkItems(PTransform):
     self._process_keyed_elements_transform = process_keyed_elements_transform
 
   def expand(self, pcoll):
-    return pcoll | beam.core.GroupByKey() | ProcessElements(
+    process_elements = ProcessElements(
         self._process_keyed_elements_transform)
+    process_elements.args = (
+        self._process_keyed_elements_transform.ptransform_args)
+    process_elements.kwargs = (
+        self._process_keyed_elements_transform.ptransform_kwargs)
+    process_elements.side_inputs = (
+        self._process_keyed_elements_transform.ptransform_side_inputs)
+    return pcoll | beam.core.GroupByKey() | process_elements
 
 
 class ProcessElements(PTransform):
@@ -176,7 +183,7 @@ class ProcessFn(beam.DoFn):
                       SDFProcessElementInvoker)
 
     output_values = self._process_element_invoker.invoke_process_element(
-        self.sdf_invoker, windowed_element, tracker)
+        self.sdf_invoker, windowed_element, tracker, *args, **kwargs)
 
     sdf_result = None
     for output in output_values:
@@ -270,7 +277,8 @@ class SDFProcessElementInvoker(object):
   def test_method(self):
     raise ValueError
 
-  def invoke_process_element(self, sdf_invoker, element, tracker):
+  def invoke_process_element(
+      self, sdf_invoker, element, tracker, *args, **kwargs):
     """Invokes `process()` method of a Splittable `DoFn` for a given element.
 
      Args:
@@ -302,7 +310,8 @@ class SDFProcessElementInvoker(object):
     output_processor = _OutputProcessor()
     Timer(self._max_duration, initiate_checkpoint).start()
     sdf_invoker.invoke_process(
-        element, restriction_tracker=tracker, output_processor=output_processor)
+        element, restriction_tracker=tracker, output_processor=output_processor,
+        additional_args=args, additional_kwargs=kwargs)
 
     assert output_processor.output_iter is not None
     output_count = 0

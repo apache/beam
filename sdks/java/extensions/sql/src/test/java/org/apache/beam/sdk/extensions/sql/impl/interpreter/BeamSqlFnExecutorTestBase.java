@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
@@ -45,9 +46,7 @@ import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.RelBuilder;
 import org.junit.BeforeClass;
 
-/**
- * base class to test {@link BeamSqlFnExecutor} and subclasses of {@link BeamSqlExpression}.
- */
+/** base class to test {@link BeamSqlFnExecutor} and subclasses of {@link BeamSqlExpression}. */
 public class BeamSqlFnExecutorTestBase {
   static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(RelDataTypeSystem.DEFAULT);
   static RexBuilder rexBuilder = new RexBuilder(BeamQueryPlanner.TYPE_FACTORY);
@@ -59,30 +58,35 @@ public class BeamSqlFnExecutorTestBase {
 
   @BeforeClass
   public static void prepare() {
-    relDataType = TYPE_FACTORY.builder()
-        .add("order_id", SqlTypeName.BIGINT)
-        .add("site_id", SqlTypeName.INTEGER)
-        .add("price", SqlTypeName.DOUBLE)
-        .add("order_time", SqlTypeName.BIGINT).build();
-
-    row =
-        Row
-            .withRowType(CalciteUtils.toBeamRowType(relDataType))
-            .addValues(
-                1234567L,
-                0,
-                8.9,
-                1234567L)
+    relDataType =
+        TYPE_FACTORY
+            .builder()
+            .add("order_id", SqlTypeName.BIGINT)
+            .add("site_id", SqlTypeName.INTEGER)
+            .add("price", SqlTypeName.DOUBLE)
+            .add("order_time", SqlTypeName.BIGINT)
             .build();
 
+    row =
+        Row.withRowType(CalciteUtils.toBeamRowType(relDataType))
+            .addValues(1234567L, 0, 8.9, 1234567L)
+            .build();
+
+    BeamSqlEnv sqlEnv = new BeamSqlEnv();
     SchemaPlus schema = Frameworks.createRootSchema(true);
     final List<RelTraitDef> traitDefs = new ArrayList<>();
     traitDefs.add(ConventionTraitDef.INSTANCE);
     traitDefs.add(RelCollationTraitDef.INSTANCE);
-    FrameworkConfig config = Frameworks.newConfigBuilder()
-        .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build()).defaultSchema(schema)
-        .traitDefs(traitDefs).context(Contexts.EMPTY_CONTEXT).ruleSets(BeamRuleSets.getRuleSets())
-        .costFactory(null).typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM).build();
+    FrameworkConfig config =
+        Frameworks.newConfigBuilder()
+            .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build())
+            .defaultSchema(schema)
+            .traitDefs(traitDefs)
+            .context(Contexts.EMPTY_CONTEXT)
+            .ruleSets(BeamRuleSets.getRuleSets(sqlEnv))
+            .costFactory(null)
+            .typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
+            .build();
 
     relBuilder = RelBuilder.create(config);
   }

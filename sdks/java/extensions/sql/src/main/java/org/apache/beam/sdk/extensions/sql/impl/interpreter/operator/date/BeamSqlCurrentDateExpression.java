@@ -35,6 +35,7 @@ public class BeamSqlCurrentDateExpression extends BeamSqlExpression {
   public BeamSqlCurrentDateExpression() {
     super(Collections.emptyList(), SqlTypeName.DATE);
   }
+
   @Override public boolean accept() {
     return getOperands().size() == 0;
   }

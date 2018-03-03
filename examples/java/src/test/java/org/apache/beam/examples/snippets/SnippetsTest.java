@@ -22,6 +22,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -34,6 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+
 /**
  * Tests for Snippets.
  */
@@ -41,7 +45,32 @@ import org.junit.runners.JUnit4;
 public class SnippetsTest implements Serializable {
 
   @Rule
-  public transient TestPipeline p = TestPipeline.create();
+  public final transient TestPipeline p = TestPipeline.create();
+
+  @Test
+  public void testModelBigQueryIO() {
+    // We cannot test BigQueryIO functionality in unit tests, therefore we limit ourselves
+    // to making sure the pipeline containing BigQuery sources and sinks can be built.
+    //
+    // To run locally, set `runLocally` to `true`. You will have to set `project`, `dataset` and
+    // `table` to the BigQuery table the test will write into.
+    boolean runLocally = false;
+    if (runLocally) {
+      String project = "my-project";
+      String dataset = "samples";  // this must already exist
+      String table = "modelBigQueryIO";  // this will be created if needed
+
+      BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+      options.setProject(project);
+      options.setTempLocation("gs://" + project + "/samples/temp/");
+      Pipeline p = Pipeline.create(options);
+      Snippets.modelBigQueryIO(p, project, dataset, table);
+      p.run();
+    } else {
+      Pipeline p = Pipeline.create();
+      Snippets.modelBigQueryIO(p);
+    }
+  }
 
   /* Tests CoGroupByKeyTuple */
   @Test
@@ -64,8 +93,8 @@ public class SnippetsTest implements Serializable {
     // [END CoGroupByKeyTupleInputs]
 
     // [START CoGroupByKeyTupleOutputs]
-    final TupleTag<String> emailsTag = new TupleTag();
-    final TupleTag<String> phonesTag = new TupleTag();
+    final TupleTag<String> emailsTag = new TupleTag<>();
+    final TupleTag<String> phonesTag = new TupleTag<>();
 
     final List<KV<String, CoGbkResult>> expectedResults = Arrays.asList(
         KV.of("amy", CoGbkResult
@@ -95,7 +124,7 @@ public class SnippetsTest implements Serializable {
 
     // Make sure that both 'expectedResults' and 'actualFormattedResults' match with the
     // 'formattedResults'. 'expectedResults' will have to be formatted before comparing
-    List<String> expectedFormattedResultsList = new ArrayList<>(expectedResults.size());
+    List<String> expectedFormattedResultsList = new ArrayList<String>(expectedResults.size());
     for (KV<String, CoGbkResult> e : expectedResults) {
       String name = e.getKey();
       Iterable<String> emailsIter = e.getValue().getAll(emailsTag);

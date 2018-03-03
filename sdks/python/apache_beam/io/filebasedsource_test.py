@@ -330,7 +330,7 @@ class TestFileBasedSource(unittest.TestCase):
     variance = 5
 
     sizes = []
-    for _ in xrange(num_files):
+    for _ in range(num_files):
       sizes.append(int(random.uniform(base_size - variance,
                                       base_size + variance)))
     pattern, _ = write_pattern(sizes)
@@ -452,7 +452,7 @@ class TestFileBasedSource(unittest.TestCase):
   def test_read_pattern_bzip2(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i-1]:splits[i]] for i in xrange(1, len(splits))]
+    chunks = [lines[splits[i-1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
       compressobj = bz2.BZ2Compressor()
@@ -470,7 +470,7 @@ class TestFileBasedSource(unittest.TestCase):
   def test_read_pattern_gzip(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i-1]:splits[i]] for i in xrange(1, len(splits))]
+    chunks = [lines[splits[i-1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
       out = cStringIO.StringIO()
@@ -517,7 +517,7 @@ class TestFileBasedSource(unittest.TestCase):
   def test_read_auto_pattern(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i - 1]:splits[i]] for i in xrange(1, len(splits))]
+    chunks = [lines[splits[i - 1]:splits[i]] for i in range(1, len(splits))]
     compressed_chunks = []
     for c in chunks:
       out = cStringIO.StringIO()
@@ -536,7 +536,7 @@ class TestFileBasedSource(unittest.TestCase):
   def test_read_auto_pattern_compressed_and_uncompressed(self):
     _, lines = write_data(200)
     splits = [0, 34, 100, 140, 164, 188, 200]
-    chunks = [lines[splits[i - 1]:splits[i]] for i in xrange(1, len(splits))]
+    chunks = [lines[splits[i - 1]:splits[i]] for i in range(1, len(splits))]
     chunks_to_write = []
     for i, c in enumerate(chunks):
       if i%2 == 0:

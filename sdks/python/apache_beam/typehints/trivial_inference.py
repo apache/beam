@@ -33,7 +33,6 @@ from functools import reduce
 from apache_beam.typehints import Any
 from apache_beam.typehints import typehints
 from six.moves import builtins
-from six.moves import zip
 
 
 class TypeInferenceError(ValueError):

@@ -21,6 +21,7 @@ package org.apache.beam.sdk.nexmark.model.sql.adapter;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
@@ -49,14 +50,21 @@ public class ModelAdaptersMapping {
             .withVarcharField("creditCard")
             .withVarcharField("city")
             .withVarcharField("state")
-            .withBigIntField("dateTime")
+            .withTimestampField("dateTime")
             .withVarcharField("extra")
             .build()) {
       @Override
       public List<Object> getFieldsValues(Person p) {
         return Collections.unmodifiableList(
             Arrays.asList(
-                p.id, p.name, p.emailAddress, p.creditCard, p.city, p.state, p.dateTime, p.extra));
+                p.id,
+                p.name,
+                p.emailAddress,
+                p.creditCard,
+                p.city,
+                p.state,
+                new Date(p.dateTime),
+                p.extra));
       }
     };
   }
@@ -67,13 +75,18 @@ public class ModelAdaptersMapping {
             .withBigIntField("auction")
             .withBigIntField("bidder")
             .withBigIntField("price")
-            .withBigIntField("dateTime")
+            .withTimestampField("dateTime")
             .withVarcharField("extra")
             .build()) {
       @Override
       public List<Object> getFieldsValues(Bid b) {
         return Collections.unmodifiableList(
-            Arrays.asList(b.auction, b.bidder, b.price, b.dateTime, b.extra));
+            Arrays.asList(
+                b.auction,
+                b.bidder,
+                b.price,
+                new Date(b.dateTime),
+                b.extra));
       }
     };
   }
@@ -86,8 +99,8 @@ public class ModelAdaptersMapping {
             .withVarcharField("description")
             .withBigIntField("initialBid")
             .withBigIntField("reserve")
-            .withBigIntField("dateTime")
-            .withBigIntField("expires")
+            .withTimestampField("dateTime")
+            .withTimestampField("expires")
             .withBigIntField("seller")
             .withBigIntField("category")
             .withVarcharField("extra")
@@ -101,8 +114,8 @@ public class ModelAdaptersMapping {
                 a.description,
                 a.initialBid,
                 a.reserve,
-                a.dateTime,
-                a.expires,
+                new Date(a.dateTime),
+                new Date(a.expires),
                 a.seller,
                 a.category,
                 a.extra));

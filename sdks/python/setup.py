@@ -127,6 +127,7 @@ GCP_REQUIREMENTS = [
   'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
   'googledatastore==7.0.1',
   'google-cloud-pubsub==0.26.0',
+  'proto-google-cloud-pubsub-v1==0.15.4',
   # GCP packages required by tests
   'google-cloud-bigquery==0.25.0',
 ]
@@ -159,7 +160,7 @@ def generate_common_urns():
   src_time = os.path.getmtime(src) if os.path.exists(src) else -1
   out_time = os.path.getmtime(out) if os.path.exists(out) else -1
   if src_time > out_time:
-    print 'Regenerating common_urns module.'
+    print('Regenerating common_urns module.')
     urns = {}
     for m in re.finditer(
         r'\b(?:urn:)?beam:(\S+):(\S+):(v\S+)', open(src).read()):

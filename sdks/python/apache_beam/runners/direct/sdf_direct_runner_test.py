@@ -22,9 +22,12 @@ import os
 import unittest
 
 import apache_beam as beam
+from apache_beam import Create
 from apache_beam import DoFn
 from apache_beam.io import filebasedsource_test
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.pvalue import AsList
+from apache_beam.pvalue import AsSingleton
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -100,10 +103,13 @@ class ExpandStrings(DoFn):
     self._record_window = record_window
 
   def process(
-      self, element, window=beam.DoFn.WindowParam,
-      restriction_tracker=ExpandStringsProvider(), side=None,
+      self, element, side1, side2, side3, window=beam.DoFn.WindowParam,
+      restriction_tracker=ExpandStringsProvider(),
       *args, **kwargs):
-    side = side or []
+    side = []
+    side.extend(side1)
+    side.extend(side2)
+    side.extend(side3)
     assert isinstance(restriction_tracker, OffsetRestrictionTracker)
     side = list(side)
     for i in range(restriction_tracker.start_position(),
@@ -212,7 +218,7 @@ class SDFDirectRunnerTest(unittest.TestCase):
                                           TimestampedValue(('B', t), t)])
                 | beam.WindowInto(SlidingWindows(10, 5),
                                   accumulation_mode=AccumulationMode.DISCARDING)
-                | beam.ParDo(ExpandStrings(record_window=True)))
+                | beam.ParDo(ExpandStrings(record_window=True), [], [], []))
 
       expected_result = [
           'A:1:-5', 'A:1:0', 'A:3:-5', 'A:3:0', 'A:5:0', 'A:5:5', 'A:10:5',
@@ -222,11 +228,18 @@ class SDFDirectRunnerTest(unittest.TestCase):
 
   def test_sdf_with_side_inputs(self):
     with TestPipeline() as p:
+      side1 = p | 'Create1' >> Create(['1', '2'])
+      side2 = p | 'Create2' >> Create(['3', '4'])
+      side3 = p | 'Create3' >> Create(['5'])
       result = (p
-                | 'create_main' >> beam.Create(['1', '3', '5'])
-                | beam.ParDo(ExpandStrings(), side=['1', '3']))
+                | 'create_main' >> beam.Create(['a', 'b', 'c'])
+                | beam.ParDo(ExpandStrings(), AsList(side1), AsList(side2),
+                             AsSingleton(side3)))
 
-      expected_result = ['1:1', '3:1', '5:1', '1:3', '3:3', '5:3']
+      expected_result = []
+      for c in ['a', 'b', 'c']:
+        for i in range(5):
+          expected_result.append(c + ':' + str(i+1))
       assert_that(result, equal_to(expected_result))
 
 

@@ -79,7 +79,7 @@ public class QueryablePipeline {
    * <p>Parallel edges are permitted, as a {@link PCollectionNode} can be consumed by a single
    * {@link PTransformNode} any number of times with different local names.
    */
-  private final MutableNetwork<PipelineNode, PipelineEdge> pipelineNetwork;
+  private final Network<PipelineNode, PipelineEdge> pipelineNetwork;
 
   private QueryablePipeline(Components allComponents) {
     this.components = retainOnlyPrimitives(allComponents);
@@ -116,7 +116,10 @@ public class QueryablePipeline {
 
   private MutableNetwork<PipelineNode, PipelineEdge> buildNetwork(Components components) {
     MutableNetwork<PipelineNode, PipelineEdge> network =
-        NetworkBuilder.directed().allowsParallelEdges(true).allowsSelfLoops(false).build();
+        NetworkBuilder.directed()
+            .allowsParallelEdges(true)
+            .allowsSelfLoops(false)
+            .build();
     Set<PCollectionNode> unproducedCollections = new HashSet<>();
     for (Map.Entry<String, PTransform> transformEntry : components.getTransformsMap().entrySet()) {
       String transformId = transformEntry.getKey();
@@ -142,8 +145,9 @@ public class QueryablePipeline {
         // This loop may add an edge between the consumed PCollection and the current PTransform.
         // The local name of the transform must be used to determine the type of edge.
         String pcollectionId = consumed.getValue();
-        PCollectionNode consumedNode = PipelineNode.pCollection(pcollectionId,
-            this.components.getPcollectionsOrThrow(pcollectionId));
+        PCollectionNode consumedNode =
+            PipelineNode.pCollection(
+                pcollectionId, this.components.getPcollectionsOrThrow(pcollectionId));
         if (network.addNode(consumedNode)) {
           // This node has been added to the network for the first time, so it has no producer.
           unproducedCollections.add(consumedNode);
@@ -258,7 +262,7 @@ public class QueryablePipeline {
   }
 
   public Optional<Environment> getEnvironment(PTransformNode parDo) {
-    return Environments.getEnvironment(parDo.getTransform(), rehydratedComponents);
+    return Environments.getEnvironment(parDo.getId(), components);
   }
 
   private interface PipelineEdge {

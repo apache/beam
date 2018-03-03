@@ -38,12 +38,13 @@ import java.util.concurrent.ScheduledFuture;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.NullSideInputReader;
+import org.apache.beam.runners.core.ProcessFnRunner;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -218,6 +219,39 @@ public class DoFnOperator<InputT, OutputT>
     return doFn;
   }
 
+  // allow overriding this, for example SplittableDoFnOperator will not create a
+  // stateful DoFn runner because ProcessFn, which is used for executing a Splittable DoFn
+  // doesn't play by the normal DoFn rules and WindowDoFnOperator uses LateDataDroppingDoFnRunner
+  protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
+      DoFnRunner<InputT, OutputT> wrappedRunner) {
+
+    if (keyCoder != null) {
+      StatefulDoFnRunner.CleanupTimer cleanupTimer =
+          new StatefulDoFnRunner.TimeInternalsCleanupTimer(
+              timerInternals, windowingStrategy);
+
+      // we don't know the window type
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      StatefulDoFnRunner.StateCleaner<?> stateCleaner =
+          new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+              doFn, keyedStateInternals, windowCoder);
+
+
+      return DoFnRunners.defaultStatefulDoFnRunner(
+          doFn,
+          wrappedRunner,
+          windowingStrategy,
+          cleanupTimer,
+          stateCleaner);
+
+    } else {
+      return doFnRunner;
+    }
+  }
+
   @Override
   public void setup(
       StreamTask<?, ?> containingTask,
@@ -304,41 +338,7 @@ public class DoFnOperator<InputT, OutputT>
         stepContext,
         windowingStrategy);
 
-    if (doFn instanceof GroupAlsoByWindowViaWindowSetNewDoFn) {
-      // When the doFn is this, we know it came from WindowDoFnOperator and
-      //   InputT = KeyedWorkItem<K, V>
-      //   OutputT = KV<K, V>
-      //
-      // for some K, V
-
-
-      doFnRunner = DoFnRunners.lateDataDroppingRunner(
-          (DoFnRunner) doFnRunner,
-          stepContext,
-          windowingStrategy);
-    } else if (keyCoder != null) {
-      // It is a stateful DoFn
-
-      StatefulDoFnRunner.CleanupTimer cleanupTimer =
-          new StatefulDoFnRunner.TimeInternalsCleanupTimer(
-              stepContext.timerInternals(), windowingStrategy);
-
-      // we don't know the window type
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
-
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      StatefulDoFnRunner.StateCleaner<?> stateCleaner =
-          new StatefulDoFnRunner.StateInternalsStateCleaner<>(
-              doFn, stepContext.stateInternals(), windowCoder);
-
-      doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
-          doFn,
-          doFnRunner,
-          windowingStrategy,
-          cleanupTimer,
-          stateCleaner);
-    }
+    doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (options.getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
@@ -354,8 +354,13 @@ public class DoFnOperator<InputT, OutputT>
             .scheduleAtFixedRate(
                 timestamp -> checkInvokeFinishBundleByTime(), bundleCheckPeriod, bundleCheckPeriod);
 
-    pushbackDoFnRunner =
-        SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+    if (doFn instanceof SplittableParDoViaKeyedWorkItems.ProcessFn) {
+      pushbackDoFnRunner =
+          new ProcessFnRunner<>((DoFnRunner) doFnRunner, sideInputs, sideInputHandler);
+    } else {
+      pushbackDoFnRunner =
+          SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+    }
   }
 
   @Override
@@ -364,24 +369,50 @@ public class DoFnOperator<InputT, OutputT>
       super.dispose();
       checkFinishBundleTimer.cancel(true);
     } finally {
+      if (bundleStarted) {
+        invokeFinishBundle();
+      }
       doFnInvoker.invokeTeardown();
     }
   }
 
   @Override
   public void close() throws Exception {
-    super.close();
+    try {
 
-    // sanity check: these should have been flushed out by +Inf watermarks
-    if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
-      BagState<WindowedValue<InputT>> pushedBack =
-          nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
-
-      Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-      if (pushedBackContents != null && !Iterables.isEmpty(pushedBackContents)) {
-        String pushedBackString = Joiner.on(",").join(pushedBackContents);
+      // This is our last change to block shutdown of this operator while
+      // there are still remaining processing-time timers. Flink will ignore pending
+      // processing-time timers when upstream operators have shut down and will also
+      // shut down this operator with pending processing-time timers.
+      while (this.numProcessingTimeTimers() > 0) {
+        getContainingTask().getCheckpointLock().wait(100);
+      }
+      if (this.numProcessingTimeTimers() > 0) {
         throw new RuntimeException(
-            "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
+            "There are still processing-time timers left, this indicates a bug");
+      }
+
+      // make sure we send a +Inf watermark downstream. It can happen that we receive +Inf
+      // in processWatermark*() but have holds, so we have to re-evaluate here.
+      processWatermark(new Watermark(Long.MAX_VALUE));
+      if (currentOutputWatermark < Long.MAX_VALUE) {
+        throw new RuntimeException("There are still watermark holds. Watermark held at "
+            + keyedStateInternals.watermarkHold().getMillis() + ".");
+      }
+    } finally {
+      super.close();
+
+      // sanity check: these should have been flushed out by +Inf watermarks
+      if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
+        BagState<WindowedValue<InputT>> pushedBack =
+            nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
+
+        Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
+        if (pushedBackContents != null && !Iterables.isEmpty(pushedBackContents)) {
+          String pushedBackString = Joiner.on(",").join(pushedBackContents);
+          throw new RuntimeException(
+              "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
+        }
       }
     }
   }

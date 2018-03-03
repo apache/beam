@@ -60,8 +60,8 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | beam.Map(str.upper)
 
   def test_loose_bounds(self):
-    @typehints.with_input_types(typehints.Union[int, float, long])
-    @typehints.with_output_types(basestring)
+    @typehints.with_input_types(typehints.Union[int, float])
+    @typehints.with_output_types(str)
     def format_number(x):
       return '%g' % x
     result = [1, 2, 3] | beam.Map(format_number)

@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-runners-apex")
 
 description = "Apache Beam :: Runners :: Apex"
 
@@ -72,3 +72,6 @@ task buildDependencyTree(type: DependencyReportTask) {
   }
 }
 compileJava.dependsOn buildDependencyTree
+
+// Generates :runners:apex:runQuickstartJavaApex
+createJavaQuickstartValidationTask(name: 'Apex')

@@ -171,43 +171,6 @@ class TeamScoresDict(beam.DoFn):
     }
 
 
-class WriteToBigQuery(beam.PTransform):
-  """Generate, format, and write BigQuery table row information."""
-  def __init__(self, table_name, dataset, schema):
-    """Initializes the transform.
-    Args:
-      table_name: Name of the BigQuery table to use.
-      dataset: Name of the dataset to use.
-      schema: Dictionary in the format {'column_name': 'bigquery_type'}
-    """
-    super(WriteToBigQuery, self).__init__()
-    self.table_name = table_name
-    self.dataset = dataset
-    self.schema = schema
-
-  def get_schema(self):
-    """Build the output table schema."""
-    return ', '.join(
-        '%s:%s' % (col, self.schema[col]) for col in self.schema)
-
-  def get_table(self, pipeline):
-    """Utility to construct an output table reference."""
-    project = pipeline.options.view_as(GoogleCloudOptions).project
-    return '%s:%s.%s' % (project, self.dataset, self.table_name)
-
-  def expand(self, pcoll):
-    table = self.get_table(pcoll.pipeline)
-    return (
-        pcoll
-        | 'ConvertToRow' >> beam.Map(
-            lambda elem: {col: elem[col] for col in self.schema})
-        | beam.io.Write(beam.io.BigQuerySink(
-            table,
-            schema=self.get_schema(),
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
-
-
 # [START window_and_trigger]
 class CalculateTeamScores(beam.PTransform):
   """Calculates scores for each team within the configured window duration.
@@ -294,7 +257,8 @@ def run(argv=None):
   options = PipelineOptions(pipeline_args)
 
   # We also require the --project option to access --dataset
-  if options.view_as(GoogleCloudOptions).project is None:
+  project = options.view_as(GoogleCloudOptions).project
+  if project is None:
     parser.print_usage()
     print(sys.argv[0] + ': error: argument --project is required')
     sys.exit(1)
@@ -306,6 +270,8 @@ def run(argv=None):
   # Enforce that this pipeline is always run in streaming mode
   options.view_as(StandardOptions).streaming = True
 
+  table_spec_prefix = '{}:{}.{}'.format(project, args.dataset, args.table_name)
+
   with beam.Pipeline(options=options) as p:
     # Read game events from Pub/Sub using custom timestamps, which are extracted
     # from the pubsub data elements, and parse the data.
@@ -316,32 +282,37 @@ def run(argv=None):
         | 'AddEventTimestamps' >> beam.Map(
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])))
 
+    team_table_spec = table_spec_prefix + '_teams'
+    team_table_schema = (
+        'team:STRING, '
+        'total_score:INTEGER, '
+        'window_start:STRING, '
+        'processing_time: STRING')
+
     # Get team scores and write the results to BigQuery
     (events  # pylint: disable=expression-not-assigned
      | 'CalculateTeamScores' >> CalculateTeamScores(
          args.team_window_duration, args.allowed_lateness)
      | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
-     | 'WriteTeamScoreSums' >> WriteToBigQuery(
-         args.table_name + '_teams', args.dataset, {
-             'team': 'STRING',
-             'total_score': 'INTEGER',
-             'window_start': 'STRING',
-             'processing_time': 'STRING',
-         }))
+     | 'WriteTeamScoreSums' >> beam.io.WriteToBigQuery(
+         team_table_spec,
+         schema=team_table_schema,
+         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
 
-    def format_user_score_sums(user_score):
-      (user, score) = user_score
-      return {'user': user, 'total_score': score}
+    user_table_spec = table_spec_prefix + '_users'
+    user_table_schema = 'user:STRING, total_score:INTEGER'
 
     # Get user scores and write the results to BigQuery
     (events  # pylint: disable=expression-not-assigned
      | 'CalculateUserScores' >> CalculateUserScores(args.allowed_lateness)
-     | 'FormatUserScoreSums' >> beam.Map(format_user_score_sums)
-     | 'WriteUserScoreSums' >> WriteToBigQuery(
-         args.table_name + '_users', args.dataset, {
-             'user': 'STRING',
-             'total_score': 'INTEGER',
-         }))
+     | 'FormatUserScoreSums' >> beam.Map(
+         lambda elem: {'user': elem[0], 'total_score': elem[1]})
+     | 'WriteUserScoreSums' >> beam.io.WriteToBigQuery(
+         user_table_spec,
+         schema=user_table_schema,
+         create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+         write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND))
 
 
 if __name__ == '__main__':

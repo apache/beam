@@ -34,8 +34,10 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
 /**
@@ -276,5 +278,22 @@ public class TestUtils {
             .stream()
             .map(values -> values.stream().collect(toRow(type)))
             .collect(toList());
+  }
+
+  public static PCollectionTuple tuple(String tag, PCollection<Row> pCollection) {
+    return PCollectionTuple.of(new TupleTag<>(tag), pCollection);
+  }
+
+  public static PCollectionTuple tuple(String tag1, PCollection<Row> pCollection1,
+                                       String tag2, PCollection<Row> pCollection2) {
+    return tuple(tag1, pCollection1).and(new TupleTag<>(tag2), pCollection2);
+  }
+
+  public static PCollectionTuple tuple(String tag1, PCollection<Row> pCollection1,
+                                       String tag2, PCollection<Row> pCollection2,
+                                       String tag3, PCollection<Row> pCollection3) {
+    return tuple(
+        tag1, pCollection1,
+        tag2, pCollection2).and(new TupleTag<>(tag3), pCollection3);
   }
 }

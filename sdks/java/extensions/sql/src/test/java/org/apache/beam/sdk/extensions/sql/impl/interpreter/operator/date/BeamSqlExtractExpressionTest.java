@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
@@ -35,11 +36,11 @@ import org.junit.Test;
 public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase {
   @Test public void evaluate() throws Exception {
     List<BeamSqlExpression> operands = new ArrayList<>();
-    long time = str2LongTime("2017-05-22 16:17:18");
+    Date time = str2DateTime("2017-05-22 16:17:18");
 
     // YEAR
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.YEAR));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         time));
     assertEquals(2017L,
         new BeamSqlExtractExpression(operands)
@@ -48,7 +49,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
     // MONTH
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.MONTH));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         time));
     assertEquals(5L,
         new BeamSqlExtractExpression(operands)
@@ -57,7 +58,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
     // DAY
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.DAY));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         time));
     assertEquals(22L,
         new BeamSqlExtractExpression(operands)
@@ -66,7 +67,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
     // DAY_OF_WEEK
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.DOW));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         time));
     assertEquals(2L,
         new BeamSqlExtractExpression(operands)
@@ -75,7 +76,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
     // DAY_OF_YEAR
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.DOY));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         time));
     assertEquals(142L,
         new BeamSqlExtractExpression(operands)
@@ -84,7 +85,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
     // WEEK
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.WEEK));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         time));
     assertEquals(21L,
         new BeamSqlExtractExpression(operands)
@@ -93,7 +94,7 @@ public class BeamSqlExtractExpressionTest extends BeamSqlDateExpressionTestBase 
     // QUARTER
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SYMBOL, TimeUnitRange.QUARTER));
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT,
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP,
         time));
     assertEquals(2L,
         new BeamSqlExtractExpression(operands)

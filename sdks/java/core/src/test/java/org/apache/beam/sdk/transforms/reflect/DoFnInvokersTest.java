@@ -120,6 +120,7 @@ public class DoFnInvokersTest {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {}
     }
+
     MockFn mockFn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(mockFn));
     verify(mockFn).processElement(mockProcessContext);
@@ -180,6 +181,7 @@ public class DoFnInvokersTest {
       @DoFn.ProcessElement
       public void processElement(ProcessContext c, IntervalWindow w) throws Exception {}
     }
+
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockProcessContext, mockWindow);
@@ -204,6 +206,7 @@ public class DoFnInvokersTest {
       public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> valueState)
           throws Exception {}
     }
+
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockProcessContext, mockState);
@@ -230,6 +233,7 @@ public class DoFnInvokersTest {
       @OnTimer(timerId)
       public void onTimer() {}
     }
+
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockProcessContext, mockTimer);
@@ -254,6 +258,7 @@ public class DoFnInvokersTest {
         return null;
       }
     }
+
     MockFn fn = mock(MockFn.class);
     when(fn.processElement(mockProcessContext, null)).thenReturn(resume());
     assertEquals(resume(), invokeProcessElement(fn));
@@ -277,6 +282,7 @@ public class DoFnInvokersTest {
       @Teardown
       public void after() {}
     }
+
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     invoker.invokeSetup();
@@ -446,6 +452,7 @@ public class DoFnInvokersTest {
         return null;
       }
     }
+
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
@@ -760,7 +767,7 @@ public class DoFnInvokersTest {
   static class StableNameTestDoFn extends DoFn<Void, Void> {
     @ProcessElement
     public void process() {}
-  };
+  }
 
   /**
    * This is a change-detector test that the generated name is stable across runs.

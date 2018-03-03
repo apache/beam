@@ -150,7 +150,7 @@ class OrderedCode {
   /**
    * Creates OrderedCode from scratch. Typically used at encoding time.
    */
-  public OrderedCode(){
+  public OrderedCode() {
   }
 
   /**

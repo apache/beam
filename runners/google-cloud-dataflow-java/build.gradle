@@ -17,7 +17,8 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false /* BEAM-925 */)
+applyJavaNature(enableFindbugs: false /* BEAM-925 */,
+    artifactId: "beam-runners-google-cloud-dataflow-java")
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 
@@ -36,7 +37,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '1',
-    'dataflow.container_version' : 'beam-master-20180122'
+    'dataflow.container_version' : 'beam-master-20180228'
   ]
 }
 
@@ -86,3 +87,8 @@ dependencies {
 test {
   systemProperties = [ "beamUseDummyRunner" : "true" ]
 }
+
+// Generates :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow
+def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
+createJavaQuickstartValidationTask(name: 'Dataflow', gcpProject: gcpProject, gcsBucket: gcsBucket)
