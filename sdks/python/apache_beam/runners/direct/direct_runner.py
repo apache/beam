@@ -168,13 +168,13 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
         context.windowing_strategies.get_by_id(payload.value))
 
 
-class _DirectReadStringsFromPubSub(PTransform):
+class _DirectReadFromPubSub(PTransform):
   def __init__(self, source):
     self._source = source
 
   def _infer_output_coder(self, unused_input_type=None,
                           unused_input_coder=None):
-    return coders.StrUtf8Coder()
+    return coders.BytesCoder()
 
   def get_windowing(self, inputs):
     return beam.Windowing(beam.window.GlobalWindows())
@@ -259,16 +259,16 @@ def _get_pubsub_transform_overrides(pipeline_options):
   from apache_beam.io.gcp import pubsub as beam_pubsub
   from apache_beam.pipeline import PTransformOverride
 
-  class ReadStringsFromPubSubOverride(PTransformOverride):
+  class ReadFromPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
       return isinstance(applied_ptransform.transform,
-                        beam_pubsub.ReadStringsFromPubSub)
+                        beam_pubsub._ReadFromPubSub)
 
     def get_replacement_transform(self, transform):
       if not pipeline_options.view_as(StandardOptions).streaming:
         raise Exception('PubSub I/O is only available in streaming mode '
                         '(use the --streaming flag).')
-      return _DirectReadStringsFromPubSub(transform._source)
+      return _DirectReadFromPubSub(transform._source)
 
   class WriteStringsToPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
@@ -312,7 +312,7 @@ def _get_pubsub_transform_overrides(pipeline_options):
       topic_name = transform._sink.topic_name
       return beam.ParDo(_DirectWriteToPubSub(project, topic_name))
 
-  return [ReadStringsFromPubSubOverride(), WriteStringsToPubSubOverride()]
+  return [ReadFromPubSubOverride(), WriteStringsToPubSubOverride()]
 
 
 class BundleBasedDirectRunner(PipelineRunner):

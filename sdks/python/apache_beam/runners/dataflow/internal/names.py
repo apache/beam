@@ -77,6 +77,7 @@ class PropertyNames(object):
   PUBSUB_TOPIC = 'pubsub_topic'
   PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
   PUBSUB_ID_LABEL = 'pubsub_id_label'
+  PUBSUB_SERIALIZED_ATTRIBUTES_FN = 'pubsub_serialized_attributes_fn'
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'
   SOURCE_STEP_INPUT = 'custom_source_step_input'
