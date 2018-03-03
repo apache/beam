@@ -71,7 +71,7 @@ class SwitchingDirectRunner(PipelineRunner):
     use_fnapi_runner = True
 
     # Streaming mode is not yet supported on the FnApiRunner.
-    if pipeline.options.view_as(StandardOptions).streaming:
+    if pipeline._options.view_as(StandardOptions).streaming:
       use_fnapi_runner = False
 
     from apache_beam.pipeline import PipelineVisitor
@@ -81,10 +81,7 @@ class SwitchingDirectRunner(PipelineRunner):
     from apache_beam.testing.test_stream import TestStream
 
     class _FnApiRunnerSupportVisitor(PipelineVisitor):
-      """For internal use only; no backwards-compatibility guarantees.
-
-      Visitor for determining whether a Pipeline can be run on the FnApiRunner.
-      """
+      """Visitor determining if a Pipeline can be run on the FnApiRunner."""
 
       def __init__(self):
         self.supported_by_fnapi_runner = True
@@ -171,13 +168,13 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
         context.windowing_strategies.get_by_id(payload.value))
 
 
-class _DirectReadStringsFromPubSub(PTransform):
+class _DirectReadFromPubSub(PTransform):
   def __init__(self, source):
     self._source = source
 
   def _infer_output_coder(self, unused_input_type=None,
                           unused_input_coder=None):
-    return coders.StrUtf8Coder()
+    return coders.BytesCoder()
 
   def get_windowing(self, inputs):
     return beam.Windowing(beam.window.GlobalWindows())
@@ -262,16 +259,16 @@ def _get_pubsub_transform_overrides(pipeline_options):
   from apache_beam.io.gcp import pubsub as beam_pubsub
   from apache_beam.pipeline import PTransformOverride
 
-  class ReadStringsFromPubSubOverride(PTransformOverride):
+  class ReadFromPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
       return isinstance(applied_ptransform.transform,
-                        beam_pubsub.ReadStringsFromPubSub)
+                        beam_pubsub._ReadFromPubSub)
 
     def get_replacement_transform(self, transform):
       if not pipeline_options.view_as(StandardOptions).streaming:
         raise Exception('PubSub I/O is only available in streaming mode '
                         '(use the --streaming flag).')
-      return _DirectReadStringsFromPubSub(transform._source)
+      return _DirectReadFromPubSub(transform._source)
 
   class WriteStringsToPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
@@ -315,37 +312,50 @@ def _get_pubsub_transform_overrides(pipeline_options):
       topic_name = transform._sink.topic_name
       return beam.ParDo(_DirectWriteToPubSub(project, topic_name))
 
-  return [ReadStringsFromPubSubOverride(), WriteStringsToPubSubOverride()]
+  return [ReadFromPubSubOverride(), WriteStringsToPubSubOverride()]
 
 
 class BundleBasedDirectRunner(PipelineRunner):
   """Executes a single pipeline on the local machine."""
 
-  def __init__(self):
-    self._use_test_clock = False  # use RealClock() in production
-
   def run_pipeline(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
-
-    # Performing configured PTransform overrides.
-    pipeline.replace_all(_get_transform_overrides(pipeline.options))
 
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
     # with resolving imports when they are at top.
     # pylint: disable=wrong-import-position
+    from apache_beam.pipeline import PipelineVisitor
     from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import \
       ConsumerTrackingPipelineVisitor
     from apache_beam.runners.direct.evaluation_context import EvaluationContext
     from apache_beam.runners.direct.executor import Executor
     from apache_beam.runners.direct.transform_evaluator import \
       TransformEvaluatorRegistry
+    from apache_beam.testing.test_stream import TestStream
+
+    # Performing configured PTransform overrides.
+    pipeline.replace_all(_get_transform_overrides(pipeline.options))
+
+    # If the TestStream I/O is used, use a mock test clock.
+    class _TestStreamUsageVisitor(PipelineVisitor):
+      """Visitor determining whether a Pipeline uses a TestStream."""
+
+      def __init__(self):
+        self.uses_test_stream = False
+
+      def visit_transform(self, applied_ptransform):
+        if isinstance(applied_ptransform.transform, TestStream):
+          self.uses_test_stream = True
+
+    visitor = _TestStreamUsageVisitor()
+    pipeline.visit(visitor)
+    clock = TestClock() if visitor.uses_test_stream else RealClock()
 
     MetricsEnvironment.set_metrics_supported(True)
     logging.info('Running pipeline with DirectRunner.')
     self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
     pipeline.visit(self.consumer_tracking_visitor)
 
-    clock = TestClock() if self._use_test_clock else RealClock()
     evaluation_context = EvaluationContext(
         pipeline._options,
         BundleFactory(stacked=pipeline._options.view_as(DirectOptions)
@@ -370,8 +380,8 @@ class BundleBasedDirectRunner(PipelineRunner):
     return result
 
 
-# Use the BundleBasedDirectRunner as the default.
-DirectRunner = BundleBasedDirectRunner
+# Use the SwitchingDirectRunner as the default.
+DirectRunner = SwitchingDirectRunner
 
 
 class DirectPipelineResult(PipelineResult):

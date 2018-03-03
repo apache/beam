@@ -65,7 +65,7 @@ public class CovarianceFn<T extends Number>
         return new CovarianceFn<>(SAMPLE, decimalConverter);
     }
 
-    private CovarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter){
+    private CovarianceFn(boolean isSample, SerializableFunction<BigDecimal, T> decimalConverter) {
         this.isSample = isSample;
         this.decimalConverter = decimalConverter;
     }

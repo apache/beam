@@ -21,6 +21,8 @@ package org.apache.beam.runners.core.construction.graph;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -28,6 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.Flatten;
 
@@ -41,10 +44,12 @@ class GreedyPCollectionFusers {
           .put(
               PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN,
               GreedyPCollectionFusers::canFuseAssignWindows)
-          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, GreedyPCollectionFusers::canFuseFlatten)
+          .put(PTransformTranslation.FLATTEN_TRANSFORM_URN, GreedyPCollectionFusers::canAlwaysFuse)
           .put(
-              PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
-              GreedyPCollectionFusers::canFuseGroupByKey)
+              // GroupByKeys are runner-implemented only. PCollections consumed by a GroupByKey must
+              // be materialized
+              PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, GreedyPCollectionFusers::cannotFuse)
+          .put(PTransformTranslation.CREATE_VIEW_TRANSFORM_URN, GreedyPCollectionFusers::cannotFuse)
           .build();
   private static final FusibilityChecker DEFAULT_FUSIBILITY_CHECKER =
       GreedyPCollectionFusers::unknownTransformFusion;
@@ -63,15 +68,21 @@ class GreedyPCollectionFusers {
           .put(
               PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN,
               GreedyPCollectionFusers::noCompatibility)
+          .put(
+              PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
+              GreedyPCollectionFusers::noCompatibility)
           .build();
   private static final CompatibilityChecker DEFAULT_COMPATIBILITY_CHECKER =
       GreedyPCollectionFusers::unknownTransformCompatibility;
 
   public static boolean canFuse(
-      PTransformNode transformNode, ExecutableStage subgraph, QueryablePipeline pipeline) {
+      PTransformNode transformNode,
+      Environment environment,
+      Collection<PCollectionNode> stagePCollections,
+      QueryablePipeline pipeline) {
     return URN_FUSIBILITY_CHECKERS
         .getOrDefault(transformNode.getTransform().getSpec().getUrn(), DEFAULT_FUSIBILITY_CHECKER)
-        .canFuse(transformNode, subgraph, pipeline);
+        .canFuse(transformNode, environment, stagePCollections, pipeline);
   }
 
   public static boolean isCompatible(
@@ -95,7 +106,11 @@ class GreedyPCollectionFusers {
     /**
      * Determine if a {@link PTransformNode} can be fused into an existing {@link ExecutableStage}.
      */
-    boolean canFuse(PTransformNode consumer, ExecutableStage subgraph, QueryablePipeline pipeline);
+    boolean canFuse(
+        PTransformNode transformNode,
+        Environment environment,
+        Collection<PCollectionNode> stagePCollections,
+        QueryablePipeline pipeline);
   }
 
   private interface CompatibilityChecker {
@@ -115,48 +130,66 @@ class GreedyPCollectionFusers {
    * contain data for the side input window that contains the element.
    */
   private static boolean canFuseParDo(
-      PTransformNode parDo, ExecutableStage stage, QueryablePipeline pipeline) {
+      PTransformNode parDo,
+      Environment environment,
+      Collection<PCollectionNode> stagePCollections,
+      QueryablePipeline pipeline) {
     Optional<Environment> env = pipeline.getEnvironment(parDo);
     checkArgument(
         env.isPresent(),
         "A %s must have an %s associated with it",
         ParDoPayload.class.getSimpleName(),
         Environment.class.getSimpleName());
-    if (!env.get().equals(stage.getEnvironment())) {
+    if (!env.get().equals(environment)) {
       // The PCollection's producer and this ParDo execute in different environments, so fusion
       // is never possible.
       return false;
-    } else if (!pipeline.getSideInputs(parDo).isEmpty()) {
-      // At execution time, a Runner is required to only provide inputs to a PTransform that, at the
-      // time the PTransform processes them, the associated window is ready in all side inputs that
-      // the PTransform consumes. For an arbitrary stage, it is significantly complex for the runner
-      // to determine this for each input. As a result, we break fusion to simplify this inspection.
-      // In general, a ParDo which consumes side inputs cannot be fused into an executable subgraph
-      // alongside any transforms which are upstream of any of its side inputs.
+    }
+    if (!pipeline.getSideInputs(parDo).isEmpty()) {
+      // At execution time, a Runner is required to only provide inputs to a PTransform that, at
+      // the time the PTransform processes them, the associated window is ready in all side inputs
+      // that the PTransform consumes. For an arbitrary stage, it is significantly complex for the
+      // runner to determine this for each input. As a result, we break fusion to simplify this
+      // inspection. In general, a ParDo which consumes side inputs cannot be fused into an
+      // executable stage alongside any transforms which are upstream of any of its side inputs.
       return false;
+    } else {
+      try {
+        ParDoPayload payload =
+            ParDoPayload.parseFrom(parDo.getTransform().getSpec().getPayload());
+        if (payload.getStateSpecsCount() > 0 || payload.getTimerSpecsCount() > 0) {
+          // Inputs to a ParDo that uses State or Timers must be key-partitioned, and elements for
+          // a key must execute serially. To avoid checking if the rest of the stage is
+          // key-partitioned and preserves keys, these ParDos do not fuse into an existing stage.
+          return false;
+        }
+      } catch (InvalidProtocolBufferException e) {
+        throw new IllegalArgumentException(e);
+      }
     }
     return true;
   }
 
   private static boolean parDoCompatibility(
       PTransformNode parDo, PTransformNode other, QueryablePipeline pipeline) {
-    if (!pipeline.getSideInputs(parDo).isEmpty()) {
-      // This is a convenience rather than a strict requirement. In general, a ParDo that consumes
-      // side inputs can be fused with other transforms in the same environment which are not
-      // upstream of any of the side inputs.
-      return false;
-    }
-    return compatibleEnvironments(parDo, other, pipeline);
+    // This is a convenience rather than a strict requirement. In general, a ParDo that consumes
+    // side inputs can be fused with other transforms in the same environment which are not
+    // upstream of any of the side inputs.
+    return pipeline.getSideInputs(parDo).isEmpty()
+        && compatibleEnvironments(parDo, other, pipeline);
   }
 
   /**
    * A WindowInto can be fused into a stage if it executes in the same Environment as that stage.
    */
   private static boolean canFuseAssignWindows(
-      PTransformNode window, ExecutableStage stage, QueryablePipeline pipeline) {
+      PTransformNode window,
+      Environment environmemnt,
+      @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
+      QueryablePipeline pipeline) {
     // WindowInto transforms may not have an environment
     Optional<Environment> windowEnvironment = pipeline.getEnvironment(window);
-    return stage.getEnvironment().equals(windowEnvironment.orElse(null));
+    return environmemnt.equals(windowEnvironment.orElse(null));
   }
 
   private static boolean compatibleEnvironments(
@@ -212,19 +245,19 @@ class GreedyPCollectionFusers {
    *       the stages that could not fuse with those consumers.
    * </ol>
    */
-  private static boolean canFuseFlatten(
+  private static boolean canAlwaysFuse(
       @SuppressWarnings("unused") PTransformNode flatten,
-      @SuppressWarnings("unused") ExecutableStage stage,
+      @SuppressWarnings("unused") Environment environment,
+      @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
     return true;
   }
 
-  private static boolean canFuseGroupByKey(
-      @SuppressWarnings("unused") PTransformNode gbk,
-      @SuppressWarnings("unused") ExecutableStage stage,
+  private static boolean cannotFuse(
+      @SuppressWarnings("unused") PTransformNode cannotFuse,
+      @SuppressWarnings("unused") Environment environment,
+      @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
-    // GroupByKeys are runner-implemented only. PCollections consumed by a GroupByKey must be
-    // materialized.
     return false;
   }
 
@@ -240,7 +273,8 @@ class GreedyPCollectionFusers {
 
   private static boolean unknownTransformFusion(
       PTransformNode transform,
-      @SuppressWarnings("unused") ExecutableStage stage,
+      @SuppressWarnings("unused") Environment environment,
+      @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
     throw new IllegalArgumentException(
         String.format("Unknown URN %s", transform.getTransform().getSpec().getUrn()));

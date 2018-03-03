@@ -34,7 +34,7 @@ public class BeamSqlIsNotNullExpression extends BeamSqlExpression {
     super(operands, outputType);
   }
 
-  public BeamSqlIsNotNullExpression(BeamSqlExpression operand){
+  public BeamSqlIsNotNullExpression(BeamSqlExpression operand) {
     this(Arrays.asList(operand), SqlTypeName.BOOLEAN);
   }
 

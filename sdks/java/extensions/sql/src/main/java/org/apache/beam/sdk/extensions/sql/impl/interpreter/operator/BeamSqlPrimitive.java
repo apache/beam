@@ -44,7 +44,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   /**
    * A builder function to create from Type and value directly.
    */
-  public static <T> BeamSqlPrimitive<T> of(SqlTypeName outputType, T value){
+  public static <T> BeamSqlPrimitive<T> of(SqlTypeName outputType, T value) {
     BeamSqlPrimitive<T> exp = new BeamSqlPrimitive<>();
     exp.outputType = outputType;
     exp.value = value;

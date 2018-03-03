@@ -59,14 +59,19 @@ then
   popd
 fi
 
-# install gcloud
-pushd $TMPDIR
-curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
-tar xf gcloud.tar.gz
-./google-cloud-sdk/install.sh
-. ./google-cloud-sdk/path.bash.inc
-popd
-gcloud -v
+# ensure gcloud is version 186 or above
+gcloud_ver=$(gcloud -v | head -1 | awk '{print $4}')
+if [[ "$gcloud_ver" < "186" ]]
+then
+  pushd $TMPDIR
+  curl https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-186.0.0-linux-x86_64.tar.gz --output gcloud.tar.gz
+  tar xf gcloud.tar.gz
+  ./google-cloud-sdk/install.sh --quiet
+  . ./google-cloud-sdk/path.bash.inc
+  popd
+  gcloud components update --quiet || echo 'gcloud components update failed'
+  gcloud -v
+fi
 
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
@@ -75,13 +80,10 @@ echo "Using container $CONTAINER"
 $MVN clean install -DskipTests -Pbuild-containers --projects sdks/python/container -Ddocker-repository-root=us.gcr.io/$PROJECT/$USER -Ddockerfile.tag=$TAG -amd
 
 # Verify it exists
-docker images | grep "$CONTAINER.*$TAG"
+docker images | grep $TAG
 
 # Push the container
-gcloud docker -- push $CONTAINER:$TAG
-
-# Clean up tempdir
-rm -rf $TMPDIR
+gcloud docker -- push $CONTAINER
 
 # INFRA does not install virtualenv
 pip install virtualenv --user
@@ -114,7 +116,10 @@ python setup.py nosetests \
     --num_workers=1"
 
 # Delete the container locally and remotely
-docker rmi $CONTAINER:$TAG
-gcloud container images delete $CONTAINER:$TAG --quiet
+docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
+gcloud container images delete $CONTAINER:$TAG || echo "Failed to delete container"
+
+# Clean up tempdir
+rm -rf $TMPDIR
 
 echo ">>> SUCCESS DATAFLOW RUNNER VALIDATESCONTAINER TEST"

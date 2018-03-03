@@ -17,15 +17,16 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.common.base.Objects;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import com.google.common.hash.HashingOutputStream;
 import com.google.common.io.ByteStreams;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
-import java.util.PriorityQueue;
+import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -321,7 +322,8 @@ public class ApproximateUnique {
      * A heap utility class to efficiently track the largest added elements.
      */
     public static class LargestUnique implements Serializable {
-      private PriorityQueue<Long> heap = new PriorityQueue<>();
+      private TreeSet<Long> heap = new TreeSet<>();
+      private long minHash = Long.MAX_VALUE;
       private final long sampleSize;
 
       /**
@@ -337,32 +339,55 @@ public class ApproximateUnique {
        * Adds a value to the heap, returning whether the value is (large enough
        * to be) in the heap.
        */
-      public boolean add(Long value) {
-        if (heap.contains(value)) {
-          return true;
-        } else if (heap.size() < sampleSize) {
-          heap.add(value);
-          return true;
-        } else if (value > heap.element()) {
-          heap.remove();
-          heap.add(value);
-          return true;
+      public boolean add(long value) {
+        if (heap.size() >= sampleSize && value < minHash) {
+          return false; // Common case as input size increases.
+        }
+        if (heap.add(value)) {
+          if (heap.size() > sampleSize) {
+            heap.remove(minHash);
+            minHash = heap.first();
+          } else if (value < minHash) {
+            minHash = value;
+          }
+        }
+        return true;
+      }
+
+      long getEstimate() {
+        if (heap.size() < sampleSize) {
+          return (long) heap.size();
         } else {
-          return false;
+          double sampleSpaceSize = Long.MAX_VALUE - (double) minHash;
+          // This formula takes into account the possibility of hash collisions,
+          // which become more likely than not for 2^32 distinct elements.
+          // Note that log(1+x) ~ x for small x, so for sampleSize << maxHash
+          // log(1 - sampleSize/sampleSpace) / log(1 - 1/sampleSpace) ~ sampleSize
+          // and hence estimate ~ sampleSize * HASH_SPACE_SIZE / sampleSpace
+          // as one would expect.
+          double estimate = Math.log1p(-sampleSize / sampleSpaceSize)
+            / Math.log1p(-1 / sampleSpaceSize)
+            * HASH_SPACE_SIZE / sampleSpaceSize;
+          return Math.round(estimate);
         }
       }
 
-      /**
-       * Returns the values in the heap, ordered largest to smallest.
-       */
-      public List<Long> extractOrderedList() {
-        // The only way to extract the order from the heap is element-by-element
-        // from smallest to largest.
-        Long[] array = new Long[heap.size()];
-        for (int i = heap.size() - 1; i >= 0; i--) {
-          array[i] = heap.remove();
+      @Override
+      public boolean equals(Object o) {
+        if (this == o) {
+          return true;
         }
-        return Arrays.asList(array);
+        if (o == null || getClass() != o.getClass()) {
+          return false;
+        }
+        LargestUnique that = (LargestUnique) o;
+
+        return sampleSize == that.sampleSize && Iterables.elementsEqual(heap, that.heap);
+      }
+
+      @Override
+      public int hashCode() {
+        return Objects.hashCode(Lists.newArrayList(heap), sampleSize);
       }
     }
 
@@ -392,37 +417,16 @@ public class ApproximateUnique {
     @Override
     public LargestUnique mergeAccumulators(Iterable<LargestUnique> heaps) {
       Iterator<LargestUnique> iterator = heaps.iterator();
-      LargestUnique heap = iterator.next();
+      LargestUnique accumulator = iterator.next();
       while (iterator.hasNext()) {
-        List<Long> largestHashes = iterator.next().extractOrderedList();
-        for (long hash : largestHashes) {
-          if (!heap.add(hash)) {
-            break; // The remainder of this list is all smaller.
-          }
-        }
+        iterator.next().heap.forEach(h -> accumulator.add(h));
       }
-      return heap;
+      return accumulator;
     }
 
     @Override
     public Long extractOutput(LargestUnique heap) {
-      List<Long> largestHashes = heap.extractOrderedList();
-      if (largestHashes.size() < sampleSize) {
-        return (long) largestHashes.size();
-      } else {
-        long smallestSampleHash = largestHashes.get(largestHashes.size() - 1);
-        double sampleSpaceSize = Long.MAX_VALUE - (double) smallestSampleHash;
-        // This formula takes into account the possibility of hash collisions,
-        // which become more likely than not for 2^32 distinct elements.
-        // Note that log(1+x) ~ x for small x, so for sampleSize << maxHash
-        // log(1 - sampleSize/sampleSpace) / log(1 - 1/sampleSpace) ~ sampleSize
-        // and hence estimate ~ sampleSize * HASH_SPACE_SIZE / sampleSpace
-        // as one would expect.
-        double estimate = Math.log1p(-sampleSize / sampleSpaceSize)
-            / Math.log1p(-1 / sampleSpaceSize)
-            * HASH_SPACE_SIZE / sampleSpaceSize;
-        return Math.round(estimate);
-      }
+      return heap.getEstimate();
     }
 
     @Override

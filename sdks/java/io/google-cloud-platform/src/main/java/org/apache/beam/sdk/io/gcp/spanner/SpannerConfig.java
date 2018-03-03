@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
+import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
@@ -155,7 +156,9 @@ public abstract class SpannerConfig implements Serializable {
     Spanner spanner = options.getService();
     DatabaseClient databaseClient = spanner.getDatabaseClient(
         DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
-    return new SpannerAccessor(spanner, databaseClient);
+    BatchClient batchClient = spanner.getBatchClient(
+        DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
+    return new SpannerAccessor(spanner, databaseClient, batchClient);
   }
 
 }

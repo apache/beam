@@ -27,6 +27,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.tools.ValidationException;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -243,7 +244,7 @@ public class BeamSortRelTest extends BaseRelTest {
     pipeline.run().waitUntilFinish();
   }
 
-  @Test(expected = UnsupportedOperationException.class)
+  @Test(expected = ValidationException.class)
   public void testOrderBy_exception() throws Exception {
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id)  SELECT "
         + " order_id, COUNT(*) "

@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -52,6 +53,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class SerializableCoderTest implements Serializable {
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(SerializableCoder.class);
 
   @DefaultCoder(SerializableCoder.class)
   static class MyRecord implements Serializable {
@@ -246,5 +248,52 @@ public class SerializableCoderTest implements Serializable {
   public void testSerializableCoderProviderIsRegistered() throws Exception {
     assertThat(CoderRegistry.createDefault().getCoder(AutoRegistration.class),
         instanceOf(SerializableCoder.class));
+  }
+
+  private interface TestInterface extends Serializable {}
+
+  @Test
+  public void coderWarnsForInterface() throws Exception {
+    SerializableCoder.of(TestInterface.class);
+    expectedLogs.verifyWarn("Can't verify serialized elements of type TestInterface "
+        + "have well defined equals method.");
+  }
+
+  private static class NoEquals implements Serializable {}
+
+  @Test
+  public void coderWarnsForNoEquals() throws Exception {
+    SerializableCoder.of(NoEquals.class);
+    expectedLogs.verifyWarn("Can't verify serialized elements of type NoEquals "
+        + "have well defined equals method.");
+  }
+
+  private static class ProperEquals implements Serializable {
+    private int x;
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      ProperEquals that = (ProperEquals) o;
+
+      return x == that.x;
+    }
+
+    @Override
+    public int hashCode() {
+      return x;
+    }
+  }
+
+  @Test
+  public void coderChecksForEquals() throws Exception {
+    SerializableCoder.of(ProperEquals.class);
+    expectedLogs.verifyNotLogged("Can't verify serialized elements of type");
   }
 }

@@ -38,6 +38,7 @@ public class BeamSqlCurrentTimestampExpression extends BeamSqlExpression {
   public BeamSqlCurrentTimestampExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.TIMESTAMP);
   }
+
   @Override public boolean accept() {
     int opCount = getOperands().size();
     return opCount <= 1;

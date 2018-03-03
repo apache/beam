@@ -198,11 +198,11 @@ class FileBasedSink(iobase.Sink):
       destination_files.append(final_name)
 
     source_file_batch = [source_files[i:i + chunk_size]
-                         for i in xrange(0, len(source_files),
-                                         chunk_size)]
+                         for i in range(0, len(source_files),
+                                        chunk_size)]
     destination_file_batch = [destination_files[i:i + chunk_size]
-                              for i in xrange(0, len(destination_files),
-                                              chunk_size)]
+                              for i in range(0, len(destination_files),
+                                             chunk_size)]
 
     logging.info(
         'Starting finalize_write threads with num_shards: %d, '

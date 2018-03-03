@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
  * {@link Bid}.
  */
 public class Event implements KnownSize, Serializable {
+
   private enum Tag {
     PERSON(0),
     AUCTION(1),
@@ -38,10 +39,11 @@ public class Event implements KnownSize, Serializable {
 
     private int value = -1;
 
-    Tag(int value){
+    Tag(int value) {
       this.value = value;
     }
   }
+
   private static final Coder<Integer> INT_CODER = VarIntCoder.of();
 
   public static final Coder<Event> CODER =

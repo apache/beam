@@ -75,7 +75,7 @@ class SetupTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(PipelineOptions())
     self.assertEqual('The --staging_location option must be specified.',
-                     cm.exception.message)
+                     cm.exception.args[0])
 
   def test_no_temp_location(self):
     staging_dir = self.make_temp_dir()
@@ -87,7 +87,7 @@ class SetupTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(options)
     self.assertEqual('The --temp_location option must be specified.',
-                     cm.exception.message)
+                     cm.exception.args[0])
 
   def test_no_main_session(self):
     staging_dir = self.make_temp_dir()
@@ -161,7 +161,7 @@ class SetupTest(unittest.TestCase):
       dependency.stage_job_resources(
           options, populate_requirements_cache=self.populate_requirements_cache)
     self.assertEqual(
-        cm.exception.message,
+        cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
         '--requirements_file command line option.' % 'nosuchfile')
 
@@ -229,7 +229,7 @@ class SetupTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(options)
     self.assertEqual(
-        cm.exception.message,
+        cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
         '--setup_file command line option.' % 'nosuchfile')
 
@@ -248,7 +248,7 @@ class SetupTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(options)
     self.assertTrue(
-        cm.exception.message.startswith(
+        cm.exception.args[0].startswith(
             'The --setup_file option expects the full path to a file named '
             'setup.py instead of '))
 
@@ -338,7 +338,7 @@ class SetupTest(unittest.TestCase):
         'The file "%s" cannot be found. Its '
         'location was specified by the --sdk_location command-line option.' %
         sdk_location,
-        cm.exception.message)
+        cm.exception.args[0])
 
   def test_sdk_location_gcs(self):
     staging_dir = self.make_temp_dir()
@@ -415,7 +415,7 @@ class SetupTest(unittest.TestCase):
 
       dependency.stage_job_resources(options)
     self.assertEqual(
-        cm.exception.message,
+        cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
         '--extra_packages command line option.' % 'nosuchfile.tar.gz')
 
@@ -432,7 +432,7 @@ class SetupTest(unittest.TestCase):
           os.path.join(source_dir, 'abc.tgz')]
       dependency.stage_job_resources(options)
     self.assertEqual(
-        cm.exception.message,
+        cm.exception.args[0],
         'The --extra_package option expects a full path ending with '
         '".tar", ".tar.gz", ".whl" or ".zip" '
         'instead of %s' % os.path.join(source_dir, 'abc.tgz'))

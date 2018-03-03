@@ -18,16 +18,18 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
-import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.BatchTransactionId;
 import java.io.Serializable;
+import javax.annotation.Nullable;
 
 /** A transaction object. */
 @AutoValue
 public abstract class Transaction implements Serializable {
 
-  abstract Timestamp timestamp();
+  @Nullable
+  abstract BatchTransactionId transactionId();
 
-  public static Transaction create(Timestamp timestamp) {
-    return new AutoValue_Transaction(timestamp);
+  public static Transaction create(BatchTransactionId txId) {
+    return new AutoValue_Transaction(txId);
   }
 }

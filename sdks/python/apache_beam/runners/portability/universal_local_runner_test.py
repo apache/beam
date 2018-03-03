@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import print_function
 
 import logging
 import platform
@@ -41,13 +42,13 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
     if platform.system() != 'Windows':
       def handler(signum, frame):
         msg = 'Timed out after %s seconds.' % self.TIMEOUT_SECS
-        print '=' * 20, msg, '=' * 20
+        print('=' * 20, msg, '=' * 20)
         traceback.print_stack(frame)
         threads_by_id = {th.ident: th for th in threading.enumerate()}
         for thread_id, stack in sys._current_frames().items():
           th = threads_by_id.get(thread_id)
-          print
-          print '# Thread:', th or thread_id
+          print()
+          print('# Thread:', th or thread_id)
           traceback.print_stack(stack)
         raise BaseException(msg)
       signal.signal(signal.SIGALRM, handler)

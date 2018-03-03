@@ -23,14 +23,17 @@ import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasNamespace;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -72,15 +75,18 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.Window.ClosingBehavior;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.hamcrest.MatcherAssert;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -88,7 +94,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for Combine transforms.
+ * Tests for {@link Combine} transforms.
  */
 @RunWith(JUnit4.class)
 public class CombineTest implements Serializable {
@@ -1234,5 +1240,129 @@ public class CombineTest implements Serializable {
         }
       }
     }));
+  }
+
+  /**
+   * Class for use in testing use of Java 8 method references.
+   */
+  private static class Summer implements Serializable {
+    public int sum(Iterable<Integer> integers) {
+      int sum = 0;
+      for (int i : integers) {
+        sum += i;
+      }
+      return sum;
+    }
+  }
+
+  /**
+   * Tests creation of a global {@link Combine} via Java 8 lambda.
+   */
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testCombineGloballyLambda() {
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3, 4))
+        .apply(Combine.globally(integers -> {
+          int sum = 0;
+          for (int i : integers) {
+            sum += i;
+          }
+          return sum;
+        }));
+
+    PAssert.that(output).containsInAnyOrder(10);
+    pipeline.run();
+  }
+
+  /**
+   * Tests creation of a global {@link Combine} via a Java 8 method reference.
+   */
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testCombineGloballyInstanceMethodReference() {
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3, 4))
+        .apply(Combine.globally(new Summer()::sum));
+
+    PAssert.that(output).containsInAnyOrder(10);
+    pipeline.run();
+  }
+
+  /**
+   * Tests creation of a per-key {@link Combine} via a Java 8 lambda.
+   */
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testCombinePerKeyLambda() {
+
+    PCollection<KV<String, Integer>> output = pipeline
+        .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
+        .apply(Combine.perKey(integers -> {
+          int sum = 0;
+          for (int i : integers) {
+            sum += i;
+          }
+          return sum;
+        }));
+
+    PAssert.that(output).containsInAnyOrder(
+        KV.of("a", 4),
+        KV.of("b", 2),
+        KV.of("c", 4));
+    pipeline.run();
+  }
+
+  /**
+   * Tests creation of a per-key {@link Combine} via a Java 8 method reference.
+   */
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testCombinePerKeyInstanceMethodReference() {
+
+    PCollection<KV<String, Integer>> output = pipeline
+        .apply(Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 3), KV.of("c", 4)))
+        .apply(Combine.perKey(new Summer()::sum));
+
+    PAssert.that(output).containsInAnyOrder(
+        KV.of("a", 4),
+        KV.of("b", 2),
+        KV.of("c", 4));
+    pipeline.run();
+  }
+
+  /**
+   * Tests that we can serialize {@link Combine.CombineFn CombineFns} constructed from a lambda.
+   * Lambdas can be problematic because the {@link Class} object is synthetic and cannot be
+   * deserialized.
+   */
+  @Test
+  public void testLambdaSerialization() {
+    SerializableFunction<Iterable<Object>, Object> combiner = xs -> Iterables.getFirst(xs, 0);
+
+    boolean lambdaClassSerializationThrows;
+    try {
+      SerializableUtils.clone(combiner.getClass());
+      lambdaClassSerializationThrows = false;
+    } catch (IllegalArgumentException e) {
+      // Expected
+      lambdaClassSerializationThrows = true;
+    }
+    Assume.assumeTrue("Expected lambda class serialization to fail. "
+            + "If it's fixed, we can remove special behavior in Combine.",
+        lambdaClassSerializationThrows);
+
+
+    Combine.Globally<?, ?> combine = Combine.globally(combiner);
+    SerializableUtils.clone(combine); // should not throw.
+  }
+
+  @Test
+  public void testLambdaDisplayData() {
+    Combine.Globally<?, ?> combine = Combine.globally(xs -> Iterables.getFirst(xs, 0));
+    DisplayData displayData = DisplayData.from(combine);
+    MatcherAssert.assertThat(displayData.items(), not(empty()));
   }
 }

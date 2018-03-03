@@ -819,7 +819,7 @@ public class HadoopInputFormatIOTest {
       Class<K> inputFormatKeyClass,
       Class<V> inputFormatValueClass,
       Coder<K> keyCoder,
-      Coder<V> valueCoder){
+      Coder<V> valueCoder) {
     SerializableConfiguration serConf =
         loadTestConfiguration(
             inputFormatClass,

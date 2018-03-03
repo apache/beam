@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.nexmark.model.Auction;
@@ -45,7 +46,7 @@ public class ModelAdaptersMappingTest {
       .withVarcharField("creditCard")
       .withVarcharField("city")
       .withVarcharField("state")
-      .withBigIntField("dateTime")
+      .withTimestampField("dateTime")
       .withVarcharField("extra")
       .build();
 
@@ -56,7 +57,7 @@ public class ModelAdaptersMappingTest {
       .withBigIntField("auction")
       .withBigIntField("bidder")
       .withBigIntField("price")
-      .withBigIntField("dateTime")
+      .withTimestampField("dateTime")
       .withVarcharField("extra")
       .build();
 
@@ -69,8 +70,8 @@ public class ModelAdaptersMappingTest {
       .withVarcharField("description")
       .withBigIntField("initialBid")
       .withBigIntField("reserve")
-      .withBigIntField("dateTime")
-      .withBigIntField("expires")
+      .withTimestampField("dateTime")
+      .withTimestampField("expires")
       .withBigIntField("seller")
       .withBigIntField("category")
       .withVarcharField("extra")
@@ -124,7 +125,7 @@ public class ModelAdaptersMappingTest {
     assertEquals(PERSON.creditCard, values.get(3));
     assertEquals(PERSON.city, values.get(4));
     assertEquals(PERSON.state, values.get(5));
-    assertEquals(PERSON.dateTime, values.get(6));
+    assertEquals(new Date(PERSON.dateTime), values.get(6));
     assertEquals(PERSON.extra, values.get(7));
   }
 
@@ -135,7 +136,7 @@ public class ModelAdaptersMappingTest {
     assertEquals(BID.auction, values.get(0));
     assertEquals(BID.bidder, values.get(1));
     assertEquals(BID.price, values.get(2));
-    assertEquals(BID.dateTime, values.get(3));
+    assertEquals(new Date(BID.dateTime), values.get(3));
     assertEquals(BID.extra, values.get(4));
   }
 
@@ -148,8 +149,8 @@ public class ModelAdaptersMappingTest {
     assertEquals(AUCTION.description, values.get(2));
     assertEquals(AUCTION.initialBid, values.get(3));
     assertEquals(AUCTION.reserve, values.get(4));
-    assertEquals(AUCTION.dateTime, values.get(5));
-    assertEquals(AUCTION.expires, values.get(6));
+    assertEquals(new Date(AUCTION.dateTime), values.get(5));
+    assertEquals(new Date(AUCTION.expires), values.get(6));
     assertEquals(AUCTION.seller, values.get(7));
     assertEquals(AUCTION.category, values.get(8));
     assertEquals(AUCTION.extra, values.get(9));

@@ -24,9 +24,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Coder} for Java classes that implement {@link Serializable}.
@@ -47,6 +51,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SerializableCoder.class);
+
   /**
    * Returns a {@link SerializableCoder} instance for the provided element type.
    * @param <T> the element type
@@ -57,12 +63,47 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
     return new SerializableCoder<>(clazz, type);
   }
 
+  @Override
+  public boolean consistentWithEquals() {
+    return false;
+  }
+
+  /**
+   * The structural value of the object is the object itself. The {@link SerializableCoder} should
+   * be only used for objects with a proper {@link Object#equals} implementation.
+   */
+  @Override
+  public Object structuralValue(T value) {
+    return value;
+  }
+
   /**
    * Returns a {@link SerializableCoder} instance for the provided element class.
    * @param <T> the element type
    */
   public static <T extends Serializable> SerializableCoder<T> of(Class<T> clazz) {
+    checkEqualsMethodDefined(clazz);
     return new SerializableCoder<>(clazz, TypeDescriptor.of(clazz));
+  }
+
+  private static <T extends Serializable> void checkEqualsMethodDefined(Class<T> clazz) {
+      boolean warn = clazz.isInterface();
+      if (!warn) {
+        Method method;
+        try {
+          method = clazz.getMethod("equals", Object.class);
+        } catch (NoSuchMethodException e) {
+          // All concrete classes have an equals method declared in their class hierarchy.
+          throw new AssertionError(String.format("Concrete class %s has no equals method", clazz));
+        }
+        // Check if not default Object#equals implementation.
+        warn = Object.class.equals(method.getDeclaringClass());
+      }
+      if (warn) {
+        LOG.warn("Can't verify serialized elements of type {} have well defined equals method. "
+                + "This may produce incorrect results on some {}", clazz.getSimpleName(),
+            PipelineRunner.class.getSimpleName());
+      }
   }
 
   /**

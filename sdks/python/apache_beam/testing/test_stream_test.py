@@ -29,6 +29,7 @@ from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.test_stream import WatermarkEvent
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import trigger
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
@@ -117,7 +118,7 @@ class TestStreamTest(unittest.TestCase):
         ('last', timestamp.Timestamp(310)),]))
     p.run()
 
-  def test_gbk_execution(self):
+  def test_gbk_execution_no_triggers(self):
     test_stream = (TestStream()
                    .advance_watermark_to(10)
                    .add_elements(['a', 'b', 'c'])
@@ -129,6 +130,14 @@ class TestStreamTest(unittest.TestCase):
                    .add_elements([TimestampedValue('late', 12)])
                    .add_elements([TimestampedValue('last', 310)]))
 
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    global result     # pylint: disable=global-variable-undefined
+    result = []
+
+    def fired_elements(elem):
+      result.append(elem)
+      return elem
+
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
     p = TestPipeline(options=options)
@@ -136,7 +145,8 @@ class TestStreamTest(unittest.TestCase):
                | test_stream
                | beam.WindowInto(FixedWindows(15))
                | beam.Map(lambda x: ('k', x))
-               | beam.GroupByKey())
+               | beam.GroupByKey()
+               | beam.Map(fired_elements))
     # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
     # respect the TimestampCombiner.  The test below should also verify the
     # timestamps of the outputted elements once this is implemented.
@@ -146,6 +156,94 @@ class TestStreamTest(unittest.TestCase):
         ('k', ['late']),
         ('k', ['last'])]))
     p.run()
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    self.assertEqual([
+        ('k', ['a', 'b', 'c']),
+        ('k', ['d', 'e']),
+        ('k', ['late']),
+        ('k', ['last'])], result)
+
+  def test_gbk_execution_after_watermark_trigger(self):
+    test_stream = (TestStream()
+                   .advance_watermark_to(10)
+                   .add_elements(['a'])
+                   .advance_watermark_to(20))
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    global result   # pylint: disable=global-variable-undefined
+    result = []
+
+    def fired_elements(elem):
+      result.append(elem)
+      return elem
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+    records = (p            # pylint: disable=unused-variable
+               | test_stream
+               | beam.WindowInto(
+                   FixedWindows(15),
+                   trigger=trigger.AfterWatermark(early=trigger.AfterCount(1)),
+                   accumulation_mode=trigger.AccumulationMode.DISCARDING)
+               | beam.Map(lambda x: ('k', x))
+               | beam.GroupByKey()
+               | beam.Map(fired_elements))
+    # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
+    # respect the TimestampCombiner.  The test below should also verify the
+    # timestamps of the outputted elements once this is implemented.
+
+    # TODO(BEAM-3377): Reinstate after assert_that in streaming is fixed.
+    # assert_that(records, equal_to([
+    #     ('k', ['a']), ('k', [])]))
+
+    p.run()
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    self.assertEqual([('k', ['a']), ('k', [])], result)
+
+  def test_gbk_execution_after_processing_trigger_fired(self):
+    """Advance TestClock to (X + delta) and see the pipeline does finish."""
+    # TODO(mariagh): Add test_gbk_execution_after_processing_trigger_unfired
+    # Advance TestClock to (X + delta) and see the pipeline does finish
+    # Possibly to the framework trigger_transcripts.yaml
+
+    test_stream = (TestStream()
+                   .advance_watermark_to(10)
+                   .add_elements(['a'])
+                   .advance_processing_time(5.1))
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    global result     # pylint: disable=global-variable-undefined
+    result = []
+
+    def fired_elements(elem):
+      result.append(elem)
+      return elem
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+    records = (p
+               | test_stream
+               | beam.WindowInto(
+                   beam.window.FixedWindows(15),
+                   trigger=trigger.AfterProcessingTime(5),
+                   accumulation_mode=trigger.AccumulationMode.DISCARDING
+                   )
+               | beam.Map(lambda x: ('k', x))
+               | beam.GroupByKey()
+               | beam.Map(fired_elements))
+    # TODO(BEAM-2519): timestamp assignment for elements from a GBK should
+    # respect the TimestampCombiner.  The test below should also verify the
+    # timestamps of the outputted elements once this is implemented.
+
+    # TODO(BEAM-3377): Reinstate after assert_that in streaming is fixed.
+    assert_that(records, equal_to([
+        ('k', ['a'])]))
+
+    p.run()
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    self.assertEqual([('k', ['a'])], result)
 
 
 if __name__ == '__main__':

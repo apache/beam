@@ -136,6 +136,7 @@ public class FnApiControlClientTest {
         client.handle(BeamFnApi.InstructionRequest.newBuilder().setInstructionId(id).build());
 
     class FrazzleException extends Exception {}
+
     client.asResponseObserver().onError(new FrazzleException());
 
     thrown.expect(ExecutionException.class);

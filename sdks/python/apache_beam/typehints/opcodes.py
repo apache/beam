@@ -344,7 +344,7 @@ def load_deref(state, arg):
 def call_function(state, arg, has_var=False, has_kw=False):
   # TODO(robertwb): Recognize builtins and dataflow objects
   # (especially special return values).
-  pop_count = (arg & 0xF) + (arg & 0xF0) / 8 + 1 + has_var + has_kw
+  pop_count = (arg & 0xF) + (arg & 0xF0) // 8 + 1 + has_var + has_kw
   state.stack[-pop_count:] = [Any]
 
 

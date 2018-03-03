@@ -99,7 +99,10 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<Row>> 
 
     PCollectionTuple inputStreams = createStreamsTuple(auctions, people);
 
-    return inputStreams.apply(BeamSql.queryMulti(QUERY_STRING)).setCoder(OUTPUT_RECORD_CODER);
+    return
+        inputStreams
+            .apply(BeamSql.query(QUERY_STRING))
+            .setCoder(OUTPUT_RECORD_CODER);
   }
 
   private PCollection<Event> fixedWindows(PCollection<Event> events) {

@@ -26,6 +26,8 @@ import os
 import time
 import zlib
 
+from six import integer_types
+
 from apache_beam.utils.plugin import BeamPlugin
 
 logger = logging.getLogger(__name__)
@@ -372,7 +374,7 @@ class FileMetadata(object):
   """
   def __init__(self, path, size_in_bytes):
     assert isinstance(path, basestring) and path, "Path should be a string"
-    assert isinstance(size_in_bytes, (int, long)) and size_in_bytes >= 0, \
+    assert isinstance(size_in_bytes, integer_types) and size_in_bytes >= 0, \
         "Invalid value for size_in_bytes should %s (of type %s)" % (
             size_in_bytes, type(size_in_bytes))
     self.path = path

@@ -442,6 +442,7 @@ public class AvroCoderTest {
     @SuppressWarnings("unused")
     private UnorderedMapClass[] arrayField;
   }
+
   @Test
   public void testDeterministicNonDeterministicArray() {
     assertNonDeterministic(AvroCoder.of(NonDeterministicArray.class),
@@ -714,7 +715,9 @@ public class AvroCoderTest {
 
   @Union({ UnionCase1.class, UnionCase2.class, UnionCase3.class })
   private abstract static class NonDeterministicUnionBase {}
+
   private static class UnionCase1 extends DeterministicUnionBase {}
+
   private static class UnionCase2 extends DeterministicUnionBase {
     @SuppressWarnings("unused")
     String field;
@@ -903,6 +906,7 @@ public class AvroCoderTest {
     @SuppressWarnings("unused")
     private T foo;
   }
+
   private static class Foo {
     @SuppressWarnings("unused")
     String id;

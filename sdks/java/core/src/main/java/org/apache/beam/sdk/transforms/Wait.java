@@ -112,7 +112,7 @@ public class Wait {
 
     private <SignalT> PCollectionView<?> expandTyped(PCollection<SignalT> input) {
       return input
-          .apply(Window.<SignalT>configure().triggering(Never.ever()))
+          .apply(Window.<SignalT>configure().triggering(Never.ever()).discardingFiredPanes())
           .apply(Sample.any(1))
           .apply(View.asList());
     }

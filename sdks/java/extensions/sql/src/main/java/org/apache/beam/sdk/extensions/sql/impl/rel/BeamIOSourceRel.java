@@ -21,6 +21,7 @@ import com.google.common.base.Joiner;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
@@ -36,27 +37,37 @@ import org.apache.calcite.rel.core.TableScan;
  */
 public class BeamIOSourceRel extends TableScan implements BeamRelNode {
 
-  public BeamIOSourceRel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table) {
+  private BeamSqlEnv sqlEnv;
+
+  public BeamIOSourceRel(
+      BeamSqlEnv sqlEnv, RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table) {
     super(cluster, traitSet, table);
+    this.sqlEnv = sqlEnv;
   }
 
   @Override
-  public PCollection<Row> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
-
-    TupleTag<Row> sourceTupleTag = new TupleTag<>(sourceName);
-    if (inputPCollections.has(sourceTupleTag)) {
-      //choose PCollection from input PCollectionTuple if exists there.
-      PCollection<Row> sourceStream = inputPCollections
-          .get(new TupleTag<Row>(sourceName));
-      return sourceStream;
-    } else {
-      //If not, the source PColection is provided with BaseBeamTable.buildIOReader().
-      BeamSqlTable sourceTable = sqlEnv.findTable(sourceName);
-      return sourceTable.buildIOReader(inputPCollections.getPipeline())
-          .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
-    }
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
   }
 
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+
+    @Override
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+      String sourceName = Joiner.on('.').join(getTable().getQualifiedName());
+
+      TupleTag<Row> sourceTupleTag = new TupleTag<>(sourceName);
+      if (inputPCollections.has(sourceTupleTag)) {
+        // choose PCollection from input PCollectionTuple if exists there.
+        PCollection<Row> sourceStream = inputPCollections.get(new TupleTag<Row>(sourceName));
+        return sourceStream;
+      } else {
+        // If not, the source PColection is provided with BaseBeamTable.buildIOReader().
+        BeamSqlTable sourceTable = sqlEnv.findTable(sourceName);
+        return sourceTable
+            .buildIOReader(inputPCollections.getPipeline())
+            .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
+      }
+    }
+  }
 }

@@ -235,5 +235,5 @@ public class StatefulDoFnRunnerTest {
       Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
       state.write(currentValue + 1);
     }
-  };
+  }
 }
