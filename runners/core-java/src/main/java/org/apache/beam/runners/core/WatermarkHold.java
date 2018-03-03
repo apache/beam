@@ -21,6 +21,8 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
@@ -97,7 +99,7 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    */
   @Nullable
   public Instant addHolds(ReduceFn<?, ?, ?, W>.ProcessValueContext context) {
-    Instant hold = addElementHold(context);
+    Instant hold = addElementHold(context.timestamp(), context);
     if (hold == null) {
       hold = addGarbageCollectionHold(context, false /*paneIsEmpty*/);
     }
@@ -142,11 +144,11 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
    * any downstream computation when it is eventually emitted.
    */
   @Nullable
-  private Instant addElementHold(ReduceFn<?, ?, ?, W>.ProcessValueContext context) {
+  private Instant addElementHold(Instant timestamp, ReduceFn<?, ?, ?, W>.Context context) {
     // Give the window function a chance to move the hold timestamp forward to encourage progress.
     // (A later hold implies less impediment to the output watermark making progress, which in
     // turn encourages end-of-window triggers to fire earlier in following computations.)
-    Instant elementHold = shift(context.timestamp(), context.window());
+    Instant elementHold = shift(timestamp, context.window());
 
     Instant outputWM = timerInternals.currentOutputWatermarkTime();
     Instant inputWM = timerInternals.currentInputWatermarkTime();
@@ -247,8 +249,26 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
   /**
    * Prefetch watermark holds in preparation for merging.
    */
-  public void prefetchOnMerge(MergingStateAccessor<?, W> state) {
-    StateMerging.prefetchWatermarks(state, elementHoldTag);
+  public void prefetchOnMerge(MergingStateAccessor<?, W> context) {
+    Map<W, WatermarkHoldState> map = context.accessInEachMergingWindow(elementHoldTag);
+    WatermarkHoldState result = context.access(elementHoldTag);
+    if (map.isEmpty()) {
+      // Nothing to prefetch.
+      return;
+    }
+    if (map.size() == 1 && map.values().contains(result) && result.getTimestampCombiner()
+        .dependsOnlyOnEarliestTimestamp()) {
+      // Nothing to merge if our source and sink is the same.
+      return;
+    }
+    if (result.getTimestampCombiner().dependsOnlyOnWindow()) {
+      // No need to read existing holds since we will just clear.
+      return;
+    }
+    // Prefetch.
+    for (WatermarkHoldState source : map.values()) {
+      source.readLater();
+    }
   }
 
   /**
@@ -261,7 +281,49 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
             + "outputWatermark:{}",
         context.key(), context.window(), timerInternals.currentInputWatermarkTime(),
         timerInternals.currentOutputWatermarkTime());
-    StateMerging.mergeWatermarks(context.state(), elementHoldTag, context.window());
+    Collection<WatermarkHoldState> sources =
+        context.state().accessInEachMergingWindow(elementHoldTag).values();
+    WatermarkHoldState result = context.state().access(elementHoldTag);
+    if (sources.isEmpty()) {
+      // No element holds to merge.
+    } else if (sources.size() == 1 && sources.contains(result) && result.getTimestampCombiner()
+        .dependsOnlyOnEarliestTimestamp()) {
+      // Nothing to merge if our source and sink is the same.
+    } else if (result.getTimestampCombiner().dependsOnlyOnWindow()) {
+      // Clear sources.
+      for (WatermarkHoldState source : sources) {
+        source.clear();
+      }
+      // Update directly from window-derived hold.
+      addElementHold(BoundedWindow.TIMESTAMP_MIN_VALUE, context);
+    } else {
+      // Prefetch.
+      for (WatermarkHoldState source : sources) {
+        source.readLater();
+      }
+      // Read and merge.
+      Instant mergedHold = null;
+      for (ReadableState<Instant> source : sources) {
+        Instant sourceOutputTime = source.read();
+        if (sourceOutputTime != null) {
+          if (mergedHold == null) {
+            mergedHold = sourceOutputTime;
+          } else {
+            mergedHold = result.getTimestampCombiner().merge(
+                context.window(), mergedHold, sourceOutputTime);
+          }
+        }
+      }
+      // Clear sources.
+      for (WatermarkHoldState source : sources) {
+        source.clear();
+      }
+      // Write merged value if there was one.
+      if (mergedHold != null) {
+        result.add(mergedHold);
+      }
+    }
+
     // If we had a cheap way to determine if we have an element hold then we could
     // avoid adding an unnecessary end-of-window or garbage collection hold.
     // Simply reading the above merged watermark would impose an additional read for the
