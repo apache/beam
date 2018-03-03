@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.core;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -29,9 +27,7 @@ import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
-import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.joda.time.Instant;
 
 /**
  * Helpers for merging state.
@@ -212,98 +208,7 @@ public class StateMerging {
     result.addAccum(merged);
   }
 
-  /**
-   * Prefetch all watermark state for {@code address} across all merging windows in
-   * {@code context}.
-   */
-  public static <K, W extends BoundedWindow> void prefetchWatermarks(
-      MergingStateAccessor<K, W> context,
-      StateTag<WatermarkHoldState> address) {
-    Map<W, WatermarkHoldState> map = context.accessInEachMergingWindow(address);
-    WatermarkHoldState result = context.access(address);
-    if (map.isEmpty()) {
-      // Nothing to prefetch.
-      return;
-    }
-    if (map.size() == 1 && map.values().contains(result)
-        && result.getTimestampCombiner().dependsOnlyOnEarliestTimestamp()) {
-      // Nothing to change.
-      return;
-    }
-    if (result.getTimestampCombiner().dependsOnlyOnWindow()) {
-      // No need to read existing holds.
-      return;
-    }
-    // Prefetch.
-    for (WatermarkHoldState source : map.values()) {
-      prefetchRead(source);
-    }
-  }
-
   private static void prefetchRead(ReadableState<?> source) {
     source.readLater();
-  }
-
-  /**
-   * Merge all watermark state in {@code address} across all merging windows in {@code context},
-   * where the final merge result window is {@code mergeResult}.
-   */
-  public static <K, W extends BoundedWindow> void mergeWatermarks(
-      MergingStateAccessor<K, W> context,
-      StateTag<WatermarkHoldState> address,
-      W mergeResult) {
-    mergeWatermarks(
-        context.accessInEachMergingWindow(address).values(), context.access(address), mergeResult);
-  }
-
-  /**
-   * Merge all watermark state in {@code sources} (which must include {@code result} if non-empty)
-   * into {@code result}, where the final merge result window is {@code mergeResult}.
-   */
-  public static <W extends BoundedWindow> void mergeWatermarks(
-      Collection<WatermarkHoldState> sources, WatermarkHoldState result,
-      W resultWindow) {
-    if (sources.isEmpty()) {
-      // Nothing to merge.
-      return;
-    }
-    if (sources.size() == 1 && sources.contains(result)
-        && result.getTimestampCombiner().dependsOnlyOnEarliestTimestamp()) {
-      // Nothing to merge.
-      return;
-    }
-    if (result.getTimestampCombiner().dependsOnlyOnWindow()) {
-      // Clear sources.
-      for (WatermarkHoldState source : sources) {
-        source.clear();
-      }
-      // Update directly from window-derived hold.
-      Instant hold =
-          result.getTimestampCombiner().assign(resultWindow, BoundedWindow.TIMESTAMP_MIN_VALUE);
-      checkState(hold.isAfter(BoundedWindow.TIMESTAMP_MIN_VALUE));
-      result.add(hold);
-    } else {
-      // Prefetch.
-      List<ReadableState<Instant>> futures = new ArrayList<>(sources.size());
-      for (WatermarkHoldState source : sources) {
-        futures.add(source);
-      }
-      // Read.
-      List<Instant> outputTimesToMerge = new ArrayList<>(sources.size());
-      for (ReadableState<Instant> future : futures) {
-        Instant sourceOutputTime = future.read();
-        if (sourceOutputTime != null) {
-          outputTimesToMerge.add(sourceOutputTime);
-        }
-      }
-      // Clear sources.
-      for (WatermarkHoldState source : sources) {
-        source.clear();
-      }
-      if (!outputTimesToMerge.isEmpty()) {
-        // Merge and update.
-        result.add(result.getTimestampCombiner().merge(resultWindow, outputTimesToMerge));
-      }
-    }
   }
 }
