@@ -61,7 +61,7 @@ class PubsubMessage(object):
       https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
 
     Attributes:
-      payload: (str) Message payload, unencoded.
+      payload: (str) Message payload, as a byte string.
       message_id: (str) Server assigned message ID. Unique within a topic.
       attributes: (dict) Map of string to string.
       publish_time: (str) Server assigned timestamp of when the message was
