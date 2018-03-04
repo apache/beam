@@ -1044,14 +1044,12 @@ public class KafkaIOTest {
 
   @Test
   public void testSourceWithExplicitPartitionsDisplayData() {
-    KafkaIO.Read<byte[], Long> read = KafkaIO.<byte[], Long>read()
+    KafkaIO.Read<byte[], byte[]> read = KafkaIO.readBytes()
         .withBootstrapServers("myServer1:9092,myServer2:9092")
         .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 5),
             new TopicPartition("test", 6)))
         .withConsumerFactoryFn(new ConsumerFactoryFn(
-            Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)) // 10 partitions
-        .withKeyDeserializer(ByteArrayDeserializer.class)
-        .withValueDeserializer(LongDeserializer.class);
+            Lists.newArrayList("test"), 10, 10, OffsetResetStrategy.EARLIEST)); // 10 partitions
 
     DisplayData displayData = DisplayData.from(read);
 
