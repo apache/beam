@@ -414,6 +414,8 @@ public class JdbcIO {
       checkArgument(getCoder() != null, "withCoder() is required");
       checkArgument((getDataSourceConfiguration() != null || getDataSourceFactory() != null),
               "either withDataSourceConfiguration() or withDataSourceFactory() is required");
+      checkArgument((getDataSourceConfiguration() == null || getDataSourceFactory() == null),
+          "only withDataSourceConfiguration() or withDataSourceFactory() should be used");
 
       return input
           .apply(Create.of((Void) null))
@@ -682,6 +684,9 @@ public class JdbcIO {
       checkArgument(
               (getDataSourceConfiguration() != null || getDataSourceFactory() != null),
               "either withDataSourceConfiguration() or withDataSourceFactory() is required");
+      checkArgument(
+          (getDataSourceConfiguration() == null || getDataSourceFactory() == null),
+          "only withDataSourceConfiguration() or withDataSourceFactory() is allowed");
       checkArgument(getStatement() != null, "withStatement() is required");
       checkArgument(
           getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
