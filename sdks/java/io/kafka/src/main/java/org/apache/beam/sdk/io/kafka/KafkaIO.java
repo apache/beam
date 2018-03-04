@@ -221,21 +221,13 @@ import org.slf4j.LoggerFactory;
 public class KafkaIO {
 
   /**
-   * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka
-   * configuration should set with {@link Read#withBootstrapServers(String)} and
-   * {@link Read#withTopics(List)}. Other optional settings include key and value
-   * {@link Deserializer}s, custom timestamp and watermark functions.
+   * A specific instance of uninitialized {@link #read()} where key and values are bytes.
+   * See #read().
    */
   public static Read<byte[], byte[]> readBytes() {
-    return new AutoValue_KafkaIO_Read.Builder<byte[], byte[]>()
-        .setTopics(new ArrayList<>())
-        .setTopicPartitions(new ArrayList<>())
-        .setKeyDeserializer(ByteArrayDeserializer.class)
-        .setValueDeserializer(ByteArrayDeserializer.class)
-        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
-        .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
-        .setMaxNumRecords(Long.MAX_VALUE)
-        .build();
+    return KafkaIO.<byte[], byte[]>read()
+      .withKeyDeserializer(ByteArrayDeserializer.class)
+      .withValueDeserializer(ByteArrayDeserializer.class);
   }
 
   /**
