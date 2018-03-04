@@ -224,6 +224,7 @@ public class JdbcIOTest implements Serializable {
   public void testRead() throws Exception {
     PCollection<TestRow> rows = pipeline.apply(
         JdbcIO.<TestRow>read()
+            .withFetchSize(12)
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
             .withQuery("select name,id from " + readTableName)
             .withRowMapper(new JdbcTestHelper.CreateTestRowOfNameAndId())
