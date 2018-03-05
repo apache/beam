@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-runners-reference-job-orchestrator")
 
 description = "Apache Beam :: Runners :: Reference :: Job Orchestrator"
 

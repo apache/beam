@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableShadow: false /* Disable shadow because of custom configuration below. */)
+applyJavaNature(artifactId: "beam-sdks-java-harness", enableShadow: false /* Disable shadow because of custom configuration below. */)
 apply plugin: "com.github.johnrengelman.shadow"
 
 description = "Apache Beam :: SDKs :: Java :: Harness"

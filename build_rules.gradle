@@ -184,6 +184,15 @@ ext.applyJavaNature = {
   apply plugin: "maven-publish"
   apply plugin: "java"
 
+  publishing {
+    repositories {
+      maven {
+        url project.properties["distMgmtSnapshotsUrl"] ?: "https://repository.apache.org/content/repositories/snapshots"
+      }
+    }
+  }
+
+
   // Configure the Java compiler source language and target compatibility levels. Also ensure that
   // we configure the Java compiler to use UTF-8.
   sourceCompatibility = configuration.javaVersion
@@ -325,6 +334,19 @@ ext.applyJavaNature = {
     artifacts.archives shadowJar
 
     if (configuration.artifactId) {
+      task sourcesJar(type: Jar) {
+        from sourceSets.main.allSource
+        classifier = 'sources'
+      }
+      task testSourcesJar(type: Jar) {
+        from sourceSets.test.allSource
+        classifier = 'test-sources'
+      }
+      task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+      }
+
       // If a publication artifact id is supplied, publish the shadow jar.
       publishing {
         publications {
@@ -338,6 +360,19 @@ ext.applyJavaNature = {
               pom.withXml {
                 asNode().appendNode('name', description)
               }
+            }
+            // TODO: Use the shadow test jar here instead of the test jar.
+            artifact packageTests {
+              classifier "tests"
+            }
+            artifact sourcesJar {
+              classifier "sources"
+            }
+            artifact testSourcesJar {
+              classifier "test-sources"
+            }
+            artifact javadocJar {
+              classifier "javadoc"
             }
           }
         }

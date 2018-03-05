@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-io-elasticsearch-tests-5")
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 5.x"
 
