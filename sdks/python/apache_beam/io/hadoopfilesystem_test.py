@@ -493,3 +493,8 @@ class HadoopFileSystemTest(unittest.TestCase):
                                  r'^Delete operation failed .* %s' % path1):
       self.fs.delete([url1, url2])
     self.assertFalse(self.fs.exists(url2))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
