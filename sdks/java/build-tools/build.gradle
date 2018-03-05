@@ -17,6 +17,6 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-sdks-java-build-tools")
 
 description = "Apache Beam :: SDKs :: Java :: Build Tools"

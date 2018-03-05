@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-examples-java")
 
 description = "Apache Beam :: Examples :: Java"
 
