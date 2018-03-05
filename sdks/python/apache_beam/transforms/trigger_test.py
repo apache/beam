@@ -535,7 +535,8 @@ class TranscriptTest(unittest.TestCase):
         spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
 
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner))
+        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner),
+        TestClock())
     state = InMemoryUnmergedState()
     output = []
     watermark = MIN_TIMESTAMP
