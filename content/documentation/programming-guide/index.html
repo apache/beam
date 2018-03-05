@@ -213,10 +213,10 @@
   </li>
   <li><a href="#pipeline-io">5. Pipeline I/O</a>
     <ul>
-      <li><a href="#reading-input-data">5.1. Reading input data</a></li>
-      <li><a href="#writing-output-data">5.2. Writing output data</a></li>
-      <li><a href="#file-based-input-and-output-data">5.3. File-based input and output data</a></li>
-      <li><a href="#beam-provided-io-transforms">5.4. Beam-provided I/O transforms</a></li>
+      <li><a href="#pipeline-io-reading-data">5.1. Reading input data</a></li>
+      <li><a href="#pipeline-io-writing-data">5.2. Writing output data</a></li>
+      <li><a href="#file-based-data">5.3. File-based input and output data</a></li>
+      <li><a href="#provided-io-transforms">5.4. Beam-provided I/O transforms</a></li>
     </ul>
   </li>
   <li><a href="#data-encoding-and-type-safety">6. Data encoding and type safety</a>
@@ -266,162 +266,6 @@ how to implement Beam concepts in your pipelines.</p>
     <li data-type="language-py">Python SDK</li>
   </ul>
 </nav>
-
-<p><strong>Table of Contents:</strong></p>
-<ul id="markdown-toc">
-  <li><a href="#overview" id="markdown-toc-overview">1. Overview</a></li>
-  <li><a href="#creating-a-pipeline" id="markdown-toc-creating-a-pipeline">2. Creating a pipeline</a>    <ul>
-      <li><a href="#configuring-pipeline-options" id="markdown-toc-configuring-pipeline-options">2.1. Configuring pipeline options</a>        <ul>
-          <li><a href="#setting-pipelineoptions-from-command-line-arguments" id="markdown-toc-setting-pipelineoptions-from-command-line-arguments">2.1.1. Setting PipelineOptions from command-line arguments</a></li>
-          <li><a href="#creating-custom-options" id="markdown-toc-creating-custom-options">2.1.2. Creating custom options</a></li>
-        </ul>
-      </li>
-    </ul>
-  </li>
-  <li><a href="#pcollections" id="markdown-toc-pcollections">3. PCollections</a>    <ul>
-      <li><a href="#creating-a-pcollection" id="markdown-toc-creating-a-pcollection">3.1. Creating a PCollection</a>        <ul>
-          <li><a href="#reading-from-an-external-source" id="markdown-toc-reading-from-an-external-source">3.1.1. Reading from an external source</a></li>
-          <li><a href="#creating-a-pcollection-from-in-memory-data" id="markdown-toc-creating-a-pcollection-from-in-memory-data">3.1.2. Creating a PCollection from in-memory data</a></li>
-        </ul>
-      </li>
-      <li><a href="#pcollection-characteristics" id="markdown-toc-pcollection-characteristics">3.2. PCollection characteristics</a>        <ul>
-          <li><a href="#element-type" id="markdown-toc-element-type">3.2.1. Element type</a></li>
-          <li><a href="#immutability" id="markdown-toc-immutability">3.2.2. Immutability</a></li>
-          <li><a href="#random-access" id="markdown-toc-random-access">3.2.3. Random access</a></li>
-          <li><a href="#size-and-boundedness" id="markdown-toc-size-and-boundedness">3.2.4. Size and boundedness</a></li>
-          <li><a href="#element-timestamps" id="markdown-toc-element-timestamps">3.2.5. Element timestamps</a></li>
-        </ul>
-      </li>
-    </ul>
-  </li>
-  <li><a href="#transforms" id="markdown-toc-transforms">4. Transforms</a>    <ul>
-      <li><a href="#applying-transforms" id="markdown-toc-applying-transforms">4.1. Applying transforms</a></li>
-      <li><a href="#core-beam-transforms" id="markdown-toc-core-beam-transforms">4.2. Core Beam transforms</a>        <ul>
-          <li><a href="#pardo" id="markdown-toc-pardo">4.2.1. ParDo</a>            <ul>
-              <li><a href="#applying-pardo" id="markdown-toc-applying-pardo">4.2.1.1. Applying ParDo</a></li>
-              <li><a href="#creating-a-dofn" id="markdown-toc-creating-a-dofn">4.2.1.2. Creating a DoFn</a></li>
-              <li><a href="#lightweight-dofns-and-other-abstractions" id="markdown-toc-lightweight-dofns-and-other-abstractions">4.2.1.3. Lightweight DoFns and other abstractions</a></li>
-            </ul>
-          </li>
-          <li><a href="#groupbykey" id="markdown-toc-groupbykey">4.2.2. GroupByKey</a>            <ul>
-              <li><a href="#groupbykey-and-unbounded-pcollections" id="markdown-toc-groupbykey-and-unbounded-pcollections">4.2.2.1 GroupByKey and unbounded PCollections</a></li>
-            </ul>
-          </li>
-          <li><a href="#cogroupbykey" id="markdown-toc-cogroupbykey">4.2.3. CoGroupByKey</a></li>
-          <li><a href="#combine" id="markdown-toc-combine">4.2.4. Combine</a>            <ul>
-              <li><a href="#simple-combinations-using-simple-functions" id="markdown-toc-simple-combinations-using-simple-functions">4.2.4.1. Simple combinations using simple functions</a></li>
-              <li><a href="#advanced-combinations-using-combinefn" id="markdown-toc-advanced-combinations-using-combinefn">4.2.4.2. Advanced combinations using CombineFn</a></li>
-              <li><a href="#combining-a-pcollection-into-a-single-value" id="markdown-toc-combining-a-pcollection-into-a-single-value">4.2.4.3. Combining a PCollection into a single value</a></li>
-              <li><a href="#combine-and-global-windowing" id="markdown-toc-combine-and-global-windowing">4.2.4.4. Combine and global windowing</a></li>
-              <li><a href="#combine-and-non-global-windowing" id="markdown-toc-combine-and-non-global-windowing">4.2.4.5. Combine and non-global windowing</a></li>
-              <li><a href="#combining-values-in-a-keyed-pcollection" id="markdown-toc-combining-values-in-a-keyed-pcollection">4.2.4.6. Combining values in a keyed PCollection</a></li>
-            </ul>
-          </li>
-          <li><a href="#flatten" id="markdown-toc-flatten">4.2.5. Flatten</a>            <ul>
-              <li><a href="#data-encoding-in-merged-collections" id="markdown-toc-data-encoding-in-merged-collections">4.2.5.1. Data encoding in merged collections</a></li>
-              <li><a href="#merging-windowed-collections" id="markdown-toc-merging-windowed-collections">4.2.5.2. Merging windowed collections</a></li>
-            </ul>
-          </li>
-          <li><a href="#partition" id="markdown-toc-partition">4.2.6. Partition</a></li>
-        </ul>
-      </li>
-      <li><a href="#requirements-for-writing-user-code-for-beam-transforms" id="markdown-toc-requirements-for-writing-user-code-for-beam-transforms">4.3. Requirements for writing user code for Beam transforms</a>        <ul>
-          <li><a href="#serializability" id="markdown-toc-serializability">4.3.1. Serializability</a></li>
-          <li><a href="#thread-compatibility" id="markdown-toc-thread-compatibility">4.3.2. Thread-compatibility</a></li>
-          <li><a href="#idempotence" id="markdown-toc-idempotence">4.3.3. Idempotence</a></li>
-        </ul>
-      </li>
-      <li><a href="#side-inputs" id="markdown-toc-side-inputs">4.4. Side inputs</a>        <ul>
-          <li><a href="#passing-side-inputs-to-pardo" id="markdown-toc-passing-side-inputs-to-pardo">4.4.1. Passing side inputs to ParDo</a></li>
-          <li><a href="#side-inputs-and-windowing" id="markdown-toc-side-inputs-and-windowing">4.4.2. Side inputs and windowing</a></li>
-        </ul>
-      </li>
-      <li><a href="#additional-outputs" id="markdown-toc-additional-outputs">4.5. Additional outputs</a>        <ul>
-          <li><a href="#tags-for-multiple-outputs" id="markdown-toc-tags-for-multiple-outputs">4.5.1. Tags for multiple outputs</a></li>
-          <li><a href="#emitting-to-multiple-outputs-in-your-dofn" id="markdown-toc-emitting-to-multiple-outputs-in-your-dofn">4.5.2. Emitting to multiple outputs in your DoFn</a></li>
-        </ul>
-      </li>
-      <li><a href="#composite-transforms" id="markdown-toc-composite-transforms">4.6. Composite transforms</a>        <ul>
-          <li><a href="#an-example-composite-transform" id="markdown-toc-an-example-composite-transform">4.6.1. An example composite transform</a></li>
-          <li><a href="#creating-a-composite-transform" id="markdown-toc-creating-a-composite-transform">4.6.2. Creating a composite transform</a></li>
-          <li><a href="#ptransform-style-guide" id="markdown-toc-ptransform-style-guide">4.6.3. PTransform Style Guide</a></li>
-        </ul>
-      </li>
-    </ul>
-  </li>
-  <li><a href="#pipeline-io" id="markdown-toc-pipeline-io">5. Pipeline I/O</a>    <ul>
-      <li><a href="#reading-input-data" id="markdown-toc-reading-input-data">5.1. Reading input data</a></li>
-      <li><a href="#writing-output-data" id="markdown-toc-writing-output-data">5.2. Writing output data</a></li>
-      <li><a href="#file-based-input-and-output-data" id="markdown-toc-file-based-input-and-output-data">5.3. File-based input and output data</a>        <ul>
-          <li><a href="#reading-from-multiple-locations" id="markdown-toc-reading-from-multiple-locations">5.3.1. Reading from multiple locations</a></li>
-          <li><a href="#writing-to-multiple-output-files" id="markdown-toc-writing-to-multiple-output-files">5.3.2. Writing to multiple output files</a></li>
-        </ul>
-      </li>
-      <li><a href="#beam-provided-io-transforms" id="markdown-toc-beam-provided-io-transforms">5.4. Beam-provided I/O transforms</a></li>
-    </ul>
-  </li>
-  <li><a href="#data-encoding-and-type-safety" id="markdown-toc-data-encoding-and-type-safety">6. Data encoding and type safety</a>    <ul>
-      <li><a href="#specifying-coders" id="markdown-toc-specifying-coders">6.1. Specifying coders</a></li>
-      <li><a href="#default-coders-and-the-coderregistry" id="markdown-toc-default-coders-and-the-coderregistry">6.2. Default coders and the CoderRegistry</a>        <ul>
-          <li><a href="#looking-up-a-default-coder" id="markdown-toc-looking-up-a-default-coder">6.2.1. Looking up a default coder</a></li>
-          <li><a href="#setting-the-default-coder-for-a-type" id="markdown-toc-setting-the-default-coder-for-a-type">6.2.2. Setting the default coder for a type</a></li>
-          <li><a href="#annotating-a-custom-data-type-with-a-default-coder" id="markdown-toc-annotating-a-custom-data-type-with-a-default-coder">6.2.3. Annotating a custom data type with a default coder</a></li>
-        </ul>
-      </li>
-    </ul>
-  </li>
-  <li><a href="#windowing" id="markdown-toc-windowing">7. Windowing</a>    <ul>
-      <li><a href="#windowing-basics" id="markdown-toc-windowing-basics">7.1. Windowing basics</a>        <ul>
-          <li><a href="#windowing-constraints" id="markdown-toc-windowing-constraints">7.1.1. Windowing constraints</a></li>
-          <li><a href="#windowing-with-bounded-pcollections" id="markdown-toc-windowing-with-bounded-pcollections">7.1.2. Windowing with bounded PCollections</a></li>
-        </ul>
-      </li>
-      <li><a href="#provided-windowing-functions" id="markdown-toc-provided-windowing-functions">7.2. Provided windowing functions</a>        <ul>
-          <li><a href="#fixed-time-windows" id="markdown-toc-fixed-time-windows">7.2.1. Fixed time windows</a></li>
-          <li><a href="#sliding-time-windows" id="markdown-toc-sliding-time-windows">7.2.2. Sliding time windows</a></li>
-          <li><a href="#session-windows" id="markdown-toc-session-windows">7.2.3. Session windows</a></li>
-          <li><a href="#the-single-global-window" id="markdown-toc-the-single-global-window">7.2.4. The single global window</a></li>
-        </ul>
-      </li>
-      <li><a href="#setting-your-pcollections-windowing-function" id="markdown-toc-setting-your-pcollections-windowing-function">7.3. Setting your PCollection’s windowing function</a>        <ul>
-          <li><a href="#fixed-time-windows-1" id="markdown-toc-fixed-time-windows-1">7.3.1. Fixed-time windows</a></li>
-          <li><a href="#sliding-time-windows-1" id="markdown-toc-sliding-time-windows-1">7.3.2. Sliding time windows</a></li>
-          <li><a href="#session-windows-1" id="markdown-toc-session-windows-1">7.3.3. Session windows</a></li>
-          <li><a href="#single-global-window" id="markdown-toc-single-global-window">7.3.4. Single global window</a></li>
-        </ul>
-      </li>
-      <li><a href="#watermarks-and-late-data" id="markdown-toc-watermarks-and-late-data">7.4. Watermarks and late data</a>        <ul>
-          <li><a href="#managing-late-data" id="markdown-toc-managing-late-data">7.4.1. Managing late data</a></li>
-        </ul>
-      </li>
-      <li><a href="#adding-timestamps-to-a-pcollections-elements" id="markdown-toc-adding-timestamps-to-a-pcollections-elements">7.5. Adding timestamps to a PCollection’s elements</a></li>
-    </ul>
-  </li>
-  <li><a href="#triggers" id="markdown-toc-triggers">8. Triggers</a>    <ul>
-      <li><a href="#event-time-triggers" id="markdown-toc-event-time-triggers">8.1. Event time triggers</a>        <ul>
-          <li><a href="#the-default-trigger" id="markdown-toc-the-default-trigger">8.1.1. The default trigger</a></li>
-        </ul>
-      </li>
-      <li><a href="#processing-time-triggers" id="markdown-toc-processing-time-triggers">8.2. Processing time triggers</a></li>
-      <li><a href="#data-driven-triggers" id="markdown-toc-data-driven-triggers">8.3. Data-driven triggers</a></li>
-      <li><a href="#setting-a-trigger" id="markdown-toc-setting-a-trigger">8.4. Setting a trigger</a>        <ul>
-          <li><a href="#window-accumulation-modes" id="markdown-toc-window-accumulation-modes">8.4.1. Window accumulation modes</a>            <ul>
-              <li><a href="#accumulating-mode" id="markdown-toc-accumulating-mode">8.4.1.1. Accumulating mode</a></li>
-              <li><a href="#discarding-mode" id="markdown-toc-discarding-mode">8.4.1.2. Discarding mode</a></li>
-            </ul>
-          </li>
-          <li><a href="#handling-late-data" id="markdown-toc-handling-late-data">8.4.2. Handling late data</a></li>
-        </ul>
-      </li>
-      <li><a href="#composite-triggers" id="markdown-toc-composite-triggers">8.5. Composite triggers</a>        <ul>
-          <li><a href="#composite-trigger-types" id="markdown-toc-composite-trigger-types">8.5.1. Composite trigger types</a></li>
-          <li><a href="#composition-with-afterwatermarkpastendofwindow" id="markdown-toc-composition-with-afterwatermarkpastendofwindow">8.5.2. Composition with AfterWatermark.pastEndOfWindow</a></li>
-          <li><a href="#other-composite-triggers" id="markdown-toc-other-composite-triggers">8.5.3. Other composite triggers</a></li>
-        </ul>
-      </li>
-    </ul>
-  </li>
-</ul>
 
 <h2 id="overview">1. Overview</h2>
 
@@ -538,7 +382,7 @@ storing files.</p>
 PipelineOptions will be available to your code. For example, you can read
 PipelineOptions from a DoFn’s Context.</p>
 
-<h4 id="setting-pipelineoptions-from-command-line-arguments">2.1.1. Setting PipelineOptions from command-line arguments</h4>
+<h4 id="pipeline-options-cli">2.1.1. Setting PipelineOptions from command-line arguments</h4>
 
 <p>While you can configure your pipeline by creating a <code class="highlighter-rouge">PipelineOptions</code> object and
 setting the fields directly, the Beam SDKs include a command-line parser that
@@ -669,7 +513,7 @@ contain adapters to help you read from external sources like large cloud-based
 files, databases, or subscription services. The latter is primarily useful for
 testing and debugging purposes.</p>
 
-<h4 id="reading-from-an-external-source">3.1.1. Reading from an external source</h4>
+<h4 id="reading-external-source">3.1.1. Reading from an external source</h4>
 
 <p>To read from an external source, you use one of the <a href="#pipeline-io">Beam-provided I/O
 adapters</a>. The adapters vary in their exact usage, but all of them
@@ -706,7 +550,7 @@ a <code class="highlighter-rouge">PCollection</code>:</p>
 <p>See the <a href="#pipeline-io">section on I/O</a> to learn more about how to read from the
 various data sources supported by the Beam SDK.</p>
 
-<h4 id="creating-a-pcollection-from-in-memory-data">3.1.2. Creating a PCollection from in-memory data</h4>
+<h4 id="creating-pcollection-in-memory">3.1.2. Creating a PCollection from in-memory data</h4>
 
 <p class="language-java">To create a <code class="highlighter-rouge">PCollection</code> from an in-memory Java <code class="highlighter-rouge">Collection</code>, you use the
 Beam-provided <code class="highlighter-rouge">Create</code> transform. Much like a data adapter’s <code class="highlighter-rouge">Read</code>, you apply
@@ -835,7 +679,7 @@ source doesn’t do it for you. You’ll want to do this if the elements have an
 inherent timestamp, but the timestamp is somewhere in the structure of the
 element itself (such as a “time” field in a server log entry). Beam has
 <a href="#transforms">Transforms</a> that take a <code class="highlighter-rouge">PCollection</code> as input and output an
-identical <code class="highlighter-rouge">PCollection</code> with timestamps attached; see <a href="#adding-timestamps-to-a-pcollections-elements">Assigning
+identical <code class="highlighter-rouge">PCollection</code> with timestamps attached; see <a href="#adding-timestamps-to-a-pcollections-elements">Adding
 Timestamps</a> for more information
 about how to do so.</p>
 
@@ -1022,7 +866,7 @@ following example code:</p>
 the length of each string, and outputs the result to a new <code class="highlighter-rouge">PCollection</code> of
 <code class="highlighter-rouge">Integer</code> values that stores the length of each word.</p>
 
-<h5 id="creating-a-dofn">4.2.1.2. Creating a DoFn</h5>
+<h5 id="4212-creating-a-dofn">4.2.1.2. Creating a DoFn</h5>
 
 <p>The <code class="highlighter-rouge">DoFn</code> object that you pass to <code class="highlighter-rouge">ParDo</code> contains the processing logic that
 gets applied to the elements in the input collection. When you use Beam, often
@@ -1104,7 +948,7 @@ elements from the input collection).</li>
 <code class="highlighter-rouge">ProcessContext.sideOutput()</code>, you should not modify that value in any way.</li>
 </ul>
 
-<h5 id="lightweight-dofns-and-other-abstractions">4.2.1.3. Lightweight DoFns and other abstractions</h5>
+<h5 id="lightweight-dofns">4.2.1.3. Lightweight DoFns and other abstractions</h5>
 
 <p>If your function is relatively straightforward, you can simplify your use of
 <code class="highlighter-rouge">ParDo</code> by providing a lightweight <code class="highlighter-rouge">DoFn</code> in-line, as
@@ -1468,7 +1312,7 @@ function. More complex combination operations might require you to create a
 subclass of <code class="highlighter-rouge">CombineFn</code> that has an accumulation type distinct from the
 input/output type.</p>
 
-<h5 id="simple-combinations-using-simple-functions">4.2.4.1. Simple combinations using simple functions</h5>
+<h5 id="simple-combines">4.2.4.1. Simple combinations using simple functions</h5>
 
 <p>The following example code shows a simple combine function.</p>
 
@@ -1495,7 +1339,7 @@ input/output type.</p>
 </code></pre>
 </div>
 
-<h5 id="advanced-combinations-using-combinefn">4.2.4.2. Advanced combinations using CombineFn</h5>
+<h5 id="advanced-combines">4.2.4.2. Advanced combinations using CombineFn</h5>
 
 <p>For more complex combine functions, you can define a subclass of <code class="highlighter-rouge">CombineFn</code>.
 You should use <code class="highlighter-rouge">CombineFn</code> if the combine function requires a more sophisticated
@@ -1594,7 +1438,7 @@ you need the combining strategy to change based on the key (for example, MIN for
 some users and MAX for other users), you can define a <code class="highlighter-rouge">KeyedCombineFn</code> to access
 the key within the combining strategy.</p>
 
-<h5 id="combining-a-pcollection-into-a-single-value">4.2.4.3. Combining a PCollection into a single value</h5>
+<h5 id="combining-pcollection">4.2.4.3. Combining a PCollection into a single value</h5>
 
 <p>Use the global combine to transform all of the elements in a given <code class="highlighter-rouge">PCollection</code>
 into a single value, represented in your pipeline as a new <code class="highlighter-rouge">PCollection</code>
@@ -1617,7 +1461,7 @@ of integers.</p>
 </code></pre>
 </div>
 
-<h5 id="combine-and-global-windowing">4.2.4.4. Combine and global windowing</h5>
+<h5 id="combine-global-windowing">4.2.4.4. Combine and global windowing</h5>
 
 <p>If your input <code class="highlighter-rouge">PCollection</code> uses the default global windowing, the default
 behavior is to return a <code class="highlighter-rouge">PCollection</code> containing one item. That item’s value
@@ -1640,7 +1484,7 @@ following code example:</p>
 </code></pre>
 </div>
 
-<h5 id="combine-and-non-global-windowing">4.2.4.5. Combine and non-global windowing</h5>
+<h5 id="combine-non-global-windowing">4.2.4.5. Combine and non-global windowing</h5>
 
 <p>If your <code class="highlighter-rouge">PCollection</code> uses any non-global windowing function, Beam does not
 provide the default behavior. You must specify one of the following options when
@@ -1736,7 +1580,7 @@ is a Beam transform for <code class="highlighter-rouge">PCollection</code> objec
 </code></pre>
 </div>
 
-<h5 id="data-encoding-in-merged-collections">4.2.5.1. Data encoding in merged collections</h5>
+<h5 id="data-encoding-merged-collections">4.2.5.1. Data encoding in merged collections</h5>
 
 <p>By default, the coder for the output <code class="highlighter-rouge">PCollection</code> is the same as the coder for
 the first <code class="highlighter-rouge">PCollection</code> in the input <code class="highlighter-rouge">PCollectionList</code>. However, the input
@@ -1834,7 +1678,7 @@ with the <a href="#combine">Combine</a> transform), and <code class="highlighter
 used with the <a href="#windowing">Window</a> transform).</p>
 </blockquote>
 
-<h4 id="serializability">4.3.1. Serializability</h4>
+<h4 id="user-code-serializability">4.3.1. Serializability</h4>
 
 <p>Any function object you provide to a transform must be <strong>fully serializable</strong>.
 This is because a copy of the function needs to be serialized and transmitted to
@@ -1857,7 +1701,7 @@ That enclosing class will also be serialized, and thus the same considerations
 that apply to the function object itself also apply to this outer class.</li>
 </ul>
 
-<h4 id="thread-compatibility">4.3.2. Thread-compatibility</h4>
+<h4 id="user-code-thread-compatibility">4.3.2. Thread-compatibility</h4>
 
 <p>Your function object should be thread-compatible. Each instance of your function
 object is accessed by a single thread on a worker instance, unless you
@@ -1867,7 +1711,7 @@ provide your own synchronization. Note that static members in your function
 object are not passed to worker instances and that multiple instances of your
 function may be accessed from different threads.</p>
 
-<h4 id="idempotence">4.3.3. Idempotence</h4>
+<h4 id="user-code-idempotence">4.3.3. Idempotence</h4>
 
 <p>It’s recommended that you make your function object idempotent–that is, that it
 can be repeated or retried as often as necessary without causing unintended side
@@ -1890,7 +1734,7 @@ processing each element in the input <code class="highlighter-rouge">PCollection
 needs to be determined at runtime (and not hard-coded). Such values might be
 determined by the input data, or depend on a different branch of your pipeline.</p>
 
-<h4 id="passing-side-inputs-to-pardo">4.4.1. Passing side inputs to ParDo</h4>
+<h4 id="side-inputs-pardo">4.4.1. Passing side inputs to ParDo</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="c1">// Pass side inputs to your ParDo transform by invoking .withSideInputs.</span>
   <span class="c1">// Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.</span>
@@ -1967,7 +1811,7 @@ determined by the input data, or depend on a different branch of your pipeline.<
 </code></pre>
 </div>
 
-<h4 id="side-inputs-and-windowing">4.4.2. Side inputs and windowing</h4>
+<h4 id="side-inputs-windowing">4.4.2. Side inputs and windowing</h4>
 
 <p>A windowed <code class="highlighter-rouge">PCollection</code> may be infinite and thus cannot be compressed into a
 single value (or single collection class). When you create a <code class="highlighter-rouge">PCollectionView</code>
@@ -2004,7 +1848,7 @@ output <code class="highlighter-rouge">PCollection</code>s. If you choose to hav
 returns all of the output <code class="highlighter-rouge">PCollection</code>s (including the main output) bundled
 together.</p>
 
-<h4 id="tags-for-multiple-outputs">4.5.1. Tags for multiple outputs</h4>
+<h4 id="output-tags">4.5.1. Tags for multiple outputs</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// To emit elements to multiple output PCollections, create a TupleTag object to identify each collection</span>
 <span class="c1">// that your ParDo produces. For example, if your ParDo produces three output PCollections (the main output</span>
@@ -2079,7 +1923,7 @@ together.</p>
 </code></pre>
 </div>
 
-<h4 id="emitting-to-multiple-outputs-in-your-dofn">4.5.2. Emitting to multiple outputs in your DoFn</h4>
+<h4 id="multiple-outputs-dofn">4.5.2. Emitting to multiple outputs in your DoFn</h4>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by passing in the</span>
 <span class="c1">// appropriate TupleTag when you call ProcessContext.output.</span>
@@ -2155,7 +1999,7 @@ reference pages for a list of transforms:</p>
   <li><a href="/documentation/sdks/pydoc/2.3.0/apache_beam.transforms.html">Pre-written Beam transforms for Python</a></li>
 </ul>
 
-<h4 id="an-example-composite-transform">4.6.1. An example composite transform</h4>
+<h4 id="composite-transform-example">4.6.1. An example composite transform</h4>
 
 <p>The <code class="highlighter-rouge">CountWords</code> transform in the <a href="/get-started/wordcount-example/">WordCount example program</a>
 is an example of a composite transform. <code class="highlighter-rouge">CountWords</code> is a <code class="highlighter-rouge">PTransform</code> subclass
@@ -2213,7 +2057,7 @@ transform’s intermediate data changes type multiple times.</p>
 </code></pre>
 </div>
 
-<h4 id="creating-a-composite-transform">4.6.2. Creating a composite transform</h4>
+<h4 id="composite-transform-creation">4.6.2. Creating a composite transform</h4>
 
 <p>To create your own composite transform, create a subclass of the <code class="highlighter-rouge">PTransform</code>
 class and override the <code class="highlighter-rouge">expand</code> method to specify the actual processing logic.
@@ -2298,7 +2142,7 @@ to read from or write to a data storage format that isn’t supported by the
 built-in transforms, you can <a href="/documentation/io/io-toc/">implement your own read and write
 transforms</a>.</p>
 
-<h3 id="reading-input-data">5.1. Reading input data</h3>
+<h3 id="pipeline-io-reading-data">5.1. Reading input data</h3>
 
 <p>Read transforms read data from an external source and return a <code class="highlighter-rouge">PCollection</code>
 representation of the data for use by your pipeline. You can use a read
@@ -2313,7 +2157,7 @@ transform at any point while constructing your pipeline to create a new
 </code></pre>
 </div>
 
-<h3 id="writing-output-data">5.2. Writing output data</h3>
+<h3 id="pipeline-io-writing-data">5.2. Writing output data</h3>
 
 <p>Write transforms write the data in a <code class="highlighter-rouge">PCollection</code> to an external data source.
 You will most often use write transforms at the end of your pipeline to output
@@ -2328,9 +2172,9 @@ a <code class="highlighter-rouge">PCollection</code>’s data at any point in yo
 </code></pre>
 </div>
 
-<h3 id="file-based-input-and-output-data">5.3. File-based input and output data</h3>
+<h3 id="file-based-data">5.3. File-based input and output data</h3>
 
-<h4 id="reading-from-multiple-locations">5.3.1. Reading from multiple locations</h4>
+<h4 id="file-based-reading-multiple-locations">5.3.1. Reading from multiple locations</h4>
 
 <p>Many read transforms support reading from multiple input files matching a glob
 operator you provide. Note that glob operators are filesystem-specific and obey
@@ -2352,7 +2196,7 @@ suffix “.csv” in the given location:</p>
 independently and then use the <a href="#flatten">Flatten</a> transform to create a single
 <code class="highlighter-rouge">PCollection</code>.</p>
 
-<h4 id="writing-to-multiple-output-files">5.3.2. Writing to multiple output files</h4>
+<h4 id="file-based-writing-multiple-files">5.3.2. Writing to multiple output files</h4>
 
 <p>For file-based output data, write transforms write to multiple output files by
 default. When you pass an output file name to a write transform, the file name
@@ -2375,7 +2219,7 @@ location. Each file has the prefix “numbers”, a numeric tag, and the suffix
 </code></pre>
 </div>
 
-<h3 id="beam-provided-io-transforms">5.4. Beam-provided I/O transforms</h3>
+<h3 id="provided-io-transforms">5.4. Beam-provided I/O transforms</h3>
 
 <p>See the <a href="/documentation/io/built-in/">Beam-provided I/O Transforms</a>
 page for a list of the currently available I/O transforms.</p>
@@ -2579,7 +2423,7 @@ The following table shows the standard mapping:</p>
   </tbody>
 </table>
 
-<h4 id="looking-up-a-default-coder">6.2.1. Looking up a default coder</h4>
+<h4 id="default-coder-lookup">6.2.1. Looking up a default coder</h4>
 
 <p class="language-java">You can use the method <code class="highlighter-rouge">CoderRegistry.getDefaultCoder</code> to determine the default
 Coder for a Java type. You can access the <code class="highlighter-rouge">CoderRegistry</code> for a given pipeline
@@ -2592,7 +2436,7 @@ this pipeline, verify that Integer values are encoded using
 for a Python type. You can use <code class="highlighter-rouge">coders.registry</code> to access the <code class="highlighter-rouge">CoderRegistry</code>.
 This allows you to determine (or set) the default Coder for a Python type.</p>
 
-<h4 id="setting-the-default-coder-for-a-type">6.2.2. Setting the default coder for a type</h4>
+<h4 id="setting-default-coder">6.2.2. Setting the default coder for a type</h4>
 
 <p>To set the default Coder for a
 <span class="language-java">Java</span><span class="language-py">Python</span>
@@ -2622,7 +2466,7 @@ values for a pipeline.</p>
 </code></pre>
 </div>
 
-<h4 id="annotating-a-custom-data-type-with-a-default-coder">6.2.3. Annotating a custom data type with a default coder</h4>
+<h4 id="annotating-custom-type-default-coder">6.2.3. Annotating a custom data type with a default coder</h4>
 
 <p class="language-java">If your pipeline program defines a custom data type, you can use the
 <code class="highlighter-rouge">@DefaultCoder</code> annotation to specify the coder to use with that type. For
@@ -2728,7 +2572,7 @@ windows are not actually used until they’re needed for the <code class="highli
 Subsequent transforms, however, are applied to the result of the <code class="highlighter-rouge">GroupByKey</code> –
 data is grouped by both key and window.</p>
 
-<h4 id="windowing-with-bounded-pcollections">7.1.2. Windowing with bounded PCollections</h4>
+<h4 id="windowing-bounded-collections">7.1.2. Windowing with bounded PCollections</h4>
 
 <p>You can use windowing with fixed-size data sets in <strong>bounded</strong> <code class="highlighter-rouge">PCollection</code>s.
 However, note that windowing considers only the implicit timestamps attached to
@@ -2844,7 +2688,7 @@ the start of a new window.</p>
 <p><strong>Figure:</strong> Session windows, with a minimum gap duration. Note how each data key
 has different windows, according to its data distribution.</p>
 
-<h4 id="the-single-global-window">7.2.4. The single global window</h4>
+<h4 id="single-global-window">7.2.4. The single global window</h4>
 
 <p>By default, all data in a <code class="highlighter-rouge">PCollection</code> is assigned to the single global window,
 and late data is discarded. If your data set is of a fixed size, you can use the
@@ -2871,7 +2715,7 @@ and emitted, and helps refine how the windowing function performs with respect
 to late data and computing early results. See the <a href="#triggers">triggers</a> section
 for more information.</p>
 
-<h4 id="fixed-time-windows-1">7.3.1. Fixed-time windows</h4>
+<h4 id="using-fixed-time-windows">7.3.1. Fixed-time windows</h4>
 
 <p>The following example code shows how to apply <code class="highlighter-rouge">Window</code> to divide a <code class="highlighter-rouge">PCollection</code>
 into fixed windows, each one minute in length:</p>
@@ -2888,7 +2732,7 @@ into fixed windows, each one minute in length:</p>
 </code></pre>
 </div>
 
-<h4 id="sliding-time-windows-1">7.3.2. Sliding time windows</h4>
+<h4 id="using-sliding-time-windows">7.3.2. Sliding time windows</h4>
 
 <p>The following example code shows how to apply <code class="highlighter-rouge">Window</code> to divide a <code class="highlighter-rouge">PCollection</code>
 into sliding time windows. Each window is 30 minutes in length, and a new window
@@ -2906,7 +2750,7 @@ begins every five seconds:</p>
 </code></pre>
 </div>
 
-<h4 id="session-windows-1">7.3.3. Session windows</h4>
+<h4 id="using-session-windows">7.3.3. Session windows</h4>
 
 <p>The following example code shows how to apply <code class="highlighter-rouge">Window</code> to divide a <code class="highlighter-rouge">PCollection</code>
 into session windows, where each session must be separated by a time gap of at
@@ -2927,7 +2771,7 @@ least 10 minutes:</p>
 <p>Note that the sessions are per-key — each key in the collection will have its
 own session groupings depending on the data distribution.</p>
 
-<h4 id="single-global-window">7.3.4. Single global window</h4>
+<h4 id="using-single-global-window">7.3.4. Single global window</h4>
 
 <p>If your <code class="highlighter-rouge">PCollection</code> is bounded (the size is fixed), you can assign all the
 elements to a single global window. The following example code shows how to set
@@ -3066,7 +2910,7 @@ Python does not support triggers.</p>
 
 <p>When collecting and grouping data into windows, Beam uses <strong>triggers</strong> to
 determine when to emit the aggregated results of each window (referred to as a
-<em>pane</em>). If you use Beam’s default windowing configuration and <a href="#the-default-trigger">default
+<em>pane</em>). If you use Beam’s default windowing configuration and <a href="#default-trigger">default
 trigger</a>, Beam outputs the aggregated result when it
 <a href="#watermarks-and-late-data">estimates all data has arrived</a>, and discards all
 subsequent data for that window.</p>
@@ -3156,7 +3000,7 @@ firings:</p>
 </code></pre>
 </div>
 
-<h4 id="the-default-trigger">8.1.1. The default trigger</h4>
+<h4 id="default-trigger">8.1.1. Default trigger</h4>
 
 <p>The default trigger for a <code class="highlighter-rouge">PCollection</code> is based on event time, and emits the
 results of the window when the Beam’s watermark passes the end of the window,
@@ -3331,7 +3175,7 @@ multiple triggers.</li>
 final time and never fire again.</li>
 </ul>
 
-<h4 id="composition-with-afterwatermarkpastendofwindow">8.5.2. Composition with AfterWatermark.pastEndOfWindow</h4>
+<h4 id="afterwatermark-pastendofwindow">8.5.2. Composition with AfterWatermark.pastEndOfWindow</h4>
 
 <p>Some of the most useful composite triggers fire a single time when Beam
 estimates that all the data has arrived (i.e. when the watermark passes the end
