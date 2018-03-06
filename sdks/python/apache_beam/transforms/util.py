@@ -149,7 +149,7 @@ class CoGroupByKey(PTransform):
       # pairs. The result value constructor makes tuples with len(pcolls) slots.
       pcolls = list(enumerate(pcolls))
       result_ctor_arg = len(pcolls)
-      result_ctor = lambda size: tuple([] for _ in xrange(size))
+      result_ctor = lambda size: tuple([] for _ in range(size))
 
     # Check input PCollections for PCollection-ness, and that they all belong
     # to the same pipeline.

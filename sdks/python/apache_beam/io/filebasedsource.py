@@ -27,6 +27,7 @@ For an example implementation of :class:`FileBasedSource` see
 """
 
 from six import integer_types
+from six import string_types
 
 from apache_beam.internal import pickler
 from apache_beam.io import concat_source
@@ -98,12 +99,12 @@ class FileBasedSource(iobase.BoundedSource):
         result.
     """
 
-    if not isinstance(file_pattern, (basestring, ValueProvider)):
+    if not isinstance(file_pattern, (string_types, ValueProvider)):
       raise TypeError('%s: file_pattern must be of type string'
                       ' or ValueProvider; got %r instead'
                       % (self.__class__.__name__, file_pattern))
 
-    if isinstance(file_pattern, basestring):
+    if isinstance(file_pattern, string_types):
       file_pattern = StaticValueProvider(str, file_pattern)
     self._pattern = file_pattern
 

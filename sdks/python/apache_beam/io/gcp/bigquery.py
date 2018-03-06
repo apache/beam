@@ -120,6 +120,8 @@ import re
 import time
 import uuid
 
+from six import string_types
+
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
@@ -522,7 +524,7 @@ bigquery_v2_messages.TableSchema` object.
 
     self.table_reference = _parse_table_reference(table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
-    if isinstance(schema, basestring):
+    if isinstance(schema, string_types):
       # TODO(silviuc): Should add a regex-based validation of the format.
       table_schema = bigquery.TableSchema()
       schema_list = [s.strip(' ') for s in schema.split(',')]
@@ -1413,7 +1415,7 @@ bigquery_v2_messages.TableSchema):
       return schema
     elif schema is None:
       return schema
-    elif isinstance(schema, basestring):
+    elif isinstance(schema, string_types):
       table_schema = WriteToBigQuery.get_table_schema_from_string(schema)
       return WriteToBigQuery.table_schema_to_dict(table_schema)
     elif isinstance(schema, bigquery.TableSchema):

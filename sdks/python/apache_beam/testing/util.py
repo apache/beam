@@ -155,8 +155,9 @@ def assert_that(actual, matcher, label='assert_that', reify_windows=False):
 @experimental()
 def open_shards(glob_pattern):
   """Returns a composite file of all shards matching the given glob pattern."""
-  with tempfile.NamedTemporaryFile(delete=False) as f:
+  with tempfile.NamedTemporaryFile(delete=False) as out_file:
     for shard in glob.glob(glob_pattern):
-      f.write(file(shard).read())
-    concatenated_file_name = f.name
-  return file(concatenated_file_name, 'rb')
+      with open(shard) as in_file:
+        out_file.write(in_file.read())
+    concatenated_file_name = out_file.name
+  return open(concatenated_file_name, 'rb')
