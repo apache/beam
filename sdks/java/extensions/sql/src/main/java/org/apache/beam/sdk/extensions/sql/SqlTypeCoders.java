@@ -33,6 +33,7 @@ import static org.apache.beam.sdk.extensions.sql.SqlTypeCoder.SqlVarCharCoder;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder.SqlArrayCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder.SqlIntegerCoder;
 
 /**
@@ -54,6 +55,10 @@ public class SqlTypeCoders {
   public static final SqlTypeCoder TIME = new SqlTimeCoder();
   public static final SqlTypeCoder DATE = new SqlDateCoder();
   public static final SqlTypeCoder TIMESTAMP = new SqlTimestampCoder();
+
+  public static SqlTypeCoder arrayOf(SqlTypeCoder elementCoder) {
+    return SqlArrayCoder.of(elementCoder);
+  }
 
   public static final Set<SqlTypeCoder> NUMERIC_TYPES =
       ImmutableSet.of(

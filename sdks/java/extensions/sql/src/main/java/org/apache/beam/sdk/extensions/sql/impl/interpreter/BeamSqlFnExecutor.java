@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlArrayExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCastExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDefaultExpression;
@@ -31,28 +32,46 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlUdfEx
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowEndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlWindowStartExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlDivideExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlMinusExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic
+    .BeamSqlDivideExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic
+    .BeamSqlMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlModExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlMultiplyExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic.BeamSqlPlusExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlEqualsExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlGreaterThanExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlGreaterThanOrEqualsExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlIsNotNullExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlIsNullExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLessThanExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlLessThanOrEqualsExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison.BeamSqlNotEqualsExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentDateExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimeExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic
+    .BeamSqlMultiplyExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic
+    .BeamSqlPlusExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
+    .BeamSqlEqualsExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
+    .BeamSqlGreaterThanExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
+    .BeamSqlGreaterThanOrEqualsExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
+    .BeamSqlIsNotNullExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
+    .BeamSqlIsNullExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
+    .BeamSqlLessThanExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
+    .BeamSqlLessThanOrEqualsExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
+    .BeamSqlNotEqualsExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date
+    .BeamSqlCurrentDateExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date
+    .BeamSqlCurrentTimeExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date
+    .BeamSqlCurrentTimestampExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateCeilExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateFloorExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimePlusExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date
+    .BeamSqlDatetimeMinusExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date
+    .BeamSqlDatetimePlusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlExtractExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlIntervalMultiplyExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date
+    .BeamSqlIntervalMultiplyExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlNotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlOrExpression;
@@ -73,20 +92,25 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlPowerExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlRadiansExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlRandExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlRandIntegerExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math
+    .BeamSqlRandIntegerExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlRoundExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlSignExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlSinExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlTanExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math.BeamSqlTruncateExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlCharLengthExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret
+    .BeamSqlReinterpretExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string
+    .BeamSqlCharLengthExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlConcatExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlInitCapExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlLowerExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlOverlayExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlPositionExpression;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlSubstringExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string
+    .BeamSqlPositionExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string
+    .BeamSqlSubstringExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlTrimExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.string.BeamSqlUpperExpression;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
@@ -384,6 +408,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "DATETIME_PLUS":
           return new BeamSqlDatetimePlusExpression(subExps);
 
+        case "ARRAY":
+          return new BeamSqlArrayExpression(subExps);
+
         //DEFAULT keyword for UDF with optional parameter
         case "DEFAULT":
           return new BeamSqlDefaultExpression();
@@ -424,9 +451,10 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
             ScalarFunctionImpl fn = (ScalarFunctionImpl) udf.getFunction();
             ret = new BeamSqlUdfExpression(fn.method, subExps,
               ((RexCall) rexNode).type.getSqlTypeName());
-        } else {
-          throw new UnsupportedOperationException("Operator: " + opName + " is not supported yet!");
-        }
+          } else {
+            throw new UnsupportedOperationException(
+                "Operator: " + opName + " is not supported yet");
+          }
       }
     } else {
       throw new UnsupportedOperationException(
