@@ -900,7 +900,7 @@ class CombineTest(unittest.TestCase):
     import functools
     import operator
     product = factors | beam.CombineGlobally(
-        functools.partial(reduce, operator.mul), 1)
+        functools.partial(functools.reduce, operator.mul), 1)
     # [END combine_reduce]
     self.assertEqual([210], product)
 
