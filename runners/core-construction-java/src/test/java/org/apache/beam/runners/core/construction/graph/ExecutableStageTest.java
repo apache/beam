@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -46,7 +47,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ExecutableStageTest {
   @Test
-  public void testRoundTripToFromTransform() {
+  public void testRoundTripToFromTransform() throws Exception {
     Environment env = Environment.newBuilder().setUrl("foo").build();
     PTransform pt =
         PTransform.newBuilder()
@@ -84,13 +85,15 @@ public class ExecutableStageTest {
     assertThat(stagePTransform.getOutputsCount(), equalTo(1));
     assertThat(stagePTransform.getInputsMap(), hasValue("input.out"));
     assertThat(stagePTransform.getInputsCount(), equalTo(1));
-    assertThat(stagePTransform.getSubtransformsList(), contains("pt"));
 
-    assertThat(ExecutableStage.fromPTransform(stagePTransform, components), equalTo(stage));
+    ExecutableStagePayload payload = ExecutableStagePayload.parseFrom(
+        stagePTransform.getSpec().getPayload());
+    assertThat(payload.getTransformsList(), contains("pt"));
+    assertThat(ExecutableStage.fromPayload(payload, components), equalTo(stage));
   }
 
   @Test
-  public void testRoundTripToFromTransformFused() {
+  public void testRoundTripToFromTransformFused() throws Exception {
     PTransform parDoTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
@@ -148,9 +151,11 @@ public class ExecutableStageTest {
     assertThat(ptransform.getSpec().getUrn(), equalTo(ExecutableStage.URN));
     assertThat(ptransform.getInputsMap().values(), containsInAnyOrder("impulse.out"));
     assertThat(ptransform.getOutputsMap().values(), emptyIterable());
-    assertThat(ptransform.getSubtransformsList(), contains("parDo", "window"));
 
-    ExecutableStage desered = ExecutableStage.fromPTransform(ptransform, components);
+    ExecutableStagePayload payload = ExecutableStagePayload.parseFrom(
+        ptransform.getSpec().getPayload());
+    assertThat(payload.getTransformsList(), contains("parDo", "window"));
+    ExecutableStage desered = ExecutableStage.fromPayload(payload, components);
     assertThat(desered, equalTo(subgraph));
   }
 }
