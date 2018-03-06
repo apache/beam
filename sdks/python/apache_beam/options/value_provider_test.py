@@ -16,7 +16,7 @@
 #
 
 """Unit tests for the ValueProvider class."""
-
+import logging
 import unittest
 
 from apache_beam.options.pipeline_options import PipelineOptions

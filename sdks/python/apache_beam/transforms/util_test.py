@@ -17,6 +17,7 @@
 
 """Unit tests for the transform.util classes."""
 
+import logging
 import time
 import unittest
 

@@ -19,6 +19,7 @@
 """Unit tests for filesystem module."""
 import bz2
 import gzip
+import logging
 import os
 import tempfile
 import unittest

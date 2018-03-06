@@ -18,6 +18,7 @@
 
 """Unit tests for GCS File System."""
 
+import logging
 import unittest
 
 import mock
