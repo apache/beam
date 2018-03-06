@@ -249,8 +249,8 @@ class FileBasedSink(iobase.Sink):
     all_exceptions = [e for exception_batch in exception_batches
                       for e in exception_batch]
     if all_exceptions:
-      raise Exception('Encountered exceptions in finalize_write: %s',
-                      all_exceptions)
+      raise Exception(
+          'Encountered exceptions in finalize_write: %s' % all_exceptions)
 
     for final_name in destination_files:
       yield final_name

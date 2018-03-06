@@ -30,6 +30,8 @@ from __future__ import absolute_import
 
 from types import NoneType
 
+import six
+
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
@@ -197,7 +199,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     self._step_label = step_label
 
   def _check_safe(self, value):
-    if isinstance(value, (str, unicode, long, int, float)):
+    if isinstance(value, (str, six.text_type, long, int, float)):
       pass
     elif value is None:
       pass
@@ -288,7 +290,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is str:
       stream.write_byte(STR_TYPE)
       stream.write(value, nested)
-    elif t is unicode:
+    elif t is six.text_type:
       unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
       stream.write(unicode_value.encode('utf-8'), nested)

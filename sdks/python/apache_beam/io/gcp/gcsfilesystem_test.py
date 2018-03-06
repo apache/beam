@@ -340,3 +340,8 @@ class GCSFileSystemTest(unittest.TestCase):
       self.fs.delete(files)
     self.assertEqual(error.exception.exception_details, expected_results)
     gcsio_mock.delete_batch.assert_called()
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()
