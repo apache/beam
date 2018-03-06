@@ -21,7 +21,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlArrayExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCastExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDefaultExpression;
@@ -41,6 +40,9 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic
     .BeamSqlMultiplyExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic
     .BeamSqlPlusExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array.BeamSqlArrayExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array
+    .BeamSqlArrayItemExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
     .BeamSqlEqualsExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
@@ -408,8 +410,12 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         case "DATETIME_PLUS":
           return new BeamSqlDatetimePlusExpression(subExps);
 
+        // array functions
         case "ARRAY":
           return new BeamSqlArrayExpression(subExps);
+
+        case "ITEM":
+          return new BeamSqlArrayItemExpression(subExps, node.type.getSqlTypeName());
 
         //DEFAULT keyword for UDF with optional parameter
         case "DEFAULT":

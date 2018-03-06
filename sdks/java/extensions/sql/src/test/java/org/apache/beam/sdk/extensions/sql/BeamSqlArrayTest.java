@@ -109,6 +109,36 @@ public class BeamSqlArrayTest {
     pipeline.run();
   }
 
+  @Test
+  public void testAccessArrayElement() {
+    PCollection<Row> input = pCollectionOf2Elements();
+
+    RowType resultType =
+        RowSqlType
+            .builder()
+            .withArrayField("f_arrElem", SqlTypeCoders.VARCHAR)
+            .build();
+
+    PCollection<Row> result =
+        input
+            .apply(
+                "sqlQuery",
+                BeamSql.query("SELECT f_stringArr[0] FROM PCOLLECTION"));
+
+    PAssert.that(result)
+           .containsInAnyOrder(
+               Row
+                   .withRowType(resultType)
+                   .addValues("111")
+                   .build(),
+               Row
+                   .withRowType(resultType)
+                   .addValues("33")
+                   .build());
+
+    pipeline.run();
+  }
+
   private PCollection<Row> pCollectionOf2Elements() {
     return
         PBegin
