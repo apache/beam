@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -36,12 +34,11 @@ import org.junit.rules.ExpectedException;
  */
 public class BeamSqlArrayTest {
 
-  public static final DateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
   private static final RowType INPUT_ROW_TYPE =
       RowSqlType
         .builder()
         .withIntegerField("f_int")
+        .withArrayField("f_stringArr", SqlTypeCoders.VARCHAR)
         .build();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -49,7 +46,7 @@ public class BeamSqlArrayTest {
 
   @Test
   public void testSelectArrayValue() {
-    PCollection<Row> input = createPCollection();
+    PCollection<Row> input = pCollectionOf2Elements();
 
     RowType resultType =
         RowSqlType
@@ -69,19 +66,66 @@ public class BeamSqlArrayTest {
                Row
                    .withRowType(resultType)
                    .addValues(42, Arrays.asList("aa", "bb"))
+                   .build(),
+
+               Row
+                   .withRowType(resultType)
+                   .addValues(42, Arrays.asList("aa", "bb"))
                    .build());
 
     pipeline.run();
   }
 
-  private PCollection<Row> createPCollection() {
+  @Test
+  public void testProjectArrayField() {
+    PCollection<Row> input = pCollectionOf2Elements();
+
+    RowType resultType =
+        RowSqlType
+            .builder()
+            .withIntegerField("f_int")
+            .withArrayField("f_stringArr", SqlTypeCoders.VARCHAR)
+            .build();
+
+    PCollection<Row> result =
+        input
+            .apply(
+                "sqlQuery",
+                BeamSql.query("SELECT f_int, f_stringArr FROM PCOLLECTION"));
+
+    PAssert.that(result)
+           .containsInAnyOrder(
+               Row
+                   .withRowType(resultType)
+                   .addValues(1)
+                   .addArray(Arrays.asList("111", "222"))
+                   .build(),
+               Row
+                   .withRowType(resultType)
+                   .addValues(2)
+                   .addArray(Arrays.asList("33", "44", "55"))
+                   .build());
+
+    pipeline.run();
+  }
+
+  private PCollection<Row> pCollectionOf2Elements() {
     return
         PBegin
             .in(pipeline)
             .apply("boundedInput1",
                    Create
-                       .of(Row.withRowType(INPUT_ROW_TYPE).addValues(1).build())
+                       .of(
+                           Row
+                               .withRowType(INPUT_ROW_TYPE)
+                               .addValues(1)
+                               .addArray(Arrays.asList("111", "222"))
+                               .build(),
+                           Row
+                               .withRowType(INPUT_ROW_TYPE)
+                               .addValues(2)
+                               .addArray(Arrays.asList("33", "44", "55"))
+                               .build())
                        .withCoder(INPUT_ROW_TYPE.getRowCoder()));
   }
-
 }

@@ -310,6 +310,16 @@ public abstract class Row implements Serializable {
       return addValues(Arrays.asList(values));
     }
 
+    public Builder addArray(List<Object> values) {
+      this.values.add(values);
+      return this;
+    }
+
+    public Builder addArray(Object ... values) {
+      addArray(Arrays.asList(values));
+      return this;
+    }
+
     public Row build() {
       checkNotNull(type);
 
