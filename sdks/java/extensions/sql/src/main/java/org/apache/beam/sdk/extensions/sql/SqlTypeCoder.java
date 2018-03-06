@@ -160,7 +160,12 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
     }
   }
 
-  static class SqlArrayCoder extends SqlTypeCoder {
+  /**
+   * Represents SQL ARRAY type.
+   *
+   * <p>Delegates to {#code elementCoder} to encode elements.
+   */
+  public static class SqlArrayCoder extends SqlTypeCoder {
 
     private SqlTypeCoder elementCoder;
 
