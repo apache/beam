@@ -44,6 +44,8 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array.BeamSq
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array
     .BeamSqlArrayItemExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.collection
+    .BeamSqlCardinalityExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.collection
     .BeamSqlSingleElementExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
     .BeamSqlEqualsExpression;
@@ -422,6 +424,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         // collections functions
         case "ELEMENT":
           return new BeamSqlSingleElementExpression(subExps, node.type.getSqlTypeName());
+
+        case "CARDINALITY":
+          return new BeamSqlCardinalityExpression(subExps, node.type.getSqlTypeName());
 
         //DEFAULT keyword for UDF with optional parameter
         case "DEFAULT":
