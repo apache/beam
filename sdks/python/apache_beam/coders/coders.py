@@ -309,10 +309,11 @@ class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   def encode(self, value):
-    if isinstance(value, unicode):
-      return value.encode('utf-8')
-    elif isinstance(value, str):
-      return value
+    try:               # Python 2
+      if isinstance(value, unicode):
+        return value.encode('utf-8')
+    except NameError:  # Python 3
+      pass
     return str(value)
 
   def decode(self, _):
