@@ -118,7 +118,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       LOG.error("Pipeline execution failed", e);
       throw new RuntimeException("Pipeline execution failed", e);
     }
+    return createPipelineResult(result);
+  }
 
+  static PipelineResult createPipelineResult(JobExecutionResult result) {
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
       FlinkDetachedRunnerResult flinkDetachedRunnerResult = new FlinkDetachedRunnerResult();
@@ -193,9 +196,9 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       });
 
       LOG.warn("Unable to use indexed implementation for View.AsMap and View.AsMultimap for {} "
-          + "because the key coder is not deterministic. Falling back to singleton implementation "
-          + "which may cause memory and/or performance problems. Future major versions of "
-          + "the Flink runner will require deterministic key coders.",
+              + "because the key coder is not deterministic. Falling back to singleton implementation "
+              + "which may cause memory and/or performance problems. Future major versions of "
+              + "the Flink runner will require deterministic key coders.",
           ptransformViewNamesWithNonDeterministicKeyCoders);
     }
   }

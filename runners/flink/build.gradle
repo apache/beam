@@ -59,6 +59,7 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.commons_compress
+  shadow library.java.args4j
   shadow "org.apache.flink:flink-clients_2.11:$flink_version"
   shadow "org.apache.flink:flink-core:$flink_version"
   shadow "org.apache.flink:flink-metrics-core:$flink_version"
