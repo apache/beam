@@ -16,6 +16,7 @@
 package coder
 
 import (
+	"fmt"
 	"io"
 	"math"
 	"time"
@@ -23,15 +24,17 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
-// TODO(herohde) 5/16/2017: verify whether the below logic is actually the
-// canonical encoding.
-
 // EncodeEventTime encodes an EventTime as an uint64. The encoding is
 // millis-since-epoch, but shifted so that the byte representation of negative
 // values are lexicographically ordered before the byte representation of
 // positive values.
-func EncodeEventTime(t typex.EventTime, w io.Writer) error {
-	return EncodeUint64((uint64)((time.Time)(t).Unix()-math.MinInt64), w)
+func EncodeEventTime(et typex.EventTime, w io.Writer) error {
+	t := (time.Time)(et)
+	if t.IsZero() {
+		return fmt.Errorf("received a zero EventTime, which is unencodable")
+	}
+	millis := time.Duration(t.UnixNano()) / time.Millisecond
+	return EncodeUint64((uint64)(millis-math.MinInt64), w)
 }
 
 // DecodeEventTime decodes an EventTime.
@@ -40,5 +43,6 @@ func DecodeEventTime(r io.Reader) (typex.EventTime, error) {
 	if err != nil {
 		return typex.EventTime(time.Time{}), err
 	}
-	return typex.EventTime(time.Unix(0, ((int64)(unix)+math.MinInt64)<<10)), nil
+	millis := time.Duration((int64)(unix)+math.MinInt64) * time.Millisecond
+	return typex.EventTime(time.Unix(0, millis.Nanoseconds())), nil
 }
