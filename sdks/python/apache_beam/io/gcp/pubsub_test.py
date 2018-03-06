@@ -300,7 +300,7 @@ class TestReadFromPubSub(unittest.TestCase):
 
   @mock.patch('google.cloud.pubsub')
   def test_read_strings_success(self, mock_pubsub):
-    payload = ur'🤷 ¯\_(ツ)_/¯'
+    payload = u'🤷 ¯\\_(ツ)_/¯'
     payload_encoded = payload.encode('utf-8')
     data = [pubsub.message.Message(payload_encoded, None, None)]
     expected_data = [payload]
