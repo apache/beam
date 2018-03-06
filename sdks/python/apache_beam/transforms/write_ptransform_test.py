@@ -38,7 +38,11 @@ class _TestSink(iobase.Sink):
     if self.return_init_result:
       return _TestSink.TEST_INIT_RESULT
 
-  def finalize_write(self, init_result, writer_results):
+  def pre_finalize(self, init_result, writer_results):
+    pass
+
+  def finalize_write(self, init_result, writer_results,
+                     unused_pre_finalize_result):
     self.init_result_at_finalize = init_result
     self.write_results_at_finalize = writer_results
 

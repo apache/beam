@@ -72,6 +72,14 @@ class FakeFile(io.BytesIO):
         hdfs._FILE_STATUS_TYPE: self.stat['type'],
     }
 
+  def get_file_checksum(self):
+    """Returns a WebHDFS FileChecksum object."""
+    return {
+        hdfs._FILE_CHECKSUM_ALGORITHM: 'fake_algo',
+        hdfs._FILE_CHECKSUM_BYTES: 'checksum_byte_sequence',
+        hdfs._FILE_CHECKSUM_LENGTH: 5,
+    }
+
 
 class FakeHdfsError(Exception):
   """Generic error for FakeHdfs methods."""
@@ -174,6 +182,12 @@ class FakeHdfs(object):
         newpath = path2 + fullpath[len(path1):]
         f.stat['path'] = newpath
         self.files[newpath] = f
+
+  def checksum(self, path):
+    f = self.files.get(path, None)
+    if f is None:
+      raise FakeHdfsError('Path not found: %s' % path)
+    return f.get_file_checksum()
 
 
 class HadoopFileSystemTest(unittest.TestCase):
@@ -457,6 +471,13 @@ class HadoopFileSystemTest(unittest.TestCase):
     url2 = self.fs.join(self.tmpdir, 'nonexistent')
     self.assertTrue(self.fs.exists(url1))
     self.assertFalse(self.fs.exists(url2))
+
+  def test_checksum(self):
+    url = self.fs.join(self.tmpdir, 'f1')
+    with self.fs.create(url) as f:
+      f.write('Hello')
+    self.assertEqual('fake_algo-5-checksum_byte_sequence',
+                     self.fs.checksum(url))
 
   def test_delete_file(self):
     url = self.fs.join(self.tmpdir, 'old_file1')

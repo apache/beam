@@ -48,18 +48,20 @@ class FakeGcsClient(object):
 
 class FakeFile(object):
 
-  def __init__(self, bucket, obj, contents, generation):
+  def __init__(self, bucket, obj, contents, generation, crc32c=None):
     self.bucket = bucket
     self.object = obj
     self.contents = contents
     self.generation = generation
+    self.crc32c = crc32c
 
   def get_metadata(self):
     return storage.Object(
         bucket=self.bucket,
         name=self.object,
         generation=self.generation,
-        size=len(self.contents))
+        size=len(self.contents),
+        crc32c=self.crc32c)
 
 
 class FakeGcsObjects(object):
@@ -222,9 +224,9 @@ class TestGCSPathParser(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestGCSIO(unittest.TestCase):
 
-  def _insert_random_file(self, client, path, size, generation=1):
+  def _insert_random_file(self, client, path, size, generation=1, crc32c=None):
     bucket, name = gcsio.parse_gcs_path(path)
-    f = FakeFile(bucket, name, os.urandom(size), generation)
+    f = FakeFile(bucket, name, os.urandom(size), generation, crc32c=crc32c)
     client.objects.add_file(f)
     return f
 
@@ -250,6 +252,14 @@ class TestGCSIO(unittest.TestCase):
     with self.assertRaises(HttpError) as cm:
       self.gcs.exists(file_name)
     self.assertEquals(400, cm.exception.status_code)
+
+  def test_checksum(self):
+    file_name = 'gs://gcsio-test/dummy_file'
+    file_size = 1234
+    checksum = 'deadbeef'
+    self._insert_random_file(self.client, file_name, file_size, crc32c=checksum)
+    self.assertTrue(self.gcs.exists(file_name))
+    self.assertEqual(checksum, self.gcs.checksum(file_name))
 
   def test_size(self):
     file_name = 'gs://gcsio-test/dummy_file'
@@ -341,8 +351,9 @@ class TestGCSIO(unittest.TestCase):
     self.assertTrue(
         gcsio.parse_gcs_path(dest_file_name) in self.client.objects.files)
 
-    self.assertRaises(IOError, self.gcs.copy, 'gs://gcsio-test/non-existent',
-                      'gs://gcsio-test/non-existent-destination')
+    with self.assertRaisesRegexp(HttpError, r'Not Found'):
+      self.gcs.copy('gs://gcsio-test/non-existent',
+                    'gs://gcsio-test/non-existent-destination')
 
   @mock.patch('apache_beam.io.gcp.gcsio.BatchApiRequest')
   def test_copy_batch(self, *unused_args):

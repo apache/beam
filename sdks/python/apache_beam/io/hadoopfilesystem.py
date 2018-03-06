@@ -43,6 +43,10 @@ _URL_RE = re.compile(r'^' + _HDFS_PREFIX + r'(/.*)')
 _COPY_BUFFER_SIZE = 2 ** 16
 _DEFAULT_BUFFER_SIZE = 20 * 1024 * 1024
 
+# WebHDFS FileChecksum property constants.
+_FILE_CHECKSUM_ALGORITHM = 'algorithm'
+_FILE_CHECKSUM_BYTES = 'bytes'
+_FILE_CHECKSUM_LENGTH = 'length'
 # WebHDFS FileStatus property constants.
 _FILE_STATUS_NAME = 'name'
 _FILE_STATUS_PATH_SUFFIX = 'pathSuffix'
@@ -92,9 +96,6 @@ class HadoopFileSystem(FileSystem):
   """``FileSystem`` implementation that supports HDFS.
 
   URL arguments to methods expect strings starting with ``hdfs://``.
-
-  Experimental; TODO(BEAM-3600): Writes are experimental until file rename
-    retries are better handled.
   """
 
   def __init__(self, pipeline_options):
@@ -104,6 +105,7 @@ class HadoopFileSystem(FileSystem):
     See :class:`~apache_beam.options.pipeline_options.HadoopFileSystemOptions`.
     """
     super(HadoopFileSystem, self).__init__(pipeline_options)
+    logging.getLogger('hdfs.client').setLevel(logging.WARN)
 
     if pipeline_options is None:
       raise ValueError('pipeline_options is not set')
@@ -347,6 +349,20 @@ class HadoopFileSystem(FileSystem):
       path: String in the form /...
     """
     return self._hdfs_client.status(path, strict=False) is not None
+
+  def checksum(self, url):
+    """Fetches a checksum description for a URL.
+
+    Returns:
+      String describing the checksum.
+    """
+    path = self._parse_url(url)
+    file_checksum = self._hdfs_client.checksum(path)
+    return '%s-%d-%s' % (
+        file_checksum[_FILE_CHECKSUM_ALGORITHM],
+        file_checksum[_FILE_CHECKSUM_LENGTH],
+        file_checksum[_FILE_CHECKSUM_BYTES],
+    )
 
   def delete(self, urls):
     exceptions = {}
