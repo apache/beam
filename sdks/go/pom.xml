@@ -31,10 +31,6 @@
 
   <name>Apache Beam :: SDKs :: Go</name>
 
-  <modules>
-    <module>container</module>
-  </modules>
-
   <properties>
     <!-- Add full path directory structure for 'go get' compatibility -->
     <go.source.base>${project.basedir}/target/src</go.source.base>
@@ -85,7 +81,6 @@
       <!-- export pkg/ sources as zip for inclusion elsewhere -->
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
-        <inherited>false</inherited>
         <executions>
           <execution>
             <id>export-go-pkg-sources</id>
@@ -118,9 +113,6 @@
                 <package>golang.org/x/oauth2/google</package>
                 <package>google.golang.org/api/storage/v1</package>
                 <package>github.com/spf13/cobra</package>
-                <package>cloud.google.com/go/bigquery</package>
-                <package>google.golang.org/api/googleapi</package>
-                <package>google.golang.org/api/dataflow/v1b3</package>
               </packages>
             </configuration>
           </execution>
