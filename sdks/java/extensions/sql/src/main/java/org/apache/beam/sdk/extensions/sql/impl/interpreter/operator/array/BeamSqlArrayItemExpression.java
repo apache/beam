@@ -15,41 +15,37 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Represents ARRAY expression in SQL.
+ * Implements array element access expression.
  */
-public class BeamSqlArrayExpression extends BeamSqlExpression {
-  public BeamSqlArrayExpression(List<BeamSqlExpression> operands) {
-    super(operands, SqlTypeName.ARRAY);
+public class BeamSqlArrayItemExpression extends BeamSqlExpression {
+
+  public BeamSqlArrayItemExpression(
+      List<BeamSqlExpression> operands,
+      SqlTypeName sqlTypeName) {
+
+    super(operands, sqlTypeName);
   }
 
   @Override
   public boolean accept() {
-    return
-        operands
-            .stream()
-            .map(BeamSqlExpression::getOutputType)
-            .distinct()
-            .count() == 1;
+    return operands.size() == 2;
   }
 
   @Override
   public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    List<Object> elements =
-        operands
-            .stream()
-            .map(op -> op.evaluate(inputRow, window).getValue())
-            .collect(Collectors.toList());
+    List<Object> array = opValueEvaluated(0, inputRow, window);
+    Integer index = opValueEvaluated(1, inputRow, window);
 
-    return BeamSqlPrimitive.of(outputType, elements);
+    return BeamSqlPrimitive.of(outputType, array.get(index));
   }
 }
