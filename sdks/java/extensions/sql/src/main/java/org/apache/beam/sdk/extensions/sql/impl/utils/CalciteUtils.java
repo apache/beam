@@ -29,6 +29,8 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelProtoDataType;
+import org.apache.calcite.sql.type.ArraySqlType;
+import org.apache.calcite.sql.type.BasicSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -65,14 +67,31 @@ public class CalciteUtils {
    * for supported Beam SQL type coder, see {@link SqlTypeCoder}.
    */
   public static SqlTypeName toCalciteType(SqlTypeCoder coder) {
-    return BEAM_TO_CALCITE_TYPE_MAPPING.get(coder);
+    return SqlTypeCoder.isArray(coder)
+        ? SqlTypeName.ARRAY
+        : BEAM_TO_CALCITE_TYPE_MAPPING.get(coder);
+  }
+
+  /**
+   * Get the Beam SQL type coder ({@link SqlTypeCoder}) from Calcite's {@link RelDataTypeField}.
+   */
+  public static SqlTypeCoder toCoder(RelDataTypeField relFieldType) {
+    if (relFieldType.getValue() instanceof BasicSqlType) {
+      return toCoder(relFieldType.getType().getSqlTypeName());
+    } else if (relFieldType.getValue() instanceof ArraySqlType) {
+      SqlTypeName elementType = relFieldType.getValue().getComponentType().getSqlTypeName();
+      SqlTypeCoder elementCoder = CALCITE_TO_BEAM_TYPE_MAPPING.get(elementType);
+      return SqlTypeCoders.arrayOf(elementCoder);
+    } else {
+      throw new UnsupportedOperationException("Field type '" + relFieldType + "' is not supported");
+    }
   }
 
   /**
    * Get the Beam SQL type coder ({@link SqlTypeCoder}) from Calcite's {@link SqlTypeName}.
    */
-  public static SqlTypeCoder toCoder(SqlTypeName typeName) {
-    return CALCITE_TO_BEAM_TYPE_MAPPING.get(typeName);
+  public static SqlTypeCoder toCoder(SqlTypeName relFieldType) {
+    return CALCITE_TO_BEAM_TYPE_MAPPING.get(relFieldType);
   }
 
   /**
@@ -98,7 +117,7 @@ public class CalciteUtils {
     return
         RowType.newField(
             calciteField.getName(),
-            toCoder(calciteField.getType().getSqlTypeName()));
+            toCoder(calciteField));
   }
 
   /**

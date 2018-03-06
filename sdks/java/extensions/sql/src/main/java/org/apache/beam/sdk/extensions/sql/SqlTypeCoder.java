@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.sql;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 /**
@@ -55,7 +57,6 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
   @Override
   public boolean equals(Object other) {
     return other != null && this.getClass().equals(other.getClass());
-
   }
 
   @Override
@@ -63,7 +64,12 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
     return this.getClass().hashCode();
   }
 
+  public static boolean isArray(SqlTypeCoder sqlTypeCoder) {
+    return sqlTypeCoder instanceof SqlArrayCoder;
+  }
+
   static class SqlTinyIntCoder extends SqlTypeCoder {
+
     @Override
     protected Coder delegateCoder() {
       return ByteCoder.of();
@@ -151,6 +157,40 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
     @Override
     protected Coder delegateCoder() {
       return RowHelper.DateCoder.of();
+    }
+  }
+
+  static class SqlArrayCoder extends SqlTypeCoder {
+
+    private SqlTypeCoder elementCoder;
+
+    private SqlArrayCoder(SqlTypeCoder elementCoder) {
+      this.elementCoder = elementCoder;
+    }
+
+    public static SqlArrayCoder of(SqlTypeCoder elementCoder) {
+      return new SqlArrayCoder(elementCoder);
+    }
+
+    @Override
+    protected Coder delegateCoder() {
+      return ListCoder.of(elementCoder);
+    }
+
+    public SqlTypeCoder getElementCoder() {
+      return elementCoder;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other != null
+          && this.getClass().equals(other.getClass())
+          && this.elementCoder.equals(((SqlArrayCoder) other).elementCoder);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(elementCoder);
     }
   }
 }
