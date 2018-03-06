@@ -231,6 +231,26 @@ class FileSystems(object):
     return filesystem.exists(path)
 
   @staticmethod
+  def checksum(path):
+    """Fetch checksum metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    This operation returns checksum metadata as stored in the underlying
+    FileSystem. It should not read any file data. Checksum type and format are
+    FileSystem dependent and are not compatible between FileSystems.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
+    """
+    filesystem = FileSystems.get_filesystem(path)
+    return filesystem.checksum(path)
+
+  @staticmethod
   def delete(paths):
     """Deletes files or directories at the provided paths.
     Directories will be deleted recursively.
@@ -241,6 +261,9 @@ class FileSystems(object):
     Raises:
       ``BeamIOError`` if any of the delete operations fail
     """
+    if isinstance(paths, basestring):
+      raise BeamIOError('Delete passed string argument instead of list: %s' %
+                        paths)
     if len(paths) == 0:
       return
     filesystem = FileSystems.get_filesystem(paths[0])
