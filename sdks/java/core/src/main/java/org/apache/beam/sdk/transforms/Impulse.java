@@ -41,8 +41,7 @@ public class Impulse extends PTransform<PBegin, PCollection<byte[]>> {
   /**
    * Create a new {@link Impulse} {@link PTransform}.
    */
-  // TODO: Make public and implement the default expansion of Read with Impulse -> ParDo
-  static Impulse create() {
+  public static Impulse create() {
     return new Impulse();
   }
 
