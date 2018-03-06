@@ -60,7 +60,7 @@ public class GreedyPipelineFuser {
   private final Set<ExecutableStage> stages = new LinkedHashSet<>();
 
   private GreedyPipelineFuser(Pipeline p) {
-    this.pipeline = QueryablePipeline.fromComponents(p.getComponents());
+    this.pipeline = QueryablePipeline.forPrimitivesIn(p.getComponents());
     NavigableSet<CollectionConsumer> rootConsumers = new TreeSet<>();
     for (PTransformNode pTransformNode : pipeline.getRootTransforms()) {
       // This will usually be a single node, the downstream of an Impulse, but may be of any size

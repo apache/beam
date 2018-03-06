@@ -133,7 +133,7 @@ public class ExecutableStageTest {
         .putPcollections("window.out", PCollection.newBuilder().setUniqueName("window.out").build())
         .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
         .build();
-    QueryablePipeline p = QueryablePipeline.fromComponents(components);
+    QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
 
     ExecutableStage subgraph =
         GreedyStageFuser.forGrpcPortRead(

@@ -81,7 +81,7 @@ public class QueryablePipelineTest {
   @Test
   public void fromEmptyComponents() {
     // Not that it's hugely useful, but it shouldn't throw.
-    QueryablePipeline p = QueryablePipeline.fromComponents(Components.getDefaultInstance());
+    QueryablePipeline p = QueryablePipeline.forPrimitivesIn(Components.getDefaultInstance());
     assertThat(p.getRootTransforms(), emptyIterable());
   }
 
@@ -94,7 +94,7 @@ public class QueryablePipelineTest {
             .build();
 
     thrown.expect(IllegalArgumentException.class);
-    QueryablePipeline.fromComponents(components);
+    QueryablePipeline.forPrimitivesIn(components);
   }
 
   @Test
@@ -106,7 +106,7 @@ public class QueryablePipelineTest {
     p.apply("BoundedRead", Read.from(CountingSource.upTo(100L)));
 
     Components components = PipelineTranslation.toProto(p).getComponents();
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
     assertThat(qp.getRootTransforms(), hasSize(2));
     for (PTransformNode rootTransform : qp.getRootTransforms()) {
@@ -139,7 +139,7 @@ public class QueryablePipelineTest {
             .withOutputTags(new TupleTag<>(), TupleTagList.empty()));
 
     Components components = PipelineTranslation.toProto(p).getComponents();
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
     String mainInputName =
         getOnlyElement(
@@ -198,7 +198,7 @@ public class QueryablePipelineTest {
                     .build())
             .build();
 
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
     PCollectionNode multiInputPc =
         PipelineNode.pCollection("read_pc", components.getPcollectionsOrThrow("read_pc"));
     PTransformNode multiConsumerPT =
@@ -221,7 +221,7 @@ public class QueryablePipelineTest {
     // This breaks if the way that IDs are assigned to PTransforms changes in PipelineTranslation
     String readOutput =
         getOnlyElement(components.getTransformsOrThrow("BoundedRead").getOutputsMap().values());
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
     Set<PTransformNode> consumers =
         qp.getPerElementConsumers(
             PipelineNode.pCollection(readOutput, components.getPcollectionsOrThrow(readOutput)));
@@ -239,7 +239,7 @@ public class QueryablePipelineTest {
     PCollectionList.of(longs).and(longs).and(longs).apply("flatten", Flatten.pCollections());
 
     Components components = PipelineTranslation.toProto(p).getComponents();
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
     String longsOutputName =
         getOnlyElement(
@@ -275,7 +275,7 @@ public class QueryablePipelineTest {
     PCollectionList.of(longs).and(longs).and(longs).apply("flatten", Flatten.pCollections());
 
     Components components = PipelineTranslation.toProto(p).getComponents();
-    QueryablePipeline qp = QueryablePipeline.fromComponents(components);
+    QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
 
     PTransformNode environmentalRead =
         PipelineNode.pTransform("BoundedRead", components.getTransformsOrThrow("BoundedRead"));

@@ -82,7 +82,7 @@ public class GreedyStageFuserTest {
   @Test
   public void noInitialConsumersThrows() {
     // (impulse.out) -> () is not a meaningful stage, so it should never be called
-    QueryablePipeline p = QueryablePipeline.fromComponents(partialComponents);
+    QueryablePipeline p = QueryablePipeline.forPrimitivesIn(partialComponents);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("at least one PTransform");
@@ -96,7 +96,7 @@ public class GreedyStageFuserTest {
     //                                    -> py -> py.out
     // read.out can't be fused with both 'go' and 'py', so we should refuse to create this stage
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms(
@@ -170,7 +170,7 @@ public class GreedyStageFuserTest {
             .putOutputs("output", "gbk.out")
             .build();
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("runnerTransform", gbkTransform)
@@ -218,7 +218,7 @@ public class GreedyStageFuserTest {
             .build();
 
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("parDo", parDoTransform)
@@ -277,7 +277,7 @@ public class GreedyStageFuserTest {
             .build();
 
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("parDo", parDoTransform)
@@ -337,7 +337,7 @@ public class GreedyStageFuserTest {
             .build();
 
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("parDo", parDoTransform)
@@ -418,7 +418,7 @@ public class GreedyStageFuserTest {
             .build();
 
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("read", readTransform)
@@ -518,7 +518,7 @@ public class GreedyStageFuserTest {
             .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
             .putEnvironments("rare", Environment.newBuilder().setUrl("rare").build())
             .build();
-    QueryablePipeline p = QueryablePipeline.fromComponents(components);
+    QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
 
     ExecutableStage subgraph =
         GreedyStageFuser.forGrpcPortRead(
@@ -644,7 +644,7 @@ public class GreedyStageFuserTest {
             .putEnvironments("go", Environment.newBuilder().setUrl("go").build())
             .putEnvironments("py", Environment.newBuilder().setUrl("py").build())
             .build();
-    QueryablePipeline p = QueryablePipeline.fromComponents(components);
+    QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
 
     ExecutableStage readFromPy =
         GreedyStageFuser.forGrpcPortRead(
@@ -691,7 +691,7 @@ public class GreedyStageFuserTest {
             .build();
 
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("parDo", parDoTransform)
@@ -752,7 +752,7 @@ public class GreedyStageFuserTest {
                             .toByteString()))
             .build();
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("read", readTransform)
@@ -832,7 +832,7 @@ public class GreedyStageFuserTest {
             .build();
 
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("read", readTransform)
@@ -917,7 +917,7 @@ public class GreedyStageFuserTest {
             .build();
 
     QueryablePipeline p =
-        QueryablePipeline.fromComponents(
+        QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("read", readTransform)
