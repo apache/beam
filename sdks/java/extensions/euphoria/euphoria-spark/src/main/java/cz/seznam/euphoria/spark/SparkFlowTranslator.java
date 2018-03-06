@@ -15,8 +15,6 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.io.DataSink;
@@ -107,8 +105,13 @@ class SparkFlowTranslator {
           break;
         }
       }
+
       if (firstMatch != null) {
         final JavaRDD<?> out = firstMatch.translator.translate(op, executorContext);
+        // ~ output result will be used more than once, cache Dataset for reusing
+        if (dag.getNode(op).getChildren().size() > 1) {
+          out.cache();
+        }
         // ~ save output of current operator to context
         executorContext.setOutput(op, out);
       } else {
