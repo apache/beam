@@ -20,11 +20,12 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
-import java.util.Collection;
+
 import javax.annotation.Nullable;
+import java.util.Collection;
 
 /**
- * {@code PCollection} that is input of a {@code Flow}.
+ * {@code InputDataset} that is input of a {@code Flow}.
  */
 @Audience(Audience.Type.EXECUTOR)
 class InputDataset<T> implements Dataset<T> {
