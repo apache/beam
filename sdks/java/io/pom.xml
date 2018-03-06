@@ -65,6 +65,7 @@
     <module>solr</module>
     <module>tika</module>
     <module>xml</module>
+    <module>vfs-file-system</module>
   </modules>
 
   <profiles>
