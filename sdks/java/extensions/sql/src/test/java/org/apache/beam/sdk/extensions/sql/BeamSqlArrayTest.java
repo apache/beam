@@ -176,6 +176,36 @@ public class BeamSqlArrayTest {
     pipeline.run();
   }
 
+  @Test
+  public void testCardinality() {
+    PCollection<Row> input = pCollectionOf2Elements();
+
+    RowType resultType =
+        RowSqlType
+            .builder()
+            .withIntegerField("f_size")
+            .build();
+
+    PCollection<Row> result =
+        input
+            .apply(
+                "sqlQuery",
+                BeamSql.query("SELECT CARDINALITY(f_stringArr) FROM PCOLLECTION"));
+
+    PAssert.that(result)
+           .containsInAnyOrder(
+               Row
+                   .withRowType(resultType)
+                   .addValues(2)
+                   .build(),
+               Row
+                   .withRowType(resultType)
+                   .addValues(3)
+                   .build());
+
+    pipeline.run();
+  }
+
   private PCollection<Row> pCollectionOf2Elements() {
     return
         PBegin
