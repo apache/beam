@@ -17,6 +17,7 @@
 """Tests for filesystemio."""
 
 import io
+import logging
 import multiprocessing
 import os
 import threading

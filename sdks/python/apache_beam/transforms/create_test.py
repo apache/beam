@@ -16,6 +16,7 @@
 #
 
 """Unit tests for the Create and _CreateSource classes."""
+import logging
 import unittest
 
 from apache_beam import Create
