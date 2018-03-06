@@ -63,7 +63,8 @@ pylint -j8 "$MODULE" --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running pycodestyle for module $MODULE:"
 pycodestyle "$MODULE" --exclude="$FILES_TO_IGNORE"
 echo "Running flake8 for module $MODULE:"
-flake8 $MODULE --count --select=E999 --show-source --statistics
+# TODO(BEAM-3959): Add F821 (undefined names) as soon as that test passes
+flake8 $MODULE --count --select=E9,F822,F823 --show-source --statistics
 
 echo "Running isort for module $MODULE:"
 # Skip files where isort is behaving weirdly
