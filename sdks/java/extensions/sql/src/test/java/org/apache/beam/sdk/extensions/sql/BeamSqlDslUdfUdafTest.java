@@ -32,6 +32,7 @@ import org.junit.Test;
  * Tests for UDF/UDAF.
  */
 public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
+
   /**
    * GROUP-BY with UDAF.
    */
@@ -64,6 +65,56 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     PAssert.that(result2).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Test that an indirect subclass of a {@link CombineFn} works as a UDAF.
+   * BEAM-3777
+   */
+  @Test
+  public void testUdafMultiLevelDescendent() {
+    RowType resultType = RowSqlType.builder()
+        .withIntegerField("f_int2")
+        .withIntegerField("squaresum")
+        .build();
+
+    Row row = Row.withRowType(resultType).addValues(0, 354).build();
+
+    String sql1 = "SELECT f_int2, double_square_sum(f_int) AS `squaresum`"
+        + " FROM PCOLLECTION GROUP BY f_int2";
+    PCollection<Row> result1 =
+        boundedInput1.apply(
+            "testUdaf",
+            BeamSql.query(sql1).registerUdaf("double_square_sum", new SquareSquareSum()));
+    PAssert.that(result1).containsInAnyOrder(row);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Test that correct exception is thrown when subclass of {@link CombineFn} is not parameterized.
+   * BEAM-3777
+   */
+  @Test
+  public void testRawCombineFnSubclass() {
+    exceptions.expect(IllegalStateException.class);
+    exceptions.expectMessage("parameterized");
+    exceptions.expectMessage("CombineFn");
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    RowType resultType = RowSqlType.builder()
+        .withIntegerField("f_int2")
+        .withIntegerField("squaresum")
+        .build();
+
+    Row row = Row.withRowType(resultType).addValues(0, 354).build();
+
+    String sql1 = "SELECT f_int2, squaresum(f_int) AS `squaresum`"
+        + " FROM PCOLLECTION GROUP BY f_int2";
+    PCollection<Row> result1 =
+        boundedInput1.apply(
+            "testUdaf",
+            BeamSql.query(sql1).registerUdaf("squaresum", new RawCombineFn()));
   }
 
   /**
@@ -137,7 +188,44 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   }
 
   /**
-   * A example UDF for test.
+   * Non-parameterized CombineFn. Intended to test that non-parameterized CombineFns
+   * are correctly rejected. The methods just return null, as they should never be called.
+   */
+  public static class RawCombineFn extends CombineFn {
+
+    @Override
+    public Object createAccumulator() {
+      return null;
+    }
+
+    @Override
+    public Object addInput(Object accumulator, Object input) {
+      return null;
+    }
+
+    @Override
+    public Object mergeAccumulators(Iterable accumulators) {
+      return null;
+    }
+
+    @Override
+    public Object extractOutput(Object accumulator) {
+      return null;
+    }
+  }
+
+  /**
+   * An example UDAF with two levels of descendancy from CombineFn.
+   */
+  public static class SquareSquareSum extends SquareSum {
+    @Override
+    public Integer addInput(Integer accumulator, Integer input) {
+      return super.addInput(accumulator, input * input);
+    }
+  }
+
+  /**
+   * An example UDF for test.
    */
   public static class CubicInteger implements BeamSqlUdf {
     public static Integer eval(Integer input) {
@@ -146,7 +234,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
   }
 
   /**
-   * A example UDF with {@link SerializableFunction}.
+   * An example UDF with {@link SerializableFunction}.
    */
   public static class CubicIntegerFn implements SerializableFunction<Integer, Integer> {
     @Override

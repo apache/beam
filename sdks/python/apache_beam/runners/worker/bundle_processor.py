@@ -631,7 +631,7 @@ def _create_combine_phase_operation(
 @BeamTransformFactory.register_urn(common_urns.FLATTEN_TRANSFORM, None)
 def create(factory, transform_id, transform_proto, unused_parameter, consumers):
   return factory.augment_oldstyle_op(
-      operations.create_operation(
+      operations.FlattenOperation(
           transform_proto.unique_name,
           operation_specs.WorkerFlatten(
               None,
