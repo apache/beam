@@ -43,6 +43,8 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.arithmetic
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array.BeamSqlArrayExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array
     .BeamSqlArrayItemExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.collection
+    .BeamSqlSingleElementExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
     .BeamSqlEqualsExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.comparison
@@ -416,6 +418,10 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
         case "ITEM":
           return new BeamSqlArrayItemExpression(subExps, node.type.getSqlTypeName());
+
+        // collections functions
+        case "ELEMENT":
+          return new BeamSqlSingleElementExpression(subExps, node.type.getSqlTypeName());
 
         //DEFAULT keyword for UDF with optional parameter
         case "DEFAULT":
