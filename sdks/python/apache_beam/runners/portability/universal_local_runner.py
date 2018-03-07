@@ -55,7 +55,11 @@ class UniversalLocalRunner(runner.PipelineRunner):
   the runner and worker(s).
   """
 
-  def __init__(self, use_grpc=True, use_subprocesses=False):
+  def __init__(
+      self,
+      use_grpc=True,
+      use_subprocesses=False,
+      runner_api_address=None):
     if use_subprocesses and not use_grpc:
       raise ValueError("GRPC must be used with subprocesses")
     super(UniversalLocalRunner, self).__init__()
@@ -65,6 +69,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
     self._job_service = None
     self._job_service_lock = threading.Lock()
     self._subprocess = None
+    self._runner_api_address = runner_api_address
 
   def __del__(self):
     # Best effort to not leave any dangling processes around.
@@ -79,7 +84,10 @@ class UniversalLocalRunner(runner.PipelineRunner):
   def _get_job_service(self):
     with self._job_service_lock:
       if not self._job_service:
-        if self._use_subprocesses:
+        if self._runner_api_address:
+          self._job_service = beam_job_api_pb2_grpc.JobServiceStub(
+              grpc.insecure_channel(self._runner_api_address))
+        elif self._use_subprocesses:
           self._job_service = self._start_local_runner_subprocess_job_service()
 
         elif self._use_grpc:
