@@ -105,7 +105,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         // Shutdown remaining clients
       }
     }
-    connectedClient.get().close();
+    if (!connectedClient.isCancelled()) {
+      connectedClient.get().close();
+    }
   }
 
   @Override
