@@ -19,23 +19,22 @@ package org.apache.beam.runners.flink;
 
 import com.google.common.base.Joiner;
 import java.io.File;
-import java.net.URI;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.flink.test.util.JavaProgramTestBase;
+import org.apache.flink.streaming.util.StreamingProgramTestBase;
 
 /**
- * Reads from a bounded source in batch execution.
+ * Reads from a bounded source in streaming.
  */
-public class ReadSourceITCase extends JavaProgramTestBase {
+public class ReadSourceStreamingTest extends StreamingProgramTestBase {
 
+  protected String resultDir;
   protected String resultPath;
 
-  public ReadSourceITCase() {
+  public ReadSourceStreamingTest() {
   }
 
   private static final String[] EXPECTED_RESULT = new String[] {
@@ -43,19 +42,16 @@ public class ReadSourceITCase extends JavaProgramTestBase {
 
   @Override
   protected void preSubmit() throws Exception {
-    resultPath = getTempDirPath("result");
-
-    // need to create the dir, otherwise Beam sinks don't
-    // work for these tests
-
-    if (!new File(new URI(resultPath)).mkdirs()) {
-      throw new RuntimeException("Could not create output dir.");
-    }
+    // Beam Write will add shard suffix to fileName, see ShardNameTemplate.
+    // So tempFile need have a parent to compare.
+    File resultParent = createAndRegisterTempFile("result");
+    resultDir = resultParent.toURI().toString();
+    resultPath = new File(resultParent, "file.txt").getAbsolutePath();
   }
 
   @Override
   protected void postSubmit() throws Exception {
-    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultPath);
+    compareResultsByLinesInMemory(Joiner.on('\n').join(EXPECTED_RESULT), resultDir);
   }
 
   @Override
@@ -63,20 +59,19 @@ public class ReadSourceITCase extends JavaProgramTestBase {
     runProgram(resultPath);
   }
 
-  private static void runProgram(String resultPath) throws Exception {
+  private static void runProgram(String resultPath) {
 
-    Pipeline p = FlinkTestPipeline.createForBatch();
+    Pipeline p = FlinkTestPipeline.createForStreaming();
 
-    PCollection<String> result = p
-        .apply(GenerateSequence.from(0).to(10))
-        .apply(ParDo.of(new DoFn<Long, String>() {
+    p
+      .apply(GenerateSequence.from(0).to(10))
+      .apply(ParDo.of(new DoFn<Long, String>() {
           @ProcessElement
           public void processElement(ProcessContext c) throws Exception {
             c.output(c.element().toString());
           }
-        }));
-
-    result.apply(TextIO.write().to(new URI(resultPath).getPath() + "/part"));
+        }))
+      .apply(TextIO.write().to(resultPath));
 
     p.run();
   }
