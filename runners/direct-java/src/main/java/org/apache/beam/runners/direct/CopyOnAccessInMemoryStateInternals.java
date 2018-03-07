@@ -117,11 +117,6 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
-    return state(namespace, address, StateContexts.nullContext());
-  }
-
-  @Override
   public <T extends State> T state(
       StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
     return table.get(namespace, address, c);
