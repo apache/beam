@@ -27,6 +27,8 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -45,6 +47,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Tests for GROUP-BY/aggregation, with global_window/fix_time_window/sliding_window/session_window
@@ -326,6 +329,65 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PAssert.that(result).containsInAnyOrder(expectedRows);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Tests that a trigger set up prior to a SQL statement still is effective
+   * within the SQL statement.
+   */
+  @Test
+  @Category(UsesTestStream.class)
+  public void testTriggeredTumble() throws Exception {
+    RowType inputRowType =
+        RowSqlType.builder().withIntegerField("f_int").withTimestampField("f_timestamp").build();
+
+    PCollection<Row> input =
+        pipeline.apply(
+            TestStream.create(inputRowType.getRowCoder())
+                .addElements(
+                    Row.withRowType(inputRowType)
+                        .addValues(1, FORMAT.parse("2017-01-01 01:01:01"))
+                        .build(),
+                    Row.withRowType(inputRowType)
+                        .addValues(2, FORMAT.parse("2017-01-01 01:01:01"))
+                        .build())
+                .addElements(
+                    Row.withRowType(inputRowType)
+                        .addValues(3, FORMAT.parse("2017-01-01 01:01:01"))
+                        .build())
+                .addElements(
+                    Row.withRowType(inputRowType)
+                        .addValues(4, FORMAT.parse("2017-01-01 01:01:01"))
+                        .build())
+                .advanceWatermarkToInfinity());
+
+    String sql =
+        "SELECT SUM(f_int) AS f_int_sum FROM PCOLLECTION"
+            + " GROUP BY TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
+
+    RowType outputRowType = RowSqlType.builder().withIntegerField("fn_int_sum").build();
+
+    PCollection<Row> result =
+        input
+            .apply(
+                "Triggering",
+                Window.<Row>configure()
+                    .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                    .withAllowedLateness(Duration.ZERO)
+                    .withOnTimeBehavior(Window.OnTimeBehavior.FIRE_IF_NON_EMPTY)
+                    .accumulatingFiredPanes())
+            .apply("Windowed Query", BeamSql.query(sql));
+
+    PAssert.that(result)
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(outputRowType)
+                .addRows(3) // first bundle 1+2
+                .addRows(6) // next bundle 1+2+3
+                .addRows(10) // next bundle 1+2+3+4)
+                .getRows());
+
+    pipeline.run().waitUntilFinish();
+
   }
 
   /**
