@@ -1,0 +1,7 @@
+apache\_beam\.metrics\.metric module
+====================================
+
+.. automodule:: apache_beam.metrics.metric
+    :members:
+    :undoc-members:
+    :show-inheritance:

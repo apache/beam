@@ -1,0 +1,7 @@
+apache\_beam\.portability\.api\.standard\_window\_fns\_pb2\_grpc module
+=======================================================================
+
+.. automodule:: apache_beam.portability.api.standard_window_fns_pb2_grpc
+    :members:
+    :undoc-members:
+    :show-inheritance:
