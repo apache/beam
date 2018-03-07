@@ -39,7 +39,6 @@ import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
-import org.apache.beam.sdk.state.StateContexts;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine;
@@ -95,14 +94,6 @@ public class FlinkStateInternals<K> implements StateInternals {
     } catch (CoderException e) {
       throw new RuntimeException("Error decoding key.", e);
     }
-  }
-
-  @Override
-  public <T extends State> T state(
-      final StateNamespace namespace,
-      StateTag<T> address) {
-
-    return state(namespace, address, StateContexts.nullContext());
   }
 
   @Override
