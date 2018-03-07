@@ -1,0 +1,462 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.transforms.display module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.transforms package" href="apache_beam.transforms.html"/>
+        <link rel="next" title="apache_beam.transforms.ptransform module" href="apache_beam.transforms.ptransform.html"/>
+        <link rel="prev" title="apache_beam.transforms.core module" href="apache_beam.transforms.core.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.transforms.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.combiners.html">apache_beam.transforms.combiners module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.core.html">apache_beam.transforms.core module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.transforms.display module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.ptransform.html">apache_beam.transforms.ptransform module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.sideinputs.html">apache_beam.transforms.sideinputs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.timeutil.html">apache_beam.transforms.timeutil module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.trigger.html">apache_beam.transforms.trigger module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.util.html">apache_beam.transforms.util module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.transforms.window.html">apache_beam.transforms.window module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.transforms.html">apache_beam.transforms package</a> &raquo;</li>
+        
+      <li>apache_beam.transforms.display module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.transforms.display.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.transforms.display">
+<span id="apache-beam-transforms-display-module"></span><h1>apache_beam.transforms.display module<a class="headerlink" href="#module-apache_beam.transforms.display" title="Permalink to this headline">¶</a></h1>
+<p><a class="reference internal" href="#apache_beam.transforms.display.DisplayData" title="apache_beam.transforms.display.DisplayData"><code class="xref py py-class docutils literal"><span class="pre">DisplayData</span></code></a>, its classes, interfaces and methods.</p>
+<p>The classes in this module allow users and transform developers to define
+static display data to be displayed when a pipeline runs.
+<a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">PTransform</span></code></a> s,
+<a class="reference internal" href="apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">DoFn</span></code></a> s
+and other pipeline components are subclasses of the <a class="reference internal" href="#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">HasDisplayData</span></code></a>
+mixin. To add static display data to a component, you can override the
+<a class="reference internal" href="#apache_beam.transforms.display.HasDisplayData.display_data" title="apache_beam.transforms.display.HasDisplayData.display_data"><code class="xref py py-meth docutils literal"><span class="pre">HasDisplayData.display_data()</span></code></a> method.</p>
+<p>Available classes:</p>
+<ul class="simple">
+<li><a class="reference internal" href="#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">HasDisplayData</span></code></a> - Components that inherit from this class can have
+static display data shown in the UI.</li>
+<li><a class="reference internal" href="#apache_beam.transforms.display.DisplayDataItem" title="apache_beam.transforms.display.DisplayDataItem"><code class="xref py py-class docutils literal"><span class="pre">DisplayDataItem</span></code></a> - This class represents static display data
+elements.</li>
+<li><a class="reference internal" href="#apache_beam.transforms.display.DisplayData" title="apache_beam.transforms.display.DisplayData"><code class="xref py py-class docutils literal"><span class="pre">DisplayData</span></code></a> - Internal class that is used to create display data
+and communicate it to the API.</li>
+</ul>
+<dl class="class">
+<dt id="apache_beam.transforms.display.HasDisplayData">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.display.</code><code class="descname">HasDisplayData</code><a class="reference internal" href="_modules/apache_beam/transforms/display.html#HasDisplayData"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.HasDisplayData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Basic mixin for elements that contain display data.</p>
+<p>It implements only the display_data method and a _namespace method.</p>
+<dl class="method">
+<dt id="apache_beam.transforms.display.HasDisplayData.display_data">
+<code class="descname">display_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#HasDisplayData.display_data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.HasDisplayData.display_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the display data associated to a pipeline component.</p>
+<p>It should be reimplemented in pipeline components that wish to have
+static display data.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A dictionary containing <code class="docutils literal"><span class="pre">key:value</span></code> pairs.
+The value might be an integer, float or string value; a
+<a class="reference internal" href="#apache_beam.transforms.display.DisplayDataItem" title="apache_beam.transforms.display.DisplayDataItem"><code class="xref py py-class docutils literal"><span class="pre">DisplayDataItem</span></code></a> for values that have more data
+(e.g. short value, label, url); or a <a class="reference internal" href="#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">HasDisplayData</span></code></a> instance
+that has more display data that should be picked up. For example:<div class="highlight-default"><div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s1">&#39;key1&#39;</span><span class="p">:</span> <span class="s1">&#39;string_value&#39;</span><span class="p">,</span>
+  <span class="s1">&#39;key2&#39;</span><span class="p">:</span> <span class="mi">1234</span><span class="p">,</span>
+  <span class="s1">&#39;key3&#39;</span><span class="p">:</span> <span class="mf">3.14159265</span><span class="p">,</span>
+  <span class="s1">&#39;key4&#39;</span><span class="p">:</span> <span class="n">DisplayDataItem</span><span class="p">(</span><span class="s1">&#39;apache.org&#39;</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="s1">&#39;http://apache.org&#39;</span><span class="p">),</span>
+  <span class="s1">&#39;key5&#39;</span><span class="p">:</span> <span class="n">subComponent</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">Dict[<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)">str</a>, Any]</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.display.DisplayData">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.display.</code><code class="descname">DisplayData</code><span class="sig-paren">(</span><em>namespace</em>, <em>display_data_dict</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#DisplayData"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.DisplayData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Static display data associated with a pipeline component.</p>
+<dl class="classmethod">
+<dt id="apache_beam.transforms.display.DisplayData.create_from_options">
+<em class="property">classmethod </em><code class="descname">create_from_options</code><span class="sig-paren">(</span><em>pipeline_options</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#DisplayData.create_from_options"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.DisplayData.create_from_options" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates <a class="reference internal" href="#apache_beam.transforms.display.DisplayData" title="apache_beam.transforms.display.DisplayData"><code class="xref py py-class docutils literal"><span class="pre">DisplayData</span></code></a> from a
+<a class="reference internal" href="apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions" title="apache_beam.options.pipeline_options.PipelineOptions"><code class="xref py py-class docutils literal"><span class="pre">PipelineOptions</span></code></a> instance.</p>
+<p>When creating <a class="reference internal" href="#apache_beam.transforms.display.DisplayData" title="apache_beam.transforms.display.DisplayData"><code class="xref py py-class docutils literal"><span class="pre">DisplayData</span></code></a>, this method will convert the value of
+any item of a non-supported type to its string representation.
+The normal <a class="reference internal" href="#apache_beam.transforms.display.DisplayData.create_from" title="apache_beam.transforms.display.DisplayData.create_from"><code class="xref py py-meth docutils literal"><span class="pre">create_from()</span></code></a> method rejects those items.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A <a class="reference internal" href="#apache_beam.transforms.display.DisplayData" title="apache_beam.transforms.display.DisplayData"><code class="xref py py-class docutils literal"><span class="pre">DisplayData</span></code></a> instance with populated items.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#apache_beam.transforms.display.DisplayData" title="apache_beam.transforms.display.DisplayData">DisplayData</a></td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – If the <strong>has_display_data</strong> argument is
+not an instance of <a class="reference internal" href="#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">HasDisplayData</span></code></a>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="apache_beam.transforms.display.DisplayData.create_from">
+<em class="property">classmethod </em><code class="descname">create_from</code><span class="sig-paren">(</span><em>has_display_data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#DisplayData.create_from"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.DisplayData.create_from" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates <a class="reference internal" href="#apache_beam.transforms.display.DisplayData" title="apache_beam.transforms.display.DisplayData"><code class="xref py py-class docutils literal"><span class="pre">DisplayData</span></code></a> from a <a class="reference internal" href="#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">HasDisplayData</span></code></a> instance.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A <a class="reference internal" href="#apache_beam.transforms.display.DisplayData" title="apache_beam.transforms.display.DisplayData"><code class="xref py py-class docutils literal"><span class="pre">DisplayData</span></code></a> instance with populated items.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#apache_beam.transforms.display.DisplayData" title="apache_beam.transforms.display.DisplayData">DisplayData</a></td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – If the <strong>has_display_data</strong> argument is
+not an instance of <a class="reference internal" href="#apache_beam.transforms.display.HasDisplayData" title="apache_beam.transforms.display.HasDisplayData"><code class="xref py py-class docutils literal"><span class="pre">HasDisplayData</span></code></a>.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.transforms.display.DisplayDataItem">
+<em class="property">class </em><code class="descclassname">apache_beam.transforms.display.</code><code class="descname">DisplayDataItem</code><span class="sig-paren">(</span><em>value</em>, <em>url=None</em>, <em>label=None</em>, <em>namespace=None</em>, <em>key=None</em>, <em>shortValue=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#DisplayDataItem"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.DisplayDataItem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A DisplayDataItem represents a unit of static display data.</p>
+<p>Each item is identified by a key and the namespace of the component the
+display item belongs to.</p>
+<dl class="attribute">
+<dt id="apache_beam.transforms.display.DisplayDataItem.typeDict">
+<code class="descname">typeDict</code><em class="property"> = {&lt;type 'float'&gt;: 'FLOAT', &lt;type 'str'&gt;: 'STRING', &lt;type 'bool'&gt;: 'BOOLEAN', &lt;type 'datetime.datetime'&gt;: 'TIMESTAMP', &lt;type 'int'&gt;: 'INTEGER', &lt;type 'unicode'&gt;: 'STRING', &lt;type 'datetime.timedelta'&gt;: 'DURATION'}</em><a class="headerlink" href="#apache_beam.transforms.display.DisplayDataItem.typeDict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.display.DisplayDataItem.drop_if_none">
+<code class="descname">drop_if_none</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#DisplayDataItem.drop_if_none"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.DisplayDataItem.drop_if_none" title="Permalink to this definition">¶</a></dt>
+<dd><p>The item should be dropped if its value is None.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Returns self.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.display.DisplayDataItem.drop_if_default">
+<code class="descname">drop_if_default</code><span class="sig-paren">(</span><em>default</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#DisplayDataItem.drop_if_default"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.DisplayDataItem.drop_if_default" title="Permalink to this definition">¶</a></dt>
+<dd><p>The item should be dropped if its value is equal to its default.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Returns self.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.display.DisplayDataItem.should_drop">
+<code class="descname">should_drop</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#DisplayDataItem.should_drop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.DisplayDataItem.should_drop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if the item should be dropped, or False if it should not
+be dropped. This depends on the drop_if_none, and drop_if_default calls.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">True or False; depending on whether the item should be dropped or kept.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.display.DisplayDataItem.is_valid">
+<code class="descname">is_valid</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#DisplayDataItem.is_valid"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.DisplayDataItem.is_valid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks that all the necessary fields of the <a class="reference internal" href="#apache_beam.transforms.display.DisplayDataItem" title="apache_beam.transforms.display.DisplayDataItem"><code class="xref py py-class docutils literal"><span class="pre">DisplayDataItem</span></code></a>
+are filled in. It checks that neither key, namespace, value or type are
+<a class="reference external" href="https://docs.python.org/2/library/constants.html#None" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">None</span></code></a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – If the item does not have a key, namespace,
+value or type.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.transforms.display.DisplayDataItem.get_dict">
+<code class="descname">get_dict</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/transforms/display.html#DisplayDataItem.get_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.transforms.display.DisplayDataItem.get_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the internal-API dictionary representing the
+<a class="reference internal" href="#apache_beam.transforms.display.DisplayDataItem" title="apache_beam.transforms.display.DisplayDataItem"><code class="xref py py-class docutils literal"><span class="pre">DisplayDataItem</span></code></a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A dictionary. The internal-API dictionary representing
+the <a class="reference internal" href="#apache_beam.transforms.display.DisplayDataItem" title="apache_beam.transforms.display.DisplayDataItem"><code class="xref py py-class docutils literal"><span class="pre">DisplayDataItem</span></code></a>.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body">Dict[<a class="reference external" href="https://docs.python.org/2/library/functions.html#str" title="(in Python v2.7)">str</a>, Any]</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.ValueError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code></a> – if the item is not valid.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.transforms.ptransform.html" class="btn btn-neutral float-right" title="apache_beam.transforms.ptransform module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.transforms.core.html" class="btn btn-neutral" title="apache_beam.transforms.core module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

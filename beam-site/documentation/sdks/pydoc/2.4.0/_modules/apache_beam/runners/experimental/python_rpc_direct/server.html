@@ -1,0 +1,345 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.experimental.python_rpc_direct.server &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../../../index.html"/>
+        <link rel="up" title="Module code" href="../../../../index.html"/> 
+
+  
+  <script src="../../../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.runners.experimental.python_rpc_direct.server</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.runners.experimental.python_rpc_direct.server</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;A runner implementation that submits a job for remote execution.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">from</span> <span class="nn">concurrent</span> <span class="k">import</span> <span class="n">futures</span>
+
+<span class="kn">import</span> <span class="nn">grpc</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="k">import</span> <span class="n">PipelineOptions</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pipeline</span> <span class="k">import</span> <span class="n">Pipeline</span>
+<span class="kn">from</span> <span class="nn">apache_beam.portability.api</span> <span class="k">import</span> <span class="n">beam_job_api_pb2</span>
+<span class="kn">from</span> <span class="nn">apache_beam.portability.api</span> <span class="k">import</span> <span class="n">beam_job_api_pb2_grpc</span>
+<span class="kn">from</span> <span class="nn">apache_beam.runners.runner</span> <span class="k">import</span> <span class="n">PipelineState</span>
+
+<span class="n">_ONE_DAY_IN_SECONDS</span> <span class="o">=</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">*</span> <span class="mi">24</span>
+
+
+<div class="viewcode-block" id="JobService"><a class="viewcode-back" href="../../../../../apache_beam.runners.experimental.python_rpc_direct.server.html#apache_beam.runners.experimental.python_rpc_direct.server.JobService">[docs]</a><span class="k">class</span> <span class="nc">JobService</span><span class="p">(</span><span class="n">beam_job_api_pb2_grpc</span><span class="o">.</span><span class="n">JobServiceServicer</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span> <span class="o">=</span> <span class="p">{}</span>
+
+<div class="viewcode-block" id="JobService.run"><a class="viewcode-back" href="../../../../../apache_beam.runners.experimental.python_rpc_direct.server.html#apache_beam.runners.experimental.python_rpc_direct.server.JobService.run">[docs]</a>  <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">job_id</span> <span class="o">=</span> <span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">get_hex</span><span class="p">()</span>
+    <span class="n">pipeline_result</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="n">from_runner_api</span><span class="p">(</span>
+        <span class="n">request</span><span class="o">.</span><span class="n">pipeline</span><span class="p">,</span>
+        <span class="s1">&#39;DirectRunner&#39;</span><span class="p">,</span>
+        <span class="n">PipelineOptions</span><span class="p">())</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">job_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">pipeline_result</span>
+    <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">SubmitJobResponse</span><span class="p">(</span><span class="n">jobId</span><span class="o">=</span><span class="n">job_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="JobService.getState"><a class="viewcode-back" href="../../../../../apache_beam.runners.experimental.python_rpc_direct.server.html#apache_beam.runners.experimental.python_rpc_direct.server.JobService.getState">[docs]</a>  <span class="k">def</span> <span class="nf">getState</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">pipeline_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">request</span><span class="o">.</span><span class="n">jobId</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">GetJobStateResponse</span><span class="p">(</span>
+        <span class="n">state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_map_state_to_jobState</span><span class="p">(</span><span class="n">pipeline_result</span><span class="o">.</span><span class="n">state</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="JobService.cancel"><a class="viewcode-back" href="../../../../../apache_beam.runners.experimental.python_rpc_direct.server.html#apache_beam.runners.experimental.python_rpc_direct.server.JobService.cancel">[docs]</a>  <span class="k">def</span> <span class="nf">cancel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">pipeline_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">request</span><span class="o">.</span><span class="n">jobId</span><span class="p">]</span>
+    <span class="n">pipeline_result</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">CancelJobResponse</span><span class="p">(</span>
+        <span class="n">state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_map_state_to_jobState</span><span class="p">(</span><span class="n">pipeline_result</span><span class="o">.</span><span class="n">state</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="JobService.getMessageStream"><a class="viewcode-back" href="../../../../../apache_beam.runners.experimental.python_rpc_direct.server.html#apache_beam.runners.experimental.python_rpc_direct.server.JobService.getMessageStream">[docs]</a>  <span class="k">def</span> <span class="nf">getMessageStream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">pipeline_result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">jobs</span><span class="p">[</span><span class="n">request</span><span class="o">.</span><span class="n">jobId</span><span class="p">]</span>
+    <span class="n">pipeline_result</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+    <span class="k">yield</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobMessagesResponse</span><span class="p">(</span>
+        <span class="n">stateResponse</span><span class="o">=</span><span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">GetJobStateResponse</span><span class="p">(</span>
+            <span class="n">state</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_map_state_to_jobState</span><span class="p">(</span><span class="n">pipeline_result</span><span class="o">.</span><span class="n">state</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="JobService.getStateStream"><a class="viewcode-back" href="../../../../../apache_beam.runners.experimental.python_rpc_direct.server.html#apache_beam.runners.experimental.python_rpc_direct.server.JobService.getStateStream">[docs]</a>  <span class="k">def</span> <span class="nf">getStateStream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_details</span><span class="p">(</span><span class="s1">&#39;Not Implemented for direct runner!&#39;</span><span class="p">)</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_code</span><span class="p">(</span><span class="n">grpc</span><span class="o">.</span><span class="n">StatusCode</span><span class="o">.</span><span class="n">UNIMPLEMENTED</span><span class="p">)</span>
+    <span class="k">return</span></div>
+
+  <span class="nd">@staticmethod</span>
+  <span class="k">def</span> <span class="nf">_map_state_to_jobState</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">UNKNOWN</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobState</span><span class="o">.</span><span class="n">UNSPECIFIED</span>
+    <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">STOPPED</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobState</span><span class="o">.</span><span class="n">STOPPED</span>
+    <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">RUNNING</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobState</span><span class="o">.</span><span class="n">RUNNING</span>
+    <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DONE</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobState</span><span class="o">.</span><span class="n">DONE</span>
+    <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">FAILED</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobState</span><span class="o">.</span><span class="n">FAILED</span>
+    <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">CANCELLED</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobState</span><span class="o">.</span><span class="n">CANCELLED</span>
+    <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">UPDATED</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobState</span><span class="o">.</span><span class="n">UPDATED</span>
+    <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DRAINING</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobState</span><span class="o">.</span><span class="n">DRAINING</span>
+    <span class="k">elif</span> <span class="n">state</span> <span class="o">==</span> <span class="n">PipelineState</span><span class="o">.</span><span class="n">DRAINED</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">beam_job_api_pb2</span><span class="o">.</span><span class="n">JobState</span><span class="o">.</span><span class="n">DRAINED</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Unknown pipeline state&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="serve"><a class="viewcode-back" href="../../../../../apache_beam.runners.experimental.python_rpc_direct.server.html#apache_beam.runners.experimental.python_rpc_direct.server.serve">[docs]</a><span class="k">def</span> <span class="nf">serve</span><span class="p">():</span>
+  <span class="n">server</span> <span class="o">=</span> <span class="n">grpc</span><span class="o">.</span><span class="n">server</span><span class="p">(</span><span class="n">futures</span><span class="o">.</span><span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">10</span><span class="p">))</span>
+  <span class="n">beam_job_api_pb2_grpc</span><span class="o">.</span><span class="n">add_JobServiceServicer_to_server</span><span class="p">(</span><span class="n">JobService</span><span class="p">(),</span> <span class="n">server</span><span class="p">)</span>
+
+  <span class="n">server</span><span class="o">.</span><span class="n">add_insecure_port</span><span class="p">(</span><span class="s1">&#39;[::]:50051&#39;</span><span class="p">)</span>
+  <span class="n">server</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+
+  <span class="k">try</span><span class="p">:</span>
+    <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+      <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="n">_ONE_DAY_IN_SECONDS</span><span class="p">)</span>
+  <span class="k">except</span> <span class="ne">KeyboardInterrupt</span><span class="p">:</span>
+    <span class="n">server</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+  <span class="n">serve</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

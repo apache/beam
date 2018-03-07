@@ -1,0 +1,37 @@
+apache\_beam\.io package
+========================
+
+.. automodule:: apache_beam.io
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.io.gcp
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.io.avroio
+   apache_beam.io.concat_source
+   apache_beam.io.filebasedsink
+   apache_beam.io.filebasedsource
+   apache_beam.io.filesystem
+   apache_beam.io.filesystemio
+   apache_beam.io.filesystems
+   apache_beam.io.hadoopfilesystem
+   apache_beam.io.iobase
+   apache_beam.io.localfilesystem
+   apache_beam.io.range_trackers
+   apache_beam.io.restriction_trackers
+   apache_beam.io.source_test_utils
+   apache_beam.io.textio
+   apache_beam.io.tfrecordio
+   apache_beam.io.vcfio
+
