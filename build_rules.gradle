@@ -57,6 +57,9 @@ repositories {
   mavenCentral()
   jcenter()
 
+  // Spring for resolving pentaho dependency.
+  maven { url "https://repo.spring.io/plugins-release/" }
+
   // Release staging repository
   maven { url "https://oss.sonatype.org/content/repositories/staging/" }
 
