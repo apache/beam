@@ -32,6 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
+import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -252,27 +253,13 @@ public class SdkHarnessClient implements AutoCloseable {
   public void close() {}
 
   /**
-   * A pair of {@link Coder} and {@link BeamFnApi.Target} which can be handled by the remote SDK
-   * harness to receive elements sent from the runner.
-   */
-  @AutoValue
-  public abstract static class RemoteInputDestination<T> {
-    public static <T> RemoteInputDestination<T> of(Coder<T> coder, BeamFnApi.Target target) {
-      return new AutoValue_SdkHarnessClient_RemoteInputDestination(coder, target);
-    }
-
-    public abstract Coder<T> getCoder();
-    public abstract BeamFnApi.Target getTarget();
-  }
-
-  /**
    * A pair of {@link Coder} and {@link FnDataReceiver} which can be registered to receive elements
    * for a {@link LogicalEndpoint}.
    */
   @AutoValue
   public abstract static class RemoteOutputReceiver<T> {
     public static <T> RemoteOutputReceiver of (Coder<T> coder, FnDataReceiver<T> receiver) {
-      return new AutoValue_SdkHarnessClient_RemoteOutputReceiver(coder, receiver);
+      return new AutoValue_SdkHarnessClient_RemoteOutputReceiver<>(coder, receiver);
     }
 
     public abstract Coder<T> getCoder();
