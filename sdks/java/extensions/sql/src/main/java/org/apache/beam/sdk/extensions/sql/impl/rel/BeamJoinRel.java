@@ -232,7 +232,8 @@ public class BeamJoinRel extends Join implements BeamRelNode {
   private void verifySupportedTrigger(PCollection<Row> pCollection) {
     WindowingStrategy windowingStrategy = pCollection.getWindowingStrategy();
 
-    if (UNBOUNDED.equals(pCollection.isBounded()) && !triggersOncePerWindow(windowingStrategy)) {
+    if (UNBOUNDED.equals(pCollection.isBounded()) && !triggersOncePerWindow(windowingStrategy)
+        && !sqlEnv.getCustTriggerPolicy().customized()) {
       throw new UnsupportedOperationException(
           "Joining unbounded PCollections is currently only supported for "
               + "non-global windows with triggers that are known to produce output once per window,"

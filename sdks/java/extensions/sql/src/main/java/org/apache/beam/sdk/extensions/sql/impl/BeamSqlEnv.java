@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -34,11 +35,14 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.linq4j.Enumerable;
@@ -53,6 +57,7 @@ import org.apache.calcite.schema.impl.ScalarFunctionImpl;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.Frameworks;
+import org.joda.time.Duration;
 
 /**
  * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
@@ -65,10 +70,16 @@ public class BeamSqlEnv implements Serializable {
   transient BeamQueryPlanner planner;
   transient Map<String, BeamSqlTable> tables;
 
+  //parameters for customized Trigger/AccumulationMode
+  transient TriggerPolicy custTriggerPolicy;
+
   public BeamSqlEnv() {
     tables = new HashMap<>(16);
     schema = Frameworks.createRootSchema(true);
     planner = new BeamQueryPlanner(this, schema);
+    custTriggerPolicy = TriggerPolicy.of(
+        false, DefaultTrigger.of(), AccumulationMode.ACCUMULATING_FIRED_PANES
+        , Duration.ZERO);
   }
 
   /**
@@ -160,6 +171,19 @@ public class BeamSqlEnv implements Serializable {
     return planner.getSourceTables().get(tableName);
   }
 
+  /**
+   * Set customized Trigger policy.
+   */
+  public void withCustTriggerPolicy(boolean isCustomized, Trigger trigger,
+      AccumulationMode accumulationMode, Duration allowedLatency){
+    this.custTriggerPolicy = TriggerPolicy.of(
+        isCustomized, trigger, accumulationMode, allowedLatency);
+  }
+
+  public TriggerPolicy getCustTriggerPolicy() {
+    return custTriggerPolicy;
+  }
+
   private static class BeamCalciteTable implements ScannableTable, Serializable {
     private RowType beamRowType;
 
@@ -216,5 +240,22 @@ public class BeamSqlEnv implements Serializable {
     tables = new HashMap<String, BeamSqlTable>(16);
     schema = Frameworks.createRootSchema(true);
     planner = new BeamQueryPlanner(this, schema);
+  }
+
+  /**
+   * An object to hold customized Trigger information.
+   */
+  @AutoValue
+  public abstract static class TriggerPolicy {
+    public abstract boolean customized();
+    public abstract Trigger trigger();
+    public abstract AccumulationMode accumulationMode();
+    public abstract Duration allowedLatency();
+
+    static TriggerPolicy of(boolean isCustomized, Trigger trigger,
+        AccumulationMode accumulationMode, Duration allowedLatency) {
+      return new AutoValue_BeamSqlEnv_TriggerPolicy(isCustomized, trigger,
+          accumulationMode, allowedLatency);
+    }
   }
 }

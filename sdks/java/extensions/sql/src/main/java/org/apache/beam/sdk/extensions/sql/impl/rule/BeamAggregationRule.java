@@ -19,11 +19,11 @@ package org.apache.beam.sdk.extensions.sql.impl.rule;
 
 import java.util.List;
 import java.util.Optional;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamAggregationRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
-import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.core.Aggregate;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.RelFactories;
@@ -37,21 +37,23 @@ import org.apache.calcite.util.ImmutableBitSet;
  *
  */
 public class BeamAggregationRule extends RelOptRule {
-  public static final BeamAggregationRule INSTANCE =
-      new BeamAggregationRule(Aggregate.class, Project.class, RelFactories.LOGICAL_BUILDER);
+  private final BeamSqlEnv sqlEnv;
+
+  public static BeamAggregationRule forSqlEnv(BeamSqlEnv sqlEnv) {
+    return new BeamAggregationRule(Aggregate.class, Project.class, RelFactories.LOGICAL_BUILDER,
+        sqlEnv);
+  }
 
   public BeamAggregationRule(
       Class<? extends Aggregate> aggregateClass,
       Class<? extends Project> projectClass,
-      RelBuilderFactory relBuilderFactory) {
+      RelBuilderFactory relBuilderFactory,
+      BeamSqlEnv sqlEnv) {
     super(
         operand(aggregateClass,
             operand(projectClass, any())),
         relBuilderFactory, null);
-  }
-
-  public BeamAggregationRule(RelOptRuleOperand operand, String description) {
-    super(operand, description);
+    this.sqlEnv = sqlEnv;
   }
 
   @Override
@@ -85,7 +87,8 @@ public class BeamAggregationRule extends RelOptRule {
         aggregate.getGroupSet(),
         aggregate.getGroupSets(),
         aggregate.getAggCallList(),
-        windowField);
+        windowField,
+        sqlEnv);
     call.transformTo(newAggregator);
   }
 

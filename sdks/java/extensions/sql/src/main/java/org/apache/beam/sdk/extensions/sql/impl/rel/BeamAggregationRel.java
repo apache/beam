@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.TriggerPolicy;
 import org.apache.beam.sdk.extensions.sql.impl.rule.AggregateWindowField;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -60,6 +62,7 @@ import org.joda.time.Duration;
 public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   private final int windowFieldIndex;
   private Optional<AggregateWindowField> windowField;
+  private BeamSqlEnv sqlEnv;
 
   public BeamAggregationRel(
       RelOptCluster cluster,
@@ -69,11 +72,13 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets,
       List<AggregateCall> aggCalls,
-      Optional<AggregateWindowField> windowField) {
+      Optional<AggregateWindowField> windowField,
+      BeamSqlEnv sqlEnv) {
 
     super(cluster, traits, child, indicator, groupSet, groupSets, aggCalls);
     this.windowField = windowField;
     this.windowFieldIndex = windowField.map(AggregateWindowField::fieldIndex).orElse(-1);
+    this.sqlEnv = sqlEnv;
   }
 
   @Override
@@ -99,7 +104,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     PCollection<Row> windowedStream =
         windowField.isPresent()
-            ? upstream.apply(stageName + "window", Window.into(windowField.get().windowFn()))
+            ? upstream.apply(stageName + "window", prepWindowStrategy())
             : upstream;
 
     validateWindowIsSupported(windowedStream);
@@ -134,6 +139,29 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     return mergedStream;
   }
+
+
+    /**
+     * Get window settings, the default behavior is updated if {@link TriggerPolicy} is set.
+     */
+  private Window<Row> prepWindowStrategy() {
+    Window<Row> windowStrategy = Window.into(windowField.get().windowFn());
+
+    TriggerPolicy policy = sqlEnv.getCustTriggerPolicy();
+    windowStrategy = windowStrategy.triggering(policy.trigger());
+    switch (policy.accumulationMode()) {
+    case ACCUMULATING_FIRED_PANES:
+      windowStrategy = windowStrategy.accumulatingFiredPanes();
+      break;
+    case DISCARDING_FIRED_PANES:
+      windowStrategy = windowStrategy.discardingFiredPanes();
+      break;
+    default:
+      break;
+    }
+
+    return windowStrategy.withAllowedLateness(policy.allowedLatency());
+    }
 
 
   /**
@@ -200,7 +228,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
       , ImmutableBitSet groupSet,
       List<ImmutableBitSet> groupSets, List<AggregateCall> aggCalls) {
     return new BeamAggregationRel(getCluster(), traitSet, input, indicator
-        , groupSet, groupSets, aggCalls, windowField);
+        , groupSet, groupSets, aggCalls, windowField, sqlEnv);
   }
 
   public RelWriter explainTerms(RelWriter pw) {

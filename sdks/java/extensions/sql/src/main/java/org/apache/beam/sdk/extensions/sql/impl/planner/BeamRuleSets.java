@@ -47,7 +47,7 @@ public class BeamRuleSets {
           BeamProjectRule.INSTANCE,
           BeamFilterRule.INSTANCE,
           BeamIOSinkRule.forSqlEnv(sqlEnv),
-          BeamAggregationRule.INSTANCE,
+          BeamAggregationRule.forSqlEnv(sqlEnv),
           BeamSortRule.INSTANCE,
           BeamValuesRule.INSTANCE,
           BeamIntersectRule.INSTANCE,
