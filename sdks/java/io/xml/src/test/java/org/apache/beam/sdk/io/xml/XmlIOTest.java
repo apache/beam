@@ -23,9 +23,13 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import com.google.common.collect.Lists;
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -203,5 +207,69 @@ public class XmlIOTest {
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("rootElement", "bird"));
     assertThat(displayData, hasDisplayItem("recordClass", Integer.class));
+  }
+
+  /**
+   * Test JAXB annotated class.
+   */
+  @SuppressWarnings("unused")
+  @XmlRootElement(name = "bird")
+  @XmlType(propOrder = { "name", "adjective" })
+  private static final class Bird implements Serializable {
+    private String name;
+    private String adjective;
+
+    @XmlElement(name = "species")
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getAdjective() {
+      return adjective;
+    }
+
+    public void setAdjective(String adjective) {
+      this.adjective = adjective;
+    }
+
+    public Bird() {}
+
+    public Bird(String adjective, String name) {
+      this.adjective = adjective;
+      this.name = name;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      Bird bird = (Bird) o;
+
+      if (!name.equals(bird.name)) {
+        return false;
+      }
+      return adjective.equals(bird.adjective);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = name.hashCode();
+      result = 31 * result + adjective.hashCode();
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return String.format("Bird: %s, %s", name, adjective);
+    }
   }
 }

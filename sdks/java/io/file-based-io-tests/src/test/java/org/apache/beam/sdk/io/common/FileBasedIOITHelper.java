@@ -15,13 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.common;
 
-import static org.apache.beam.sdk.io.common.IOTestHelper.getHashForRecordCount;
-
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -44,6 +50,10 @@ public class FileBasedIOITHelper {
     return PipelineOptionsValidator.validate(IOTestPipelineOptions.class, options);
   }
 
+  public static String appendTimestampSuffix(String text) {
+    return String.format("%s_%s", text, new Date().getTime());
+  }
+
   public static String getExpectedHashForLineCount(int lineCount) {
     Map<Integer, String> expectedHashes = ImmutableMap.of(
         100_000, "4c8bb3b99dcc59459b20fefba400d446",
@@ -52,6 +62,16 @@ public class FileBasedIOITHelper {
     );
 
     return getHashForRecordCount(lineCount, expectedHashes);
+  }
+
+  public static String getHashForRecordCount(int recordCount, Map<Integer, String> hashes) {
+    String hash = hashes.get(recordCount);
+    if (hash == null) {
+      throw new UnsupportedOperationException(
+        String.format("No hash for that record count: %s", recordCount)
+      );
+    }
+    return hash;
   }
 
   /**
@@ -65,4 +85,22 @@ public class FileBasedIOITHelper {
     }
   }
 
+  /**
+   * Deletes matching files using the FileSystems API.
+   */
+  public static class DeleteFileFn extends DoFn<String, Void> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws IOException {
+      MatchResult match = Iterables
+          .getOnlyElement(FileSystems.match(Collections.singletonList(c.element())));
+
+      Set<ResourceId> resourceIds = new HashSet<>();
+      for (MatchResult.Metadata metadataElem : match.metadata()) {
+        resourceIds.add(metadataElem.resourceId());
+      }
+
+      FileSystems.delete(resourceIds);
+    }
+  }
 }

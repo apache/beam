@@ -17,22 +17,25 @@
  */
 package org.apache.beam.sdk.io.xml;
 
-import static org.apache.beam.sdk.io.common.IOTestHelper.appendTimestampSuffix;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getHashForRecordCount;
 
 import com.google.common.collect.ImmutableMap;
+import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.Map;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.XmlType;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
-import org.apache.beam.sdk.io.common.DeleteFileFn;
+import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
-import org.apache.beam.sdk.io.common.IOTestHelper;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -51,7 +54,7 @@ import org.junit.runners.JUnit4;
  *
  * <p>Run those tests using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/xml
+ *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
  *  -Dit.test=org.apache.beam.sdk.io.xml.XmlIOIT
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
@@ -79,9 +82,6 @@ public class XmlIOIT {
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
 
-  @Rule
-  public TestPipeline readPipeline = TestPipeline.create();
-
   @BeforeClass
   public static void setup() {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
@@ -95,11 +95,11 @@ public class XmlIOIT {
   }
 
   @Test
-  public void writeThenReadViaSinkAndReadFiles() {
+  public void writeThenReadAll() {
     PCollection<String> testFileNames = pipeline
       .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
-      .apply("Create Birds", MapElements.via(new LongToBird()))
-      .apply("Write birds to xml files", FileIO.<Bird>write()
+      .apply("Create xml records", MapElements.via(new LongToBird()))
+      .apply("Write xml files", FileIO.<Bird>write()
           .via(XmlIO.sink(Bird.class)
             .withRootElement("birds")
             .withCharset(charset))
@@ -119,52 +119,16 @@ public class XmlIOIT {
         .withCharset(charset));
 
     PCollection<String> consolidatedHashcode = birds
-      .apply("Map birds to strings", MapElements.via(new BirdToString()))
+      .apply("Map xml records to strings", MapElements.via(new BirdToString()))
       .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = IOTestHelper.getHashForRecordCount(numberOfRecords, EXPECTED_HASHES);
+    String expectedHash = getHashForRecordCount(numberOfRecords, EXPECTED_HASHES);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFileNames.apply("Delete test files", ParDo.of(new DeleteFileFn())
+    testFileNames.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
         .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void writeThenReadViaWriteAndRead() {
-    String filenamePattern = filenamePrefix + "*";
-
-    pipeline
-      .apply("Generate sequence", GenerateSequence.from(0).to(numberOfRecords))
-      .apply("Create Birds", MapElements.via(new LongToBird()))
-      .apply("Write birds to xml files", XmlIO.<Bird>write()
-          .to(filenamePrefix)
-          .withRecordClass(Bird.class)
-          .withRootElement("birds")
-          .withCharset(charset));
-
-    pipeline.run().waitUntilFinish();
-
-    PCollection<String> consolidatedHashcode = readPipeline
-      .apply(XmlIO.<Bird>read()
-        .from(filenamePattern)
-        .withRecordClass(Bird.class)
-        .withRootElement("birds")
-        .withRecordElement("bird")
-        .withCharset(charset))
-      .apply("Map birds to strings", MapElements.via(new BirdToString()))
-      .apply("Calculate hashcode", Combine.globally(new HashingFn()));
-
-    String expectedHash = IOTestHelper.getHashForRecordCount(numberOfRecords, EXPECTED_HASHES);
-    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
-
-    readPipeline
-      .apply("Get file names to delete", Create.of(filenamePattern))
-      .apply("Delete test files", ParDo.of(new DeleteFileFn())
-          .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
-
-    readPipeline.run().waitUntilFinish();
   }
 
   private static class LongToBird extends SimpleFunction<Long, Bird> {
@@ -174,10 +138,71 @@ public class XmlIOIT {
     }
   }
 
-  private static class BirdToString extends SimpleFunction<Bird, String>{
+  private static class BirdToString extends SimpleFunction<Bird, String> {
     @Override
     public String apply(Bird input) {
       return input.toString();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @XmlRootElement(name = "bird")
+  @XmlType(propOrder = { "name", "adjective" })
+  private static final class Bird implements Serializable {
+    private String name;
+    private String adjective;
+
+    @XmlElement(name = "species")
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getAdjective() {
+      return adjective;
+    }
+
+    public void setAdjective(String adjective) {
+      this.adjective = adjective;
+    }
+
+    public Bird() {}
+
+    public Bird(String adjective, String name) {
+      this.adjective = adjective;
+      this.name = name;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      Bird bird = (Bird) o;
+
+      if (!name.equals(bird.name)) {
+        return false;
+      }
+      return adjective.equals(bird.adjective);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = name.hashCode();
+      result = 31 * result + adjective.hashCode();
+      return result;
+    }
+
+    @Override
+    public String toString() {
+      return String.format("Bird: %s, %s", name, adjective);
     }
   }
 }

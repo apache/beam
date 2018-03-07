@@ -108,7 +108,7 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
 
   void setCompressionType(String compressionType);
 
-  /* Xml */
+  /* Used by XmlIOIT */
   @Description("Xml file charset name")
   @Default.String("UTF-8")
   String getCharset();
