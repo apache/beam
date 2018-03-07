@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
@@ -144,15 +145,14 @@ public class FlinkSplittableDoFnFunction<K, V, OutputT>
     ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor(
         Executors.defaultThreadFactory());
 
-    ((SplittableParDoViaKeyedWorkItems.ProcessFn) dofn)
-        .setStateInternalsFactory(stateInternalsFactory);
+    ProcessFn processFn = (ProcessFn) this.dofn;
+    processFn.setStateInternalsFactory(stateInternalsFactory);
 
-    ((SplittableParDoViaKeyedWorkItems.ProcessFn) dofn)
-        .setTimerInternalsFactory(timerInternalsFactory);
+    processFn.setTimerInternalsFactory(timerInternalsFactory);
 
-    ((SplittableParDoViaKeyedWorkItems.ProcessFn) dofn).setProcessElementInvoker(
+    processFn.setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
-            dofn,
+            this.dofn,
             serializedOptions.get(),
             new OutputWindowedValue<OutputT>() {
               @Override
@@ -178,11 +178,11 @@ public class FlinkSplittableDoFnFunction<K, V, OutputT>
             },
             sideInputReader,
             executorService,
-            10000,
-            Duration.standardSeconds(10)));
+            Integer.MAX_VALUE,
+            Duration.millis(Long.MAX_VALUE)));
 
     DoFnRunner<KeyedWorkItem<K, V>, OutputT> doFnRunner = DoFnRunners.simpleRunner(
-        serializedOptions.get(), dofn,
+        serializedOptions.get(), this.dofn,
         sideInputReader,
         outputManager,
         mainOutputTag,
