@@ -38,7 +38,7 @@ println "Applying build_rules.gradle to $project.name"
 // We use the project.path as the group name to make this mapping unique since
 // we have a few projects with the same name.
 group = project.path
-version = "2.4.0-SNAPSHOT"
+version = "2.5.0-SNAPSHOT"
 
 // Define the default set of repositories for all builds.
 repositories {
