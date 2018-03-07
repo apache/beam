@@ -43,7 +43,6 @@ import org.apache.beam.sdk.state.ReadableStates;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
-import org.apache.beam.sdk.state.StateContexts;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -102,11 +101,6 @@ public class InMemoryStateInternals<K> implements StateInternals {
    */
   protected boolean isEmptyForTesting(State state) {
     return ((InMemoryState<?>) state).isCleared();
-  }
-
-  @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
-    return inMemoryState.get(namespace, address, StateContexts.nullContext());
   }
 
   @Override
