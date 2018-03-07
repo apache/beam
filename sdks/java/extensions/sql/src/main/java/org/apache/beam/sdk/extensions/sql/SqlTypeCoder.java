@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.values.RowType;
 
 /**
  * Base class for coders for supported SQL types.
@@ -189,13 +190,49 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
     @Override
     public boolean equals(Object other) {
       return other != null
-          && this.getClass().equals(other.getClass())
-          && this.elementCoder.equals(((SqlArrayCoder) other).elementCoder);
+             && this.getClass().equals(other.getClass())
+             && this.elementCoder.equals(((SqlArrayCoder) other).elementCoder);
     }
 
     @Override
     public int hashCode() {
       return Objects.hashCode(elementCoder);
+    }
+  }
+
+  /**
+   * Represents SQL type ROW.
+   */
+  public static class SqlRowCoder extends SqlTypeCoder {
+
+    private final RowType rowType;
+
+    private SqlRowCoder(RowType rowType) {
+      this.rowType = rowType;
+    }
+
+    public static SqlTypeCoder of(RowType rowType) {
+      return new SqlRowCoder(rowType);
+    }
+
+    public RowType getRowType() {
+      return rowType;
+    }
+
+    @Override
+    protected Coder delegateCoder() {
+      return rowType.getRowCoder();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof SqlRowCoder
+             && Objects.equals(this.rowType, ((SqlRowCoder) other).rowType);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(this.rowType);
     }
   }
 }
