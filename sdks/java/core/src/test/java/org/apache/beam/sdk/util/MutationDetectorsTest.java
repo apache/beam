@@ -23,6 +23,7 @@ import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
@@ -31,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -86,6 +88,43 @@ public class MutationDetectorsTest {
     value.incrementAndGet();
     detector.verifyUnmodified();
   }
+
+  @Test
+  public void testMutationWithEqualEncodings() throws Exception {
+    class EncodingBadStructuralValueCoder extends AtomicCoder<List<Object>> {
+      @Override
+      public void encode(List<Object> value, OutputStream outStream)
+          throws CoderException, IOException {
+        outStream.write(new byte[] {1, 2, -3, 45});
+      }
+
+      @Override
+      public List<Object> decode(InputStream inStream) throws CoderException, IOException {
+        // Consume the written bytes
+        int read = inStream.read(new byte[4]);
+        return new ArrayList<>();
+      }
+
+      @Override
+      public Object structuralValue(List<Object> value) {
+        // Structural values are never equal to each other.
+        return new Object();
+      }
+    }
+
+    List<Object> ls = new ArrayList<>();
+    ls.add(1);
+    ls.add("foo");
+
+    MutationDetector detector =
+        MutationDetectors.forValueWithCoder(ls, new EncodingBadStructuralValueCoder());
+    ls.add(new Byte[] {1, 2, -3, 45});
+
+    // The structural values should be unequal, but the encoded bytes are equivalent, which is the
+    // system definition of equality.
+    detector.verifyUnmodified();
+  }
+
   /**
    * Tests that {@link MutationDetectors#forValueWithCoder} detects a mutation to a list.
    */
