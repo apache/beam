@@ -26,6 +26,7 @@ import yaml
 
 import apache_beam as beam
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.direct.clock import TestClock
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -100,7 +101,7 @@ class TriggerTest(unittest.TestCase):
                   expected_panes):
     actual_panes = collections.defaultdict(list)
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode))
+        Windowing(window_fn, trigger_fn, accumulation_mode), TestClock())
     state = InMemoryUnmergedState()
 
     for bundle in bundles:
@@ -470,7 +471,7 @@ class TranscriptTest(unittest.TestCase):
       args = []
       start = 0
       depth = 0
-      for ix in xrange(len(s)):
+      for ix in range(len(s)):
         c = s[ix]
         if c in '({[':
           depth += 1
@@ -534,7 +535,8 @@ class TranscriptTest(unittest.TestCase):
         spec.get('timestamp_combiner', 'OUTPUT_AT_EOW').upper())
 
     driver = GeneralTriggerDriver(
-        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner))
+        Windowing(window_fn, trigger_fn, accumulation_mode, timestamp_combiner),
+        TestClock())
     state = InMemoryUnmergedState()
     output = []
     watermark = MIN_TIMESTAMP

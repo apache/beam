@@ -58,11 +58,23 @@ public final class UdafImpl<InputT, AccumT, OutputT>
           }
 
           public RelDataType getType(RelDataTypeFactory typeFactory) {
-            //the first generic type of CombineFn is the input type.
-            ParameterizedType parameterizedType = (ParameterizedType) combineFn.getClass()
-                .getGenericSuperclass();
+            ParameterizedType parameterizedType = findCombineFnSuperClass();
             return typeFactory.createJavaType(
-                (Class) parameterizedType.getActualTypeArguments()[0]);
+              (Class) parameterizedType.getActualTypeArguments()[0]);
+          }
+
+          private ParameterizedType findCombineFnSuperClass() {
+            Class clazz = combineFn.getClass();
+            while (!clazz.getSuperclass().equals(CombineFn.class)) {
+              clazz = clazz.getSuperclass();
+            }
+
+            if (!(clazz.getGenericSuperclass() instanceof ParameterizedType)) {
+              throw new IllegalStateException(
+                  "Subclass of " + CombineFn.class + " must be parameterized to be used as a UDAF");
+            } else {
+              return (ParameterizedType) clazz.getGenericSuperclass();
+            }
           }
 
           public boolean isOptional() {

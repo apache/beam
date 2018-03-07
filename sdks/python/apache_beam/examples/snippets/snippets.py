@@ -30,6 +30,8 @@ prefix the PATH_TO_HTML where they are included followed by a descriptive
 string. The tags can contain only letters, digits and _.
 """
 
+import six
+
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -811,7 +813,10 @@ class SimpleKVSink(iobase.Sink):
     table_name = 'table' + uid
     return SimpleKVWriter(self._simplekv, access_token, table_name)
 
-  def finalize_write(self, access_token, table_names):
+  def pre_finalize(self, init_result, writer_results):
+    pass
+
+  def finalize_write(self, access_token, table_names, pre_finalize_result):
     for i, table_name in enumerate(table_names):
       self._simplekv.rename_table(
           access_token, table_name, self._final_table_name + str(i))
@@ -983,7 +988,8 @@ def model_datastoreio():
   def to_entity(content):
     entity = entity_pb2.Entity()
     googledatastore.helper.add_key_path(entity.key, kind, str(uuid.uuid4()))
-    googledatastore.helper.add_properties(entity, {'content': unicode(content)})
+    googledatastore.helper.add_properties(entity,
+                                          {'content': six.text_type(content)})
     return entity
 
   entities = musicians | 'To Entity' >> beam.Map(to_entity)
@@ -991,46 +997,96 @@ def model_datastoreio():
   # [END model_datastoreio_write]
 
 
-def model_bigqueryio():
-  """Using a Read and Write transform to read/write to BigQuery."""
-  import apache_beam as beam
-  from apache_beam.options.pipeline_options import PipelineOptions
+def model_bigqueryio(p, write_project='', write_dataset='', write_table=''):
+  """Using a Read and Write transform to read/write from/to BigQuery."""
 
-  # [START model_bigqueryio_read]
-  p = beam.Pipeline(options=PipelineOptions())
-  weather_data = p | 'ReadWeatherStations' >> beam.io.Read(
-      beam.io.BigQuerySource(
-          'clouddataflow-readonly:samples.weather_stations'))
-  # [END model_bigqueryio_read]
+  # [START model_bigqueryio_table_spec]
+  # project-id:dataset_id.table_id
+  table_spec = 'clouddataflow-readonly:samples.weather_stations'
+  # [END model_bigqueryio_table_spec]
 
-  # [START model_bigqueryio_query]
-  p = beam.Pipeline(options=PipelineOptions())
-  weather_data = p | 'ReadYearAndTemp' >> beam.io.Read(
-      beam.io.BigQuerySource(
-          query='SELECT year, mean_temp FROM samples.weather_stations'))
-  # [END model_bigqueryio_query]
+  # [START model_bigqueryio_table_spec_without_project]
+  # dataset_id.table_id
+  table_spec = 'samples.weather_stations'
+  # [END model_bigqueryio_table_spec_without_project]
 
-  # [START model_bigqueryio_query_standard_sql]
-  p = beam.Pipeline(options=PipelineOptions())
-  weather_data = p | 'ReadYearAndTemp' >> beam.io.Read(
-      beam.io.BigQuerySource(
-          query='SELECT year, mean_temp FROM `samples.weather_stations`',
+  # [START model_bigqueryio_table_spec_object]
+  from apache_beam.io.gcp.internal.clients import bigquery
+
+  table_spec = bigquery.TableReference(
+      projectId='clouddataflow-readonly',
+      datasetId='samples',
+      tableId='weather_stations')
+  # [END model_bigqueryio_table_spec_object]
+
+  # [START model_bigqueryio_read_table]
+  max_temperatures = (
+      p
+      | 'ReadTable' >> beam.io.Read(beam.io.BigQuerySource(table_spec))
+      # Each row is a dictionary where the keys are the BigQuery columns
+      | beam.Map(lambda elem: elem['max_temperature']))
+  # [END model_bigqueryio_read_table]
+
+  # [START model_bigqueryio_read_query]
+  max_temperatures = (
+      p
+      | 'QueryTable' >> beam.io.Read(beam.io.BigQuerySource(
+          query='SELECT max_temperature FROM '\
+                '[clouddataflow-readonly:samples.weather_stations]'))
+      # Each row is a dictionary where the keys are the BigQuery columns
+      | beam.Map(lambda elem: elem['max_temperature']))
+  # [END model_bigqueryio_read_query]
+
+  # [START model_bigqueryio_read_query_std_sql]
+  max_temperatures = (
+      p
+      | 'QueryTableStdSQL' >> beam.io.Read(beam.io.BigQuerySource(
+          query='SELECT max_temperature FROM '\
+                '`clouddataflow-readonly.samples.weather_stations`',
           use_standard_sql=True))
-  # [END model_bigqueryio_query_standard_sql]
+      # Each row is a dictionary where the keys are the BigQuery columns
+      | beam.Map(lambda elem: elem['max_temperature']))
+  # [END model_bigqueryio_read_query_std_sql]
 
   # [START model_bigqueryio_schema]
-  schema = 'source:STRING, quote:STRING'
+  # column_name:BIGQUERY_TYPE, ...
+  table_schema = 'source:STRING, quote:STRING'
   # [END model_bigqueryio_schema]
 
+  # [START model_bigqueryio_schema_object]
+  from apache_beam.io.gcp.internal.clients import bigquery
+
+  table_schema = bigquery.TableSchema()
+
+  source_field = bigquery.TableFieldSchema()
+  source_field.name = 'source'
+  source_field.type = 'STRING'
+  source_field.mode = 'NULLABLE'
+  table_schema.fields.append(source_field)
+
+  quote_field = bigquery.TableFieldSchema()
+  quote_field.name = 'quote'
+  quote_field.type = 'STRING'
+  quote_field.mode = 'REQUIRED'
+  table_schema.fields.append(quote_field)
+  # [END model_bigqueryio_schema_object]
+
+  if write_project and write_dataset and write_table:
+    table_spec = '{}:{}.{}'.format(write_project, write_dataset, write_table)
+
+  # [START model_bigqueryio_write_input]
+  quotes = p | beam.Create([
+      {'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'},
+      {'source': 'Yoda', 'quote': "Do, or do not. There is no 'try'."},
+  ])
+  # [END model_bigqueryio_write_input]
+
   # [START model_bigqueryio_write]
-  quotes = p | beam.Create(
-      [{'source': 'Mahatma Ghandi', 'quote': 'My life is my message.'}])
-  quotes | 'Write' >> beam.io.Write(
-      beam.io.BigQuerySink(
-          'my-project:output.output_table',
-          schema=schema,
-          write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
-          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED))
+  quotes | beam.io.WriteToBigQuery(
+      table_spec,
+      schema=table_schema,
+      write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE,
+      create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED)
   # [END model_bigqueryio_write]
 
 
@@ -1118,7 +1174,7 @@ def model_multiple_pcollections_partition(contents, output_path):
     fortieth_percentile = by_decile[4]
     # [END model_multiple_pcollections_partition_40th]
 
-    ([by_decile[d] for d in xrange(10) if d != 4] + [fortieth_percentile]
+    ([by_decile[d] for d in range(10) if d != 4] + [fortieth_percentile]
      | beam.Flatten()
      | beam.io.WriteToText(output_path))
 

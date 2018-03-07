@@ -39,6 +39,8 @@ cdef class CoderImpl(object):
   cpdef decode_from_stream(self, InputStream stream, bint nested)
   cpdef bytes encode(self, value)
   cpdef decode(self, bytes encoded)
+  cpdef bytes encode_nested(self, value)
+  cpdef decode_nested(self, bytes encoded)
   cpdef estimate_size(self, value, bint nested=?)
   @cython.locals(varint_size=int, bits=libc.stdint.uint64_t)
   @cython.overflowcheck(False)

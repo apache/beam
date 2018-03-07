@@ -19,6 +19,7 @@
 """Unit tests for LocalFileSystem."""
 
 import filecmp
+import logging
 import os
 import shutil
 import tempfile
@@ -237,6 +238,16 @@ class LocalFileSystemTest(unittest.TestCase):
     self.assertTrue(self.fs.exists(path1))
     self.assertFalse(self.fs.exists(path2))
 
+  def test_checksum(self):
+    path1 = os.path.join(self.tmpdir, 'f1')
+    path2 = os.path.join(self.tmpdir, 'f2')
+    with open(path1, 'a') as f:
+      f.write('Hello')
+    with open(path2, 'a') as f:
+      f.write('foo')
+    self.assertEquals(self.fs.checksum(path1), str(5))
+    self.assertEquals(self.fs.checksum(path2), str(3))
+
   def test_delete(self):
     path1 = os.path.join(self.tmpdir, 'f1')
 
@@ -253,3 +264,8 @@ class LocalFileSystemTest(unittest.TestCase):
                                  r'^Delete operation failed') as error:
       self.fs.delete([path1])
     self.assertEqual(error.exception.exception_details.keys(), [path1])
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

@@ -19,6 +19,7 @@
 """Unit tests for LocalFileSystem."""
 
 import filecmp
+import logging
 import os
 import shutil
 import tempfile
@@ -231,3 +232,8 @@ class FileSystemsTest(unittest.TestCase):
                                  r'^Delete operation failed') as error:
       FileSystems.delete([path1])
     self.assertEqual(error.exception.exception_details.keys(), [path1])
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

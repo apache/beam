@@ -63,6 +63,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
+import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -86,11 +87,9 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -120,6 +119,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -876,6 +876,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         }
       }
     }
+
     BoundednessVisitor visitor = new BoundednessVisitor();
     p.traverseTopologically(visitor);
     return visitor.boundedness == IsBounded.UNBOUNDED;
@@ -1219,7 +1220,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public final PCollection<T> expand(PBegin input) {
       try {
         PCollection<T> pc = Pipeline
-            .applyTransform(input, new Impulse())
+            .applyTransform(input, Impulse.create())
             .apply(ParDo.of(DecodeAndEmitDoFn
                 .fromIterable(transform.getElements(), originalOutput.getCoder())));
         pc.setCoder(originalOutput.getCoder());
@@ -1276,51 +1277,36 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  /** The Dataflow specific override for the impulse primitive. */
-  private static class Impulse extends PTransform<PBegin, PCollection<byte[]>> {
-    private Impulse() {
-    }
-
+  private static class ImpulseTranslator implements TransformTranslator<Impulse> {
     @Override
-    public PCollection<byte[]> expand(PBegin input) {
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          WindowingStrategy.globalDefault(),
-          IsBounded.BOUNDED,
-          ByteArrayCoder.of());
-    }
-
-    private static class Translator implements TransformTranslator<Impulse> {
-      @Override
-      public void translate(Impulse transform, TranslationContext context) {
-        if (context.getPipelineOptions().isStreaming()) {
-          StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
-          stepContext.addInput(PropertyNames.FORMAT, "pubsub");
-          stepContext.addInput(PropertyNames.PUBSUB_SUBSCRIPTION, "_starting_signal/");
-          stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
-        } else {
-          StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
-          stepContext.addInput(PropertyNames.FORMAT, "impulse");
-          WindowedValue.FullWindowedValueCoder<byte[]> coder =
-              WindowedValue.getFullCoder(
-                  context.getOutput(transform).getCoder(), GlobalWindow.Coder.INSTANCE);
-          byte[] encodedImpulse;
-          try {
-            encodedImpulse =
-                encodeToByteArray(coder, WindowedValue.valueInGlobalWindow(new byte[0]));
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-          stepContext.addInput(
-              PropertyNames.IMPULSE_ELEMENT, byteArrayToJsonString(encodedImpulse));
-          stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+    public void translate(Impulse transform, TranslationContext context) {
+      if (context.getPipelineOptions().isStreaming()) {
+        StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
+        stepContext.addInput(PropertyNames.FORMAT, "pubsub");
+        stepContext.addInput(PropertyNames.PUBSUB_SUBSCRIPTION, "_starting_signal/");
+        stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
+      } else {
+        StepTranslationContext stepContext = context.addStep(transform, "ParallelRead");
+        stepContext.addInput(PropertyNames.FORMAT, "impulse");
+        WindowedValue.FullWindowedValueCoder<byte[]> coder =
+            WindowedValue.getFullCoder(
+                context.getOutput(transform).getCoder(), GlobalWindow.Coder.INSTANCE);
+        byte[] encodedImpulse;
+        try {
+          encodedImpulse =
+              encodeToByteArray(coder, WindowedValue.valueInGlobalWindow(new byte[0]));
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
+        stepContext.addInput(
+            PropertyNames.IMPULSE_ELEMENT, byteArrayToJsonString(encodedImpulse));
+        stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform));
       }
     }
+  }
 
-    static {
-      DataflowPipelineTranslator.registerTransformTranslator(Impulse.class, new Translator());
-    }
+  static {
+    DataflowPipelineTranslator.registerTransformTranslator(Impulse.class, new ImpulseTranslator());
   }
 
   private static class StreamingUnboundedReadOverrideFactory<T>
@@ -1487,7 +1473,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
         AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
       return PTransformReplacement.of(
-          transform.getPipeline().begin(), new FnApiBoundedRead<>(transform.getTransform()));
+          transform.getPipeline().begin(),
+          JavaReadViaImpulse.bounded(transform.getTransform().getSource()));
     }
 
     @Override
@@ -1497,49 +1484,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  /**
-   * Specialized implementation for {@link org.apache.beam.sdk.io.Read.Bounded Read.Bounded} for the
-   * Dataflow runner in streaming mode.
-   */
-  private static class FnApiBoundedRead<T> extends PTransform<PBegin, PCollection<T>> {
-    private final BoundedSource<T> source;
-
-    public FnApiBoundedRead(Read.Bounded<T> transform) {
-      this.source = transform.getSource();
-    }
-
-    @Override
-    public final PCollection<T> expand(PBegin input) {
-      return input
-          .apply(new Impulse())
-          .apply(
-              ParDo.of(
-                  new DoFn<byte[], BoundedSource<T>>() {
-                    @ProcessElement
-                    public void process(ProcessContext c) throws Exception {
-                      for (BoundedSource<T> split :
-                          source.split(64L << 20, c.getPipelineOptions())) {
-                        c.output(split);
-                      }
-                    }
-                  }))
-          .setCoder((Coder<BoundedSource<T>>) SerializableCoder.of((Class) BoundedSource.class))
-          .apply(Reshuffle.viaRandomKey())
-          .apply(
-              ParDo.of(
-                  new DoFn<BoundedSource<T>, T>() {
-                    @ProcessElement
-                    public void process(ProcessContext c) throws Exception {
-                      BoundedSource.BoundedReader<T> reader =
-                          c.element().createReader(c.getPipelineOptions());
-                      for (boolean more = reader.start(); more; more = reader.advance()) {
-                        c.outputWithTimestamp(reader.getCurrent(), reader.getCurrentTimestamp());
-                      }
-                    }
-                  }))
-          .setCoder(source.getOutputCoder());
-    }
-  }
   /**
    * A marker {@link DoFn} for writing the contents of a {@link PCollection} to a streaming
    * {@link PCollectionView} backend implementation.

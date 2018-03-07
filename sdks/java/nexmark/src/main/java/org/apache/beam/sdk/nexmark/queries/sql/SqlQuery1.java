@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -45,9 +46,9 @@ import org.apache.beam.sdk.values.Row;
  */
 public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<Row>> {
 
-  private static final BeamSql.SimpleQueryTransform QUERY = BeamSql
+  private static final PTransform<PInput, PCollection<Row>> QUERY = BeamSql
       .query("SELECT auction, bidder, DolToEur(price) as price, dateTime, extra FROM PCOLLECTION")
-      .withUdf("DolToEur", new DolToEur());
+      .registerUdf("DolToEur", new DolToEur());
 
   /**
    * Dollar to Euro conversion.

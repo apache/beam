@@ -17,9 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.planner;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
-import java.util.Iterator;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamAggregationRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamFilterRule;
@@ -32,44 +30,30 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamProjectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSortRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamValuesRule;
-import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.tools.RuleSet;
+import org.apache.calcite.tools.RuleSets;
 
 /**
- * {@link RuleSet} used in {@link BeamQueryPlanner}. It translates a standard
- * Calcite {@link RelNode} tree, to represent with {@link BeamRelNode}
- *
+ * {@link RuleSet} used in {@link BeamQueryPlanner}. It translates a standard Calcite {@link
+ * RelNode} tree, to represent with {@link BeamRelNode}
  */
 public class BeamRuleSets {
-  private static final ImmutableSet<RelOptRule> calciteToBeamConversionRules = ImmutableSet
-      .<RelOptRule>builder().add(BeamIOSourceRule.INSTANCE, BeamProjectRule.INSTANCE,
-          BeamFilterRule.INSTANCE, BeamIOSinkRule.INSTANCE,
-          BeamAggregationRule.INSTANCE, BeamSortRule.INSTANCE, BeamValuesRule.INSTANCE,
-          BeamIntersectRule.INSTANCE, BeamMinusRule.INSTANCE, BeamUnionRule.INSTANCE,
-          BeamJoinRule.INSTANCE)
-      .build();
 
-  public static RuleSet[] getRuleSets() {
-    return new RuleSet[] { new BeamRuleSet(
-        ImmutableSet.<RelOptRule>builder().addAll(calciteToBeamConversionRules).build()) };
+  public static RuleSet[] getRuleSets(BeamSqlEnv sqlEnv) {
+    return new RuleSet[] {
+      RuleSets.ofList(
+          BeamIOSourceRule.forSqlEnv(sqlEnv),
+          BeamProjectRule.INSTANCE,
+          BeamFilterRule.INSTANCE,
+          BeamIOSinkRule.forSqlEnv(sqlEnv),
+          BeamAggregationRule.INSTANCE,
+          BeamSortRule.INSTANCE,
+          BeamValuesRule.INSTANCE,
+          BeamIntersectRule.INSTANCE,
+          BeamMinusRule.INSTANCE,
+          BeamUnionRule.INSTANCE,
+          BeamJoinRule.forSqlEnv(sqlEnv))
+    };
   }
-
-  private static class BeamRuleSet implements RuleSet {
-    final ImmutableSet<RelOptRule> rules;
-
-    public BeamRuleSet(ImmutableSet<RelOptRule> rules) {
-      this.rules = rules;
-    }
-
-    public BeamRuleSet(ImmutableList<RelOptRule> rules) {
-      this.rules = ImmutableSet.<RelOptRule>builder().addAll(rules).build();
-    }
-
-    @Override
-    public Iterator<RelOptRule> iterator() {
-      return rules.iterator();
-    }
-  }
-
 }

@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 import io
+import logging
 import posixpath
 import unittest
 
@@ -70,6 +71,14 @@ class FakeFile(io.BytesIO):
         hdfs._FILE_STATUS_PATH_SUFFIX: posixpath.basename(self.stat['path']),
         hdfs._FILE_STATUS_SIZE: self.size,
         hdfs._FILE_STATUS_TYPE: self.stat['type'],
+    }
+
+  def get_file_checksum(self):
+    """Returns a WebHDFS FileChecksum object."""
+    return {
+        hdfs._FILE_CHECKSUM_ALGORITHM: 'fake_algo',
+        hdfs._FILE_CHECKSUM_BYTES: 'checksum_byte_sequence',
+        hdfs._FILE_CHECKSUM_LENGTH: 5,
     }
 
 
@@ -174,6 +183,12 @@ class FakeHdfs(object):
         newpath = path2 + fullpath[len(path1):]
         f.stat['path'] = newpath
         self.files[newpath] = f
+
+  def checksum(self, path):
+    f = self.files.get(path, None)
+    if f is None:
+      raise FakeHdfsError('Path not found: %s' % path)
+    return f.get_file_checksum()
 
 
 class HadoopFileSystemTest(unittest.TestCase):
@@ -458,6 +473,13 @@ class HadoopFileSystemTest(unittest.TestCase):
     self.assertTrue(self.fs.exists(url1))
     self.assertFalse(self.fs.exists(url2))
 
+  def test_checksum(self):
+    url = self.fs.join(self.tmpdir, 'f1')
+    with self.fs.create(url) as f:
+      f.write('Hello')
+    self.assertEqual('fake_algo-5-checksum_byte_sequence',
+                     self.fs.checksum(url))
+
   def test_delete_file(self):
     url = self.fs.join(self.tmpdir, 'old_file1')
 
@@ -493,3 +515,8 @@ class HadoopFileSystemTest(unittest.TestCase):
                                  r'^Delete operation failed .* %s' % path1):
       self.fs.delete([url1, url2])
     self.assertFalse(self.fs.exists(url2))
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

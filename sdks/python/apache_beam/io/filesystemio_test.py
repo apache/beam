@@ -17,6 +17,7 @@
 """Tests for filesystemio."""
 
 import io
+import logging
 import multiprocessing
 import os
 import threading
@@ -183,3 +184,8 @@ class TestPipeStream(unittest.TestCase):
         parent_conn.send_bytes(data)
       parent_conn.close()
       child_thread.join()
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

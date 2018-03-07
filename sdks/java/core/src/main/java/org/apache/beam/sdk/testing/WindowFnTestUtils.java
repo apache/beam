@@ -68,7 +68,7 @@ public class WindowFnTestUtils {
       WindowFn<T, W> windowFn,
       List<Long> timestamps) throws Exception {
     List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
-    for (Long timestamp : timestamps){
+    for (Long timestamp : timestamps) {
       timestampedValues.add(TimestampedValue.of((T) null, new Instant(timestamp)));
     }
     return runWindowFnWithValue(windowFn, timestampedValues);
@@ -320,9 +320,9 @@ public class WindowFnTestUtils {
       List<List<Long>> timestampsPerWindow) throws Exception {
 
     List<List<TimestampedValue<T>>> timestampValuesPerWindow = new ArrayList<>();
-    for (List<Long> timestamps : timestampsPerWindow){
+    for (List<Long> timestamps : timestampsPerWindow) {
       List<TimestampedValue<T>> timestampedValues = new ArrayList<>();
-      for (Long timestamp : timestamps){
+      for (Long timestamp : timestamps) {
         TimestampedValue<T> tv = TimestampedValue.of(null, new Instant(timestamp));
         timestampedValues.add(tv);
       }

@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -51,7 +52,7 @@ import org.apache.beam.sdk.values.Row;
  */
 public class SqlQuery0 extends PTransform<PCollection<Event>, PCollection<Row>> {
 
-  private static final BeamSql.SimpleQueryTransform QUERY =
+  private static final PTransform<PInput, PCollection<Row>> QUERY =
       BeamSql.query("SELECT * FROM PCOLLECTION");
 
   public SqlQuery0() {

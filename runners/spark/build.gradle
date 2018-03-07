@@ -89,3 +89,6 @@ configurations.testRuntimeClasspath {
   // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
+
+// Generates :runners:spark:runQuickstartJavaSpark
+createJavaQuickstartValidationTask(name: 'Spark')

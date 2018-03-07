@@ -16,7 +16,7 @@
 #
 
 """Unit tests for the ValueProvider class."""
-
+import logging
 import unittest
 
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -182,3 +182,8 @@ class ValueProviderTests(unittest.TestCase):
     options = UserDefinedOptions(['--vpt_vp_arg13', 'a', '--vpt_vp_arg14', '2'])
     self.assertEqual(options.vpt_vp_arg13.get(), 'a')
     self.assertEqual(options.vpt_vp_arg14.get(), 2)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

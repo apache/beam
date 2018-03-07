@@ -118,18 +118,23 @@ class MetricsTest(unittest.TestCase):
     MetricsEnvironment.set_current_container(MetricsContainer('mystep'))
     counter_ns = 'aCounterNamespace'
     distro_ns = 'aDistributionNamespace'
+    gauge_ns = 'aGaugeNamespace'
     name = 'a_name'
     counter = Metrics.counter(counter_ns, name)
     distro = Metrics.distribution(distro_ns, name)
+    gauge = Metrics.gauge(gauge_ns, name)
     counter.inc(10)
     counter.dec(3)
     distro.update(10)
     distro.update(2)
+    gauge.set(10)
     self.assertTrue(isinstance(counter, Metrics.DelegatingCounter))
     self.assertTrue(isinstance(distro, Metrics.DelegatingDistribution))
+    self.assertTrue(isinstance(gauge, Metrics.DelegatingGauge))
 
     del distro
     del counter
+    del gauge
 
     container = MetricsEnvironment.current_container()
     self.assertEqual(
@@ -138,6 +143,9 @@ class MetricsTest(unittest.TestCase):
     self.assertEqual(
         container.distributions[MetricName(distro_ns, name)].get_cumulative(),
         DistributionData(12, 2, 2, 10))
+    self.assertEqual(
+        container.gauges[MetricName(gauge_ns, name)].get_cumulative().value,
+        10)
 
 
 if __name__ == '__main__':

@@ -78,7 +78,7 @@ public class BigtableServiceImplTest {
   private BigtableSource mockBigtableSource;
 
   @Before
-  public void setup(){
+  public void setup() {
     MockitoAnnotations.initMocks(this);
     BigtableOptions options = new BigtableOptions.Builder()
         .setProjectId("project")

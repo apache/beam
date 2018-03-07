@@ -81,7 +81,7 @@ public class RowFactoryTest {
     assertEquals(2, row.getFieldCount());
     assertThat(
         row.getValues(),
-        containsInAnyOrder((Object) "someString", Integer.valueOf(42)));
+        containsInAnyOrder((Object) "someString", 42));
   }
 
   @Test
@@ -126,14 +126,14 @@ public class RowFactoryTest {
 
     assertThat(
         row.getValues(),
-        containsInAnyOrder((Object) "someString", Integer.valueOf(42)));
+        containsInAnyOrder((Object) "someString", 42));
 
     pojo.someIntegerField = 23;
     pojo.someStringField = "hello";
 
     assertThat(
         row.getValues(),
-        containsInAnyOrder((Object) "someString", Integer.valueOf(42)));
+        containsInAnyOrder((Object) "someString", 42));
   }
 
   private RowFactory newFactory() {

@@ -254,13 +254,16 @@ public class AutoComplete {
       extends DoFn<CompletionCandidate, KV<String, CompletionCandidate>> {
     private final int minPrefix;
     private final int maxPrefix;
+
     public AllPrefixes(int minPrefix) {
       this(minPrefix, Integer.MAX_VALUE);
     }
+
     public AllPrefixes(int minPrefix, int maxPrefix) {
       this.minPrefix = minPrefix;
       this.maxPrefix = maxPrefix;
     }
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       String word = c.element().value;

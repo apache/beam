@@ -211,22 +211,22 @@ public class JdbcIO {
    */
   @AutoValue
   public abstract static class DataSourceConfiguration implements Serializable {
-    @Nullable abstract String getDriverClassName();
-    @Nullable abstract String getUrl();
-    @Nullable abstract String getUsername();
-    @Nullable abstract String getPassword();
-    @Nullable abstract String getConnectionProperties();
+    @Nullable abstract ValueProvider<String> getDriverClassName();
+    @Nullable abstract ValueProvider<String> getUrl();
+    @Nullable abstract ValueProvider<String> getUsername();
+    @Nullable abstract ValueProvider<String> getPassword();
+    @Nullable abstract ValueProvider<String> getConnectionProperties();
     @Nullable abstract DataSource getDataSource();
 
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setDriverClassName(String driverClassName);
-      abstract Builder setUrl(String url);
-      abstract Builder setUsername(String username);
-      abstract Builder setPassword(String password);
-      abstract Builder setConnectionProperties(String connectionProperties);
+      abstract Builder setDriverClassName(ValueProvider<String> driverClassName);
+      abstract Builder setUrl(ValueProvider<String> url);
+      abstract Builder setUsername(ValueProvider<String> username);
+      abstract Builder setPassword(ValueProvider<String> password);
+      abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
       abstract Builder setDataSource(DataSource dataSource);
       abstract DataSourceConfiguration build();
     }
@@ -243,16 +243,34 @@ public class JdbcIO {
       checkArgument(driverClassName != null, "driverClassName can not be null");
       checkArgument(url != null, "url can not be null");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
-          .setDriverClassName(driverClassName)
-          .setUrl(url)
+          .setDriverClassName(ValueProvider.StaticValueProvider.of(driverClassName))
+          .setUrl(ValueProvider.StaticValueProvider.of(url))
           .build();
     }
 
+    public static DataSourceConfiguration create(ValueProvider<String> driverClassName,
+                                                 ValueProvider<String> url) {
+      checkArgument(driverClassName != null, "driverClassName can not be null");
+      checkArgument(url != null, "url can not be null");
+      return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
+              .setDriverClassName(driverClassName)
+              .setUrl(url)
+              .build();
+    }
+
     public DataSourceConfiguration withUsername(String username) {
+      return builder().setUsername(ValueProvider.StaticValueProvider.of(username)).build();
+    }
+
+    public DataSourceConfiguration withUsername(ValueProvider<String> username) {
       return builder().setUsername(username).build();
     }
 
     public DataSourceConfiguration withPassword(String password) {
+      return builder().setPassword(ValueProvider.StaticValueProvider.of(password)).build();
+    }
+
+    public DataSourceConfiguration withPassword(ValueProvider<String> password) {
       return builder().setPassword(password).build();
     }
 
@@ -264,6 +282,17 @@ public class JdbcIO {
      * {@link #withPassword(String)}, so they do not need to be included here.
      */
     public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
+      checkArgument(connectionProperties != null, "connectionProperties can not be null");
+      return builder()
+              .setConnectionProperties(ValueProvider.StaticValueProvider.of(connectionProperties))
+              .build();
+    }
+
+    /**
+     * Same as {@link #withConnectionProperties(String)} but accepting a ValueProvider.
+     */
+    public DataSourceConfiguration withConnectionProperties(
+            ValueProvider<String> connectionProperties) {
       checkArgument(connectionProperties != null, "connectionProperties can not be null");
       return builder().setConnectionProperties(connectionProperties).build();
     }
@@ -283,12 +312,20 @@ public class JdbcIO {
         return getDataSource();
       } else {
         BasicDataSource basicDataSource = new BasicDataSource();
-        basicDataSource.setDriverClassName(getDriverClassName());
-        basicDataSource.setUrl(getUrl());
-        basicDataSource.setUsername(getUsername());
-        basicDataSource.setPassword(getPassword());
-        if (getConnectionProperties() != null) {
-          basicDataSource.setConnectionProperties(getConnectionProperties());
+        if (getDriverClassName() != null) {
+          basicDataSource.setDriverClassName(getDriverClassName().get());
+        }
+        if (getUrl() != null) {
+          basicDataSource.setUrl(getUrl().get());
+        }
+        if (getUsername() != null) {
+          basicDataSource.setUsername(getUsername().get());
+        }
+        if (getPassword() != null) {
+          basicDataSource.setPassword(getPassword().get());
+        }
+        if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
+          basicDataSource.setConnectionProperties(getConnectionProperties().get());
         }
         return basicDataSource;
       }

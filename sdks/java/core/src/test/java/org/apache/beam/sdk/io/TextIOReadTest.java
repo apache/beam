@@ -398,7 +398,7 @@ public class TextIOReadTest {
     }
 
     @Test
-    public void testDelimiterSelfOverlaps(){
+    public void testDelimiterSelfOverlaps() {
       assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c'}));
       assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'c', 'a', 'b', 'd', 'a', 'b'}));
       assertFalse(TextIO.Read.isSelfOverlapping(new byte[]{'a', 'b', 'c', 'a', 'b', 'd'}));

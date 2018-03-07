@@ -27,6 +27,7 @@ import com.google.cloud.spanner.AbortedException;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
@@ -208,6 +209,7 @@ public class SpannerIO {
   public static ReadAll readAll() {
     return new AutoValue_SpannerIO_ReadAll.Builder()
         .setSpannerConfig(SpannerConfig.create())
+        .setTimestampBound(TimestampBound.strong())
         .build();
   }
 
@@ -249,6 +251,9 @@ public class SpannerIO {
     @Nullable
     abstract PCollectionView<Transaction> getTransaction();
 
+    @Nullable
+    abstract TimestampBound getTimestampBound();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -256,6 +261,8 @@ public class SpannerIO {
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
+
+      abstract Builder setTimestampBound(TimestampBound timestampBound);
 
       abstract ReadAll build();
     }
@@ -314,18 +321,20 @@ public class SpannerIO {
       return toBuilder().setTransaction(transaction).build();
     }
 
+    public ReadAll withTimestamp(Timestamp timestamp) {
+      return withTimestampBound(TimestampBound.ofReadTimestamp(timestamp));
+    }
+
+    public ReadAll withTimestampBound(TimestampBound timestampBound) {
+      return toBuilder().setTimestampBound(timestampBound).build();
+    }
+
     @Override
     public PCollection<Struct> expand(PCollection<ReadOperation> input) {
-      List<PCollectionView<Transaction>> sideInputs =
-          getTransaction() == null
-              ? Collections.emptyList()
-              : Collections.singletonList(getTransaction());
       return input
-          .apply(Reshuffle.viaRandomKey())
-          .apply(
-              "Execute queries",
-              ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), getTransaction()))
-                  .withSideInputs(sideInputs));
+          .apply("Reshuffle", Reshuffle.<ReadOperation>viaRandomKey())
+          .apply("Read from Cloud Spanner",
+              BatchSpannerRead.create(getSpannerConfig(), getTransaction(), getTimestampBound()));
     }
   }
 
@@ -344,6 +353,9 @@ public class SpannerIO {
     @Nullable
     abstract PCollectionView<Transaction> getTransaction();
 
+    @Nullable
+    abstract PartitionOptions getPartitionOptions();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -356,6 +368,8 @@ public class SpannerIO {
       abstract Builder setTimestampBound(TimestampBound timestampBound);
 
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
+
+      abstract Builder setPartitionOptions(PartitionOptions partitionOptions);
 
       abstract Read build();
     }
@@ -454,6 +468,10 @@ public class SpannerIO {
       return withReadOperation(getReadOperation().withIndex(index));
     }
 
+    public Read withPartitionOptions(PartitionOptions partitionOptions) {
+      return withReadOperation(getReadOperation().withPartitionOptions(partitionOptions));
+    }
+
     @Override
     public PCollection<Struct> expand(PBegin input) {
       getSpannerConfig().validate();
@@ -479,16 +497,11 @@ public class SpannerIO {
             "SpannerIO.read() requires configuring query or read operation.");
       }
 
-      PCollectionView<Transaction> transaction = getTransaction();
-      if (transaction == null && getTimestampBound() != null) {
-        transaction =
-            input.apply(
-                createTransaction()
-                    .withTimestampBound(getTimestampBound())
-                    .withSpannerConfig(getSpannerConfig()));
-      }
-      ReadAll readAll =
-          readAll().withSpannerConfig(getSpannerConfig()).withTransaction(transaction);
+
+      ReadAll readAll = readAll()
+          .withSpannerConfig(getSpannerConfig())
+          .withTimestampBound(getTimestampBound())
+          .withTransaction(getTransaction());
       return input.apply(Create.of(getReadOperation())).apply("Execute query", readAll);
     }
   }

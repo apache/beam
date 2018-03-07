@@ -26,6 +26,8 @@ import os
 import time
 import zlib
 
+from six import integer_types
+
 from apache_beam.utils.plugin import BeamPlugin
 
 logger = logging.getLogger(__name__)
@@ -372,7 +374,7 @@ class FileMetadata(object):
   """
   def __init__(self, path, size_in_bytes):
     assert isinstance(path, basestring) and path, "Path should be a string"
-    assert isinstance(size_in_bytes, (int, long)) and size_in_bytes >= 0, \
+    assert isinstance(size_in_bytes, integer_types) and size_in_bytes >= 0, \
         "Invalid value for size_in_bytes should %s (of type %s)" % (
             size_in_bytes, type(size_in_bytes))
     self.path = path
@@ -571,6 +573,28 @@ class FileSystem(BeamPlugin):
       path: string path that needs to be checked.
 
     Returns: boolean flag indicating if path exists
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def checksum(self, path):
+    """Fetch checksum metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    This operation returns checksum metadata as stored in the underlying
+    FileSystem. It should not need to read file data to obtain this value.
+    Checksum type and format are FileSystem dependent and are not compatible
+    between FileSystems.
+    FileSystem implementations may return file size if a checksum isn't
+    available.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
     """
     raise NotImplementedError
 

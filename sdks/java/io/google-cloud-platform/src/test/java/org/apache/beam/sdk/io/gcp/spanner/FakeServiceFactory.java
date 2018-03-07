@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.google.cloud.ServiceFactory;
+import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
@@ -49,6 +50,9 @@ class FakeServiceFactory
   private static final List<DatabaseClient> mockDatabaseClients = new ArrayList<>();
 
   @GuardedBy("lock")
+  private static final List<BatchClient> mockBatchClients = new ArrayList<>();
+
+  @GuardedBy("lock")
   private static int count = 0;
 
   private final int index;
@@ -58,14 +62,23 @@ class FakeServiceFactory
       index = count++;
       mockSpanners.add(mock(Spanner.class, withSettings().serializable()));
       mockDatabaseClients.add(mock(DatabaseClient.class, withSettings().serializable()));
+      mockBatchClients.add(mock(BatchClient.class, withSettings().serializable()));
     }
     when(mockSpanner().getDatabaseClient(Matchers.any(DatabaseId.class)))
         .thenReturn(mockDatabaseClient());
+    when(mockSpanner().getBatchClient(Matchers.any(DatabaseId.class)))
+        .thenReturn(mockBatchClient());
   }
 
   DatabaseClient mockDatabaseClient() {
     synchronized (lock) {
       return mockDatabaseClients.get(index);
+    }
+  }
+
+  BatchClient mockBatchClient() {
+    synchronized (lock) {
+      return mockBatchClients.get(index);
     }
   }
 

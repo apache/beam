@@ -68,10 +68,12 @@ public class WindowingTest implements Serializable {
                 + ":" + window);
       }
     }
+
     private WindowFn<? super String, ?> windowFn;
     public WindowedCount(WindowFn<? super String, ?> windowFn) {
       this.windowFn = windowFn;
     }
+
     @Override
     public PCollection<String> expand(PCollection<String> in) {
       return in.apply(
