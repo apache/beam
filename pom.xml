@@ -1725,7 +1725,10 @@
 
               <!-- proto/grpc generated wrappers -->
               <exclude>**/apache_beam/portability/api/*_pb2*.py</exclude>
-              <exclude>**/go/pkg/beam/model/**/*.pb.go</exclude>
+              <exclude>**/go/pkg/beam/**/*.pb.go</exclude>
+
+              <!-- Ignore Go test data files-->
+              <exclude>**/go/data/**</exclude>
 
               <!-- VCF test files -->
               <exclude>**/apache_beam/testing/data/vcf/*</exclude>
