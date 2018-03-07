@@ -122,7 +122,7 @@ public class LengthPrefixUnknownCodersTest {
     );
   }
 
-  @Parameter
+  @Parameter(0)
   public Coder<?> original;
 
   @Parameter(1)
@@ -143,5 +143,31 @@ public class LengthPrefixUnknownCodersTest {
     assertEquals(expected,
         CoderTranslation.fromProto(updatedCoderProto.getCoder(),
             RehydratedComponents.forComponents(updatedCoderProto.getComponents())));
+  }
+
+  @Test
+  public void testIdempotent() throws IOException {
+    MessageWithComponents originalCoderProto = CoderTranslation.toProto(original);
+    Components.Builder builder = originalCoderProto.getComponents().toBuilder();
+    String coderId = LengthPrefixUnknownCoders.generateUniqueId("rootTestId",
+        originalCoderProto.getComponents().getCodersMap().keySet());
+    builder.putCoders(coderId, originalCoderProto.getCoder());
+    MessageWithComponents updatedCoderProto =
+        LengthPrefixUnknownCoders.forCoder(coderId, builder.build(), replaceWithByteArray);
+
+    Components.Builder firstDeserializedBuilder = updatedCoderProto.getComponents().toBuilder();
+    String deserializedId =
+        LengthPrefixUnknownCoders.generateUniqueId(
+            "deserializedTestId", firstDeserializedBuilder.getCodersMap().keySet());
+    builder.putCoders(deserializedId, updatedCoderProto.getCoder());
+    MessageWithComponents secondCoderLengthPrefixing =
+        LengthPrefixUnknownCoders.forCoder(
+            deserializedId, firstDeserializedBuilder.build(), replaceWithByteArray);
+
+    assertEquals(
+        expected,
+        CoderTranslation.fromProto(
+            secondCoderLengthPrefixing.getCoder(),
+            RehydratedComponents.forComponents(secondCoderLengthPrefixing.getComponents())));
   }
 }
