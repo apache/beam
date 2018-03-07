@@ -143,31 +143,23 @@ public class LengthPrefixUnknownCodersTest {
     assertEquals(expected,
         CoderTranslation.fromProto(updatedCoderProto.getCoder(),
             RehydratedComponents.forComponents(updatedCoderProto.getComponents())));
-  }
 
-  @Test
-  public void testIdempotent() throws IOException {
-    MessageWithComponents originalCoderProto = CoderTranslation.toProto(original);
-    Components.Builder builder = originalCoderProto.getComponents().toBuilder();
-    String coderId = LengthPrefixUnknownCoders.generateUniqueId("rootTestId",
-        originalCoderProto.getComponents().getCodersMap().keySet());
-    builder.putCoders(coderId, originalCoderProto.getCoder());
-    MessageWithComponents updatedCoderProto =
-        LengthPrefixUnknownCoders.forCoder(coderId, builder.build(), replaceWithByteArray);
-
-    Components.Builder firstDeserializedBuilder = updatedCoderProto.getComponents().toBuilder();
-    String deserializedId =
+    // Test that the application of #forCoder is idempotent
+    String updatedCoderId =
         LengthPrefixUnknownCoders.generateUniqueId(
-            "deserializedTestId", firstDeserializedBuilder.getCodersMap().keySet());
-    builder.putCoders(deserializedId, updatedCoderProto.getCoder());
-    MessageWithComponents secondCoderLengthPrefixing =
-        LengthPrefixUnknownCoders.forCoder(
-            deserializedId, firstDeserializedBuilder.build(), replaceWithByteArray);
-
+            "deserializedTestId", updatedCoderProto.getComponents().getCodersMap().keySet());
+    Components updatedComponents =
+        updatedCoderProto
+            .getComponents()
+            .toBuilder()
+            .putCoders(updatedCoderId, updatedCoderProto.getCoder())
+            .build();
+    MessageWithComponents idempotencyCheck =
+        LengthPrefixUnknownCoders.forCoder(updatedCoderId, updatedComponents, replaceWithByteArray);
     assertEquals(
         expected,
         CoderTranslation.fromProto(
-            secondCoderLengthPrefixing.getCoder(),
-            RehydratedComponents.forComponents(secondCoderLengthPrefixing.getComponents())));
+            idempotencyCheck.getCoder(),
+            RehydratedComponents.forComponents(idempotencyCheck.getComponents())));
   }
 }
