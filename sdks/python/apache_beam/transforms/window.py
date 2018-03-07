@@ -225,9 +225,9 @@ class IntervalWindow(BoundedWindow):
     return hash((self.start, self.end))
 
   def __eq__(self, other):
-    return type(self) == type(other) and \
-      self.start == other.start and \
-      self.end == other.end
+    return (type(self) == type(other) and
+            self.start == other.start and
+            self.end == other.end)
 
   def __repr__(self):
     return '[%s, %s)' % (float(self.start), float(self.end))
