@@ -571,7 +571,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, basestring):
+        if not isinstance(tag, six.string_types):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
       if isinstance(result, WindowedValue):
@@ -613,7 +613,7 @@ class _OutputProcessor(OutputProcessor):
       tag = None
       if isinstance(result, TaggedOutput):
         tag = result.tag
-        if not isinstance(tag, basestring):
+        if not isinstance(tag, six.string_types):
           raise TypeError('In %s, tag %s is not a string' % (self, tag))
         result = result.value
 

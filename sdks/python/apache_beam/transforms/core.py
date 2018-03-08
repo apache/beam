@@ -23,6 +23,8 @@ import copy
 import inspect
 import types
 
+from six import string_types
+
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
@@ -1721,7 +1723,7 @@ class Create(PTransform):
       value: An object of values for the PCollection
     """
     super(Create, self).__init__()
-    if isinstance(value, basestring):
+    if isinstance(value, string_types):
       raise TypeError('PTransform Create: Refusing to treat string as '
                       'an iterable. (string=%r)' % value)
     elif isinstance(value, dict):
