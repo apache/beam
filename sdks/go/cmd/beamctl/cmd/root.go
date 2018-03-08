@@ -38,7 +38,7 @@ var (
 )
 
 func init() {
-	RootCmd.AddCommand(artifactCmd)
+	RootCmd.AddCommand(artifactCmd, provisionCmd)
 	RootCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", "", "Server endpoint, such as localhost:123")
 	RootCmd.PersistentFlags().StringVarP(&id, "id", "i", "", "Client ID")
 }
