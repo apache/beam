@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.testing;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -27,7 +26,6 @@ import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -37,7 +35,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -116,20 +113,6 @@ public class TestPipelineTest implements Serializable {
       assertEquals(
           "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToString",
           pipeline.toString());
-    }
-
-    @Test
-    public void testConvertToArgs() {
-      String[] args = new String[] {"--tempLocation=Test_Location"};
-      PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-      String[] arr = TestPipeline.convertToArgs(options);
-      List<String> lst = Arrays.asList(arr);
-      assertEquals(lst.size(), 3);
-      assertThat(
-          lst,
-          containsInAnyOrder("--tempLocation=Test_Location",
-              "--appName=TestPipelineCreationTest",
-              "--optionsId=" + options.getOptionsId()));
     }
 
     @Test
