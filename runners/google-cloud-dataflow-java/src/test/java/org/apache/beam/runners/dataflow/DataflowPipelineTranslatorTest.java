@@ -990,7 +990,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     Set<String> uniqueOutputNames = new HashSet<>(outputIds);
     outputIds.removeAll(uniqueOutputNames);
     assertTrue(String.format("Found duplicate output ids %s", outputIds),
-        outputIds.size() == 0);
+        outputIds.isEmpty());
   }
 
   private static class TestSplittableFn extends DoFn<String, Integer> {

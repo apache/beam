@@ -580,7 +580,7 @@ public class CoderRegistry {
   }
 
   private static boolean isNullOrEmpty(Collection<?> c) {
-    return c == null || c.size() == 0;
+    return c == null || c.isEmpty();
   }
 
   /**
