@@ -57,7 +57,9 @@ import org.junit.runners.JUnit4;
 public class MongoDBIOIT {
 
   private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
-    1000, "75a0d5803418444e76ae5b421662764c"
+    1000, "75a0d5803418444e76ae5b421662764c",
+    100_000, "3bc762dc1c291904e3c7f577774c6276",
+    10_000_000, "e5e0503902018c83e8c8977ef437feba"
   );
 
   private static int numberOfRecords;
