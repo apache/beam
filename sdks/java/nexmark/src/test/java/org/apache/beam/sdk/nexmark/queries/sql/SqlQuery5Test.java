@@ -23,8 +23,8 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
+import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.sql.adapter.ModelFieldsAdapter;
@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -59,19 +58,13 @@ public class SqlQuery5Test {
       new Event(BIDS.get(2)),
       new Event(BIDS.get(3)));
 
-  private static final RowType RESULT_ROW_TYPE =
-      RowSqlType
-          .builder()
-          .withBigIntField("auction")
-          .build();
-
-  public static final List<Row> RESULTS = ImmutableList.of(
-      newResultRow(1L),
-      newResultRow(1L),
-      newResultRow(1L),
-      newResultRow(1L),
-      newResultRow(1L),
-      newResultRow(2L));
+  public static final List<AuctionCount> RESULTS = ImmutableList.of(
+      new AuctionCount(1L, 1L),
+      new AuctionCount(1L, 1L),
+      new AuctionCount(1L, 1L),
+      new AuctionCount(1L, 2L),
+      new AuctionCount(1L, 1L),
+      new AuctionCount(2L, 1L));
 
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
@@ -105,17 +98,6 @@ public class SqlQuery5Test {
         Row
             .withRowType(BID_ADAPTER.getRowType())
             .addValues(BID_ADAPTER.getFieldsValues(bid))
-            .build();
-  }
-
-  private static Row newResultRow(
-      long auctionId) {
-
-    return
-        Row
-            .withRowType(RESULT_ROW_TYPE)
-            .addValues(
-                auctionId)
             .build();
   }
 }

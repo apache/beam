@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -60,16 +61,16 @@ public class NameCityStateId implements KnownSize, Serializable {
   };
 
   @JsonProperty
-  private final String name;
+  public final String name;
 
   @JsonProperty
-  private final String city;
+  public final String city;
 
   @JsonProperty
-  private final String state;
+  public final String state;
 
   @JsonProperty
-  private final long id;
+  public final long id;
 
   // For Avro only.
   @SuppressWarnings("unused")
@@ -85,6 +86,27 @@ public class NameCityStateId implements KnownSize, Serializable {
     this.city = city;
     this.state = state;
     this.id = id;
+  }
+
+  @Override
+  public boolean equals(Object otherObject) {
+    if (this == otherObject) {
+      return true;
+    }
+    if (otherObject == null || getClass() != otherObject.getClass()) {
+      return false;
+    }
+
+    NameCityStateId other = (NameCityStateId) otherObject;
+    return Objects.equals(name, other.name)
+        && Objects.equals(city, other.city)
+        && Objects.equals(state, other.state)
+        && Objects.equals(id, other.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(name, city, state, id);
   }
 
   @Override
