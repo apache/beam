@@ -427,8 +427,11 @@ class DataflowRunner(PipelineRunner):
     if standard_options.streaming:
       step = self._add_step(
           TransformNames.READ, transform_node.full_label, transform_node)
-      step.add_property(PropertyNames.FORMAT, 'pubsub')
-      step.add_property(PropertyNames.PUBSUB_SUBSCRIPTION, '_starting_signal/')
+      step.add_property(PropertyNames.FORMAT, 'impulse')
+      encoded_impulse = coders.WindowedValueCoder(
+          coders.BytesCoder(),
+          coders.coders.GlobalWindowCoder()).encode('')  # pylint: disable=protected-access
+      step.add_property(PropertyNames.IMPULSE_ELEMENT, encoded_impulse)
 
       step.encoding = self._get_encoded_output_coder(transform_node)
       step.add_property(

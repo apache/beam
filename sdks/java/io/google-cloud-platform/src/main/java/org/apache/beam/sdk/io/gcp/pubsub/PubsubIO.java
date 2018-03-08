@@ -107,8 +107,6 @@ public class PubsubIO {
   private static final int PUBSUB_NAME_MIN_LENGTH = 3;
   private static final int PUBSUB_NAME_MAX_LENGTH = 255;
 
-  private static final String SUBSCRIPTION_RANDOM_TEST_PREFIX = "_random/";
-  private static final String SUBSCRIPTION_STARTING_SIGNAL = "_starting_signal/";
   private static final String TOPIC_DEV_NULL_TEST_NAME = "/topics/dev/null";
 
   private static void validateProjectName(String project) {
@@ -157,15 +155,11 @@ public class PubsubIO {
    * Class representing a Cloud Pub/Sub Subscription.
    */
   public static class PubsubSubscription implements Serializable {
-
-    private enum Type {NORMAL, FAKE}
-
     private final Type type;
     private final String project;
     private final String subscription;
 
-    private PubsubSubscription(Type type, String project, String subscription) {
-      this.type = type;
+    private PubsubSubscription(String project, String subscription) {
       this.project = project;
       this.subscription = subscription;
     }
@@ -188,11 +182,6 @@ public class PubsubIO {
      * </ul>
      */
     public static PubsubSubscription fromPath(String path) {
-      if (path.startsWith(SUBSCRIPTION_RANDOM_TEST_PREFIX)
-          || path.startsWith(SUBSCRIPTION_STARTING_SIGNAL)) {
-        return new PubsubSubscription(Type.FAKE, "", path);
-      }
-
       String projectName, subscriptionName;
 
       Matcher v1beta1Match = V1BETA1_SUBSCRIPTION_REGEXP.matcher(path);

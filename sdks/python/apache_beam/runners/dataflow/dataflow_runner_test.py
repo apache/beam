@@ -189,8 +189,9 @@ class DataflowRunnerTest(unittest.TestCase):
 
     self.assertEqual(job_dict[u'steps'][0][u'kind'], u'ParallelRead')
     self.assertEqual(
-        job_dict[u'steps'][0][u'properties'][u'pubsub_subscription'],
-        '_starting_signal/')
+        job_dict[u'steps'][0][u'properties'][u'format'],
+        'impulse/')
+    self.assertTrue('impulse_element' in job_dict[u'steps'][0][u'properties'])
     self.assertEqual(job_dict[u'steps'][1][u'kind'], u'ParallelDo')
 
   def test_remote_runner_display_data(self):
