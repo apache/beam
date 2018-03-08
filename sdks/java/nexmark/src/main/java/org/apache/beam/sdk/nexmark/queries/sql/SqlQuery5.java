@@ -23,11 +23,13 @@ import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
+import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -51,10 +53,10 @@ import org.apache.beam.sdk.values.TupleTag;
  * <p>To make things a bit more dynamic and easier to test we use much shorter windows, and
  * we'll also preserve the bid counts.</p>
  */
-public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<AuctionCount>> {
 
   private static final String QUERY_TEMPLATE = ""
-      + " SELECT auction "
+      + " SELECT auction, num "
       + "    FROM (SELECT B1.auction, count(*) AS num, "
       + "       HOP_START(B1.dateTime, INTERVAL '%1$d' SECOND, "
       + "          INTERVAL '%2$d' SECOND) AS starttime "
@@ -85,19 +87,28 @@ public class SqlQuery5 extends PTransform<PCollection<Event>, PCollection<Row>> 
   }
 
   @Override
-  public PCollection<Row> expand(PCollection<Event> allEvents) {
+  public PCollection<AuctionCount> expand(PCollection<Event> allEvents) {
     RowCoder bidRecordCoder = getBidRowCoder();
 
     PCollection<Row> bids = allEvents
         .apply(Filter.by(IS_BID))
-        .apply(ToRow.parDo())
+        .apply(getName() + ".ToRow", ToRow.parDo())
         .setCoder(bidRecordCoder);
 
-    return PCollectionTuple.of(new TupleTag<>("Bid"), bids)
-        .apply(query);
+    PCollection<Row> queryResultsRows =
+        PCollectionTuple.of(new TupleTag<>("Bid"), bids)
+            .apply(query);
+
+    return queryResultsRows
+        .apply(auctionCountParDo())
+        .setCoder(AuctionCount.CODER);
   }
 
   private RowCoder getBidRowCoder() {
     return ADAPTERS.get(Bid.class).getRowType().getRowCoder();
+  }
+
+  private ParDo.SingleOutput<Row, AuctionCount> auctionCountParDo() {
+    return ADAPTERS.get(AuctionCount.class).parDo();
   }
 }

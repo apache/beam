@@ -26,7 +26,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -44,18 +43,6 @@ public class SqlQuery0Test {
   private static final ModelFieldsAdapter<Bid> BID_ADAPTER =
       ModelAdaptersMapping.ADAPTERS.get(Bid.class);
 
-  private static final Row BID1_ROW =
-      Row
-          .withRowType(BID_ADAPTER.getRowType())
-          .addValues(BID_ADAPTER.getFieldsValues(BID1))
-          .build();
-
-  private static final Row BID2_ROW =
-      Row
-          .withRowType(BID_ADAPTER.getRowType())
-          .addValues(BID_ADAPTER.getFieldsValues(BID2))
-          .build();
-
   @Rule
   public TestPipeline testPipeline = TestPipeline.create();
 
@@ -69,7 +56,7 @@ public class SqlQuery0Test {
 
     PAssert
         .that(bids.apply(new SqlQuery0()))
-        .containsInAnyOrder(BID1_ROW, BID2_ROW);
+        .containsInAnyOrder(BID1, BID2);
 
     testPipeline.run();
   }

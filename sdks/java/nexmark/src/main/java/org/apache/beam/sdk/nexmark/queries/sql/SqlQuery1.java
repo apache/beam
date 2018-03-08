@@ -27,6 +27,7 @@ import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
@@ -44,7 +45,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>To make things more interesting, allow the 'currency conversion' to be arbitrarily
  * slowed down.
  */
-public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<Bid>> {
 
   private static final PTransform<PInput, PCollection<Row>> QUERY = BeamSql
       .query("SELECT auction, bidder, DolToEur(price) as price, dateTime, extra FROM PCOLLECTION")
@@ -65,18 +66,26 @@ public class SqlQuery1 extends PTransform<PCollection<Event>, PCollection<Row>> 
   }
 
   @Override
-  public PCollection<Row> expand(PCollection<Event> allEvents) {
+  public PCollection<Bid> expand(PCollection<Event> allEvents) {
     RowCoder bidRecordCoder = getBidRowCoder();
 
     PCollection<Row> bidEventsRows = allEvents
         .apply(Filter.by(IS_BID))
-        .apply(ToRow.parDo())
+        .apply(getName() + ".ToRow", ToRow.parDo())
         .setCoder(bidRecordCoder);
 
-    return bidEventsRows.apply(QUERY);
+    PCollection<Row> queryResultsRows = bidEventsRows.apply(QUERY);
+
+    return queryResultsRows
+        .apply(bidParDo())
+        .setCoder(Bid.CODER);
   }
 
   private RowCoder getBidRowCoder() {
     return ADAPTERS.get(Bid.class).getRowType().getRowCoder();
+  }
+
+  private ParDo.SingleOutput<Row, Bid> bidParDo() {
+    return ADAPTERS.get(Bid.class).parDo();
   }
 }

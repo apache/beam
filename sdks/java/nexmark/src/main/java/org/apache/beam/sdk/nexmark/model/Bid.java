@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Comparator;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -154,6 +155,28 @@ public class Bid implements KnownSize, Serializable {
     } else {
       return this;
     }
+  }
+
+  @Override
+  public boolean equals(Object otherObject) {
+    if (this == otherObject) {
+      return true;
+    }
+    if (otherObject == null || getClass() != otherObject.getClass()) {
+      return false;
+    }
+
+    Bid other = (Bid) otherObject;
+    return Objects.equals(auction, other.auction)
+        && Objects.equals(bidder, other.bidder)
+        && Objects.equals(price, other.price)
+        && Objects.equals(dateTime, other.dateTime)
+        && Objects.equals(extra, other.extra);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(auction, bidder, price, dateTime, extra);
   }
 
   @Override

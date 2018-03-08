@@ -22,11 +22,13 @@ import static org.apache.beam.sdk.nexmark.queries.NexmarkQuery.IS_BID;
 
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.nexmark.model.AuctionPrice;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.sql.ToRow;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.Row;
@@ -45,7 +47,7 @@ import org.apache.beam.sdk.values.Row;
  * arbitrary size. To make it more interesting we instead choose bids for every
  * {@code skipFactor}'th auction.
  */
-public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<Row>> {
+public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<AuctionPrice>> {
 
   private static final String QUERY_TEMPLATE =
       "SELECT auction, bidder, price, dateTime, extra  FROM PCOLLECTION "
@@ -61,18 +63,26 @@ public class SqlQuery2 extends PTransform<PCollection<Event>, PCollection<Row>> 
   }
 
   @Override
-  public PCollection<Row> expand(PCollection<Event> allEvents) {
+  public PCollection<AuctionPrice> expand(PCollection<Event> allEvents) {
     RowCoder bidRecordCoder = getBidRowCoder();
 
     PCollection<Row> bidEventsRows = allEvents
         .apply(Filter.by(IS_BID))
-        .apply(ToRow.parDo())
+        .apply(getName() + ".ToRow", ToRow.parDo())
         .setCoder(bidRecordCoder);
 
-    return bidEventsRows.apply(query);
+    PCollection<Row> queryResultsRows = bidEventsRows.apply(query);
+
+    return queryResultsRows
+        .apply(auctionPriceParDo())
+        .setCoder(AuctionPrice.CODER);
   }
 
   private RowCoder getBidRowCoder() {
     return ADAPTERS.get(Bid.class).getRowType().getRowCoder();
+  }
+
+  private ParDo.SingleOutput<Row, AuctionPrice> auctionPriceParDo() {
+    return ADAPTERS.get(AuctionPrice.class).parDo();
   }
 }
