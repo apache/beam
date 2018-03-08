@@ -44,6 +44,9 @@ func Info(ctx context.Context, endpoint string) (*pb.ProvisionInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get manifest: %v", err)
 	}
+	if resp.GetInfo() == nil {
+		return nil, fmt.Errorf("empty manifest",)
+	}
 	return resp.GetInfo(), nil
 }
 
@@ -76,5 +79,8 @@ func ProtoToOptions(opt *google_protobuf.Struct, v interface{}) error {
 
 // ProtoToJSON converts pipeline options from a proto struct to JSON.
 func ProtoToJSON(opt *google_protobuf.Struct) (string, error) {
+	if opt == nil {
+		return "{}", nil
+	}
 	return (&jsonpb.Marshaler{}).MarshalToString(opt)
 }
