@@ -31,6 +31,8 @@ from concurrent import futures
 import grpc
 from google.protobuf import text_format
 
+from apache_beam import coders
+from apache_beam.internal import pickler
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
