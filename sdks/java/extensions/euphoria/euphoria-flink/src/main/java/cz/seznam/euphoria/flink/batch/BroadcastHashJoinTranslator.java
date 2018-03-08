@@ -15,13 +15,15 @@
  */
 package cz.seznam.euphoria.flink.batch;
 
+import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.Join;
-import cz.seznam.euphoria.core.client.operator.JoinHints;
+import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.util.MultiValueContext;
 import cz.seznam.euphoria.flink.FlinkOperator;
@@ -38,10 +40,20 @@ import java.util.Objects;
 
 public class BroadcastHashJoinTranslator implements BatchOperatorTranslator<Join> {
 
+  @SuppressWarnings("unchecked")
   static boolean wantTranslate(Join o) {
-    return o.getHints().contains(JoinHints.broadcastHashJoin())
+
+    return o.listInputs()
+        .stream()
+        .anyMatch(input -> hasSizeHint(((Dataset) input).getProducer()))
         && (o.getType() == Join.Type.LEFT || o.getType() == Join.Type.RIGHT)
         && !(o.getWindowing() instanceof MergingWindowing);
+  }
+
+  static boolean hasSizeHint(Operator operator) {
+    return operator != null &&
+        operator.getHints() != null &&
+        operator.getHints().contains(SizeHint.FITS_IN_MEMORY);
   }
 
   @Override

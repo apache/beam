@@ -27,12 +27,13 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.util.Pair;
-import java.util.stream.Stream;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
+import java.util.stream.Stream;
 
 /**
  * Reduces all elements in a window. The operator corresponds to
@@ -278,7 +279,7 @@ public class ReduceWindow<
           ReduceFunctor<VALUE, OUT> reducer,
           @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
 
-    super(name, flow, input, e -> B_ZERO, windowing);
+    super(name, flow, input, e -> B_ZERO, windowing, Collections.emptySet());
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
     this.valueComparator = valueComparator;
@@ -298,7 +299,7 @@ public class ReduceWindow<
       rbk = new ReduceByKey<>(
           getName() + "::ReduceByKey", getFlow(), input,
           getKeyExtractor(), valueExtractor,
-          windowing, reducer, valueComparator);
+          windowing, reducer, valueComparator, getHints());
       dag.add(rbk);
     } else {
       // otherwise we use attached windowing, therefore
@@ -314,7 +315,7 @@ public class ReduceWindow<
       rbk = new ReduceByKey<>(
           getName() + "::ReduceByKey::attached", getFlow(), map.output(),
           Pair::getFirst, p -> valueExtractor.apply(p.getSecond()),
-          null, reducer, valueComparator);
+          null, reducer, valueComparator, getHints());
       dag.add(map);
       dag.add(rbk);
     }

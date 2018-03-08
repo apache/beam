@@ -79,6 +79,4 @@ class OutputDataset<T> implements Dataset<T> {
   public Collection<Operator<?, ?>> getConsumers() {
     return flow.getConsumersOf(this);
   }
-
-
 }
