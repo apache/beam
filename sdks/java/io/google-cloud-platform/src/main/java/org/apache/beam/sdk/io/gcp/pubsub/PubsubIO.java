@@ -155,7 +155,6 @@ public class PubsubIO {
    * Class representing a Cloud Pub/Sub Subscription.
    */
   public static class PubsubSubscription implements Serializable {
-    private final Type type;
     private final String project;
     private final String subscription;
 
@@ -202,7 +201,7 @@ public class PubsubIO {
 
       validateProjectName(projectName);
       validatePubsubName(subscriptionName);
-      return new PubsubSubscription(Type.NORMAL, projectName, subscriptionName);
+      return new PubsubSubscription(projectName, subscriptionName);
     }
 
     /**
@@ -213,11 +212,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta1Path() {
-      if (type == Type.NORMAL) {
-        return "/subscriptions/" + project + "/" + subscription;
-      } else {
-        return subscription;
-      }
+      return "/subscriptions/" + project + "/" + subscription;
     }
 
     /**
@@ -228,11 +223,7 @@ public class PubsubIO {
      */
     @Deprecated
     public String asV1Beta2Path() {
-      if (type == Type.NORMAL) {
-        return "projects/" + project + "/subscriptions/" + subscription;
-      } else {
-        return subscription;
-      }
+      return "projects/" + project + "/subscriptions/" + subscription;
     }
 
     /**
@@ -240,11 +231,7 @@ public class PubsubIO {
      * API.
      */
     public String asPath() {
-      if (type == Type.NORMAL) {
-        return "projects/" + project + "/subscriptions/" + subscription;
-      } else {
-        return subscription;
-      }
+      return "projects/" + project + "/subscriptions/" + subscription;
     }
 
     @Override
