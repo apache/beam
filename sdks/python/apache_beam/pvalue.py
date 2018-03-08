@@ -29,6 +29,8 @@ from __future__ import absolute_import
 import collections
 import itertools
 
+from six import string_types
+
 from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal import pickler
@@ -259,7 +261,7 @@ class TaggedOutput(object):
   """
 
   def __init__(self, tag, value):
-    if not isinstance(tag, basestring):
+    if not isinstance(tag, string_types):
       raise TypeError(
           'Attempting to create a TaggedOutput with non-string tag %s' % tag)
     self.tag = tag
