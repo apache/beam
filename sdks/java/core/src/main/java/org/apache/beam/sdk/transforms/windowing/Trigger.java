@@ -168,7 +168,7 @@ public abstract class Trigger implements Serializable {
     if (getClass().getEnclosingClass() != null) {
       simpleName = getClass().getEnclosingClass().getSimpleName() + "." + simpleName;
     }
-    if (subTriggers == null || subTriggers.size() == 0) {
+    if (subTriggers == null || subTriggers.isEmpty()) {
       return simpleName;
     } else {
       return simpleName + "(" + Joiner.on(", ").join(subTriggers) + ")";

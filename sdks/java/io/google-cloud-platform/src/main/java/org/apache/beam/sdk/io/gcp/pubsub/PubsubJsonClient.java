@@ -175,7 +175,7 @@ class PubsubJsonClient extends PubsubClient {
                                   .subscriptions()
                                   .pull(subscription.getPath(), request)
                                   .execute();
-    if (response.getReceivedMessages() == null || response.getReceivedMessages().size() == 0) {
+    if (response.getReceivedMessages() == null || response.getReceivedMessages().isEmpty()) {
       return ImmutableList.of();
     }
     List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessages().size());
