@@ -16,7 +16,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongo-lb-service
+  name: mongo-load-balancer-service
   labels:
     name: mongo
 spec:
