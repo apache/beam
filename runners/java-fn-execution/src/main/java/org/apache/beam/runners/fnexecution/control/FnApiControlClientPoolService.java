@@ -18,9 +18,9 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import io.grpc.stub.StreamObserver;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
@@ -34,7 +34,7 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
   private final BlockingQueue<FnApiControlClient> clientPool;
-  private final Collection<FnApiControlClient> vendedClients = new ArrayList<>();
+  private final Collection<FnApiControlClient> vendedClients = new CopyOnWriteArrayList<>();
   private AtomicBoolean closed = new AtomicBoolean();
 
   private FnApiControlClientPoolService(BlockingQueue<FnApiControlClient> clientPool) {
@@ -67,7 +67,10 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
     FnApiControlClient newClient = FnApiControlClient.forRequestObserver(requestObserver);
     try {
       // Add the client to the pool of vended clients before making it available - we should close
-      // the client when we close even if no one has picked it up yet.
+      // the client when we close even if no one has picked it up yet. This can occur after the
+      // service is closed, in which case the client will be discarded when the service is
+      // discarded, which should be performed by a call to #shutdownNow. The remote caller must be
+      // able to handle an unexpectedly terminated connection.
       vendedClients.add(newClient);
       clientPool.put(newClient);
     } catch (InterruptedException e) {
