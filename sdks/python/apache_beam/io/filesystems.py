@@ -19,6 +19,8 @@
 
 import re
 
+from six import string_types
+
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
@@ -261,7 +263,7 @@ class FileSystems(object):
     Raises:
       ``BeamIOError`` if any of the delete operations fail
     """
-    if isinstance(paths, basestring):
+    if isinstance(paths, string_types):
       raise BeamIOError('Delete passed string argument instead of list: %s' %
                         paths)
     if len(paths) == 0:
