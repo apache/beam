@@ -38,7 +38,7 @@ import org.junit.runners.JUnit4;
 public class WordCountIT {
   private static final String DEFAULT_INPUT =
       "gs://apache-beam-samples/shakespeare/winterstale-personae";
-  private static final String DEFAULT_OUTPUT_CHECKSUM = "508517575eba8d8d5a54f7f0080a00951cfe84ca";
+  private static final String DEFAULT_OUTPUT_CHECKSUM = "ebf895e7324e8a3edc72e7bcc96fa2ba7f690def";
 
   /**
    * Options for the WordCount Integration Test.
@@ -67,6 +67,6 @@ public class WordCountIT {
     options.setOnSuccessMatcher(
         new FileChecksumMatcher(DEFAULT_OUTPUT_CHECKSUM, options.getOutput() + "*-of-*"));
 
-    WordCount.main(TestPipeline.convertToArgs(options));
+    WordCount.runWordCount(options);
   }
 }
