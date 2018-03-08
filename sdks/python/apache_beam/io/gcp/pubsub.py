@@ -26,6 +26,8 @@ from __future__ import absolute_import
 
 import re
 
+from six import text_type
+
 from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
@@ -184,7 +186,7 @@ class ReadStringsFromPubSub(PTransform):
          | _ReadFromPubSub(self.topic, self.subscription, self.id_label,
                            with_attributes=False)
          | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
-    p.element_type = unicode
+    p.element_type = text_type
     return p
 
 
