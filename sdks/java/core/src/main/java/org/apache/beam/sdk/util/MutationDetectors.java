@@ -17,13 +17,17 @@
  */
 package org.apache.beam.sdk.util;
 
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Static methods for creating and working with {@link MutationDetector}.
  */
 public class MutationDetectors {
+  private static final Logger LOG = LoggerFactory.getLogger(MutationDetectors.class);
 
   private MutationDetectors() {}
 
@@ -134,7 +138,16 @@ public class MutationDetectors {
       T possiblyModifiedClonedValue = CoderUtils.clone(coder, possiblyModifiedObject);
       Object newStructuralValue = coder.structuralValue(possiblyModifiedClonedValue);
       if (originalStructuralValue.equals(newStructuralValue)) {
-          return;
+        return;
+      } else if (Objects.deepEquals(
+          encodedOriginalObject, CoderUtils.encodeToByteArray(coder, possiblyModifiedObject))) {
+        LOG.warn(
+            "{} of type {} has a #structuralValue method which does not return true when the "
+                + "encoding of the elements is equal. Element {}",
+            Coder.class.getSimpleName(),
+            coder.getClass(),
+            possiblyModifiedObject);
+        return;
       }
       illegalMutation(clonedOriginalObject, possiblyModifiedClonedValue);
     }
