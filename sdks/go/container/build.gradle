@@ -37,7 +37,7 @@ dependencies {
 }
 
 golang {
-  packagePath = 'github.com/apache/beam/sdks/python/boot'
+  packagePath = 'github.com/apache/beam/sdks/go/boot'
   build {
     // TODO(herohde): build local platform + linux-amd64, if possible.
     targetPlatform = ['linux-amd64']
