@@ -145,11 +145,23 @@ class UniversalLocalRunner(runner.PipelineRunner):
     return job_service
 
   def run_pipeline(self, pipeline):
+    # Java has different expectations about coders
+    # (windowed in Fn API, but *un*windowed in runner API), whereas the
+    # FnApiRunner treats them consistently, so we must guard this.
+    # See also BEAM-2717.
+    proto_pipeline, proto_context = pipeline.to_runner_api(return_context=True)
+    if self._runner_api_address:
+      for pcoll in proto_pipeline.components.pcollections.values():
+        if pcoll.coder_id not in proto_context.coders:
+          coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
+          pcoll.coder_id = proto_context.coders.get_id(coder)
+      proto_context.coders.populate_map(proto_pipeline.components.coders)
+
     job_service = self._get_job_service()
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
             job_name='job',
-            pipeline=pipeline.to_runner_api()))
+            pipeline=proto_pipeline))
     run_response = job_service.Run(beam_job_api_pb2.RunJobRequest(
         preparation_id=prepare_response.preparation_id))
     return PipelineResult(job_service, run_response.job_id)
