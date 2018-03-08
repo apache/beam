@@ -297,6 +297,7 @@ def javaPreCommitRoots = [
   ":sdks:java:fn-execution",
 ]
 task javaPreCommit() {
+  dependsOn ":rat"
   for (String javaPreCommitRoot : javaPreCommitRoots) {
     dependsOn javaPreCommitRoot + ":buildNeeded"
     dependsOn javaPreCommitRoot + ":buildDependents"
@@ -305,5 +306,6 @@ task javaPreCommit() {
 }
 
 task goPreCommit() {
+  dependsOn ":rat"
   dependsOn ":sdks:go:test"
 }
