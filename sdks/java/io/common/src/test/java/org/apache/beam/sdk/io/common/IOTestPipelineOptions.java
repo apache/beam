@@ -114,4 +114,23 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   String getCharset();
 
   void setCharset(String charset);
+
+  /* MongoDB */
+  @Description("MongoDB host (host name/ip address)")
+  @Default.String("mongodb-host")
+  String getMongoDBHostName();
+
+  void setMongoDBHostName(String host);
+
+  @Description("Port for MongoDB")
+  @Default.Integer(27017)
+  Integer getMongoDBPort();
+
+  void setMongoDBPort(Integer port);
+
+  @Description("Mongo database name")
+  @Default.String("beam")
+  String getMongoDBDatabaseName();
+
+  void setMongoDBDatabaseName(String name);
 }
