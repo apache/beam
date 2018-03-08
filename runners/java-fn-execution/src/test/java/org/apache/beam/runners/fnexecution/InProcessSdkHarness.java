@@ -21,6 +21,7 @@ package org.apache.beam.runners.fnexecution;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
+import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.SynchronousQueue;
@@ -35,20 +36,21 @@ import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
 
 /**
- * A {@link TestRule} which creates an {@link FnHarness} in a thread, services required for that
+ * A {@link TestRule} which creates a {@link FnHarness} in a thread, services required for that
  * {@link FnHarness} to properly execute, and provides access to the associated client and harness
  * during test execution.
  */
-public class InProcessSdkHarness implements TestRule {
+public class InProcessSdkHarness extends ExternalResource implements TestRule {
+
   public static InProcessSdkHarness create() {
     return new InProcessSdkHarness();
   }
 
+  private ExecutorService executor;
   private GrpcFnServer<GrpcLoggingService> loggingServer;
   private GrpcFnServer<GrpcDataService> dataServer;
   private GrpcFnServer<FnApiControlClientPoolService> controlServer;
@@ -65,53 +67,47 @@ public class InProcessSdkHarness implements TestRule {
     return dataServer.getApiServiceDescriptor();
   }
 
-  @Override
-  public Statement apply(Statement base, Description description) {
-    return new Statement() {
+  protected void before() throws IOException, InterruptedException {
+    InProcessServerFactory serverFactory = InProcessServerFactory.create();
+    executor = Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).build());
+    SynchronousQueue<FnApiControlClient> clientPool = new SynchronousQueue<>();
+    FnApiControlClientPoolService clientPoolService =
+        FnApiControlClientPoolService.offeringClientsToPool(clientPool);
 
-      @Override
-      public void evaluate() throws Throwable {
-        InProcessServerFactory serverFactory = InProcessServerFactory.create();
-        ExecutorService executor =
-            Executors.newCachedThreadPool(new ThreadFactoryBuilder().setDaemon(true).build());
-        SynchronousQueue<FnApiControlClient> clientPool = new SynchronousQueue<>();
-        FnApiControlClientPoolService clientPoolService =
-            FnApiControlClientPoolService.offeringClientsToPool(clientPool);
+    loggingServer =
+        GrpcFnServer.allocatePortAndCreateFor(
+            GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
+    dataServer =
+        GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
+    controlServer = GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
 
-        loggingServer =
-            GrpcFnServer.allocatePortAndCreateFor(
-                GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-        dataServer =
-            GrpcFnServer.allocatePortAndCreateFor(GrpcDataService.create(executor), serverFactory);
-        controlServer = GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
+    executor.submit(
+        () -> {
+          FnHarness.main(
+              PipelineOptionsFactory.create(),
+              loggingServer.getApiServiceDescriptor(),
+              controlServer.getApiServiceDescriptor(),
+              new ManagedChannelFactory() {
+                @Override
+                public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
+                  return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+                }
+              },
+              StreamObserverFactory.direct());
+          return null;
+        });
 
-        executor.submit(
-            () -> {
-              FnHarness.main(
-                  PipelineOptionsFactory.create(),
-                  loggingServer.getApiServiceDescriptor(),
-                  controlServer.getApiServiceDescriptor(),
-                  new ManagedChannelFactory() {
-                    @Override
-                    public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
-                      return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
-                    }
-                  },
-                  StreamObserverFactory.direct());
-              return null;
-            });
+    client = SdkHarnessClient.usingFnApiClient(clientPool.take(), dataServer.getService());
+  }
 
-        client = SdkHarnessClient.usingFnApiClient(clientPool.take(), dataServer.getService());
-        try {
-          base.evaluate();
-        } finally {
-          client.close();
-          controlServer.close();
-          dataServer.close();
-          loggingServer.close();
-          executor.shutdownNow();
-        }
-      }
-    };
+  protected void after() {
+    try (AutoCloseable logs = loggingServer;
+        AutoCloseable data = dataServer;
+        AutoCloseable ctl = controlServer;
+        AutoCloseable c = client; ) {
+      executor.shutdownNow();
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 }
