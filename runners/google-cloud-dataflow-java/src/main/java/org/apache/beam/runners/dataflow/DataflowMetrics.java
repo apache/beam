@@ -153,9 +153,10 @@ class DataflowMetrics extends MetricResults {
                 metricKey.metricName(),
                 metricKey.stepName(),
                 isStreamingJob ? null : value, // Committed
-                isStreamingJob ? value : null)); // Attempted
+                value)); // Attempted
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
-         * In Dataflow batch jobs, only COMMITTED metrics are available.
+         * In Dataflow batch jobs, only COMMITTED metrics are available, but
+         * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
          * Reporting the appropriate metric depending on whether it's a batch/streaming job.
          */
       } else if (committed.getScalar() != null && attempted.getScalar() != null) {
@@ -166,9 +167,10 @@ class DataflowMetrics extends MetricResults {
                 metricKey.metricName(),
                 metricKey.stepName(),
                 isStreamingJob ? null : value, // Committed
-                isStreamingJob ? value : null)); // Attempted
+                value)); // Attempted
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
-         * In Dataflow batch jobs, only COMMITTED metrics are available.
+         * In Dataflow batch jobs, only COMMITTED metrics are available, but
+         * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
          * Reporting the appropriate metric depending on whether it's a batch/streaming job.
          */
       } else {
@@ -351,7 +353,6 @@ class DataflowMetrics extends MetricResults {
     public abstract String step();
     @Nullable
     public abstract T committed();
-    @Nullable
     public abstract T attempted();
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
