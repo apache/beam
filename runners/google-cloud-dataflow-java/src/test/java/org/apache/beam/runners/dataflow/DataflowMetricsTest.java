@@ -109,7 +109,7 @@ public class DataflowMetricsTest {
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
-    MetricQueryResults result = dataflowMetrics.queryMetrics();
+    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     assertThat(ImmutableList.copyOf(result.counters()), is(empty()));
     assertThat(ImmutableList.copyOf(result.distributions()), is(empty()));
   }
