@@ -214,7 +214,7 @@ public class XmlIOTest {
    */
   @SuppressWarnings("unused")
   @XmlRootElement(name = "bird")
-  @XmlType(propOrder = {"name", "adjective"})
+  @XmlType(propOrder = { "name", "adjective" })
   private static final class Bird implements Serializable {
     private String name;
     private String adjective;
@@ -265,6 +265,11 @@ public class XmlIOTest {
       int result = name.hashCode();
       result = 31 * result + adjective.hashCode();
       return result;
+    }
+
+    @Override
+    public String toString() {
+      return String.format("Bird: %s, %s", name, adjective);
     }
   }
 }

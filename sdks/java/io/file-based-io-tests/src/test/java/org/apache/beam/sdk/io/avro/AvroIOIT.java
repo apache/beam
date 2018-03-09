@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.avro;
 
-import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampToPrefix;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampSuffix;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
+import org.apache.beam.sdk.io.common.FileBasedIOITHelper.DeleteFileFn;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
@@ -85,7 +86,7 @@ public class AvroIOIT {
     IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
+    filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
   }
 
   @Test
@@ -119,7 +120,7 @@ public class AvroIOIT {
 
     testFilenames.apply(
         "Delete test files",
-        ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
+        ParDo.of(new DeleteFileFn())
             .withSideInputs(consolidatedHashcode.apply(View.asSingleton())));
 
     pipeline.run().waitUntilFinish();
