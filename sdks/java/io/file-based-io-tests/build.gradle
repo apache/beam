@@ -35,6 +35,7 @@ dependencies {
   shadowTest project(":runners:direct-java").sourceSets.test.output
   shadowTest project(":sdks:java:io:common")
   shadowTest project(":sdks:java:io:common").sourceSets.test.output
+  shadowTest project(":sdks:java:io:xml")
   shadowTest library.java.guava
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core

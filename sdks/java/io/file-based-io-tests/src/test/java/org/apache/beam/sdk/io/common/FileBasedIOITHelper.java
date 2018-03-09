@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.common;
 
 import com.google.common.collect.ImmutableMap;
@@ -51,8 +50,8 @@ public class FileBasedIOITHelper {
     return PipelineOptionsValidator.validate(IOTestPipelineOptions.class, options);
   }
 
-  public static String appendTimestampToPrefix(String filenamePrefix) {
-    return String.format("%s_%s", filenamePrefix, new Date().getTime());
+  public static String appendTimestampSuffix(String text) {
+    return String.format("%s_%s", text, new Date().getTime());
   }
 
   public static String getExpectedHashForLineCount(int lineCount) {
@@ -62,10 +61,14 @@ public class FileBasedIOITHelper {
         100_000_000, "6ce05f456e2fdc846ded2abd0ec1de95"
     );
 
-    String hash = expectedHashes.get(lineCount);
+    return getHashForRecordCount(lineCount, expectedHashes);
+  }
+
+  public static String getHashForRecordCount(int recordCount, Map<Integer, String> hashes) {
+    String hash = hashes.get(recordCount);
     if (hash == null) {
       throw new UnsupportedOperationException(
-          String.format("No hash for that line count: %s", lineCount)
+        String.format("No hash for that record count: %s", recordCount)
       );
     }
     return hash;
