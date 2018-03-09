@@ -34,6 +34,7 @@ import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -205,12 +206,14 @@ public class QueryTest {
         new Query5Model(CONFIG), true);
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-3816")
   @Test
   @Category(NeedsRunner.class)
   public void query6MatchesModelBatch() {
     queryMatchesModel("Query6TestBatch", new Query6(CONFIG), new Query6Model(CONFIG), false);
   }
 
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-3816")
   @Test
   @Category(NeedsRunner.class)
   public void query6MatchesModelStreaming() {
