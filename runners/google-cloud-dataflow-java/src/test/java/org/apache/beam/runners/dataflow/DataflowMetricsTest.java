@@ -208,7 +208,7 @@ public class DataflowMetricsTest {
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     assertThat(result.counters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", (Long) null)));
+        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1234L)));
     assertThat(result.counters(), containsInAnyOrder(
         committedMetricsResult("counterNamespace", "counterName", "myStepName", 1234L)));
   }
@@ -241,7 +241,7 @@ public class DataflowMetricsTest {
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     assertThat(result.counters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", (Long) null)));
+        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L)));
     assertThat(result.counters(), containsInAnyOrder(
         committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L)));
   }
@@ -275,7 +275,7 @@ public class DataflowMetricsTest {
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     assertThat(result.distributions(), contains(
         attemptedMetricsResult("distributionNamespace", "distributionName", "myStepName",
-            (DistributionResult) null)));
+            DistributionResult.create(18, 2, 2, 16))));
     assertThat(result.distributions(), contains(
         committedMetricsResult("distributionNamespace", "distributionName", "myStepName",
             DistributionResult.create(18, 2, 2, 16))));
@@ -356,9 +356,9 @@ public class DataflowMetricsTest {
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     assertThat(result.counters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", (Long) null),
-        attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", (Long) null),
-        attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", (Long) null)));
+        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
+        attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
+        attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
     assertThat(result.counters(), containsInAnyOrder(
         committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
         committedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
