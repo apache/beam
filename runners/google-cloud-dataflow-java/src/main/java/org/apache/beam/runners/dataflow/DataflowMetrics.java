@@ -352,8 +352,17 @@ class DataflowMetrics extends MetricResults {
     public abstract MetricName name();
     public abstract String step();
     @Nullable
-    public abstract T committed();
+    protected abstract T committedInternal();
     public abstract T attempted();
+
+    public T committed() {
+      T committed = committedInternal();
+      if (committed == null) {
+        throw new UnsupportedOperationException("This runner does not currently support committed"
+            + " metrics results. Please use 'attempted' instead.");
+      }
+      return committed;
+    }
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
         T committed, T attempted) {
