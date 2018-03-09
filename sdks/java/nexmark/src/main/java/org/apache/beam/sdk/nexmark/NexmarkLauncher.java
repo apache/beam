@@ -190,7 +190,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   /**
    * Return the current value for a long counter, or a default value if can't be retrieved.
-   * Note this uses only attempted metrics because some runners don't support committed metrics.
+   * Note some runners don't support committed metrics and some don't support attempted metrics.
    */
   private long getCounterMetric(PipelineResult result, String namespace, String name,
     long defaultValue) {
@@ -199,8 +199,12 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     Iterable<MetricResult<Long>> counters = metrics.counters();
     try {
       MetricResult<Long> metricResult = counters.iterator().next();
-      return metricResult.attempted();
-    } catch (NoSuchElementException e) {
+      Long value = metricResult.committed();
+      if (value == null) {
+        value = metricResult.attempted();
+      }
+      return value;
+    } catch (NoSuchElementException | NullPointerException e) {
       LOG.error("Failed to get metric {}, from namespace {}", name, namespace);
     }
     return defaultValue;
@@ -208,7 +212,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   /**
    * Return the current value for a long counter, or a default value if can't be retrieved.
-   * Note this uses only attempted metrics because some runners don't support committed metrics.
+   * Note some runners don't support committed metrics and some don't support attempted metrics.
    */
   private long getDistributionMetric(PipelineResult result, String namespace, String name,
       DistributionType distType, long defaultValue) {
@@ -216,16 +220,20 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build());
     Iterable<MetricResult<DistributionResult>> distributions = metrics.distributions();
     try {
-      MetricResult<DistributionResult> distributionResult = distributions.iterator().next();
+      MetricResult<DistributionResult> distributionResultMetric = distributions.iterator().next();
+        DistributionResult distributionResult = distributionResultMetric.committed();
+        if (distributionResult == null) {
+          distributionResult = distributionResultMetric.attempted();
+        }
       switch (distType) {
         case MIN:
-          return distributionResult.attempted().min();
+          return distributionResult.min();
         case MAX:
-          return distributionResult.attempted().max();
+          return distributionResult.max();
         default:
           return defaultValue;
       }
-    } catch (NoSuchElementException e) {
+    } catch (NoSuchElementException | NullPointerException e) {
       LOG.error(
           "Failed to get distribution metric {} for namespace {}",
           name,

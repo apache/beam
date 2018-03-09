@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -32,14 +33,13 @@ public interface MetricResult<T> {
 
   /**
    * Return the value of this metric across all successfully completed parts of the pipeline.
-   *
-   * <p>Not all runners will support committed metrics. If they are not supported, the runner will
-   * throw an {@link UnsupportedOperationException}.
    */
+  @Nullable
   T committed();
 
   /**
    * Return the value of this metric across all attempts of executing all parts of the pipeline.
    */
+  @Nullable
   T attempted();
 }
