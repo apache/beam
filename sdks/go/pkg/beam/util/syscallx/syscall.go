@@ -14,7 +14,7 @@
 // limitations under the License.
 
 // Package syscallx provides system call utilities that attempt to hide platform
-// differences. Operations return ErrUnsupported if not implemented on the
+// differences. Operations return UnsupportedErr if not implemented on the
 // given platform. Consumers of this package should generally treat that
 // error specially.
 package syscallx
@@ -23,5 +23,5 @@ import (
 	"errors"
 )
 
-// ErrUnsupported is the error returned for unsupported operations.
-var ErrUnsupported = errors.New("not supported on platform")
+// UnsupportedErr is the error returned for unsupported operations.
+var UnsupportedErr = errors.New("not supported on platform")
