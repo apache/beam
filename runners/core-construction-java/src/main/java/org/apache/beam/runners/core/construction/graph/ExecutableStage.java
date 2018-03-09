@@ -127,7 +127,7 @@ public interface ExecutableStage {
     return pt.build();
   }
 
-  // TODO: Shoud this live under ExecutableStageTranslation?
+  // TODO: Should this live under ExecutableStageTranslation?
   /**
    * Return an {@link ExecutableStage} constructed from the provided {@link FunctionSpec}
    * representation.
