@@ -3353,4 +3353,37 @@ public class ParDoTest implements Serializable {
 
     pipeline.run();
   }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void duplicateTimerSetting() {
+    TestStream<KV<String, String>> stream = TestStream
+        .create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        .addElements(KV.of("key1", "v1"))
+        .advanceWatermarkToInfinity();
+
+    PCollection<String> result = pipeline
+        .apply(stream)
+        .apply(ParDo.of(new TwoTimerDoFn()));
+    PAssert.that(result).containsInAnyOrder("It works");
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  private static class TwoTimerDoFn extends DoFn<KV<String, String>, String> {
+    @TimerId("timer")
+    private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+    @ProcessElement
+    public void process(ProcessContext c,
+        @TimerId("timer") Timer timer) {
+      timer.offset(Duration.standardMinutes(10)).setRelative();
+      timer.offset(Duration.standardMinutes(30)).setRelative();
+    }
+
+    @OnTimer("timer")
+    public void onTimer(OnTimerContext c, @TimerId("timer") Timer timer) {
+      c.output("It works");
+    }
+  }
 }
