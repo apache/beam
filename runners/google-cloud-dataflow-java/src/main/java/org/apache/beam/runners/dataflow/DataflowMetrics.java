@@ -149,9 +149,10 @@ class DataflowMetrics extends MetricResults {
                 metricKey.metricName(),
                 metricKey.stepName(),
                 isStreamingJob ? null : value, // Committed
-                isStreamingJob ? value : null)); // Attempted
+                value)); // Attempted
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
-         * In Dataflow batch jobs, only COMMITTED metrics are available.
+         * In Dataflow batch jobs, only COMMITTED metrics are available, but
+         * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
          * Reporting the appropriate metric depending on whether it's a batch/streaming job.
          */
       } else if (committed.getScalar() != null && attempted.getScalar() != null) {
@@ -162,9 +163,10 @@ class DataflowMetrics extends MetricResults {
                 metricKey.metricName(),
                 metricKey.stepName(),
                 isStreamingJob ? null : value, // Committed
-                isStreamingJob ? value : null)); // Attempted
+                value)); // Attempted
         /* In Dataflow streaming jobs, only ATTEMPTED metrics are available.
-         * In Dataflow batch jobs, only COMMITTED metrics are available.
+         * In Dataflow batch jobs, only COMMITTED metrics are available, but
+         * we must provide ATTEMPTED, so we use COMMITTED as a good approximation.
          * Reporting the appropriate metric depending on whether it's a batch/streaming job.
          */
       } else {
@@ -346,9 +348,17 @@ class DataflowMetrics extends MetricResults {
     public abstract MetricName name();
     public abstract String step();
     @Nullable
-    public abstract T committed();
-    @Nullable
+    protected abstract T committedInternal();
     public abstract T attempted();
+
+    public T committed() {
+      T committed = committedInternal();
+      if (committed == null) {
+        throw new UnsupportedOperationException("This runner does not currently support committed"
+            + " metrics results. Please use 'attempted' instead.");
+      }
+      return committed;
+    }
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
         T committed, T attempted) {
