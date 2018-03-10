@@ -22,7 +22,9 @@ import static org.apache.beam.sdk.values.RowType.toRowType;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
+import org.apache.beam.sdk.extensions.sql.SqlTypeCoder.SqlArrayCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.rel.type.RelDataType;
@@ -35,6 +37,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
  * Utility methods for Calcite related operations.
  */
 public class CalciteUtils {
+  private static final long UNLIMITED_ARRAY_SIZE = -1L;
   private static final BiMap<SqlTypeCoder, SqlTypeName> BEAM_TO_CALCITE_TYPE_MAPPING =
       ImmutableBiMap.<SqlTypeCoder, SqlTypeName>builder()
           .put(SqlTypeCoders.TINYINT, SqlTypeName.TINYINT)
@@ -65,14 +68,31 @@ public class CalciteUtils {
    * for supported Beam SQL type coder, see {@link SqlTypeCoder}.
    */
   public static SqlTypeName toCalciteType(SqlTypeCoder coder) {
-    return BEAM_TO_CALCITE_TYPE_MAPPING.get(coder);
+    return SqlTypeCoder.isArray(coder)
+        ? SqlTypeName.ARRAY
+        : BEAM_TO_CALCITE_TYPE_MAPPING.get(coder);
+  }
+
+  /**
+   * Get the Beam SQL type coder ({@link SqlTypeCoder}) from Calcite's {@link RelDataTypeField}.
+   */
+  public static SqlTypeCoder toCoder(RelDataTypeField relFieldType) {
+    SqlTypeName fieldTypeName = relFieldType.getType().getSqlTypeName();
+
+    if (SqlTypeName.ARRAY.equals(fieldTypeName)) {
+      RelDataType elementType = relFieldType.getValue().getComponentType();
+      SqlTypeCoder elementCoder = CALCITE_TO_BEAM_TYPE_MAPPING.get(elementType.getSqlTypeName());
+      return SqlTypeCoders.arrayOf(elementCoder);
+    } else {
+      return toCoder(fieldTypeName);
+    }
   }
 
   /**
    * Get the Beam SQL type coder ({@link SqlTypeCoder}) from Calcite's {@link SqlTypeName}.
    */
-  public static SqlTypeCoder toCoder(SqlTypeName typeName) {
-    return CALCITE_TO_BEAM_TYPE_MAPPING.get(typeName);
+  public static SqlTypeCoder toCoder(SqlTypeName relFieldType) {
+    return CALCITE_TO_BEAM_TYPE_MAPPING.get(relFieldType);
   }
 
   /**
@@ -98,21 +118,47 @@ public class CalciteUtils {
     return
         RowType.newField(
             calciteField.getName(),
-            toCoder(calciteField.getType().getSqlTypeName()));
+            toCoder(calciteField));
   }
 
   /**
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
   public static RelProtoDataType toCalciteRowType(final RowType rowType) {
-    return fieldInfo -> {
-      RelDataTypeFactory.FieldInfoBuilder builder = fieldInfo.builder();
-      for (int idx = 0; idx < rowType.getFieldNames().size(); ++idx) {
-        builder.add(
-            rowType.getFieldName(idx),
-            toCalciteType((SqlTypeCoder) rowType.getFieldCoder(idx)));
-      }
+    return dataTypeFactory -> {
+      RelDataTypeFactory.Builder builder = new RelDataTypeFactory.Builder(dataTypeFactory);
+
+      IntStream
+          .range(0, rowType.getFieldCount())
+          .forEach(idx ->
+                       builder.add(
+                           rowType.getFieldName(idx),
+                           toRelDataType(dataTypeFactory, rowType, idx)));
+
       return builder.build();
     };
+  }
+
+  private static RelDataType toRelDataType(
+      RelDataTypeFactory dataTypeFactory,
+      RowType rowType,
+      int fieldIndex) {
+
+    SqlTypeCoder fieldCoder = (SqlTypeCoder) rowType.getFieldCoder(fieldIndex);
+    SqlTypeName typeName = toCalciteType(fieldCoder);
+
+    return (SqlTypeName.ARRAY.equals(typeName))
+        ? createArrayRelType(dataTypeFactory, (SqlArrayCoder) fieldCoder)
+        : dataTypeFactory.createSqlType(typeName);
+  }
+
+  private static RelDataType createArrayRelType(
+      RelDataTypeFactory dataTypeFactory,
+      SqlArrayCoder arrayFieldCoder) {
+    SqlTypeName elementType = toCalciteType(arrayFieldCoder.getElementCoder());
+    return
+        dataTypeFactory
+            .createArrayType(
+                dataTypeFactory.createSqlType(elementType), UNLIMITED_ARRAY_SIZE);
   }
 }
