@@ -143,6 +143,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     case SYMBOL:
       // for SYMBOL, it supports anything...
       return true;
+    case ARRAY:
+      return value instanceof List;
     default:
       throw new UnsupportedOperationException(outputType.name());
     }
