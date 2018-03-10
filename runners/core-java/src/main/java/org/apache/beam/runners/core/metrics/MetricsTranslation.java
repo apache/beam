@@ -62,6 +62,12 @@ public abstract class MetricsTranslation {
                       userMetricUpdate.getDistributionData().getCount(),
                       userMetricUpdate.getDistributionData().getMin(),
                       userMetricUpdate.getDistributionData().getMax())));
+        case GAUGE_DATA:
+          gaugeUpdates.add(
+              MetricUpdates.MetricUpdate.create(
+                  metricKey,
+                  GaugeData.create(
+                      userMetricUpdate.getGaugeData().getValue())));
           break;
         case DATA_NOT_SET:
           continue;
