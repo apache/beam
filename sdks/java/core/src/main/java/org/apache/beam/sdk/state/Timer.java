@@ -67,4 +67,10 @@ public interface Timer {
    * period}.
    */
   Timer align(Duration period);
+
+  /**
+   * Sets event time timer's output timestamp. Output watermark will be held at this timestamp until
+   * the timer fires.
+   * */
+  Timer withOutputTimestamp(Instant outputTime);
 }

@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -54,10 +55,11 @@ public interface TimerInternals {
    *
    * <p>It is an error to set a timer for two different time domains.
    */
-  void setTimer(StateNamespace namespace, String timerId, Instant target, TimeDomain timeDomain);
+  void setTimer(StateNamespace namespace, String timerId, Instant target, Instant outputTimestamp,
+      TimeDomain timeDomain);
 
   /**
-   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, TimeDomain)}.
+   * @deprecated use {@link #setTimer(StateNamespace, String, Instant, Instant, TimeDomain)}.
    */
   @Deprecated
   void setTimer(TimerData timerData);
@@ -171,33 +173,63 @@ public interface TimerInternals {
 
     public abstract StateNamespace getNamespace();
 
+    /** Timestamp, at which the timer fires. */
     public abstract Instant getTimestamp();
+
+    /**
+     * Timestamp the timer assigns to outputted elements from
+     * {@link org.apache.beam.sdk.transforms.DoFn.OnTimer} method. For event time timers, output
+     * watermark is held at this timestamp until the timer fires.
+     * */
+    public abstract Instant getOutputTimestamp();
 
     public abstract TimeDomain getDomain();
 
     // When adding a new field, make sure to add it to the compareTo() method.
 
     /**
-     * Construct a {@link TimerData} for the given parameters, where the timer ID is automatically
-     * generated.
+     * Construct a {@link TimerData} for the given parameters.
      */
     public static TimerData of(
-        String timerId, StateNamespace namespace, Instant timestamp, TimeDomain domain) {
-      return new AutoValue_TimerInternals_TimerData(timerId, namespace, timestamp, domain);
+        String timerId, StateNamespace namespace, Instant timestamp, Instant outputTimestamp,
+        TimeDomain domain) {
+      return new AutoValue_TimerInternals_TimerData(
+          timerId, namespace, timestamp, outputTimestamp, domain);
     }
 
     /**
-     * Construct a {@link TimerData} for the given parameters, where the timer ID is
+     * Construct a {@link TimerData} for the given parameters except for {@code outputTimestamp}.
+     * {@code outputTimestamp} is set to timer {@code timestamp}.
+     */
+    public static TimerData of(
+        String timerId, StateNamespace namespace, Instant timestamp, TimeDomain domain) {
+      return new AutoValue_TimerInternals_TimerData(
+          timerId, namespace, timestamp, timestamp, domain);
+    }
+
+    /**
+     * Construct a {@link TimerData} for the given parameters except for timer ID. Timer ID is
      * deterministically generated from the {@code timestamp} and {@code domain}.
      */
-    public static TimerData of(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
+    public static TimerData of(StateNamespace namespace, Instant timestamp, Instant outputTimestamp,
+        TimeDomain domain) {
       String timerId =
           new StringBuilder()
               .append(domain.ordinal())
               .append(':')
               .append(timestamp.getMillis())
               .toString();
-      return of(timerId, namespace, timestamp, domain);
+      return of(timerId, namespace, timestamp, outputTimestamp, domain);
+    }
+
+
+    /**
+     * Construct a {@link TimerData} for the given parameters, where the timer ID is
+     * deterministically generated from the {@code timestamp} and {@code domain}. Also, output
+     * timestamp is set to the timer timestamp by default.
+     */
+    public static TimerData of(StateNamespace namespace, Instant timestamp, TimeDomain domain) {
+      return of(namespace, timestamp, timestamp, domain);
     }
 
     /**
@@ -215,11 +247,36 @@ public interface TimerInternals {
       ComparisonChain chain =
           ComparisonChain.start()
               .compare(this.getTimestamp(), that.getTimestamp())
+              .compare(this.getOutputTimestamp(), that.getOutputTimestamp())
               .compare(this.getDomain(), that.getDomain())
               .compare(this.getTimerId(), that.getTimerId());
       if (chain.result() == 0 && !this.getNamespace().equals(that.getNamespace())) {
         // Obtaining the stringKey may be expensive; only do so if required
         chain = chain.compare(getNamespace().stringKey(), that.getNamespace().stringKey());
+      }
+      return chain.result();
+    }
+  }
+
+  /**
+   * Used for sorting {@link TimerData} by output timestamp of the timer.
+   */
+  class TimerOutputTimestampComparator implements Comparator<TimerData> {
+
+    @Override
+    public int compare(TimerData timer1, TimerData timer2) {
+      if (timer1.equals(timer2)) {
+        return 0;
+      }
+      ComparisonChain chain =
+          ComparisonChain.start()
+              .compare(timer1.getOutputTimestamp(), timer2.getOutputTimestamp())
+              .compare(timer1.getTimestamp(), timer2.getTimestamp())
+              .compare(timer1.getDomain(), timer2.getDomain())
+              .compare(timer1.getTimerId(), timer2.getTimerId());
+      if (chain.result() == 0 && !timer1.getNamespace().equals(timer2.getNamespace())) {
+        // Obtaining the stringKey may be expensive; only do so if required
+        chain = chain.compare(timer1.getNamespace().stringKey(), timer2.getNamespace().stringKey());
       }
       return chain.result();
     }
@@ -247,6 +304,7 @@ public interface TimerInternals {
       STRING_CODER.encode(timer.getTimerId(), outStream);
       STRING_CODER.encode(timer.getNamespace().stringKey(), outStream);
       INSTANT_CODER.encode(timer.getTimestamp(), outStream);
+      INSTANT_CODER.encode(timer.getOutputTimestamp(), outStream);
       STRING_CODER.encode(timer.getDomain().name(), outStream);
     }
 
@@ -257,8 +315,9 @@ public interface TimerInternals {
       StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       Instant timestamp = INSTANT_CODER.decode(inStream);
+      Instant outputTimestamp = INSTANT_CODER.decode(inStream);
       TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      return TimerData.of(timerId, namespace, timestamp, domain);
+      return TimerData.of(timerId, namespace, timestamp, outputTimestamp, domain);
     }
 
     @Override

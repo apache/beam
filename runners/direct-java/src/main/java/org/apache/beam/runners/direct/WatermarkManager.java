@@ -54,6 +54,7 @@ import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.TimerInternals.TimerOutputTimestampComparator;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
@@ -109,6 +110,8 @@ import org.joda.time.Instant;
  *        <ul>
  *          <li>the current input watermark</li>
  *          <li>the current watermark holds</li>
+ *          <li>the earliest delivery timestamp of pending timers</li>
+ *          <li>the earliest output timestamp of pending timers</li>
  *        </ul>
  *      </li>
  *    </ul>
@@ -215,9 +218,11 @@ class WatermarkManager {
     private final Collection<? extends Watermark> inputWatermarks;
     private final SortedMultiset<CommittedBundle<?>> pendingElements;
 
-    // This tracks only the quantity of timers at each timestamp, for quickly getting the cross-key
-    // minimum
-    private final SortedMultiset<Instant> pendingTimers;
+    // Keeps track of pending timers sorted by timestamp they fire at.
+    private final SortedMultiset<TimerData> pendingTimersSortedByTs;
+
+    // Keeps track of pending timers sorted by output timestamp.
+    private final SortedMultiset<TimerData> pendingTimersSortedByOutputTs;
 
     // Entries in this table represent the authoritative timestamp for which
     // a per-key-and-StateNamespace timer is set.
@@ -239,7 +244,9 @@ class WatermarkManager {
           new BundleByElementTimestampComparator().compound(Ordering.arbitrary());
       this.pendingElements =
           TreeMultiset.create(pendingBundleComparator);
-      this.pendingTimers = TreeMultiset.create();
+      this.pendingTimersSortedByTs = TreeMultiset.create();
+      this.pendingTimersSortedByOutputTs =
+          TreeMultiset.create(new TimerOutputTimestampComparator());
       this.objectTimers = new HashMap<>();
       this.existingTimers = new HashMap<>();
       currentWatermark = new AtomicReference<>(BoundedWindow.TIMESTAMP_MIN_VALUE);
@@ -291,10 +298,18 @@ class WatermarkManager {
     }
 
     private synchronized Instant getEarliestTimerTimestamp() {
-      if (pendingTimers.isEmpty()) {
+      if (pendingTimersSortedByTs.isEmpty()) {
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
       } else {
-        return pendingTimers.firstEntry().getElement();
+        return pendingTimersSortedByTs.firstEntry().getElement().getTimestamp();
+      }
+    }
+
+    private synchronized Instant getEarliestTimerOutputTimestamp() {
+      if (pendingTimersSortedByOutputTs.isEmpty()) {
+        return BoundedWindow.TIMESTAMP_MAX_VALUE;
+      } else {
+        return pendingTimersSortedByOutputTs.firstEntry().getElement().getOutputTimestamp();
       }
     }
 
@@ -311,7 +326,8 @@ class WatermarkManager {
               existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
 
           if (existingTimer == null) {
-            pendingTimers.add(timer.getTimestamp());
+            pendingTimersSortedByTs.add(timer);
+            pendingTimersSortedByOutputTs.add(timer);
             keyTimers.add(timer);
           } else if (!existingTimer.equals(timer)) {
             keyTimers.remove(existingTimer);
@@ -329,7 +345,8 @@ class WatermarkManager {
               existingTimersForKey.get(timer.getNamespace(), timer.getTimerId());
 
           if (existingTimer != null) {
-            pendingTimers.remove(existingTimer.getTimestamp());
+            pendingTimersSortedByTs.remove(existingTimer);
+            pendingTimersSortedByOutputTs.remove(existingTimer);
             keyTimers.remove(existingTimer);
             existingTimersForKey.remove(existingTimer.getNamespace(), existingTimer.getTimerId());
           }
@@ -338,7 +355,8 @@ class WatermarkManager {
 
       for (TimerData timer : update.getCompletedTimers()) {
         if (TimeDomain.EVENT_TIME.equals(timer.getDomain())) {
-          pendingTimers.remove(timer.getTimestamp());
+          pendingTimersSortedByTs.remove(timer);
+          pendingTimersSortedByOutputTs.remove(timer);
         }
       }
     }
@@ -400,6 +418,8 @@ class WatermarkManager {
      *     <ul>
      *       <li>the current input watermark</li>
      *       <li>the current watermark holds</li>
+     *       <li>the earliest delivery timestamp of pending timers</li>
+     *       <li>the earliest output timestamp of pending timers</li>
      *     </ul>
      *   </li>
      * </ul>
@@ -409,8 +429,9 @@ class WatermarkManager {
       Instant oldWatermark = currentWatermark.get();
       Instant newWatermark = INSTANT_ORDERING.min(
           inputWatermark.get(),
+          holds.getMinHold(),
           inputWatermark.getEarliestTimerTimestamp(),
-          holds.getMinHold());
+          inputWatermark.getEarliestTimerOutputTimestamp());
       newWatermark = INSTANT_ORDERING.max(oldWatermark, newWatermark);
       currentWatermark.set(newWatermark);
       return WatermarkUpdate.fromTimestamps(oldWatermark, newWatermark);

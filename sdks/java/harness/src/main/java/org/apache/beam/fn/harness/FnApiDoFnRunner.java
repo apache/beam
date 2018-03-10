@@ -419,6 +419,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       String timerId,
       BoundedWindow window,
       Instant timestamp,
+      Instant outputTimestamp,
       TimeDomain timeDomain) {
     throw new UnsupportedOperationException("TODO: Add support for timers");
   }
