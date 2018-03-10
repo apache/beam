@@ -19,10 +19,14 @@ package org.apache.beam.runners.direct;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.when;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -32,15 +36,18 @@ import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.runners.direct.WatermarkManager.AppliedPTransformInputWatermark;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate.TimerUpdateBuilder;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.direct.WatermarkManager.Watermark;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -76,6 +83,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /**
  * Tests for {@link WatermarkManager}.
@@ -1473,6 +1481,52 @@ public class WatermarkManagerTest implements Serializable {
     assertThat(firstFiredTimers, not(Matchers.emptyIterable()));
     FiredTimers firstFired = Iterables.getOnlyElement(firstFiredTimers);
     assertThat(firstFired.getTimers(), contains(overridingTimer));
+  }
+
+  @Test
+  public void inputWatermarkDuplicates() {
+    Watermark mockWatermark = Mockito.mock(Watermark.class);
+
+    AppliedPTransformInputWatermark underTest =
+        new AppliedPTransformInputWatermark(ImmutableList.of(mockWatermark));
+
+    // Refresh
+    when(mockWatermark.get()).thenReturn(new Instant(0));
+    underTest.refresh();
+    assertEquals(new Instant(0), underTest.get());
+
+    // Apply a timer update
+    StructuralKey<String> key = StructuralKey.of("key", StringUtf8Coder.of());
+    TimerData timer1 = TimerData
+        .of("a", StateNamespaces.global(), new Instant(100), TimeDomain.EVENT_TIME);
+    TimerData timer2 = TimerData
+        .of("a", StateNamespaces.global(), new Instant(200), TimeDomain.EVENT_TIME);
+    underTest.updateTimers(TimerUpdate.builder(key).setTimer(timer1).setTimer(timer2).build());
+
+    // Only the last timer update should be observable
+    assertEquals(timer2.getTimestamp(), underTest.getEarliestTimerTimestamp());
+
+    // Advance the input watermark
+    when(mockWatermark.get()).thenReturn(new Instant(1000));
+    underTest.refresh();
+    assertEquals(new Instant(1000), underTest.get()); // input watermark is not held by timers
+
+    // Examine the fired event time timers
+    Map<StructuralKey<?>, List<TimerData>> fired = underTest.extractFiredEventTimeTimers();
+    List<TimerData> timers = fired.get(key);
+    assertNotNull(timers);
+    assertThat(timers, contains(timer2));
+
+    // Update based on timer firings
+    underTest.updateTimers(TimerUpdate.builder(key)
+        .withCompletedTimers(timers).build());
+
+    // Now we should be able to advance
+    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, underTest.getEarliestTimerTimestamp());
+
+    // Nothing left to fire
+    fired = underTest.extractFiredEventTimeTimers();
+    assertThat(fired.entrySet(), empty());
   }
 
   @Test
