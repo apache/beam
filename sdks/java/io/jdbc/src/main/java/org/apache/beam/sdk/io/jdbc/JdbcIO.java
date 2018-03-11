@@ -222,18 +222,6 @@ public class JdbcIO {
     @Nullable abstract ValueProvider<String> getPassword();
     @Nullable abstract ValueProvider<String> getConnectionProperties();
     abstract int getPoolMaxTotal();
-    abstract boolean getPoolBlockWhenExhausted();
-    abstract long getPoolMaxWaitMillis();
-    abstract int getPoolMaxIdle();
-    abstract int getPoolMinIdle();
-    abstract boolean getPoolTestOnBorrow();
-    abstract boolean getPoolTestOnReturn();
-    abstract int getPoolNumTestsPerEvictionRun();
-    abstract long getPoolMinEvictableIdleTimeMillis();
-    abstract boolean getPoolTestWhileIdle();
-    abstract long getPoolSoftMinEvictableIdleTimeMillis();
-    abstract boolean getPoolLifo();
-    @Nullable abstract String getPoolValidationQuery();
     @Nullable abstract DataSource getDataSource();
 
     abstract Builder builder();
@@ -246,18 +234,6 @@ public class JdbcIO {
       abstract Builder setPassword(ValueProvider<String> password);
       abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
       abstract Builder setPoolMaxTotal(int poolMaxTotal);
-      abstract Builder setPoolBlockWhenExhausted(boolean blockWhenExhausted);
-      abstract Builder setPoolMaxWaitMillis(long maxWaitMillis);
-      abstract Builder setPoolMaxIdle(int maxIdle);
-      abstract Builder setPoolMinIdle(int minIdle);
-      abstract Builder setPoolTestOnBorrow(boolean testOnBorrow);
-      abstract Builder setPoolTestOnReturn(boolean testOnReturn);
-      abstract Builder setPoolNumTestsPerEvictionRun(int numTestsPerEvictionRun);
-      abstract Builder setPoolMinEvictableIdleTimeMillis(long minEvictableIdleTimeMillis);
-      abstract Builder setPoolTestWhileIdle(boolean testWhileIdle);
-      abstract Builder setPoolSoftMinEvictableIdleTimeMillis(long softMinEvictableIdleTimeMillis);
-      abstract Builder setPoolLifo(boolean lifo);
-      abstract Builder setPoolValidationQuery(String validationQuery);
       abstract Builder setDataSource(DataSource dataSource);
       abstract DataSourceConfiguration build();
     }
@@ -268,18 +244,7 @@ public class JdbcIO {
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
               .setDataSource(dataSource)
               .setPoolMaxTotal(8)
-              .setPoolMaxIdle(8)
-              .setPoolMinIdle(0)
-              .setPoolBlockWhenExhausted(true)
-              .setPoolLifo(true)
-              .setPoolMaxWaitMillis(-1)
-              .setPoolMinEvictableIdleTimeMillis(1800000)
-              .setPoolSoftMinEvictableIdleTimeMillis(1800000)
-              .setPoolTestOnBorrow(false)
-              .setPoolTestOnReturn(false)
-              .setPoolNumTestsPerEvictionRun(3)
-              .setPoolTestWhileIdle(true)
-              .setPoolValidationQuery(null).build();
+              .build();
     }
 
     public static DataSourceConfiguration create(String driverClassName, String url) {
@@ -289,18 +254,7 @@ public class JdbcIO {
               .setDriverClassName(ValueProvider.StaticValueProvider.of(driverClassName))
               .setUrl(ValueProvider.StaticValueProvider.of(url))
               .setPoolMaxTotal(8)
-              .setPoolMaxIdle(8)
-              .setPoolMinIdle(0)
-              .setPoolBlockWhenExhausted(true)
-              .setPoolLifo(true)
-              .setPoolMaxWaitMillis(-1)
-              .setPoolMinEvictableIdleTimeMillis(1800000)
-              .setPoolSoftMinEvictableIdleTimeMillis(1800000)
-              .setPoolTestOnBorrow(false)
-              .setPoolTestOnReturn(false)
-              .setPoolNumTestsPerEvictionRun(3)
-              .setPoolTestWhileIdle(true)
-              .setPoolValidationQuery(null).build();
+              .build();
     }
 
     public static DataSourceConfiguration create(ValueProvider<String> driverClassName,
@@ -310,19 +264,7 @@ public class JdbcIO {
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
               .setDriverClassName(driverClassName)
               .setUrl(url)
-              .setPoolMaxTotal(8)
-              .setPoolMaxIdle(8)
-              .setPoolMinIdle(0)
-              .setPoolBlockWhenExhausted(true)
-              .setPoolLifo(true)
-              .setPoolMaxWaitMillis(-1)
-              .setPoolMinEvictableIdleTimeMillis(1800000)
-              .setPoolSoftMinEvictableIdleTimeMillis(1800000)
-              .setPoolTestOnBorrow(false)
-              .setPoolTestOnReturn(false)
-              .setPoolNumTestsPerEvictionRun(3)
-              .setPoolTestWhileIdle(true)
-              .setPoolValidationQuery(null).build();
+              .setPoolMaxTotal(8).build();
     }
 
     public DataSourceConfiguration withUsername(String username) {
@@ -364,37 +306,8 @@ public class JdbcIO {
       return builder().setConnectionProperties(connectionProperties).build();
     }
 
-    /**
-     * Allows to tweak the {@link PoolingDataSource} created internally by {@link JdbcIO}.
-     */
-    public DataSourceConfiguration withPoolConfiguration(int maxTotal,
-                                                         int maxIdle,
-                                                         int minIdle,
-                                                         boolean blockWhenExhausted,
-                                                         boolean lifo,
-                                                         long maxWaitMillis,
-                                                         long minEvictableIdleTimeMillis,
-                                                         long softMinEvictableIdleTimeMillis,
-                                                         boolean testOnBorrow,
-                                                         boolean testOnReturn,
-                                                         int numTestsPerEvictionRun,
-                                                         boolean testWhileIdle,
-                                                         String validationQuery) {
-      return builder()
-              .setPoolMaxTotal(maxTotal)
-              .setPoolMaxIdle(maxIdle)
-              .setPoolMinIdle(minIdle)
-              .setPoolBlockWhenExhausted(blockWhenExhausted)
-              .setPoolLifo(lifo)
-              .setPoolMaxWaitMillis(maxWaitMillis)
-              .setPoolMinEvictableIdleTimeMillis(minEvictableIdleTimeMillis)
-              .setPoolTestOnBorrow(testOnBorrow)
-              .setPoolTestOnReturn(testOnReturn)
-              .setPoolNumTestsPerEvictionRun(numTestsPerEvictionRun)
-              .setPoolTestWhileIdle(testWhileIdle)
-              .setPoolValidationQuery(validationQuery)
-              .setPoolSoftMinEvictableIdleTimeMillis(softMinEvictableIdleTimeMillis)
-              .build();
+    public DataSourceConfiguration withPoolMaxTotal(int poolMaxTotal) {
+      return builder().setPoolMaxTotal(poolMaxTotal).build();
     }
 
     private void populateDisplayData(DisplayData.Builder builder) {
@@ -405,6 +318,7 @@ public class JdbcIO {
         builder.addIfNotNull(DisplayData.item("jdbcUrl", getUrl()));
         builder.addIfNotNull(DisplayData.item("username", getUsername()));
       }
+      builder.add(DisplayData.item("poolMaxTotal", getPoolMaxTotal()));
     }
 
     DataSource buildDatasource() throws Exception {
@@ -437,21 +351,16 @@ public class JdbcIO {
               new PoolableConnectionFactory(connectionFactory, null);
       GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
       poolConfig.setMaxTotal(getPoolMaxTotal());
-      poolConfig.setBlockWhenExhausted(getPoolBlockWhenExhausted());
-      poolConfig.setMaxWaitMillis(getPoolMaxWaitMillis());
-      poolConfig.setMaxIdle(getPoolMaxIdle());
-      poolConfig.setMinIdle(getPoolMinIdle());
-      poolConfig.setTestOnBorrow(getPoolTestOnBorrow());
-      poolConfig.setTestOnReturn(getPoolTestOnReturn());
-      poolConfig.setNumTestsPerEvictionRun(getPoolNumTestsPerEvictionRun());
-      poolConfig.setMinEvictableIdleTimeMillis(getPoolMinEvictableIdleTimeMillis());
-      poolConfig.setTestWhileIdle(getPoolTestWhileIdle());
-      poolConfig.setSoftMinEvictableIdleTimeMillis(getPoolSoftMinEvictableIdleTimeMillis());
-      poolConfig.setLifo(getPoolLifo());
+      poolConfig.setBlockWhenExhausted(true);
+      poolConfig.setMaxIdle(getPoolMaxTotal());
+      poolConfig.setMinIdle(0);
+      poolConfig.setTestOnBorrow(false);
+      poolConfig.setTestOnReturn(false);
+      poolConfig.setTestWhileIdle(true);
+      poolConfig.setLifo(true);
       GenericObjectPool connectionPool =
               new GenericObjectPool(poolableConnectionFactory, poolConfig);
       poolableConnectionFactory.setPool(connectionPool);
-      poolableConnectionFactory.setValidationQuery("SELECT 1 FROM DUAL");
       poolableConnectionFactory.setDefaultAutoCommit(false);
       poolableConnectionFactory.setDefaultReadOnly(false);
       PoolingDataSource poolingDataSource = new PoolingDataSource(connectionPool);
