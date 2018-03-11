@@ -38,6 +38,7 @@ public class MetricsTranslationTest {
   // Transform names are arbitrary user-meaningful steps in processing
   private static final String TRANSFORM1 = "transform1";
   private static final String TRANSFORM2 = "transform2";
+  private static final String TRANSFORM3 = "transform3";
 
   // Namespaces correspond to different contexts for a metric
   private static final String NAMESPACE1 = "fakeNamespace1";
@@ -48,6 +49,8 @@ public class MetricsTranslationTest {
   private static final String COUNTER_NAME2 = "dropped";
   private static final String DISTRIBUTION_NAME1 = "someMillis";
   private static final String DISTRIBUTION_NAME2 = "otherMillis";
+  private static final String GAUGE_NAME1 = "load";
+  private static final String GAUGE_NAME2 = "memory";
 
   private static final BeamFnApi.Metrics.User.MetricName COUNTER_METRIC1 =
       BeamFnApi.Metrics.User.MetricName.newBuilder()
@@ -71,6 +74,18 @@ public class MetricsTranslationTest {
       BeamFnApi.Metrics.User.MetricName.newBuilder()
           .setNamespace(NAMESPACE2)
           .setName(DISTRIBUTION_NAME2)
+          .build();
+
+  private static final BeamFnApi.Metrics.User.MetricName GAUGE_METRIC1 =
+      BeamFnApi.Metrics.User.MetricName.newBuilder()
+          .setNamespace(NAMESPACE1)
+          .setName(GAUGE_NAME1)
+          .build();
+
+  private static final BeamFnApi.Metrics.User.MetricName GAUGE_METRIC2 =
+      BeamFnApi.Metrics.User.MetricName.newBuilder()
+          .setNamespace(NAMESPACE2)
+          .setName(GAUGE_NAME2)
           .build();
 
   private static final BeamFnApi.Metrics.User DISTRIBUTION1 =
@@ -107,6 +122,18 @@ public class MetricsTranslationTest {
           .setCounterData(BeamFnApi.Metrics.User.CounterData.newBuilder().setValue(0L))
           .build();
 
+  private static final BeamFnApi.Metrics.User GAUGE1 =
+      BeamFnApi.Metrics.User.newBuilder()
+          .setMetricName(GAUGE_METRIC2)
+          .setCounterData(BeamFnApi.Metrics.User.CounterData.newBuilder().setValue(56L))
+          .build();
+
+  private static final BeamFnApi.Metrics.User GAUGE2 =
+      BeamFnApi.Metrics.User.newBuilder()
+          .setMetricName(GAUGE_METRIC2)
+          .setCounterData(BeamFnApi.Metrics.User.CounterData.newBuilder().setValue(3L))
+          .build();
+
   @Parameterized.Parameters
   public static Iterable<Object[]> testInstances() {
     return ImmutableList.<Object[]>builder()
@@ -125,6 +152,13 @@ public class MetricsTranslationTest {
               ImmutableMap.builder()
                   .put(TRANSFORM1, ImmutableList.of(DISTRIBUTION1, COUNTER1))
                   .put(TRANSFORM2, ImmutableList.of(COUNTER2))
+                  .put(TRANSFORM3, ImmutableList.of(GAUGE1))
+                  .build()
+            })
+        .add(
+            new Object[] {
+              ImmutableMap.builder()
+                  .put(TRANSFORM1, ImmutableList.of(GAUGE1, GAUGE2))
                   .build()
             })
         .build();
