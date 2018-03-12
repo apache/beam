@@ -18,6 +18,11 @@ const (
 	scatterPropertyName = "__scatter__"
 )
 
+func init() {
+	beam.RegisterType(reflect.TypeOf((*queryFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*splitQueryFn)(nil)).Elem())
+}
+
 // Read reads all rows from the given kind. The kind must have a schema  compatible with the given type, t, and Read
 // returns a PCollection<t>. You must also register your type with runtime.RegisterType which allows you to implement
 // datastore.PropertyLoadSaver
