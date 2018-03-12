@@ -23,12 +23,11 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -38,31 +37,24 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
 
 /**
- * Component that regularly merges metrics and pushes them to a metrics sink. It needs to be a
- * singleton because spark runner might call initAccumulators several times and this method calls
- * {@link MetricsPusher#init} and needs to be idempotent.
+ * Component that regularly merges metrics and pushes them to a metrics sink.
  */
 public class MetricsPusher implements Serializable {
 
-  private static volatile MetricsPusher instance;
-  private static MetricsSink metricsSink;
-  private static long period;
-  private static List<MetricsContainerStepMap> metricsContainerStepMaps;
-  private static ScheduledFuture<?> scheduledFuture;
-  private static PipelineResult pipelineResult;
+  private MetricsSink metricsSink;
+  private long period;
+  @Nullable
+  private transient ScheduledFuture<?> scheduledFuture;
+  private transient PipelineResult pipelineResult;
+  private MetricsContainerStepMap metricsContainerStepMap;
 
-
-  private static void addMetricsContainerStepMap(MetricsContainerStepMap metricsContainerStepMap){
-    if (metricsContainerStepMaps.indexOf(metricsContainerStepMap) == -1) {
-      metricsContainerStepMaps.add(metricsContainerStepMap);
-    }
-  }
-
-  public static synchronized void init(
-      MetricsContainerStepMap metricsContainerStepMap, PipelineOptions pipelineOptions) {
-    if (instance == null) {
-      instance = new MetricsPusher();
-      period = pipelineOptions.getMetricsPushPeriod();
+  public MetricsPusher(
+      MetricsContainerStepMap metricsContainerStepMap,
+      PipelineOptions pipelineOptions,
+      PipelineResult pipelineResult) {
+    this.metricsContainerStepMap = metricsContainerStepMap;
+    this.pipelineResult = pipelineResult;
+    period = pipelineOptions.getMetricsPushPeriod();
       // calls the constructor of MetricsSink implementation specified in
       // pipelineOptions.getMetricsSink() passing the pipelineOptions
       metricsSink =
@@ -70,27 +62,12 @@ public class MetricsPusher implements Serializable {
               .fromClass(pipelineOptions.getMetricsSink())
               .withArg(PipelineOptions.class, pipelineOptions)
               .build();
-      metricsContainerStepMaps = new ArrayList<>();
       if (!(metricsSink instanceof NoOpMetricsSink)) {
         start();
       }
-    }
-    /*
-      MetricsPusher.init will be called several times in a pipeline
-      (e.g Flink calls it with each UDF with a different MetricsContainerStepMap instance).
-      Then the singleton needs to register a new metricsContainerStepMap to merge
-      */
-    addMetricsContainerStepMap(metricsContainerStepMap);
   }
 
-  /**
-   * Lazily set the pipelineResult.
-   * @param pr
-   */
-  public static void setPipelineResult(PipelineResult pr){
-    pipelineResult = pr;
-  }
-  private static void start() {
+  private void start() {
     ScheduledExecutorService scheduler =
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder()
@@ -98,40 +75,34 @@ public class MetricsPusher implements Serializable {
                 .setNameFormat("MetricsPusher-thread")
                 .build());
     scheduledFuture = scheduler
-        .scheduleAtFixedRate(new PushingThread(), 0, period,
-            TimeUnit.SECONDS);
+        .scheduleAtFixedRate(() -> pushMetrics(), 0, period, TimeUnit.SECONDS);
   }
-  private static synchronized void tearDown(){
+  private void tearDown(){
+    pushMetrics();
     if (!scheduledFuture.isCancelled()) {
       scheduledFuture.cancel(true);
     }
-    /*
-    it is the end of the pipeline, so set the instance to null so that it can be initialized
-    for the next pipeline runnin gin that JVM
-    */
-    instance = null;
   }
 
-  public static void pushMetrics(){
+  private void pushMetrics(){
     if (!(metricsSink instanceof NoOpMetricsSink)) {
       try {
         // merge metrics
-        for (MetricsContainerStepMap metricsContainerStepMap : metricsContainerStepMaps) {
           MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
           MetricQueryResults metricQueryResults = metricResults
               .queryMetrics(MetricsFilter.builder().build());
-          if ((Iterables.size(metricQueryResults.distributions()) != 0) || (Iterables.size(metricQueryResults.gauges()) != 0)
-              || (Iterables.size(metricQueryResults.counters()) != 0)) {
+        if ((Iterables.size(metricQueryResults.distributions()) != 0)
+            || (Iterables.size(metricQueryResults.gauges()) != 0)
+            || (Iterables.size(metricQueryResults.counters()) != 0)) {
             metricsSink.writeMetrics(metricQueryResults);
           }
-        }
+
         if (pipelineResult != null) {
           PipelineResult.State pipelineState = pipelineResult.getState();
           if (pipelineState.isTerminal()) {
             tearDown();
           }
         }
-
       } catch (Exception e) {
         MetricsPushException metricsPushException = new MetricsPushException(e);
         metricsPushException.printStackTrace();
@@ -139,16 +110,8 @@ public class MetricsPusher implements Serializable {
     }
   }
 
-  private static class PushingThread implements Runnable {
-
-    @Override
-    public void run() {
-      pushMetrics();
-    }
-  }
-
   /**
-   * Exception related to MetricsPusher to wrap technical exceptions
+   * Exception related to MetricsPusher to wrap technical exceptions.
    */
   public static class MetricsPushException extends Exception{
     MetricsPushException(Throwable cause) {

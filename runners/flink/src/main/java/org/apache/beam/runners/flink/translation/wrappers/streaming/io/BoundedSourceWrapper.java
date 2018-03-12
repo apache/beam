@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -233,7 +232,6 @@ public class BoundedSourceWrapper<OutputT>
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.pushMetrics();
     super.close();
     if (readers != null) {
       for (BoundedSource.BoundedReader<OutputT> reader: readers) {

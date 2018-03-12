@@ -213,7 +213,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       updateCacheCandidates(pipeline, translator, evaluationContext);
 
       initAccumulators(mOptions, jsc);
-
       startPipeline =
           executorService.submit(
               () -> {
@@ -230,7 +229,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       registerMetricsSource(mOptions.getAppName());
     }
 
-    MetricsPusher.setPipelineResult(result);
+    // it would have been better to create MetricsPusher from runner-core but we need
+    // runner-specific
+    // MetricsContainerStepMap
+    MetricsPusher metricsPusher =
+        new MetricsPusher(MetricsAccumulator.getInstance().value(), mOptions, result);
     return result;
   }
 
@@ -254,10 +257,6 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     // Init metrics accumulators
     MetricsAccumulator.init(opts, jsc);
     AggregatorsAccumulator.init(opts, jsc);
-    //it would have been better to create MetricsPusher from runner-core but we need runner-specific
-    // MetricsContainerStepMap
-    MetricsPusher.init(
-        MetricsAccumulator.getInstance().value(), opts);
   }
 
   /** Visit the pipeline to determine the translation mode (batch/streaming). */

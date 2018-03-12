@@ -23,7 +23,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
@@ -345,7 +344,6 @@ public class UnboundedSourceWrapper<
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.pushMetrics();
     super.close();
     if (localReaders != null) {
       for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {

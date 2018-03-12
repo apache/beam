@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.metrics;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.metrics.MetricQueryResults;
 
 /** Interface for all metric sinks. */
 public interface MetricsSink<OutputT> extends Serializable {

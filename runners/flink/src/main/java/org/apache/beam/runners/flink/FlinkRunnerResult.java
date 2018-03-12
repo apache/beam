@@ -76,7 +76,10 @@ public class FlinkRunnerResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return asAttemptedOnlyMetricResults(
-        (MetricsContainerStepMap) accumulators.get(FlinkMetricContainer.ACCUMULATOR_NAME));
+    return asAttemptedOnlyMetricResults(getMetricsContainerStepMap());
+  }
+
+  public MetricsContainerStepMap getMetricsContainerStepMap() {
+    return (MetricsContainerStepMap) accumulators.get(FlinkMetricContainer.ACCUMULATOR_NAME);
   }
 }

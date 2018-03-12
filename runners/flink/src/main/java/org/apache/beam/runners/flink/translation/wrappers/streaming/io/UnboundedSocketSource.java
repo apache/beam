@@ -29,7 +29,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -226,7 +225,6 @@ public class UnboundedSocketSource<CheckpointMarkT extends UnboundedSource.Check
 
     @Override
     public void close() throws IOException {
-      MetricsPusher.pushMetrics();
       this.reader.close();
       this.socket.close();
       this.isRunning = false;
