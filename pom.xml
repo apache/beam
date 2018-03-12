@@ -101,6 +101,8 @@
     <!-- Do not add additional surefire arguments by default -->
     <beamSurefireArgline />
 
+    <java.version>1.8</java.version>
+
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <apache.commons.compress.version>1.14</apache.commons.compress.version>
     <apache.commons.lang.version>3.6</apache.commons.lang.version>
@@ -166,6 +168,9 @@
     <maven-surefire-plugin.version>2.20.1</maven-surefire-plugin.version>
     <maven-failsafe-plugin.version>2.20.1</maven-failsafe-plugin.version>
     <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
+    <checkstyle.version>8.7</checkstyle.version>
+    <maven-checkstyle-plugin.version>3.0.0</maven-checkstyle-plugin.version>
+    <maven-clean-plugin.version>3.0.0</maven-clean-plugin.version>
     <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
     <extra-enforcer-rules.version>1.0-beta-7</extra-enforcer-rules.version>
@@ -174,7 +179,9 @@
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
     <maven-javadoc-plugin.version>3.0.0-M1</maven-javadoc-plugin.version>
     <maven-license-plugin.version>1.14</maven-license-plugin.version>
+    <maven-release-plugin>2.5.3</maven-release-plugin>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
+    <maven-source-plugin.version>3.0.1</maven-source-plugin.version>
     <maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
     <reproducible-build-maven-plugin.version>0.4</reproducible-build-maven-plugin.version>
     <maven-assembly-plugin.version>3.1.0</maven-assembly-plugin.version>
@@ -1527,12 +1534,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>${maven-checkstyle-plugin.version}</version>
           <dependencies>
             <dependency>
               <groupId>com.puppycrawl.tools</groupId>
               <artifactId>checkstyle</artifactId>
-              <version>8.7</version>
+              <version>${checkstyle.version}</version>
             </dependency>
             <dependency>
               <groupId>org.apache.beam</groupId>
@@ -1576,8 +1583,8 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven-compiler-plugin.version}</version>
           <configuration>
-            <source>1.8</source>
-            <target>1.8</target>
+            <source>${java.version}</source>
+            <target>${java.version}</target>
             <compilerArgs>
               <arg>-Xlint:all</arg>
               <arg>${compiler.error.flag}</arg>
@@ -1666,7 +1673,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
-          <version>3.0.1</version>
+          <version>${maven-source-plugin.version}</version>
         </plugin>
 
         <plugin>
@@ -1984,7 +1991,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-release-plugin</artifactId>
-          <version>2.5.3</version>
+          <version>${maven-release-plugin.version}</version>
           <configuration>
             <useReleaseProfile>false</useReleaseProfile>
             <preparationGoals>clean install</preparationGoals>
@@ -2055,7 +2062,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-clean-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>${maven-clean-plugin.version}</version>
           <configuration>
             <filesets>
               <fileset>
