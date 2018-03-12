@@ -246,7 +246,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
                   // at EOF move WM to infinity.
                   String key = kv.getKey();
                   Instant instant = kv.getValue();
-                  return key.equals("EOF") ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
+                  return "EOF".equals(key) ? BoundedWindow.TIMESTAMP_MAX_VALUE : instant;
                 });
 
     TestSparkPipelineOptions options =
@@ -321,7 +321,7 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
       // assert that side input is passed correctly before/after resuming from checkpoint.
       assertThat(c.sideInput(view), containsInAnyOrder("side1", "side2"));
       counter.inc();
-      if (!element.equals("EOF")) {
+      if (!"EOF".equals(element)) {
         aggregator.inc();
         c.output(c.element());
       }
