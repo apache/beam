@@ -23,7 +23,6 @@ import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -134,7 +133,6 @@ public class FlinkDoFnFunction<InputT, OutputT>
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.pushMetrics();
     doFnInvoker.invokeTeardown();
   }
 

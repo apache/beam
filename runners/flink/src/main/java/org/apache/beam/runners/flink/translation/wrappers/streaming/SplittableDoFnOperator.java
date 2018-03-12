@@ -36,7 +36,6 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
-import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -168,7 +167,6 @@ public class SplittableDoFnOperator<
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.pushMetrics();
     super.close();
 
     executorService.shutdown();

@@ -400,10 +400,10 @@ public interface PipelineOptions extends HasDisplayData {
   void setMetricsSink(Class<? extends MetricsSink<?>> metricsSink);
 
   /**
-   * A {@link DefaultValueFactory} that obtains the class of the {@code NoOpMetricsSink} if it exists
-   * on the classpath, and throws an exception otherwise.
+   * A {@link DefaultValueFactory} that obtains the class of the {@code NoOpMetricsSink}
+   * if it exists on the classpath, and throws an exception otherwise.
    *
-       * <p>As the {@code NoOpMetricsSink} is in an independent module, it cannot be directly referenced
+   * <p>As the {@code NoOpMetricsSink} is in an independent module, it cannot be directly referenced
    * as the {@link Default}. However, it should still be used if available.
    */
   class NoOpMetricsSink implements DefaultValueFactory<Class<? extends MetricsSink<?>>> {
@@ -423,6 +423,7 @@ public interface PipelineOptions extends HasDisplayData {
       }
     }
   }
+
   @Description("The metrics push period in seconds")
   @Default.Long(5)
   Long getMetricsPushPeriod();

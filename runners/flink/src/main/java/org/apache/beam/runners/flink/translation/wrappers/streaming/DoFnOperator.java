@@ -56,7 +56,6 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
@@ -381,7 +380,6 @@ public class DoFnOperator<InputT, OutputT>
 
   @Override
   public void close() throws Exception {
-    MetricsPusher.pushMetrics();
     try {
 
       // This is our last change to block shutdown of this operator while

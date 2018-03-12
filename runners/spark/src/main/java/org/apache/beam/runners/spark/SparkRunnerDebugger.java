@@ -20,6 +20,8 @@ package org.apache.beam.runners.spark;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
+import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.EvaluationContext;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
 import org.apache.beam.runners.spark.translation.TransformTranslator;
@@ -101,7 +103,14 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
 
     String debugString = visitor.getDebugString();
     LOG.info("Translated Native Spark pipeline:\n" + debugString);
-    return new DebugSparkPipelineResult(debugString);
+    DebugSparkPipelineResult debugSparkPipelineResult = new DebugSparkPipelineResult(debugString);
+    // it would have been better to create MetricsPusher from runner-core but we need
+    // runner-specific
+    // MetricsContainerStepMap
+    MetricsPusher metricsPusher =
+        new MetricsPusher(
+            MetricsAccumulator.getInstance().value(), options, debugSparkPipelineResult);
+    return debugSparkPipelineResult;
   }
 
   /**

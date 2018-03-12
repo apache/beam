@@ -122,7 +122,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
       FlinkDetachedRunnerResult flinkDetachedRunnerResult = new FlinkDetachedRunnerResult();
-      MetricsPusher.setPipelineResult(flinkDetachedRunnerResult);
+      // no metricsPusher because metrics are not supported in detached mode
       return flinkDetachedRunnerResult;
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
@@ -135,7 +135,9 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       }
       FlinkRunnerResult flinkRunnerResult = new FlinkRunnerResult(accumulators,
           result.getNetRuntime());
-      MetricsPusher.setPipelineResult(flinkRunnerResult);
+      MetricsPusher metricsPusher =
+          new MetricsPusher(
+              flinkRunnerResult.getMetricsContainerStepMap(), options, flinkRunnerResult);
       return flinkRunnerResult;
     }
   }
