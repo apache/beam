@@ -477,6 +477,8 @@ public class PipelineOptionsFactory {
 
   /** A predicate that checks if a method is synthetic via {@link Method#isSynthetic()}. */
   private static final Predicate<Method> NOT_SYNTHETIC_PREDICATE = input -> !input.isSynthetic();
+  private static final Predicate<Method> NOT_STATIC_PREDICATE =
+      input -> !Modifier.isStatic(input.getModifiers());
 
   /** Ensure all classloader or volatile data are contained in a single reference. */
   static final AtomicReference<Cache> CACHE = new AtomicReference<>();
@@ -865,6 +867,7 @@ public class PipelineOptionsFactory {
             validatedPipelineOptionsInterfaces))
         .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
         .filter(NOT_SYNTHETIC_PREDICATE)
+        .filter(NOT_STATIC_PREDICATE)
         .toSortedSet(MethodComparator.INSTANCE);
 
     List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, iface);
@@ -1135,7 +1138,9 @@ public class PipelineOptionsFactory {
         Sets.filter(
             Sets.difference(Sets.newHashSet(iface.getMethods()), knownMethods),
             Predicates.and(
-                NOT_SYNTHETIC_PREDICATE, input -> !knownMethodsNames.contains(input.getName()))));
+                NOT_SYNTHETIC_PREDICATE,
+                input -> !knownMethodsNames.contains(input.getName()),
+                NOT_STATIC_PREDICATE)));
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),

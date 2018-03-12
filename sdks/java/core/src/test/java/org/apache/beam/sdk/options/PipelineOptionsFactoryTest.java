@@ -1859,5 +1859,20 @@ public class PipelineOptionsFactoryTest {
     void setValue(Number value);
   }
 
+  @Test
+  public void testStaticMethodsAreAllowed() {
+    assertEquals("value",
+        OptionsWithStaticMethod.myStaticMethod(
+            PipelineOptionsFactory.fromArgs("--myMethod=value")
+                .as(OptionsWithStaticMethod.class)));
+  }
 
+  private interface OptionsWithStaticMethod extends PipelineOptions {
+    String getMyMethod();
+    void setMyMethod(String value);
+
+    static String myStaticMethod(OptionsWithStaticMethod o) {
+      return o.getMyMethod();
+    }
+  }
 }
