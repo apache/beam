@@ -253,7 +253,7 @@
                 <argument>-beam_it_module=sdks/java/io/hadoop-input-format</argument>
                 <argument>-beam_it_class=org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT</argument>
                 <argument>-beam_options_config_file=${beamRootProjectDir}/.test-infra/kubernetes/postgres/pkb-config-local.yml</argument>
-                <argument>-beam_kubernetes_scripts=${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres.yml,${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml</argument>
+                <argument>-beam_kubernetes_scripts=${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml</argument>
                 <!-- arguments typically defined by user -->
                 <argument>-beam_it_options=${integrationTestPipelineOptions}</argument>
               </arguments>

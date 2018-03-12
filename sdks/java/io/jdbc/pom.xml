@@ -220,7 +220,7 @@
                 <argument>${pkbBeamRunnerOption}</argument>
                 <!-- specific to this IO -->
                 <argument>-beam_options_config_file=${beamRootProjectDir}/.test-infra/kubernetes/postgres/pkb-config-local.yml</argument>
-                <argument>-beam_kubernetes_scripts=${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres.yml,${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml</argument>
+                <argument>-beam_kubernetes_scripts=${beamRootProjectDir}/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml</argument>
                 <argument>-beam_it_module=sdks/java/io/jdbc</argument>
                 <argument>-beam_it_class=org.apache.beam.sdk.io.jdbc.JdbcIOIT</argument>
                 <!-- arguments typically defined by user -->
