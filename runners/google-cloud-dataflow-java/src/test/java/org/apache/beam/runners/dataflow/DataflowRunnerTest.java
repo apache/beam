@@ -28,7 +28,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
@@ -1288,22 +1287,6 @@ public class DataflowRunnerTest implements Serializable {
     thrown.expectMessage("Cannot create output file at");
     thrown.expect(RuntimeException.class);
     p.run();
-  }
-
-  @Test
-  public void testHasExperiment() {
-    DataflowPipelineDebugOptions options =
-        PipelineOptionsFactory.as(DataflowPipelineDebugOptions.class);
-
-    options.setExperiments(null);
-    assertFalse(DataflowRunner.hasExperiment(options, "foo"));
-
-    options.setExperiments(ImmutableList.of("foo", "bar"));
-    assertTrue(DataflowRunner.hasExperiment(options, "foo"));
-    assertTrue(DataflowRunner.hasExperiment(options, "bar"));
-    assertFalse(DataflowRunner.hasExperiment(options, "baz"));
-    assertFalse(DataflowRunner.hasExperiment(options, "ba"));
-    assertFalse(DataflowRunner.hasExperiment(options, "BAR"));
   }
 
   @Test
