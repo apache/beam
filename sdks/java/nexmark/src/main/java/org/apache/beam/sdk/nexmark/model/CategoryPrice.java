@@ -19,6 +19,7 @@ package org.apache.beam.sdk.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -54,7 +55,13 @@ public class CategoryPrice implements KnownSize, Serializable {
       boolean isLast = INT_CODER.decode(inStream) != 0;
       return new CategoryPrice(category, price, isLast);
     }
+
     @Override public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public Object structuralValue(CategoryPrice v) {
+      return v;
+    }
   };
 
   @JsonProperty
@@ -93,5 +100,22 @@ public class CategoryPrice implements KnownSize, Serializable {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    CategoryPrice that = (CategoryPrice) o;
+    return category == that.category && price == that.price && isLast == that.isLast;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(category, price, isLast);
   }
 }

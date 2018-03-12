@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark.model;
 
+import com.google.common.base.Objects;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -31,6 +32,25 @@ import org.apache.beam.sdk.coders.VarIntCoder;
  * {@link Bid}.
  */
 public class Event implements KnownSize, Serializable {
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Event event = (Event) o;
+    return Objects.equal(newPerson, event.newPerson)
+        && Objects.equal(newAuction, event.newAuction)
+        && Objects.equal(bid, event.bid);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hashCode(newPerson, newAuction, bid);
+  }
 
   private enum Tag {
     PERSON(0),
@@ -83,6 +103,11 @@ public class Event implements KnownSize, Serializable {
 
         @Override
         public void verifyDeterministic() throws NonDeterministicException {}
+
+        @Override
+        public Object structuralValue(Event v) {
+          return v;
+        }
       };
 
   @Nullable
