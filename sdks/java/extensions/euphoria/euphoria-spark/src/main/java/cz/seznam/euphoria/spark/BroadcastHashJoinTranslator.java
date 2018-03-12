@@ -19,12 +19,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.Join;
-import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -42,6 +40,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static cz.seznam.euphoria.core.client.operator.hint.Util.hasFitsInMemoryHint;
+import static cz.seznam.euphoria.core.client.operator.hint.Util.wantTranslateBroadcastHashJoin;
+
 /**
  * <p>
  *   Broadcast hash join is a special case of Left or Right join, which does not require shuffle.
@@ -55,19 +56,9 @@ import java.util.Map;
  */
 public class BroadcastHashJoinTranslator implements SparkOperatorTranslator<Join> {
 
-  @SuppressWarnings("unchecked")
-  static boolean wantTranslate(Join o) {
-    return o.listInputs()
-        .stream()
-        .anyMatch(input -> hasSizeHint(((Dataset) input).getProducer()))
-        && (o.getType() == Join.Type.LEFT || o.getType() == Join.Type.RIGHT)
-        && !(o.getWindowing() instanceof MergingWindowing);
-  }
 
-  static boolean hasSizeHint(Operator operator) {
-    return operator != null &&
-        operator.getHints() != null &&
-        operator.getHints().contains(SizeHint.FITS_IN_MEMORY);
+  static boolean wantTranslate(Join o) {
+    return wantTranslateBroadcastHashJoin(o);
   }
 
   @Override
@@ -78,7 +69,7 @@ public class BroadcastHashJoinTranslator implements SparkOperatorTranslator<Join
     Preconditions.checkArgument(
         operator.listInputs()
             .stream()
-            .anyMatch(input -> hasSizeHint(((Dataset) input).getProducer())),
+            .anyMatch(input -> hasFitsInMemoryHint(((Dataset) input).getProducer())),
         "Missing broadcastHashJoin hint");
     Preconditions.checkArgument(
         operator.getType() == Join.Type.LEFT || operator.getType() == Join.Type.RIGHT,
