@@ -40,8 +40,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static cz.seznam.euphoria.core.client.operator.hint.Util.hasFitsInMemoryHint;
-import static cz.seznam.euphoria.core.client.operator.hint.Util.wantTranslateBroadcastHashJoin;
+import static cz.seznam.euphoria.core.executor.util.OperatorTranslator.hasFitsInMemoryHint;
+import static cz.seznam.euphoria.core.executor.util.OperatorTranslator.wantTranslateBroadcastHashJoin;
 
 /**
  * <p>
