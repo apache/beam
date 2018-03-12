@@ -221,7 +221,6 @@ public class JdbcIO {
     @Nullable abstract ValueProvider<String> getUsername();
     @Nullable abstract ValueProvider<String> getPassword();
     @Nullable abstract ValueProvider<String> getConnectionProperties();
-    abstract int getPoolMaxTotal();
     @Nullable abstract DataSource getDataSource();
 
     abstract Builder builder();
@@ -233,7 +232,6 @@ public class JdbcIO {
       abstract Builder setUsername(ValueProvider<String> username);
       abstract Builder setPassword(ValueProvider<String> password);
       abstract Builder setConnectionProperties(ValueProvider<String> connectionProperties);
-      abstract Builder setPoolMaxTotal(int poolMaxTotal);
       abstract Builder setDataSource(DataSource dataSource);
       abstract DataSourceConfiguration build();
     }
@@ -243,7 +241,6 @@ public class JdbcIO {
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
               .setDataSource(dataSource)
-              .setPoolMaxTotal(8)
               .build();
     }
 
@@ -253,7 +250,6 @@ public class JdbcIO {
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
               .setDriverClassName(ValueProvider.StaticValueProvider.of(driverClassName))
               .setUrl(ValueProvider.StaticValueProvider.of(url))
-              .setPoolMaxTotal(8)
               .build();
     }
 
@@ -263,8 +259,7 @@ public class JdbcIO {
       checkArgument(url != null, "url can not be null");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
               .setDriverClassName(driverClassName)
-              .setUrl(url)
-              .setPoolMaxTotal(8).build();
+              .setUrl(url).build();
     }
 
     public DataSourceConfiguration withUsername(String username) {
@@ -306,10 +301,6 @@ public class JdbcIO {
       return builder().setConnectionProperties(connectionProperties).build();
     }
 
-    public DataSourceConfiguration withPoolMaxTotal(int poolMaxTotal) {
-      return builder().setPoolMaxTotal(poolMaxTotal).build();
-    }
-
     private void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -318,7 +309,6 @@ public class JdbcIO {
         builder.addIfNotNull(DisplayData.item("jdbcUrl", getUrl()));
         builder.addIfNotNull(DisplayData.item("username", getUsername()));
       }
-      builder.add(DisplayData.item("poolMaxTotal", getPoolMaxTotal()));
     }
 
     DataSource buildDatasource() throws Exception {
@@ -350,14 +340,10 @@ public class JdbcIO {
       PoolableConnectionFactory poolableConnectionFactory =
               new PoolableConnectionFactory(connectionFactory, null);
       GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
-      poolConfig.setMaxTotal(getPoolMaxTotal());
-      poolConfig.setBlockWhenExhausted(true);
-      poolConfig.setMaxIdle(getPoolMaxTotal());
+      poolConfig.setMaxTotal(1);
       poolConfig.setMinIdle(0);
-      poolConfig.setTestOnBorrow(false);
-      poolConfig.setTestOnReturn(false);
-      poolConfig.setTestWhileIdle(true);
-      poolConfig.setLifo(true);
+      poolConfig.setMinEvictableIdleTimeMillis(10000);
+      poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
       GenericObjectPool connectionPool =
               new GenericObjectPool(poolableConnectionFactory, poolConfig);
       poolableConnectionFactory.setPool(connectionPool);
