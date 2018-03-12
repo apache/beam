@@ -35,7 +35,6 @@ dependencies {
   shadow library.java.slf4j_api
   runtime "org.apache.httpcomponents:httpclient:4.5.2"
   shadowTest library.java.guava_testlib
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.mockito_core
   shadowTest library.java.junit

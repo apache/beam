@@ -496,13 +496,6 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-model-fn-execution</artifactId>
-        <version>${project.version}</version>
-        <type>test-jar</type>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-core</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -560,13 +553,6 @@
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-fn-execution</artifactId>
         <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-fn-execution</artifactId>
-        <version>${project.version}</version>
-        <type>test-jar</type>
       </dependency>
 
       <dependency>
@@ -749,6 +735,7 @@
         <version>${project.version}</version>
       </dependency>
 
+      <!-- For runners to inherit from abstract StateInternalsTest -->
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-core-java</artifactId>
@@ -1409,6 +1396,20 @@
         <version>${commons.csv.version}</version>
       </dependency>
 
+      <!-- We ship testlibs that depend on Guava testlib -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava-testlib</artifactId>
+        <version>${guava.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>${junit.version}</version>
+        <scope>provided</scope>
+      </dependency>
+
       <!-- Testing -->
 
       <dependency>
@@ -1456,8 +1457,6 @@
       </dependency>
 
       <dependency>
-        <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
-             excluding com.google.common.**.testing.* -->
         <groupId>com.google.guava</groupId>
         <artifactId>guava-testlib</artifactId>
         <version>${guava.version}</version>
@@ -1955,10 +1954,6 @@
                 <relocations>
                   <relocation>
                     <pattern>com.google.common</pattern>
-                    <excludes>
-                      <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                      <exclude>com.google.common.**.testing.*</exclude>
-                    </excludes>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.com.google.common
