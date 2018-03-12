@@ -34,7 +34,7 @@ import org.apache.flink.util.Collector;
 import java.util.List;
 import java.util.Objects;
 
-import static cz.seznam.euphoria.core.client.operator.hint.Util.wantTranslateBroadcastHashJoin;
+import static cz.seznam.euphoria.core.executor.util.OperatorTranslator.wantTranslateBroadcastHashJoin;
 
 public class BroadcastHashJoinTranslator implements BatchOperatorTranslator<Join> {
 
