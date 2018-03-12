@@ -427,11 +427,14 @@ class WatermarkManager {
     @Override
     public synchronized WatermarkUpdate refresh() {
       Instant oldWatermark = currentWatermark.get();
-      Instant newWatermark = INSTANT_ORDERING.min(
-          inputWatermark.get(),
-          holds.getMinHold(),
-          inputWatermark.getEarliestTimerTimestamp(),
-          inputWatermark.getEarliestTimerOutputTimestamp());
+      Instant newWatermark =
+          INSTANT_ORDERING.min(
+              inputWatermark.get(), holds.getMinHold(), inputWatermark.getEarliestTimerTimestamp()
+              // inputWatermark.getEarliestTimerOutputTimestamp()
+              );
+      // if (holds.getMinHold().equals(new Instant(5)))
+      //   System.out.println("WM hold: " + holds.getMinHold());
+      System.out.println("WM hold: " + holds.getMinHold() + " " + holds.keyedHolds.keySet());
       newWatermark = INSTANT_ORDERING.max(oldWatermark, newWatermark);
       currentWatermark.set(newWatermark);
       return WatermarkUpdate.fromTimestamps(oldWatermark, newWatermark);

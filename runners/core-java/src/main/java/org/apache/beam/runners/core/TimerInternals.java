@@ -163,14 +163,14 @@ public interface TimerInternals {
   @Nullable
   Instant currentOutputWatermarkTime();
 
-  /**
-   * Data about a timer as represented within {@link TimerInternals}.
-   */
+  /** Data about a timer as represented within {@link TimerInternals}. */
+  // TODO: Expose the window that this timer is in, if appropriate
   @AutoValue
   abstract class TimerData implements Comparable<TimerData> {
 
     public abstract String getTimerId();
 
+    // TODO: Document what kinds of namespaces are permitted
     public abstract StateNamespace getNamespace();
 
     /** Timestamp, at which the timer fires. */

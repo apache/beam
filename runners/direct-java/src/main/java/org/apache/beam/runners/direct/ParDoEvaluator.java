@@ -176,6 +176,9 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
   @Override
   public void processElement(WindowedValue<InputT> element) {
     try {
+      // If a timer was set here, it might be valuable to track the window that the timer was set
+      // in;
+      // same for any timer that got deleted. You know how it is.
       Iterable<WindowedValue<InputT>> unprocessed = fnRunner.processElementInReadyWindows(element);
       unprocessedElements.addAll(unprocessed);
     } catch (Exception e) {
@@ -201,14 +204,8 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
       throw UserCodeException.wrap(e);
     }
     StepTransformResult.Builder<InputT> resultBuilder;
-    CopyOnAccessInMemoryStateInternals state = stepContext.commitState();
-    if (state != null) {
-      resultBuilder =
-          StepTransformResult.<InputT>withHold(transform, state.getEarliestWatermarkHold())
-              .withState(state);
-    } else {
-      resultBuilder = StepTransformResult.withoutHold(transform);
-    }
+
+    resultBuilder = StepTransformResult.withoutHold(transform);
     return resultBuilder
         .addOutput(outputManager.bundles.values())
         .withTimerUpdate(stepContext.getTimerUpdate())
