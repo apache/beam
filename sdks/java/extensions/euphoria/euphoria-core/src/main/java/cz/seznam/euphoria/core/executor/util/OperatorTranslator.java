@@ -13,16 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.operator.hint;
+package cz.seznam.euphoria.core.executor.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.client.operator.hint.SizeHint;
 
 import java.util.ArrayList;
 
-public class Util {
+/**
+ * Util class when specific executors use the same methods for operator translation
+ */
+@Audience(Audience.Type.EXECUTOR)
+public class OperatorTranslator {
 
   @SuppressWarnings("unchecked")
   public static boolean wantTranslateBroadcastHashJoin(Join o) {
