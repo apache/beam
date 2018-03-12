@@ -18,7 +18,7 @@
 
 import common_job_properties
 
-job('beam_PerformanceTests_JDBC') {
+job('beam_PerformanceTests_HadoopInputFormat') {
     // Set default Beam job properties.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 
@@ -33,32 +33,32 @@ job('beam_PerformanceTests_JDBC') {
 
     common_job_properties.enablePhraseTriggeringFromPullRequest(
             delegate,
-            'Java JdbcIO Performance Test',
-            'Run Java JdbcIO Performance Test')
+            'Java HadoopInputFormatIO Performance Test',
+            'Run Java HadoopInputFormatIO Performance Test')
 
     def pipelineOptions = [
             tempRoot       : 'gs://temp-storage-for-perf-tests',
             project        : 'apache-beam-testing',
             postgresPort   : '5432',
-            numberOfRecords: '5000000'
+            numberOfRecords: '600000'
     ]
 
-    String namespace = common_job_properties.getKubernetesNamespace('jdbcioit')
+    String namespace = common_job_properties.getKubernetesNamespace('hadoopinputformatioit')
     String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
 
     def testArgs = [
             kubeconfig              : kubeconfig,
-            beam_it_timeout         : '1800',
+            beam_it_timeout         : '1200',
             benchmarks              : 'beam_integration_benchmark',
             beam_it_profile         : 'io-it',
             beam_prebuilt           : 'true',
             beam_sdk                : 'java',
-            beam_it_module          : 'sdks/java/io/jdbc',
-            beam_it_class           : 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
+            beam_it_module          : 'sdks/java/io/hadoop-input-format',
+            beam_it_class           : 'org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIOIT',
             beam_it_options         : common_job_properties.joinPipelineOptions(pipelineOptions),
             beam_kubernetes_scripts : common_job_properties.makePathAbsolute('src/.test-infra/kubernetes/postgres/postgres-service-for-local-dev.yml'),
             beam_options_config_file: common_job_properties.makePathAbsolute('src/.test-infra/kubernetes/postgres/pkb-config-local.yml'),
-            bigquery_table          : 'beam_performance.jdbcioit_pkb_results'
+            bigquery_table          : 'beam_performance.hadoopinputformatioit_pkb_results'
     ]
 
     common_job_properties.setupKubernetes(delegate, namespace, kubeconfig)
