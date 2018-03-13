@@ -69,6 +69,7 @@ import org.apache.http.ssl.SSLContexts;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
+import org.apache.beam.sdk.repackaged.org.apache.commons.lang3.tuple.Pair;
 
 /**
  * Transforms for reading and writing data from/to Elasticsearch.
@@ -709,7 +710,7 @@ public class ElasticsearchIO {
 
   /** A {@link PTransform} writing data to Elasticsearch. */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<String>, PDone> {
+  public abstract static class Write extends PTransform<PCollection<Pair<String, String>>, PDone> {
 
     @Nullable
     abstract ConnectionConfiguration getConnectionConfiguration();
@@ -775,7 +776,7 @@ public class ElasticsearchIO {
     }
 
     @Override
-    public PDone expand(PCollection<String> input) {
+    public PDone expand(PCollection<Pair<String, String>> input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
       input.apply(ParDo.of(new WriteFn(this)));
@@ -786,7 +787,7 @@ public class ElasticsearchIO {
      * {@link DoFn} to for the {@link Write} transform.
      * */
     @VisibleForTesting
-    static class WriteFn extends DoFn<String, Void> {
+    static class WriteFn extends DoFn<Pair<String, String>, Void> {
 
 
       private int backendVersion;
@@ -815,13 +816,17 @@ public class ElasticsearchIO {
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
-        String document = context.element();
-        batch.add(String.format("{ \"index\" : {} }%n%s%n", document));
-        currentBatchSizeBytes += document.getBytes(StandardCharsets.UTF_8).length;
-        if (batch.size() >= spec.getMaxBatchSize()
-            || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
-          flushBatch();
-        }
+          Pair<String, String> document = context.element();
+          if (document.getKey().toLowerCase().equals("delete"))
+              batch.add(String.format("{ \"delete\" : %s }", document));
+          else {
+              batch.add(String.format("{ \"%s\" : {} }%n%s%n", document.getKey(), document.getValue()));
+          }
+          currentBatchSizeBytes += document.getValue().getBytes(StandardCharsets.UTF_8).length;
+          if (batch.size() >= spec.getMaxBatchSize()
+                  || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
+              flushBatch();
+          }
       }
 
       @FinishBundle
