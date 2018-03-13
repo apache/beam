@@ -234,6 +234,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     // MetricsContainerStepMap
     MetricsPusher metricsPusher =
         new MetricsPusher(MetricsAccumulator.getInstance().value(), mOptions, result);
+    metricsPusher.start();
     return result;
   }
 
