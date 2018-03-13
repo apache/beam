@@ -65,10 +65,6 @@ public abstract class SqlTypeCoder extends CustomCoder<Object> {
     return this.getClass().hashCode();
   }
 
-  public static boolean isArray(SqlTypeCoder sqlTypeCoder) {
-    return sqlTypeCoder instanceof SqlArrayCoder;
-  }
-
   static class SqlTinyIntCoder extends SqlTypeCoder {
 
     @Override

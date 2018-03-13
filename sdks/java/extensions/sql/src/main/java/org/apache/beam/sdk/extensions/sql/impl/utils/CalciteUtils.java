@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
 import static org.apache.beam.sdk.values.RowType.toRowType;
@@ -30,7 +31,6 @@ import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.rel.type.RelProtoDataType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -68,7 +68,7 @@ public class CalciteUtils {
    * for supported Beam SQL type coder, see {@link SqlTypeCoder}.
    */
   public static SqlTypeName toCalciteType(SqlTypeCoder coder) {
-    if (SqlTypeCoder.isArray(coder)) {
+    if (SqlTypeCoders.isArray(coder)) {
         return SqlTypeName.ARRAY;
     }
 
@@ -135,19 +135,16 @@ public class CalciteUtils {
   /**
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
-  public static RelProtoDataType toCalciteRowType(final RowType rowType) {
-    return dataTypeFactory -> {
-      RelDataTypeFactory.Builder builder = new RelDataTypeFactory.Builder(dataTypeFactory);
+  public static RelDataType toCalciteRowType(RowType rowType, RelDataTypeFactory dataTypeFactory) {
+    RelDataTypeFactory.Builder builder = new RelDataTypeFactory.Builder(dataTypeFactory);
 
-      IntStream
-          .range(0, rowType.getFieldCount())
-          .forEach(idx ->
-                       builder.add(
-                           rowType.getFieldName(idx),
-                           toRelDataType(dataTypeFactory, rowType, idx)));
-
-      return builder.build();
-    };
+    IntStream
+        .range(0, rowType.getFieldCount())
+        .forEach(idx ->
+                     builder.add(
+                         rowType.getFieldName(idx),
+                         toRelDataType(dataTypeFactory, rowType, idx)));
+    return builder.build();
   }
 
   private static RelDataType toRelDataType(
@@ -163,7 +160,7 @@ public class CalciteUtils {
     }
 
     if (SqlTypeName.ROW.equals(typeName)) {
-      return createRowRelType(dataTypeFactory, (SqlRowCoder) fieldCoder);
+      return toCalciteRowType(((SqlRowCoder) fieldCoder).getRowType(), dataTypeFactory);
     }
 
     return dataTypeFactory.createSqlType(typeName);
@@ -172,18 +169,18 @@ public class CalciteUtils {
   private static RelDataType createArrayRelType(
       RelDataTypeFactory dataTypeFactory,
       SqlArrayCoder arrayFieldCoder) {
-    SqlTypeName elementType = toCalciteType(arrayFieldCoder.getElementCoder());
-    return
-        dataTypeFactory
-            .createArrayType(
-                dataTypeFactory.createSqlType(elementType), UNLIMITED_ARRAY_SIZE);
-  }
 
-  private static RelDataType createRowRelType(
-      RelDataTypeFactory dataTypeFactory,
-      SqlRowCoder rowFieldCoder) {
+    SqlTypeName elementTypeName = toCalciteType(arrayFieldCoder.getElementCoder());
 
-    RelProtoDataType relProtoDataType = toCalciteRowType(rowFieldCoder.getRowType());
-    return relProtoDataType.apply(dataTypeFactory);
+    RelDataType elementType;
+
+    if (SqlTypeName.ROW.equals(elementTypeName)) {
+      RowType rowType = ((SqlRowCoder) arrayFieldCoder.getElementCoder()).getRowType();
+      elementType = toCalciteRowType(rowType, dataTypeFactory);
+    } else {
+      elementType = dataTypeFactory.createSqlType(elementTypeName);
+    }
+
+    return dataTypeFactory.createArrayType(elementType, UNLIMITED_ARRAY_SIZE);
   }
 }
