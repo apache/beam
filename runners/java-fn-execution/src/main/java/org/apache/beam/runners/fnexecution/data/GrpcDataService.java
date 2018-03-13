@@ -62,7 +62,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
    * A collection of multiplexers which are not used to send data. A handle to these multiplexers is
    * maintained in order to perform an orderly shutdown.
    *
-   * <p>TODO(BEAM-3811): Replace with some cancellable collection, to ensure that new clients of a
+   * <p>TODO: (BEAM-3811) Replace with some cancellable collection, to ensure that new clients of a
    * closed {@link GrpcDataService} are closed with that {@link GrpcDataService}.
    */
   private final Queue<BeamFnDataGrpcMultiplexer> additionalMultiplexers;
