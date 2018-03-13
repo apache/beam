@@ -19,68 +19,105 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.Type;
-import com.google.common.base.Objects;
-import com.google.common.collect.ArrayListMultimap;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableListMultimap;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableTable;
+import com.google.common.collect.Maps;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Encapsulates Cloud Spanner Schema.
  */
-class SpannerSchema implements Serializable {
-  private final List<String> tables;
-  private final ArrayListMultimap<String, Column> columns;
-  private final ArrayListMultimap<String, KeyPart> keyParts;
+@AutoValue
+abstract class SpannerSchema implements Serializable {
+  abstract ImmutableList<String> tables();
+  abstract ImmutableListMultimap<String, Column> columns();
+  abstract ImmutableListMultimap<String, KeyPart> keyParts();
+  abstract ImmutableTable<String, String, Long> cellsMutatedPerColumn();
+  abstract ImmutableMap<String, Long> cellsMutatedPerRow();
 
   public static Builder builder() {
-    return new Builder();
+    return new AutoValue_SpannerSchema.Builder();
   }
 
   /**
    * Builder for {@link SpannerSchema}.
    */
-  static class Builder {
-    private final ArrayListMultimap<String, Column> columns = ArrayListMultimap.create();
-    private final ArrayListMultimap<String, KeyPart> keyParts = ArrayListMultimap.create();
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract ImmutableList.Builder<String> tablesBuilder();
+    abstract ImmutableListMultimap.Builder<String, Column> columnsBuilder();
+    abstract ImmutableListMultimap.Builder<String, KeyPart> keyPartsBuilder();
+    abstract ImmutableTable.Builder<String, String, Long> cellsMutatedPerColumnBuilder();
+    abstract ImmutableMap.Builder<String, Long> cellsMutatedPerRowBuilder();
 
+    abstract ImmutableListMultimap<String, Column> columns();
+    abstract ImmutableTable<String, String, Long> cellsMutatedPerColumn();
+
+    @VisibleForTesting
     public Builder addColumn(String table, String name, String type) {
-      addColumn(table, Column.create(name.toLowerCase(), type));
-      return this;
+      return addColumn(table, name, type, 1L);
     }
 
-    private Builder addColumn(String table, Column column) {
-      columns.put(table.toLowerCase(), column);
+    public Builder addColumn(String table, String name, String type, long cellsMutated) {
+      String tableLower = table.toLowerCase();
+      String nameLower = name.toLowerCase();
+
+      columnsBuilder().put(tableLower, Column.create(nameLower, type));
+      cellsMutatedPerColumnBuilder().put(tableLower, nameLower, cellsMutated);
       return this;
     }
 
     public Builder addKeyPart(String table, String column, boolean desc) {
-      keyParts.put(table.toLowerCase(), KeyPart.create(column.toLowerCase(), desc));
+      keyPartsBuilder().put(table.toLowerCase(), KeyPart.create(column.toLowerCase(), desc));
       return this;
     }
 
-    public SpannerSchema build() {
-      return new SpannerSchema(columns, keyParts);
+    abstract SpannerSchema autoBuild();
+
+    public final SpannerSchema build() {
+      // precompute the number of cells that are mutated for operations affecting
+      // an entire row such as a single key delete.
+      cellsMutatedPerRowBuilder().putAll(Maps.transformValues(
+          cellsMutatedPerColumn().rowMap(),
+          entry -> entry.values().stream().mapToLong(Long::longValue).sum()));
+
+      tablesBuilder().addAll(columns().keySet());
+
+      return autoBuild();
     }
   }
 
-  private SpannerSchema(ArrayListMultimap<String, Column> columns,
-      ArrayListMultimap<String, KeyPart> keyParts) {
-    this.columns = columns;
-    this.keyParts = keyParts;
-    tables = new ArrayList<>(columns.keySet());
-  }
-
   public List<String> getTables() {
-    return tables;
+    return tables();
   }
 
   public List<Column> getColumns(String table) {
-    return columns.get(table.toLowerCase());
+    return columns().get(table.toLowerCase());
   }
 
   public List<KeyPart> getKeyParts(String table) {
-    return keyParts.get(table.toLowerCase());
+    return keyParts().get(table.toLowerCase());
+  }
+
+  /**
+   * Return the total number of cells affected when the specified column is mutated.
+   */
+  public long getCellsMutatedPerColumn(String table, String column) {
+    return cellsMutatedPerColumn()
+        .row(table.toLowerCase())
+        .getOrDefault(column.toLowerCase(), 1L);
+  }
+
+  /**
+   * Return the total number of cells affected with the given row is deleted.
+   */
+  public long getCellsMutatedPerRow(String table) {
+    return cellsMutatedPerRow()
+        .getOrDefault(table.toLowerCase(), 1L);
   }
 
   @AutoValue
@@ -141,23 +178,5 @@ class SpannerSchema implements Serializable {
       }
       throw new IllegalArgumentException("Unknown spanner type " + spannerType);
     }
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-    SpannerSchema that = (SpannerSchema) o;
-    return Objects.equal(tables, that.tables) && Objects.equal(columns, that.columns) && Objects
-        .equal(keyParts, that.keyParts);
-  }
-
-  @Override
-  public int hashCode() {
-    return Objects.hashCode(tables, columns, keyParts);
   }
 }
