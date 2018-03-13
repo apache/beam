@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.mongodb;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+
 import com.google.common.collect.ImmutableMap;
 import com.mongodb.MongoClient;
 import java.util.Date;
@@ -38,6 +40,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
 
 /**
  * A test of {@link org.apache.beam.sdk.io.mongodb.MongoDbIO} on an independent Mongo instance.
@@ -118,20 +121,10 @@ public class MongoDBIOIT {
       .apply("Map documents to Strings", MapElements.via(new DocumentToStringFn()))
       .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = getExpectedHash(numberOfRecords);
+    String expectedHash = getHashForRecordCount(numberOfRecords, EXPECTED_HASHES);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     readPipeline.run().waitUntilFinish();
-  }
-
-  private static String getExpectedHash(int recordCount) {
-    String hash = EXPECTED_HASHES.get(recordCount);
-    if (hash == null) {
-      throw new UnsupportedOperationException(
-        String.format("No hash for that record count: %s", recordCount)
-      );
-    }
-    return hash;
   }
 
   private static class LongToDocumentFn extends SimpleFunction<Long, Document> {
