@@ -110,6 +110,7 @@ public final class SparkRunnerDebugger extends PipelineRunner<SparkPipelineResul
     MetricsPusher metricsPusher =
         new MetricsPusher(
             MetricsAccumulator.getInstance().value(), options, debugSparkPipelineResult);
+    metricsPusher.start();
     return debugSparkPipelineResult;
   }
 

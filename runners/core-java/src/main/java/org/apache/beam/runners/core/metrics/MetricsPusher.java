@@ -55,27 +55,22 @@ public class MetricsPusher implements Serializable {
     this.metricsContainerStepMap = metricsContainerStepMap;
     this.pipelineResult = pipelineResult;
     period = pipelineOptions.getMetricsPushPeriod();
-      // calls the constructor of MetricsSink implementation specified in
-      // pipelineOptions.getMetricsSink() passing the pipelineOptions
-      metricsSink =
-          InstanceBuilder.ofType(MetricsSink.class)
-              .fromClass(pipelineOptions.getMetricsSink())
-              .withArg(PipelineOptions.class, pipelineOptions)
-              .build();
-      if (!(metricsSink instanceof NoOpMetricsSink)) {
-        start();
-      }
+    // calls the constructor of MetricsSink implementation specified in
+    // pipelineOptions.getMetricsSink() passing the pipelineOptions
+    metricsSink =
+        InstanceBuilder.ofType(MetricsSink.class)
+            .fromClass(pipelineOptions.getMetricsSink())
+            .withArg(PipelineOptions.class, pipelineOptions)
+            .build();
   }
 
-  private void start() {
-    ScheduledExecutorService scheduler =
-        Executors.newSingleThreadScheduledExecutor(
-            new ThreadFactoryBuilder()
-                .setDaemon(false)
-                .setNameFormat("MetricsPusher-thread")
-                .build());
-    scheduledFuture = scheduler
-        .scheduleAtFixedRate(() -> pushMetrics(), 0, period, TimeUnit.SECONDS);
+  public void start() {
+    if (!(metricsSink instanceof NoOpMetricsSink)) {
+      ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
+          new ThreadFactoryBuilder().setDaemon(false).setNameFormat("MetricsPusher-thread").build());
+      scheduledFuture =
+          scheduler.scheduleAtFixedRate(() -> pushMetrics(), 0, period, TimeUnit.SECONDS);
+    }
   }
   private void tearDown(){
     pushMetrics();

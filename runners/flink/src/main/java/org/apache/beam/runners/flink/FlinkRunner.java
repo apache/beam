@@ -138,6 +138,7 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
       MetricsPusher metricsPusher =
           new MetricsPusher(
               flinkRunnerResult.getMetricsContainerStepMap(), options, flinkRunnerResult);
+      metricsPusher.start();
       return flinkRunnerResult;
     }
   }
