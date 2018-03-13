@@ -34,10 +34,10 @@ import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.primitives.UnsignedBytes;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -181,7 +181,7 @@ public class SpannerIO {
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024 * 1024; // 1 MB
   // Max number of mutations to batch together.
-  private static final int MAX_NUM_MUTATIONS = 10000;
+  private static final int DEFAULT_MAX_NUM_MUTATIONS = 10000;
   // The maximum number of keys to fit in memory when computing approximate quantiles.
   private static final long MAX_NUM_KEYS = (long) 1e6;
   // TODO calculate number of samples based on the size of the input.
@@ -236,6 +236,7 @@ public class SpannerIO {
     return new AutoValue_SpannerIO_Write.Builder()
         .setSpannerConfig(SpannerConfig.create())
         .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
+        .setMaxNumMutations(DEFAULT_MAX_NUM_MUTATIONS)
         .setNumSamples(DEFAULT_NUM_SAMPLES)
         .build();
   }
@@ -609,9 +610,13 @@ public class SpannerIO {
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<Mutation>, PDone> {
 
+    private long maxNumMutations;
+
     abstract SpannerConfig getSpannerConfig();
 
     abstract long getBatchSizeBytes();
+
+    abstract long getMaxNumMutations();
 
     abstract int getNumSamples();
 
@@ -627,6 +632,8 @@ public class SpannerIO {
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setBatchSizeBytes(long batchSizeBytes);
+
+      abstract Builder setMaxNumMutations(long maxNumMutations);
 
       abstract Builder setNumSamples(int numSamples);
 
@@ -704,6 +711,11 @@ public class SpannerIO {
     /** Specifies the batch size limit. */
     public Write withBatchSizeBytes(long batchSizeBytes) {
       return toBuilder().setBatchSizeBytes(batchSizeBytes).build();
+    }
+
+    /** Specifies the cell mutation limit. */
+    public Write withMaxNumMutations(long maxNumMutations) {
+      return toBuilder().setMaxNumMutations(maxNumMutations).build();
     }
 
     @Override
@@ -785,7 +797,8 @@ public class SpannerIO {
           .apply("Group by partition", GroupByKey.create())
           .apply(
               "Batch mutations together",
-              ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getSpannerConfig(), schemaView))
+              ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getMaxNumMutations(),
+                  spec.getSpannerConfig(), schemaView))
                   .withSideInputs(schemaView))
           .apply(
               "Write mutations to Spanner",
@@ -902,31 +915,35 @@ public class SpannerIO {
   private static class BatchFn
       extends DoFn<KV<String, Iterable<SerializedMutation>>, Iterable<Mutation>> {
 
-    private static final int MAX_RETRIES = 5;
-    private static final FluentBackoff BUNDLE_WRITE_BACKOFF = FluentBackoff.DEFAULT
-        .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
-
     private final long maxBatchSizeBytes;
+    private final long maxNumMutations;
     private final SpannerConfig spannerConfig;
     private final PCollectionView<SpannerSchema> schemaView;
 
     private transient SpannerAccessor spannerAccessor;
     // Current batch of mutations to be written.
-    private List<Mutation> mutations;
+    private ImmutableList.Builder<Mutation> batch;
     // total size of the current batch.
     private long batchSizeBytes;
+    // total number of mutated cells including indices.
+    private long batchCells;
 
-    private BatchFn(long maxBatchSizeBytes, SpannerConfig spannerConfig,
+    private BatchFn(
+        long maxBatchSizeBytes,
+        long maxNumMutations,
+        SpannerConfig spannerConfig,
         PCollectionView<SpannerSchema> schemaView) {
       this.maxBatchSizeBytes = maxBatchSizeBytes;
+      this.maxNumMutations = maxNumMutations;
       this.spannerConfig = spannerConfig;
       this.schemaView = schemaView;
     }
 
     @Setup
     public void setup() throws Exception {
-      mutations = new ArrayList<>();
+      batch = ImmutableList.builder();
       batchSizeBytes = 0;
+      batchCells = 0;
       spannerAccessor = spannerConfig.connectToSpanner();
     }
 
@@ -937,23 +954,39 @@ public class SpannerIO {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(c.sideInput(schemaView));
+      SpannerSchema spannerSchema = c.sideInput(schemaView);
+      MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(spannerSchema);
+      MutationCellEstimator mutationCellEstimator = new MutationCellEstimator(
+          spannerSchema, maxNumMutations);
+
       KV<String, Iterable<SerializedMutation>> element = c.element();
       for (SerializedMutation kv : element.getValue()) {
         byte[] value = kv.getMutationGroupBytes();
         MutationGroup mg = mutationGroupEncoder.decode(value);
-        Iterables.addAll(mutations, mg);
-        batchSizeBytes += MutationSizeEstimator.sizeOf(mg);
-        if (batchSizeBytes >= maxBatchSizeBytes || mutations.size() > MAX_NUM_MUTATIONS) {
-          c.output(mutations);
-          mutations = new ArrayList<>();
-          batchSizeBytes = 0;
+        long groupSize = MutationSizeEstimator.sizeOf(mg);
+        long groupCells = mutationCellEstimator.applyAsLong(mg);
+
+        if (batchCells + groupCells > maxNumMutations
+            || batchSizeBytes + groupSize > maxBatchSizeBytes) {
+          flush(c);
         }
+
+        batch.addAll(mg);
+        batchSizeBytes += groupSize;
+        batchCells += groupCells;
       }
+
+      flush(c);
+    }
+
+    private void flush(ProcessContext c) {
+      ImmutableList<Mutation> mutations = batch.build();
+
       if (!mutations.isEmpty()) {
         c.output(mutations);
-        mutations = new ArrayList<>();
+        batch = ImmutableList.builder();
         batchSizeBytes = 0;
+        batchCells = 0;
       }
     }
   }

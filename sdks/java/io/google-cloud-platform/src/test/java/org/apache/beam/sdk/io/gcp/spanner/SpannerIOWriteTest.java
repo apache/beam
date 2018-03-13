@@ -66,6 +66,7 @@ import org.mockito.ArgumentMatcher;
  */
 @RunWith(JUnit4.class)
 public class SpannerIOWriteTest implements Serializable {
+  private static final long CELLS_PER_KEY = 7;
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -80,12 +81,15 @@ public class SpannerIOWriteTest implements Serializable {
 
     // Simplest schema: a table with int64 key
     preparePkMetadata(tx, Arrays.asList(pkMetadata("test", "key", "ASC")));
-    prepareColumnMetadata(tx, Arrays.asList(columnMetadata("test", "key", "INT64")));
+    prepareColumnMetadata(tx, Arrays.asList(columnMetadata("test", "key", "INT64", CELLS_PER_KEY)));
   }
 
-  private static Struct columnMetadata(String tableName, String columnName, String type) {
+  private static Struct columnMetadata(
+      String tableName, String columnName, String type, long cellsMutated) {
     return Struct.newBuilder().add("table_name", Value.string(tableName))
-        .add("column_name", Value.string(columnName)).add("spanner_type", Value.string(type))
+        .add("column_name", Value.string(columnName))
+        .add("spanner_type", Value.string(type))
+        .add("cells_mutated", Value.int64(cellsMutated))
         .build();
   }
 
@@ -98,7 +102,8 @@ public class SpannerIOWriteTest implements Serializable {
   private void prepareColumnMetadata(ReadOnlyTransaction tx, List<Struct> rows) {
     Type type = Type.struct(Type.StructField.of("table_name", Type.string()),
         Type.StructField.of("column_name", Type.string()),
-        Type.StructField.of("spanner_type", Type.string()));
+        Type.StructField.of("spanner_type", Type.string()),
+        Type.StructField.of("cells_mutated", Type.int64()));
     when(tx.executeQuery(argThat(new ArgumentMatcher<Statement>() {
 
       @Override public boolean matches(Object argument) {
@@ -280,10 +285,9 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   @Category(NeedsRunner.class)
-  public void batchingGroups() throws Exception {
-
-    // Have a room to accumulate one more item.
-    long batchSize = MutationSizeEstimator.sizeOf(g(m(1L))) + 1;
+  public void sizeBatchingGroups() throws Exception {
+    // Accumulate two items per batch.
+    long batchSize = MutationSizeEstimator.sizeOf(g(m(1L))) * 2;
 
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L)), g(m(3L))));
     mutations.apply(SpannerIO.write()
@@ -292,6 +296,32 @@ public class SpannerIOWriteTest implements Serializable {
         .withDatabaseId("test-database")
         .withServiceFactory(serviceFactory)
         .withBatchSizeBytes(batchSize)
+        .withSampler(fakeSampler(m(1000L)))
+        .grouped());
+
+    pipeline.run();
+
+    // The content of batches is not deterministic. Just verify that the size is correct.
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(iterableOfSize(2));
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(iterableOfSize(1));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void cellBatchingGroups() throws Exception {
+    // Accumulate two items per batch.
+    long maxNumMutations = CELLS_PER_KEY * 2;
+
+    PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L)), g(m(3L))));
+    mutations.apply(SpannerIO.write()
+        .withProjectId("test-project")
+        .withInstanceId("test-instance")
+        .withDatabaseId("test-database")
+        .withServiceFactory(serviceFactory)
+        .withMaxNumMutations(maxNumMutations)
+        .withBatchSizeBytes(Integer.MAX_VALUE)
         .withSampler(fakeSampler(m(1000L)))
         .grouped());
 

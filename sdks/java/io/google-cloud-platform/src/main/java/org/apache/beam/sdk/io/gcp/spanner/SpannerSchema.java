@@ -45,8 +45,11 @@ class SpannerSchema implements Serializable {
     private final ArrayListMultimap<String, KeyPart> keyParts = ArrayListMultimap.create();
 
     public Builder addColumn(String table, String name, String type) {
-      addColumn(table, Column.create(name.toLowerCase(), type));
-      return this;
+      return addColumn(table, name, type, 1L);
+    }
+
+    public Builder addColumn(String table, String name, String type, long cellsMutated) {
+      return addColumn(table, Column.create(name.toLowerCase(), type, cellsMutated));
     }
 
     private Builder addColumn(String table, Column column) {
@@ -97,17 +100,19 @@ class SpannerSchema implements Serializable {
   @AutoValue
   abstract static class Column implements Serializable {
 
-    static Column create(String name, Type type) {
-      return new AutoValue_SpannerSchema_Column(name, type);
+    static Column create(String name, Type type, long cellsMutated) {
+      return new AutoValue_SpannerSchema_Column(name, type, cellsMutated);
     }
 
-    static Column create(String name, String spannerType) {
-      return create(name, parseSpannerType(spannerType));
+    static Column create(String name, String spannerType, long cellsMutated) {
+      return create(name, parseSpannerType(spannerType), cellsMutated);
     }
 
     public abstract String getName();
 
     public abstract Type getType();
+
+    public abstract long getCellsMutated();
 
     private static Type parseSpannerType(String spannerType) {
       spannerType = spannerType.toUpperCase();
