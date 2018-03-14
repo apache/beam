@@ -26,51 +26,36 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableMap;
-import io.grpc.ManagedChannel;
-import io.grpc.inprocess.InProcessChannelBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.SynchronousQueue;
-import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
+import org.apache.beam.runners.fnexecution.InProcessSdkHarness;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.ActiveBundle;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.RemoteInputDestination;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.RemoteOutputReceiver;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
-import org.apache.beam.runners.fnexecution.data.GrpcDataService;
-import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
-import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.data.RemoteGrpcPortWrite;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -82,6 +67,7 @@ import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -94,6 +80,8 @@ public class SdkHarnessClientTest {
 
   @Mock public FnApiControlClient fnApiControlClient;
   @Mock public FnDataService dataService;
+
+  @Rule public InProcessSdkHarness harness = InProcessSdkHarness.create();
 
   private SdkHarnessClient sdkHarnessClient;
 
@@ -177,38 +165,8 @@ public class SdkHarnessClientTest {
 
   @Test
   public void testNewBundleAndProcessElements() throws Exception {
-    InProcessServerFactory serverFactory = InProcessServerFactory.create();
-    ExecutorService executor = Executors.newCachedThreadPool();
-
-    final GrpcFnServer<GrpcLoggingService> loggingServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-    GrpcDataService grpcDataService = GrpcDataService.create(executor);
-    GrpcFnServer<GrpcDataService> dataServer =
-        GrpcFnServer.allocatePortAndCreateFor(grpcDataService, serverFactory);
-
-    SynchronousQueue<FnApiControlClient> clientPool = new SynchronousQueue<>();
-    FnApiControlClientPoolService clientPoolService =
-        FnApiControlClientPoolService.offeringClientsToPool(clientPool);
-    final GrpcFnServer<FnApiControlClientPoolService> controlServer =
-        GrpcFnServer.allocatePortAndCreateFor(clientPoolService, serverFactory);
-
-    Future<Void> harness = executor.submit(() -> {
-      FnHarness.main(PipelineOptionsFactory.create(),
-          loggingServer.getApiServiceDescriptor(),
-          controlServer.getApiServiceDescriptor(),
-          new ManagedChannelFactory() {
-            @Override
-            public ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor) {
-              return InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
-            }
-          },
-          StreamObserverFactory.direct());
-      return null;
-    });
-
     ProcessBundleDescriptor processBundleDescriptor =
-        getProcessBundleDescriptor(dataServer.getApiServiceDescriptor());
+        getProcessBundleDescriptor(harness.dataEndpoint());
 
     BeamFnApi.Target sdkGrpcReadTarget =
         BeamFnApi.Target.newBuilder()
@@ -225,7 +183,7 @@ public class SdkHarnessClientTest {
             .setPrimitiveTransformReference("write")
             .build();
 
-    SdkHarnessClient client = SdkHarnessClient.usingFnApiClient(clientPool.take(), grpcDataService);
+    SdkHarnessClient client = harness.client();
     BundleProcessor<String> processor =
         client.getProcessor(
             processBundleDescriptor,
@@ -261,7 +219,6 @@ public class SdkHarnessClientTest {
             WindowedValue.valueInGlobalWindow("spam"),
             WindowedValue.valueInGlobalWindow("ham"),
             WindowedValue.valueInGlobalWindow("eggs")));
-    executor.shutdownNow();
   }
 
   private BeamFnApi.ProcessBundleDescriptor getProcessBundleDescriptor(

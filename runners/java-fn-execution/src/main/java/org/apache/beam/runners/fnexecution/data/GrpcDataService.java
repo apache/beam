@@ -53,8 +53,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     implements FnService, FnDataService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcDataService.class);
 
-  public static GrpcDataService create(
-      ExecutorService executor) {
+  public static GrpcDataService create(ExecutorService executor) {
     return new GrpcDataService(executor);
   }
 
@@ -62,6 +61,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   /**
    * A collection of multiplexers which are not used to send data. A handle to these multiplexers is
    * maintained in order to perform an orderly shutdown.
+   *
+   * <p>TODO: (BEAM-3811) Replace with some cancellable collection, to ensure that new clients of a
+   * closed {@link GrpcDataService} are closed with that {@link GrpcDataService}.
    */
   private final Queue<BeamFnDataGrpcMultiplexer> additionalMultiplexers;
 
@@ -105,7 +107,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         // Shutdown remaining clients
       }
     }
-    connectedClient.get().close();
+    if (!connectedClient.isCancelled()) {
+      connectedClient.get().close();
+    }
   }
 
   @Override
@@ -130,16 +134,17 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         throw new RuntimeException(e.getCause());
       }
     } else {
-      executor.submit(() -> {
-        try {
-          connectedClient.get().registerConsumer(inputLocation, observer);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
-        } catch (ExecutionException e) {
-          throw new RuntimeException(e.getCause());
-        }
-      });
+      executor.submit(
+          () -> {
+            try {
+              connectedClient.get().registerConsumer(inputLocation, observer);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              throw new RuntimeException(e);
+            } catch (ExecutionException e) {
+              throw new RuntimeException(e.getCause());
+            }
+          });
     }
     return observer;
   }
