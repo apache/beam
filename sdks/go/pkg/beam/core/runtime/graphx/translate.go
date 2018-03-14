@@ -28,12 +28,12 @@ import (
 const (
 	// Model constants
 
-	URNImpulse = "urn:beam:transform:impulse:v1"
+	URNImpulse = "beam:transform:impulse:v1"
 	URNParDo   = "urn:beam:transform:pardo:v1"
-	URNFlatten = "urn:beam:transform:flatten:v1"
-	URNGBK     = "urn:beam:transform:groupbykey:v1"
-	URNCombine = "urn:beam:transform:combine:v1"
-	URNWindow  = "urn:beam:transform:window:v1"
+	URNFlatten = "beam:transform:flatten:v1"
+	URNGBK     = "beam:transform:group_by_key:v1"
+	URNCombine = "beam:transform:combine:v1"
+	URNWindow  = "beam:transform:window:v1"
 
 	URNGlobalWindowsWindowFn = "beam:windowfn:global_windows:v0.1"
 
@@ -42,7 +42,7 @@ const (
 	// TODO: remove URNJavaDoFN when the Dataflow runner
 	// uses the model pipeline and no longer falls back to Java.
 	URNJavaDoFn = "urn:beam:dofn:javasdk:0.1"
-	URNDoFn     = "urn:beam:go:transform:dofn:v1"
+	URNDoFn     = "beam:go:transform:dofn:v1"
 )
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
@@ -372,6 +372,7 @@ func (m *marshaller) addWindowingStrategy(w *window.Window) string {
 			OutputTime:      pb.OutputTime_END_OF_WINDOW,
 			ClosingBehavior: pb.ClosingBehavior_EMIT_IF_NONEMPTY,
 			AllowedLateness: 0,
+			OnTimeBehavior:  pb.OnTimeBehavior_FIRE_ALWAYS,
 		}
 		m.windowing[id] = ws
 	}
