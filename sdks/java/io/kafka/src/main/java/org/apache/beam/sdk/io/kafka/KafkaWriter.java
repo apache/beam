@@ -54,8 +54,11 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
     checkForFailures();
 
     KV<K, V> kv = ctx.element();
-    producer.send(
-        new ProducerRecord<>(spec.getTopic(), kv.getKey(), kv.getValue()), new SendCallback());
+    Long timestampMillis = spec.isElementTimestampEnabled()
+        ? ctx.timestamp().getMillis() : null;
+
+    producer.send(new ProducerRecord<>(
+        spec.getTopic(), null, timestampMillis, kv.getKey(), kv.getValue()), new SendCallback());
 
     elementsWritten.inc();
   }

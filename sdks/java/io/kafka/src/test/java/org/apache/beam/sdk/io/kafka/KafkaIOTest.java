@@ -854,13 +854,14 @@ public class KafkaIOTest {
             .withTopic(topic)
             .withKeySerializer(IntegerSerializer.class)
             .withValueSerializer(LongSerializer.class)
+            .withInputTimestamp()
             .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       p.run();
 
       completionThread.shutdown();
 
-      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false);
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
     }
   }
 
@@ -891,7 +892,7 @@ public class KafkaIOTest {
 
       completionThread.shutdown();
 
-      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, true);
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, true, false);
     }
   }
 
@@ -930,13 +931,14 @@ public class KafkaIOTest {
                  .withEOS(1, "test")
                  .withConsumerFactoryFn(new ConsumerFactoryFn(
                    Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
+                 .withInputTimestamp()
                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       p.run();
 
       completionThread.shutdown();
 
-      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false);
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false, true);
     }
   }
 
@@ -1198,7 +1200,10 @@ public class KafkaIOTest {
   }
 
   private static void verifyProducerRecords(MockProducer<Integer, Long> mockProducer,
-                                            String topic, int numElements, boolean keyIsAbsent) {
+                                            String topic,
+                                            int numElements,
+                                            boolean keyIsAbsent,
+                                            boolean verifyTimestamp) {
 
     // verify that appropriate messages are written to kafka
     List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
@@ -1215,6 +1220,9 @@ public class KafkaIOTest {
         assertEquals(i, record.key().intValue());
       }
       assertEquals(i, record.value().longValue());
+      if (verifyTimestamp) {
+        assertEquals(i, record.timestamp().intValue());
+      }
     }
   }
 

@@ -258,6 +258,7 @@ public class KafkaIO {
         .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
         .setNumShards(0)
+        .setElementTimestampEnabled(false)
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .build();
   }
@@ -813,6 +814,8 @@ public class KafkaIO {
     @Nullable abstract Class<? extends Serializer<K>> getKeySerializer();
     @Nullable abstract Class<? extends Serializer<V>> getValueSerializer();
 
+    abstract boolean isElementTimestampEnabled();
+
     // Configuration for EOS sink
     abstract boolean isEOS();
     @Nullable abstract String getSinkGroupId();
@@ -830,6 +833,7 @@ public class KafkaIO {
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
       abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
+      abstract Builder<K, V> setElementTimestampEnabled(boolean tsEnabled);
       abstract Builder<K, V> setEOS(boolean eosEnabled);
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
       abstract Builder<K, V> setNumShards(int numShards);
@@ -887,6 +891,13 @@ public class KafkaIO {
     public Write<K, V> withProducerFactoryFn(
         SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
       return toBuilder().setProducerFactoryFn(producerFactoryFn).build();
+    }
+
+    /**
+     * The timestamp for each published message is set to timestamp of the input element.
+     */
+    public Write<K, V> withInputTimestamp() {
+      return toBuilder().setElementTimestampEnabled(true).build();
     }
 
     /**
