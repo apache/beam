@@ -31,7 +31,6 @@ import six
 # pylint: disable=ungrouped-imports
 from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
-from apache_beam.utils.annotations import deprecated
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -51,7 +50,6 @@ except ImportError:
 # pylint: enable=ungrouped-imports
 
 
-@deprecated(since="v2.4")
 def key_comparator(k1, k2):
   """A comparator for Datastore keys.
 
@@ -80,7 +78,6 @@ def key_comparator(k1, k2):
   return 0
 
 
-@deprecated(since="v2.4")
 def compare_path(p1, p2):
   """A comparator for key path.
 
