@@ -122,7 +122,11 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
         })
         def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
 
+        String namespace = common_job_properties.getKubernetesNamespace('filebasedioithdfs')
+        String kubeconfig = common_job_properties.getKubeconfigLocationForNamespace(namespace)
+
         def argMap = [
+                kubeconfig               : kubeconfig,
                 benchmarks               : 'beam_integration_benchmark',
                 beam_it_timeout          : '1200',
                 beam_it_profile          : 'io-it',
@@ -136,7 +140,9 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 beam_options_config_file : makePathAbsolute('pkb-config.yml'),
                 beam_kubernetes_scripts  : makePathAbsolute('hdfs-single-datanode-cluster.yml') + ',' + makePathAbsolute('hdfs-single-datanode-cluster-for-local-dev.yml')
         ]
+        common_job_properties.setupKubernetes(delegate, namespace, kubeconfig)
         common_job_properties.buildPerformanceTest(delegate, argMap)
+        common_job_properties.cleanupKubernetes(delegate, namespace, kubeconfig)
     }
 }
 
