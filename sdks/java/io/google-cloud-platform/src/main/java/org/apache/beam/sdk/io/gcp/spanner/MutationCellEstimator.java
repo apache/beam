@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
@@ -28,6 +26,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.util.function.ToLongFunction;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerSchema.Column;
 
 /**
@@ -42,12 +41,12 @@ final class MutationCellEstimator implements ToLongFunction<MutationGroup> {
         .initialCapacity(spannerSchema.getTables().size())
         .concurrencyLevel(1)
         .build(CacheLoader.<String, ImmutableMap<String, Long>>from(table ->
-            spannerSchema
+            ImmutableMap.copyOf(spannerSchema
                 .getColumns(table)
                 .stream()
-                .collect(toImmutableMap(
+                .collect(Collectors.toMap(
                     Column::getName,
-                    Column::getCellsMutated))));
+                    Column::getCellsMutated)))));
 
     this.maxNumMutations = maxNumMutations;
   }
