@@ -147,5 +147,5 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
 }
 
 static def makePathAbsolute(String path) {
-    return '"$WORKSPACE/.test-infra/kubernetes/hadoop/SmallITCluster/' + path + '"'
+    return '"$WORKSPACE/src/.test-infra/kubernetes/hadoop/SmallITCluster/' + path + '"'
 }
