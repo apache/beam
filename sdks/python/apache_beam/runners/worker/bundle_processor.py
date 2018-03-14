@@ -364,9 +364,20 @@ class BeamTransformFactory(object):
       return operation_specs.get_coder_from_spec(
           json.loads(coder_proto.spec.spec.payload))
 
+  def get_windowed_coder(self, pcoll_id):
+    coder = self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
+    # TODO(robertwb): Remove this condition once all runners are consistent.
+    if not isinstance(coder, WindowedValueCoder):
+      windowing_strategy = self.descriptor.windowing_strategies[
+          self.descriptor.pcollections[pcoll_id].windowing_strategy_id]
+      return WindowedValueCoder(
+          coder, self.get_coder(windowing_strategy.window_coder_id))
+    else:
+      return coder
+
   def get_output_coders(self, transform_proto):
     return {
-        tag: self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
+        tag: self.get_windowed_coder(pcoll_id)
         for tag, pcoll_id in transform_proto.outputs.items()
     }
 
@@ -375,7 +386,7 @@ class BeamTransformFactory(object):
 
   def get_input_coders(self, transform_proto):
     return {
-        tag: self.get_coder(self.descriptor.pcollections[pcoll_id].coder_id)
+        tag: self.get_windowed_coder(pcoll_id)
         for tag, pcoll_id in transform_proto.inputs.items()
     }
 
