@@ -356,15 +356,6 @@ public class JdbcIO {
   }
 
   /**
-   * An interface creating a {@link DataSource}. It's an alternative to
-   * {@link DataSourceConfiguration}allowing user a complete control of
-   * the created {@link DataSource}.
-   */
-  public interface DataSourceFactory extends Serializable {
-    DataSource create() throws Exception;
-  }
-
-  /**
    * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
@@ -377,7 +368,6 @@ public class JdbcIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
-    @Nullable abstract DataSourceFactory getDataSourceFactory();
     @Nullable abstract ValueProvider<String> getQuery();
     @Nullable abstract StatementPreparator getStatementPreparator();
     @Nullable abstract RowMapper<T> getRowMapper();
@@ -388,7 +378,6 @@ public class JdbcIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
-      abstract Builder<T> setDataSourceFactory(DataSourceFactory factory);
       abstract Builder<T> setQuery(ValueProvider<String> query);
       abstract Builder<T> setStatementPreparator(StatementPreparator statementPreparator);
       abstract Builder<T> setRowMapper(RowMapper<T> rowMapper);
@@ -398,10 +387,6 @@ public class JdbcIO {
 
     public Read<T> withDataSourceConfiguration(DataSourceConfiguration configuration) {
       return toBuilder().setDataSourceConfiguration(configuration).build();
-    }
-
-    public Read<T> withDataSourceFactory(DataSourceFactory factory) {
-      return toBuilder().setDataSourceFactory(factory).build();
     }
 
     public Read<T> withQuery(String query) {
@@ -434,17 +419,14 @@ public class JdbcIO {
       checkArgument(getQuery() != null, "withQuery() is required");
       checkArgument(getRowMapper() != null, "withRowMapper() is required");
       checkArgument(getCoder() != null, "withCoder() is required");
-      checkArgument((getDataSourceConfiguration() != null || getDataSourceFactory() != null),
-              "either withDataSourceConfiguration() or withDataSourceFactory() is required");
-      checkArgument((getDataSourceConfiguration() == null || getDataSourceFactory() == null),
-          "only withDataSourceConfiguration() or withDataSourceFactory() should be used");
+      checkArgument((getDataSourceConfiguration() != null),
+              "withDataSourceConfiguration() is required");
 
       return input
           .apply(Create.of((Void) null))
           .apply(
               JdbcIO.<Void, T>readAll()
                   .withDataSourceConfiguration(getDataSourceConfiguration())
-                  .withDataSourceFactory(getDataSourceFactory())
                   .withQuery(getQuery())
                   .withCoder(getCoder())
                   .withRowMapper(getRowMapper())
@@ -465,10 +447,6 @@ public class JdbcIO {
       if (getDataSourceConfiguration() != null) {
         getDataSourceConfiguration().populateDisplayData(builder);
       }
-      if (getDataSourceFactory() != null) {
-        builder.add(DisplayData.item("factory",
-                getDataSourceFactory().getClass().getName()));
-      }
     }
   }
 
@@ -479,7 +457,6 @@ public class JdbcIO {
   public abstract static class ReadAll<ParameterT, OutputT>
           extends PTransform<PCollection<ParameterT>, PCollection<OutputT>> {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
-    @Nullable abstract DataSourceFactory getDataSourceFactory();
     @Nullable abstract ValueProvider<String> getQuery();
     @Nullable abstract PreparedStatementSetter<ParameterT> getParameterSetter();
     @Nullable abstract RowMapper<OutputT> getRowMapper();
@@ -491,7 +468,6 @@ public class JdbcIO {
     abstract static class Builder<ParameterT, OutputT> {
       abstract Builder<ParameterT, OutputT> setDataSourceConfiguration(
               DataSourceConfiguration config);
-      abstract Builder<ParameterT, OutputT> setDataSourceFactory(DataSourceFactory factory);
       abstract Builder<ParameterT, OutputT> setQuery(ValueProvider<String> query);
       abstract Builder<ParameterT, OutputT> setParameterSetter(
               PreparedStatementSetter<ParameterT> parameterSetter);
@@ -503,10 +479,6 @@ public class JdbcIO {
     public ReadAll<ParameterT, OutputT> withDataSourceConfiguration(
             DataSourceConfiguration configuration) {
       return toBuilder().setDataSourceConfiguration(configuration).build();
-    }
-
-    public ReadAll<ParameterT, OutputT> withDataSourceFactory(DataSourceFactory factory) {
-      return toBuilder().setDataSourceFactory(factory).build();
     }
 
     public ReadAll<ParameterT, OutputT> withQuery(String query) {
@@ -545,7 +517,6 @@ public class JdbcIO {
               ParDo.of(
                   new ReadFn<>(
                       getDataSourceConfiguration(),
-                      getDataSourceFactory(),
                       getQuery(),
                       getParameterSetter(),
                       getRowMapper())))
@@ -562,17 +533,12 @@ public class JdbcIO {
       if (getDataSourceConfiguration() != null) {
         getDataSourceConfiguration().populateDisplayData(builder);
       }
-      if (getDataSourceFactory() != null) {
-        builder.add(DisplayData.item("factory",
-                getDataSourceFactory().getClass().getName()));
-      }
     }
   }
 
   /** A {@link DoFn} executing the SQL query to read from the database. */
   private static class ReadFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
     private final DataSourceConfiguration dataSourceConfiguration;
-    private final DataSourceFactory dataSourceFactory;
     private final ValueProvider<String> query;
     private final PreparedStatementSetter<ParameterT> parameterSetter;
     private final RowMapper<OutputT> rowMapper;
@@ -582,12 +548,10 @@ public class JdbcIO {
 
     private ReadFn(
         DataSourceConfiguration dataSourceConfiguration,
-        DataSourceFactory dataSourceFactory,
         ValueProvider<String> query,
         PreparedStatementSetter<ParameterT> parameterSetter,
         RowMapper<OutputT> rowMapper) {
       this.dataSourceConfiguration = dataSourceConfiguration;
-      this.dataSourceFactory = dataSourceFactory;
       this.query = query;
       this.parameterSetter = parameterSetter;
       this.rowMapper = rowMapper;
@@ -595,11 +559,7 @@ public class JdbcIO {
 
     @Setup
     public void setup() throws Exception {
-      if (dataSourceFactory != null) {
-        dataSource = dataSourceFactory.create();
-      } else {
-        dataSource = dataSourceConfiguration.buildDatasource();
-      }
+      dataSource = dataSourceConfiguration.buildDatasource();
       connection = dataSource.getConnection();
     }
 
@@ -647,7 +607,6 @@ public class JdbcIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable abstract DataSourceConfiguration getDataSourceConfiguration();
-    @Nullable abstract DataSourceFactory getDataSourceFactory();
     @Nullable abstract String getStatement();
     abstract long getBatchSize();
     @Nullable abstract PreparedStatementSetter<T> getPreparedStatementSetter();
@@ -658,7 +617,6 @@ public class JdbcIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setDataSourceConfiguration(DataSourceConfiguration config);
-      abstract Builder<T> setDataSourceFactory(DataSourceFactory factory);
       abstract Builder<T> setStatement(String statement);
       abstract Builder<T> setBatchSize(long batchSize);
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
@@ -669,9 +627,6 @@ public class JdbcIO {
 
     public Write<T> withDataSourceConfiguration(DataSourceConfiguration config) {
       return toBuilder().setDataSourceConfiguration(config).build();
-    }
-    public Write<T> withDataSourceFactory(DataSourceFactory factory) {
-      return toBuilder().setDataSourceFactory(factory).build();
     }
     public Write<T> withStatement(String statement) {
       return toBuilder().setStatement(statement).build();
@@ -703,12 +658,8 @@ public class JdbcIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkArgument(
-              (getDataSourceConfiguration() != null || getDataSourceFactory() != null),
-              "either withDataSourceConfiguration() or withDataSourceFactory() is required");
-      checkArgument(
-          (getDataSourceConfiguration() == null || getDataSourceFactory() == null),
-          "only withDataSourceConfiguration() or withDataSourceFactory() is allowed");
+      checkArgument(getDataSourceConfiguration() != null,
+              "withDataSourceConfiguration() is required");
       checkArgument(getStatement() != null, "withStatement() is required");
       checkArgument(
           getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
@@ -737,11 +688,7 @@ public class JdbcIO {
 
       @Setup
       public void setup() throws Exception {
-        if (spec.getDataSourceFactory() != null) {
-          dataSource = spec.getDataSourceFactory().create();
-        } else {
-          dataSource = spec.getDataSourceConfiguration().buildDatasource();
-        }
+        dataSource = spec.getDataSourceConfiguration().buildDatasource();
       }
 
       @StartBundle
