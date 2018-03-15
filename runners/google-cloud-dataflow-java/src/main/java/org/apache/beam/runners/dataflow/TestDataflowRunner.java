@@ -181,7 +181,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Return {@code true} if the job succeeded or {@code false} if it terminated in any other manner.
+   * Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise.
    */
   private boolean waitForBatchJobTermination(
       DataflowPipelineJob job, ErrorMonitorMessagesHandler messageHandler) {
@@ -195,7 +195,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         return false;
       }
 
-      return job.getState() == State.DONE && !messageHandler.hasSeenError();
+      return job.getState() == State.DONE;
     }
   }
 
