@@ -43,8 +43,8 @@ configurations {
 }
 
 
-def calcite_version = "1.15.0"
-def avatica_version = "1.10.0"
+def calcite_version = "1.16.0"
+def avatica_version = "1.11.0"
 
 dependencies {
   fmppTask "net.sourceforge.fmpp:fmpp:0.9.15"
