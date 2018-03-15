@@ -202,10 +202,14 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       ret = new BeamSqlInputRefExpression(node.getType().getSqlTypeName(), node.getIndex());
     } else if (rexNode instanceof RexFieldAccess) {
       RexFieldAccess fieldAccessNode = (RexFieldAccess) rexNode;
-      int rowFieldIndex = ((RexInputRef) fieldAccessNode.getReferenceExpr()).getIndex();
+      BeamSqlExpression referenceExpression = buildExpression(fieldAccessNode.getReferenceExpr());
       int nestedFieldIndex = fieldAccessNode.getField().getIndex();
       SqlTypeName nestedFieldType = fieldAccessNode.getField().getType().getSqlTypeName();
-      ret = new BeamSqlFieldAccessExpression(rowFieldIndex, nestedFieldIndex, nestedFieldType);
+
+      ret = new BeamSqlFieldAccessExpression(
+          referenceExpression,
+          nestedFieldIndex,
+          nestedFieldType);
     } else if (rexNode instanceof RexCall) {
       RexCall node = (RexCall) rexNode;
       String opName = node.op.getName();

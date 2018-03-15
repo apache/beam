@@ -58,10 +58,6 @@ public class SqlTypeCoders {
   public static final SqlTypeCoder DATE = new SqlDateCoder();
   public static final SqlTypeCoder TIMESTAMP = new SqlTimestampCoder();
 
-  public static SqlTypeCoder arrayOf(SqlTypeCoder elementCoder) {
-    return SqlArrayCoder.of(elementCoder);
-  }
-
   public static final Set<SqlTypeCoder> NUMERIC_TYPES =
       ImmutableSet.of(
           SqlTypeCoders.TINYINT,
@@ -71,6 +67,18 @@ public class SqlTypeCoders {
           SqlTypeCoders.FLOAT,
           SqlTypeCoders.DOUBLE,
           SqlTypeCoders.DECIMAL);
+
+  public static SqlTypeCoder arrayOf(SqlTypeCoder elementCoder) {
+    return SqlArrayCoder.of(elementCoder);
+  }
+
+  public static SqlTypeCoder arrayOf(RowType rowType) {
+    return SqlArrayCoder.of(rowOf(rowType));
+  }
+
+  public static boolean isArray(SqlTypeCoder sqlTypeCoder) {
+    return sqlTypeCoder instanceof SqlArrayCoder;
+  }
 
   public static boolean isRow(SqlTypeCoder sqlTypeCoder) {
     return sqlTypeCoder instanceof SqlRowCoder;
