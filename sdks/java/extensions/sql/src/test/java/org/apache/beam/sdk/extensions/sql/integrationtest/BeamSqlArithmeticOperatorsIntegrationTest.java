@@ -34,6 +34,7 @@ public class BeamSqlArithmeticOperatorsIntegrationTest
   private static final BigDecimal ONE10 = BigDecimal.ONE.divide(
       BigDecimal.ONE, 10, RoundingMode.HALF_EVEN);
   private static final BigDecimal TWO = BigDecimal.valueOf(2.0);
+  private static final BigDecimal TWO0 = BigDecimal.ONE.add(BigDecimal.ONE);
 
   @Test
   public void testPlus() throws Exception {
@@ -45,8 +46,8 @@ public class BeamSqlArithmeticOperatorsIntegrationTest
         .addExpr("c_tinyint + c_tinyint", (byte) 2)
         .addExpr("c_smallint + c_smallint", (short) 2)
         .addExpr("c_bigint + c_bigint", 2L)
-        .addExpr("c_decimal + c_decimal", TWO)
-        .addExpr("c_tinyint + c_decimal", TWO)
+        .addExpr("c_decimal + c_decimal", TWO0)
+        .addExpr("c_tinyint + c_decimal", TWO0)
         .addExpr("c_float + c_decimal", 2.0)
         .addExpr("c_double + c_decimal", 2.0)
         .addExpr("c_float + c_float", 2.0f)
@@ -65,9 +66,7 @@ public class BeamSqlArithmeticOperatorsIntegrationTest
         .addExpr("c_tinyint_max + c_tinyint_max", (byte) -2)
         .addExpr("c_smallint_max + c_smallint_max", (short) -2)
         .addExpr("c_integer_max + c_integer_max", -2)
-        // yeah, I know 384L is strange, but since it is already overflowed
-        // what the actualy result is not so important, it is wrong any way.
-        .addExpr("c_bigint_max + c_bigint_max", 384L)
+        .addExpr("c_bigint_max + c_bigint_max", -2L)
         ;
 
     checker.buildRunAndCheck();
@@ -83,8 +82,8 @@ public class BeamSqlArithmeticOperatorsIntegrationTest
         .addExpr("c_tinyint - c_tinyint", (byte) 0)
         .addExpr("c_smallint - c_smallint", (short) 0)
         .addExpr("c_bigint - c_bigint", 0L)
-        .addExpr("c_decimal - c_decimal", ZERO)
-        .addExpr("c_tinyint - c_decimal", ZERO)
+        .addExpr("c_decimal - c_decimal", BigDecimal.ZERO)
+        .addExpr("c_tinyint - c_decimal", BigDecimal.ZERO)
         .addExpr("c_float - c_decimal", 0.0)
         .addExpr("c_double - c_decimal", 0.0)
         .addExpr("c_float - c_float", 0.0f)
@@ -101,14 +100,14 @@ public class BeamSqlArithmeticOperatorsIntegrationTest
   public void testMultiply() throws Exception {
     ExpressionChecker checker = new ExpressionChecker()
         .addExpr("1 * 1", 1)
-        .addExpr("1.0 * 1", ONE2)
-        .addExpr("1 * 1.0", ONE2)
+        .addExpr("1.0 * 1", ONE)
+        .addExpr("1 * 1.0", ONE)
         .addExpr("1.0 * 1.0", ONE2)
         .addExpr("c_tinyint * c_tinyint", (byte) 1)
         .addExpr("c_smallint * c_smallint", (short) 1)
         .addExpr("c_bigint * c_bigint", 1L)
-        .addExpr("c_decimal * c_decimal", ONE2)
-        .addExpr("c_tinyint * c_decimal", ONE2)
+        .addExpr("c_decimal * c_decimal", BigDecimal.ONE)
+        .addExpr("c_tinyint * c_decimal", BigDecimal.ONE)
         .addExpr("c_float * c_decimal", 1.0)
         .addExpr("c_double * c_decimal", 1.0)
         .addExpr("c_float * c_float", 1.0f)
