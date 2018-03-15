@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCaseExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlCastExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDefaultExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlDotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlInputRefExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -413,6 +414,9 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
 
         case "CARDINALITY":
           return new BeamSqlCardinalityExpression(subExps, node.type.getSqlTypeName());
+
+        case "DOT":
+          return new BeamSqlDotExpression(subExps, node.type.getSqlTypeName());
 
         //DEFAULT keyword for UDF with optional parameter
         case "DEFAULT":
