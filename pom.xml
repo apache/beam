@@ -186,6 +186,8 @@
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
 
+    <jaxb-api.version>2.2.2</jaxb-api.version>
+
     <!-- standard binary for kubectl -->
     <kubectl>kubectl</kubectl>
     <!-- the standard location for kubernete's config file -->
@@ -1498,6 +1500,14 @@
         <classifier>tests</classifier>
         <scope>test</scope>
       </dependency>
+
+      <dependency>
+        <groupId>javax.xml.bind</groupId>
+        <artifactId>jaxb-api</artifactId>
+        <version>${jaxb-api.version}</version>
+        <scope>test</scope>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
