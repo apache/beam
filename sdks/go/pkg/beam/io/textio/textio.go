@@ -139,6 +139,8 @@ func Write(s beam.Scope, filename string, col beam.PCollection) {
 	// FinishBundle doesn't have the right granularity. We therefore
 	// perform a GBK with a fixed key to get all values in a single invocation.
 
+	// TODO(BEAM-3860) 3/15/2018: use side input instead of GBK.
+
 	pre := beam.AddFixedKey(s, col)
 	post := beam.GroupByKey(s, pre)
 	beam.ParDo0(s, &writeFileFn{Filename: filename}, post)
