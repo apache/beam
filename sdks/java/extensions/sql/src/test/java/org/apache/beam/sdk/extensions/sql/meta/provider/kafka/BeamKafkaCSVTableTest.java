@@ -29,7 +29,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Rule;
@@ -83,7 +83,7 @@ public class BeamKafkaCSVTableTest {
     pipeline.run();
   }
 
-  private static RowType genRowType() {
+  private static Schema genRowType() {
     return CalciteUtils.toBeamRowType(
         BeamQueryPlanner.TYPE_FACTORY.builder()
             .add("order_id", SqlTypeName.BIGINT)

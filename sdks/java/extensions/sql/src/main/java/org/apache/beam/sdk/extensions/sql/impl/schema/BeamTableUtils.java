@@ -30,7 +30,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
@@ -45,24 +45,24 @@ public final class BeamTableUtils {
   public static Row csvLine2BeamRow(
       CSVFormat csvFormat,
       String line,
-      RowType rowType) {
+      Schema schema) {
 
     try (StringReader reader = new StringReader(line)) {
       CSVParser parser = csvFormat.parse(reader);
       CSVRecord rawRecord = parser.getRecords().get(0);
 
-      if (rawRecord.size() != rowType.getFieldCount()) {
+      if (rawRecord.size() != schema.getFieldCount()) {
         throw new IllegalArgumentException(String.format(
             "Expect %d fields, but actually %d",
-            rowType.getFieldCount(), rawRecord.size()
+            schema.getFieldCount(), rawRecord.size()
         ));
       }
 
       return
           IntStream
-              .range(0, rowType.getFieldCount())
-              .mapToObj(idx -> autoCastField(rowType.getFieldCoder(idx), rawRecord.get(idx)))
-              .collect(toRow(rowType));
+              .range(0, schema.getFieldCount())
+              .mapToObj(idx -> autoCastField(schema.getFieldCoder(idx), rawRecord.get(idx)))
+              .collect(toRow(schema));
 
     } catch (IOException e) {
       throw new IllegalArgumentException("decodeRecord failed!", e);

@@ -34,7 +34,7 @@ import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 
 /**
  * {@link KnownSize} implementation to estimate the size of a {@link Row},
@@ -91,11 +91,11 @@ public class RowSize implements KnownSize {
   }
 
   private static long sizeInBytes(Row row) {
-    RowType rowType = row.getRowType();
+    Schema schema = row.getRowType();
     long size = 1; // nulls bitset
 
-    for (int fieldIndex = 0; fieldIndex < rowType.getFieldCount(); fieldIndex++) {
-      Coder fieldType = rowType.getFieldCoder(fieldIndex);
+    for (int fieldIndex = 0; fieldIndex < schema.getFieldCount(); fieldIndex++) {
+      Coder fieldType = schema.getFieldCoder(fieldIndex);
 
       Integer estimatedSize = ESTIMATED_FIELD_SIZES.get(fieldType);
 

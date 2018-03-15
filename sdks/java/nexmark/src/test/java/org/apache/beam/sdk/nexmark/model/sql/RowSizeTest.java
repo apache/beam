@@ -33,7 +33,7 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -43,7 +43,7 @@ import org.junit.rules.ExpectedException;
  */
 public class RowSizeTest {
 
-  private static final RowType ROW_TYPE = RowSqlType.builder()
+  private static final Schema ROW_TYPE = RowSqlType.builder()
       .withTinyIntField("f_tinyint")
       .withSmallIntField("f_smallint")
       .withIntegerField("f_int")

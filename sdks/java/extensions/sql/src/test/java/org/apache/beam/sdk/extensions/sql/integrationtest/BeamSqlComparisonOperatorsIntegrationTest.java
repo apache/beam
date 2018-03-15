@@ -23,7 +23,7 @@ import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
 /**
@@ -281,7 +281,7 @@ public class BeamSqlComparisonOperatorsIntegrationTest
   }
 
   @Override protected PCollection<Row> getTestPCollection() {
-    RowType type = RowSqlType.builder()
+    Schema type = RowSqlType.builder()
         .withTinyIntField("c_tinyint_0")
         .withTinyIntField("c_tinyint_1")
         .withTinyIntField("c_tinyint_2")

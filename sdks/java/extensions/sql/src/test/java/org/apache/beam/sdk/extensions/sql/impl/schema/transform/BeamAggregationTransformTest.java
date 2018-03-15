@@ -38,7 +38,7 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.SqlKind;
@@ -62,9 +62,9 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
   private List<AggregateCall> aggCalls;
 
-  private RowType keyType;
-  private RowType aggPartType;
-  private RowType outputType;
+  private Schema keyType;
+  private Schema aggPartType;
+  private Schema outputType;
 
   private RowCoder inRecordCoder;
   private RowCoder keyCoder;
@@ -123,7 +123,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             .apply(
                 "aggregation",
                 Combine.groupedValues(
-                    new BeamAggregationTransforms.AggregationAdaptor(aggCalls, inputRowType)))
+                    new BeamAggregationTransforms.AggregationAdaptor(aggCalls, inputSchema)))
             .setCoder(KvCoder.of(keyCoder, aggCoder));
 
     //4. flat KV to a single record
@@ -358,7 +358,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
    * Coders used in aggregation steps.
    */
   private void prepareTypeAndCoder() {
-    inRecordCoder = inputRowType.getRowCoder();
+    inRecordCoder = inputSchema.getRowCoder();
 
     keyType =
         RowSqlType
@@ -477,7 +477,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
   /**
    * Row type of final output row.
    */
-  private RowType prepareFinalRowType() {
+  private Schema prepareFinalRowType() {
     return
         RowSqlType
             .builder()

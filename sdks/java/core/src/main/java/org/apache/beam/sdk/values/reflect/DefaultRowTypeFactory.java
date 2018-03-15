@@ -23,13 +23,13 @@ import java.util.List;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 
 /**
  * A default implementation of the {@link RowTypeFactory} interface. The purpose of
  * the factory is to create a row types given a list of getters.
  *
- * <p>Row type is represented by {@link RowType} which essentially is a
+ * <p>Row type is represented by {@link Schema} which essentially is a
  * {@code List<Pair<FieldName, Coder>>}.
  *
  * <p>Getters (e.g. pojo field getters) are represented by {@link FieldValueGetter} interface,
@@ -37,7 +37,7 @@ import org.apache.beam.sdk.values.RowType;
  * and java type (see {@link FieldValueGetter#type()}).
  *
  * <p>This factory then uses the default {@link CoderRegistry} to map java types of
- * the getters to coders, and then creates an instance of {@link RowType} using those coders.
+ * the getters to coders, and then creates an instance of {@link Schema} using those coders.
  *
  * <p>If there is no coder in the default {@link CoderRegistry} for the java type of the getter,
  * then the factory throws {@link UnsupportedOperationException}.
@@ -64,9 +64,9 @@ class DefaultRowTypeFactory implements RowTypeFactory {
    * Uses {@link CoderRegistry#createDefault()} to get coders for {@link FieldValueGetter#type()}.
    */
   @Override
-  public RowType createRowType(Iterable<FieldValueGetter> fieldValueGetters) {
+  public Schema createRowType(Iterable<FieldValueGetter> fieldValueGetters) {
     return
-        RowType
+        Schema
             .fromNamesAndCoders(
                 getFieldNames(fieldValueGetters),
                 getFieldCoders(fieldValueGetters));

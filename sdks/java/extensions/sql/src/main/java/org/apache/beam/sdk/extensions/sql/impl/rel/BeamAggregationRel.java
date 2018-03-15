@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.sdk.values.PCollection.IsBounded.BOUNDED;
-import static org.apache.beam.sdk.values.RowType.toRowType;
+import static org.apache.beam.sdk.values.Schema.toSchema;
 
 import java.util.List;
 import java.util.Optional;
@@ -40,7 +40,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
@@ -162,34 +162,34 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   /**
    * Type of sub-rowrecord used as Group-By keys.
    */
-  private RowType exKeyFieldsSchema(RelDataType relDataType) {
-    RowType inputRowType = CalciteUtils.toBeamRowType(relDataType);
+  private Schema exKeyFieldsSchema(RelDataType relDataType) {
+    Schema inputSchema = CalciteUtils.toBeamRowType(relDataType);
     return groupSet
         .asList()
         .stream()
         .filter(i -> i != windowFieldIndex)
-        .map(i -> newRowField(inputRowType, i))
-        .collect(toRowType());
+        .map(i -> newRowField(inputSchema, i))
+        .collect(toSchema());
   }
 
-  private RowType.Field newRowField(RowType rowType, int i) {
-    return RowType.newField(rowType.getFieldName(i), rowType.getFieldCoder(i));
+  private Schema.Field newRowField(Schema schema, int i) {
+    return Schema.newField(schema.getFieldName(i), schema.getFieldCoder(i));
   }
 
   /**
    * Type of sub-rowrecord, that represents the list of aggregation fields.
    */
-  private RowType exAggFieldsSchema() {
+  private Schema exAggFieldsSchema() {
     return
         getAggCallList()
             .stream()
             .map(this::newRowField)
-            .collect(toRowType());
+            .collect(toSchema());
   }
 
-  private RowType.Field newRowField(AggregateCall aggCall) {
+  private Schema.Field newRowField(AggregateCall aggCall) {
     return
-        RowType
+        Schema
             .newField(aggCall.name, CalciteUtils.toCoder(aggCall.type.getSqlTypeName()));
   }
   }

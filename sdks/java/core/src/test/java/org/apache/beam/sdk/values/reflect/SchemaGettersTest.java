@@ -22,22 +22,22 @@ import static java.util.Collections.emptyList;
 import static org.junit.Assert.assertSame;
 
 import java.util.List;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 import org.junit.Test;
 
 /**
  * Unit tests for {@link RowTypeGetters}.
  */
-public class RowTypeGettersTest {
+public class SchemaGettersTest {
 
   @Test
   public void testGetters() {
-    RowType rowType = RowType.fromNamesAndCoders(emptyList(), emptyList());
+    Schema schema = Schema.fromNamesAndCoders(emptyList(), emptyList());
     List<FieldValueGetter> fieldValueGetters = emptyList();
 
-    RowTypeGetters getters = new RowTypeGetters(rowType, fieldValueGetters);
+    RowTypeGetters getters = new RowTypeGetters(schema, fieldValueGetters);
 
-    assertSame(rowType, getters.rowType());
+    assertSame(schema, getters.rowType());
     assertSame(fieldValueGetters, getters.valueGetters());
   }
 }

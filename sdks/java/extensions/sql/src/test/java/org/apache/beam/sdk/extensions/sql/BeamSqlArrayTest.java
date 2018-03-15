@@ -24,7 +24,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -34,7 +34,7 @@ import org.junit.rules.ExpectedException;
  */
 public class BeamSqlArrayTest {
 
-  private static final RowType INPUT_ROW_TYPE =
+  private static final Schema INPUT_ROW_TYPE =
       RowSqlType
         .builder()
         .withIntegerField("f_int")
@@ -48,7 +48,7 @@ public class BeamSqlArrayTest {
   public void testSelectArrayValue() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withIntegerField("f_int")
@@ -80,7 +80,7 @@ public class BeamSqlArrayTest {
   public void testProjectArrayField() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withIntegerField("f_int")
@@ -113,7 +113,7 @@ public class BeamSqlArrayTest {
   public void testAccessArrayElement() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withArrayField("f_arrElem", SqlTypeCoders.VARCHAR)
@@ -154,7 +154,7 @@ public class BeamSqlArrayTest {
                             .build())
                     .withCoder(INPUT_ROW_TYPE.getRowCoder()));
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withArrayField("f_arrElem", SqlTypeCoders.VARCHAR)
@@ -180,7 +180,7 @@ public class BeamSqlArrayTest {
   public void testCardinality() {
     PCollection<Row> input = pCollectionOf2Elements();
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withIntegerField("f_size")

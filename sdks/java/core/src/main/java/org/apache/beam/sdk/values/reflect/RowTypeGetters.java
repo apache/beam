@@ -20,28 +20,28 @@ package org.apache.beam.sdk.values.reflect;
 
 import java.util.List;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 
 /**
- * Helper class to hold {@link RowType} and {@link FieldValueGetter}s which were used to
+ * Helper class to hold {@link Schema} and {@link FieldValueGetter}s which were used to
  * create it.
  *
  * <p>This is used in {@link RowFactory} to create instances of {@link Row}s.
  */
 class RowTypeGetters {
-  private RowType rowType;
+  private Schema schema;
   private List<FieldValueGetter> fieldValueGetters;
 
-  RowTypeGetters(RowType rowType, List<FieldValueGetter> fieldValueGetters) {
-    this.rowType = rowType;
+  RowTypeGetters(Schema schema, List<FieldValueGetter> fieldValueGetters) {
+    this.schema = schema;
     this.fieldValueGetters = fieldValueGetters;
   }
 
   /**
-   * Returns a {@link RowType}.
+   * Returns a {@link Schema}.
    */
-  RowType rowType() {
-    return rowType;
+  Schema rowType() {
+    return schema;
   }
 
   /**

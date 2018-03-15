@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import static org.apache.beam.sdk.values.RowType.toRowType;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
@@ -27,7 +27,7 @@ import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder.SqlArrayCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder.SqlRowCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -109,25 +109,25 @@ public class CalciteUtils {
   /**
    * Get the {@code SqlTypeName} for the specified column of a table.
    */
-  public static SqlTypeName getFieldCalciteType(RowType schema, int index) {
+  public static SqlTypeName getFieldCalciteType(Schema schema, int index) {
     return toCalciteType((SqlTypeCoder) schema.getFieldCoder(index));
   }
 
   /**
    * Generate {@code BeamSqlRowType} from {@code RelDataType} which is used to create table.
    */
-  public static RowType toBeamRowType(RelDataType tableInfo) {
+  public static Schema toBeamRowType(RelDataType tableInfo) {
     return
         tableInfo
             .getFieldList()
             .stream()
             .map(CalciteUtils::toBeamRowField)
-            .collect(toRowType());
+            .collect(toSchema());
   }
 
-  private static RowType.Field toBeamRowField(RelDataTypeField calciteField) {
+  private static Schema.Field toBeamRowField(RelDataTypeField calciteField) {
     return
-        RowType.newField(
+        Schema.newField(
             calciteField.getName(),
             toCoder(calciteField));
   }
@@ -135,7 +135,7 @@ public class CalciteUtils {
   /**
    * Create an instance of {@code RelDataType} so it can be used to create a table.
    */
-  public static RelDataType toCalciteRowType(RowType rowType, RelDataTypeFactory dataTypeFactory) {
+  public static RelDataType toCalciteRowType(Schema rowType, RelDataTypeFactory dataTypeFactory) {
     RelDataTypeFactory.Builder builder = new RelDataTypeFactory.Builder(dataTypeFactory);
 
     IntStream
@@ -149,10 +149,10 @@ public class CalciteUtils {
 
   private static RelDataType toRelDataType(
       RelDataTypeFactory dataTypeFactory,
-      RowType rowType,
+      Schema schema,
       int fieldIndex) {
 
-    SqlTypeCoder fieldCoder = (SqlTypeCoder) rowType.getFieldCoder(fieldIndex);
+    SqlTypeCoder fieldCoder = (SqlTypeCoder) schema.getFieldCoder(fieldIndex);
     SqlTypeName typeName = toCalciteType(fieldCoder);
 
     if (SqlTypeName.ARRAY.equals(typeName)) {
@@ -160,7 +160,7 @@ public class CalciteUtils {
     }
 
     if (SqlTypeName.ROW.equals(typeName)) {
-      return toCalciteRowType(((SqlRowCoder) fieldCoder).getRowType(), dataTypeFactory);
+      return toCalciteRowType(((SqlRowCoder) fieldCoder).getSchema(), dataTypeFactory);
     }
 
     return dataTypeFactory.createSqlType(typeName);
@@ -175,8 +175,8 @@ public class CalciteUtils {
     RelDataType elementType;
 
     if (SqlTypeName.ROW.equals(elementTypeName)) {
-      RowType rowType = ((SqlRowCoder) arrayFieldCoder.getElementCoder()).getRowType();
-      elementType = toCalciteRowType(rowType, dataTypeFactory);
+      Schema schema = ((SqlRowCoder) arrayFieldCoder.getElementCoder()).getSchema();
+      elementType = toCalciteRowType(schema, dataTypeFactory);
     } else {
       elementType = dataTypeFactory.createSqlType(elementTypeName);
     }

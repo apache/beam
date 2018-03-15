@@ -23,7 +23,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.linq4j.function.Parameter;
 import org.junit.Test;
@@ -38,7 +38,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdaf() throws Exception {
-    RowType resultType = RowSqlType.builder()
+    Schema resultType = RowSqlType.builder()
         .withIntegerField("f_int2")
         .withIntegerField("squaresum")
         .build();
@@ -73,7 +73,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdafMultiLevelDescendent() {
-    RowType resultType = RowSqlType.builder()
+    Schema resultType = RowSqlType.builder()
         .withIntegerField("f_int2")
         .withIntegerField("squaresum")
         .build();
@@ -102,7 +102,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     exceptions.expectMessage("CombineFn");
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    RowType resultType = RowSqlType.builder()
+    Schema resultType = RowSqlType.builder()
         .withIntegerField("f_int2")
         .withIntegerField("squaresum")
         .build();
@@ -122,7 +122,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdf() throws Exception{
-    RowType resultType = RowSqlType.builder()
+    Schema resultType = RowSqlType.builder()
         .withIntegerField("f_int")
         .withIntegerField("cubicvalue")
         .build();
@@ -147,11 +147,11 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
             .apply("testUdf3",
                    BeamSql.query(sql3).registerUdf("substr", UdfFnWithDefault.class));
 
-    RowType subStrRowType = RowSqlType.builder()
+    Schema subStrSchema = RowSqlType.builder()
         .withIntegerField("f_int")
         .withVarcharField("sub_string")
         .build();
-    Row subStrRow = Row.withRowType(subStrRowType).addValues(2, "s").build();
+    Row subStrRow = Row.withRowType(subStrSchema).addValues(2, "s").build();
     PAssert.that(result3).containsInAnyOrder(subStrRow);
 
     pipeline.run().waitUntilFinish();

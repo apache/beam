@@ -141,7 +141,7 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
   }
 
   private RowCoder getRecordCoder(Class modelClass) {
-    return ADAPTERS.get(modelClass).getRowType().getRowCoder();
+    return ADAPTERS.get(modelClass).getSchema().getRowCoder();
   }
 
   private static RowCoder createRecordCoder() {

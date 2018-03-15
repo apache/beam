@@ -26,7 +26,7 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.RowTypeFactory;
 
@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.reflect.RowTypeFactory;
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
  *
  * <p>Implementation of the {@link RowTypeFactory} to return instances
- * of {@link RowType} with coders specific for SQL types, see {@link SqlTypeCoders}.
+ * of {@link Schema} with coders specific for SQL types, see {@link SqlTypeCoders}.
  */
 @Internal
 public class SqlRowTypeFactory implements RowTypeFactory {
@@ -55,9 +55,9 @@ public class SqlRowTypeFactory implements RowTypeFactory {
       .build();
 
   @Override
-  public RowType createRowType(Iterable<FieldValueGetter> getters) {
+  public Schema createRowType(Iterable<FieldValueGetter> getters) {
     return
-        RowType
+        Schema
             .fromNamesAndCoders(
                 fieldNames(getters),
                 sqlCoders(getters));

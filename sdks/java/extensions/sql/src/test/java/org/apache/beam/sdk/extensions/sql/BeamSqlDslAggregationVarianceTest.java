@@ -26,7 +26,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,7 +45,7 @@ public class BeamSqlDslAggregationVarianceTest {
 
   @Before
   public void setUp() {
-    RowType rowType =
+    Schema schema =
         RowSqlType
             .builder()
             .withIntegerField("f_int")
@@ -55,7 +55,7 @@ public class BeamSqlDslAggregationVarianceTest {
 
     List<Row> rowsInTableB =
         TestUtils.RowsBuilder
-            .of(rowType)
+            .of(schema)
             .addRows(
                 1,  1.0,  0,
                 4,  4.0,  0,
@@ -68,7 +68,7 @@ public class BeamSqlDslAggregationVarianceTest {
 
     boundedInput = PBegin
         .in(pipeline)
-        .apply(Create.of(rowsInTableB).withCoder(rowType.getRowCoder()));
+        .apply(Create.of(rowsInTableB).withCoder(schema.getRowCoder()));
   }
 
   @Test

@@ -37,7 +37,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.config.CalciteConnectionConfig;
@@ -45,7 +45,6 @@ import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.ScannableTable;
-import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
@@ -121,14 +120,14 @@ public class BeamSqlEnv implements Serializable {
    * <p>Assumes that {@link PCollection#getCoder()} returns an instance of {@link RowCoder}.
    */
   public void registerPCollection(String name, PCollection<Row> pCollection) {
-    registerTable(name, pCollection, ((RowCoder) pCollection.getCoder()).getRowType());
+    registerTable(name, pCollection, ((RowCoder) pCollection.getCoder()).getSchema());
   }
 
   /**
    * Registers {@link PCollection} as a table.
    */
-  public void registerTable(String tableName, PCollection<Row> pCollection, RowType rowType) {
-    registerTable(tableName, new BeamPCollectionTable(pCollection, rowType));
+  public void registerTable(String tableName, PCollection<Row> pCollection, Schema schema) {
+    registerTable(tableName, new BeamPCollectionTable(pCollection, schema));
   }
 
   /**
@@ -136,7 +135,7 @@ public class BeamSqlEnv implements Serializable {
    */
   public void registerTable(String tableName, BeamSqlTable table) {
     tables.put(tableName, table);
-    schema.add(tableName, new BeamCalciteTable(table.getRowType()));
+    schema.add(tableName, new BeamCalciteTable(table.getSchema()));
     planner.getSourceTables().put(tableName, table);
   }
 
@@ -147,7 +146,7 @@ public class BeamSqlEnv implements Serializable {
       String tableName = entry.getKey();
       BeamSqlTable table = entry.getValue();
       if (!tableName.equals(targetTableName)) {
-        schema.add(tableName, new BeamCalciteTable(table.getRowType()));
+        schema.add(tableName, new BeamCalciteTable(table.getSchema()));
       }
     }
     planner = new BeamQueryPlanner(this, schema);
@@ -161,15 +160,15 @@ public class BeamSqlEnv implements Serializable {
   }
 
   private static class BeamCalciteTable implements ScannableTable, Serializable {
-    private RowType beamRowType;
+    private Schema beamSchema;
 
-    public BeamCalciteTable(RowType beamRowType) {
-      this.beamRowType = beamRowType;
+    public BeamCalciteTable(Schema beamSchema) {
+      this.beamSchema = beamSchema;
     }
 
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-      return CalciteUtils.toCalciteRowType(this.beamRowType, BeamQueryPlanner.TYPE_FACTORY);
+      return CalciteUtils.toCalciteRowType(this.beamSchema, BeamQueryPlanner.TYPE_FACTORY);
     }
 
     @Override
@@ -190,8 +189,8 @@ public class BeamSqlEnv implements Serializable {
      * all sources are treated as TABLE in Beam SQL.
      */
     @Override
-    public Schema.TableType getJdbcTableType() {
-      return Schema.TableType.TABLE;
+    public org.apache.calcite.schema.Schema.TableType getJdbcTableType() {
+      return org.apache.calcite.schema.Schema.TableType.TABLE;
     }
 
     @Override public boolean isRolledUp(String column) {

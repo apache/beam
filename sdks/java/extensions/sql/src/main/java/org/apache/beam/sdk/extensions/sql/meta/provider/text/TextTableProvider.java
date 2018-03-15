@@ -26,7 +26,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 import org.apache.commons.csv.CSVFormat;
 
 /**
@@ -51,7 +51,7 @@ public class TextTableProvider implements TableProvider {
   }
 
   @Override public BeamSqlTable buildBeamSqlTable(Table table) {
-    RowType rowType = getRowTypeFromTable(table);
+    Schema schema = getRowTypeFromTable(table);
 
     String filePattern = table.getLocationAsString();
     CSVFormat format = CSVFormat.DEFAULT;
@@ -61,7 +61,7 @@ public class TextTableProvider implements TableProvider {
       format = CSVFormat.valueOf(csvFormatStr);
     }
 
-    BeamTextCSVTable txtTable = new BeamTextCSVTable(rowType, filePattern, format);
+    BeamTextCSVTable txtTable = new BeamTextCSVTable(schema, filePattern, format);
     return txtTable;
   }
 

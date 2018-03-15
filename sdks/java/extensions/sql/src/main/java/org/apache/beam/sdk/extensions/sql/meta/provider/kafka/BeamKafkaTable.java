@@ -33,7 +33,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -49,20 +49,20 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
   private List<TopicPartition> topicPartitions;
   private Map<String, Object> configUpdates;
 
-  protected BeamKafkaTable(RowType beamRowType) {
-    super(beamRowType);
+  protected BeamKafkaTable(Schema beamSchema) {
+    super(beamSchema);
   }
 
-  public BeamKafkaTable(RowType beamRowType, String bootstrapServers,
+  public BeamKafkaTable(Schema beamSchema, String bootstrapServers,
                         List<String> topics) {
-    super(beamRowType);
+    super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
   }
 
-  public BeamKafkaTable(RowType beamRowType,
+  public BeamKafkaTable(Schema beamSchema,
       List<TopicPartition> topicPartitions, String bootstrapServers) {
-    super(beamRowType);
+    super(beamSchema);
     this.bootstrapServers = bootstrapServers;
     this.topicPartitions = topicPartitions;
   }

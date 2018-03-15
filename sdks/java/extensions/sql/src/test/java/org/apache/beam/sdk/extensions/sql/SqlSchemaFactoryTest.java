@@ -27,7 +27,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,7 +36,7 @@ import org.junit.rules.ExpectedException;
 /**
  * Unit tests for {@link SqlRowTypeFactory}.
  */
-public class SqlRowTypeFactoryTest {
+public class SqlSchemaFactoryTest {
 
   private static final List<FieldValueGetter> GETTERS_FOR_KNOWN_TYPES = ImmutableList
       .<FieldValueGetter>builder()
@@ -60,9 +60,9 @@ public class SqlRowTypeFactoryTest {
   public void testContainsCorrectFields() throws Exception {
     SqlRowTypeFactory factory = new SqlRowTypeFactory();
 
-    RowType rowType = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
+    Schema schema = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
 
-    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), rowType.getFieldCount());
+    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), schema.getFieldCount());
     assertEquals(
         Arrays.asList(
             "byteGetter",
@@ -76,16 +76,16 @@ public class SqlRowTypeFactoryTest {
             "stringGetter",
             "timeGetter",
             "dateGetter"),
-        rowType.getFieldNames());
+        schema.getFieldNames());
   }
 
   @Test
   public void testContainsCorrectCoders() throws Exception {
     SqlRowTypeFactory factory = new SqlRowTypeFactory();
 
-    RowType rowType = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
+    Schema schema = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
 
-    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), rowType.getFieldCount());
+    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), schema.getFieldCount());
     assertEquals(
         Arrays.asList(
             SqlTypeCoders.TINYINT,
@@ -99,7 +99,7 @@ public class SqlRowTypeFactoryTest {
             SqlTypeCoders.VARCHAR,
             SqlTypeCoders.TIME,
             SqlTypeCoders.TIMESTAMP),
-        rowType.getRowCoder().getCoders());
+        schema.getRowCoder().getCoders());
   }
 
   @Test
