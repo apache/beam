@@ -122,7 +122,7 @@ public class LengthPrefixUnknownCodersTest {
     );
   }
 
-  @Parameter
+  @Parameter(0)
   public Coder<?> original;
 
   @Parameter(1)
@@ -143,5 +143,23 @@ public class LengthPrefixUnknownCodersTest {
     assertEquals(expected,
         CoderTranslation.fromProto(updatedCoderProto.getCoder(),
             RehydratedComponents.forComponents(updatedCoderProto.getComponents())));
+
+    // Test that the application of #forCoder is idempotent
+    String updatedCoderId =
+        LengthPrefixUnknownCoders.generateUniqueId(
+            "deserializedTestId", updatedCoderProto.getComponents().getCodersMap().keySet());
+    Components updatedComponents =
+        updatedCoderProto
+            .getComponents()
+            .toBuilder()
+            .putCoders(updatedCoderId, updatedCoderProto.getCoder())
+            .build();
+    MessageWithComponents idempotencyCheck =
+        LengthPrefixUnknownCoders.forCoder(updatedCoderId, updatedComponents, replaceWithByteArray);
+    assertEquals(
+        expected,
+        CoderTranslation.fromProto(
+            idempotencyCheck.getCoder(),
+            RehydratedComponents.forComponents(idempotencyCheck.getComponents())));
   }
 }
