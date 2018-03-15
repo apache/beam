@@ -206,6 +206,127 @@ public class BeamSqlArrayTest {
     pipeline.run();
   }
 
+  @Test
+  public void testSelectRowsFromArrayOfRows() {
+    RowType elementRowType =
+        RowSqlType
+            .builder()
+            .withVarcharField("f_rowString")
+            .withIntegerField("f_rowInt")
+            .build();
+
+    RowType resultRowType =
+        RowSqlType
+            .builder()
+            .withArrayField("f_resultArray", elementRowType)
+            .build();
+
+    RowType inputType =
+        RowSqlType
+            .builder()
+            .withIntegerField("f_int")
+            .withArrayField("f_arrayOfRows", elementRowType)
+            .build();
+
+    PCollection<Row> input =
+        PBegin.in(pipeline)
+              .apply(
+                  Create.of(
+                      Row.withRowType(inputType)
+                         .addValues(
+                             1,
+                             Arrays.asList(
+                                 Row.withRowType(elementRowType).addValues("AA", 11).build(),
+                                 Row.withRowType(elementRowType).addValues("BB", 22).build()))
+                         .build(),
+                      Row.withRowType(inputType)
+                         .addValues(
+                             2,
+                             Arrays.asList(
+                                 Row.withRowType(elementRowType).addValues("CC", 33).build(),
+                                 Row.withRowType(elementRowType).addValues("DD", 44).build()))
+                         .build())
+                        .withCoder(inputType.getRowCoder()));
+
+    PCollection<Row> result =
+        input
+            .apply(
+                BeamSql.query(
+                    "SELECT f_arrayOfRows FROM PCOLLECTION"))
+            .setCoder(resultRowType.getRowCoder());
+
+    PAssert.that(result)
+           .containsInAnyOrder(
+               Row.withRowType(resultRowType)
+                  .addArray(
+                      Arrays.asList(
+                          Row.withRowType(elementRowType).addValues("AA", 11).build(),
+                          Row.withRowType(elementRowType).addValues("BB", 22).build()))
+                  .build(),
+               Row.withRowType(resultRowType)
+                  .addArray(
+                      Arrays.asList(
+                          Row.withRowType(elementRowType).addValues("CC", 33).build(),
+                          Row.withRowType(elementRowType).addValues("DD", 44).build()))
+                  .build()
+           );
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testSelectSingleRowFromArrayOfRows() {
+    RowType elementRowType =
+        RowSqlType
+            .builder()
+            .withVarcharField("f_rowString")
+            .withIntegerField("f_rowInt")
+            .build();
+
+    RowType resultRowType = elementRowType;
+
+    RowType inputType =
+        RowSqlType
+            .builder()
+            .withIntegerField("f_int")
+            .withArrayField("f_arrayOfRows", elementRowType)
+            .build();
+
+    PCollection<Row> input =
+        PBegin.in(pipeline)
+              .apply(
+                  Create.of(
+                      Row.withRowType(inputType)
+                         .addValues(
+                             1,
+                             Arrays.asList(
+                                 Row.withRowType(elementRowType).addValues("AA", 11).build(),
+                                 Row.withRowType(elementRowType).addValues("BB", 22).build()))
+                         .build(),
+                      Row.withRowType(inputType)
+                         .addValues(
+                             2,
+                             Arrays.asList(
+                                 Row.withRowType(elementRowType).addValues("CC", 33).build(),
+                                 Row.withRowType(elementRowType).addValues("DD", 44).build()))
+                         .build())
+                        .withCoder(inputType.getRowCoder()));
+
+    PCollection<Row> result =
+        input
+            .apply(
+                BeamSql.query(
+                    "SELECT f_arrayOfRows[1] FROM PCOLLECTION"))
+            .setCoder(resultRowType.getRowCoder());
+
+    PAssert.that(result)
+           .containsInAnyOrder(
+               Row.withRowType(elementRowType).addValues("BB", 22).build(),
+               Row.withRowType(elementRowType).addValues("DD", 44).build());
+
+    pipeline.run();
+  }
+
   private PCollection<Row> pCollectionOf2Elements() {
     return
         PBegin

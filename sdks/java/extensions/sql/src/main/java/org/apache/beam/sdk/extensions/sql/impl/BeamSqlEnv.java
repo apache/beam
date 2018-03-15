@@ -169,8 +169,7 @@ public class BeamSqlEnv implements Serializable {
 
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-      return CalciteUtils.toCalciteRowType(this.beamRowType)
-          .apply(BeamQueryPlanner.TYPE_FACTORY);
+      return CalciteUtils.toCalciteRowType(this.beamRowType, BeamQueryPlanner.TYPE_FACTORY);
     }
 
     @Override

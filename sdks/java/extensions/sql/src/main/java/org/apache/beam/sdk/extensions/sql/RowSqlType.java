@@ -102,9 +102,18 @@ public class RowSqlType {
       return withField(fieldName, SqlTypeCoders.TIMESTAMP);
     }
 
+    /**
+     * Adds an ARRAY field with elements of {@code elementCoder}.
+     */
     public Builder withArrayField(String fieldName, SqlTypeCoder elementCoder) {
       return withField(fieldName, SqlTypeCoders.arrayOf(elementCoder));
+    }
 
+    /**
+     * Adds an ARRAY field with elements of {@code rowType}.
+     */
+    public Builder withArrayField(String fieldName, RowType rowType) {
+      return withField(fieldName, SqlTypeCoders.arrayOf(rowType));
     }
 
     public Builder withRowField(String fieldName, RowType rowType) {
