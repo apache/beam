@@ -510,7 +510,7 @@ public class ApproximateQuantiles {
     }
 
     public boolean isEmpty() {
-      return unbufferedElements.size() == 0 && buffers.size() == 0;
+      return unbufferedElements.isEmpty() && buffers.isEmpty();
     }
 
     private void collapseIfNeeded() {

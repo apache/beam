@@ -696,7 +696,7 @@ public class JdbcIO {
       }
 
       private void executeBatch() throws SQLException, IOException, InterruptedException {
-        if (records.size() == 0) {
+        if (records.isEmpty()) {
           return;
         }
         Sleeper sleeper = Sleeper.DEFAULT;

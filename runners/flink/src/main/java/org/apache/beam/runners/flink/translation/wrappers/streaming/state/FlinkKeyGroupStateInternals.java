@@ -280,7 +280,7 @@ public class FlinkKeyGroupStateInternals<K> implements StateInternals {
         Tuple2<Coder<?>, Map<String, ?>> tuple2 = stateTable.get(stateName);
         if (tuple2 != null) {
           tuple2.f1.remove(namespace);
-          if (tuple2.f1.size() == 0) {
+          if (tuple2.f1.isEmpty()) {
             stateTable.remove(stateName);
           }
         }

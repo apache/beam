@@ -37,7 +37,7 @@ public class BeamSqlCurrentDateExpression extends BeamSqlExpression {
   }
 
   @Override public boolean accept() {
-    return getOperands().size() == 0;
+    return getOperands().isEmpty();
   }
 
   @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {

@@ -238,7 +238,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
           state.add(map);
         }
       } else {
-        if (map.size() == 0) {
+        if (map.isEmpty()) {
           stateForNonZeroOperator.remove(name);
           // updateMap is always behind getMap,
           // getMap will clear map in BroadcastOperatorState,
