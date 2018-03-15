@@ -444,9 +444,7 @@ public class JdbcIO {
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
       builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
-      if (getDataSourceConfiguration() != null) {
-        getDataSourceConfiguration().populateDisplayData(builder);
-      }
+      getDataSourceConfiguration().populateDisplayData(builder);
     }
   }
 
@@ -530,9 +528,7 @@ public class JdbcIO {
       builder.add(DisplayData.item("query", getQuery()));
       builder.add(DisplayData.item("rowMapper", getRowMapper().getClass().getName()));
       builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
-      if (getDataSourceConfiguration() != null) {
-        getDataSourceConfiguration().populateDisplayData(builder);
-      }
+      getDataSourceConfiguration().populateDisplayData(builder);
     }
   }
 
