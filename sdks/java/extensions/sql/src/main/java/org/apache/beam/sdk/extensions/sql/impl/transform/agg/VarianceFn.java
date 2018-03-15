@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.calcite.runtime.SqlFunctions;
 
 /**
  * {@link Combine.CombineFn} for <em>Variance</em> on {@link Number} types.
@@ -102,7 +103,8 @@ public class VarianceFn<T extends Number>
       return currentVariance;
     }
 
-    return currentVariance.combineWith(VarianceAccumulator.ofSingleElement(toBigDecimal(rawInput)));
+    return currentVariance.combineWith(VarianceAccumulator.ofSingleElement(
+        SqlFunctions.toBigDecimal(rawInput)));
   }
 
   @Override
@@ -130,9 +132,5 @@ public class VarianceFn<T extends Number>
         : variance.count();
 
     return variance.variance().divide(adjustedCount, MATH_CTX);
-  }
-
-  private BigDecimal toBigDecimal(T rawInput) {
-    return new BigDecimal(rawInput.toString());
   }
 }
