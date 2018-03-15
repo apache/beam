@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core.metrics;
+package org.apache.beam.runners.extensions.metrics;
 
 import static org.junit.Assert.assertEquals;
 
@@ -227,7 +227,7 @@ public class MetricsHttpSinkTest {
         "Errror in serialization",
         "{\"counters\":[{\"name\":\"ns1/n1\",\"step\":\"s1\",\"attempted\":20}],"
             + "\"distributions\":[{\"name\":\"ns1/n2\",\"step\":\"s2\",\"attempted\":"
-            + "{\"min\":3,\"max\":9,\"sum\":25,\"count\":4,\"mean\":6.250}}],\"gauges\":"
+            + "{\"min\":3,\"max\":9,\"sum\":25,\"count\":4,\"mean\":6.25}}],\"gauges\":"
             + "[{\"name\":\"ns1/n3\",\"step\":\"s3\",\"attempted\":{\"value\":120,\"timestamp\":"
             + "\"1970-01-01T00:00:00.000Z\"}}]}",
         serializeMetrics);
