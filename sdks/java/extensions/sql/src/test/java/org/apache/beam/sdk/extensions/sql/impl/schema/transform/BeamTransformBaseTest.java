@@ -24,7 +24,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.BeforeClass;
 
 /**
@@ -33,12 +33,12 @@ import org.junit.BeforeClass;
 public class BeamTransformBaseTest {
   static DateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
-  static RowType inputRowType;
+  static Schema inputSchema;
   static List<Row> inputRows;
 
   @BeforeClass
   public static void prepareInput() throws NumberFormatException, ParseException {
-    inputRowType =
+    inputSchema =
         RowSqlType
             .builder()
             .withIntegerField("f_int")
@@ -54,7 +54,7 @@ public class BeamTransformBaseTest {
 
     inputRows =
         TestUtils.RowsBuilder
-            .of(inputRowType)
+            .of(inputSchema)
             .addRows(
                 1,
                 1000L,

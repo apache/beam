@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.values.Row.toRow;
-import static org.apache.beam.sdk.values.RowType.toRowType;
+import static org.apache.beam.sdk.values.Schema.toSchema;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -64,26 +64,26 @@ public class BeamJoinTransforms {
 
     @Override
     public KV<Row, Row> apply(Row input) {
-      RowType rowType =
+      Schema schema =
           joinColumns
               .stream()
               .map(fieldIndex -> toField(input.getRowType(), fieldIndex))
-              .collect(toRowType());
+              .collect(toSchema());
 
       Row row =
           joinColumns
               .stream()
               .map(input::getValue)
-              .collect(toRow(rowType));
+              .collect(toRow(schema));
 
       return KV.of(row, input);
     }
 
-    private RowType.Field toField(RowType rowType, Integer fieldIndex) {
-      return RowType.newField(
+    private Schema.Field toField(Schema schema, Integer fieldIndex) {
+      return Schema.newField(
           "c" + fieldIndex,
-          //rowType.getFieldName(fieldIndex),
-          rowType.getFieldCoder(fieldIndex));
+          //schema.getFieldName(fieldIndex),
+          schema.getFieldCoder(fieldIndex));
     }
   }
 
@@ -161,7 +161,7 @@ public class BeamJoinTransforms {
     List<Coder> types = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
     types.addAll(leftRow.getRowType().getRowCoder().getCoders());
     types.addAll(rightRow.getRowType().getRowCoder().getCoders());
-    RowType type = RowType.fromNamesAndCoders(names, types);
+    Schema type = Schema.fromNamesAndCoders(names, types);
 
     return Row
             .withRowType(type)
@@ -177,14 +177,14 @@ public class BeamJoinTransforms {
       extends PTransform<PCollection<Row>, PCollection<Row>> {
 
     BeamSqlSeekableTable seekableTable;
-    RowType lkpRowType;
-    RowType joinSubsetType;
+    Schema lkpSchema;
+    Schema joinSubsetType;
     List<Integer> factJoinIdx;
 
     public JoinAsLookup(RexNode joinCondition, BeamSqlSeekableTable seekableTable,
-                        RowType lkpRowType, int factTableColSize) {
+                        Schema lkpSchema, int factTableColSize) {
       this.seekableTable = seekableTable;
-      this.lkpRowType = lkpRowType;
+      this.lkpSchema = lkpSchema;
       joinFieldsMapping(joinCondition, factTableColSize);
     }
 
@@ -200,21 +200,21 @@ public class BeamJoinTransforms {
           factJoinIdx.add(((RexInputRef) ((RexCall) rexNode).getOperands().get(0)).getIndex());
           int lkpJoinIdx = ((RexInputRef) ((RexCall) rexNode).getOperands().get(1)).getIndex()
               - factTableColSize;
-          lkpJoinFieldsName.add(lkpRowType.getFieldName(lkpJoinIdx));
-          lkpJoinFieldsType.add(lkpRowType.getFieldCoder(lkpJoinIdx));
+          lkpJoinFieldsName.add(lkpSchema.getFieldName(lkpJoinIdx));
+          lkpJoinFieldsType.add(lkpSchema.getFieldCoder(lkpJoinIdx));
         }
       } else if ("=".equals(call.getOperator().getName())) {
         factJoinIdx.add(((RexInputRef) call.getOperands().get(0)).getIndex());
         int lkpJoinIdx = ((RexInputRef) call.getOperands().get(1)).getIndex()
             - factTableColSize;
-        lkpJoinFieldsName.add(lkpRowType.getFieldName(lkpJoinIdx));
-        lkpJoinFieldsType.add(lkpRowType.getFieldCoder(lkpJoinIdx));
+        lkpJoinFieldsName.add(lkpSchema.getFieldName(lkpJoinIdx));
+        lkpJoinFieldsType.add(lkpSchema.getFieldCoder(lkpJoinIdx));
       } else {
         throw new UnsupportedOperationException(
             "Operator " + call.getOperator().getName() + " is not supported in join condition");
       }
 
-      joinSubsetType = RowType.fromNamesAndCoders(lkpJoinFieldsName, lkpJoinFieldsType);
+      joinSubsetType = Schema.fromNamesAndCoders(lkpJoinFieldsName, lkpJoinFieldsType);
     }
 
     @Override

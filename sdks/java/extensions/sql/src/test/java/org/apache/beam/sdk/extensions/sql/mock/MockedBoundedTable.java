@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * Mocked table for bounded data sources.
@@ -45,8 +45,8 @@ public class MockedBoundedTable extends MockedTable {
   /** rows flow out from this table. */
   private final List<Row> rows = new ArrayList<>();
 
-  public MockedBoundedTable(RowType beamRowType) {
-    super(beamRowType);
+  public MockedBoundedTable(Schema beamSchema) {
+    super(beamSchema);
   }
 
   /**
@@ -69,7 +69,7 @@ public class MockedBoundedTable extends MockedTable {
   /**
    * Build a mocked bounded table with the specified type.
    */
-  public static MockedBoundedTable of(final RowType type) {
+  public static MockedBoundedTable of(final Schema type) {
     return new MockedBoundedTable(type);
   }
 
@@ -88,7 +88,7 @@ public class MockedBoundedTable extends MockedTable {
    * }</pre>
    */
   public MockedBoundedTable addRows(Object... args) {
-    List<Row> rows = buildRows(getRowType(), Arrays.asList(args));
+    List<Row> rows = buildRows(getSchema(), Arrays.asList(args));
     this.rows.addAll(rows);
     return this;
   }

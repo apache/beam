@@ -38,7 +38,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -108,8 +108,8 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
    */
   public static class SiteLookupTable extends BaseBeamTable implements BeamSqlSeekableTable{
 
-    public SiteLookupTable(RowType rowType) {
-      super(rowType);
+    public SiteLookupTable(Schema schema) {
+      super(schema);
     }
 
     @Override
@@ -129,7 +129,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
 
     @Override
     public List<Row> seekRow(Row lookupSubRow) {
-      return Arrays.asList(Row.withRowType(getRowType()).addValues(1, "SITE1").build());
+      return Arrays.asList(Row.withRowType(getSchema()).addValues(1, "SITE1").build());
     }
   }
 

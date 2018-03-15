@@ -18,7 +18,7 @@
 
 package org.apache.beam.sdk.values;
 
-import static org.apache.beam.sdk.values.RowType.toRowType;
+import static org.apache.beam.sdk.values.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
@@ -33,9 +33,9 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Unit tests for {@link RowType}.
+ * Unit tests for {@link Schema}.
  */
-public class RowTypeTest {
+public class SchemaTest {
 
   @Rule
   public ExpectedException thrown = ExpectedException.none();
@@ -45,15 +45,15 @@ public class RowTypeTest {
     List<String> names = Arrays.asList("f_int", "f_string");
     List<Coder> coders = Arrays.asList(VarIntCoder.of(), StringUtf8Coder.of());
 
-    RowType rowType = RowType.fromNamesAndCoders(names, coders);
+    Schema schema = Schema.fromNamesAndCoders(names, coders);
 
-    assertEquals(2, rowType.getFieldCount());
+    assertEquals(2, schema.getFieldCount());
 
-    assertEquals("f_int", rowType.getFieldName(0));
-    assertEquals("f_string", rowType.getFieldName(1));
+    assertEquals("f_int", schema.getFieldName(0));
+    assertEquals("f_string", schema.getFieldName(1));
 
-    assertEquals(VarIntCoder.of(), rowType.getFieldCoder(0));
-    assertEquals(StringUtf8Coder.of(), rowType.getFieldCoder(1));
+    assertEquals(VarIntCoder.of(), schema.getFieldCoder(0));
+    assertEquals(StringUtf8Coder.of(), schema.getFieldCoder(1));
   }
 
   @Test
@@ -62,24 +62,24 @@ public class RowTypeTest {
     List<Coder> coders = Arrays.asList(VarIntCoder.of(), StringUtf8Coder.of(), VarLongCoder.of());
 
     thrown.expect(IllegalStateException.class);
-    RowType.fromNamesAndCoders(names, coders);
+    Schema.fromNamesAndCoders(names, coders);
   }
 
   @Test
   public void testCollector() {
-    RowType rowType =
+    Schema schema =
         Stream
             .of(
-                RowType.newField("f_int", VarIntCoder.of()),
-                RowType.newField("f_string", StringUtf8Coder.of()))
-            .collect(toRowType());
+                Schema.newField("f_int", VarIntCoder.of()),
+                Schema.newField("f_string", StringUtf8Coder.of()))
+            .collect(toSchema());
 
-    assertEquals(2, rowType.getFieldCount());
+    assertEquals(2, schema.getFieldCount());
 
-    assertEquals("f_int", rowType.getFieldName(0));
-    assertEquals("f_string", rowType.getFieldName(1));
+    assertEquals("f_int", schema.getFieldName(0));
+    assertEquals("f_string", schema.getFieldName(1));
 
-    assertEquals(VarIntCoder.of(), rowType.getFieldCoder(0));
-    assertEquals(StringUtf8Coder.of(), rowType.getFieldCoder(1));
+    assertEquals(VarIntCoder.of(), schema.getFieldCoder(0));
+    assertEquals(StringUtf8Coder.of(), schema.getFieldCoder(1));
   }
 }

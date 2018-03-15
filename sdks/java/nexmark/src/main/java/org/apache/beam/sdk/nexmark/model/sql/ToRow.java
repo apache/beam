@@ -56,7 +56,7 @@ public class ToRow {
     ModelFieldsAdapter adapter = modelTypeAdapters.get(modelClass);
 
     return Row
-        .withRowType(adapter.getRowType())
+        .withRowType(adapter.getSchema())
         .addValues(adapter.getFieldsValues(model))
         .build();
   }

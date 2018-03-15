@@ -28,7 +28,7 @@ import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
 /**
@@ -39,7 +39,7 @@ public class ModelAdaptersMappingTest {
   private static final Person PERSON =
       new Person(3L, "name", "email", "cc", "city", "state", 329823L, "extra");
 
-  private static final RowType PERSON_ROW_TYPE = RowSqlType.builder()
+  private static final Schema PERSON_ROW_TYPE = RowSqlType.builder()
       .withBigIntField("id")
       .withVarcharField("name")
       .withVarcharField("emailAddress")
@@ -53,7 +53,7 @@ public class ModelAdaptersMappingTest {
   private static final Bid BID =
       new Bid(5L, 3L, 123123L, 43234234L, "extra2");
 
-  private static final RowType BID_ROW_TYPE = RowSqlType.builder()
+  private static final Schema BID_ROW_TYPE = RowSqlType.builder()
       .withBigIntField("auction")
       .withBigIntField("bidder")
       .withBigIntField("price")
@@ -64,7 +64,7 @@ public class ModelAdaptersMappingTest {
   private static final Auction AUCTION =
       new Auction(5L, "item", "desc", 342L, 321L, 3423342L, 2349234L, 3L, 1L, "extra3");
 
-  private static final RowType AUCTION_ROW_TYPE = RowSqlType.builder()
+  private static final Schema AUCTION_ROW_TYPE = RowSqlType.builder()
       .withBigIntField("id")
       .withVarcharField("itemName")
       .withVarcharField("description")
@@ -92,27 +92,27 @@ public class ModelAdaptersMappingTest {
   public void testBidAdapterRecordType() {
     ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Bid.class);
 
-    RowType bidRowType = adapter.getRowType();
+    Schema bidSchema = adapter.getSchema();
 
-    assertEquals(BID_ROW_TYPE, bidRowType);
+    assertEquals(BID_ROW_TYPE, bidSchema);
   }
 
   @Test
   public void testPersonAdapterRecordType() {
     ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Person.class);
 
-    RowType personRowType = adapter.getRowType();
+    Schema personSchema = adapter.getSchema();
 
-    assertEquals(PERSON_ROW_TYPE, personRowType);
+    assertEquals(PERSON_ROW_TYPE, personSchema);
   }
 
   @Test
   public void testAuctionAdapterRecordType() {
     ModelFieldsAdapter<Person> adapter = ModelAdaptersMapping.ADAPTERS.get(Auction.class);
 
-    RowType auctionRowType = adapter.getRowType();
+    Schema auctionSchema = adapter.getSchema();
 
-    assertEquals(AUCTION_ROW_TYPE, auctionRowType);
+    assertEquals(AUCTION_ROW_TYPE, auctionSchema);
   }
 
   @Test

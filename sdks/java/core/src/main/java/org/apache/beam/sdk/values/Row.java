@@ -34,10 +34,10 @@ import org.apache.beam.sdk.annotations.Experimental;
 
 /**
  * {@link Row} is an immutable tuple-like type to represent one element in a
- * {@link PCollection}. The fields are described with a {@link RowType}.
+ * {@link PCollection}. The fields are described with a {@link Schema}.
  *
- * <p>{@link RowType} contains the names for each field and the coder for the whole
- * record, {see @link RowType#getRowCoder()}.
+ * <p>{@link Schema} contains the names for each field and the coder for the whole
+ * record, {see @link Schema#getRowCoder()}.
  */
 @Experimental
 @AutoValue
@@ -47,26 +47,26 @@ public abstract class Row implements Serializable {
    * Creates a {@link Row} from the list of values and {@link #getRowType()}.
    */
   public static <T> Collector<T, List<Object>, Row> toRow(
-      RowType rowType) {
+      Schema schema) {
 
     return Collector.of(
-        () -> new ArrayList<>(rowType.getFieldCount()),
+        () -> new ArrayList<>(schema.getFieldCount()),
         List::add,
         (left, right) -> {
           left.addAll(right);
           return left;
         },
-        values -> Row.withRowType(rowType).addValues(values).build());
+        values -> Row.withRowType(schema).addValues(values).build());
   }
 
   /**
    * Creates a new record filled with nulls.
    */
-  public static Row nullRow(RowType rowType) {
+  public static Row nullRow(Schema schema) {
     return
         Row
-            .withRowType(rowType)
-            .addValues(Collections.nCopies(rowType.getFieldCount(), null))
+            .withRowType(schema)
+            .addValues(Collections.nCopies(schema.getFieldCount(), null))
             .build();
   }
 
@@ -276,18 +276,18 @@ public abstract class Row implements Serializable {
   public abstract List<Object> getValues();
 
   /**
-   * Return {@link RowType} which describes the fields.
+   * Return {@link Schema} which describes the fields.
    */
-  public abstract RowType getRowType();
+  public abstract Schema getRowType();
 
   /**
    * Creates a record builder with specified {@link #getRowType()}.
    * {@link Builder#build()} will throw an {@link IllegalArgumentException} if number of fields
    * in {@link #getRowType()} does not match the number of fields specified.
    */
-  public static Builder withRowType(RowType rowType) {
+  public static Builder withRowType(Schema schema) {
     return
-        new AutoValue_Row.Builder(rowType);
+        new AutoValue_Row.Builder(schema);
   }
 
   /**
@@ -295,9 +295,9 @@ public abstract class Row implements Serializable {
    */
   public static class Builder {
     private List<Object> values = new ArrayList<>();
-    private RowType type;
+    private Schema type;
 
-    Builder(RowType type) {
+    Builder(Schema type) {
       this.type = type;
     }
 
@@ -326,7 +326,7 @@ public abstract class Row implements Serializable {
       if (type.getFieldCount() != values.size()) {
         throw new IllegalArgumentException(
             String.format(
-                "Field count in RowType (%s) and values (%s) must match",
+                "Field count in Schema (%s) and values (%s) must match",
                 type.fieldNames(), values));
       }
       return new AutoValue_Row(values, type);

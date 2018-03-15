@@ -41,7 +41,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -58,7 +58,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   @Before
   public void setUp() {
-    RowType rowTypeInTableB =
+    Schema schemaInTableB =
         RowSqlType.builder()
             .withIntegerField("f_int")
             .withDoubleField("f_double")
@@ -67,7 +67,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .build();
 
     List<Row> rowsInTableB =
-        TestUtils.RowsBuilder.of(rowTypeInTableB)
+        TestUtils.RowsBuilder.of(schemaInTableB)
             .addRows(
                 1, 1.0, 0, new BigDecimal(1),
                 4, 4.0, 0, new BigDecimal(4),
@@ -80,7 +80,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     boundedInput3 = PBegin.in(pipeline).apply(
         "boundedInput3",
-        Create.of(rowsInTableB).withCoder(rowTypeInTableB.getRowCoder()));
+        Create.of(rowsInTableB).withCoder(schemaInTableB.getRowCoder()));
   }
 
   /**
@@ -105,7 +105,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<Row> result =
         input.apply("testAggregationWithoutWindow", BeamSql.query(sql));
 
-    RowType resultType = RowSqlType.builder()
+    Schema resultType = RowSqlType.builder()
         .withIntegerField("f_int2")
         .withBigIntField("size")
         .build();
@@ -150,7 +150,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testAggregationFunctions", BeamSql.query(sql));
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withIntegerField("f_int2")
@@ -263,7 +263,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<Row> result =
         input.apply("testDistinct", BeamSql.query(sql));
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withIntegerField("f_int")
@@ -310,7 +310,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testTumbleWindow", BeamSql.query(sql));
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withIntegerField("f_int2")
@@ -338,25 +338,25 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   @Test
   @Category(UsesTestStream.class)
   public void testTriggeredTumble() throws Exception {
-    RowType inputRowType =
+    Schema inputSchema =
         RowSqlType.builder().withIntegerField("f_int").withTimestampField("f_timestamp").build();
 
     PCollection<Row> input =
         pipeline.apply(
-            TestStream.create(inputRowType.getRowCoder())
+            TestStream.create(inputSchema.getRowCoder())
                 .addElements(
-                    Row.withRowType(inputRowType)
+                    Row.withRowType(inputSchema)
                         .addValues(1, FORMAT.parse("2017-01-01 01:01:01"))
                         .build(),
-                    Row.withRowType(inputRowType)
+                    Row.withRowType(inputSchema)
                         .addValues(2, FORMAT.parse("2017-01-01 01:01:01"))
                         .build())
                 .addElements(
-                    Row.withRowType(inputRowType)
+                    Row.withRowType(inputSchema)
                         .addValues(3, FORMAT.parse("2017-01-01 01:01:01"))
                         .build())
                 .addElements(
-                    Row.withRowType(inputRowType)
+                    Row.withRowType(inputSchema)
                         .addValues(4, FORMAT.parse("2017-01-01 01:01:01"))
                         .build())
                 .advanceWatermarkToInfinity());
@@ -365,7 +365,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         "SELECT SUM(f_int) AS f_int_sum FROM PCOLLECTION"
             + " GROUP BY TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
 
-    RowType outputRowType = RowSqlType.builder().withIntegerField("fn_int_sum").build();
+    Schema outputSchema = RowSqlType.builder().withIntegerField("fn_int_sum").build();
 
     PCollection<Row> result =
         input
@@ -380,7 +380,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     PAssert.that(result)
         .containsInAnyOrder(
-            TestUtils.RowsBuilder.of(outputRowType)
+            TestUtils.RowsBuilder.of(outputSchema)
                 .addRows(3) // first bundle 1+2
                 .addRows(6) // next bundle 1+2+3
                 .addRows(10) // next bundle 1+2+3+4)
@@ -414,7 +414,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<Row> result =
         input.apply("testHopWindow", BeamSql.query(sql));
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withIntegerField("f_int2")
@@ -462,7 +462,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testSessionWindow", BeamSql.query(sql));
 
-    RowType resultType =
+    Schema resultType =
         RowSqlType
             .builder()
             .withIntegerField("f_int2")
@@ -536,7 +536,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
 
-    RowType type =
+    Schema type =
         RowSqlType
             .builder()
             .withIntegerField("f_intGroupingKey")
@@ -579,7 +579,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   public void testSupportsNonGlobalWindowWithCustomTrigger() {
     DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
 
-    RowType type =
+    Schema type =
         RowSqlType
             .builder()
             .withIntegerField("f_intGroupingKey")
@@ -632,7 +632,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   }
 
   private PCollection<Row> createTestPCollection(
-      RowType type,
+      Schema type,
       Object[] rows,
       String timestampField) {
     return

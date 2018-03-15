@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -52,7 +52,7 @@ public class BeamSqlDslBase {
   @Rule
   public ExpectedException exceptions = ExpectedException.none();
 
-  static RowType rowTypeInTableA;
+  static Schema schemaInTableA;
   static List<Row> rowsInTableA;
 
   //bounded PCollections
@@ -65,7 +65,7 @@ public class BeamSqlDslBase {
 
   @BeforeClass
   public static void prepareClass() throws ParseException {
-    rowTypeInTableA =
+    schemaInTableA =
         RowSqlType
             .builder()
             .withIntegerField("f_int")
@@ -81,7 +81,7 @@ public class BeamSqlDslBase {
             .build();
 
     rowsInTableA =
-        TestUtils.RowsBuilder.of(rowTypeInTableA)
+        TestUtils.RowsBuilder.of(schemaInTableA)
             .addRows(
                 1, 1000L, (short) 1, (byte) 1, 1.0f, 1.0d, "string_row1",
                 FORMAT.parse("2017-01-01 01:01:03"), 0, new BigDecimal(1))
@@ -100,10 +100,10 @@ public class BeamSqlDslBase {
   @Before
   public void preparePCollections() {
     boundedInput1 = PBegin.in(pipeline).apply("boundedInput1",
-        Create.of(rowsInTableA).withCoder(rowTypeInTableA.getRowCoder()));
+        Create.of(rowsInTableA).withCoder(schemaInTableA.getRowCoder()));
 
     boundedInput2 = PBegin.in(pipeline).apply("boundedInput2",
-        Create.of(rowsInTableA.get(0)).withCoder(rowTypeInTableA.getRowCoder()));
+        Create.of(rowsInTableA.get(0)).withCoder(schemaInTableA.getRowCoder()));
 
     unboundedInput1 = prepareUnboundedPCollection1();
     unboundedInput2 = prepareUnboundedPCollection2();
@@ -111,7 +111,7 @@ public class BeamSqlDslBase {
 
   private PCollection<Row> prepareUnboundedPCollection1() {
     TestStream.Builder<Row> values = TestStream
-        .create(rowTypeInTableA.getRowCoder());
+        .create(schemaInTableA.getRowCoder());
 
     for (Row row : rowsInTableA) {
       values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
@@ -127,7 +127,7 @@ public class BeamSqlDslBase {
 
   private PCollection<Row> prepareUnboundedPCollection2() {
     TestStream.Builder<Row> values = TestStream
-        .create(rowTypeInTableA.getRowCoder());
+        .create(schemaInTableA.getRowCoder());
 
     Row row = rowsInTableA.get(0);
     values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));

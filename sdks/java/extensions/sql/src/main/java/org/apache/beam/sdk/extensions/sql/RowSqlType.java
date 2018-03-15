@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.values.RowType.toRowType;
+import static org.apache.beam.sdk.values.Schema.toSchema;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 
 
 /**
@@ -39,14 +39,14 @@ public class RowSqlType {
   }
 
   /**
-   * Builder class to construct {@link RowType}.
+   * Builder class to construct {@link Schema}.
    */
   public static class Builder {
 
-    private ImmutableList.Builder<RowType.Field> fields;
+    private ImmutableList.Builder<Schema.Field> fields;
 
     public Builder withField(String fieldName, SqlTypeCoder fieldCoder) {
-      fields.add(RowType.newField(fieldName, fieldCoder));
+      fields.add(Schema.newField(fieldName, fieldCoder));
       return this;
     }
 
@@ -116,16 +116,16 @@ public class RowSqlType {
       return withField(fieldName, SqlTypeCoders.arrayOf(rowType));
     }
 
-    public Builder withRowField(String fieldName, RowType rowType) {
-      return withField(fieldName, SqlTypeCoders.rowOf(rowType));
+    public Builder withRowField(String fieldName, Schema schema) {
+      return withField(fieldName, SqlTypeCoders.rowOf(schema));
     }
 
     private Builder() {
       this.fields = ImmutableList.builder();
     }
 
-    public RowType build() {
-      return fields.build().stream().collect(toRowType());
+    public Schema build() {
+      return fields.build().stream().collect(toSchema());
     }
   }
 }

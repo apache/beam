@@ -26,7 +26,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 import org.apache.commons.csv.CSVFormat;
 
 /**
@@ -36,13 +36,13 @@ public class BeamTextCSVTableIOReader
     extends PTransform<PCollection<String>, PCollection<Row>>
     implements Serializable {
   private String filePattern;
-  protected RowType rowType;
+  protected Schema schema;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOReader(RowType rowType, String filePattern,
+  public BeamTextCSVTableIOReader(Schema schema, String filePattern,
                                   CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.rowType = rowType;
+    this.schema = schema;
     this.csvFormat = csvFormat;
   }
 
@@ -52,7 +52,7 @@ public class BeamTextCSVTableIOReader
           @ProcessElement
           public void processElement(ProcessContext ctx) {
             String str = ctx.element();
-            ctx.output(csvLine2BeamRow(csvFormat, str, rowType));
+            ctx.output(csvLine2BeamRow(csvFormat, str, schema));
           }
         }));
   }

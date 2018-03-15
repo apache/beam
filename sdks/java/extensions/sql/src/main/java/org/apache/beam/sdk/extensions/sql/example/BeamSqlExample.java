@@ -30,7 +30,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -49,7 +49,7 @@ class BeamSqlExample {
     Pipeline p = Pipeline.create(options);
 
     //define the input row format
-    RowType type = RowSqlType
+    Schema type = RowSqlType
         .builder()
         .withIntegerField("c1")
         .withVarcharField("c2")

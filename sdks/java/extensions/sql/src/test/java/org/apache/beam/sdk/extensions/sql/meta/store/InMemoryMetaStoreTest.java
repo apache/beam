@@ -93,7 +93,7 @@ public class InMemoryMetaStoreTest {
     assertNotNull(actualSqlTable);
     assertEquals(
         RowSqlType.builder().withIntegerField("id").withVarcharField("name").build(),
-        actualSqlTable.getRowType()
+        actualSqlTable.getSchema()
     );
   }
 

@@ -27,7 +27,7 @@ import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 
 /**
  * {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step.
@@ -35,15 +35,15 @@ import org.apache.beam.sdk.values.RowType;
 public class BeamSqlProjectFn extends DoFn<Row, Row> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
-  private RowType outputRowType;
+  private Schema outputSchema;
 
   public BeamSqlProjectFn(
       String stepName, BeamSqlExpressionExecutor executor,
-      RowType outputRowType) {
+      Schema outputSchema) {
     super();
     this.stepName = stepName;
     this.executor = executor;
-    this.outputRowType = outputRowType;
+    this.outputSchema = outputSchema;
   }
 
   @Setup
@@ -58,20 +58,20 @@ public class BeamSqlProjectFn extends DoFn<Row, Row> {
 
     List<Object> castResultValues =
         IntStream
-            .range(0, outputRowType.getFieldCount())
+            .range(0, outputSchema.getFieldCount())
             .mapToObj(i -> castField(rawResultValues, i))
             .collect(toList());
 
     c.output(
         Row
-            .withRowType(outputRowType)
+            .withRowType(outputSchema)
             .addValues(castResultValues)
             .build());
   }
 
   private Object castField(List<Object> resultValues, int i) {
     return BeamTableUtils
-        .autoCastField(outputRowType.getFieldCoder(i), resultValues.get(i));
+        .autoCastField(outputSchema.getFieldCoder(i), resultValues.get(i));
   }
 
   @Teardown

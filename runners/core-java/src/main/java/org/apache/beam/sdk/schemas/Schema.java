@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.values;
+package org.apache.beam.sdk.schemas;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
@@ -26,13 +26,14 @@ import java.util.stream.Collector;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.values.Row;
 
 /**
- * {@link RowType} describes the fields in {@link Row}.
+ * {@link Schema} describes the fields in {@link Row}.
  */
 @Experimental
 @AutoValue
-public abstract class RowType implements Serializable{
+public abstract class Schema implements Serializable{
   abstract List<String> fieldNames();
   abstract List<Coder> fieldCoders();
 
@@ -47,14 +48,14 @@ public abstract class RowType implements Serializable{
     abstract Coder coder();
 
     public static Field of(String name, Coder coder) {
-      return new AutoValue_RowType_Field(name, coder);
+      return new AutoValue_Schema_Field(name, coder);
     }
   }
 
   /**
-   * Collects a stream of {@link Field}s into a {@link RowType}.
+   * Collects a stream of {@link Field}s into a {@link Schema}.
    */
-  public static Collector<Field, List<Field>, RowType> toRowType() {
+  public static Collector<Field, List<Field>, Schema> toSchema() {
     return Collector.of(
         ArrayList::new,
         List::add,
@@ -62,10 +63,10 @@ public abstract class RowType implements Serializable{
           left.addAll(right);
           return left;
         },
-        RowType::fromFields);
+        Schema::fromFields);
   }
 
-  private static RowType fromFields(List<Field> fields) {
+  private static Schema fromFields(List<Field> fields) {
     ImmutableList.Builder<String> names = ImmutableList.builder();
     ImmutableList.Builder<Coder> coders = ImmutableList.builder();
 
@@ -84,7 +85,7 @@ public abstract class RowType implements Serializable{
     return Field.of(name, coder);
   }
 
-  public static RowType fromNamesAndCoders(
+  public static Schema fromNamesAndCoders(
       List<String> fieldNames,
       List<Coder> fieldCoders) {
 
@@ -93,7 +94,7 @@ public abstract class RowType implements Serializable{
           "the size of fieldNames and fieldCoders need to be the same.");
     }
 
-    return new AutoValue_RowType(fieldNames, fieldCoders);
+    return new AutoValue_Schema(fieldNames, fieldCoders);
   }
 
   /**

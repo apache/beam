@@ -26,7 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 
 /**
  *  A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly.
@@ -35,23 +35,23 @@ import org.apache.beam.sdk.values.RowType;
 public class RowCoder extends CustomCoder<Row> {
   private static final BitSetCoder nullListCoder = BitSetCoder.of();
 
-  private RowType rowType;
+  private Schema schema;
   private List<Coder> coders;
 
-  private RowCoder(RowType rowType, List<Coder> coders) {
-    this.rowType = rowType;
+  private RowCoder(Schema schema, List<Coder> coders) {
+    this.schema = schema;
     this.coders = coders;
   }
 
-  public static RowCoder of(RowType rowType, List<Coder> coderArray) {
-    if (rowType.getFieldCount() != coderArray.size()) {
+  public static RowCoder of(Schema schema, List<Coder> coderArray) {
+    if (schema.getFieldCount() != coderArray.size()) {
       throw new IllegalArgumentException("Coder size doesn't match with field size");
     }
-    return new RowCoder(rowType, coderArray);
+    return new RowCoder(schema, coderArray);
   }
 
-  public RowType getRowType() {
-    return rowType;
+  public Schema getSchema() {
+    return schema;
   }
 
   @Override
@@ -71,15 +71,15 @@ public class RowCoder extends CustomCoder<Row> {
   public Row decode(InputStream inStream) throws CoderException, IOException {
     BitSet nullFields = nullListCoder.decode(inStream);
 
-    List<Object> fieldValues = new ArrayList<>(rowType.getFieldCount());
-    for (int idx = 0; idx < rowType.getFieldCount(); ++idx) {
+    List<Object> fieldValues = new ArrayList<>(schema.getFieldCount());
+    for (int idx = 0; idx < schema.getFieldCount(); ++idx) {
       if (nullFields.get(idx)) {
         fieldValues.add(null);
       } else {
         fieldValues.add(coders.get(idx).decode(inStream));
       }
     }
-    return Row.withRowType(rowType).addValues(fieldValues).build();
+    return Row.withRowType(schema).addValues(fieldValues).build();
   }
 
   /**

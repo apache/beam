@@ -23,21 +23,21 @@ import java.util.List;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.values.Schema;
 
 /**
- * Helper class to help map Java model fields to {@link RowType} fields.
+ * Helper class to help map Java model fields to {@link Schema} fields.
  */
 public abstract class ModelFieldsAdapter<T> implements Serializable {
 
-  private RowType rowType;
+  private Schema schema;
 
-  ModelFieldsAdapter(RowType rowType) {
-    this.rowType = rowType;
+  ModelFieldsAdapter(Schema schema) {
+    this.schema = schema;
   }
 
-  public RowType getRowType() {
-    return rowType;
+  public Schema getSchema() {
+    return schema;
   }
 
   public abstract List<Object> getFieldsValues(T model);

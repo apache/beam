@@ -38,7 +38,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.hamcrest.Matcher;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -54,7 +54,7 @@ public class BeamSqlDslJoinTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
-  private static final RowType SOURCE_ROW_TYPE =
+  private static final Schema SOURCE_ROW_TYPE =
       RowSqlType.builder()
           .withIntegerField("order_id")
           .withIntegerField("site_id")
@@ -63,7 +63,7 @@ public class BeamSqlDslJoinTest {
 
   private static final RowCoder SOURCE_CODER = SOURCE_ROW_TYPE.getRowCoder();
 
-  private static final RowType RESULT_ROW_TYPE =
+  private static final Schema RESULT_ROW_TYPE =
       RowSqlType.builder()
           .withIntegerField("order_id")
           .withIntegerField("site_id")

@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.values.RowType.toRowType;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
@@ -40,7 +40,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.util.Pair;
 import org.junit.Rule;
 
@@ -62,7 +62,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       .put(Boolean.class, SqlTypeCoders.BOOLEAN)
       .build();
 
-  private static final RowType ROW_TYPE = RowSqlType.builder()
+  private static final Schema ROW_TYPE = RowSqlType.builder()
       .withDateField("ts")
       .withTinyIntField("c_tinyint")
       .withSmallIntField("c_smallint")
@@ -153,19 +153,19 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       PCollection<Row> inputCollection = getTestPCollection();
       System.out.println("SQL:>\n" + getSql());
       try {
-        RowType rowType =
+        Schema schema =
             exps.stream()
-                .map(exp -> RowType.newField(
+                .map(exp -> Schema.newField(
                     exp.getKey(),
                     JAVA_CLASS_TO_CODER.get(exp.getValue().getClass())))
-                .collect(toRowType());
+                .collect(toSchema());
 
         List<Object> values = exps.stream().map(Pair::getValue).collect(toList());
 
         PCollection<Row> rows = inputCollection.apply(BeamSql.query(getSql()));
         PAssert.that(rows).containsInAnyOrder(
             TestUtils.RowsBuilder
-                .of(rowType)
+                .of(schema)
                 .addRows(values)
                 .getRows()
         );
