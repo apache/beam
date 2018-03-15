@@ -418,7 +418,7 @@ public class Create<T> {
 
       @Override
       public long getBytesPerOffset() {
-        if (allElementsBytes.size() == 0) {
+        if (allElementsBytes.isEmpty()) {
           return 1L;
         }
         return Math.max(1, totalSize / allElementsBytes.size());

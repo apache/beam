@@ -404,7 +404,7 @@ class OrderedCode {
   }
 
   private byte[] readBytes(boolean invert) {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0) || (
+    if ((encodedArrays == null) || encodedArrays.isEmpty() || (
         (encodedArrays.get(0)).length - firstArrayPosition <= 0)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -492,7 +492,7 @@ class OrderedCode {
    * @see #writeNumIncreasing(long)
    */
   public long readNumIncreasing() {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0) || (
+    if ((encodedArrays == null) || encodedArrays.isEmpty() || (
         (encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -529,7 +529,7 @@ class OrderedCode {
    * @see #writeNumDecreasing(long)
    */
   public long readNumDecreasing() {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0)
+    if ((encodedArrays == null) || encodedArrays.isEmpty()
         || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -566,7 +566,7 @@ class OrderedCode {
    * @see #writeSignedNumIncreasing(long)
    */
   public long readSignedNumIncreasing() {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0) || (
+    if ((encodedArrays == null) || encodedArrays.isEmpty() || (
         (encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -659,7 +659,7 @@ class OrderedCode {
   }
 
   private boolean readInfinityInternal(byte[] codes) {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0)
+    if ((encodedArrays == null) || encodedArrays.isEmpty()
         || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -695,7 +695,7 @@ class OrderedCode {
 
     byte[] store = encodedArrays.get(0);
     encodedArrays.remove(0);
-    assert encodedArrays.size() == 0;
+    assert encodedArrays.isEmpty();
     return Arrays.copyOfRange(store, firstArrayPosition, store.length);
   }
 
@@ -708,7 +708,7 @@ class OrderedCode {
    * modified.</b>
    */
   public byte[] getEncodedBytes() {
-    if (encodedArrays.size() == 0) {
+    if (encodedArrays.isEmpty()) {
       return new byte[0];
     }
     if ((encodedArrays.size() == 1) && (firstArrayPosition == 0)) {

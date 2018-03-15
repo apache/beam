@@ -1288,7 +1288,7 @@ public class DoFnSignatures {
       ErrorReporter errors, Class<? extends Annotation> anno, Class<?> fnClazz, boolean required) {
     Collection<Method> matches = declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
 
-    if (matches.size() == 0) {
+    if (matches.isEmpty()) {
       errors.checkArgument(!required, "No method annotated with @%s found", anno.getSimpleName());
       return null;
     }
