@@ -21,7 +21,8 @@ from __future__ import print_function
 import time
 
 from apache_beam.internal import pickler
-from apache_beam.options.pipeline_options import GoogleCloudOptions, StandardOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
 from apache_beam.runners.runner import PipelineState

@@ -19,6 +19,8 @@
 
 Important: End-to-end test infrastructure for streaming pipeine in Python SDK
 is in development and is not yet available for use.
+
+Currently, this test is blocked until manually terminate the pipeline job.
 """
 
 import logging
@@ -28,12 +30,10 @@ from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
 from apache_beam.examples import streaming_wordcount
+from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
-from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
-
-from google.cloud import pubsub
 
 INPUT_TOPIC = 'wc_topic_input'
 OUTPUT_TOPIC = 'wc_topic_output'
@@ -49,7 +49,9 @@ class StreamingWordCountIT(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
 
     # Set up PubSub environment.
-    self.pubsub_client = pubsub.Client(project=self.test_pipeline.get_option('project'))
+    from google.cloud import pubsub
+    self.pubsub_client = pubsub.Client(
+        project=self.test_pipeline.get_option('project'))
     self.input_topic = self.pubsub_client.topic(INPUT_TOPIC)
     self.output_topic = self.pubsub_client.topic(OUTPUT_TOPIC)
     self.input_sub = self.input_topic.subscription(INPUT_SUB)
@@ -77,7 +79,7 @@ class StreamingWordCountIT(unittest.TestCase):
   def tearDown(self):
     self._cleanup_pubsub()
 
-  @attr('test')
+  @attr('developing_test')
   def test_streaming_wordcount_it(self):
     # Set extra options to the pipeline for test purpose
     pipeline_verifiers = [PipelineStateMatcher(PipelineState.RUNNING)]
@@ -91,7 +93,8 @@ class StreamingWordCountIT(unittest.TestCase):
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    streaming_wordcount.run(self.test_pipeline.get_full_options_as_args(**extra_opts))
+    streaming_wordcount.run(
+        self.test_pipeline.get_full_options_as_args(**extra_opts))
 
 
 if __name__ == '__main__':

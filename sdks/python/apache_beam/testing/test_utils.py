@@ -175,4 +175,3 @@ def _cleanup_pubsub(components):
     else:
       logging.debug('Cannot delete topic/subscription. %s does not exist.',
                     c.full_name)
-
