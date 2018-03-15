@@ -21,6 +21,7 @@ import logging
 import os
 import tempfile
 import unittest
+
 import mock
 
 from apache_beam.io.filesystem import BeamIOError
