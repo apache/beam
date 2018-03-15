@@ -21,54 +21,42 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-parent</artifactId>
-    <version>2.5.0-SNAPSHOT</version>
+    <artifactId>beam-runners-parent</artifactId>
+    <version>2.4.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-runners-parent</artifactId>
+  <artifactId>beam-runners-extensions-java</artifactId>
+  <name>Apache Beam :: Runners :: Extensions Java</name>
+  <description>Beam Runners Extensions provides implementations of runners core APIs.</description>
+  <packaging>jar</packaging>
 
-  <packaging>pom</packaging>
+  <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+    </dependency>
 
-  <name>Apache Beam :: Runners</name>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-core</artifactId>
+    </dependency>
 
-  <modules>
-    <module>core-construction-java</module>
-    <module>core-java</module>
-    <module>java-fn-execution</module>
-    <module>local-java</module>
-    <module>local-artifact-service-java</module>
-    <module>reference</module>
-    <module>direct-java</module>
-    <module>flink</module>
-    <module>gearpump</module>
-    <module>google-cloud-dataflow-java</module>
-    <module>spark</module>
-    <module>apex</module>
-    <module>gcp</module>
-    <module>extensions-java</module>
-  </modules>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-core</artifactId>
+    </dependency>
 
-  <profiles>
-    <profile>
-      <id>release</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>findbugs-maven-plugin</artifactId>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-java</artifactId>
+    </dependency>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
 </project>

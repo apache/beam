@@ -398,5 +398,10 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-extensions-java</artifactId>
+    </dependency>
+
   </dependencies>
 </project>
