@@ -69,13 +69,23 @@ public class MetricsPusher implements Serializable {
       ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
           new ThreadFactoryBuilder().setDaemon(false).setNameFormat("MetricsPusher-thread").build());
       scheduledFuture =
-          scheduler.scheduleAtFixedRate(() -> pushMetrics(), 0, period, TimeUnit.SECONDS);
+          scheduler.scheduleAtFixedRate(() -> run(), 0, period, TimeUnit.SECONDS);
     }
   }
   private void tearDown(){
     pushMetrics();
     if (!scheduledFuture.isCancelled()) {
       scheduledFuture.cancel(true);
+    }
+  }
+
+  private void run(){
+    pushMetrics();
+    if (pipelineResult != null) {
+      PipelineResult.State pipelineState = pipelineResult.getState();
+      if (pipelineState.isTerminal()) {
+        tearDown();
+      }
     }
   }
 
@@ -92,12 +102,6 @@ public class MetricsPusher implements Serializable {
             metricsSink.writeMetrics(metricQueryResults);
           }
 
-        if (pipelineResult != null) {
-          PipelineResult.State pipelineState = pipelineResult.getState();
-          if (pipelineState.isTerminal()) {
-            tearDown();
-          }
-        }
       } catch (Exception e) {
         MetricsPushException metricsPushException = new MetricsPushException(e);
         metricsPushException.printStackTrace();
