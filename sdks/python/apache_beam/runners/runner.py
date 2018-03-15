@@ -119,6 +119,19 @@ class PipelineRunner(object):
 
   def run(self, transform, options=None):
     """Run the given transform or callable with this runner.
+
+    Blocks until the pipeline is complete.  See also `PipelineRunner.run_async`.
+    """
+    result = self.run_async(transform, options)
+    result.wait_until_finish()
+    return result
+
+  def run_async(self, transform, options=None):
+    """Run the given transform or callable with this runner.
+
+    May return immediately, executing the pipeline in the background.
+    The returned result object can be queried for progress, and
+    `wait_until_finish` may be called to block until completion.
     """
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
