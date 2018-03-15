@@ -327,6 +327,63 @@ public class BeamSqlArrayTest {
     pipeline.run();
   }
 
+  @Test
+  public void testSelectRowFieldFromArrayOfRows() {
+    RowType elementRowType =
+        RowSqlType
+            .builder()
+            .withVarcharField("f_rowString")
+            .withIntegerField("f_rowInt")
+            .build();
+
+    RowType resultRowType =
+        RowSqlType
+            .builder()
+            .withVarcharField("f_stringField")
+            .build();
+
+    RowType inputType =
+        RowSqlType
+            .builder()
+            .withIntegerField("f_int")
+            .withArrayField("f_arrayOfRows", elementRowType)
+            .build();
+
+    PCollection<Row> input =
+        PBegin.in(pipeline)
+              .apply(
+                  Create.of(
+                      Row.withRowType(inputType)
+                         .addValues(
+                             1,
+                             Arrays.asList(
+                                 Row.withRowType(elementRowType).addValues("AA", 11).build(),
+                                 Row.withRowType(elementRowType).addValues("BB", 22).build()))
+                         .build(),
+                      Row.withRowType(inputType)
+                         .addValues(
+                             2,
+                             Arrays.asList(
+                                 Row.withRowType(elementRowType).addValues("CC", 33).build(),
+                                 Row.withRowType(elementRowType).addValues("DD", 44).build()))
+                         .build())
+                        .withCoder(inputType.getRowCoder()));
+
+    PCollection<Row> result =
+        input
+            .apply(
+                BeamSql.query(
+                    "SELECT f_arrayOfRows[1].f_rowString FROM PCOLLECTION"))
+            .setCoder(resultRowType.getRowCoder());
+
+    PAssert.that(result)
+           .containsInAnyOrder(
+               Row.withRowType(resultRowType).addValues("BB").build(),
+               Row.withRowType(resultRowType).addValues("DD").build());
+
+    pipeline.run();
+  }
+
   private PCollection<Row> pCollectionOf2Elements() {
     return
         PBegin
