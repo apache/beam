@@ -499,7 +499,7 @@ public class KafkaIOTest {
   }
 
   // Returns TIMESTAMP_MAX_VALUE for watermark when all the records are read from a partition.
-  static class TimestampPolicyWithEndOfSource<K, V> extends TimestampPolicyFactory<K, V> {
+  static class TimestampPolicyWithEndOfSource<K, V> implements TimestampPolicyFactory<K, V> {
     private final long maxOffset;
 
     TimestampPolicyWithEndOfSource(long maxOffset) {
@@ -553,10 +553,9 @@ public class KafkaIOTest {
       .withTimestampPolicyFactory(
         new TimestampPolicyWithEndOfSource<>(numElements / numPartitions - 1));
 
-    PCollection <Long> input =
-      p.apply("readFromKafka", reader.withoutMetadata())
-        .apply(Values.create())
-        .apply(Window.into(FixedWindows.of(Duration.standardDays(100))));
+    p.apply("readFromKafka", reader.withoutMetadata())
+      .apply(Values.create())
+      .apply(Window.into(FixedWindows.of(Duration.standardDays(100))));
 
     PipelineResult result = p.run();
 

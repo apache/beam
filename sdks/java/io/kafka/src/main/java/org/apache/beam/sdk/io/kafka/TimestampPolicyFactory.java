@@ -31,7 +31,7 @@ import org.joda.time.Instant;
  * the the reader while starting or resuming from a checkpoint. Two commonly used policies are
  * provided. See {@link #withLogAppendTime()} and {@link #withProcessingTime()}.
  */
-public abstract class TimestampPolicyFactory<KeyT, ValueT> implements Serializable {
+public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
 
   /**
    * Creates a TimestampPolicy for a partition. This is invoked by the reader at the start or while
@@ -44,7 +44,7 @@ public abstract class TimestampPolicyFactory<KeyT, ValueT> implements Serializab
    *           can be established as more records are read.
    * @return
    */
-  public abstract TimestampPolicy<KeyT, ValueT> createTimestampPolicy(
+  TimestampPolicy<KeyT, ValueT> createTimestampPolicy(
     TopicPartition tp, Optional<Instant> previousWatermark);
 
   /**
@@ -52,14 +52,8 @@ public abstract class TimestampPolicyFactory<KeyT, ValueT> implements Serializab
    * Specifically, this is the timestamp when the record becomes 'current' in the reader.
    * The watermark aways advances to current time.
    */
-  public static <K, V> TimestampPolicyFactory<K, V> withProcessingTime() {
-    return new TimestampPolicyFactory<K, V>() {
-      @Override
-      public TimestampPolicy<K, V>
-      createTimestampPolicy(TopicPartition tp, Optional<Instant> previousWatermark) {
-        return new ProcessingTimePolicy<>();
-      }
-    };
+  static <K, V> TimestampPolicyFactory<K, V> withProcessingTime() {
+    return (tp, prev) -> new ProcessingTimePolicy<>();
   }
 
   /**
@@ -68,15 +62,8 @@ public abstract class TimestampPolicyFactory<KeyT, ValueT> implements Serializab
    * read. If a partition is idle, the watermark advances roughly to 'current time - 2 seconds'.
    * See {@link KafkaIO.Read#withLogAppendTime()} for longer description.
    */
-  public static <K, V> TimestampPolicyFactory<K, V> withLogAppendTime() {
-    //return (tp, previousWatermark) -> new LogAppendTimePolicy<>(previousWatermark);
-    return new TimestampPolicyFactory<K, V>() {
-      @Override
-      public TimestampPolicy<K, V>
-      createTimestampPolicy(TopicPartition tp, Optional<Instant> previousWatermark) {
-        return new LogAppendTimePolicy<>(previousWatermark);
-      }
-    };
+  static <K, V> TimestampPolicyFactory<K, V> withLogAppendTime() {
+    return (tp, previousWatermark) -> new LogAppendTimePolicy<>(previousWatermark);
   }
 
   /*
@@ -98,21 +85,14 @@ public abstract class TimestampPolicyFactory<KeyT, ValueT> implements Serializab
    */
   static <K, V> TimestampPolicyFactory<K, V> withTimestampFn(
     final SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn) {
-
-    return new TimestampPolicyFactory<K, V>() {
-      @Override
-      public TimestampPolicy<K, V> createTimestampPolicy(TopicPartition tp,
-                                                         Optional<Instant> previousWatermark) {
-        return new TimestampFnPolicy<>(timestampFn, previousWatermark);
-      }
-    };
+    return (tp, previousWatermark) -> new TimestampFnPolicy<>(timestampFn, previousWatermark);
   }
 
   /**
    * A simple policy that uses current time for event time and watermark. This should be used
    * when better timestamps like LogAppendTime are not available for a topic.
    */
-  public static class ProcessingTimePolicy<K, V> extends TimestampPolicy<K, V> {
+  class ProcessingTimePolicy<K, V> extends TimestampPolicy<K, V> {
 
     @Override
     public Instant getTimestampForRecord(PartitionContext context, KafkaRecord<K, V> record) {
@@ -131,7 +111,7 @@ public abstract class TimestampPolicyFactory<KeyT, ValueT> implements Serializab
    * read. If a partition is idle, the watermark advances roughly to 'current time - 2 seconds'.
    * See {@link KafkaIO.Read#withLogAppendTime()} for longer description.
    */
-  public static class LogAppendTimePolicy<K, V> extends TimestampPolicy<K, V> {
+  class LogAppendTimePolicy<K, V> extends TimestampPolicy<K, V> {
 
     /**
      * When a partition is idle or caught up (i.e. backlog is zero), we advance the watermark
@@ -181,7 +161,7 @@ public abstract class TimestampPolicyFactory<KeyT, ValueT> implements Serializab
    * Internal policy to support deprecated withTimestampFn API. It returns last record
    * timestamp for watermark!.
    */
-  private static class TimestampFnPolicy<K, V> extends TimestampPolicy<K, V> {
+  class TimestampFnPolicy<K, V> extends TimestampPolicy<K, V> {
 
     final SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn;
     Instant lastRecordTimestamp;
