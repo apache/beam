@@ -41,118 +41,118 @@ public class MetricsHttpSinkTest {
         new MetricQueryResults() {
 
           @Override
-          public List<MetricResult<Long>> counters() {
+          public List<MetricResult<Long>> getCounters() {
             return Collections.singletonList(
                 (MetricResult<Long>)
                     new MetricResult<Long>() {
 
                       @Override
-                      public MetricName name() {
+                      public MetricName getName() {
                         return new MetricName() {
 
                           @Override
-                          public String namespace() {
+                          public String getNamespace() {
                             return "ns1";
                           }
 
                           @Override
-                          public String name() {
+                          public String getName() {
                             return "n1";
                           }
                         };
                       }
 
                       @Override
-                      public String step() {
+                      public String getStep() {
                         return "s1";
                       }
 
                       @Override
-                      public Long committed() {
+                      public Long getCommitted() {
                         return 10L;
                       }
 
                       @Override
-                      public Long attempted() {
+                      public Long getAttempted() {
                         return 20L;
                       }
                     });
           }
 
           @Override
-          public List<MetricResult<DistributionResult>> distributions() {
+          public List<MetricResult<DistributionResult>> getDistributions() {
             return Collections.singletonList(
                 (MetricResult<DistributionResult>)
                     new MetricResult<DistributionResult>() {
 
                       @Override
-                      public MetricName name() {
+                      public MetricName getName() {
                         return new MetricName() {
 
                           @Override
-                          public String namespace() {
+                          public String getNamespace() {
                             return "ns1";
                           }
 
                           @Override
-                          public String name() {
+                          public String getName() {
                             return "n2";
                           }
                         };
                       }
 
                       @Override
-                      public String step() {
+                      public String getStep() {
                         return "s2";
                       }
 
                       @Override
-                      public DistributionResult committed() {
+                      public DistributionResult getCommitted() {
                         return new DistributionResult() {
 
                           @Override
-                          public long sum() {
+                          public long getSum() {
                             return 10L;
                           }
 
                           @Override
-                          public long count() {
+                          public long getCount() {
                             return 2L;
                           }
 
                           @Override
-                          public long min() {
+                          public long getMin() {
                             return 5L;
                           }
 
                           @Override
-                          public long max() {
+                          public long getMax() {
                             return 8L;
                           }
                         };
                       }
 
                       @Override
-                      public DistributionResult attempted() {
+                      public DistributionResult getAttempted() {
                         return new DistributionResult() {
 
                           @Override
-                          public long sum() {
+                          public long getSum() {
                             return 25L;
                           }
 
                           @Override
-                          public long count() {
+                          public long getCount() {
                             return 4L;
                           }
 
                           @Override
-                          public long min() {
+                          public long getMin() {
                             return 3L;
                           }
 
                           @Override
-                          public long max() {
+                          public long getMax() {
                             return 9L;
                           }
                         };
@@ -161,59 +161,59 @@ public class MetricsHttpSinkTest {
           }
 
           @Override
-          public List<MetricResult<GaugeResult>> gauges() {
+          public List<MetricResult<GaugeResult>> getGauges() {
             return Collections.singletonList(
                 (MetricResult<GaugeResult>)
                     new MetricResult<GaugeResult>() {
 
                       @Override
-                      public MetricName name() {
+                      public MetricName getName() {
                         return new MetricName() {
 
                           @Override
-                          public String namespace() {
+                          public String getNamespace() {
                             return "ns1";
                           }
 
                           @Override
-                          public String name() {
+                          public String getName() {
                             return "n3";
                           }
                         };
                       }
 
                       @Override
-                      public String step() {
+                      public String getStep() {
                         return "s3";
                       }
 
                       @Override
-                      public GaugeResult committed() {
+                      public GaugeResult getCommitted() {
                         return new GaugeResult() {
 
                           @Override
-                          public long value() {
+                          public long getValue() {
                             return 100L;
                           }
 
                           @Override
-                          public Instant timestamp() {
+                          public Instant getTimestamp() {
                             return new Instant(0L);
                           }
                         };
                       }
 
                       @Override
-                      public GaugeResult attempted() {
+                      public GaugeResult getAttempted() {
                         return new GaugeResult() {
 
                           @Override
-                          public long value() {
+                          public long getValue() {
                             return 120L;
                           }
 
                           @Override
-                          public Instant timestamp() {
+                          public Instant getTimestamp() {
                             return new Instant(0L);
                           }
                         };
@@ -225,11 +225,14 @@ public class MetricsHttpSinkTest {
     String serializeMetrics = metricsHttpSink.serializeMetrics(metricQueryResults);
     assertEquals(
         "Errror in serialization",
-        "{\"counters\":[{\"name\":\"ns1/n1\",\"step\":\"s1\",\"attempted\":20}],"
-            + "\"distributions\":[{\"name\":\"ns1/n2\",\"step\":\"s2\",\"attempted\":"
-            + "{\"min\":3,\"max\":9,\"sum\":25,\"count\":4,\"mean\":6.25}}],\"gauges\":"
-            + "[{\"name\":\"ns1/n3\",\"step\":\"s3\",\"attempted\":{\"value\":120,\"timestamp\":"
-            + "\"1970-01-01T00:00:00.000Z\"}}]}",
+        "{\"counters\":[{\"attempted\":20,\"committed\":10,\"name\":{\"name\":\"n1\","
+            + "\"namespace\":\"ns1\"},\"step\":\"s1\"}],\"distributions\":[{\"attempted\":"
+            + "{\"count\":4,\"max\":9,\"mean\":6.25,\"min\":3,\"sum\":25},\"committed\":"
+            + "{\"count\":2,\"max\":8,\"mean\":5.0,\"min\":5,\"sum\":10},\"name\":{\"name\":\"n2\","
+            + "\"namespace\":\"ns1\"},\"step\":\"s2\"}],\"gauges\":[{\"attempted\":{\"timestamp\":"
+            + "\"1970-01-01T00:00:00.000Z\",\"value\":120},\"committed\":{\"timestamp\":"
+            + "\"1970-01-01T00:00:00.000Z\",\"value\":100},\"name\":{\"name\":\"n3\",\"namespace\":"
+            + "\"ns1\"},\"step\":\"s3\"}]}",
         serializeMetrics);
   }
 }

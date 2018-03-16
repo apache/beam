@@ -18,24 +18,20 @@
 
 package org.apache.beam.runners.extensions.metrics;
 
-import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import javax.xml.ws.http.HTTPException;
-import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsSink;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.codehaus.jackson.map.SerializationConfig;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
 public class MetricsHttpSink implements MetricsSink<String> {
@@ -69,78 +65,9 @@ public class MetricsHttpSink implements MetricsSink<String> {
   }
   @VisibleForTesting
   String serializeMetrics(MetricQueryResults metricQueryResults) throws Exception {
-    SimpleModule module = new SimpleModule();
-    module.addSerializer(MetricQueryResults.class, new MetricQueryResultsSerializer());
-    objectMapper.registerModule(module);
+    objectMapper.registerModule(new JodaModule());
+    objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    objectMapper.configure(MapperFeature.SORT_PROPERTIES_ALPHABETICALLY, true);
     return objectMapper.writeValueAsString(metricQueryResults);
   }
-  private static class MetricQueryResultsSerializer extends StdSerializer<MetricQueryResults> {
-
-    public MetricQueryResultsSerializer() {
-      super(MetricQueryResults.class);
-    }
-
-    @Override
-    public void serialize(
-        MetricQueryResults metricQueryResults,
-        JsonGenerator jsonGenerator,
-        SerializerProvider serializerProvider)
-        throws IOException {
-      jsonGenerator.writeStartObject();
-
-      jsonGenerator.writeArrayFieldStart("counters");
-      for (MetricResult<Long> result : metricQueryResults.counters()){
-        jsonGenerator.writeStartObject();
-        String name = result.name().namespace() + "/"  + result.name().name();
-        jsonGenerator.writeStringField("name", name);
-        String step = result.step();
-        jsonGenerator.writeStringField("step", step);
-        Long attempted = result.attempted();
-        jsonGenerator.writeNumberField("attempted", attempted);
-        jsonGenerator.writeEndObject();
-      }
-      jsonGenerator.writeEndArray();
-
-      jsonGenerator.writeArrayFieldStart("distributions");
-      for (MetricResult<DistributionResult> result : metricQueryResults.distributions()){
-        jsonGenerator.writeStartObject();
-        String name = result.name().namespace() + "/"  + result.name().name();
-        jsonGenerator.writeStringField("name", name);
-        String step = result.step();
-        jsonGenerator.writeStringField("step", step);
-        DistributionResult attempted = result.attempted();
-        jsonGenerator.writeFieldName("attempted");
-        jsonGenerator.writeStartObject();
-        jsonGenerator.writeNumberField("min", attempted.min());
-        jsonGenerator.writeNumberField("max", attempted.max());
-        jsonGenerator.writeNumberField("sum", attempted.sum());
-        jsonGenerator.writeNumberField("count", attempted.count());
-        jsonGenerator.writeNumberField("mean", attempted.mean());
-        jsonGenerator.writeEndObject();
-
-        jsonGenerator.writeEndObject();
-      }
-      jsonGenerator.writeEndArray();
-
-      jsonGenerator.writeArrayFieldStart("gauges");
-      for (MetricResult<GaugeResult> result : metricQueryResults.gauges()){
-        jsonGenerator.writeStartObject();
-        String name = result.name().namespace() + "/"  + result.name().name();
-        jsonGenerator.writeStringField("name", name);
-        String step = result.step();
-        jsonGenerator.writeStringField("step", step);
-        GaugeResult attempted = result.attempted();
-        jsonGenerator.writeFieldName("attempted");
-        jsonGenerator.writeStartObject();
-        jsonGenerator.writeNumberField("value", attempted.value());
-        jsonGenerator.writeStringField("timestamp", attempted.timestamp().toString());
-        jsonGenerator.writeEndObject();
-        jsonGenerator.writeEndObject();
-      }
-      jsonGenerator.writeEndArray();
-
-      jsonGenerator.writeEndObject();
-    }
-  }
-
 }
