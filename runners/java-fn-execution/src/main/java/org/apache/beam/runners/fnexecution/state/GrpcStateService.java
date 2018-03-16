@@ -31,7 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An implementation of the Beam Fn State service. */
-public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase implements StateDelegator, FnService {
+public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
+    implements StateDelegator, FnService {
   private static final Logger LOG = LoggerFactory.getLogger(GrpcStateService.class);
   private final ConcurrentHashMap<String, StateRequestHandler> requestHandlers;
 
@@ -60,7 +61,7 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase implem
   /**
    * An inbound {@link StreamObserver} which delegates requests to registered handlers.
    *
-   * Is only threadsafe if the outbound observer is threadsafe.
+   * <p>Is only threadsafe if the outbound observer is threadsafe.
    *
    * <p>TODO: Handle when the client indicates completion or an error on the inbound stream and
    * there are pending requests.
