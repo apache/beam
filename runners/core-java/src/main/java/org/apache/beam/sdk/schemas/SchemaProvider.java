@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.schemas;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -25,6 +28,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * a {@link Schema} for a specific type. One example use: creating a {@link SchemaProvider} that
  * contacts an external schema-registry service to determine the schema for a type.
  */
+@Experimental
 public abstract class SchemaProvider {
 
   /**
@@ -32,4 +36,15 @@ public abstract class SchemaProvider {
    */
   public abstract <T>  Schema schemaFor(TypeDescriptor<T> typeDescriptor)
       throws NoSuchSchemaException;
+
+  /**
+   * Given atype, return a function that converts that type to a {@link Row} object.
+   */
+  public abstract <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor);
+
+  /**
+   * Given a type, returns a function that converts from a {@link Row} object to that type.
+   */
+  public abstract <T> SerializableFunction<Row, T> fromRowFunction(
+      TypeDescriptor<T> typeDescriptor);
 }
