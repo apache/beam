@@ -30,6 +30,9 @@ import org.apache.beam.sdk.values.Row;
 
 /**
  * {@link Schema} describes the fields in {@link Row}.
+ *
+ * TODO: Currently this is a mpaping of field names to Coders. We want this to instead directly
+ * represent a schema, with direct support for nested schemas.
  */
 @Experimental
 @AutoValue
