@@ -75,6 +75,8 @@ public class MetricsPusherTest {
         GenerateSequence.from(0).to(NUM_ELEMENTS).withMaxReadTime(Duration.standardDays(1)))
         .apply(ParDo.of(new CountingDoFn()));
     pipeline.run();
+    // give metrics pusher time to push
+    Thread.sleep((pipeline.getOptions().getMetricsPushPeriod() + 1L) * 1000);
     assertThat(TestMetricsSink.getCounterValue(), is(NUM_ELEMENTS));
   }
 }
