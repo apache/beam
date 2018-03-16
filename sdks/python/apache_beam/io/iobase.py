@@ -839,9 +839,21 @@ class Read(ptransform.PTransform):
     self.source = source
 
   def expand(self, pbegin):
+    from apache_beam.options.pipeline_options import DebugOptions
+
     assert isinstance(pbegin, pvalue.PBegin)
     self.pipeline = pbegin.pipeline
-    return pvalue.PCollection(self.pipeline)
+
+    debug_options = self.pipeline.options.view_as(DebugOptions)
+    if debug_options.experiments and 'beam_fn_api' in debug_options.experiments:
+      return (
+        pbegin
+        | core.Impulse()
+        | core.ParDo(_SplitSourceFn(self.source))
+        | core.Reshuffle()
+        | core.ParDo(_ReadSplitsFn(self.source)))
+    else:
+      return pvalue.PCollection(self.pipeline)
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
@@ -875,6 +887,27 @@ ptransform.PTransform.register_urn(
     beam_runner_api_pb2.ReadPayload,
     Read.from_runner_api_parameter)
 
+class _SplitSourceFn(core.DoFn):
+  """A DoFn for getting the splits from a ``BoundedSource``."""
+
+  def __init__(self, source):
+    self.source = source
+
+  def process(self, element):
+    for split in self.source.split(3000):
+      yield split
+
+class _ReadSplitsFn(core.DoFn):
+  """A DoFn that gets splits as input and reads from a ``BoundedSource``."""
+
+  def __init__(self, source):
+    self.source = source
+
+  def process(self, split):
+    range_tracker = self.source.get_range_tracker(
+      split.start_position, split.stop_position)
+    for element in self.source.read(range_tracker):
+      yield element
 
 class Write(ptransform.PTransform):
   """A ``PTransform`` that writes to a sink.
