@@ -309,7 +309,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		// URL Query-escaped windowed _unnested_ value. It is read back in
 		// a nested context at runtime.
 		var buf bytes.Buffer
-		if err := exec.EncodeWindowedValueHeader(c, beam.EventTime(time.Time{}), &buf); err != nil {
+		if err := exec.EncodeWindowedValueHeader(c, beam.EventTime(time.Now()), &buf); err != nil {
 			return "", properties{}, err
 		}
 		value := string(append(buf.Bytes(), edge.Value...))

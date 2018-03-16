@@ -282,6 +282,9 @@ func (c *kvDecoder) Decode(r io.Reader) (FullValue, error) {
 func EncodeWindowedValueHeader(c *coder.Coder, t typex.EventTime, w io.Writer) error {
 	// Encoding: Timestamp, Window, Pane (header) + Element
 
+	if (time.Time)(t).IsZero() {
+		t = typex.EventTime(time.Now())
+	}
 	if err := coder.EncodeEventTime(t, w); err != nil {
 		return err
 	}
