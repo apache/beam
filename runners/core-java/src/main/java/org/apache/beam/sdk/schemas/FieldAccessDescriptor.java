@@ -40,5 +40,5 @@ public class FieldAccessDescriptor {
 
   // TODO: FieldAccessDescriptor currently assumes all fields are top level. Once we have native
   // support for nested schemas, we will need to boost this API to support addressing nested
-  // fields.
+  // fields (possibly using nested FieldAccessDescriptor objects).
 }
