@@ -547,7 +547,7 @@ public class BigQueryIO {
       abstract Builder<T> setUseLegacySql(Boolean useLegacySql);
       abstract Builder<T> setWithTemplateCompatibility(Boolean useTemplateCompatibility);
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
-      abstract Builder<T> setPriority(Priority priority);
+      abstract Builder<T> setQueryPriority(QueryPriority priority);
       abstract TypedRead<T> build();
 
       abstract Builder<T> setParseFn(
@@ -567,7 +567,7 @@ public class BigQueryIO {
 
     abstract SerializableFunction<SchemaAndRecord, T> getParseFn();
 
-    @Nullable abstract Priority getPriority();
+    @Nullable abstract QueryPriority getQueryPriority();
 
     @Nullable abstract Coder<T> getCoder();
 
@@ -578,7 +578,7 @@ public class BigQueryIO {
     * <a href="https://cloud.google.com/bigquery/docs/running-queries">
     *     Running Interactive and Batch Queries in the BigQuery documentation</a>
     */
-    public enum Priority {
+    public enum QueryPriority {
         /**
         * Specifies that a query should be run with an INTERACTIVE priority.
         *
@@ -631,7 +631,7 @@ public class BigQueryIO {
                 getBigQueryServices(),
                 coder,
                 getParseFn(),
-                getPriority());
+                MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH));
       }
       return source;
     }
@@ -701,6 +701,9 @@ public class BigQueryIO {
 
       if (table != null) {
         checkArgument(getQuery() == null, "from() and fromQuery() are exclusive");
+        checkArgument(
+            getQueryPriority() == null,
+            "withQueryPriority() can only be specified when using fromQuery()");
         checkArgument(
             getFlattenResults() == null,
             "Invalid BigQueryIO.Read: Specifies a table with a result flattening"
@@ -930,17 +933,11 @@ public class BigQueryIO {
       return toBuilder().setUseLegacySql(false).build();
     }
 
-    /** See {@link Priority#INTERACTIVE}. */
-    public TypedRead<T> usingInteractivePriority() {
-      return toBuilder().setPriority(Priority.INTERACTIVE).build();
+    /** See {@link QueryPriority}. */
+    public TypedRead<T> withQueryPriority(QueryPriority priority) {
+      return toBuilder().setQueryPriority(priority).build();
     }
 
-    /** See {@link Priority#BATCH}. */
-    public TypedRead<T> usingBatchPriority() {
-      return toBuilder().setPriority(Priority.BATCH).build();
-    }
-
-    /** See {@link TypedRead#withTemplateCompatibility()}. */
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public TypedRead<T> withTemplateCompatibility() {
       return toBuilder().setWithTemplateCompatibility(true).build();

@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Priority;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -59,7 +59,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
-      Priority priority) {
+      QueryPriority priority) {
     return new BigQueryQuerySource<>(
         stepUuid, query, flattenResults, useLegacySql, bqServices, coder, parseFn, priority);
   }
@@ -68,7 +68,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   private final Boolean flattenResults;
   private final Boolean useLegacySql;
   private transient AtomicReference<JobStatistics> dryRunJobStats;
-  private final Priority priority;
+  private final QueryPriority priority;
 
   private BigQueryQuerySource(
       String stepUuid,
@@ -78,18 +78,13 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
-      Priority priority) {
+      QueryPriority priority) {
     super(stepUuid, bqServices, coder, parseFn);
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
     this.dryRunJobStats = new AtomicReference<>();
-    if (priority != BigQueryIO.TypedRead.Priority.BATCH
-        || priority != BigQueryIO.TypedRead.Priority.INTERACTIVE) {
-        this.priority = BigQueryIO.TypedRead.Priority.BATCH;
-    } else {
-        this.priority = priority;
-    }
+    this.priority = priority;
   }
 
   @Override
@@ -111,9 +106,10 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       location = tableService.getTable(queryTable).getLocation();
     }
 
+    String jobIdToken = createJobIdToken(bqOptions.getJobName(), stepUuid);
+
     // 2. Create the temporary dataset in the query location.
-    TableReference tableToExtract = createTempTableReference(
-        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
+    TableReference tableToExtract = createTempTableReference(bqOptions.getProject(), jobIdToken);
 
     LOG.info("Creating temporary dataset {} for query results", tableToExtract.getDatasetId());
     tableService.createDataset(
@@ -128,17 +124,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         24 * 3600 * 1000L /* 1 day */);
 
     // 3. Execute the query.
-    String queryJobId = createJobIdToken(bqOptions.getJobName(), stepUuid) + "-query";
-    LOG.info(
-        "Exporting query results into temporary table {} using job {}",
-        tableToExtract,
-        queryJobId);
     executeQuery(
-        bqOptions.getProject(),
-        queryJobId,
-        tableToExtract,
-        bqServices.getJobService(bqOptions));
-    LOG.info("Query job {} completed", queryJobId);
+        jobIdToken, bqOptions.getProject(), tableToExtract, bqServices.getJobService(bqOptions));
 
     return tableToExtract;
   }
@@ -172,28 +159,43 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   }
 
   private void executeQuery(
+      String jobIdToken,
       String executingProject,
-      String jobId,
       TableReference destinationTable,
       JobService jobService) throws IOException, InterruptedException {
+    // Generate a transient (random) query job ID, because this code may be retried after the
+    // temporary dataset and table have already been deleted by a previous attempt -
+    // in that case we want to re-generate the temporary dataset and table, and we'll need
+    // a fresh query job to do that.
+    String queryJobId = jobIdToken + "-query-" + BigQueryHelpers.randomUUIDString();
+
+    LOG.info(
+        "Exporting query results into temporary table {} using job {}",
+        destinationTable,
+        queryJobId);
+
     JobReference jobRef = new JobReference()
         .setProjectId(executingProject)
-        .setJobId(jobId);
+        .setJobId(queryJobId);
 
     JobConfigurationQuery queryConfig = createBasicQueryConfig()
         .setAllowLargeResults(true)
         .setCreateDisposition("CREATE_IF_NEEDED")
         .setDestinationTable(destinationTable)
         .setPriority(this.priority.name())
-        .setWriteDisposition("WRITE_EMPTY");
+        // Overwrite contents of the temporary table - it can only already exist if this
+        // is a retry of the splitting task, in which case we must not produce duplicate data.
+        .setWriteDisposition("WRITE_TRUNCATE");
 
     jobService.startQueryJob(jobRef, queryConfig);
     Job job = jobService.pollJob(jobRef, JOB_POLL_MAX_RETRIES);
     if (BigQueryHelpers.parseStatus(job) != Status.SUCCEEDED) {
       throw new IOException(String.format(
-          "Query job %s failed, status: %s.", jobId,
+          "Query job %s failed, status: %s.", queryJobId,
           BigQueryHelpers.statusToPrettyString(job.getStatus())));
     }
+
+    LOG.info("Query job {} completed", queryJobId);
   }
 
   private JobConfigurationQuery createBasicQueryConfig() {
