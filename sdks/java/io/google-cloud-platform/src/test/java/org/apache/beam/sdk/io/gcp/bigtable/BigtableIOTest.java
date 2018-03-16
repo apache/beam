@@ -99,6 +99,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
+import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -593,6 +594,180 @@ public class BigtableIOTest {
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSamples));
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
+  }
+
+  private void assertAllSourcesHaveSingleAdjacentRanges(List<BigtableSource> sources) {
+    if (sources.size() > 0) {
+      assertThat(sources.get(0).getRanges(), hasSize(1));
+      for (int i = 1; i < sources.size(); i++) {
+        assertThat(sources.get(i).getRanges(), hasSize(1));
+        ByteKey lastEndKey = sources.get(i - 1).getRanges().get(0).getEndKey();
+        ByteKey currentStartKey = sources.get(i).getRanges().get(0).getStartKey();
+        assertEquals(lastEndKey, currentStartKey);
+      }
+    }
+  }
+
+  private void assertAllSourcesHaveSingleRanges(List<BigtableSource> sources) {
+    for (BigtableSource source : sources) {
+      assertThat(source.getRanges(), hasSize(1));
+    }
+  }
+
+  private ByteKey createByteKey(int key) {
+    return ByteKey.copyFrom(String.format("key%09d", key).getBytes());
+  }
+
+  /** Tests reduce splits with few non adjacent ranges. */
+  @Test
+  public void testReduceSplitsWithSomeNonAdjacentRanges() throws Exception {
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
+    final int numRows = 10;
+    final int numSamples = 10;
+    final long bytesPerRow = 100L;
+    final int maxSplit = 3;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    //Construct few non contiguous key ranges [..1][1..2][3..4][4..5][6..7][8..9]
+    List<ByteKeyRange> keyRanges = Arrays.asList(
+        ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
+        ByteKeyRange.of(createByteKey(1), createByteKey(2)),
+        ByteKeyRange.of(createByteKey(3), createByteKey(4)),
+        ByteKeyRange.of(createByteKey(4), createByteKey(5)),
+        ByteKeyRange.of(createByteKey(6), createByteKey(7)),
+        ByteKeyRange.of(createByteKey(8), createByteKey(9)));
+
+    //Expected ranges after split and reduction by maxSplitCount is [..2][3..5][6..7][8..9]
+    List<ByteKeyRange> expectedKeyRangesAfterReducedSplits = Arrays.asList(
+        ByteKeyRange.of(ByteKey.EMPTY, createByteKey(2)),
+        ByteKeyRange.of(createByteKey(3), createByteKey(5)),
+        ByteKeyRange.of(createByteKey(6), createByteKey(7)),
+        ByteKeyRange.of(createByteKey(8), createByteKey(9)));
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
+            null /*filter*/,
+            keyRanges,
+            null /*size*/);
+
+    List<BigtableSource> splits =
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
+
+    assertThat(splits, hasSize(keyRanges.size()));
+
+    List<BigtableSource> reducedSplits =
+        source.reduceSplits(splits, null, maxSplit);
+
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+
+    for (BigtableSource splitSource : reducedSplits) {
+      actualRangesAfterSplit.addAll(splitSource.getRanges());
+    }
+
+    assertAllSourcesHaveSingleRanges(reducedSplits);
+
+    assertThat(actualRangesAfterSplit,
+        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+  }
+
+  /** Tests reduce split with all non adjacent ranges. */
+  @Test
+  public void testReduceSplitsWithAllNonAdjacentRange() throws Exception {
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
+    final int numRows = 10;
+    final int numSamples = 10;
+    final long bytesPerRow = 100L;
+    final int maxSplit = 3;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    //Construct non contiguous key ranges [..1][2..3][4..5][6..7][8..9]
+    List<ByteKeyRange> keyRanges = Arrays.asList(
+        ByteKeyRange.of(ByteKey.EMPTY, createByteKey(1)),
+        ByteKeyRange.of(createByteKey(2), createByteKey(3)),
+        ByteKeyRange.of(createByteKey(4), createByteKey(5)),
+        ByteKeyRange.of(createByteKey(6), createByteKey(7)),
+        ByteKeyRange.of(createByteKey(8), createByteKey(9)));
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
+            null /*filter*/,
+            keyRanges,
+            null /*size*/);
+
+    List<BigtableSource> splits =
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
+
+    assertThat(splits, hasSize(keyRanges.size()));
+
+    List<BigtableSource> reducedSplits =
+        source.reduceSplits(splits, null, maxSplit);
+
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+
+    for (BigtableSource splitSource : reducedSplits) {
+      actualRangesAfterSplit.addAll(splitSource.getRanges());
+    }
+
+    assertAllSourcesHaveSingleRanges(reducedSplits);
+
+    //The expected split source ranges are exactly same as original
+    assertThat(actualRangesAfterSplit,
+        IsIterableContainingInOrder.contains(keyRanges.toArray()));
+  }
+
+  /** Tests reduce Splits with all adjacent ranges. */
+  @Test
+  public void tesReduceSplitsWithAdjacentRanges() throws Exception {
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE";
+    final int numRows = 10;
+    final int numSamples = 10;
+    final long bytesPerRow = 100L;
+    final int maxSplit = 3;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(config.withTableId(ValueProvider.StaticValueProvider.of(table)),
+            null /*filter*/,
+            Arrays.asList(ByteKeyRange.ALL_KEYS),
+            null /*size*/);
+
+    List<BigtableSource> splits =
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
+
+    assertThat(splits, hasSize(numSamples));
+
+    //Splits Source have ranges [..1][1..2][2..3][3..4][4..5][5..6][6..7][7..8][8..9][9..]
+    //expected reduced Split source ranges are [..4][4..8][8..]
+    List<ByteKeyRange> expectedKeyRangesAfterReducedSplits = Arrays.asList(
+        ByteKeyRange.of(ByteKey.EMPTY, createByteKey(4)),
+        ByteKeyRange.of(createByteKey(4), createByteKey(8)),
+        ByteKeyRange.of(createByteKey(8), ByteKey.EMPTY));
+
+    List<BigtableSource> reducedSplits =
+        source.reduceSplits(splits, null, maxSplit);
+
+    List<ByteKeyRange> actualRangesAfterSplit = new ArrayList<ByteKeyRange>();
+
+    for (BigtableSource splitSource : reducedSplits) {
+      actualRangesAfterSplit.addAll(splitSource.getRanges());
+    }
+
+    assertThat(actualRangesAfterSplit,
+        IsIterableContainingInOrder.contains(expectedKeyRangesAfterReducedSplits.toArray()));
+    assertAllSourcesHaveSingleAdjacentRanges(reducedSplits);
+    assertSourcesEqualReferenceSource(source, reducedSplits, null /* options */);
   }
 
   /** Tests reading all rows from a split table with several key ranges. */
