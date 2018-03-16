@@ -18,15 +18,13 @@
 
 package org.apache.beam.runners.core.construction.graph;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -124,14 +122,20 @@ public class NetworksTest {
   @Test
   public void testNodeReplacement() {
     Function<String, String> function =
-        input ->
-            "E".equals(input) || "J".equals(input) || "M".equals(input) || "O".equals(input)
-                ? input.toLowerCase()
-                : input;
+        input -> {
+          if ("E".equals(input) || "J".equals(input) || "M".equals(input) || "O".equals(input)) {
+            return input.toLowerCase();
+          }
+          checkArgument(
+              !input.toLowerCase().equals(input),
+              "All inputs should be in upper case, got %s. "
+                  + "This may indicate calling the function on multiple inputs",
+              input);
+          return input;
+        };
 
-    Function<String, String> spiedFunction = spy(function);
     MutableNetwork<String, String> network = createNetwork();
-    Networks.replaceDirectedNetworkNodes(network, spiedFunction);
+    Networks.replaceDirectedNetworkNodes(network, function);
     MutableNetwork<String, String> originalNetwork = createNetwork();
     for (String node : originalNetwork.nodes()) {
       assertEquals(
@@ -141,8 +145,6 @@ public class NetworksTest {
               .map(function)
               .collect(Collectors.toCollection(HashSet::new)),
           network.successors(function.apply(node)));
-      // Ensure that the transform function was only called once
-      verify(spiedFunction, times(1)).apply(node);
     }
     assertEquals(
         network.nodes(),
