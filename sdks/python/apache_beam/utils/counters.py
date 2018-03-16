@@ -98,6 +98,9 @@ class CounterName(_CounterName):
   def __repr__(self):
     return '<CounterName<%s> at %s>' % (self._str_internal(), hex(id(self)))
 
+  def __str__(self):
+    return self._str_internal()
+
   def _str_internal(self):
     if self.origin == CounterName.USER:
       return 'user-%s-%s' % (self.step_name, self.name)
