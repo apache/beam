@@ -230,9 +230,10 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
   @Override
   public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {
     Instant delayedUntil = context.state().access(DELAYED_UNTIL_TAG).read();
+    Instant currentTime = getCurrentTime(context);
     return delayedUntil != null
-        && getCurrentTime(context) != null
-        && getCurrentTime(context).isAfter(delayedUntil);
+            && currentTime != null
+            && (currentTime.isEqual(delayedUntil) || currentTime.isAfter(delayedUntil));
   }
 
   @Override
