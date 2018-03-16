@@ -32,6 +32,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
+import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -195,8 +196,8 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   public <T> BundleProcessor<T> getProcessor(
-      final BeamFnApi.ProcessBundleDescriptor descriptor,
-      final RemoteInputDestination<WindowedValue<T>> remoteInputDesination) {
+      BeamFnApi.ProcessBundleDescriptor descriptor,
+      RemoteInputDestination<WindowedValue<T>> remoteInputDesination) {
     try {
       return clientProcessors.get(
           descriptor.getId(),
@@ -249,21 +250,7 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {}
-
-  /**
-   * A pair of {@link Coder} and {@link BeamFnApi.Target} which can be handled by the remote SDK
-   * harness to receive elements sent from the runner.
-   */
-  @AutoValue
-  public abstract static class RemoteInputDestination<T> {
-    public static <T> RemoteInputDestination<T> of(Coder<T> coder, BeamFnApi.Target target) {
-      return new AutoValue_SdkHarnessClient_RemoteInputDestination(coder, target);
-    }
-
-    public abstract Coder<T> getCoder();
-    public abstract BeamFnApi.Target getTarget();
-  }
+  public void close() {}
 
   /**
    * A pair of {@link Coder} and {@link FnDataReceiver} which can be registered to receive elements
@@ -272,7 +259,7 @@ public class SdkHarnessClient implements AutoCloseable {
   @AutoValue
   public abstract static class RemoteOutputReceiver<T> {
     public static <T> RemoteOutputReceiver of (Coder<T> coder, FnDataReceiver<T> receiver) {
-      return new AutoValue_SdkHarnessClient_RemoteOutputReceiver(coder, receiver);
+      return new AutoValue_SdkHarnessClient_RemoteOutputReceiver<>(coder, receiver);
     }
 
     public abstract Coder<T> getCoder();
