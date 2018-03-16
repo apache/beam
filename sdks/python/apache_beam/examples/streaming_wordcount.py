@@ -52,7 +52,7 @@ def run(argv=None):
       help=('Input PubSub topic of the form '
             '"projects/<PROJECT>/topics/<TOPIC>".'))
   group.add_argument(
-      '--input_sub',
+      '--input_subscription',
       help=('Input PubSub subscription of the form '
             '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
   known_args, pipeline_args = parser.parse_known_args(argv)
@@ -62,8 +62,9 @@ def run(argv=None):
   with beam.Pipeline(options=options) as p:
 
     # Read from PubSub into a PCollection.
-    if known_args.input_sub:
-      lines = p | beam.io.ReadStringsFromPubSub(subscription=known_args.input_sub)
+    if known_args.input_subscription:
+      lines = p | beam.io.ReadStringsFromPubSub(
+          subscription=known_args.input_subscription)
     else:
       lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
 
