@@ -64,7 +64,7 @@ build.dependsOn buildPython
 task lint (dependsOn: 'setupTest') {
   doLast {
     exec {
-      commandLine 'tox', '-e', 'lint', '-c', 'tox.ini'
+      commandLine 'tox', '-e', 'py27-lint', '-c', 'tox.ini'
     }
   }
 }
@@ -74,7 +74,7 @@ check.dependsOn lint
 task testCython (dependsOn: ['setupTest', 'testPython', 'testGcp']) {
   doLast {
     exec {
-      commandLine 'tox', '-e', 'py27cython', '-c', 'tox.ini'
+      commandLine 'tox', '-e', 'py27-cython', '-c', 'tox.ini'
     }
   }
 }
@@ -83,7 +83,7 @@ test.dependsOn testCython
 task testGcp (dependsOn: 'setupTest') {
   doLast {
     exec {
-      commandLine 'tox', '-e', 'py27gcp', '-c', 'tox.ini'
+      commandLine 'tox', '-e', 'py27-gcp', '-c', 'tox.ini'
     }
   }
 }
