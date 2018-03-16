@@ -25,7 +25,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 /**
  * A graph node which contains some pipeline element.
  */
-interface PipelineNode {
+public interface PipelineNode {
   static PTransformNode pTransform(String id, PTransform transform) {
     return new AutoValue_PipelineNode_PTransformNode(id, transform);
   }

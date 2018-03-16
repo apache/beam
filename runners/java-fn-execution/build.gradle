@@ -35,6 +35,7 @@ dependencies {
   shadow project(path: ":model:fn-execution", configuration: "shadow")
   shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow project(path: ":sdks:java:fn-execution", configuration: "shadow")
+  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.grpc_netty
