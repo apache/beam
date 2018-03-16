@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.data;
+package org.apache.beam.sdk.fn.data;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
@@ -29,7 +29,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -112,7 +111,7 @@ public class CompletableFutureInboundDataClientTest {
 
   @Test
   public void testCompleteBackingFuture() throws Exception {
-    CompletableFuture<Void> future = new CompletableFuture<>();
+    CompletableFuture<Object> future = new CompletableFuture<>();
     InboundDataClient client = CompletableFutureInboundDataClient.forBackingFuture(future);
 
     assertThat(future.isDone(), is(false));
@@ -128,7 +127,7 @@ public class CompletableFutureInboundDataClientTest {
 
   @Test
   public void testCancelBackingFuture() throws Exception {
-    CompletableFuture<Void> future = new CompletableFuture<>();
+    CompletableFuture<Object> future = new CompletableFuture<>();
     InboundDataClient client = CompletableFutureInboundDataClient.forBackingFuture(future);
 
     assertThat(future.isDone(), is(false));
@@ -146,7 +145,7 @@ public class CompletableFutureInboundDataClientTest {
 
   @Test
   public void testFailBackingFuture() throws Exception {
-    CompletableFuture<Void> future = new CompletableFuture<>();
+    CompletableFuture<Object> future = new CompletableFuture<>();
     InboundDataClient client = CompletableFutureInboundDataClient.forBackingFuture(future);
 
     assertThat(future.isDone(), is(false));

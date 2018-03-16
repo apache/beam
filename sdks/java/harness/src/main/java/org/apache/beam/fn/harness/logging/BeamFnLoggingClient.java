@@ -88,6 +88,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
    */
   private static final int MAX_BUFFERED_LOG_ENTRY_COUNT = 10_000;
 
+  private static final Object COMPLETED = new Object();
+
   /* We need to store a reference to the configured loggers so that they are not
    * garbage collected. java.util.logging only has weak references to the loggers
    * so if they are garbage collected, our hierarchical configuration will be lost. */
@@ -323,7 +325,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
     @Override
     public void onCompleted() {
-      inboundObserverCompletion.complete(null);
+      inboundObserverCompletion.complete(COMPLETED);
     }
 
   }

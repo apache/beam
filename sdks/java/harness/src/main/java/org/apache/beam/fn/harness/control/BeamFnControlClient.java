@@ -65,7 +65,7 @@ public class BeamFnControlClient {
   private final EnumMap<BeamFnApi.InstructionRequest.RequestCase,
                         ThrowingFunction<BeamFnApi.InstructionRequest,
                                          BeamFnApi.InstructionResponse.Builder>> handlers;
-  private final CompletableFuture<Void> onFinish;
+  private final CompletableFuture<Object> onFinish;
 
   public BeamFnControlClient(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
@@ -87,11 +87,14 @@ public class BeamFnControlClient {
     this.onFinish = new CompletableFuture<>();
   }
 
+  private static final Object COMPLETED = new Object();
+
   /**
    * A {@link StreamObserver} for the inbound stream that completes the future on stream
    * termination.
    */
   private class InboundObserver implements StreamObserver<BeamFnApi.InstructionRequest> {
+
     @Override
     public void onNext(BeamFnApi.InstructionRequest value) {
       LOG.debug("Received InstructionRequest {}", value);
@@ -107,7 +110,7 @@ public class BeamFnControlClient {
     @Override
     public void onCompleted() {
       placePoisonPillIntoQueue();
-      onFinish.complete(null);
+      onFinish.complete(COMPLETED);
     }
 
     /**

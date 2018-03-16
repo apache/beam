@@ -18,26 +18,36 @@
 
 package org.apache.beam.sdk.fn.data;
 
-import com.google.common.util.concurrent.SettableFuture;
+import java.util.concurrent.CompletableFuture;
 
-/** An {@link InboundDataClient} backed by a {@link SettableFuture}. */
-class SettableFutureInboundDataClient implements InboundDataClient {
+/**
+ * An {@link InboundDataClient} backed by a {@link CompletableFuture}.
+ */
+public class CompletableFutureInboundDataClient implements InboundDataClient {
+  private static final Object COMPLETED = new Object();
+  /**
+   * Create a new {@link CompletableFutureInboundDataClient} using a new {@link CompletableFuture}.
+   */
   public static InboundDataClient create() {
-    return createWithBackingFuture(SettableFuture.<Void>create());
+    return forBackingFuture(new CompletableFuture<>());
   }
 
-  static InboundDataClient createWithBackingFuture(SettableFuture<Void> future) {
-    return new SettableFutureInboundDataClient(future);
+  /**
+   * Create a new {@link CompletableFutureInboundDataClient} wrapping the provided
+   * {@link CompletableFuture}.
+   */
+  static InboundDataClient forBackingFuture(CompletableFuture<Object> future) {
+    return new CompletableFutureInboundDataClient(future);
   }
 
-  private final SettableFuture<Void> future;
+  private final CompletableFuture<Object> future;
 
-  private SettableFutureInboundDataClient(SettableFuture<Void> future) {
+  private CompletableFutureInboundDataClient(CompletableFuture<Object> future) {
     this.future = future;
   }
 
   @Override
-  public void awaitCompletion() throws InterruptedException, Exception {
+  public void awaitCompletion() throws Exception {
     future.get();
   }
 
@@ -53,11 +63,11 @@ class SettableFutureInboundDataClient implements InboundDataClient {
 
   @Override
   public void complete() {
-    future.set(null);
+    future.complete(COMPLETED);
   }
 
   @Override
   public void fail(Throwable t) {
-    future.setException(t);
+    future.completeExceptionally(t);
   }
 }
