@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.schemas;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -28,19 +31,26 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * {@ink PCollection} that uses {@link SchemaCoder}. This allows users to write pipelines in terms
  * of their own Java types, yet still register schemas for these types.
  */
+@Experimental
 public class SchemaRegistry {
 
   /**
    * Register a schema for a specific {@link Class} type.
    */
-  public void registerSchemaForClass(Class<?> clazz, Schema schema) {
+  public <T> void registerSchemaForClass(Class<T> clazz,
+      Schema schema,
+      SerializableFunction<T, Row> toRow,
+      SerializableFunction<Row, T> fromRow) {
 
   }
 
   /**
    * Register a schema for a specific {@link TypeDescriptor} type.
    */
-  public void registerSchemaForType(TypeDescriptor<?> type, Schema schema) {
+  public <T> void registerSchemaForType(TypeDescriptor<T> type,
+      Schema schema,
+      SerializableFunction<T, Row> toRow,
+      SerializableFunction<Row, T> fromRow) {
 
   }
 
@@ -64,10 +74,42 @@ public class SchemaRegistry {
   }
 
   /**
-   * Get a schema for a given {@link TypeDescriptor} type. If no schema exists, throws
+   * Retrieve a schema for a given {@link TypeDescriptor} type. If no schema exists, throws
    * {@link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
+
+  }
+
+  /**
+   * Rerieve the function that converts an object of the specified type to a {@link Row} object.
+   */
+  public <T> SerializableFunction<T, Row> getToRowFunction(
+      Class<T> clazz) throws NoSuchSchemaException {
+
+  }
+
+  /**
+   * Rerieve the function that converts an object of the specified type to a {@link Row} object.
+   */
+  public <T> SerializableFunction<Row, T> getToRowFunction(
+      TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
+
+  }
+
+  /**
+   * Rerieve the function that converts a {@link Row} object to an object of the specified type.
+   */
+  public <T> SerializableFunction<T, Row> getFromRowFunction(
+      Class<T> clazz) throws NoSuchSchemaException {
+
+  }
+
+  /**
+   * Rerieve the function that converts a {@link Row} object to an object of the specified type.
+   */
+  public <T> SerializableFunction<T, Row> getFromRowFunction(
+      TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
 
   }
 }
