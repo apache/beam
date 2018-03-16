@@ -185,7 +185,6 @@
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
-
     <jaxb-api.version>2.2.2</jaxb-api.version>
 
     <!-- standard binary for kubectl -->
