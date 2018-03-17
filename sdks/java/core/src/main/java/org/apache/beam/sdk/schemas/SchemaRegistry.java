@@ -96,7 +96,7 @@ public class SchemaRegistry {
   /**
    * Rerieve the function that converts an object of the specified type to a {@link Row} object.
    */
-  public <T> SerializableFunction<Row, T> getToRowFunction(
+  public <T> SerializableFunction<T, Row> getToRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
 
   }
@@ -104,7 +104,7 @@ public class SchemaRegistry {
   /**
    * Rerieve the function that converts a {@link Row} object to an object of the specified type.
    */
-  public <T> SerializableFunction<T, Row> getFromRowFunction(
+  public <T> SerializableFunction<Row, T> getFromRowFunction(
       Class<T> clazz) throws NoSuchSchemaException {
 
   }
@@ -112,7 +112,7 @@ public class SchemaRegistry {
   /**
    * Rerieve the function that converts a {@link Row} object to an object of the specified type.
    */
-  public <T> SerializableFunction<T, Row> getFromRowFunction(
+  public <T> SerializableFunction<Row, T> getFromRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
 
   }
