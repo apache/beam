@@ -21,8 +21,11 @@ package org.apache.beam.sdk.schemas;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -37,7 +40,11 @@ public class SchemaCoder<T> extends CustomCoder<T> {
    * TODO: In the future we might want to move schema lookup into coder inference, and have it
    * passed into the coder instead.
    */
-  public static <T> SchemaCoder<T> of(Class<T> clazz) throws NoSuchSchemaException {
+  public static <T> SchemaCoder<T> of(
+      Class<T> clazz,
+      Schema schema,
+      SerializableFunction<T, Row> toRowFunction,
+      SerializableFunction<Row, T> fromRowFunction) throws NoSuchSchemaException {
 
   }
 
@@ -45,11 +52,14 @@ public class SchemaCoder<T> extends CustomCoder<T> {
    * Returns a {@link SchemaCoder} for the specified type. If no schema is registered for this
    * class, then throws {@link NoSuchSchemaException}.
    */
-  public static <T> SchemaCoder<T> of(TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
+  public static <T> SchemaCoder<T> of(
+      TypeDescriptor<T> typeDescriptor,
+      Schema schema,
+      SerializableFunction<T, Row> toRowFunction,
+      SerializableFunction<Row, T> fromRowFunction) throws NoSuchSchemaException {
 
   }
 
-  public static <T> SchemaCoder<T> of(Class<T> clazz, Schema schema)
 
   /**
    * Returns the schema associated with this type.
