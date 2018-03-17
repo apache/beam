@@ -204,7 +204,6 @@ setuptools.setup(
     ]),
     setup_requires=REQUIRED_SETUP_PACKAGES,
     install_requires=REQUIRED_PACKAGES,
-    python_requires='>=2.7,<3.0',
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,
     extras_require={
