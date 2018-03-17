@@ -27,7 +27,6 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
@@ -163,7 +162,7 @@ func mustParseTable(table string) QualifiedTableName {
 // Write writes the elements of the given PCollection<T> to bigquery. T is required
 // to be the schema type.
 func Write(s beam.Scope, project, table string, col beam.PCollection) {
-	t := typex.SkipW(col.Type()).Type()
+	t := col.Type().Type()
 	mustInferSchema(t)
 	qn := mustParseTable(table)
 

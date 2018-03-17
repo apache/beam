@@ -40,8 +40,7 @@ func (n *DataSink) ID() UnitID {
 }
 
 func (n *DataSink) Up(ctx context.Context) error {
-	c := coder.SkipW(n.Coder)
-	n.enc = MakeElementEncoder(c)
+	n.enc = MakeElementEncoder(coder.SkipW(n.Coder))
 	return nil
 }
 
@@ -61,8 +60,7 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 	// unit.
 	var b bytes.Buffer
 
-	c := n.Coder
-	if err := EncodeWindowedValueHeader(c, value.Timestamp, &b); err != nil {
+	if err := EncodeWindowedValueHeader(value.Timestamp, &b); err != nil {
 		return err
 	}
 

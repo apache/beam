@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 )
 
@@ -45,7 +44,7 @@ func (n *CoGBK) ID() exec.UnitID {
 }
 
 func (n *CoGBK) Up(ctx context.Context) error {
-	n.enc = exec.MakeElementEncoder(coder.SkipW(n.Edge.Input[0].From.Coder).Components[0])
+	n.enc = exec.MakeElementEncoder(n.Edge.Input[0].From.Coder.Components[0])
 	n.m = make(map[string]*group)
 	return nil
 }

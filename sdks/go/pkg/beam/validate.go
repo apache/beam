@@ -25,17 +25,17 @@ import (
 // ValidateKVType panics if the type of the PCollection is not KV<A,B>.
 // It returns (A,B).
 func ValidateKVType(col PCollection) (typex.FullType, typex.FullType) {
-	if !typex.IsWKV(col.Type()) {
+	t := col.Type()
+	if !typex.IsKV(t) {
 		panic(fmt.Sprintf("pcollection must be of KV type: %v", col))
 	}
-	t := typex.SkipW(col.Type())
 	return t.Components()[0], t.Components()[1]
 }
 
 // ValidateConcreteType panics if the type of the PCollection is not a
 // composite type. It returns the type.
 func ValidateNonCompositeType(col PCollection) typex.FullType {
-	t := typex.SkipW(col.Type())
+	t := col.Type()
 	if typex.IsComposite(t.Type()) {
 		panic(fmt.Sprintf("pcollection must be of non-composite type: %v", col))
 	}
