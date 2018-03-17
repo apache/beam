@@ -72,7 +72,7 @@ type Inbound struct {
 	//   * Slice:     []typex.T
 	//   * Iter:      func(*typex.X) bool
 	//
-	// If the input type is W<KV<int,string>>, say, then the options are:
+	// If the input type is KV<int,string>, say, then the options are:
 	//
 	//   * Main:      int, string  (as two separate parameters)
 	//   * Map:       map[int]string
@@ -101,8 +101,8 @@ type Inbound struct {
 	//
 	//     func (ctx context.Context, key int, value typex.X) error
 	//
-	// is a generic DoFn that if bound to W<KV<int,string>> would have one
-	// Inbound link with type W<KV<int, X>>.
+	// is a generic DoFn that if bound to KV<int,string> would have one
+	// Inbound link with type KV<int, X>.
 	Type typex.FullType
 }
 
@@ -121,7 +121,7 @@ type Outbound struct {
 	//
 	//     func (ctx context.Context, emit func (key int, value typex.X)) error
 	//
-	// is a generic DoFn that produces one Outbound link of type W<KV<int,X>>.
+	// is a generic DoFn that produces one Outbound link of type KV<int,X>.
 	Type typex.FullType // representation type of data
 }
 
@@ -188,32 +188,32 @@ func NewCoGBK(g *Graph, s *Scope, ns []*Node) (*MultiEdge, error) {
 	if len(ns) == 0 {
 		return nil, fmt.Errorf("cogbk needs at least 1 input")
 	}
-	if !typex.IsWKV(ns[0].Type()) {
+	if !typex.IsKV(ns[0].Type()) {
 		return nil, fmt.Errorf("input type must be KV: %v", ns[0])
 	}
 
 	// (1) Create CoGBK result type: KV<T,U>, .., KV<T,Z> -> CoGBK<T,U,..,Z>.
 
-	c := coder.SkipW(ns[0].Coder).Components[0]
+	c := ns[0].Coder.Components[0]
 	w := ns[0].Window()
-	comp := []typex.FullType{c.T, typex.SkipW(ns[0].Type()).Components()[1]}
+	comp := []typex.FullType{c.T, ns[0].Type().Components()[1]}
 
 	for i := 1; i < len(ns); i++ {
 		n := ns[i]
-		if !typex.IsWKV(n.Type()) {
+		if !typex.IsKV(n.Type()) {
 			return nil, fmt.Errorf("input type must be KV: %v", n)
 		}
-		if !coder.SkipW(n.Coder).Components[0].Equals(c) {
-			return nil, fmt.Errorf("key coder for %v is %v, want %v", n, coder.SkipW(n.Coder).Components[0], c)
+		if !n.Coder.Components[0].Equals(c) {
+			return nil, fmt.Errorf("key coder for %v is %v, want %v", n, n.Coder.Components[0], c)
 		}
 		if !w.Equals(n.Window()) {
 			return nil, fmt.Errorf("mismatched cogbk window types: %v, want %v", n.Window(), w)
 		}
 
-		comp = append(comp, typex.SkipW(n.Type()).Components()[1])
+		comp = append(comp, n.Type().Components()[1])
 	}
 
-	t := typex.NewWCoGBK(comp...)
+	t := typex.NewCoGBK(comp...)
 	out := g.NewNode(t, w)
 
 	// (2) Add CoGBK edge
@@ -243,7 +243,7 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 			return nil, fmt.Errorf("mismatched flatten window types: %v, want %v", n.Window(), w)
 		}
 	}
-	if typex.IsWCoGBK(t) {
+	if typex.IsCoGBK(t) {
 		return nil, fmt.Errorf("flatten input type cannot be CoGBK: %v", t)
 	}
 
@@ -330,7 +330,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 
 	inT := in.Type()
 
-	isPerKey := typex.IsWCoGBK(in.Type())
+	isPerKey := typex.IsCoGBK(inT)
 	if isPerKey {
 		// For per-key combine, the shape of the inbound type and the type of the
 		// inbound node are different: a node type of W<CoGBK<A,B>> will become W<B>
@@ -342,19 +342,18 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 		// However, the outbound type will be W<KV<A,O>> (where O is the output
 		// type) regardless of whether the combineFn is keyed or not.
 
-		t := typex.SkipW(in.Type())
-		if len(t.Components()) > 2 {
-			return nil, fmt.Errorf("combine cannot follow multi-input CoGBK: %v", t)
+		if len(inT.Components()) > 2 {
+			return nil, fmt.Errorf("combine cannot follow multi-input CoGBK: %v", inT)
 		}
 
 		if len(synth.Param) == 1 {
-			inT = typex.NewW(t.Components()[1]) // Drop implicit key for binding purposes
+			inT = inT.Components()[1] // Drop implicit key for binding purposes
 		} else {
-			inT = typex.NewWKV(t.Components()...)
+			inT = typex.NewKV(inT.Components()...)
 		}
 
 		// The runtime always adds the key for the output of per-key combiners.
-		key := t.Components()[0]
+		key := in.Type().Components()[0]
 		synth.Ret = append([]funcx.ReturnParam{{Kind: funcx.RetValue, T: key.Type()}}, synth.Ret...)
 	}
 
@@ -377,10 +376,10 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in *Node) (*MultiEdge, error) 
 // NewImpulse inserts a new Impulse edge into the graph. It must use the
 // built-in bytes coder.
 func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
-	ft := typex.NewW(typex.New(reflectx.ByteSlice))
+	ft := typex.New(reflectx.ByteSlice)
 	w := window.NewGlobalWindow()
 	n := g.NewNode(ft, w)
-	n.Coder = coder.NewW(coder.NewBytes(), w)
+	n.Coder = coder.NewBytes()
 
 	edge := g.NewEdge(s)
 	edge.Op = Impulse

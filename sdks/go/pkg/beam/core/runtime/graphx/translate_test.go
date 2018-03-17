@@ -59,11 +59,11 @@ func pick(t *testing.T, g *graph.Graph) *graph.MultiEdge {
 }
 
 func intT() typex.FullType {
-	return typex.NewW(typex.New(reflectx.Int))
+	return typex.New(reflectx.Int)
 }
 
 func intCoder() *coder.Coder {
-	return coder.NewW(custom("int", reflectx.Int), window.NewGlobalWindow())
+	return custom("int", reflectx.Int)
 }
 
 // TestParDo verifies that ParDo can be serialized.

@@ -278,8 +278,8 @@ func (c *kvDecoder) Decode(r io.Reader) (FullValue, error) {
 
 // TODO(herohde) 4/7/2017: actually handle windows.
 
-// EncodeWindowedValueHeader uses the supplied coder to serialize a windowed value header.
-func EncodeWindowedValueHeader(c *coder.Coder, t typex.EventTime, w io.Writer) error {
+// EncodeWindowedValueHeader serializes a windowed value header.
+func EncodeWindowedValueHeader(t typex.EventTime, w io.Writer) error {
 	// Encoding: Timestamp, Window, Pane (header) + Element
 
 	if (time.Time)(t).IsZero() {
@@ -297,8 +297,8 @@ func EncodeWindowedValueHeader(c *coder.Coder, t typex.EventTime, w io.Writer) e
 	return err
 }
 
-// DecodeWindowedValueHeader uses the supplied coder to deserialize a windowed value header.
-func DecodeWindowedValueHeader(c *coder.Coder, r io.Reader) (typex.EventTime, error) {
+// DecodeWindowedValueHeader deserializes a windowed value header.
+func DecodeWindowedValueHeader(r io.Reader) (typex.EventTime, error) {
 	// Encoding: Timestamp, Window, Pane (header) + Element
 
 	t, err := coder.DecodeEventTime(r)

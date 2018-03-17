@@ -63,14 +63,14 @@ func (n *DataSource) Process(ctx context.Context) error {
 	}
 	defer r.Close()
 
-	c := n.Coder
+	c := coder.SkipW(n.Coder)
 	switch {
-	case coder.IsWCoGBK(c):
-		ck := MakeElementDecoder(coder.SkipW(c).Components[0])
-		cv := MakeElementDecoder(coder.SkipW(c).Components[1])
+	case coder.IsCoGBK(c):
+		ck := MakeElementDecoder(c.Components[0])
+		cv := MakeElementDecoder(c.Components[1])
 
 		for {
-			t, err := DecodeWindowedValueHeader(c, r)
+			t, err := DecodeWindowedValueHeader(r)
 			if err != nil {
 				if err == io.EOF {
 					return nil
@@ -143,11 +143,11 @@ func (n *DataSource) Process(ctx context.Context) error {
 		}
 
 	default:
-		ec := MakeElementDecoder(coder.SkipW(c))
+		ec := MakeElementDecoder(c)
 
 		for {
 			atomic.AddInt64(&n.count, 1)
-			t, err := DecodeWindowedValueHeader(c, r)
+			t, err := DecodeWindowedValueHeader(r)
 			if err != nil {
 				if err == io.EOF {
 					return nil
