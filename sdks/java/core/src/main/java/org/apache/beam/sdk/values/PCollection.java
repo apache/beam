@@ -33,9 +33,14 @@ import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -86,7 +91,8 @@ public class PCollection<T> extends PValueBase implements PValue {
   @Override
   public void finishSpecifyingOutput(
       String transformName, PInput input, PTransform<?, ?> transform) {
-    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
+    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry(),
+        getPipeline().getSchemaRegistry());
     super.finishSpecifyingOutput(transformName, input, transform);
   }
 
@@ -101,7 +107,8 @@ public class PCollection<T> extends PValueBase implements PValue {
     if (isFinishedSpecifying()) {
       return;
     }
-    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry());
+    this.coderOrFailure = inferCoderOrFail(input, transform, getPipeline().getCoderRegistry(),
+        getPipeline().getSchemaRegistry());
     // Ensure that this TypedPValue has a coder by inferring the coder if none exists; If not,
     // this will throw an exception.
     getCoder();
@@ -126,7 +133,8 @@ public class PCollection<T> extends PValueBase implements PValue {
    */
   @SuppressWarnings({"unchecked", "rawtypes"})
   private CoderOrFailure<T> inferCoderOrFail(
-      PInput input, PTransform<?, ?> transform, CoderRegistry registry) {
+      PInput input, PTransform<?, ?> transform, CoderRegistry coderRegistry,
+      SchemaRegistry schemaRegistry) {
     // First option for a coder: use the Coder set on this PValue.
     if (coderOrFailure.coder != null) {
       return coderOrFailure;
@@ -146,7 +154,7 @@ public class PCollection<T> extends PValueBase implements PValue {
     CannotProvideCoderException inferFromTokenException = null;
     if (token != null) {
       try {
-        return new CoderOrFailure<>(registry.getCoder(token), null);
+        return new CoderOrFailure<>(coderRegistry.getCoder(token), null);
       } catch (CannotProvideCoderException exc) {
         inferFromTokenException = exc;
         // Attempt to detect when the token came from a TupleTag used for a ParDo output,
@@ -160,6 +168,20 @@ public class PCollection<T> extends PValueBase implements PValue {
               + "TupleTag for this output is constructed with proper type information (see "
               + "TupleTag Javadoc) or explicitly set the Coder to use if this is not possible.");
         }
+      }
+    }
+
+    // If there is a schema registered for the type, attempt to create a SchemaCoder.
+    if (token != null) {
+      try {
+        SchemaCoder<T> schemaCoder = SchemaCoder.of(
+            token,
+            schemaRegistry.getSchema(token),
+            schemaRegistry.getToRowFunction(token),
+            schemaRegistry.getFromRowFunction(token));
+        return new CoderOrFailure<>(schemaCoder, null);
+      } catch (NoSuchSchemaException esc) {
+        // No schema.
       }
     }
 
