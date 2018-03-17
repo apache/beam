@@ -300,11 +300,9 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 1. Create hashes for source files and sign the python source file file
 
-        sha1sum apache-beam-${VERSION}-source-release.zip > apache-beam-${VERSION}-source-release.zip.sha1
-        md5sum apache-beam-${VERSION}-source-release.zip > apache-beam-${VERSION}-source-release.zip.md5
+        sha512sum apache-beam-${VERSION}-source-release.zip > apache-beam-${VERSION}-source-release.zip.sha512
         gpg --armor --detach-sig apache-beam-${VERSION}-python.zip
-        sha1sum apache-beam-${VERSION}-python.zip > apache-beam-${VERSION}-python.zip.sha1
-        md5sum apache-beam-${VERSION}-python.zip > apache-beam-${VERSION}-python.zip.md5
+        sha512sum apache-beam-${VERSION}-python.zip > apache-beam-${VERSION}-python.zip.sha512
 
 1. Add and commit all the files.
 
