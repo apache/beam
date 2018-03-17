@@ -34,6 +34,10 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Experimental
 public class SchemaRegistry {
 
+  public static SchemaRegistry createDefault() {
+    return new SchemaRegistry();
+  }
+
   /**
    * Register a schema for a specific {@link Class} type.
    */
