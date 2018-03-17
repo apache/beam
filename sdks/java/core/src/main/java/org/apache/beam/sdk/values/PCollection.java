@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
@@ -296,6 +297,18 @@ public class PCollection<T> extends PValueBase implements PValue {
     checkArgument(coder != null, "Cannot setCoder(null)");
     this.coderOrFailure = new CoderOrFailure<>(coder, null);
     return this;
+  }
+
+  /**
+   * Sets a {@link Schema} on this {@link PCollection}. This is a wrapper around
+   * {@link #setCoder(Coder)}.
+   */
+  @Experimental
+  public PCollection<T> setSchema(
+      Schema schema,
+      SerializableFunction<T, Row> toRowFunction,
+      SerializableFunction<Row, T> fromRowFunction) {
+    return setCoder(SchemaCoder.of(getTypeDescriptor(), schema, toRowFunction, fromRowFunction));
   }
 
   /**
