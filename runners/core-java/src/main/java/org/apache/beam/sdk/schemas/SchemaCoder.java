@@ -44,7 +44,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       Class<T> clazz,
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
-      SerializableFunction<Row, T> fromRowFunction) throws NoSuchSchemaException {
+      SerializableFunction<Row, T> fromRowFunction) {
 
   }
 
@@ -56,7 +56,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       TypeDescriptor<T> typeDescriptor,
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
-      SerializableFunction<Row, T> fromRowFunction) throws NoSuchSchemaException {
+      SerializableFunction<Row, T> fromRowFunction) {
 
   }
 
