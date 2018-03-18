@@ -278,7 +278,10 @@ rat {
 
     // Proto/grpc generated wrappers
     "**/apache_beam/portability/api/*_pb2*.py",
-    "**/go/pkg/beam/model/**/*.pb.go",
+    "**/go/pkg/beam/**/*.pb.go",
+
+    // Ignore Go test data files
+    "**/go/data/**",
 
     // VCF test files
     "**/apache_beam/testing/data/vcf/*",
@@ -290,20 +293,14 @@ check.dependsOn rat
 // to be specified on the commandline when executing locally.
 // This indirection also makes Jenkins use the branch of the PR
 // for the test definitions.
-
-def javaPreCommitRoots = [
-  ":sdks:java:core",
-  ":runners:direct-java",
-  ":sdks:java:fn-execution",
-]
 task javaPreCommit() {
-  for (String javaPreCommitRoot : javaPreCommitRoots) {
-    dependsOn javaPreCommitRoot + ":buildNeeded"
-    dependsOn javaPreCommitRoot + ":buildDependents"
-  }
+  dependsOn ":rat"
+  dependsOn ":sdks:java:core:buildNeeded"
+  dependsOn ":sdks:java:core:buildDependents"
   dependsOn ":examples:java:preCommit"
 }
 
 task goPreCommit() {
+  dependsOn ":rat"
   dependsOn ":sdks:go:test"
 }
