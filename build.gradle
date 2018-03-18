@@ -150,6 +150,14 @@ ext.library = [
     stax2_api: "org.codehaus.woodstox:stax2-api:3.1.4",
     woodstox_core_asl: "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
   ],
+  // For generating pom.xml from archetypes.
+  maven: [
+    maven_compiler_plugin: "maven-plugins:maven-compiler-plugin:3.7.0",
+    maven_exec_plugin: "maven-plugins:maven-exec-plugin:1.6.0",
+    maven_jar_plugin: "maven-plugins:maven-jar-plugin:3.0.2",
+    maven_shade_plugin: "maven-plugins:maven-shade-plugin:3.1.0",
+    maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:2.20.1",
+  ],
 ]
 
 // Define the set of repositories and dependencies required to

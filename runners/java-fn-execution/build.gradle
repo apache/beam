@@ -16,7 +16,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(artifactId: "beam-runners-java-fn-execution")
 
 description = "Apache Beam :: Runners :: Java Fn Execution"
 
