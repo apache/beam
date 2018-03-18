@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.values;
+package org.apache.beam.sdk.schemas;
 
-import static org.apache.beam.sdk.values.Schema.toSchema;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;

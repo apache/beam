@@ -17,11 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.values.Schema.toSchema;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.common.collect.ImmutableList;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.Schema;
+import org.apache.beam.sdk.schemas.Schema;
 
 
 /**
@@ -112,8 +112,8 @@ public class RowSqlType {
     /**
      * Adds an ARRAY field with elements of {@code rowType}.
      */
-    public Builder withArrayField(String fieldName, RowType rowType) {
-      return withField(fieldName, SqlTypeCoders.arrayOf(rowType));
+    public Builder withArrayField(String fieldName, Schema schema) {
+      return withField(fieldName, SqlTypeCoders.arrayOf(schema));
     }
 
     public Builder withRowField(String fieldName, Schema schema) {

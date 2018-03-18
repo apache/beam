@@ -21,7 +21,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
-import org.apache.beam.sdk.values.Schema;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).

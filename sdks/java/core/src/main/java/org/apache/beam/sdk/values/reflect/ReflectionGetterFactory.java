@@ -23,7 +23,7 @@ import static org.apache.beam.sdk.values.reflect.ReflectionUtils.getPublicGetter
 import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Method;
 import java.util.List;
-import org.apache.beam.sdk.values.Schema;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * Factory to wrap calls to pojo getters into instances of {@link FieldValueGetter}

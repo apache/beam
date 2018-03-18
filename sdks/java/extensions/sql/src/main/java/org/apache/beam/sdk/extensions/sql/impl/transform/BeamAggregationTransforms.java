@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import static org.apache.beam.sdk.values.Row.toRow;
-import static org.apache.beam.sdk.values.Schema.toSchema;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -53,7 +53,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.Schema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.apache.calcite.util.ImmutableBitSet;

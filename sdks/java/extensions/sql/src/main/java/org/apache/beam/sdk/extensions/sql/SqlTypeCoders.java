@@ -36,7 +36,7 @@ import java.util.Set;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder.SqlArrayCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder.SqlIntegerCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder.SqlRowCoder;
-import org.apache.beam.sdk.values.Schema;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * Coders for SQL types supported in Beam.
@@ -72,8 +72,8 @@ public class SqlTypeCoders {
     return SqlArrayCoder.of(elementCoder);
   }
 
-  public static SqlTypeCoder arrayOf(RowType rowType) {
-    return SqlArrayCoder.of(rowOf(rowType));
+  public static SqlTypeCoder arrayOf(Schema schema) {
+    return SqlArrayCoder.of(rowOf(schema));
   }
 
   public static boolean isArray(SqlTypeCoder sqlTypeCoder) {

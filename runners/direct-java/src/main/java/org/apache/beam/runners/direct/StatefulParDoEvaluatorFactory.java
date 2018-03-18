@@ -20,31 +20,22 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Lists;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
-import org.apache.beam.runners.core.ActiveWindowSet;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
-import org.apache.beam.runners.core.MergingActiveWindowSet;
-import org.apache.beam.runners.core.NonMergingActiveWindowSet;
-import org.apache.beam.runners.core.ReduceFn;
-import org.apache.beam.runners.core.ReduceFnRunner.OnMergeCallback;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.local.StructuralKey;
@@ -68,10 +59,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 /** A {@link TransformEvaluatorFactory} for stateful {@link ParDo}. */
 final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements TransformEvaluatorFactory {
 
-  private final EvaluationContext evaluationContext;
-  private final LoadingCache<AppliedPTransformKeyAndWindow<K, InputT, OutputT>, Runnable>
+  private final LoadingCache<AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT>, Runnable>
       cleanupRegistry;
-  private final Cache<AppliedPTransformAndKey<K, InputT, OutputT>, ActiveWindowSet> activeWindows;
 
   private final ParDoEvaluatorFactory<KV<K, InputT>, OutputT> delegateFactory;
 
@@ -91,29 +80,10 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
                 return DoFnLifecycleManager.of(statefulParDo.getDoFn());
               }
             });
-    this.evaluationContext = evaluationContext;
     this.cleanupRegistry =
         CacheBuilder.newBuilder()
             .weakValues()
             .build(new CleanupSchedulingLoader(evaluationContext));
-    this.activeWindows =
-        CacheBuilder.newBuilder()
-        .weakValues()
-        .build(new CacheLoader<AppliedPTransformAndKey<K, InputT, OutputT>, ActiveWindowSet>() {
-          @Override
-          public ActiveWindowSet<BoundedWindow> load(
-              AppliedPTransformAndKey<K, InputT, OutputT> transformAndKey) {
-            WindowingStrategy<InputT, BoundedWindow> windowingStrategy = getWindowingStrategy(
-                transformAndKey.getTransform());
-            final DirectStepContext stepContext = getStepContext(
-                transformAndKey.getTransform(), transformAndKey.getKey());
-
-            return windowingStrategy.getWindowFn().isNonMerging()
-                ?  new NonMergingActiveWindowSet<>()
-                :  new MergingActiveWindowSet<>(
-                    windowingStrategy.getWindowFn(), stepContext.stateInternals());
-          }
-        });
   }
 
   @Override
@@ -151,7 +121,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       for (final WindowedValue<?> element : inputBundle.getElements()) {
         for (final BoundedWindow window : element.getWindows()) {
           cleanupRegistry.get(
-              AppliedPTransformKeyAndWindow.create(
+              AppliedPTransformOutputKeyAndWindow.create(
                   application, (StructuralKey<K>) inputBundle.getKey(), window));
         }
       }
@@ -169,29 +139,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     return new StatefulParDoEvaluator<>(delegateEvaluator);
   }
 
-  private <K, InputT, OutputT, W extends BoundedWindow> WindowingStrategy<InputT, W> getWindowingStrategy(
-      AppliedPTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
-      StatefulParDo<K, InputT, OutputT>> transform) {
-    return ParDoTranslation.getMainInput(transform).getWindowingStrategy();
-    Map<TupleTag<?>, PCollection<OutputT>> taggedValues = new HashMap<>();
-    for (Entry<TupleTag<?>, PValue> pv : transform.getOutputs().entrySet()) {
-      taggedValues.put(pv.getKey(), (PCollection<OutputT>) pv.getValue());
-    }
-    PCollection<OutputT> pc = taggedValues.get(transform.getTransform().getMainOutputTag());
-    return (WindowingStrategy<InputT, W>) pc.getWindowingStrategy();
-  }
-
-  private <K> DirectStepContext getStepContext(
-      AppliedPTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
-          StatefulParDo<K, InputT, OutputT>> transform, StructuralKey<K> key) {
-    String stepName = evaluationContext.getStepName(transform);
-    return evaluationContext
-        .getExecutionContext(transform, key)
-        .getStepContext(stepName);
-  }
-
   private class CleanupSchedulingLoader
-      extends CacheLoader<AppliedPTransformKeyAndWindow<K, InputT, OutputT>, Runnable> {
+      extends CacheLoader<AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT>, Runnable> {
 
     private final EvaluationContext evaluationContext;
 
@@ -201,16 +150,32 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
     @Override
     public Runnable load(
-        final AppliedPTransformKeyAndWindow<K, InputT, OutputT> transformOutputWindow) {
-      WindowingStrategy<?, ?> windowingStrategy = getWindowingStrategy(
-          transformOutputWindow.getTransform());
+        final AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> transformOutputWindow) {
+      String stepName = evaluationContext.getStepName(transformOutputWindow.getTransform());
+
+      Map<TupleTag<?>, PCollection<?>> taggedValues = new HashMap<>();
+      for (Entry<TupleTag<?>, PValue> pv :
+          transformOutputWindow.getTransform().getOutputs().entrySet()) {
+        taggedValues.put(pv.getKey(), (PCollection<?>) pv.getValue());
+      }
+      PCollection<?> pc =
+          taggedValues
+              .get(
+                  transformOutputWindow
+                      .getTransform()
+                      .getTransform()
+                      .getMainOutputTag());
+      WindowingStrategy<?, ?> windowingStrategy = pc.getWindowingStrategy();
       BoundedWindow window = transformOutputWindow.getWindow();
       final DoFn<?, ?> doFn =
           transformOutputWindow.getTransform().getTransform().getDoFn();
       final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
-      final DirectStepContext stepContext = getStepContext(
-          transformOutputWindow.getTransform(), transformOutputWindow.getKey());
+      final DirectStepContext stepContext =
+          evaluationContext
+              .getExecutionContext(
+                  transformOutputWindow.getTransform(), transformOutputWindow.getKey())
+              .getStepContext(stepName);
 
       final StateNamespace namespace =
           StateNamespaces.window(
@@ -241,28 +206,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
   }
 
   @AutoValue
-  abstract static class AppliedPTransformAndKey<K, InputT, OutputT> {
-    abstract AppliedPTransform<
-        PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
-        StatefulParDo<K, InputT, OutputT>>
-    getTransform();
-
-    abstract StructuralKey<K> getKey();
-
-    static <K, InputT, OutputT> AppliedPTransformAndKey<K, InputT, OutputT> create(
-        AppliedPTransform<
-            PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
-            StatefulParDo<K, InputT, OutputT>>
-            transform,
-        StructuralKey<K> key) {
-      return new AutoValue_StatefulParDoEvaluatorFactory_AppliedPTransformAndKey<>(
-          transform, key);
-    }
-  }
-
-  }
-  @AutoValue
-  abstract static class AppliedPTransformKeyAndWindow<K, InputT, OutputT> {
+  abstract static class AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> {
     abstract AppliedPTransform<
             PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
             StatefulParDo<K, InputT, OutputT>>
@@ -272,14 +216,14 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
     abstract BoundedWindow getWindow();
 
-    static <K, InputT, OutputT> AppliedPTransformKeyAndWindow<K, InputT, OutputT> create(
+    static <K, InputT, OutputT> AppliedPTransformOutputKeyAndWindow<K, InputT, OutputT> create(
         AppliedPTransform<
                 PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple,
                 StatefulParDo<K, InputT, OutputT>>
             transform,
         StructuralKey<K> key,
         BoundedWindow w) {
-      return new AutoValue_StatefulParDoEvaluatorFactory_AppliedPTransformKeyAndWindow<>(
+      return new AutoValue_StatefulParDoEvaluatorFactory_AppliedPTransformOutputKeyAndWindow<>(
           transform, key, w);
     }
   }
@@ -294,64 +238,9 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       this.delegateEvaluator = delegateEvaluator;
     }
 
-    /**
-     * Extract the windows associated with the values.
-     */
-    private Set<BoundedWindow> collectWindows(
-        Iterable<WindowedValue<KV<K, InputT>>> values) throws Exception {
-      Set<BoundedWindow> windows = new HashSet<>();
-      for (WindowedValue<?> value : values) {
-        for (BoundedWindow window : value.getWindows()) {
-          windows.add(window);
-        }
-      }
-      return windows;
-    }
-
-    private Map<W, W> mergeWindows(Set<BoundedWindow> windows) throws Exception {
-      if (windowingStrategy.getWindowFn().isNonMerging()) {
-        // Return an empty map, indicating that every window is not merged.
-        return Collections.emptyMap();
-      }
-
-      Map<BoundedWindow, BoundedWindow> windowToMergeResult = new HashMap<>();
-      // Collect the windows from all elements (except those which are too late) and
-      // make sure they are already in the active window set or are added as NEW windows.
-      for (BoundedWindow window : windows) {
-        // For backwards compat with pre 1.4 only.
-        // We may still have ACTIVE windows with multiple state addresses, representing
-        // a window who's state has not yet been eagerly merged.
-        // We'll go ahead and merge that state now so that we don't have to worry about
-        // this legacy case anywhere else.
-        if (activeWindows.isActive(window)) {
-          Set<W> stateAddressWindows = activeWindows.readStateAddresses(window);
-          if (stateAddressWindows.size() > 1) {
-            // This is a legacy window who's state has not been eagerly merged.
-            // Do that now.
-            ReduceFn<K, InputT, OutputT, W>.OnMergeContext premergeContext =
-                contextFactory.forPremerge(window);
-            reduceFn.onMerge(premergeContext);
-            watermarkHold.onMerge(premergeContext);
-            activeWindows.merged(window);
-          }
-        }
-
-        // Add this window as NEW if it is not currently ACTIVE.
-        // If we had already seen this window and closed its trigger, then the
-        // window will not be currently ACTIVE. It will then be added as NEW here,
-        // and fall into the merging logic as usual.
-        activeWindows.ensureWindowExists(window);
-      }
-
-      // Merge all of the active windows and retain a mapping from source windows to result windows.
-      activeWindows.merge(new OnMergeCallback(windowToMergeResult));
-      return windowToMergeResult;
-    }
     @Override
     public void processElement(WindowedValue<KeyedWorkItem<K, KV<K, InputT>>> gbkResult)
         throws Exception {
-      Set<BoundedWindow> windows = collectWindows(gbkResult.getValue().elementsIterable());
-
       for (WindowedValue<KV<K, InputT>> windowedValue : gbkResult.getValue().elementsIterable()) {
         delegateEvaluator.processElement(windowedValue);
       }

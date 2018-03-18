@@ -21,7 +21,6 @@ package org.apache.beam.sdk.schemas;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -45,7 +44,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-
+    return null;
   }
 
   /**
@@ -57,7 +56,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-
+    return null;
   }
 
 
@@ -65,7 +64,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
    * Returns the schema associated with this type.
    */
   public Schema getSchema() {
-
+    return null;
   }
 
   @Override
@@ -74,6 +73,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
 
   @Override
   public T decode(InputStream inStream) throws IOException {
+    return null;
   }
 
   @Override

@@ -25,8 +25,8 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.Row;
 
 /**
  *  A {@link Coder} for {@link Row}. It wraps the {@link Coder} for each element directly.
