@@ -74,8 +74,8 @@ public class Networks {
    * is not {@link #equals(Object)} to the original node, maintaining all existing edges between
    * nodes.
    */
-  public static <N, E> void replaceDirectedNetworkNodes(
-      MutableNetwork<N, E> network, Function<N, N> function) {
+  public static <NodeT, EdgeT> void replaceDirectedNetworkNodes(
+      MutableNetwork<NodeT, EdgeT> network, Function<NodeT, NodeT> function) {
     checkArgument(network.isDirected(), "Only directed networks are supported, given %s", network);
     checkArgument(
         !network.allowsSelfLoops(),
@@ -83,9 +83,9 @@ public class Networks {
         network);
 
     // A map from the existing node to the replacement node
-    Map<N, N> oldNodesToNewNodes = new HashMap<>(network.nodes().size());
-    for (N currentNode : network.nodes()) {
-      N newNode = function.apply(currentNode);
+    Map<NodeT, NodeT> oldNodesToNewNodes = new HashMap<>(network.nodes().size());
+    for (NodeT currentNode : network.nodes()) {
+      NodeT newNode = function.apply(currentNode);
       // Skip updating the network if the old node is equivalent to the new node
       if (!currentNode.equals(newNode)) {
         oldNodesToNewNodes.put(currentNode, newNode);
@@ -94,18 +94,18 @@ public class Networks {
 
     // For each replacement, connect up the existing predecessors and successors to the new node
     // and then remove the old node.
-    for (Map.Entry<N, N> entry : oldNodesToNewNodes.entrySet()) {
-      N oldNode = entry.getKey();
-      N newNode = entry.getValue();
+    for (Map.Entry<NodeT, NodeT> entry : oldNodesToNewNodes.entrySet()) {
+      NodeT oldNode = entry.getKey();
+      NodeT newNode = entry.getValue();
       network.addNode(newNode);
-      for (N predecessor : ImmutableSet.copyOf(network.predecessors(oldNode))) {
-        for (E edge : ImmutableSet.copyOf(network.edgesConnecting(predecessor, oldNode))) {
+      for (NodeT predecessor : ImmutableSet.copyOf(network.predecessors(oldNode))) {
+        for (EdgeT edge : ImmutableSet.copyOf(network.edgesConnecting(predecessor, oldNode))) {
           network.removeEdge(edge);
           network.addEdge(predecessor, newNode, edge);
         }
       }
-      for (N successor : ImmutableSet.copyOf(network.successors(oldNode))) {
-        for (E edge : ImmutableSet.copyOf(network.edgesConnecting(oldNode, successor))) {
+      for (NodeT successor : ImmutableSet.copyOf(network.successors(oldNode))) {
+        for (EdgeT edge : ImmutableSet.copyOf(network.edgesConnecting(oldNode, successor))) {
           network.removeEdge(edge);
           network.addEdge(newNode, successor, edge);
         }
@@ -125,14 +125,14 @@ public class Networks {
    * live view of the set of nodes reachable from {@code node}. In other words, the returned {@link
    * Set} will not be updated after modifications to the {@code network}.
    */
-  public static <N, E> Set<N> reachableNodes(
-      Network<N, E> network, Set<N> startNodes, Set<N> endNodes) {
-    Set<N> visitedNodes = new HashSet<>();
-    Queue<N> queuedNodes = new ArrayDeque<>();
+  public static <NodeT, EdgeT> Set<NodeT> reachableNodes(
+      Network<NodeT, EdgeT> network, Set<NodeT> startNodes, Set<NodeT> endNodes) {
+    Set<NodeT> visitedNodes = new HashSet<>();
+    Queue<NodeT> queuedNodes = new ArrayDeque<>();
     queuedNodes.addAll(startNodes);
     // Perform a breadth-first traversal rooted at the input node.
     while (!queuedNodes.isEmpty()) {
-      N currentNode = queuedNodes.remove();
+      NodeT currentNode = queuedNodes.remove();
       // If we have already visited this node or it is a terminal node than do not add any
       // successors.
       if (!visitedNodes.add(currentNode) || endNodes.contains(currentNode)) {
@@ -144,7 +144,7 @@ public class Networks {
   }
 
   /** Returns a set of nodes sorted in topological order. */
-  public static <N, E> Iterable<N> topologicalOrder(Network<N, E> network) {
+  public static <NodeT, EdgeT> Iterable<NodeT> topologicalOrder(Network<NodeT, EdgeT> network) {
     // TODO: (github/guava/2641) Upgrade Guava and remove this method if topological sorting becomes
     // supported externally or remove this comment if its not going to be supported externally.
 
@@ -155,17 +155,17 @@ public class Networks {
         network);
 
     // Linked hashset will prevent duplicates from appearing and will maintain insertion order.
-    LinkedHashSet<N> nodes = new LinkedHashSet<>(network.nodes().size());
-    Queue<N> processingOrder = new LinkedList<>();
+    LinkedHashSet<NodeT> nodes = new LinkedHashSet<>(network.nodes().size());
+    Queue<NodeT> processingOrder = new LinkedList<>();
     // Add all the roots
-    for (N node : network.nodes()) {
+    for (NodeT node : network.nodes()) {
       if (network.inDegree(node) == 0) {
         processingOrder.add(node);
       }
     }
 
     while (!processingOrder.isEmpty()) {
-      N current = processingOrder.remove();
+      NodeT current = processingOrder.remove();
       // If all predecessors have already been added, then we can add this node, otherwise
       // we need to add the node to the back of the processing queue.
       if (nodes.containsAll(network.predecessors(current))) {
@@ -179,22 +179,22 @@ public class Networks {
     return nodes;
   }
 
-  public static <N, E> String toDot(Network<N, E> network) {
+  public static <NodeT, EdgeT> String toDot(Network<NodeT, EdgeT> network) {
     StringBuilder builder = new StringBuilder();
-    builder.append("digraph network {\n");
-    Map<N, String> nodeName = Maps.newIdentityHashMap();
+    builder.append(String.format("digraph network {%n"));
+    Map<NodeT, String> nodeName = Maps.newIdentityHashMap();
     network.nodes().forEach(node -> nodeName.put(node, "n" + nodeName.size()));
-    for (Entry<N, String> nodeEntry : nodeName.entrySet()) {
+    for (Entry<NodeT, String> nodeEntry : nodeName.entrySet()) {
       builder.append(
           String.format(
-              "  %s [fontname=\"Courier New\" label=\"%s\"];\n",
+              "  %s [fontname=\"Courier New\" label=\"%s\"];%n",
               nodeEntry.getValue(), escapeDot(nodeEntry.getKey().toString())));
     }
-    for (E edge : network.edges()) {
-      EndpointPair<N> endpoints = network.incidentNodes(edge);
+    for (EdgeT edge : network.edges()) {
+      EndpointPair<NodeT> endpoints = network.incidentNodes(edge);
       builder.append(
           String.format(
-              "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];\n",
+              "  %s -> %s [fontname=\"Courier New\" label=\"%s\"];%n",
               nodeName.get(endpoints.source()),
               nodeName.get(endpoints.target()),
               escapeDot(edge.toString())));
@@ -216,25 +216,26 @@ public class Networks {
    * Returns a list of all distinct paths from roots of the network to leaves. The list can be in
    * arbitrary orders and can contain duplicate paths if there are multiple edges from two nodes.
    */
-  public static <N, E> List<List<N>> allPathsFromRootsToLeaves(Network<N, E> network) {
-    Stack<List<N>> paths = new Stack<>();
+  public static <NodeT, EdgeT> List<List<NodeT>> allPathsFromRootsToLeaves(
+      Network<NodeT, EdgeT> network) {
+    Stack<List<NodeT>> paths = new Stack<>();
     // Populate the list with all roots
-    for (N node : network.nodes()) {
+    for (NodeT node : network.nodes()) {
       if (network.inDegree(node) == 0) {
         paths.add(ImmutableList.of(node));
       }
     }
 
-    List<List<N>> distinctPathsFromRootsToLeaves = new ArrayList<>();
+    List<List<NodeT>> distinctPathsFromRootsToLeaves = new ArrayList<>();
     while (!paths.empty()) {
-      List<N> path = paths.pop();
-      N lastNode = path.get(path.size() - 1);
+      List<NodeT> path = paths.pop();
+      NodeT lastNode = path.get(path.size() - 1);
       if (network.outDegree(lastNode) == 0) {
         distinctPathsFromRootsToLeaves.add(new ArrayList<>(path));
       } else {
-        for (E edge : network.outEdges(lastNode)) {
+        for (EdgeT edge : network.outEdges(lastNode)) {
           paths.push(
-              ImmutableList.<N>builder()
+              ImmutableList.<NodeT>builder()
                   .addAll(path)
                   .add(network.incidentNodes(edge).target())
                   .build());
