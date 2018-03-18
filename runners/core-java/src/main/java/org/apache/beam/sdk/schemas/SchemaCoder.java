@@ -45,7 +45,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-
+    return null;
   }
 
   /**
@@ -57,7 +57,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-
+    return null;
   }
 
 
@@ -65,7 +65,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
    * Returns the schema associated with this type.
    */
   public Schema getSchema() {
-
+    return null;
   }
 
   @Override
@@ -74,6 +74,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
 
   @Override
   public T decode(InputStream inStream) throws IOException {
+    return null;
   }
 
   @Override
