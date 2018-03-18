@@ -70,7 +70,7 @@ public class SchemaRegistry {
    * @link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(Class<T> clazz) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -78,7 +78,7 @@ public class SchemaRegistry {
    * {@link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -86,7 +86,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<T, Row> getToRowFunction(
       Class<T> clazz) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -94,7 +94,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<T, Row> getToRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -102,7 +102,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<Row, T> getFromRowFunction(
       Class<T> clazz) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -110,6 +110,6 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<Row, T> getFromRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-
+    return null;
   }
 }
