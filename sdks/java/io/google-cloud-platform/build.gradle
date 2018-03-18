@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false)
+applyJavaNature(artifactId: "beam-sdks-java-io-google-cloud-platform", enableFindbugs: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 
