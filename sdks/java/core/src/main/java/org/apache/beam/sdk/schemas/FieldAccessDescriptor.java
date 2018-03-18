@@ -15,8 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
 package org.apache.beam.sdk.schemas;
 
 /**
@@ -26,16 +24,17 @@ package org.apache.beam.sdk.schemas;
 public class FieldAccessDescriptor {
   // Return a descriptor that accesses all fields in a row.
   public static FieldAccessDescriptor allFields() {
-
+    return null;
   }
 
   // Return a descriptor that accesses only the given set of fields in a row.
   public static FieldAccessDescriptor fromIterable(Iterable<String> fieldNames) {
+    return null;
 
   }
 
   public Iterable<String> getFieldsAccessed() {
-
+    return null;
   }
 
   // TODO: FieldAccessDescriptor currently assumes all fields are top level. Once we have native

@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
-import static org.apache.beam.sdk.values.Schema.toSchema;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.joda.time.Duration.ZERO;
 
 import com.google.common.base.Joiner;
@@ -48,7 +48,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.Schema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;

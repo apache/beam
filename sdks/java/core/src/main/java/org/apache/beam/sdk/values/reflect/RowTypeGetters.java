@@ -19,8 +19,8 @@
 package org.apache.beam.sdk.values.reflect;
 
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.Schema;
 
 /**
  * Helper class to hold {@link Schema} and {@link FieldValueGetter}s which were used to

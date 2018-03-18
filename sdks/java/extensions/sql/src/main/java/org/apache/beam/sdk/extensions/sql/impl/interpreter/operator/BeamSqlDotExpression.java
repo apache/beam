@@ -22,7 +22,7 @@ import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -53,7 +53,7 @@ public class BeamSqlDotExpression extends BeamSqlExpression {
   }
 
   private SqlTypeName getFieldType(Row row, String fieldName) {
-    RowType rowType = row.getRowType();
+    Schema rowType = row.getRowType();
     int fieldIndex = rowType.indexOf(fieldName);
 
     if (fieldIndex < 0) {

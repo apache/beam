@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * {@link Row} is an immutable tuple-like type to represent one element in a
@@ -327,7 +328,7 @@ public abstract class Row implements Serializable {
         throw new IllegalArgumentException(
             String.format(
                 "Field count in Schema (%s) and values (%s) must match",
-                type.fieldNames(), values));
+                type.getFieldNames(), values));
       }
       return new AutoValue_Row(values, type);
     }

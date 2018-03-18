@@ -22,7 +22,7 @@ import static java.util.Collections.emptyList;
 import static org.junit.Assert.assertSame;
 
 import java.util.List;
-import org.apache.beam.sdk.values.Schema;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
 /**

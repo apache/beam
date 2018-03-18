@@ -18,11 +18,11 @@
 
 package org.apache.beam.sdk.extensions.sql.meta.provider;
 
-import static org.apache.beam.sdk.values.Schema.toSchema;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.values.Schema;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * Utility methods for metadata.

@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.values.reflect;
 
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.values.Schema;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>

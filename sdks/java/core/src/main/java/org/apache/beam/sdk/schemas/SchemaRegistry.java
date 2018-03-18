@@ -61,7 +61,7 @@ public class SchemaRegistry {
   /**
    * Register a {@link SchemaProvider}.
    *
-   * <o>A {@link SchemaProvider} allows for deferred lookups of per-type schemas. This can be
+   * <p>A {@link SchemaProvider} allows for deferred lookups of per-type schemas. This can be
    * used when scheams are registered in an external service. The SchemaProvider will lookup the
    * type in the external service and return the correct {@link Schema}.
    */
@@ -74,7 +74,7 @@ public class SchemaRegistry {
    * @link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(Class<T> clazz) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -82,7 +82,7 @@ public class SchemaRegistry {
    * {@link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -90,7 +90,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<T, Row> getToRowFunction(
       Class<T> clazz) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -98,7 +98,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<T, Row> getToRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -106,7 +106,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<Row, T> getFromRowFunction(
       Class<T> clazz) throws NoSuchSchemaException {
-
+    return null;
   }
 
   /**
@@ -114,6 +114,6 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<Row, T> getFromRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-
+    return null;
   }
 }
