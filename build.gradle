@@ -156,7 +156,7 @@ ext.library = [
     maven_exec_plugin: "maven-plugins:maven-exec-plugin:1.6.0",
     maven_jar_plugin: "maven-plugins:maven-jar-plugin:3.0.2",
     maven_shade_plugin: "maven-plugins:maven-shade-plugin:3.1.0",
-    maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:2.20.1",
+    maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:2.21.0",
   ],
 ]
 
