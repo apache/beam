@@ -163,8 +163,8 @@
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
     <license-maven-plugin.version>1.14</license-maven-plugin.version>
-    <maven-surefire-plugin.version>2.20.1</maven-surefire-plugin.version>
-    <maven-failsafe-plugin.version>2.20.1</maven-failsafe-plugin.version>
+    <maven-surefire-plugin.version>2.21.0</maven-surefire-plugin.version>
+    <maven-failsafe-plugin.version>2.21.0</maven-failsafe-plugin.version>
     <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
