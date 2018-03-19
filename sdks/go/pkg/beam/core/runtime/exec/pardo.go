@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/errorx"
 )
@@ -35,6 +36,7 @@ type ParDo struct {
 	Side    []ReStream
 	Out     []Node
 
+	PID       string
 	ready     bool
 	sideinput []ReusableInput
 	emitters  []ReusableEmitter
@@ -91,6 +93,8 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm FullValue, values ...ReS
 	if n.status != Active {
 		return fmt.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
+
+	ctx = metrics.SetPTransformID(ctx, n.PID)
 
 	val, err := n.invokeDataFn(ctx, elm.Timestamp, n.Fn.ProcessElementFn(), &MainInput{Key: elm, Values: values})
 	if err != nil {
