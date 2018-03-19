@@ -19,6 +19,8 @@
 
 from __future__ import absolute_import
 
+import datetime
+import pytz
 import unittest
 
 from apache_beam.utils.timestamp import Duration
@@ -43,12 +45,38 @@ class TimestampTest(unittest.TestCase):
     self.assertEqual(Timestamp(10000000) % Duration(0.000005), 0)
 
   def test_utc_timestamp(self):
-    self.assertEqual(Timestamp(10000000).isoformat(),
+    self.assertEqual(Timestamp(10000000).to_rfc3339(),
                      '1970-04-26T17:46:40Z')
-    self.assertEqual(Timestamp(10000000.000001).isoformat(),
+    self.assertEqual(Timestamp(10000000.000001).to_rfc3339(),
                      '1970-04-26T17:46:40.000001Z')
-    self.assertEqual(Timestamp(1458343379.123456).isoformat(),
+    self.assertEqual(Timestamp(1458343379.123456).to_rfc3339(),
                      '2016-03-18T23:22:59.123456Z')
+
+  def test_from_rfc3339(self):
+    test_cases = [
+        (10000000, '1970-04-26T17:46:40Z'),
+        (10000000.000001, '1970-04-26T17:46:40.000001Z'),
+        (1458343379.123456, '2016-03-18T23:22:59.123456Z'),
+    ]
+    for seconds_float, rfc3339_str in test_cases:
+      self.assertEqual(Timestamp(seconds_float),
+                       Timestamp.from_rfc3339(rfc3339_str))
+      self.assertEqual(rfc3339_str,
+                       Timestamp.from_rfc3339(rfc3339_str).to_rfc3339())
+
+  def test_from_rfc3339_failure(self):
+    with self.assertRaisesRegexp(ValueError, 'parse'):
+      Timestamp.from_rfc3339('not rfc3339')
+    with self.assertRaisesRegexp(ValueError, 'parse'):
+      Timestamp.from_rfc3339('2016-03-18T23:22:59.123456Z unparseable')
+
+  def test_from_utc_datetime(self):
+    self.assertEqual(
+        Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1,
+                                                      tzinfo=pytz.utc)),
+        Timestamp(0))
+    with self.assertRaisesRegexp(ValueError, r'UTC'):
+      Timestamp.from_utc_datetime(datetime.datetime(1970, 1, 1))
 
   def test_arithmetic(self):
     # Supported operations.

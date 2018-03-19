@@ -777,7 +777,7 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubPayloadSource is currently available for use '
+        raise ValueError('PubSubSource is currently available for use '
                          'only in streaming pipelines.')
       # Only one of topic or subscription should be set.
       if transform.source.full_subscription:
@@ -793,6 +793,9 @@ class DataflowRunner(PipelineRunner):
         # Setting this property signals Dataflow runner to return full
         # PubsubMessages instead of just the payload.
         step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
+      if transform.source.timestamp_attribute is not None:
+        step.add_property(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
+                          transform.source.timestamp_attribute)
     else:
       raise ValueError(
           'Source %r has unexpected format %s.' % (

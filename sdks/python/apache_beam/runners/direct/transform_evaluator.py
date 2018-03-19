@@ -417,7 +417,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   def process_element(self, element):
     pass
 
-  def _read_from_pubsub(self):
+  def _read_from_pubsub(self, timestamp_attribute):
     from apache_beam.io.gcp.pubsub import PubsubMessage
     from google.cloud import pubsub
     # Because of the AutoAck, we are not able to reread messages if this
@@ -428,24 +428,41 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         self._subscription, return_immediately=True,
         max_messages=10) as results:
       def _get_element(message):
-        if self.source.with_attributes:
-          return PubsubMessage._from_message(message)
+        parsed_message = PubsubMessage._from_message(message)
+        if timestamp_attribute:
+          try:
+            rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
+          except KeyError:
+            raise KeyError('Timestamp attribute not found: %s' %
+                           self.source.timestamp_attribute)
+          try:
+            timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
+          except ValueError:
+            try:
+              timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
+            except ValueError:
+              raise ValueError('Invalid timestamp value: %s', rfc3339_or_milli)
         else:
-          return message.data
+          timestamp = Timestamp.from_rfc3339(message.service_timestamp)
+
+        return timestamp, parsed_message
 
       return [_get_element(message)
               for unused_ack_id, message in results.items()]
 
   def finish_bundle(self):
-    data = self._read_from_pubsub()
+    data = self._read_from_pubsub(self.source.timestamp_attribute)
     if data:
       output_pcollection = list(self._outputs)[0]
       bundle = self._evaluation_context.create_bundle(output_pcollection)
-      # TODO(ccy): we currently do not use the PubSub message timestamp or
-      # respect the PubSub source's id_label field.
-      now = Timestamp.of(time.time())
-      for message_data in data:
-        bundle.output(GlobalWindows.windowed_value(message_data, timestamp=now))
+      # TODO(ccy): Respect the PubSub source's id_label field.
+      for timestamp, message in data:
+        if self.source.with_attributes:
+          element = message
+        else:
+          element = message.payload
+        bundle.output(
+            GlobalWindows.windowed_value(element, timestamp=timestamp))
       bundles = [bundle]
     else:
       bundles = []
@@ -456,6 +473,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     unprocessed_bundle = self._evaluation_context.create_bundle(
         input_pvalue)
 
+    # TODO(udim): Correct value for watermark hold.
     return TransformResult(self, bundles, [unprocessed_bundle], None,
                            {None: Timestamp.of(time.time())})
 
