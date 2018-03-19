@@ -139,10 +139,10 @@ func keyLessThan(a *datastore.Key, b *datastore.Key) bool {
 
 func flatten(k *datastore.Key) []*datastore.Key {
 	pieces := []*datastore.Key{}
-	pieces = append(pieces, k)
 	if k.Parent != nil {
 		pieces = append(pieces, flatten(k.Parent)...)
 	}
+	pieces = append(pieces, k)
 	return pieces
 }
 

@@ -55,16 +55,10 @@ func Test_keyLessThan(t *testing.T) {
 			expect: false,
 		},
 		{
-			name:   "a.a>a",
-			a:      datastore.NameKey("A", "a", datastore.NameKey("A", "a", nil)),
-			b:      datastore.NameKey("A", "a", nil),
+			name:   "4dda<A",
+			a:      datastore.NameKey("A", "4dda", nil),
+			b:      datastore.NameKey("A", "A", nil),
 			expect: true,
-		},
-		{
-			name:   "b>b.a",
-			a:      datastore.NameKey("A", "b", nil),
-			b:      datastore.NameKey("A", "b", datastore.NameKey("A", "a", nil)),
-			expect: false,
 		},
 	}
 	for n := range tsts {
@@ -75,5 +69,15 @@ func Test_keyLessThan(t *testing.T) {
 				t.Fail()
 			}
 		})
+	}
+}
+
+func Test_flatten(t *testing.T) {
+	r := flatten(datastore.NameKey("A", "a", datastore.NameKey("B", "b", nil)))
+	if !(r[0].Kind == "B" && r[0].Name == "b") {
+		t.Errorf("Expected B.b in first position")
+	}
+	if !(r[1].Kind == "A" && r[1].Name == "a") {
+		t.Errorf("Expected A.a in second position")
 	}
 }
