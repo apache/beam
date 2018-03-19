@@ -75,23 +75,19 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
 
     @Override
     public void onNext(StateRequest request) {
-      CompletionStage<StateResponse.Builder> responseStage = new CompletableFuture<>();
-      responseStage.whenCompleteAsync(
-          (StateResponse.Builder responseBuilder, Throwable t) ->
-              // note that this is threadsafe if and only if outboundObserver is threadsafe.
-              outboundObserver.onNext(
-                  t == null
-                      ? responseBuilder.setId(request.getId()).build()
-                      : StateResponse.newBuilder()
-                      .setId(request.getId())
-                      .setError(getStackTraceAsString(t))
-                      .build()));
       StateRequestHandler handler =
-          requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
+        requestHandlers.getOrDefault(request.getInstructionReference(), this::handlerNotFound);
       try {
-        handler.accept(request, responseStage);
+        CompletionStage<StateResponse.Builder> result = handler.handle(request);
+        result.whenCompleteAsync(
+            (StateResponse.Builder responseBuilder, Throwable t) ->
+                // note that this is threadsafe if and only if outboundObserver is threadsafe.
+                outboundObserver.onNext(
+                    t == null
+                        ? responseBuilder.setId(request.getId()).build()
+                        : createErrorResponse(request.getId(), t)));
       } catch (Exception e) {
-        responseStage.toCompletableFuture().completeExceptionally(e);
+        outboundObserver.onNext(createErrorResponse(request.getId(), e));
       }
     }
 
@@ -105,14 +101,19 @@ public class GrpcStateService extends BeamFnStateGrpc.BeamFnStateImplBase
       outboundObserver.onCompleted();
     }
 
-    private void handlerNotFound(
-        StateRequest request, CompletionStage<StateResponse.Builder> responseFuture) {
-      responseFuture.toCompletableFuture().complete(
+    private CompletionStage<StateResponse.Builder> handlerNotFound(StateRequest request) {
+      CompletableFuture<StateResponse.Builder> result = new CompletableFuture<>();
+      result.complete(
           StateResponse.newBuilder()
               .setError(
                   String.format(
                       "Unknown process bundle instruction id '%s'",
                       request.getInstructionReference())));
+      return result;
+    }
+
+    private StateResponse createErrorResponse(String id, Throwable t) {
+      return StateResponse.newBuilder().setId(id).setError(getStackTraceAsString(t)).build();
     }
   }
 }
