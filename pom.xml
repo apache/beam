@@ -2128,7 +2128,7 @@
           <version>2.1.6</version>
           <extensions>true</extensions>
           <configuration>
-            <goVersion>1.9</goVersion>
+            <goVersion>1.10</goVersion>
           </configuration>
         </plugin>
 
