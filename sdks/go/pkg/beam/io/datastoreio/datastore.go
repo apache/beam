@@ -12,6 +12,8 @@ import (
 	"math"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"strconv"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"strings"
 )
 
 const (
@@ -58,6 +60,17 @@ type BoundedQuery struct {
 }
 
 func (s *splitQueryFn) ProcessElement(ctx context.Context, _ []byte, emit func(k string, val string)) error {
+	// Short circuit a single shard
+	if s.Shards <= 1 {
+		q := BoundedQuery{}
+		b, err := json.Marshal(q)
+		if err != nil {
+			return err
+		}
+		emit(strconv.Itoa(1), string(b))
+		return nil
+	}
+
 	client, err := datastore.NewClient(ctx, s.Project)
 	if err != nil {
 		return err
@@ -82,23 +95,26 @@ func (s *splitQueryFn) ProcessElement(ctx context.Context, _ []byte, emit func(k
 
 	splitKeys := getSplits(splits, s.Shards)
 
-	queries := []*BoundedQuery{}
+	queries := make([]*BoundedQuery, len(splitKeys))
 	var lastKey *datastore.Key
-	for _, k := range splitKeys {
+	for n, k := range splitKeys {
 		q := BoundedQuery{End: k}
 		if lastKey != nil {
 			q.Start = lastKey
 		}
-		queries = append(queries, &q)
+		queries[n] = &q
 		lastKey = k
 	}
-	queries = append(queries, &BoundedQuery{End: lastKey})
+	queries = append(queries, &BoundedQuery{Start: lastKey})
+
+	log.Debugf(ctx, "Datastore: Splitting into %d shards", len(queries))
 
 	for n, q := range queries {
 		b, err := json.Marshal(q)
 		if err != nil {
 			return err
 		}
+		log.Debugf(ctx, "Datastore: Emitting Bounded Query Shard `%d` Start: `%s` End:`%s`", n, q.Start.String(), q.End.String())
 		emit(strconv.Itoa(n), string(b))
 	}
 	return nil
@@ -111,8 +127,11 @@ func keyLessThan(a *datastore.Key, b *datastore.Key) bool {
 			return true
 		}
 		k2 := bf[n]
-		if k1.Name < k2.Name {
+		r := strings.Compare(k1.Name, k2.Name)
+		if r == -1 {
 			return true
+		} else if r == 1 {
+			return false
 		}
 	}
 	return false
@@ -120,10 +139,10 @@ func keyLessThan(a *datastore.Key, b *datastore.Key) bool {
 
 func flatten(k *datastore.Key) []*datastore.Key {
 	pieces := []*datastore.Key{}
+	pieces = append(pieces, k)
 	if k.Parent != nil {
 		pieces = append(pieces, flatten(k.Parent)...)
 	}
-	pieces = append(pieces, k)
 	return pieces
 }
 
