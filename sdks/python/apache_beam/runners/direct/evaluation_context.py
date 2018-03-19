@@ -56,6 +56,11 @@ class _SideInputView(object):
     self.value = None
     self.has_result = False
 
+  def __repr__(self):
+    elements_string = (', '.join(str(elm) for elm in self.elements)
+                       if self.elements else '[]')
+    return '_SideInputView(elements=%s)' % elements_string
+
 
 class _SideInputsContainer(object):
   """An in-process container for side inputs.
@@ -67,8 +72,16 @@ class _SideInputsContainer(object):
   def __init__(self, views):
     self._lock = threading.Lock()
     self._views = {}
+    self._transform_to_views = collections.defaultdict(list)
+
     for view in views:
       self._views[view] = _SideInputView(view)
+      self._transform_to_views[view.pvalue.producer].append(view)
+
+  def __repr__(self):
+    views_string = (', '.join(str(elm) for elm in self._views.values())
+                    if self._views.values() else '[]')
+    return '_SideInputsContainer(_views=%s)' % views_string
 
   def get_value_or_schedule_after_output(self, side_input, task):
     with self._lock:
@@ -98,6 +111,19 @@ class _SideInputsContainer(object):
       view.callable_queue = None
       view.has_result = True
       return result
+
+  def update_watermarks_for_transform(self, ptransform, watermark):
+    # Collect tasks that get unblocked as the workflow progresses.
+    unblocked_tasks = []
+    for view in self._transform_to_views[ptransform]:
+      unblocked_tasks.extend(self._update_watermarks_for_view(view, watermark))
+    return unblocked_tasks
+
+  def _update_watermarks_for_view(self, view, watermark):
+    unblocked_tasks = []
+    if watermark.input_watermark == WatermarkManager.WATERMARK_POS_INF:
+      unblocked_tasks = self.finalize_value_and_get_tasks(view)
+    return unblocked_tasks
 
   def _pvalue_to_value(self, view, values):
     """Given a side input view, returns the associated value in requested form.
@@ -149,10 +175,10 @@ class EvaluationContext(object):
       self._pcollection_to_views[view.pvalue].append(view)
     self._transform_keyed_states = self._initialize_keyed_states(
         root_transforms, value_to_consumers)
+    self._side_inputs_container = _SideInputsContainer(views)
     self._watermark_manager = WatermarkManager(
         clock, root_transforms, value_to_consumers,
         self._transform_keyed_states)
-    self._side_inputs_container = _SideInputsContainer(views)
     self._pending_unblocked_tasks = []
     self._counter_factory = counters.CounterFactory()
     self._metrics = DirectMetrics()
@@ -199,9 +225,6 @@ class EvaluationContext(object):
       committed_bundles, unprocessed_bundles = self._commit_bundles(
           result.uncommitted_output_bundles,
           result.unprocessed_bundles)
-      self._watermark_manager.update_watermarks(
-          completed_bundle, result.transform, completed_timers,
-          committed_bundles, unprocessed_bundles, result.keyed_watermark_holds)
 
       self._metrics.commit_logical(completed_bundle,
                                    result.logical_metric_updates)
@@ -217,11 +240,13 @@ class EvaluationContext(object):
             self._side_inputs_container.add_values(
                 view,
                 committed_bundle.get_elements_iterable(make_copy=True))
-          if (self.get_execution_context(result.transform)
-              .watermarks.input_watermark
-              == WatermarkManager.WATERMARK_POS_INF):
-            self._pending_unblocked_tasks.extend(
-                self._side_inputs_container.finalize_value_and_get_tasks(view))
+
+      # Tasks generated from unblocked side inputs as the watermark progresses.
+      tasks = self._watermark_manager.update_watermarks(
+          completed_bundle, result.transform, completed_timers,
+          committed_bundles, unprocessed_bundles, result.keyed_watermark_holds,
+          self._side_inputs_container)
+      self._pending_unblocked_tasks.extend(tasks)
 
       if result.counters:
         for counter in result.counters:
