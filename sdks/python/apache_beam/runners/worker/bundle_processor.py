@@ -155,10 +155,10 @@ class StateBackedSideInputMap(object):
         def __reduce__(self):
           return list, (list(self),)
 
-      if access_pattern == common_urns.ITERABLE_SIDE_INPUT:
+      if access_pattern == common_urns.side_inputs.ITERABLE.urn:
         raw_view = AllElements(state_key, self._element_coder)
 
-      elif (access_pattern == common_urns.MULTIMAP_SIDE_INPUT or
+      elif (access_pattern == common_urns.side_inputs.MULTIMAP.urn or
             access_pattern ==
             dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN):
         cache = {}
@@ -177,7 +177,7 @@ class StateBackedSideInputMap(object):
 
           def __reduce__(self):
             # TODO(robertwb): Figure out how to support this.
-            raise TypeError(common_urns.MULTIMAP_SIDE_INPUT)
+            raise TypeError(common_urns.side_inputs.MULTIMAP.urn)
 
         raw_view = MultiMap()
 
@@ -232,7 +232,7 @@ class BundleProcessor(object):
         self.state_sampler, self.state_handler)
 
     def is_side_input(transform_proto, tag):
-      if transform_proto.spec.urn == common_urns.PARDO_TRANSFORM:
+      if transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
         return tag in proto_utils.parse_Bytes(
             transform_proto.spec.payload,
             beam_runner_api_pb2.ParDoPayload).side_inputs
@@ -447,7 +447,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
+    common_urns.deprecated_primitives.READ.urn, beam_runner_api_pb2.ReadPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   source = iobase.SourceBase.from_runner_api(parameter.source, factory.context)
   spec = operation_specs.WorkerRead(
@@ -470,7 +470,7 @@ def create(factory, transform_id, transform_proto, serialized_fn, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
+    common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   assert parameter.do_fn.spec.urn == python_urns.PICKLED_DOFN_INFO
   serialized_fn = parameter.do_fn.spec.payload
@@ -543,7 +543,7 @@ def _create_simple_pardo_operation(
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.ASSIGN_WINDOWS_TRANSFORM, beam_runner_api_pb2.WindowingStrategy)
+    common_urns.primitives.ASSIGN_WINDOWS.urn, beam_runner_api_pb2.WindowingStrategy)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   class WindowIntoDoFn(beam.DoFn):
     def __init__(self, windowing):
@@ -576,7 +576,7 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.COMBINE_PGBKCV_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+    common_urns.combine_components.COMBINE_PGBKCV.urn, beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   # TODO: Combine side inputs.
   serialized_combine_fn = pickler.dumps(
@@ -596,7 +596,7 @@ def create(factory, transform_id, transform_proto, payload, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.COMBINE_MERGE_ACCUMULATORS_TRANSFORM,
+    common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
     beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
@@ -604,7 +604,7 @@ def create(factory, transform_id, transform_proto, payload, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.COMBINE_EXTRACT_OUTPUTS_TRANSFORM,
+    common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn,
     beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   return _create_combine_phase_operation(
@@ -630,7 +630,7 @@ def _create_combine_phase_operation(
       consumers)
 
 
-@BeamTransformFactory.register_urn(common_urns.FLATTEN_TRANSFORM, None)
+@BeamTransformFactory.register_urn(common_urns.primitives.FLATTEN.urn, None)
 def create(factory, transform_id, transform_proto, unused_parameter, consumers):
   return factory.augment_oldstyle_op(
       operations.FlattenOperation(

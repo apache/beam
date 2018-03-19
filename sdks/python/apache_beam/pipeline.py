@@ -867,7 +867,7 @@ class AppliedPTransform(object):
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
         for tag, id in proto.outputs.items()}
     # This annotation is expected by some runners.
-    if proto.spec.urn == common_urns.PARDO_TRANSFORM:
+    if proto.spec.urn == common_urns.primitives.PAR_DO.urn:
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
