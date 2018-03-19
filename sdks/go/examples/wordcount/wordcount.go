@@ -61,6 +61,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
@@ -101,10 +102,18 @@ var (
 // returns a PCollection of type string. Also, using named function transforms allows
 // for easy reuse, modular testing, and an improved monitoring experience.
 
-var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+var (
+	wordRE  = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
+	empty   = beam.NewCounter("extract", "emptyLines")
+	lineLen = beam.NewDistribution("extract", "lineLenDistro")
+)
 
 // extractFn is a DoFn that emits the words in a given line.
-func extractFn(line string, emit func(string)) {
+func extractFn(ctx context.Context, line string, emit func(string)) {
+	lineLen.Update(ctx, int64(len(line)))
+	if len(strings.TrimSpace(line)) == 0 {
+		empty.Inc(ctx, 1)
+	}
 	for _, word := range wordRE.FindAllString(line, -1) {
 		emit(word)
 	}
