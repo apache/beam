@@ -231,8 +231,8 @@ func (b *builder) makeLink(id linkID) (exec.Node, error) {
 		return b.links[id], nil
 
 	case graph.Combine:
-		isPerKey := typex.IsWCoGBK(edge.Input[0].From.Type())
-		usesKey := typex.IsWKV(edge.Input[0].Type)
+		isPerKey := typex.IsCoGBK(edge.Input[0].From.Type())
+		usesKey := typex.IsKV(edge.Input[0].Type)
 
 		u = &exec.Combine{UID: b.idgen.New(), Fn: edge.CombineFn, IsPerKey: isPerKey, UsesKey: usesKey, Out: out[0]}
 

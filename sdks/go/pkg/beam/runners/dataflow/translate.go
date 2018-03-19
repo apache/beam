@@ -32,6 +32,7 @@ import (
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 )
 
 const (
@@ -90,7 +91,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 				// be before the present one.
 
 				ref := nodes[edge.Input[i].From.ID()]
-				c, err := graphx.EncodeCoderRef(edge.Input[i].From.Coder)
+				c, err := encodeCoderRef(edge.Input[i].From.Coder)
 				if err != nil {
 					return nil, err
 				}
@@ -116,7 +117,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 
 		for _, out := range edge.Output {
 			ref := nodes[out.To.ID()]
-			coder, err := graphx.EncodeCoderRef(out.To.Coder)
+			coder, err := encodeCoderRef(out.To.Coder)
 			if err != nil {
 				return nil, err
 			}
@@ -131,7 +132,7 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 			// Dataflow seems to require at least one output. We insert
 			// a bogus one (named "bogus") and remove it in the harness.
 
-			coder, err := graphx.EncodeCoderRef(edge.Input[0].From.Coder)
+			coder, err := encodeCoderRef(edge.Input[0].From.Coder)
 			if err != nil {
 				return nil, err
 			}
@@ -158,11 +159,11 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 	// TODO(BEAM-490): replace once CoGBK is a primitive. For now, we have to translate
 	// CoGBK with multiple PCollections as described in graphx/cogbk.go.
 
-	kvCoder, err := graphx.EncodeCoderRef(graphx.MakeKVUnionCoder(edge))
+	kvCoder, err := encodeCoderRef(graphx.MakeKVUnionCoder(edge))
 	if err != nil {
 		return nil, err
 	}
-	gbkCoder, err := graphx.EncodeCoderRef(graphx.MakeGBKUnionCoder(edge))
+	gbkCoder, err := encodeCoderRef(graphx.MakeGBKUnionCoder(edge))
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +250,7 @@ func expandCoGBK(nodes map[int]*outputReference, edge *graph.MultiEdge) ([]*df.S
 	// Expand
 
 	ref := nodes[edge.Output[0].To.ID()]
-	coder, err := graphx.EncodeCoderRef(edge.Output[0].To.Coder)
+	coder, err := encodeCoderRef(edge.Output[0].To.Coder)
 	if err != nil {
 		return nil, err
 	}
@@ -303,13 +304,11 @@ func translateNodes(edges []*graph.MultiEdge) map[int]*outputReference {
 func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 	switch edge.Op {
 	case graph.Impulse:
-		c := edge.Output[0].To.Coder
-
 		// NOTE: The impulse []data value is encoded in a special way as a
 		// URL Query-escaped windowed _unnested_ value. It is read back in
 		// a nested context at runtime.
 		var buf bytes.Buffer
-		if err := exec.EncodeWindowedValueHeader(c, beam.EventTime(time.Now()), &buf); err != nil {
+		if err := exec.EncodeWindowedValueHeader(beam.EventTime(time.Now()), &buf); err != nil {
 			return "", properties{}, err
 		}
 		value := string(append(buf.Bytes(), edge.Value...))
@@ -372,6 +371,11 @@ func serializeFn(edge *graph.MultiEdge) string {
 
 func makeSerializedFnPayload(payload *v1.TransformPayload) string {
 	return protox.MustEncodeBase64(payload)
+}
+
+func encodeCoderRef(c *coder.Coder) (*graphx.CoderRef, error) {
+	// TODO(herohde) 3/16/2018: ensure windowed values for Dataflow
+	return graphx.EncodeCoderRef(coder.NewW(c, window.NewGlobalWindow()))
 }
 
 // buildName computes a Dataflow composite name understood by the Dataflow UI,

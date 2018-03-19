@@ -157,37 +157,44 @@ func isAnyNonKVComposite(list []FullType) bool {
 	return false
 }
 
-// Convenience methods to operate through the top-level WindowedValue.
+// Convenience functions.
 
+// IsW returns true iff the type is a WindowedValue.
 func IsW(t FullType) bool {
 	return t.Type() == WindowedValueType
 }
 
+// NewW constructs a new WindowedValue of the given type.
 func NewW(t FullType) FullType {
 	return New(WindowedValueType, t)
 }
 
-func IsWKV(t FullType) bool {
-	return IsW(t) && SkipW(t).Type() == KVType
-}
-
-func NewWKV(components ...FullType) FullType {
-	return NewW(New(KVType, components...))
-}
-
-func IsWCoGBK(t FullType) bool {
-	return IsW(t) && SkipW(t).Type() == CoGBKType
-}
-
-func NewWCoGBK(components ...FullType) FullType {
-	return NewW(New(CoGBKType, components...))
-}
-
+// SkipW skips a WindowedValue layer, if present. If no, returns the input.
 func SkipW(t FullType) FullType {
 	if t.Type() == WindowedValueType {
 		return t.Components()[0]
 	}
 	return t
+}
+
+// IsKV returns true iff the type is a KV.
+func IsKV(t FullType) bool {
+	return t.Type() == KVType
+}
+
+// NewKV constructs a new KV of the given key and value types.
+func NewKV(components ...FullType) FullType {
+	return New(KVType, components...)
+}
+
+// IsCoGBK returns true iff the type is a CoGBK.
+func IsCoGBK(t FullType) bool {
+	return t.Type() == CoGBKType
+}
+
+// NewCoGBK constructs a new CoGBK of the given component types.
+func NewCoGBK(components ...FullType) FullType {
+	return New(CoGBKType, components...)
 }
 
 // IsStructurallyAssignable returns true iff a from value is structurally

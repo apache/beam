@@ -67,16 +67,16 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 			coder.NewW(coder.NewBytes(), window.NewGlobalWindow()),
 		},
 		{
-			"W<KV<foo,bar>>",
-			coder.NewWKV([]*coder.Coder{foo, bar}, window.NewGlobalWindow()),
+			"KV<foo,bar>",
+			coder.NewKV([]*coder.Coder{foo, bar}),
 		},
 		{
-			"W<CoGBK<foo,bar>>",
-			coder.NewWCoGBK([]*coder.Coder{foo, bar}, window.NewGlobalWindow()),
+			"CoGBK<foo,bar>",
+			coder.NewCoGBK([]*coder.Coder{foo, bar}),
 		},
 		{
-			"W<CoGBK<foo,bar,baz>>",
-			coder.NewWCoGBK([]*coder.Coder{foo, bar, baz}, window.NewGlobalWindow()),
+			"CoGBK<foo,bar,baz>",
+			coder.NewCoGBK([]*coder.Coder{foo, bar, baz}),
 		},
 	}
 
