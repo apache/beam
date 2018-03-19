@@ -621,7 +621,7 @@ class DataflowRunner(PipelineRunner):
     from apache_beam.runners.dataflow.internal import apiclient
     transform_proto = self.proto_context.transforms.get_proto(transform_node)
     if (apiclient._use_fnapi(transform_node.inputs[0].pipeline._options)
-        and transform_proto.spec.urn == common_urns.PARDO_TRANSFORM):
+        and transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
       serialized_data = self.proto_context.transforms.get_id(transform_node)
     else:
       serialized_data = pickler.dumps(
