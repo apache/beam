@@ -207,6 +207,8 @@ message PCollection {
 // ProcessBundleDescriptor.
 message ExecutableStagePayload {
 
+  // Environment in which this stage executes. We use an environment rather than environment id
+  // because ExecutableStages use environments directly. This may change in the future.
   Environment environment = 1;
 
   // Input PCollection id.
