@@ -199,6 +199,9 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
                 }
               }
             }
+            if (ioe != null) {
+              throw ioe;
+            }
           }
         }
       } catch (IOException e) {
