@@ -18,19 +18,16 @@
 
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.Iterables.getOnlyElement;
-
 import java.util.Collection;
-import java.util.Optional;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 
@@ -84,64 +81,72 @@ public interface ExecutableStage {
    * follows:
    *
    * <ul>
-   *   <li>The {@link PTransform#getSubtransformsList()} contains the result of {@link
-   *       #getTransforms()}.
+   *   <li>The {@link PTransform#getSubtransformsList()} contains no subtransforms. This ensures
+   *       that executable stages are treated as primitive transforms.
    *   <li>The only {@link PCollection} in the {@link PTransform#getInputsMap()} is the result of
    *       {@link #getInputPCollection()}.
    *   <li>The output {@link PCollection PCollections} in the values of {@link
    *       PTransform#getOutputsMap()} are the {@link PCollectionNode PCollections} returned by
    *       {@link #getOutputPCollections()}.
+   *   <li>The {@link FunctionSpec} contains an {@link ExecutableStagePayload} which has its input
+   *       and output PCollections set to the same values as the outer PTransform itself. It further
+   *       contains the environment set of transforms for this stage.
    * </ul>
+   *
+   * <p>The executable stage can be reconstructed from the resulting {@link ExecutableStagePayload}
+   * and components alone via {@link #fromPayload(ExecutableStagePayload, Components)}.
    */
   default PTransform toPTransform() {
+    ExecutableStagePayload.Builder payload = ExecutableStagePayload.newBuilder();
+
+    payload.setEnvironment(getEnvironment());
+
+    PCollectionNode input = getInputPCollection();
+    payload.setInput(input.getId());
+
+    for (PTransformNode transform : getTransforms()) {
+      payload.addTransforms(transform.getId());
+    }
+
+    for (PCollectionNode output : getOutputPCollections()) {
+      payload.addOutputs(output.getId());
+    }
+
     PTransform.Builder pt = PTransform.newBuilder();
+    pt.setSpec(FunctionSpec.newBuilder()
+        .setUrn(ExecutableStage.URN)
+        .setPayload(payload.build().toByteString())
+        .build());
     pt.putInputs("input", getInputPCollection().getId());
-    int i = 0;
-    for (PCollectionNode materializedPCollection : getOutputPCollections()) {
-      pt.putOutputs(String.format("materialized_%s", i), materializedPCollection.getId());
-      i++;
+    int outputIndex = 0;
+    for (PCollectionNode pcNode : getOutputPCollections()) {
+      // Do something
+      pt.putOutputs(String.format("materialized_%d", outputIndex), pcNode.getId());
+      outputIndex++;
     }
-    for (PTransformNode fusedTransform : getTransforms()) {
-      pt.addSubtransforms(fusedTransform.getId());
-    }
-    pt.setSpec(FunctionSpec.newBuilder().setUrn(ExecutableStage.URN));
     return pt.build();
   }
 
+  // TODO: Should this live under ExecutableStageTranslation?
   /**
-   * Return an {@link ExecutableStage} constructed from the provided {@link PTransform}
+   * Return an {@link ExecutableStage} constructed from the provided {@link FunctionSpec}
    * representation.
    *
-   * <p>See {@link #toPTransform()} for information about the required format of the {@link
-   * PTransform}. The environment will be determined by an arbitrary {@link PTransform} contained
-   * within the {@link PTransform#getSubtransformsList()}.
+   * <p>See {@link #toPTransform()} for how the payload is constructed. Note that the payload
+   * contains some information redundant with the {@link PTransform} due to runner implementations
+   * not having the full transform context at translation time, but rather access to an
+   * {@link org.apache.beam.sdk.runners.AppliedPTransform}.
    */
-  static ExecutableStage fromPTransform(PTransform ptransform, Components components) {
-    checkArgument(ptransform.getSpec().getUrn().equals(URN));
-    // It may be better to put this in an explicit Payload if other metadata becomes required
-    Optional<Environment> environment =
-        Environments.getEnvironment(ptransform.getSubtransforms(0), components);
-    checkArgument(
-        environment.isPresent(),
-        "%s with no %s",
-        ExecutableStage.class.getSimpleName(),
-        Environment.class.getSimpleName());
-    String inputId = getOnlyElement(ptransform.getInputsMap().values());
-    PCollectionNode inputNode =
-        PipelineNode.pCollection(inputId, components.getPcollectionsOrThrow(inputId));
-    Collection<PCollectionNode> outputNodes =
-        ptransform
-            .getOutputsMap()
-            .values()
-            .stream()
-            .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
-            .collect(Collectors.toSet());
-    Collection<PTransformNode> transformNodes =
-        ptransform
-            .getSubtransformsList()
-            .stream()
-            .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))
-            .collect(Collectors.toSet());
-    return ImmutableExecutableStage.of(environment.get(), inputNode, transformNodes, outputNodes);
+  static ExecutableStage fromPayload(ExecutableStagePayload payload, Components components) {
+    Environment environment = payload.getEnvironment();
+    PCollectionNode input = PipelineNode.pCollection(payload.getInput(),
+        components.getPcollectionsOrThrow(payload.getInput()));
+    List<PTransformNode> transforms = payload.getTransformsList().stream()
+        .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))
+        .collect(Collectors.toList());
+    List<PCollectionNode> outputs = payload.getOutputsList().stream()
+        .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
+        .collect(Collectors.toList());
+    return ImmutableExecutableStage.of(environment, input, transforms, outputs);
   }
 }
