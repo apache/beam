@@ -25,12 +25,12 @@ import (
 
 // Node is a typed connector describing the data type and encoding. A node
 // may have multiple inbound and outbound connections. The underlying type
-// must be a complete windowed type, i.e., not include any type variables.
+// must be a complete type, i.e., not include any type variables.
 type Node struct {
 	id int
 	// t is the type of underlying data and cannot change. It must be equal to
-	// the coder type. A node type root would always be a WindowedValue. The
-	// type must be bound, i.e., it cannot contain any type variables.
+	// the coder type. The type must be bound, i.e., it cannot contain any
+	// type variables.
 	t typex.FullType
 
 	// Coder defines the data encoding. It can be changed, but must be of
@@ -46,7 +46,7 @@ func (n *Node) ID() int {
 	return n.id
 }
 
-// Type returns the underlying full type of the data, such as W<KV<int,string>>.
+// Type returns the underlying full type of the data, such as KV<int,string>.
 func (n *Node) Type() typex.FullType {
 	return n.t
 }

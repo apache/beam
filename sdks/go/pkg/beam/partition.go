@@ -23,7 +23,6 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
@@ -44,7 +43,7 @@ func Partition(s Scope, n int, fn interface{}, col PCollection) []PCollection {
 	if n < 1 {
 		panic(fmt.Sprintf("n must be > 0"))
 	}
-	t := typex.SkipW(col.Type()).Type()
+	t := col.Type().Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, TType, t))
 
 	// The partitionFn is a DoFn with a signature that is dependent on the input, so

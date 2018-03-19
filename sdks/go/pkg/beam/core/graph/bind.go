@@ -27,11 +27,9 @@ import (
 // up. We should verify that common mistakes yield reasonable errors.
 
 // Bind returns the inbound, outbound and underlying output types for a Fn,
-// when bound to the underlying input types. All top-level fulltype must be
-// Windowed Values, because transforms always work on windowed values for the
-// main input and all outputs -- even if the transform chooses to ignore it.
-// The complication of bind is primarily that UserFns have loose signatures
-// and bind must produce valid type information for the execution plan.
+// when bound to the underlying input types. The complication of bind is
+// primarily that UserFns have loose signatures and bind must produce valid
+// type information for the execution plan.
 //
 // For example,
 //
@@ -39,26 +37,26 @@ import (
 // or
 //     func (context.Context, k typex.X, v int) (string, typex.X, error)
 //
-// are UserFns that may take one or two incoming fulltypes: either W<KV<X,int>>
-// or W<X> with a singleton side input of type W<int>. For the purpose of the
+// are UserFns that may take one or two incoming fulltypes: either KV<X,int>
+// or X with a singleton side input of type int. For the purpose of the
 // shape of data processing, the two forms are equivalent. The non-data types,
 // context.Context and error, are not part of the data signature, but in play
-// only at runtime. EventTime in the first case exposes Window information.
+// only at runtime.
 //
-// If either was bound to the input type [W<KV<string,int>>], bind would return:
+// If either was bound to the input type [KV<string,int>], bind would return:
 //
-//     inbound:  [Main: W<KV<X,int>>]
-//     outbound: [W<KV<string,X>>]
-//     output:   [W<KV<string,string>>]
+//     inbound:  [Main: KV<X,int>]
+//     outbound: [KV<string,X>]
+//     output:   [KV<string,string>]
 //
 // Note that it propagates the assignment of X to string in the output type.
 //
-// If either was instead bound to the input fulltypes [W<float>, W<int>], the
+// If either was instead bound to the input fulltypes [float, int], the
 // result would be:
 //
-//     inbound:  [Main: W<X>, Singleton: W<int>]
-//     outbound: [W<KV<string,X>>]
-//     output:   [W<KV<string, float>>]
+//     inbound:  [Main: X, Singleton: int]
+//     outbound: [KV<string,X>]
+//     output:   [KV<string, float>]
 //
 // Here, the inbound shape and output types are different from before.
 func Bind(fn *funcx.Fn, typedefs map[string]reflect.Type, in ...typex.FullType) ([]typex.FullType, []InputKind, []typex.FullType, []typex.FullType, error) {
@@ -100,9 +98,9 @@ func findOutbound(fn *funcx.Fn) ([]typex.FullType, error) {
 	case 0:
 		break // ok: no direct output.
 	case 1:
-		outbound = append(outbound, typex.NewW(typex.New(ret[0])))
+		outbound = append(outbound, typex.New(ret[0]))
 	case 2:
-		outbound = append(outbound, typex.NewWKV(typex.New(ret[0]), typex.New(ret[1])))
+		outbound = append(outbound, typex.NewKV(typex.New(ret[0]), typex.New(ret[1])))
 	default:
 		return nil, fmt.Errorf("too many return values: %v", ret)
 	}
@@ -111,9 +109,9 @@ func findOutbound(fn *funcx.Fn) ([]typex.FullType, error) {
 		values, _ := funcx.UnfoldEmit(param.T)
 		trimmed := trimIllegal(values)
 		if len(trimmed) == 2 {
-			outbound = append(outbound, typex.NewWKV(typex.New(trimmed[0]), typex.New(trimmed[1])))
+			outbound = append(outbound, typex.NewKV(typex.New(trimmed[0]), typex.New(trimmed[1])))
 		} else {
-			outbound = append(outbound, typex.NewW(typex.New(trimmed[0])))
+			outbound = append(outbound, typex.New(trimmed[0]))
 		}
 	}
 	return outbound, nil
@@ -152,10 +150,10 @@ func findInbound(fn *funcx.Fn, in ...typex.FullType) ([]typex.FullType, []InputK
 	return inbound, kinds, nil
 }
 
-func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool) (typex.FullType, InputKind, error) {
-	arity := inboundArity(candidate, isMain)
+func tryBindInbound(t typex.FullType, args []funcx.FnParam, isMain bool) (typex.FullType, InputKind, error) {
+	arity := inboundArity(t, isMain)
 	if len(args) < arity {
-		return nil, Main, fmt.Errorf("too few parameters to bind %v", candidate)
+		return nil, Main, fmt.Errorf("too few parameters to bind %v", t)
 	}
 
 	// log.Printf("Bind inbound %v to %v (main: %v)", candidate, args, isMain)
@@ -163,11 +161,10 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 	kind := Main
 	var other typex.FullType
 
-	t := typex.SkipW(candidate)
 	switch t.Class() {
 	case typex.Concrete, typex.Container:
 		if isMain {
-			other = typex.NewW(typex.New(args[0].T))
+			other = typex.New(args[0].T)
 		} else {
 			// We accept various forms for side input. We have to disambiguate
 			// []string into a Singleton of type []string or a Slice of type
@@ -180,10 +177,10 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 					// TODO(herohde) 6/29/2017: we do not allow universal slices, for now.
 
 					kind = Slice
-					other = typex.NewW(typex.New(args[0].T.Elem()))
+					other = typex.New(args[0].T.Elem())
 				} else {
 					kind = Singleton
-					other = typex.NewW(typex.New(args[0].T))
+					other = typex.New(args[0].T)
 				}
 			case funcx.FnIter:
 				values, _ := funcx.UnfoldIter(args[0].T)
@@ -193,7 +190,7 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 				}
 
 				kind = Iter
-				other = typex.NewW(typex.New(trimmed[0]))
+				other = typex.New(trimmed[0])
 
 			case funcx.FnReIter:
 				values, _ := funcx.UnfoldReIter(args[0].T)
@@ -203,7 +200,7 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 				}
 
 				kind = ReIter
-				other = typex.NewW(typex.New(trimmed[0]))
+				other = typex.New(trimmed[0])
 
 			default:
 				panic(fmt.Sprintf("Unexpected param kind: %v", arg))
@@ -219,7 +216,7 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 				if args[1].Kind != funcx.FnValue {
 					return nil, kind, fmt.Errorf("value of %v cannot bind to %v", t, args[1])
 				}
-				other = typex.NewWKV(typex.New(args[0].T), typex.New(args[1].T))
+				other = typex.NewKV(typex.New(args[0].T), typex.New(args[1].T))
 			} else {
 				// TODO(herohde) 6/29/2017: side input map form.
 
@@ -232,7 +229,7 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 					}
 
 					kind = Iter
-					other = typex.NewWKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
+					other = typex.NewKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
 
 				case funcx.FnReIter:
 					values, _ := funcx.UnfoldReIter(args[0].T)
@@ -242,7 +239,7 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 					}
 
 					kind = ReIter
-					other = typex.NewWKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
+					other = typex.NewKV(typex.New(trimmed[0]), typex.New(trimmed[1]))
 
 				default:
 					return nil, kind, fmt.Errorf("%v cannot bind to %v", t, args[0])
@@ -277,7 +274,7 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 					return nil, kind, fmt.Errorf("values of %v cannot bind to %v", t, args[i])
 				}
 			}
-			other = typex.NewWCoGBK(components...)
+			other = typex.NewCoGBK(components...)
 
 		default:
 			panic("Unexpected inbound type")
@@ -287,8 +284,8 @@ func tryBindInbound(candidate typex.FullType, args []funcx.FnParam, isMain bool)
 		return nil, kind, fmt.Errorf("unexpected inbound type %v", t)
 	}
 
-	if !typex.IsStructurallyAssignable(candidate, other) {
-		return nil, kind, fmt.Errorf("%v is not assignable to %v", candidate, other)
+	if !typex.IsStructurallyAssignable(t, other) {
+		return nil, kind, fmt.Errorf("%v is not assignable to %v", t, other)
 	}
 	return other, kind, nil
 }
@@ -302,8 +299,6 @@ func inboundArity(t typex.FullType, isMain bool) int {
 			}
 			// A KV side input must be a single iterator/map.
 			return 1
-		case typex.WindowedValueType:
-			return inboundArity(t.Components()[0], isMain)
 		case typex.CoGBKType:
 			return len(t.Components())
 		default:

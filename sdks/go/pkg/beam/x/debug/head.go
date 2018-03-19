@@ -33,7 +33,7 @@ func Head(s beam.Scope, col beam.PCollection, n int) beam.PCollection {
 	s = s.Scope("debug.Head")
 
 	switch {
-	case typex.IsWKV(col.Type()):
+	case typex.IsKV(col.Type()):
 		return beam.ParDo(s, &headKVFn{N: n}, beam.Impulse(s), beam.SideInput{Input: col})
 	default:
 		return beam.ParDo(s, &headFn{N: n}, beam.Impulse(s), beam.SideInput{Input: col})

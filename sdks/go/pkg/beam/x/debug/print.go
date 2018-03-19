@@ -43,9 +43,9 @@ func Printf(s beam.Scope, format string, col beam.PCollection) beam.PCollection 
 	s = s.Scope("debug.Print")
 
 	switch {
-	case typex.IsWKV(col.Type()):
+	case typex.IsKV(col.Type()):
 		return beam.ParDo(s, &printKVFn{Format: format}, col)
-	case typex.IsWCoGBK(col.Type()):
+	case typex.IsCoGBK(col.Type()):
 		return beam.ParDo(s, &printGBKFn{Format: format}, col)
 	default:
 		return beam.ParDo(s, &printFn{Format: format}, col)
