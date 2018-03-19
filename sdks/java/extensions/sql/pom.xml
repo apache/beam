@@ -35,8 +35,8 @@
   <properties>
     <timestamp>${maven.build.timestamp}</timestamp>
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
-    <calcite.version>1.15.0</calcite.version>
-    <avatica.version>1.10.0</avatica.version>
+    <calcite.version>1.16.0</calcite.version>
+    <avatica.version>1.11.0</avatica.version>
     <mockito.version>1.9.5</mockito.version>
     
     <!-- charset that calcite will use for the tables in the tests -->
