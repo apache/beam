@@ -94,14 +94,14 @@ class WatermarkManager(object):
 
   def update_watermarks(self, completed_committed_bundle, applied_ptransform,
                         completed_timers, outputs, unprocessed_bundles,
-                        keyed_earliest_holds):
+                        keyed_earliest_holds, side_inputs_container):
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
     self._update_pending(
         completed_committed_bundle, applied_ptransform, completed_timers,
         outputs, unprocessed_bundles)
     tw = self.get_watermarks(applied_ptransform)
     tw.hold(keyed_earliest_holds)
-    self._refresh_watermarks(applied_ptransform)
+    return self._refresh_watermarks(applied_ptransform, side_inputs_container)
 
   def _update_pending(self, input_committed_bundle, applied_ptransform,
                       completed_timers, output_committed_bundles,
@@ -128,8 +128,9 @@ class WatermarkManager(object):
     if input_committed_bundle and input_committed_bundle.has_elements():
       completed_tw.remove_pending(input_committed_bundle)
 
-  def _refresh_watermarks(self, applied_ptransform):
+  def _refresh_watermarks(self, applied_ptransform, side_inputs_container):
     assert isinstance(applied_ptransform, pipeline.AppliedPTransform)
+    unblocked_tasks = []
     tw = self.get_watermarks(applied_ptransform)
     if tw.refresh():
       for pval in applied_ptransform.outputs.values():
@@ -141,7 +142,12 @@ class WatermarkManager(object):
           if v in self._value_to_consumers:  # If there are downstream consumers
             consumers = self._value_to_consumers[v]
             for consumer in consumers:
-              self._refresh_watermarks(consumer)
+              unblocked_tasks.extend(
+                  self._refresh_watermarks(consumer, side_inputs_container))
+      unblocked_tasks.extend(
+          side_inputs_container.update_watermarks_for_transform(
+              applied_ptransform, tw))
+    return unblocked_tasks
 
   def extract_all_timers(self):
     """Extracts fired timers for all transforms
