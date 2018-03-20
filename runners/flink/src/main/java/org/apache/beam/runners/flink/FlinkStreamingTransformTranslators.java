@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.flink;
 
+import static java.lang.String.format;
 import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
 
 import com.google.auto.service.AutoService;
@@ -198,13 +199,14 @@ class FlinkStreamingTransformTranslators {
                 context.getExecutionEnvironment().getParallelism());
         nonDedupSource = context
             .getExecutionEnvironment()
-            .addSource(sourceWrapper).name(fullName).returns(withIdTypeInfo);
+            .addSource(sourceWrapper)
+            .name(fullName).uid(fullName)
+            .returns(withIdTypeInfo);
 
         if (rawSource.requiresDeduping()) {
-          source =
-              nonDedupSource
-                  .keyBy(new ValueWithRecordIdKeySelector<>())
-                  .transform("deduping", outputTypeInfo, new DedupingOperator<>());
+          source = nonDedupSource.keyBy(new ValueWithRecordIdKeySelector<>())
+              .transform("deduping", outputTypeInfo, new DedupingOperator<>())
+              .uid(format("%s/__deduplicated__", fullName));
         } else {
           source = nonDedupSource.flatMap(new StripIdsMap<>()).returns(outputTypeInfo);
         }
@@ -297,7 +299,9 @@ class FlinkStreamingTransformTranslators {
                 context.getExecutionEnvironment().getParallelism());
         source = context
             .getExecutionEnvironment()
-            .addSource(sourceWrapper).name(fullName).returns(outputTypeInfo);
+            .addSource(sourceWrapper)
+            .name(fullName).uid(fullName)
+            .returns(outputTypeInfo);
       } catch (Exception e) {
         throw new RuntimeException(
             "Error while translating BoundedSource: " + rawSource, e);
@@ -511,7 +515,7 @@ class FlinkStreamingTransformTranslators {
                 transformedSideInputs.f0);
 
         if (stateful) {
-          // we have to manually contruct the two-input transform because we're not
+          // we have to manually construct the two-input transform because we're not
           // allowed to have only one input keyed, normally.
           KeyedStream keyedStream = (KeyedStream<?, InputT>) inputDataStream;
           TwoInputTransformation<
@@ -542,6 +546,7 @@ class FlinkStreamingTransformTranslators {
         }
       }
 
+      outputStream.uid(transformName);
       context.setOutputDataStream(outputs.get(mainOutputTag), outputStream);
 
       for (Map.Entry<TupleTag<?>, PValue> entry : outputs.entrySet()) {
@@ -722,9 +727,10 @@ class FlinkStreamingTransformTranslators {
       FlinkAssignWindows<T, ? extends BoundedWindow> assignWindowsFunction =
           new FlinkAssignWindows<>(windowFn);
 
+      String fullName = context.getOutput(transform).getName();
       SingleOutputStreamOperator<WindowedValue<T>> outputDataStream = inputDataStream
           .flatMap(assignWindowsFunction)
-          .name(context.getOutput(transform).getName())
+          .name(fullName).uid(fullName)
           .returns(typeInfo);
 
       context.setOutputDataStream(context.getOutput(transform), outputDataStream);
@@ -822,7 +828,8 @@ class FlinkStreamingTransformTranslators {
       @SuppressWarnings("unchecked")
       SingleOutputStreamOperator<WindowedValue<KV<K, Iterable<InputT>>>> outDataStream =
           keyedWorkItemStream
-              .transform(fullName, outputTypeInfo, (OneInputStreamOperator) doFnOperator);
+              .transform(fullName, outputTypeInfo, (OneInputStreamOperator) doFnOperator)
+              .uid(fullName);
 
       context.setOutputDataStream(context.getOutput(transform), outDataStream);
     }
@@ -860,7 +867,7 @@ class FlinkStreamingTransformTranslators {
     public void translateNode(
         PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
         FlinkStreamingTranslationContext context) {
-
+      String fullName = getCurrentTransformName(context);
       PCollection<KV<K, InputT>> input = context.getInput(transform);
 
       @SuppressWarnings("unchecked")
@@ -919,7 +926,6 @@ class FlinkStreamingTransformTranslators {
         throw new RuntimeException(e);
       }
 
-      String fullName = getCurrentTransformName(context);
       if (sideInputs.isEmpty()) {
         TupleTag<KV<K, OutputT>> mainTag = new TupleTag<>("main output");
         WindowDoFnOperator<K, InputT, OutputT> doFnOperator =
@@ -940,9 +946,9 @@ class FlinkStreamingTransformTranslators {
         // is WindowedValue<SingletonKeyedWorkItem>, which is fine but Java doesn't like it ...
         @SuppressWarnings("unchecked")
         SingleOutputStreamOperator<WindowedValue<KV<K, OutputT>>> outDataStream =
-            keyedWorkItemStream.transform(
-                fullName, outputTypeInfo, (OneInputStreamOperator) doFnOperator);
-
+            keyedWorkItemStream
+                .transform(fullName, outputTypeInfo, (OneInputStreamOperator) doFnOperator)
+                .uid(fullName);
         context.setOutputDataStream(context.getOutput(transform), outDataStream);
       } else {
         Tuple2<Map<Integer, PCollectionView<?>>, DataStream<RawUnionValue>> transformSideInputs =
@@ -963,7 +969,7 @@ class FlinkStreamingTransformTranslators {
                 context.getPipelineOptions(),
                 inputKvCoder.getKeyCoder());
 
-        // we have to manually contruct the two-input transform because we're not
+        // we have to manually construct the two-input transform because we're not
         // allowed to have only one input keyed, normally.
 
         TwoInputTransformation<
@@ -985,6 +991,7 @@ class FlinkStreamingTransformTranslators {
             new SingleOutputStreamOperator(
                 keyedWorkItemStream.getExecutionEnvironment(),
                 rawFlinkTransform) {}; // we have to cheat around the ctor being protected
+        outDataStream.uid(fullName);
 
         keyedWorkItemStream.getExecutionEnvironment().addOperator(rawFlinkTransform);
 
