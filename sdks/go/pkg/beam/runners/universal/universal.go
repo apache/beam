@@ -33,7 +33,7 @@ func init() {
 	beam.RegisterRunner("universal", Execute)
 }
 
-// Execute execute the pipeline on a universal beam runner.
+// Execute executes the pipeline on a universal beam runner.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
 	endpoint, err := jobopts.GetEndpoint()
 	if err != nil {
