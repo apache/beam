@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"google.golang.org/api/storage/v1"
 )
@@ -37,11 +38,17 @@ type fs struct {
 }
 
 // New creates a new Google Cloud Storage filesystem using application
-// default credentials.
+// default credentials. If it fails, it falls back to unauthenticated
+// access.
 func New(ctx context.Context) textio.FileSystem {
 	client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
 	if err != nil {
-		panic(fmt.Sprintf("failed to create GCE client: %v", err))
+		log.Warnf(ctx, "Warning: falling back to unauthenticated GCS access: %v", err)
+
+		client, err = gcsx.NewUnauthenticatedClient(ctx)
+		if err != nil {
+			panic(fmt.Sprintf("failed to create GCE client: %v", err))
+		}
 	}
 	return &fs{client: client}
 }
