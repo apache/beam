@@ -44,6 +44,7 @@ def pubsub_grpc_version = "0.1.18"
 def apex_core_version = "3.6.0"
 def apex_malhar_version = "3.4.0"
 def postgres_version = "9.4.1212.jre7"
+def jaxb_api_version = "2.2.12"
 
 // A map of maps containing common libraries used per language. To use:
 // dependencies {
@@ -125,6 +126,7 @@ ext.library = [
     jackson_dataformat_cbor: "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:$jackson_version",
     jackson_dataformat_yaml: "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
     jackson_module_scala: "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
+    jaxb_api: "javax.xml.bind:jaxb-api:$jaxb_api_version",
     joda_time: "joda-time:joda-time:2.4",
     junit: "junit:junit:4.12",
     kafka_clients: "org.apache.kafka:kafka-clients:1.0.0",
