@@ -23,11 +23,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
+import com.google.common.graph.ElementOrder;
 import com.google.common.graph.EndpointPair;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.Network;
+import com.google.common.graph.NetworkBuilder;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -143,8 +146,46 @@ public class Networks {
     return visitedNodes;
   }
 
-  /** Returns a set of nodes sorted in topological order. */
-  public static <NodeT, EdgeT> Iterable<NodeT> topologicalOrder(Network<NodeT, EdgeT> network) {
+  /**
+   * Return a set of nodes in sorted topological order.
+   *
+   * <p>Nodes will be considered in the order specified by the {@link Network Network's} {@link
+   * Network#nodeOrder()}.
+   */
+  public static <NodeT> Iterable<NodeT> topologicalOrder(Network<NodeT, ?> network) {
+    return computeTopologicalOrder(network);
+  }
+
+  /**
+   * Return a set of nodes in sorted topological order.
+   *
+   * <p>Nodes will be considered in the order specified by the {@link
+   * ElementOrder#sorted(Comparator) sorted ElementOrder} created with the provided comparator.
+   */
+  public static <NodeT, EdgeT> Iterable<NodeT> topologicalOrder(
+      Network<NodeT, EdgeT> network, Comparator<NodeT> nodeOrder) {
+    // Copy the characteristics of the network to ensure that the result network can represent the
+    // original network, just with the provided suborder
+    MutableNetwork<NodeT, EdgeT> orderedNetwork =
+        NetworkBuilder.from(network).nodeOrder(ElementOrder.sorted(nodeOrder)).build();
+    for (NodeT node : network.nodes()) {
+      orderedNetwork.addNode(node);
+    }
+    for (EdgeT edge : network.edges()) {
+      EndpointPair<NodeT> incident = network.incidentNodes(edge);
+      orderedNetwork.addEdge(incident.source(), incident.target(), edge);
+    }
+    return computeTopologicalOrder(orderedNetwork);
+  }
+
+  /**
+   * Compute the topological order for a {@link Network}.
+   *
+   * <p>Nodes must be considered in the order specified by the {@link Network Network's} {@link
+   * Network#nodeOrder()}. This ensures that any two Networks with the same nodes and node orders
+   * produce the same result.
+   */
+  private static <NodeT> Iterable<NodeT> computeTopologicalOrder(Network<NodeT, ?> network) {
     // TODO: (github/guava/2641) Upgrade Guava and remove this method if topological sorting becomes
     // supported externally or remove this comment if its not going to be supported externally.
 
