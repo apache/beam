@@ -25,8 +25,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 )
 
-// Stage stages the worker binary and any additional content to the given endpoint.
-// It returns the commit token if successful.
+// Stage stages the worker binary and any additional files to the given
+// artifact staging endpoint. It returns the commit token if successful.
 func Stage(ctx context.Context, id, endpoint, binary string, files ...artifact.KeyedFile) (string, error) {
 	ctx = grpcx.WriteWorkerID(ctx, id)
 	cc, err := grpcx.Dial(ctx, endpoint, 2*time.Minute)
