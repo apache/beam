@@ -21,6 +21,7 @@ package org.apache.beam.runners.core.construction.graph;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertEquals;
@@ -29,10 +30,14 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import com.google.common.graph.ElementOrder;
+import com.google.common.graph.EndpointPair;
 import com.google.common.graph.MutableNetwork;
 import com.google.common.graph.NetworkBuilder;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -76,6 +81,55 @@ public class NetworksTest {
             greaterThan(nodeToPosition.get(node)));
       }
     }
+  }
+
+  @Test
+  public void testTopologicalSortWithSuborder() {
+    // This cast is required to narrow the type accepted by the comparator
+    Comparator<String> subOrder = (Comparator<String>) (Comparator) Ordering.arbitrary();
+    MutableNetwork<String, String> network = createNetwork();
+
+    Iterable<String> sortedNodes = Networks.topologicalOrder(network, subOrder);
+
+    MutableNetwork<String, String> naturalOrderedNetwork =
+        NetworkBuilder.from(network)
+            .nodeOrder(ElementOrder.<String>natural())
+            .edgeOrder(ElementOrder.<String>natural())
+            .build();
+    MutableNetwork<String, String> arbitraryOrderNetwork =
+        NetworkBuilder.from(network)
+            .nodeOrder(ElementOrder.unordered())
+            .edgeOrder(ElementOrder.unordered())
+            .build();
+    MutableNetwork<String, String> reverseNaturalOrderNetwork =
+        NetworkBuilder.from(network)
+            .nodeOrder(ElementOrder.sorted(Ordering.natural().reverse()))
+            .edgeOrder(ElementOrder.sorted(Ordering.natural().reverse()))
+            .build();
+
+    for (String node : network.nodes()) {
+      naturalOrderedNetwork.addNode(node);
+      arbitraryOrderNetwork.addNode(node);
+      reverseNaturalOrderNetwork.addNode(node);
+    }
+
+    for (String edge : network.edges()) {
+      EndpointPair<String> incident = network.incidentNodes(edge);
+      naturalOrderedNetwork.addEdge(incident.source(), incident.target(), edge);
+      arbitraryOrderNetwork.addEdge(incident.source(), incident.target(), edge);
+      reverseNaturalOrderNetwork.addEdge(incident.source(), incident.target(), edge);
+    }
+
+    Iterable<String> naturalSortedNodes =
+        Networks.topologicalOrder(naturalOrderedNetwork, subOrder);
+    Iterable<String> arbitrarySortedNodes =
+        Networks.topologicalOrder(arbitraryOrderNetwork, subOrder);
+    Iterable<String> reverseNaturalSortedNodes =
+        Networks.topologicalOrder(reverseNaturalOrderNetwork, subOrder);
+
+    assertThat(sortedNodes, equalTo(naturalSortedNodes));
+    assertThat(sortedNodes, equalTo(arbitrarySortedNodes));
+    assertThat(sortedNodes, equalTo(reverseNaturalSortedNodes));
   }
 
   @Test
