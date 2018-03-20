@@ -178,9 +178,9 @@ import org.slf4j.LoggerFactory;
  *       // settings for ProducerConfig. e.g, to enable compression :
  *       .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
  *
- *       // You set publish timestamp for the Kafka records
+ *       // You set publish timestamp for the Kafka records.
  *       .withInputTimestamp() // element timestamp is used while publishing to Kafka
- *       // or you can also set a custom timestamp with a function
+ *       // or you can also set a custom timestamp with a function.
  *       .withPublishTimestampFunction((elem, elemTs) -> ...)
  *
  *       // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
@@ -899,16 +899,27 @@ public class KafkaIO {
     }
 
     /**
-     * The timestamp for each published message is set to timestamp of the input element.
+     * The timestamp for each record being published is set to timestamp of the element in the
+     * pipeline. This is equivalent to {@code withPublishTimestampFunction((e, ts) -> ts)}. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline
+     * is processing messages from the past, they might be deleted immediately by Kafka after
+     * being published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
      */
     public Write<K, V> withInputTimestamp() {
       return withPublishTimestampFunction(KafkaPublishTimestampFunction.withElementTimestamp());
     }
 
+    /**
+     * A function to provide timestamp for records being published. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline
+     * is processing messages from the past, they might be deleted immediately by Kafka after
+     * being published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     */
     public Write<K, V> withPublishTimestampFunction(
       KafkaPublishTimestampFunction<KV<K, V>> timestampFunction) {
       return toBuilder().setPublishTimestampFunction(timestampFunction).build();
     }
+
     /**
      * Provides exactly-once semantics while writing to Kafka, which enables applications with
      * end-to-end exactly-once guarantees on top of exactly-once semantics <i>within</i> Beam
