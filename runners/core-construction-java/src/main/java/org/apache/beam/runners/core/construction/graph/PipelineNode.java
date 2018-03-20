@@ -34,6 +34,8 @@ public interface PipelineNode {
     return new AutoValue_PipelineNode_PCollectionNode(id, collection);
   }
 
+  String getId();
+
   /**
    * A {@link PipelineNode} which contains a {@link PCollection}.
    */
@@ -42,7 +44,6 @@ public interface PipelineNode {
     public abstract String getId();
     public abstract PCollection getPCollection();
   }
-
 
   /**
    * A {@link PipelineNode} which contains a {@link PTransform}.
