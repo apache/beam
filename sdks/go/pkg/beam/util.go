@@ -41,6 +41,15 @@ func Seq(s Scope, col PCollection, dofns ...interface{}) PCollection {
 	return cur
 }
 
+// AddFixedKey adds a fixed key (0) to every element.
+func AddFixedKey(s Scope, col PCollection) PCollection {
+	return ParDo(s, addFixedKeyFn, col)
+}
+
+func addFixedKeyFn(elm T) (int, T) {
+	return 0, elm
+}
+
 // DropKey drops the key for an input PCollection<KV<A,B>>. It returns
 // a PCollection<B>.
 func DropKey(s Scope, col PCollection) PCollection {

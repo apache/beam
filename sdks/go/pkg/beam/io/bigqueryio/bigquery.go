@@ -168,8 +168,11 @@ func Write(s beam.Scope, project, table string, col beam.PCollection) {
 
 	s = s.Scope("bigquery.Write")
 
-	imp := beam.Impulse(s)
-	beam.ParDo0(s, &writeFn{Project: project, Table: qn, Type: beam.EncodedType{T: t}}, imp, beam.SideInput{Input: col})
+	// TODO(BEAM-3860) 3/15/2018: use side input instead of GBK.
+
+	pre := beam.AddFixedKey(s, col)
+	post := beam.GroupByKey(s, pre)
+	beam.ParDo0(s, &writeFn{Project: project, Table: qn, Type: beam.EncodedType{T: t}}, post)
 }
 
 type writeFn struct {
@@ -181,7 +184,7 @@ type writeFn struct {
 	Type beam.EncodedType `json:"type"`
 }
 
-func (f *writeFn) ProcessElement(ctx context.Context, _ []byte, iter func(*beam.X) bool) error {
+func (f *writeFn) ProcessElement(ctx context.Context, _ int, iter func(*beam.X) bool) error {
 	client, err := bigquery.NewClient(ctx, f.Project)
 	if err != nil {
 		return err
