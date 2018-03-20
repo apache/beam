@@ -1083,6 +1083,7 @@ class GeneralTriggerDriver(TriggerDriver):
             for unused_value, timestamp in elements)
            if element_output_time >= output_watermark))
       if output_time is not None:
+        state.clear_state(window, self.WATERMARK_HOLD)
         state.add_state(window, self.WATERMARK_HOLD, output_time)
 
       context = state.at(window, self.clock)

@@ -86,6 +86,7 @@ class InjectorUtils {
    */
   public static void createTopic(Pubsub client, String fullTopicName)
       throws IOException {
+    System.out.println("fullTopicName " + fullTopicName);
     try {
         client.projects().topics().get(fullTopicName).execute();
     } catch (GoogleJsonResponseException e) {

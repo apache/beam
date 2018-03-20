@@ -128,6 +128,7 @@ public class UserScore {
 
     @ProcessElement
     public void processElement(ProcessContext c) {
+      System.out.println("GOT " + c.element());
       String[] components = c.element().split(",");
       try {
         String user = components[0].trim();
