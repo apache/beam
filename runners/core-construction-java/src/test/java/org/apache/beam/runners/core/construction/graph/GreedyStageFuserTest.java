@@ -889,6 +889,71 @@ public class GreedyStageFuserTest {
   }
 
   @Test
+  public void sideInputIncludedInStage() {
+    Environment env = Environment.newBuilder().setUrl("common").build();
+    PTransform readTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "impulse.out")
+            .putOutputs("output", "read.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .build()
+                            .toByteString()))
+            .build();
+
+    PTransform parDoTransform =
+        PTransform.newBuilder()
+            .putInputs("input", "read.out")
+            .putInputs("side_input", "side_read.out")
+            .putOutputs("output", "parDo.out")
+            .setSpec(
+                FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(
+                        ParDoPayload.newBuilder()
+                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
+                            .putSideInputs("side_input", SideInput.getDefaultInstance())
+                            .build()
+                            .toByteString()))
+            .build();
+    PCollection sideInputPCollection =
+        PCollection.newBuilder().setUniqueName("side_read.out").build();
+    QueryablePipeline p =
+        QueryablePipeline.forPrimitivesIn(
+            partialComponents
+                .toBuilder()
+                .putTransforms("read", readTransform)
+                .putPcollections(
+                    "read.out", PCollection.newBuilder().setUniqueName("read.out").build())
+                .putTransforms(
+                    "side_read",
+                    PTransform.newBuilder()
+                        .putInputs("input", "impulse.out")
+                        .putOutputs("output", "side_read.out")
+                        .build())
+                .putPcollections("side_read.out", sideInputPCollection)
+                .putTransforms("parDo", parDoTransform)
+                .putPcollections(
+                    "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+                .putEnvironments("common", env)
+                .build());
+
+    PCollectionNode readOutput =
+        getOnlyElement(p.getOutputPCollections(PipelineNode.pTransform("read", readTransform)));
+    ExecutableStage subgraph =
+        GreedyStageFuser.forGrpcPortRead(
+            p, readOutput, ImmutableSet.of(PipelineNode.pTransform("parDo", parDoTransform)));
+    assertThat(
+        subgraph.getSideInputPCollections(),
+        contains(PipelineNode.pCollection("side_read.out", sideInputPCollection)));
+    assertThat(subgraph.getOutputPCollections(), emptyIterable());
+  }
+
+  @Test
   public void materializesWithGroupByKeyConsumer() {
     // (impulse.out) -> read -> read.out -> gbk -> gbk.out
     // Fuses to
