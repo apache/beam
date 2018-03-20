@@ -435,8 +435,11 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
       void sendRecord(TimestampedValue<KV<K, V>> record, Counter sendCounter) {
         try {
-          Long timestampMillis = spec.isElementTimestampEnabled()
-              ? record.getTimestamp().getMillis() : null;
+          Long timestampMillis = spec.getPublishTimestampFunction() != null
+            ? spec.getPublishTimestampFunction().getTimestamp(record.getValue(),
+                                                              record.getTimestamp()).getMillis()
+            : null;
+
           producer.send(
               new ProducerRecord<>(
                   spec.getTopic(), null, timestampMillis,

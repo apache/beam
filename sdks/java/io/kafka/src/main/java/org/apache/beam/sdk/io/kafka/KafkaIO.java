@@ -174,9 +174,14 @@ import org.slf4j.LoggerFactory;
  *       .withKeySerializer(LongSerializer.class)
  *       .withValueSerializer(StringSerializer.class)
  *
- *       // you can further customize KafkaProducer used to write the records by adding more
+ *       // You can further customize KafkaProducer used to write the records by adding more
  *       // settings for ProducerConfig. e.g, to enable compression :
  *       .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
+ *
+ *       // You set publish timestamp for the Kafka records
+ *       .withInputTimestamp() // element timestamp is used while publishing to Kafka
+ *       // or you can also set a custom timestamp with a function
+ *       .withPublishTimestampFunction((elem, elemTs) -> ...)
  *
  *       // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
  *       .withEOS(20, "eos-sink-group-id");
@@ -258,7 +263,6 @@ public class KafkaIO {
         .setProducerConfig(Write.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
         .setNumShards(0)
-        .setElementTimestampEnabled(false)
         .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
         .build();
   }
@@ -814,7 +818,7 @@ public class KafkaIO {
     @Nullable abstract Class<? extends Serializer<K>> getKeySerializer();
     @Nullable abstract Class<? extends Serializer<V>> getValueSerializer();
 
-    abstract boolean isElementTimestampEnabled();
+    @Nullable abstract KafkaPublishTimestampFunction<KV<K, V>> getPublishTimestampFunction();
 
     // Configuration for EOS sink
     abstract boolean isEOS();
@@ -833,7 +837,8 @@ public class KafkaIO {
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
       abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
-      abstract Builder<K, V> setElementTimestampEnabled(boolean tsEnabled);
+      abstract Builder<K, V> setPublishTimestampFunction(
+        KafkaPublishTimestampFunction<KV<K, V>> timestampFunction);
       abstract Builder<K, V> setEOS(boolean eosEnabled);
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
       abstract Builder<K, V> setNumShards(int numShards);
@@ -897,9 +902,13 @@ public class KafkaIO {
      * The timestamp for each published message is set to timestamp of the input element.
      */
     public Write<K, V> withInputTimestamp() {
-      return toBuilder().setElementTimestampEnabled(true).build();
+      return withPublishTimestampFunction(KafkaPublishTimestampFunction.withElementTimestamp());
     }
 
+    public Write<K, V> withPublishTimestampFunction(
+      KafkaPublishTimestampFunction<KV<K, V>> timestampFunction) {
+      return toBuilder().setPublishTimestampFunction(timestampFunction).build();
+    }
     /**
      * Provides exactly-once semantics while writing to Kafka, which enables applications with
      * end-to-end exactly-once guarantees on top of exactly-once semantics <i>within</i> Beam

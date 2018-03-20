@@ -931,7 +931,7 @@ public class KafkaIOTest {
                  .withEOS(1, "test")
                  .withConsumerFactoryFn(new ConsumerFactoryFn(
                    Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
-                 .withInputTimestamp()
+                 .withPublishTimestampFunction((e, ts) -> ts)
                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       p.run();
