@@ -31,10 +31,15 @@ abstract class ImmutableExecutableStage implements ExecutableStage {
   static ImmutableExecutableStage of(
       Environment environment,
       PCollectionNode input,
+      Collection<PCollectionNode> sideInputs,
       Collection<PTransformNode> transforms,
       Collection<PCollectionNode> outputs) {
     return new AutoValue_ImmutableExecutableStage(
-        environment, input, ImmutableSet.copyOf(transforms), ImmutableSet.copyOf(outputs));
+        environment,
+        input,
+        ImmutableSet.copyOf(sideInputs),
+        ImmutableSet.copyOf(transforms),
+        ImmutableSet.copyOf(outputs));
   }
 
   // Redefine the methods to have a known order.
@@ -43,6 +48,9 @@ abstract class ImmutableExecutableStage implements ExecutableStage {
 
   @Override
   public abstract PCollectionNode getInputPCollection();
+
+  @Override
+  public abstract Collection<PCollectionNode> getSideInputPCollections();
 
   @Override
   public abstract Collection<PTransformNode> getTransforms();
