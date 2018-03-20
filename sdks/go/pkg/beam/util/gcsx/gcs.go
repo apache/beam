@@ -27,7 +27,9 @@ import (
 
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 	"google.golang.org/api/storage/v1"
+	ghttp "google.golang.org/api/transport/http"
 )
 
 // NewClient creates a new GCS client with default application credentials.
@@ -35,6 +37,15 @@ func NewClient(ctx context.Context, scope string) (*storage.Service, error) {
 	cl, err := google.DefaultClient(ctx, scope)
 	if err != nil {
 		return nil, err
+	}
+	return storage.New(cl)
+}
+
+// NewUnauthenticatedClient creates a new GCS client without authentication.
+func NewUnauthenticatedClient(ctx context.Context) (*storage.Service, error) {
+	cl, _, err := ghttp.NewClient(ctx, option.WithoutAuthentication())
+	if err != nil {
+		return nil, fmt.Errorf("dialing: %v", err)
 	}
 	return storage.New(cl)
 }
