@@ -1055,7 +1055,7 @@ public class AvroIOTest implements Serializable {
   @Test
   public void testWriteWithDefaultCodec() throws Exception {
     AvroIO.Write<String> write = AvroIO.write(String.class).to("/tmp/foo/baz");
-    assertEquals(CodecFactory.deflateCodec(6).toString(), write.inner.getCodec().toString());
+    assertEquals(CodecFactory.snappyCodec().toString(), write.inner.getCodec().toString());
   }
 
   @Test
@@ -1222,7 +1222,7 @@ public class AvroIOTest implements Serializable {
             .withShardNameTemplate("-SS-of-NN-")
             .withSuffix("bar")
             .withNumShards(100)
-            .withCodec(CodecFactory.snappyCodec());
+            .withCodec(CodecFactory.deflateCodec(6));
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -1237,6 +1237,6 @@ public class AvroIOTest implements Serializable {
                 + ".AvroIOTest$\",\"fields\":[{\"name\":\"intField\",\"type\":\"int\"},"
                 + "{\"name\":\"stringField\",\"type\":\"string\"}]}"));
     assertThat(displayData, hasDisplayItem("numShards", 100));
-    assertThat(displayData, hasDisplayItem("codec", CodecFactory.snappyCodec().toString()));
+    assertThat(displayData, hasDisplayItem("codec", CodecFactory.deflateCodec(6).toString()));
   }
 }
