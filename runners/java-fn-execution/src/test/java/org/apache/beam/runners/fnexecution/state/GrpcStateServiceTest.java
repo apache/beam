@@ -20,7 +20,6 @@ package org.apache.beam.runners.fnexecution.state;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -29,6 +28,7 @@ import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -81,7 +81,7 @@ public class GrpcStateServiceTest {
     requestObserver.onNext(request);
 
     // assert behavior
-    verify(handler).accept(eq(request), any());
+    verify(handler).handle(request);
   }
 
   @Test
@@ -95,7 +95,11 @@ public class GrpcStateServiceTest {
             .newBuilder()
             .setGet(BeamFnApi.StateGetResponse.newBuilder().setData(expectedResponseData));
     StateRequestHandler dummyHandler =
-        (request, result) -> result.toCompletableFuture().complete(expectedBuilder);
+        (request) -> {
+          CompletableFuture<BeamFnApi.StateResponse.Builder> response = new CompletableFuture<>();
+          response.complete(expectedBuilder);
+          return response;
+        };
 
     // define observer behavior
     BlockingDeque<BeamFnApi.StateResponse> responses = new LinkedBlockingDeque<>();
