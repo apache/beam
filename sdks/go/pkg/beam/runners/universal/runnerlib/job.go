@@ -43,8 +43,9 @@ type JobOptions struct {
 	InternalJavaRunner string
 }
 
-// Prepare prepares a job to the given endpoint. It returns an id and endpoint, if successful.
-func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline, opt *JobOptions) (string, string, error) {
+// Prepare prepares a job to the given job service. It returns the preparation id
+// and artifact staging endpoint, if successful.
+func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline, opt *JobOptions) (id, endpoint string, err error) {
 	raw := runtime.RawOptionsWrapper{
 		Options:     beam.PipelineOptions.Export(),
 		Runner:      opt.InternalJavaRunner,
@@ -68,7 +69,7 @@ func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pb.Pipeline,
 	return resp.GetPreparationId(), resp.GetArtifactStagingEndpoint().GetUrl(), nil
 }
 
-// Submit submits a job to the given endpoint. It returns a jobID, if successful.
+// Submit submits a job to the given job service. It returns a jobID, if successful.
 func Submit(ctx context.Context, client jobpb.JobServiceClient, id, token string) (string, error) {
 	req := &jobpb.RunJobRequest{
 		PreparationId: id,
