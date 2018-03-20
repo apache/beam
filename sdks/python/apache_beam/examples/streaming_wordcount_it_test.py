@@ -20,7 +20,7 @@
 Important: End-to-end test infrastructure for streaming pipeine in Python SDK
 is in development and is not yet available for use.
 
-Currently, this test is blocked until manually terminate the pipeline job.
+Currently, this test blocks until the job is manually terminated.
 """
 
 import logging
@@ -73,7 +73,7 @@ class StreamingWordCountIT(unittest.TestCase):
       topic.publish(str(n))
 
   def _cleanup_pubsub(self):
-    test_utils.cleanup_subscription([self.input_sub, self.output_sub])
+    test_utils.cleanup_subscriptions([self.input_sub, self.output_sub])
     test_utils.cleanup_topics([self.input_topic, self.output_topic])
 
   def tearDown(self):

@@ -122,13 +122,13 @@ class TestUtilsTest(unittest.TestCase):
   def test_cleanup_subscriptions(self):
     mock_sub = mock.MagicMock()
     mock_sub.exist.return_value = True
-    utils.cleanup_subscription([mock_sub])
+    utils.cleanup_subscriptions([mock_sub])
     self.assertTrue(mock_sub.delete.called)
 
   def test_cleanup_topics(self):
     mock_topics = mock.MagicMock()
     mock_topics.exist.return_value = True
-    utils.cleanup_subscription([mock_topics])
+    utils.cleanup_subscriptions([mock_topics])
     self.assertTrue(mock_topics.delete.called)
 
 
