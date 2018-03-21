@@ -16,6 +16,7 @@
 package beam
 
 func init() {
+	RegisterFunction(addFixedKeyFn)
 	RegisterFunction(dropKeyFn)
 	RegisterFunction(dropValueFn)
 	RegisterFunction(swapKVFn)

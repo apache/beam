@@ -37,39 +37,34 @@ are parameterized by Go flags. For example, to run wordcount do:
 $ pwd
 [...]/sdks/go
 $ go run examples/wordcount/wordcount.go --output=/tmp/result.txt
-2017/12/05 10:46:37 Pipeline:
-2017/12/05 10:46:37 Nodes: {1: W<[]uint8>/GW/W<bytes>!GW}
-{2: W<string>/GW/W<bytes>!GW}
-{3: W<string>/GW/W<bytes>!GW}
-{4: W<string>/GW/W<bytes>!GW}
-{5: W<string>/GW/W<bytes>!GW}
-{6: W<KV<string,int>>/GW/W<KV<bytes,int[json]>>!GW}
-{7: W<GBK<string,int>>/GW/W<GBK<bytes,int[json]>>!GW}
-{8: W<KV<string,int>>/GW/W<KV<bytes,int[json]>>!GW}
-{9: W<string>/GW/W<bytes>!GW}
-Edges: 1: Impulse [] -> [Out: W<[]uint8> -> {1: W<[]uint8>/GW/W<bytes>!GW}]
-2: ParDo [In(Main): W<[]uint8> <- {1: W<[]uint8>/GW/W<bytes>!GW}] -> [Out: W<T> -> {2: W<string>/GW/W<bytes>!GW}]
-3: ParDo [In(Main): W<string> <- {2: W<string>/GW/W<bytes>!GW}] -> [Out: W<string> -> {3: W<string>/GW/W<bytes>!GW}]
-4: ParDo [In(Main): W<string> <- {3: W<string>/GW/W<bytes>!GW}] -> [Out: W<string> -> {4: W<string>/GW/W<bytes>!GW}]
-5: ParDo [In(Main): W<string> <- {4: W<string>/GW/W<bytes>!GW}] -> [Out: W<string> -> {5: W<string>/GW/W<bytes>!GW}]
-6: ParDo [In(Main): W<T> <- {5: W<string>/GW/W<bytes>!GW}] -> [Out: W<KV<T,int>> -> {6: W<KV<string,int>>/GW/W<KV<bytes,int[json]>>!GW}]
-7: GBK [In(Main): KV<T,U> <- {6: W<KV<string,int>>/GW/W<KV<bytes,int[json]>>!GW}] -> [Out: GBK<T,U> -> {7: W<GBK<string,int>>/GW/W<GBK<bytes,int[json]>>!GW}]
-8: Combine [In(Main): W<int> <- {7: W<GBK<string,int>>/GW/W<GBK<bytes,int[json]>>!GW}] -> [Out: W<KV<string,int>> -> {8: W<KV<string,int>>/GW/W<KV<bytes,int[json]>>!GW}]
-9: ParDo [In(Main): W<KV<string,int>> <- {8: W<KV<string,int>>/GW/W<KV<bytes,int[json]>>!GW}] -> [Out: W<string> -> {9: W<string>/GW/W<bytes>!GW}]
-10: ParDo [In(Main): W<string> <- {9: W<string>/GW/W<bytes>!GW}] -> []
-2017/12/05 10:46:37 Execution units:
-2017/12/05 10:46:37 1: Impulse[0]
-2017/12/05 10:46:37 2: ParDo[beam.createFn] Out:[3]
-2017/12/05 10:46:37 3: ParDo[textio.expandFn] Out:[4]
-2017/12/05 10:46:37 4: ParDo[textio.readFn] Out:[5]
-2017/12/05 10:46:37 5: ParDo[main.extractFn] Out:[6]
-2017/12/05 10:46:37 6: ParDo[stats.mapFn] Out:[7]
-2017/12/05 10:46:37 7: GBK. Out:8
-2017/12/05 10:46:37 8: Combine[stats.sumIntFn] Keyed:true (Use:false) Out:[9]
-2017/12/05 10:46:37 9: ParDo[main.formatFn] Out:[10]
-2017/12/05 10:46:37 10: ParDo[textio.writeFileFn] Out:[]
-2017/12/05 10:46:37 Reading from gs://apache-beam-samples/shakespeare/kinglear.txt
-2017/12/05 10:46:38 Writing to /tmp/result.txt
+[{6: KV<string,int>/GW/KV<bytes,int[varintz]>}]
+[{10: KV<int,string>/GW/KV<int[varintz],bytes>}]
+2018/03/21 09:39:03 Pipeline:
+2018/03/21 09:39:03 Nodes: {1: []uint8/GW/bytes}
+{2: string/GW/bytes}
+{3: string/GW/bytes}
+{4: string/GW/bytes}
+{5: string/GW/bytes}
+{6: KV<string,int>/GW/KV<bytes,int[varintz]>}
+{7: CoGBK<string,int>/GW/CoGBK<bytes,int[varintz]>}
+{8: KV<string,int>/GW/KV<bytes,int[varintz]>}
+{9: string/GW/bytes}
+{10: KV<int,string>/GW/KV<int[varintz],bytes>}
+{11: CoGBK<int,string>/GW/CoGBK<int[varintz],bytes>}
+Edges: 1: Impulse [] -> [Out: []uint8 -> {1: []uint8/GW/bytes}]
+2: ParDo [In(Main): []uint8 <- {1: []uint8/GW/bytes}] -> [Out: T -> {2: string/GW/bytes}]
+3: ParDo [In(Main): string <- {2: string/GW/bytes}] -> [Out: string -> {3: string/GW/bytes}]
+4: ParDo [In(Main): string <- {3: string/GW/bytes}] -> [Out: string -> {4: string/GW/bytes}]
+5: ParDo [In(Main): string <- {4: string/GW/bytes}] -> [Out: string -> {5: string/GW/bytes}]
+6: ParDo [In(Main): T <- {5: string/GW/bytes}] -> [Out: KV<T,int> -> {6: KV<string,int>/GW/KV<bytes,int[varintz]>}]
+7: CoGBK [In(Main): KV<string,int> <- {6: KV<string,int>/GW/KV<bytes,int[varintz]>}] -> [Out: CoGBK<string,int> -> {7: CoGBK<string,int>/GW/CoGBK<bytes,int[varintz]>}]
+8: Combine [In(Main): int <- {7: CoGBK<string,int>/GW/CoGBK<bytes,int[varintz]>}] -> [Out: KV<string,int> -> {8: KV<string,int>/GW/KV<bytes,int[varintz]>}]
+9: ParDo [In(Main): KV<string,int> <- {8: KV<string,int>/GW/KV<bytes,int[varintz]>}] -> [Out: string -> {9: string/GW/bytes}]
+10: ParDo [In(Main): T <- {9: string/GW/bytes}] -> [Out: KV<int,T> -> {10: KV<int,string>/GW/KV<int[varintz],bytes>}]
+11: CoGBK [In(Main): KV<int,string> <- {10: KV<int,string>/GW/KV<int[varintz],bytes>}] -> [Out: CoGBK<int,string> -> {11: CoGBK<int,string>/GW/CoGBK<int[varintz],bytes>}]
+12: ParDo [In(Main): CoGBK<int,string> <- {11: CoGBK<int,string>/GW/CoGBK<int[varintz],bytes>}] -> []
+2018/03/21 09:39:03 Reading from gs://apache-beam-samples/shakespeare/kinglear.txt
+2018/03/21 09:39:04 Writing to /tmp/result.txt
 ```
 
 The debugging output is currently quite verbose and likely to change. The output is a local
