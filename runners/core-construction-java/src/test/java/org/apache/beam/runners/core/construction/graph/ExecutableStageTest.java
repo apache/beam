@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.core.construction.graph;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.emptyIterable;
@@ -35,6 +36,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.junit.Test;
@@ -52,6 +54,7 @@ public class ExecutableStageTest {
     PTransform pt =
         PTransform.newBuilder()
             .putInputs("input", "input.out")
+            .putInputs("side_input", "sideInput.in")
             .putOutputs("output", "output.out")
             .setSpec(
                 FunctionSpec.newBuilder()
@@ -59,16 +62,19 @@ public class ExecutableStageTest {
                     .setPayload(
                         ParDoPayload.newBuilder()
                             .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
+                            .putSideInputs("side_input", SideInput.getDefaultInstance())
                             .build()
                             .toByteString()))
             .build();
     PCollection input = PCollection.newBuilder().setUniqueName("input.out").build();
+    PCollection sideInput = PCollection.newBuilder().setUniqueName("sideInput.in").build();
     PCollection output = PCollection.newBuilder().setUniqueName("output.out").build();
 
     ImmutableExecutableStage stage =
         ImmutableExecutableStage.of(
             env,
             PipelineNode.pCollection("input.out", input),
+            Collections.singleton(PipelineNode.pCollection("sideInput.in", sideInput)),
             Collections.singleton(PipelineNode.pTransform("pt", pt)),
             Collections.singleton(PipelineNode.pCollection("output.out", output)));
 
@@ -76,6 +82,7 @@ public class ExecutableStageTest {
         Components.newBuilder()
             .putTransforms("pt", pt)
             .putPcollections("input.out", input)
+            .putPcollections("sideInput.in", sideInput)
             .putPcollections("output.out", output)
             .putEnvironments("foo", env)
             .build();
@@ -83,8 +90,9 @@ public class ExecutableStageTest {
     PTransform stagePTransform = stage.toPTransform();
     assertThat(stagePTransform.getOutputsMap(), hasValue("output.out"));
     assertThat(stagePTransform.getOutputsCount(), equalTo(1));
-    assertThat(stagePTransform.getInputsMap(), hasValue("input.out"));
-    assertThat(stagePTransform.getInputsCount(), equalTo(1));
+    assertThat(
+        stagePTransform.getInputsMap(), allOf(hasValue("input.out"), hasValue("sideInput.in")));
+    assertThat(stagePTransform.getInputsCount(), equalTo(2));
 
     ExecutableStagePayload payload = ExecutableStagePayload.parseFrom(
         stagePTransform.getSpec().getPayload());

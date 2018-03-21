@@ -65,6 +65,12 @@ public interface ExecutableStage {
   PCollectionNode getInputPCollection();
 
   /**
+   * Returns the set of {@link PCollectionNode PCollections} that will be accessed by this {@link
+   * ExecutableStage} as side inputs.
+   */
+  Collection<PCollectionNode> getSideInputPCollections();
+
+  /**
    * Returns the leaf {@link PCollectionNode PCollections} of this {@link ExecutableStage}.
    *
    * <p>All of these {@link PCollectionNode PCollections} are consumed by a {@link PTransformNode
@@ -107,6 +113,13 @@ public interface ExecutableStage {
     pt.putInputs("input", getInputPCollection().getId());
     payload.setInput(input.getId());
 
+    int sideInputIndex = 0;
+    for (PCollectionNode sideInputNode : getSideInputPCollections()) {
+      pt.putInputs(String.format("side_input_%s", sideInputIndex), sideInputNode.getId());
+      payload.addSideInputs(sideInputNode.getId());
+      sideInputIndex++;
+    }
+
     int outputIndex = 0;
     for (PCollectionNode output : getOutputPCollections()) {
       pt.putOutputs(String.format("materialized_%d", outputIndex), output.getId());
@@ -124,7 +137,6 @@ public interface ExecutableStage {
         .setUrn(ExecutableStage.URN)
         .setPayload(payload.build().toByteString())
         .build());
-
     return pt.build();
   }
 
@@ -139,14 +151,27 @@ public interface ExecutableStage {
    */
   static ExecutableStage fromPayload(ExecutableStagePayload payload, Components components) {
     Environment environment = payload.getEnvironment();
-    PCollectionNode input = PipelineNode.pCollection(payload.getInput(),
-        components.getPcollectionsOrThrow(payload.getInput()));
-    List<PTransformNode> transforms = payload.getTransformsList().stream()
-        .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))
-        .collect(Collectors.toList());
-    List<PCollectionNode> outputs = payload.getOutputsList().stream()
-        .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
-        .collect(Collectors.toList());
-    return ImmutableExecutableStage.of(environment, input, transforms, outputs);
+    PCollectionNode input =
+        PipelineNode.pCollection(
+            payload.getInput(), components.getPcollectionsOrThrow(payload.getInput()));
+    List<PCollectionNode> sideInputs =
+        payload
+            .getSideInputsList()
+            .stream()
+            .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
+            .collect(Collectors.toList());
+    List<PTransformNode> transforms =
+        payload
+            .getTransformsList()
+            .stream()
+            .map(id -> PipelineNode.pTransform(id, components.getTransformsOrThrow(id)))
+            .collect(Collectors.toList());
+    List<PCollectionNode> outputs =
+        payload
+            .getOutputsList()
+            .stream()
+            .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
+            .collect(Collectors.toList());
+    return ImmutableExecutableStage.of(environment, input, sideInputs, transforms, outputs);
   }
 }
