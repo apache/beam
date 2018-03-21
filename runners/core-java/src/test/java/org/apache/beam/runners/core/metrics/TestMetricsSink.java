@@ -42,8 +42,8 @@ public class TestMetricsSink implements MetricsSink<Long> {
 
   @Override public void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
     counterValue =
-        metricQueryResults.counters().iterator().hasNext()
-            ? metricQueryResults.counters().iterator().next().attempted()
+        metricQueryResults.getCounters().iterator().hasNext()
+            ? metricQueryResults.getCounters().iterator().next().getAttempted()
             : 0L;
   }
 }

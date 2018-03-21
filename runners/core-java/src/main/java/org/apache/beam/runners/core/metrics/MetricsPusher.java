@@ -96,9 +96,9 @@ public class MetricsPusher implements Serializable {
           MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
           MetricQueryResults metricQueryResults = metricResults
               .queryMetrics(MetricsFilter.builder().build());
-        if ((Iterables.size(metricQueryResults.distributions()) != 0)
-            || (Iterables.size(metricQueryResults.gauges()) != 0)
-            || (Iterables.size(metricQueryResults.counters()) != 0)) {
+        if ((Iterables.size(metricQueryResults.getDistributions()) != 0)
+            || (Iterables.size(metricQueryResults.getGauges()) != 0)
+            || (Iterables.size(metricQueryResults.getCounters()) != 0)) {
             metricsSink.writeMetrics(metricQueryResults);
           }
 
