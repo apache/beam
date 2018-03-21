@@ -46,8 +46,7 @@ func (c Coder) IsValid() bool {
 }
 
 // Type returns the full type 'A' of elements the coder can encode and decode.
-// 'A' must be a concrete Windowed Value type, such as W<int> or
-// W<KV<int,string>>.
+// 'A' must be a concrete full type, such as int or KV<int,string>.
 func (c Coder) Type() FullType {
 	if !c.IsValid() {
 		panic("Invalid Coder")
