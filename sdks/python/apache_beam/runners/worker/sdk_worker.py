@@ -20,6 +20,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import contextlib
 import logging
 import Queue as queue
 import sys
@@ -213,7 +214,8 @@ class SdkWorker(object):
             self.fns[request.process_bundle_descriptor_reference],
             self.state_handler, self.data_channel_factory)
     try:
-      processor.process_bundle(instruction_id)
+      with self.state_handler.process_instruction_id(instruction_id):
+        processor.process_bundle(instruction_id)
     finally:
       del self.bundle_processors[instruction_id]
 
@@ -242,6 +244,18 @@ class GrpcStateHandler(object):
     self._responses_by_id = {}
     self._last_id = 0
     self._exc_info = None
+    self._context = threading.local()
+
+  @contextlib.contextmanager
+  def process_instruction_id(self, bundle_id):
+    if getattr(self._context, 'process_instruction_id', None) is not None:
+      raise RuntimeError(
+          'Already bound to %r' % self._context.process_instruction_id)
+    self._context.process_instruction_id = bundle_id
+    try:
+      yield
+    finally:
+      self._context.process_instruction_id = None
 
   def start(self):
     self._done = False
@@ -273,32 +287,30 @@ class GrpcStateHandler(object):
     self._done = True
     self._requests.put(self._DONE)
 
-  def blocking_get(self, state_key, instruction_reference):
+  def blocking_get(self, state_key):
     response = self._blocking_request(
         beam_fn_api_pb2.StateRequest(
-            instruction_reference=instruction_reference,
             state_key=state_key,
             get=beam_fn_api_pb2.StateGetRequest()))
     if response.get.continuation_token:
       raise NotImplementedError
     return response.get.data
 
-  def blocking_append(self, state_key, data, instruction_reference):
+  def blocking_append(self, state_key, data):
     self._blocking_request(
         beam_fn_api_pb2.StateRequest(
-            instruction_reference=instruction_reference,
             state_key=state_key,
             append=beam_fn_api_pb2.StateAppendRequest(data=data)))
 
-  def blocking_clear(self, state_key, instruction_reference):
+  def blocking_clear(self, state_key):
     self._blocking_request(
         beam_fn_api_pb2.StateRequest(
-            instruction_reference=instruction_reference,
             state_key=state_key,
             clear=beam_fn_api_pb2.StateClearRequest()))
 
   def _blocking_request(self, request):
     request.id = self._next_id()
+    request.instruction_reference = self._context.process_instruction_id
     self._responses_by_id[request.id] = future = _Future()
     self._requests.put(request)
     while not future.wait(timeout=1):
@@ -308,7 +320,11 @@ class GrpcStateHandler(object):
       elif self._done:
         raise RuntimeError()
     del self._responses_by_id[request.id]
-    return future.get()
+    response = future.get()
+    if response.error:
+      raise RuntimeError(response.error)
+    else:
+      return response
 
   def _next_id(self):
     self._last_id += 1
