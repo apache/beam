@@ -34,9 +34,7 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerSchema.Column;
  */
 final class MutationCellEstimator implements ToLongFunction<MutationGroup> {
   private final LoadingCache<String, ImmutableMap<String, Long>> tables;
-  private final long maxNumMutations;
 
-  MutationCellEstimator(SpannerSchema spannerSchema, long maxNumMutations) {
     tables = CacheBuilder.newBuilder()
         .initialCapacity(spannerSchema.getTables().size())
         .concurrencyLevel(1)
@@ -48,7 +46,7 @@ final class MutationCellEstimator implements ToLongFunction<MutationGroup> {
                     Column::getName,
                     Column::getCellsMutated)))));
 
-    this.maxNumMutations = maxNumMutations;
+  MutationCellEstimator(SpannerSchema spannerSchema) {
   }
 
   @Override
@@ -63,7 +61,9 @@ final class MutationCellEstimator implements ToLongFunction<MutationGroup> {
           mutatedCells += columnCells.getOrDefault(column, 1L);
         }
       } else {
-        // deletes are a little less obvious
+        // deletes are a little less obvious...
+        // for single key deletes simply sum up all the columns in the schema
+        // range deletes are broken up into batches already and can be ignored
         final KeySet keySet = mutation.getKeySet();
 
         // for single keys simply sum up all the columns in the schema
@@ -71,12 +71,6 @@ final class MutationCellEstimator implements ToLongFunction<MutationGroup> {
         for (long cells : columnCells.values()) {
           mutatedCells += rows * cells;
         }
-
-        // ranges should already be broken up into individual batches
-        // but just in case, make a worst-case estimate about the size
-        // of the key range so they will get their own transaction
-        final long ranges = Iterables.size(keySet.getRanges());
-        mutatedCells += maxNumMutations * ranges;
       }
     }
 

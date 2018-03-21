@@ -956,8 +956,7 @@ public class SpannerIO {
     public void processElement(ProcessContext c) throws Exception {
       SpannerSchema spannerSchema = c.sideInput(schemaView);
       MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(spannerSchema);
-      MutationCellEstimator mutationCellEstimator = new MutationCellEstimator(
-          spannerSchema, maxNumMutations);
+      MutationCellEstimator mutationCellEstimator = new MutationCellEstimator(spannerSchema);
 
       KV<String, Iterable<SerializedMutation>> element = c.element();
       for (SerializedMutation kv : element.getValue()) {
