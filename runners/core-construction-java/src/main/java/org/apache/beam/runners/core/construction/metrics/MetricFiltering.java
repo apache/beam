@@ -91,8 +91,8 @@ public class MetricFiltering {
       return true;
     }
     for (MetricNameFilter nameFilter : nameFilters) {
-      if ((nameFilter.getName() == null || nameFilter.getName().equals(metricName.name()))
-          && Objects.equal(metricName.namespace(), nameFilter.getNamespace())) {
+      if ((nameFilter.getName() == null || nameFilter.getName().equals(metricName.getName()))
+          && Objects.equal(metricName.getNamespace(), nameFilter.getNamespace())) {
         return true;
       }
     }

@@ -28,13 +28,13 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
 @AutoValue
 public abstract class DistributionResult {
 
-  public abstract long sum();
-  public abstract long count();
-  public abstract long min();
-  public abstract long max();
+  public abstract long getSum();
+  public abstract long getCount();
+  public abstract long getMin();
+  public abstract long getMax();
 
-  public double mean() {
-    return (1.0 * sum()) / count();
+  public double getMean() {
+    return (1.0 * getSum()) / getCount();
   }
 
   /** The IDENTITY_ELEMENT is used to start accumulating distributions. */
