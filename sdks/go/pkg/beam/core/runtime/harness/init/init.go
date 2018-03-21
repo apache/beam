@@ -49,28 +49,6 @@ func init() {
 	runtime.RegisterInit(hook)
 }
 
-// TODO(herohde) 7/7/2017: Dataflow has a concept of sdk pipeline options and
-// various values in this map:
-//
-// { "display_data": [...],
-//   "options":{
-//      "autoscalingAlgorithm":"NONE",
-//      "dataflowJobId":"2017-07-07_xxx",
-//      "gcpTempLocation":"",
-//      "maxNumWorkers":0,
-//      "numWorkers":1,
-//      "project":"xxx",
-//      "options": <Go SDK pipeline options>,
-//  }}
-//
-// Which we may or may not want to be visible as first-class pipeline options.
-// It is also TBD how/if to support global display data, but we certainly don't
-// want it served back to the harness.
-
-type wrapper struct {
-	Options runtime.RawOptions `json:"options"`
-}
-
 // hook starts the harness, if in worker mode. Otherwise, is is a no-op.
 func hook() {
 	if !*worker {
@@ -84,7 +62,7 @@ func hook() {
 	// harness.Main returns. We want to be sure any error makes it out.
 
 	if *options != "" {
-		var opt wrapper
+		var opt runtime.RawOptionsWrapper
 		if err := json.Unmarshal([]byte(*options), &opt); err != nil {
 			fmt.Fprintf(os.Stderr, "Failed to parse pipeline options '%v': %v", *options, err)
 			os.Exit(1)

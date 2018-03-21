@@ -23,12 +23,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/user"
 	"path"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -38,6 +34,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
+	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/oauth2/google"
@@ -49,14 +47,11 @@ import (
 
 var (
 	endpoint        = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
-	jobName         = flag.String("job_name", "", "Dataflow job name (optional).")
 	stagingLocation = flag.String("staging_location", "", "GCS staging location (required).")
 	image           = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
 	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
-	experiments     = flag.String("experiments", "", "Comma-separated list of experiments (optional).")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
-	block          = flag.Bool("block", true, "Wait for job to terminate.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
 
 	// SDK options
@@ -85,12 +80,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
 	if *image == "" {
-		return errors.New("no container image specified. Use --worker_harness_container_image=<image>")
+		*image = jobopts.GetContainerImage(ctx)
 	}
-
-	if *jobName == "" {
-		*jobName = fmt.Sprintf("go-%v-%v", username(), time.Now().UnixNano())
-	}
+	jobName := jobopts.GetJobName()
 
 	edges, _, err := p.Build()
 	if err != nil {
@@ -111,10 +103,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	// (1) Upload Go binary and model to GCS.
 
-	worker, err := buildLocalBinary(ctx)
+	worker, err := runnerlib.BuildTempWorkerBinary(ctx)
 	if err != nil {
 		return err
 	}
+	defer os.Remove(worker)
+
 	binary, err := stageWorker(ctx, project, *stagingLocation, worker)
 	if err != nil {
 		return err
@@ -139,7 +133,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	job := &df.Job{
 		ProjectId: project,
-		Name:      *jobName,
+		Name:      jobName,
 		Type:      "JOB_TYPE_BATCH",
 		Environment: &df.Environment{
 			UserAgent: newMsg(userAgent{
@@ -167,6 +161,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 				NumWorkers:                  1,
 			}},
 			TempStoragePrefix: *stagingLocation + "/tmp",
+			Experiments:       jobopts.GetExperiments(),
 		},
 		Steps: steps,
 	}
@@ -176,9 +171,6 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	if *teardownPolicy != "" {
 		job.Environment.WorkerPools[0].TeardownPolicy = *teardownPolicy
-	}
-	if *experiments != "" {
-		job.Environment.Experiments = strings.Split(*experiments, ",")
 	}
 	printJob(ctx, job)
 
@@ -205,7 +197,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	log.Infof(ctx, "Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", project, upd.Id)
 
-	if !*block {
+	if *jobopts.Async {
 		return nil
 	}
 
@@ -280,46 +272,6 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 	defer os.Remove(worker)
 
 	return gcsx.Upload(client, project, bucket, obj, fd)
-}
-
-// buildLocalBinary creates a local worker binary suitable to run on Dataflow. It finds the filename
-// by examining the call stack. We want the user entry (*), for example:
-//
-//   /Users/herohde/go/src/github.com/apache/beam/sdks/go/pkg/beam/runners/beamexec/main.go (skip: 2)
-// * /Users/herohde/go/src/github.com/apache/beam/sdks/go/examples/wordcount/wordcount.go (skip: 3)
-//   /usr/local/go/src/runtime/proc.go (skip: 4)
-//   /usr/local/go/src/runtime/asm_amd64.s (skip: 5)
-func buildLocalBinary(ctx context.Context) (string, error) {
-	ret := filepath.Join(os.TempDir(), fmt.Sprintf("dataflow-go-%v", time.Now().UnixNano()))
-	if *dryRun {
-		log.Infof(ctx, "Dry-run: not building binary %v", ret)
-		return ret, nil
-	}
-
-	program := ""
-	for i := 3; ; i++ {
-		_, file, _, ok := runtime.Caller(i)
-		if !ok || strings.HasSuffix(file, "runtime/proc.go") {
-			break
-		}
-		program = file
-	}
-	if program == "" {
-		return "", fmt.Errorf("could not detect user main")
-	}
-
-	log.Infof(ctx, "Cross-compiling %v as %v", program, ret)
-
-	// Cross-compile given go program. Not awesome.
-	build := []string{"go", "build", "-o", ret, program}
-
-	cmd := exec.Command(build[0], build[1:]...)
-	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
-	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Infof(ctx, string(out))
-		return "", fmt.Errorf("failed to cross-compile %v: %v", program, err)
-	}
-	return ret, nil
 }
 
 func username() string {

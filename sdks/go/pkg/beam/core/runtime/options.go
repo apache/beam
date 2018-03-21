@@ -38,6 +38,37 @@ type RawOptions struct {
 	Options map[string]string `json:"options"`
 }
 
+// TODO(herohde) 7/7/2017: Dataflow has a concept of sdk pipeline options and
+// various values in this map:
+//
+// { "display_data": [...],
+//   "options":{
+//      "autoscalingAlgorithm":"NONE",
+//      "dataflowJobId":"2017-07-07_xxx",
+//      "gcpTempLocation":"",
+//      "maxNumWorkers":0,
+//      "numWorkers":1,
+//      "project":"xxx",
+//      "options": <Go SDK pipeline options>,
+//  }}
+//
+// Which we may or may not want to be visible as first-class pipeline options.
+// It is also TBD how/if to support global display data, but we certainly don't
+// want it served back to the harness.
+
+// TODO(herohde) 3/12/2018: remove the extra options wrapper and the bogus
+// fields current required by the Java runners.
+
+// RawOptionsWrapper wraps RawOptions to the form expected by the
+// harness. The extra layer is currently needed due to Dataflow
+// expectations about this representation. Subject to change.
+type RawOptionsWrapper struct {
+	Options     RawOptions `json:"beam:option:go_options:v1"`
+	Runner      string     `json:"beam:option:runner:v1"`
+	AppName     string     `json:"beam:option:app_name:v1"`
+	Experiments []string   `json:"beam:option:experiments:v1"`
+}
+
 // Import imports the options from previously exported data and makes the
 // options read-only. It panics if import is called twice.
 func (o *Options) Import(opt RawOptions) {
