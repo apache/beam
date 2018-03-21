@@ -127,7 +127,7 @@ public class ReadSpannerSchemaTest {
 
     assertEquals(1, schema.getTables().size());
 
-    SpannerSchema.Column column = SpannerSchema.Column.create("key", Type.int64(), 3L);
+    SpannerSchema.Column column = SpannerSchema.Column.create("key", Type.int64());
     SpannerSchema.KeyPart keyPart = SpannerSchema.KeyPart.create("key", false);
 
     assertThat(schema.getColumns("test"), contains(column));

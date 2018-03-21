@@ -956,14 +956,13 @@ public class SpannerIO {
     public void processElement(ProcessContext c) throws Exception {
       SpannerSchema spannerSchema = c.sideInput(schemaView);
       MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(spannerSchema);
-      MutationCellEstimator mutationCellEstimator = new MutationCellEstimator(spannerSchema);
 
       KV<String, Iterable<SerializedMutation>> element = c.element();
       for (SerializedMutation kv : element.getValue()) {
         byte[] value = kv.getMutationGroupBytes();
         MutationGroup mg = mutationGroupEncoder.decode(value);
         long groupSize = MutationSizeEstimator.sizeOf(mg);
-        long groupCells = mutationCellEstimator.applyAsLong(mg);
+        long groupCells = MutationCellEstimator.countOf(spannerSchema, mg);
 
         if (batchCells + groupCells > maxNumMutations
             || batchSizeBytes + groupSize > maxBatchSizeBytes) {

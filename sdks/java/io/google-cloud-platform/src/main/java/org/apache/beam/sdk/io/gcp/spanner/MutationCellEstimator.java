@@ -20,45 +20,23 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Mutation.Op;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import java.util.function.ToLongFunction;
-import java.util.stream.Collectors;
-import org.apache.beam.sdk.io.gcp.spanner.SpannerSchema.Column;
 
-/**
- * Estimate the number of cells modified in a {@link MutationGroup}.
- */
-final class MutationCellEstimator implements ToLongFunction<MutationGroup> {
-  private final LoadingCache<String, ImmutableMap<String, Long>> tables;
-
-    tables = CacheBuilder.newBuilder()
-        .initialCapacity(spannerSchema.getTables().size())
-        .concurrencyLevel(1)
-        .build(CacheLoader.<String, ImmutableMap<String, Long>>from(table ->
-            ImmutableMap.copyOf(spannerSchema
-                .getColumns(table)
-                .stream()
-                .collect(Collectors.toMap(
-                    Column::getName,
-                    Column::getCellsMutated)))));
-
-  MutationCellEstimator(SpannerSchema spannerSchema) {
+final class MutationCellEstimator {
+  // Prevent construction.
+  private MutationCellEstimator() {
   }
 
-  @Override
-  public long applyAsLong(MutationGroup mutationGroup) {
+  /**
+   * Estimate the number of cells modified in a {@link MutationGroup}.
+   */
+  public static long countOf(SpannerSchema spannerSchema, MutationGroup mutationGroup) {
     long mutatedCells = 0L;
     for (Mutation mutation : mutationGroup) {
-      final ImmutableMap<String, Long> columnCells = tables.getUnchecked(mutation.getTable());
-
       if (mutation.getOperation() != Op.DELETE) {
         // sum the cells of the columns included in the mutation
         for (String column : mutation.getColumns()) {
-          mutatedCells += columnCells.getOrDefault(column, 1L);
+          mutatedCells += spannerSchema.getCellsMutatedPerColumn(mutation.getTable(), column);
         }
       } else {
         // deletes are a little less obvious...
@@ -66,10 +44,9 @@ final class MutationCellEstimator implements ToLongFunction<MutationGroup> {
         // range deletes are broken up into batches already and can be ignored
         final KeySet keySet = mutation.getKeySet();
 
-        // for single keys simply sum up all the columns in the schema
         final long rows = Iterables.size(keySet.getKeys());
-        for (long cells : columnCells.values()) {
-          mutatedCells += rows * cells;
+        if (rows > 0) {
+          mutatedCells += rows * spannerSchema.getCellsMutatedPerRow(mutation.getTable());
         }
       }
     }

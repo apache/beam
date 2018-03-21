@@ -485,7 +485,7 @@ public class SpannerIOWriteTest implements Serializable {
 
   private static FakeSampler fakeSampler(Mutation... mutations) {
     SpannerSchema.Builder schema = SpannerSchema.builder();
-    schema.addColumn("test", "key", "INT64");
+    schema.addColumn("test", "key", "INT64", CELLS_PER_KEY);
     schema.addKeyPart("test", "key", false);
     return new FakeSampler(schema.build(), Arrays.asList(mutations));
   }
