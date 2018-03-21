@@ -36,14 +36,17 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.io.aws.options.S3Options;
+import org.apache.beam.sdk.io.aws.options.S3Options.S3UploadBufferSizeBytesFactory;
 
 /**
  * A writable S3 object, as a {@link WritableByteChannel}.
  */
 class S3WritableByteChannel implements WritableByteChannel {
-
   private final AmazonS3 amazonS3;
+  private final S3Options options;
   private final S3ResourceId path;
+
   private final String uploadId;
   private final ByteBuffer uploadBuffer;
   private final List<PartETag> eTags;
@@ -53,19 +56,24 @@ class S3WritableByteChannel implements WritableByteChannel {
   private boolean open = true;
 
   S3WritableByteChannel(AmazonS3 amazonS3, S3ResourceId path, String contentType,
-      String storageClass, int uploadBufferSizeBytes)
-      throws IOException {
+      S3Options options) throws IOException {
     this.amazonS3 = checkNotNull(amazonS3, "amazonS3");
+    this.options = checkNotNull(options);
     this.path = checkNotNull(path, "path");
-    checkArgument(uploadBufferSizeBytes > 0, "uploadBufferSizeBytes");
-    this.uploadBuffer = ByteBuffer.allocate(uploadBufferSizeBytes);
+    // Amazon S3 API docs: Each part must be at least 5 MB in size, except the last part.
+    checkArgument(
+        options.getS3UploadBufferSizeBytes()
+            >= S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES,
+        "S3UploadBufferSizeBytes must be at least %s bytes",
+        S3UploadBufferSizeBytesFactory.MINIMUM_UPLOAD_BUFFER_SIZE_BYTES);
+    this.uploadBuffer = ByteBuffer.allocate(options.getS3UploadBufferSizeBytes());
     eTags = new ArrayList<>();
 
     ObjectMetadata objectMetadata = new ObjectMetadata();
     objectMetadata.setContentType(contentType);
     InitiateMultipartUploadRequest request =
         new InitiateMultipartUploadRequest(path.getBucket(), path.getKey())
-            .withStorageClass(storageClass)
+            .withStorageClass(options.getS3StorageClass())
             .withObjectMetadata(objectMetadata);
     InitiateMultipartUploadResult result;
     try {
