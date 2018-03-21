@@ -65,13 +65,6 @@ class TestDataflowRunner(DataflowRunner):
 
     return self.result
 
-  def _is_in_terminate_state(self, job_state):
-    return job_state in [
-        PipelineState.STOPPED, PipelineState.DONE,
-        PipelineState.FAILED, PipelineState.CANCELLED,
-        PipelineState.UPDATED, PipelineState.DRAINED,
-    ]
-
   def wait_until_running(self):
     """Wait until Dataflow pipeline terminate or enter RUNNING state."""
     if not self.result.has_job:
@@ -80,8 +73,8 @@ class TestDataflowRunner(DataflowRunner):
     start_time = time.time()
     while time.time() - start_time <= WAIT_TIMEOUT:
       job_state = self.result.state
-      if (self._is_in_terminate_state(job_state) or
-          self.result.state == PipelineState.RUNNING):
+      if (self.result.is_in_terminal_state() or
+          job_state == PipelineState.RUNNING):
         return job_state
       time.sleep(5)
 
