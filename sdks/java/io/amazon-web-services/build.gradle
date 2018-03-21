@@ -35,6 +35,7 @@ dependencies {
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   runtime "org.apache.httpcomponents:httpclient:4.5.2"
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadowTest library.java.guava_testlib
   shadowTest library.java.hamcrest_core
   shadowTest library.java.mockito_core

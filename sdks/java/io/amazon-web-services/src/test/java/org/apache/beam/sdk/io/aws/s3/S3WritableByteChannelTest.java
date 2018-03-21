@@ -37,6 +37,8 @@ import com.amazonaws.services.s3.model.UploadPartRequest;
 import com.amazonaws.services.s3.model.UploadPartResult;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import org.apache.beam.sdk.io.aws.options.S3Options;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,6 +51,8 @@ public class S3WritableByteChannelTest {
 
   @Test
   public void write() throws IOException {
+    S3Options options =
+        PipelineOptionsFactory.fromArgs().withValidation().create().as(S3Options.class);
     AmazonS3 mockAmazonS3 = mock(AmazonS3.class, withSettings().defaultAnswer(RETURNS_SMART_NULLS));
 
     InitiateMultipartUploadResult initiateMultipartUploadResult =
@@ -63,14 +67,15 @@ public class S3WritableByteChannelTest {
         .thenReturn(result);
 
     S3ResourceId path = S3ResourceId.fromUri("s3://bucket/dir/file");
-    int uploadBufferSize = 10;
+    int uploadBufferSize = 5_242_880;
+    options.setS3UploadBufferSizeBytes(uploadBufferSize);
 
     S3WritableByteChannel channel =
-        new S3WritableByteChannel(mockAmazonS3, path, "text/plain", "STANDARD", uploadBufferSize);
-    int contentSize = 65;
+        new S3WritableByteChannel(mockAmazonS3, path, "text/plain", options);
+    int contentSize = 34_078_720;
     ByteBuffer uploadContent = ByteBuffer.allocate((int) (contentSize * 2.5));
-    for (byte i = 0; i < contentSize; i++) {
-      uploadContent.put(i);
+    for (int i = 0; i < contentSize; i++) {
+      uploadContent.put((byte) 0xff);
     }
     uploadContent.flip();
 

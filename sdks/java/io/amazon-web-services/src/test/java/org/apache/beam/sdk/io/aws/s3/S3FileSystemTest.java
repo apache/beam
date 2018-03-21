@@ -120,7 +120,7 @@ public class S3FileSystemTest {
         .copyObject(argThat(notNullValue(CopyObjectRequest.class)));
 
     // we simulate a big object >= 5GB so it takes the multiPart path
-    objectMetadata.setContentLength((long) 5 * 1024 * 1024 * 1024);
+    objectMetadata.setContentLength(5_368_709_120L);
     when(s3FileSystem
             .getAmazonS3Client()
             .getObjectMetadata(sourcePath.getBucket(), sourcePath.getKey()))
@@ -172,7 +172,7 @@ public class S3FileSystemTest {
 
     ObjectMetadata sourceS3ObjectMetadata = new ObjectMetadata();
     sourceS3ObjectMetadata.setContentLength(
-        (long) (s3FileSystem.getS3UploadBufferSizeBytes() * 1.5));
+        (long) (s3Options().getS3UploadBufferSizeBytes() * 1.5));
     sourceS3ObjectMetadata.setContentEncoding("read-seek-efficient");
     when(s3FileSystem
             .getAmazonS3Client()
