@@ -21,9 +21,9 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 )
 
-// GroupByKey is a PTransform that takes a PCollection of type W<KV<A,B>,
+// GroupByKey is a PTransform that takes a PCollection of type KV<A,B>,
 // groups the values by key and windows, and returns a PCollection of type
-// W<GBK<A,B>> representing a map from each distinct key and window of the
+// GBK<A,B> representing a map from each distinct key and window of the
 // input PCollection to an iterable over all the values associated with
 // that key in the input per window. Each key in the output PCollection is
 // unique within each window.
