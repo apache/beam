@@ -77,24 +77,41 @@ func main() {
 	// (2) Retrieve the staged files.
 	//
 	// The Go SDK harness downloads the worker binary and invokes
-	// it. For now, we assume that the first (and only) package
-	// is the binary.
+	// it. The binary is required to be keyed as "worker", if there
+	// are more than one artifact.
 
 	dir := filepath.Join(*semiPersistDir, "staged")
 	artifacts, err := artifact.Materialize(ctx, *artifactEndpoint, dir)
 	if err != nil {
 		log.Fatalf("Failed to retrieve staged files: %v", err)
 	}
-	if len(artifacts) == 0 {
-		log.Fatal("No binaries staged")
+
+	const worker = "worker"
+	name := worker
+
+	switch len(artifacts) {
+	case 0:
+		log.Fatal("No artifacts staged")
+	case 1:
+		name = artifacts[0].Name
+	default:
+		found := false
+		for _, a := range artifacts {
+			if a.Name == worker {
+				found = true
+				break
+			}
+		}
+		if !found {
+			log.Fatalf("No artifact named '%v' found", worker)
+		}
 	}
 
 	// (3) The persist dir may be on a noexec volume, so we must
 	// copy the binary to a different location to execute.
-
-	prog := filepath.Join("/bin", artifacts[0].Name)
-	if err := copyExe(filepath.Join(dir, artifacts[0].Name), prog); err != nil {
-		log.Fatalf("Failed to copy binary: %v", err)
+	const prog = "/bin/worker"
+	if err := copyExe(filepath.Join(dir, name), prog); err != nil {
+		log.Fatalf("Failed to copy worker binary: %v", err)
 	}
 
 	args := []string{
