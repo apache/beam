@@ -196,10 +196,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     long defaultValue) {
     MetricQueryResults metrics = result.metrics().queryMetrics(
         MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build());
-    Iterable<MetricResult<Long>> counters = metrics.counters();
+    Iterable<MetricResult<Long>> counters = metrics.getCounters();
     try {
       MetricResult<Long> metricResult = counters.iterator().next();
-      return metricResult.attempted();
+      return metricResult.getAttempted();
     } catch (NoSuchElementException e) {
       LOG.error("Failed to get metric {}, from namespace {}", name, namespace);
     }
@@ -214,14 +214,14 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       DistributionType distType, long defaultValue) {
     MetricQueryResults metrics = result.metrics().queryMetrics(
         MetricsFilter.builder().addNameFilter(MetricNameFilter.named(namespace, name)).build());
-    Iterable<MetricResult<DistributionResult>> distributions = metrics.distributions();
+    Iterable<MetricResult<DistributionResult>> distributions = metrics.getDistributions();
     try {
       MetricResult<DistributionResult> distributionResult = distributions.iterator().next();
       switch (distType) {
         case MIN:
-          return distributionResult.attempted().min();
+          return distributionResult.getAttempted().getMin();
         case MAX:
-          return distributionResult.attempted().max();
+          return distributionResult.getAttempted().getMax();
         default:
           return defaultValue;
       }
