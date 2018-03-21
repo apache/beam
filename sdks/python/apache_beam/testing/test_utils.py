@@ -22,9 +22,11 @@ For internal use only; no backwards-compatibility guarantees.
 
 import hashlib
 import imp
+import logging
 import os
 import shutil
 import tempfile
+import time
 
 from mock import Mock
 from mock import patch
@@ -129,3 +131,49 @@ def delete_files(file_paths):
     raise RuntimeError('Clean up failed. Invalid file path: %s.' %
                        file_paths)
   FileSystems.delete(file_paths)
+
+
+def wait_for_subscriptions_created(subs, timeout=60):
+  """Wait for all PubSub subscriptions are created."""
+  return _wait_until_all_exist(subs, timeout)
+
+
+def wait_for_topics_created(topics, timeout=60):
+  """Wait for all PubSub topics are created."""
+  return _wait_until_all_exist(topics, timeout)
+
+
+def _wait_until_all_exist(components, timeout):
+  needs_wait = set(components)
+  start_time = time.time()
+  while time.time() - start_time <= timeout:
+    for c in components:
+      if c in needs_wait and c.exists():
+        needs_wait.remove(c)
+    if len(needs_wait) == 0:
+      return True
+    time.sleep(2)
+
+  raise RuntimeError(
+      'Timeout after %d seconds. %d of %d topics/subscriptions not exist. '
+      'They are %s.' %
+      (timeout, len(needs_wait), len(components), list(needs_wait)))
+
+
+def cleanup_subscriptions(subs):
+  """Cleanup PubSub subscriptions if exist."""
+  _cleanup_pubsub(subs)
+
+
+def cleanup_topics(topics):
+  """Cleanup PubSub topics if exist."""
+  _cleanup_pubsub(topics)
+
+
+def _cleanup_pubsub(components):
+  for c in components:
+    if c.exists():
+      c.delete()
+    else:
+      logging.debug('Cannot delete topic/subscription. %s does not exist.',
+                    c.full_name)
