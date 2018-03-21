@@ -36,7 +36,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 
 def split_fn(lines):
   import re
-  return re.findall(r'[A-Za-z\']+', lines)
+  return re.findall(r'[A-Za-z0-9\']+', lines)
 
 
 def run(argv=None):
