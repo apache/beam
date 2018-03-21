@@ -109,8 +109,9 @@ class BeamExecutorContext {
     if (prev != null && prev != coll) {
       throw new IllegalStateException(
          "Dataset(" + dataset + ") already materialized.");
+    } if (prev == null) {
+      coll.setCoder(getOutputCoder(dataset));
     }
-    coll.setCoder(getOutputCoder(dataset));
   }
 
   Pipeline getPipeline() {
@@ -190,6 +191,8 @@ class BeamExecutorContext {
       ReduceStateByKey rbsk = (ReduceStateByKey) op;
       // FIXME
       return new KryoCoder<>();
+    } else if (op instanceof WrappedPCollectionOperator) {
+      return ((WrappedPCollectionOperator) op).input.getCoder();
     } else if (op == null) {
       // FIXME
       return new KryoCoder<>();

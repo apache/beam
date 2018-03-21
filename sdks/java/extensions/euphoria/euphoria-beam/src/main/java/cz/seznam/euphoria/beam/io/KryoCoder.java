@@ -18,6 +18,7 @@ package cz.seznam.euphoria.beam.io;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import cz.seznam.euphoria.core.client.functional.VoidFunction;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
@@ -27,19 +28,35 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Coder using Kryo as (de)serialization mechanism.
+ * FIXME: we should entirely drop this class
  */
 public class KryoCoder<T> extends CustomCoder<T> {
 
-  private static final ThreadLocal<Kryo> kryo = ThreadLocal.withInitial(() -> {
+  public static VoidFunction<Kryo> FACTORY = () -> {
     final Kryo instance = new Kryo();
     ((Kryo.DefaultInstantiatorStrategy) instance.getInstantiatorStrategy())
         .setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
     return instance;
-  });
+  };
+
+  public static void withKryoFactory(VoidFunction<Kryo> factory) {
+    FACTORY = factory;
+    kryo = ThreadLocal.withInitial(FACTORY::apply);
+  }
+
+  private static AtomicBoolean reinitialize = new AtomicBoolean(true);
+  private static ThreadLocal<Kryo> kryo = ThreadLocal.withInitial(FACTORY::apply);
+
+  // factory that need to be serialized and deserialized
+  // use the current static factory, that has been set
+  private final VoidFunction<Kryo> factory = FACTORY;
 
   @Override
   public void encode(T t, OutputStream out) throws IOException {
@@ -69,5 +86,19 @@ public class KryoCoder<T> extends CustomCoder<T> {
     // nop
   }
 
+  // serialization
+
+  private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+    if (reinitialize.getAndSet(false)) {
+      if (kryo == null) {
+        kryo = ThreadLocal.withInitial(factory::apply);
+      }
+    }
+    ois.defaultReadObject();
+  }
+
+  private void writeObject(ObjectOutputStream oos) throws IOException {
+    oos.defaultWriteObject();
+  }
 
 }

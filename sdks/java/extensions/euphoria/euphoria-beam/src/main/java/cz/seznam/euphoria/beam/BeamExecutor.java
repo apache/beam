@@ -28,7 +28,7 @@ import org.joda.time.Duration;
 /**
  * Executor implementation using Apache Beam as a runtime.
  */
-public class BeamExecutor extends AbstractExecutor{
+public class BeamExecutor extends AbstractExecutor {
 
   private final PipelineOptions options;
   private final Settings settings;
@@ -46,9 +46,15 @@ public class BeamExecutor extends AbstractExecutor{
     this.settings = settings;
   }
 
+  @Override
   protected Result execute(Flow flow) {
-    final Pipeline pipeline = FlowTranslator.toPipeline(
-        flow, accumulatorFactory, options, settings, allowedLateness);
+    final Pipeline pipeline;
+    if (flow instanceof BeamFlow && ((BeamFlow) flow).hasPipeline()) {
+      pipeline = ((BeamFlow) flow).getPipeline();
+    } else {
+      pipeline = FlowTranslator.toPipeline(
+          flow, accumulatorFactory, options, settings, allowedLateness);
+    }
     final PipelineResult result = pipeline.run();
     // @todo handle result
     result.waitUntilFinish();
