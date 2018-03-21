@@ -38,6 +38,10 @@ var (
 	// ContainerImage is the location of the SDK harness container image.
 	ContainerImage = flag.String("container_image", "", "Container image")
 
+	// WorkerBinary is the location of the compiled worker binary. If not
+	// specified, the binary is produced via go build.
+	WorkerBinary = flag.String("worker_binary", "", "Worker binary (optional)")
+
 	// Experiments toggle experimental features in the runner.
 	Experiments = flag.String("experiments", "", "Comma-separated list of experiments (optional).")
 
