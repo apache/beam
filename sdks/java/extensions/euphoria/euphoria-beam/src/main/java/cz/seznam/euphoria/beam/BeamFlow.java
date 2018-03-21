@@ -142,11 +142,12 @@ public class BeamFlow extends Flow {
    */
   @SuppressWarnings("unchecked")
   public <T> Dataset<T> wrapped(PCollection<T> coll) {
-    Dataset<T> current = (Dataset) wrapped.get(coll);
-    if (current == null) {
-      current = newDataset(coll);
-    }
-    return current;
+    return (Dataset<T>) wrapped.compute(coll, (key, current) -> {
+      if (current == null) {
+        return newDataset(coll);
+      }
+      return current;
+    });
   }
 
   /**
@@ -240,6 +241,13 @@ public class BeamFlow extends Flow {
    */
   public Pipeline getPipeline() {
     return Objects.requireNonNull(pipeline);
+  }
+
+  /**
+   * @return {@code true} if this flow already has associated {@link Pipeline}.
+   */
+  boolean hasPipeline() {
+    return pipeline != null;
   }
 
 }
