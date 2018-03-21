@@ -26,7 +26,7 @@ import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
  * Control service, and the associated client is available via {@link
  * #getInstructionRequestHandler()}.
  */
-interface RemoteEnvironment extends AutoCloseable {
+public interface RemoteEnvironment extends AutoCloseable {
   /** Return the environment that the remote handles. */
   Environment getEnvironment();
 
