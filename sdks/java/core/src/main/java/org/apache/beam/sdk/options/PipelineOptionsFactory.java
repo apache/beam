@@ -273,7 +273,7 @@ public class PipelineOptionsFactory {
      * <p>A key/value set of options. This reuses the same logic than
      * {@link PipelineOptionsFactory#fromArgs(String...)} but using
      * the configuration parameter as input. Keys don't have <pre>--</pre>
-     * as a prefix in this case.</p>
+     * as a prefix in this case.
      *
      * <p>Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
      * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
@@ -1921,7 +1921,7 @@ public class PipelineOptionsFactory {
    *
    * <p>This method will filter system properties based on the conventional prefix
    * <pre>beam.</pre> to create a {@link PipelineOptions} instance from the filtered
-   * key/values.</p>
+   * key/values.
    *
    * @return a pipeline options instance based on system properties
    * filtered based on <code>beam.</code> prefix.
