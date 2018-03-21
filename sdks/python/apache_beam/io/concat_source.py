@@ -55,13 +55,17 @@ class ConcatSource(iobase.BoundedSource):
           'stop positions to be None. Received %r and %r respectively.' %
           (start_position, stop_position))
 
-    for source in self._source_bundles:
+    for index, source in enumerate(self._source_bundles):
       # We assume all sub-sources to produce bundles that specify weight using
       # the same unit. For example, all sub-sources may specify the size in
       # bytes as their weight.
       for bundle in source.source.split(
           desired_bundle_size, source.start_position, source.stop_position):
-        yield bundle
+        yield iobase.SourceBundle(
+          bundle.weight,
+          bundle.source,
+          (index, bundle.start_position),
+          (index, bundle.stop_position))
 
   def get_range_tracker(self, start_position=None, stop_position=None):
     if start_position is None:
