@@ -92,7 +92,8 @@ class StateSampler(statesampler_impl.StateSampler):
                    step_name,
                    state_name,
                    io_target=None,
-                   metrics_container=None):
+                   metrics_container=None,
+                   is_processing_state=False):
     counter_name = CounterName(state_name + '-msecs',
                                stage_name=self._prefix,
                                step_name=step_name,
@@ -105,7 +106,8 @@ class StateSampler(statesampler_impl.StateSampler):
       self._states_by_name[counter_name] = super(
           StateSampler, self)._scoped_state(counter_name,
                                             output_counter,
-                                            metrics_container)
+                                            metrics_container,
+                                            is_processing_state)
       return self._states_by_name[counter_name]
 
   def commit_counters(self):

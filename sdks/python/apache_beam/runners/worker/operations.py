@@ -142,7 +142,7 @@ class Operation(object):
         metrics_container=self.metrics_container)
     self.scoped_process_state = self.state_sampler.scoped_state(
         self.name_context.metrics_name(), 'process',
-        metrics_container=self.metrics_container)
+        metrics_container=self.metrics_container, is_processing_state=True)
     self.scoped_finish_state = self.state_sampler.scoped_state(
         self.name_context.metrics_name(), 'finish',
         metrics_container=self.metrics_container)

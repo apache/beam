@@ -40,6 +40,11 @@ from apache_beam.utils.counters import CounterName
 from apache_beam.metrics.execution cimport MetricsContainer
 
 cimport cython
+
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.utils.counters import CounterName
+from apache_beam.runners.worker.dataflow_element_execution_tracker \
+  cimport DataflowElementExecutionTracker
 from cpython cimport pythread
 from libc.stdint cimport int32_t, int64_t
 
@@ -86,6 +91,8 @@ cdef class StateSampler(object):
   cdef public int64_t time_since_transition
 
   cdef int32_t current_state_index
+  cdef DataflowElementExecutionTracker element_tracker
+  cdef readonly bint has_time_counter_experiment
 
   def __init__(self, sampling_period_ms, *args):
     self._sampling_period_ms = sampling_period_ms
@@ -102,6 +109,13 @@ cdef class StateSampler(object):
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
     self.scoped_states_by_index = [unknown_state]
     pythread.PyThread_release_lock(self.lock)
+    self.element_tracker = DataflowElementExecutionTracker()
+    # TODO(BEAM-4111): Remove experimental flag once time_counter release.
+    experiments = RuntimeValueProvider.get_value('experiments', str, [])
+    if 'time_per_element_counter_v0' in experiments:
+      self.has_time_counter_experiment = True
+    else:
+      self.has_time_counter_experiment = False
 
     # Assert that the compiler correctly aligned the current_state field.  This
     # is necessary for reads and writes to this variable to be atomic across
@@ -123,9 +137,12 @@ cdef class StateSampler(object):
         usleep(self._sampling_period_ms * 1000)
         pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
         try:
+          elapsed_nsecs = get_nsec_time() - last_nsecs
+          # TODO(BEAM-4111): Remove if block once time_counter release.
+          if self.has_time_counter_experiment:
+            self.element_tracker.take_sample(elapsed_nsecs)
           if self.finished:
             break
-          elapsed_nsecs = get_nsec_time() - last_nsecs
           # Take an address as we can't create a reference to the scope
           # without the GIL.
           nsecs_ptr = &(<ScopedState>PyList_GET_ITEM(
@@ -156,8 +173,14 @@ cdef class StateSampler(object):
   def current_state(self):
     return self.scoped_states_by_index[self.current_state_index]
 
-  cpdef _scoped_state(self, counter_name, output_counter,
-                      metrics_container=None):
+  def report_time_counter(self, counter_factory):
+      self.element_tracker.report_counter(counter_factory)
+
+  cpdef _scoped_state(self,
+                      counter_name,
+                      output_counter,
+                      metrics_container=None,
+                      is_processing_state=False):
     """Returns a context manager managing transitions for a given state.
     Args:
      counter_name: A CounterName object with information about the execution
@@ -173,7 +196,8 @@ cdef class StateSampler(object):
                                counter_name,
                                new_state_index,
                                output_counter,
-                               metrics_container)
+                               metrics_container,
+                               is_processing_state)
     # Both scoped_states_by_index and scoped_state.nsecs are accessed
     # by the sampling thread; initialize them under the lock.
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
@@ -193,14 +217,21 @@ cdef class ScopedState(object):
   cdef readonly int64_t _nsecs
   cdef int32_t old_state_index
   cdef readonly MetricsContainer _metrics_container
+  cdef readonly bint is_processing_state
 
-  def __init__(
-      self, sampler, name, state_index, counter=None, metrics_container=None):
+  def __init__(self,
+               sampler,
+               name,
+               state_index,
+               counter=None,
+               metrics_container=None,
+               is_processing_state=False):
     self.sampler = sampler
     self.name = name
     self.state_index = state_index
     self.counter = counter
     self._metrics_container = metrics_container
+    self.is_processing_state = is_processing_state
 
   @property
   def nsecs(self):
@@ -217,12 +248,18 @@ cdef class ScopedState(object):
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.state_index
     self.sampler.state_transition_count += 1
+    # TODO(BEAM-4111): Remove experimental flag check once time_counter release.
+    if self.sampler.has_time_counter_experiment and self.is_processing_state:
+      self.sampler.element_tracker.enter(self.name.step_name)
     pythread.PyThread_release_lock(self.sampler.lock)
 
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.old_state_index
     self.sampler.state_transition_count += 1
+    # TODO(BEAM-4111): Remove experimental flag check once time_counter release.
+    if self.sampler.has_time_counter_experiment and self.is_processing_state:
+      self.sampler.element_tracker.exit()
     pythread.PyThread_release_lock(self.sampler.lock)
 
   @property
