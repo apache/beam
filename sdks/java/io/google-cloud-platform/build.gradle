@@ -40,6 +40,7 @@ dependencies {
   shadow library.java.jackson_databind
   shadow library.java.grpc_core
   shadow library.java.google_api_services_bigquery
+  shadow library.java.google_cloud_bigquery
   shadow library.java.gax_grpc
   shadow library.java.google_cloud_core_grpc
   shadow library.java.google_api_services_pubsub
