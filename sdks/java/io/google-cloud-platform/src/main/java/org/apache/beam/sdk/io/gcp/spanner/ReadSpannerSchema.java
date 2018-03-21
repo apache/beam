@@ -92,7 +92,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
             + "     FROM information_schema.columns as c"
             + "     WHERE c.table_catalog = '' AND c.table_schema = '') AS c"
             + "  LEFT OUTER JOIN ("
-            + "    SELECT t.table_name, t.column_name, COUNT(1) AS indices"
+            + "    SELECT t.table_name, t.column_name, COUNT(*) AS indices"
             + "      FROM information_schema.index_columns AS t "
             + "      WHERE t.index_name != 'PRIMARY_KEY' AND t.table_catalog = ''"
             + "      AND t.table_schema = ''"
