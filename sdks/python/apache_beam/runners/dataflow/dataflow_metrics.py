@@ -192,7 +192,7 @@ class DataflowMetrics(MetricResults):
 
     job_metrics = self._dataflow_client.get_job_metrics(job_id)
     # If the job has terminated, metrics will not change and we can cache them.
-    if self.job_result._is_in_terminal_state():
+    if self.job_result.is_in_terminal_state():
       self._cached_metrics = job_metrics
     return job_metrics
 

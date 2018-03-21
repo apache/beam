@@ -997,7 +997,7 @@ class DataflowPipelineResult(PipelineResult):
   def _update_job(self):
     # We need the job id to be able to update job information. There is no need
     # to update the job if we are in a known terminal state.
-    if self.has_job and not self._is_in_terminal_state():
+    if self.has_job and not self.is_in_terminal_state():
       self._job = self._runner.dataflow_client.get_job(self.job_id())
 
   def job_id(self):
@@ -1043,7 +1043,7 @@ class DataflowPipelineResult(PipelineResult):
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)
 
-  def _is_in_terminal_state(self):
+  def is_in_terminal_state(self):
     if not self.has_job:
       return True
 
@@ -1054,7 +1054,7 @@ class DataflowPipelineResult(PipelineResult):
         values_enum.JOB_STATE_UPDATED, values_enum.JOB_STATE_DRAINED]
 
   def wait_until_finish(self, duration=None):
-    if not self._is_in_terminal_state():
+    if not self.is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
 
@@ -1071,8 +1071,8 @@ class DataflowPipelineResult(PipelineResult):
         time.sleep(5.0)
 
       # TODO: Merge the termination code in poll_for_job_completion and
-      # _is_in_terminal_state.
-      terminated = self._is_in_terminal_state()
+      # is_in_terminal_state.
+      terminated = self.is_in_terminal_state()
       assert duration or terminated, (
           'Job did not reach to a terminal state after waiting indefinitely.')
 
@@ -1090,7 +1090,7 @@ class DataflowPipelineResult(PipelineResult):
 
     self._update_job()
 
-    if self._is_in_terminal_state():
+    if self.is_in_terminal_state():
       logging.warning(
           'Cancel failed because job %s is already terminated in state %s.',
           self.job_id(), self.state)
