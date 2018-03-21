@@ -39,6 +39,9 @@ type JobOptions struct {
 
 	// TODO(herohde) 3/17/2018: add further parametrization as needed
 
+	// Worker is the worker binary override.
+	Worker string
+
 	// InternalJavaRunner is the class of the receiving Java runner. To be removed.
 	InternalJavaRunner string
 }
