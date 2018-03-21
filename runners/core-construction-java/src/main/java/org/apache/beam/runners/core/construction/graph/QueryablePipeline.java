@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.core.construction.graph;
 
-import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
@@ -29,6 +29,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -61,7 +62,16 @@ public class QueryablePipeline {
    * within the provided components.
    */
   public static QueryablePipeline forPrimitivesIn(Components components) {
-    return new QueryablePipeline(retainOnlyPrimitives(components));
+    return new QueryablePipeline(getPrimitiveTransformIds(components), components);
+  }
+
+  /**
+   * Create a new {@link QueryablePipeline} based on the provided components containing only the
+   * provided {@code transformIds}.
+   */
+  public static QueryablePipeline forTransforms(
+      Collection<String> transformIds, Components components) {
+    return new QueryablePipeline(transformIds, components);
   }
 
   private final Components components;
@@ -79,24 +89,23 @@ public class QueryablePipeline {
    */
   private final Network<PipelineNode, PipelineEdge> pipelineNetwork;
 
-  private QueryablePipeline(Components components) {
+  private QueryablePipeline(Collection<String> transformIds, Components components) {
     this.components = components;
-    this.pipelineNetwork = buildNetwork(this.components);
+    this.pipelineNetwork = buildNetwork(transformIds, this.components);
   }
 
   /** Produces a {@link RunnerApi.Components} which contains only primitive transforms. */
   @VisibleForTesting
-  static RunnerApi.Components retainOnlyPrimitives(RunnerApi.Components components) {
-    RunnerApi.Components.Builder flattenedBuilder = components.toBuilder();
-    flattenedBuilder.clearTransforms();
+  static Collection<String> getPrimitiveTransformIds(RunnerApi.Components components) {
+    Collection<String> ids = new LinkedHashSet<>();
     for (Map.Entry<String, PTransform> transformEntry : components.getTransformsMap().entrySet()) {
       PTransform transform = transformEntry.getValue();
       boolean isPrimitive = isPrimitiveTransform(transform);
       if (isPrimitive) {
-        flattenedBuilder.putTransforms(transformEntry.getKey(), transform);
+        ids.add(transformEntry.getKey());
       }
     }
-    return flattenedBuilder.build();
+    return ids;
   }
 
   /**
@@ -111,13 +120,13 @@ public class QueryablePipeline {
         && !transform.getInputsMap().values().containsAll(transform.getOutputsMap().values());
   }
 
-  private MutableNetwork<PipelineNode, PipelineEdge> buildNetwork(Components components) {
+  private MutableNetwork<PipelineNode, PipelineEdge> buildNetwork(
+      Collection<String> transformIds, Components components) {
     MutableNetwork<PipelineNode, PipelineEdge> network =
         NetworkBuilder.directed().allowsParallelEdges(true).allowsSelfLoops(false).build();
     Set<PCollectionNode> unproducedCollections = new HashSet<>();
-    for (Map.Entry<String, PTransform> transformEntry : components.getTransformsMap().entrySet()) {
-      String transformId = transformEntry.getKey();
-      PTransform transform = transformEntry.getValue();
+    for (String transformId : transformIds) {
+      PTransform transform = components.getTransformsOrThrow(transformId);
       PTransformNode transformNode =
           PipelineNode.pTransform(transformId, this.components.getTransformsOrThrow(transformId));
       network.addNode(transformNode);
@@ -126,7 +135,7 @@ public class QueryablePipeline {
             PipelineNode.pCollection(produced, components.getPcollectionsOrThrow(produced));
         network.addNode(producedNode);
         network.addEdge(transformNode, producedNode, new PerElementEdge());
-        checkState(
+        checkArgument(
             network.inDegree(producedNode) == 1,
             "A %s should have exactly one producing %s, %s has %s",
             PCollectionNode.class.getSimpleName(),
@@ -153,7 +162,7 @@ public class QueryablePipeline {
         }
       }
     }
-    checkState(
+    checkArgument(
         unproducedCollections.isEmpty(),
         "%ss %s were consumed but never produced",
         PCollectionNode.class.getSimpleName(),
