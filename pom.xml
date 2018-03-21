@@ -102,7 +102,7 @@
     <beamSurefireArgline />
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
-    <apache.commons.compress.version>1.14</apache.commons.compress.version>
+    <apache.commons.compress.version>1.16.1</apache.commons.compress.version>
     <apache.commons.lang.version>3.6</apache.commons.lang.version>
     <apache.commons.text.version>1.1</apache.commons.text.version>
     <apex.kryo.version>2.24.0</apex.kryo.version>
@@ -163,8 +163,8 @@
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
     <license-maven-plugin.version>1.14</license-maven-plugin.version>
-    <maven-surefire-plugin.version>2.20.1</maven-surefire-plugin.version>
-    <maven-failsafe-plugin.version>2.20.1</maven-failsafe-plugin.version>
+    <maven-surefire-plugin.version>2.21.0</maven-surefire-plugin.version>
+    <maven-failsafe-plugin.version>2.21.0</maven-failsafe-plugin.version>
     <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
@@ -1443,23 +1443,9 @@
       </dependency>
 
       <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>${junit.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-jdk14</artifactId>
         <version>${slf4j.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava-testlib</artifactId>
-        <version>${guava.version}</version>
         <scope>test</scope>
       </dependency>
 
