@@ -633,11 +633,9 @@ RC_TAG="v${VERSION}-RC${RC_NUM}"
   <li>
     <p>Create hashes for source files and sign the python source file file</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> sha1sum apache-beam-${VERSION}-source-release.zip &gt; apache-beam-${VERSION}-source-release.zip.sha1
- md5sum apache-beam-${VERSION}-source-release.zip &gt; apache-beam-${VERSION}-source-release.zip.md5
+    <div class="highlighter-rouge"><pre class="highlight"><code> sha512sum apache-beam-${VERSION}-source-release.zip &gt; apache-beam-${VERSION}-source-release.zip.sha512
  gpg --armor --detach-sig apache-beam-${VERSION}-python.zip
- sha1sum apache-beam-${VERSION}-python.zip &gt; apache-beam-${VERSION}-python.zip.sha1
- md5sum apache-beam-${VERSION}-python.zip &gt; apache-beam-${VERSION}-python.zip.md5
+ sha512sum apache-beam-${VERSION}-python.zip &gt; apache-beam-${VERSION}-python.zip.sha512
 </code></pre>
     </div>
   </li>
