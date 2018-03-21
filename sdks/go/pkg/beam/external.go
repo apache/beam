@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // External defines a Beam external transform. The interpretation of this primitive is runner
@@ -40,11 +39,6 @@ func TryExternal(s Scope, spec string, payload []byte, in []PCollection, out []F
 	for i, col := range in {
 		if !col.IsValid() {
 			return nil, fmt.Errorf("invalid pcollection to external: index %v", i)
-		}
-	}
-	for _, t := range out {
-		if !typex.IsW(t) {
-			return nil, fmt.Errorf("output type to external must be windowed: %v", t)
 		}
 	}
 
