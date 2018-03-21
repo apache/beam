@@ -196,10 +196,13 @@ public class PTransformTranslation {
         transformBuilder.setSpec(spec);
       }
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
-      transformBuilder.setSpec(
+      FunctionSpec spec =
           KNOWN_PAYLOAD_TRANSLATORS
               .get(transform.getClass())
-              .translate(appliedPTransform, components));
+              .translate(appliedPTransform, components);
+      if (spec != null) {
+        transformBuilder.setSpec(spec);
+      }
     }
 
     return transformBuilder.build();
