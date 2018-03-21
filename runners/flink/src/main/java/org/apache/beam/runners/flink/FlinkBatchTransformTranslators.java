@@ -396,12 +396,8 @@ class FlinkBatchTransformTranslators {
       // construct a map from side input to WindowingStrategy so that
       // the DoFn runner can map main-input windows to side input windows
       Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
-      List<PCollectionView<?>> sideInputs;
-      try {
-        sideInputs = CombineTranslation.getSideInputs(context.getCurrentTransform());
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+      List<PCollectionView<?>> sideInputs = new ArrayList<>();
+
       for (PCollectionView<?> sideInput: sideInputs) {
         sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
       }
