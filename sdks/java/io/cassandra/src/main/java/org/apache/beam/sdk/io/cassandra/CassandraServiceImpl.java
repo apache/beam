@@ -212,7 +212,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
       // we have more than one split
       for (int i = 0; i < numSplits; i++) {
         startToken = endToken;
-        endToken = (i == numSplits) ? endRange : (startToken + incrementValue);
+        endToken = startToken + incrementValue;
         Select.Where builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
         if (i > 0) {
           builder = builder.and(QueryBuilder.gte("token($pk)", startToken));
