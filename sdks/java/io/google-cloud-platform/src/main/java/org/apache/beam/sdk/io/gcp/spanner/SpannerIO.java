@@ -922,7 +922,7 @@ public class SpannerIO {
 
     private transient SpannerAccessor spannerAccessor;
     // Current batch of mutations to be written.
-    private ImmutableList.Builder<Mutation> batch;
+    private transient ImmutableList.Builder<Mutation> batch;
     // total size of the current batch.
     private long batchSizeBytes;
     // total number of mutated cells including indices.
