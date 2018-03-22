@@ -158,6 +158,7 @@
       <li><a href="#one-time-setup">One-time Setup</a></li>
       <li><a href="#create-a-branch-in-your-fork">Create a branch in your fork</a></li>
       <li><a href="#syncing-and-pushing-your-branch">Syncing and pushing your branch</a></li>
+      <li><a href="#building">Building</a></li>
       <li><a href="#testing">Testing</a></li>
     </ul>
   </li>
@@ -399,6 +400,26 @@ push. You’ll run:</p>
 </code></pre>
 </div>
 
+<h3 id="building">Building</h3>
+
+<h4 id="python-sdk">Python SDK</h4>
+
+<p>Before testing SDK code changes remotely, you must build the Beam tarball. From
+the root of the git repository, run:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>cd sdks/python/
+python setup.py sdist
+</code></pre>
+</div>
+
+<p>Pass the <code class="highlighter-rouge">--sdk_location</code> flag to use the newly built version. For example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>python setup.py sdist &gt; /dev/null &amp;&amp; \
+    python -m apache_beam.examples.wordcount ... \
+        --sdk_location dist/apache-beam-2.5.0.dev0.tar.gz
+</code></pre>
+</div>
+
 <h3 id="testing">Testing</h3>
 
 <p>All code should have appropriate unit testing coverage. New code should have
@@ -413,7 +434,7 @@ to prevent the issue from reoccurring.</p>
 </code></pre>
 </div>
 
-<h4 id="python-sdk">Python SDK</h4>
+<h4 id="python-sdk-1">Python SDK</h4>
 
 <p>For contributions to the Python code, you can use command given below to run
 unit tests locally. If you update any of the <a href="http://cython.org">cythonized</a>
