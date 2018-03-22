@@ -1,0 +1,7 @@
+apache\_beam\.transforms\.trigger module
+========================================
+
+.. automodule:: apache_beam.transforms.trigger
+    :members:
+    :undoc-members:
+    :show-inheritance:

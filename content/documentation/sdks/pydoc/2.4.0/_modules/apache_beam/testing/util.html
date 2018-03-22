@@ -1,0 +1,396 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.testing.util &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../index.html"/>
+        <link rel="up" title="Module code" href="../../index.html"/> 
+
+  
+  <script src="../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.testing.util</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.testing.util</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Utilities for testing Beam pipelines.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+
+<span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">glob</span>
+<span class="kn">import</span> <span class="nn">tempfile</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam</span> <span class="k">import</span> <span class="n">pvalue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">window</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">Create</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">DoFn</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">Map</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">ParDo</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.core</span> <span class="k">import</span> <span class="n">WindowInto</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.ptransform</span> <span class="k">import</span> <span class="n">PTransform</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.util</span> <span class="k">import</span> <span class="n">CoGroupByKey</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.annotations</span> <span class="k">import</span> <span class="n">experimental</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">&#39;assert_that&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;equal_to&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;is_empty&#39;</span><span class="p">,</span>
+    <span class="c1"># open_shards is internal and has no backwards compatibility guarantees.</span>
+    <span class="s1">&#39;open_shards&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;TestWindowedValue&#39;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+
+<span class="k">class</span> <span class="nc">BeamAssertException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Exception raised by matcher classes used by assert_that transform.&quot;&quot;&quot;</span>
+
+  <span class="k">pass</span>
+
+
+<span class="c1"># Used for reifying timestamps and windows for assert_that matchers.</span>
+<span class="n">TestWindowedValue</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">namedtuple</span><span class="p">(</span>
+    <span class="s1">&#39;TestWindowedValue&#39;</span><span class="p">,</span> <span class="s1">&#39;value timestamp windows&#39;</span><span class="p">)</span>
+
+
+<span class="k">def</span> <span class="nf">contains_in_any_order</span><span class="p">(</span><span class="n">iterable</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Creates an object that matches another iterable if they both have the</span>
+<span class="sd">  same count of items.</span>
+
+<span class="sd">  Arguments:</span>
+<span class="sd">    iterable: An iterable of hashable objects.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">class</span> <span class="nc">InAnyOrder</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">iterable</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_counter</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">Counter</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_counter</span> <span class="o">==</span> <span class="n">collections</span><span class="o">.</span><span class="n">Counter</span><span class="p">(</span><span class="n">other</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="s2">&quot;InAnyOrder(</span><span class="si">%s</span><span class="s2">)&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">_counter</span>
+
+  <span class="k">return</span> <span class="n">InAnyOrder</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
+
+
+<span class="c1"># Note that equal_to always sorts the expected and actual since what we</span>
+<span class="c1"># compare are PCollections for which there is no guaranteed order.</span>
+<span class="c1"># However the sorting does not go beyond top level therefore [1,2] and [2,1]</span>
+<span class="c1"># are considered equal and [[1,2]] and [[2,1]] are not.</span>
+<div class="viewcode-block" id="equal_to"><a class="viewcode-back" href="../../../apache_beam.testing.util.html#apache_beam.testing.util.equal_to">[docs]</a><span class="k">def</span> <span class="nf">equal_to</span><span class="p">(</span><span class="n">expected</span><span class="p">):</span>
+  <span class="n">expected</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">expected</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_equal</span><span class="p">(</span><span class="n">actual</span><span class="p">):</span>
+    <span class="n">sorted_expected</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">expected</span><span class="p">)</span>
+    <span class="n">sorted_actual</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">sorted_expected</span> <span class="o">!=</span> <span class="n">sorted_actual</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">BeamAssertException</span><span class="p">(</span>
+          <span class="s1">&#39;Failed assert: </span><span class="si">%r</span><span class="s1"> == </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">sorted_expected</span><span class="p">,</span> <span class="n">sorted_actual</span><span class="p">))</span>
+  <span class="k">return</span> <span class="n">_equal</span></div>
+
+
+<div class="viewcode-block" id="is_empty"><a class="viewcode-back" href="../../../apache_beam.testing.util.html#apache_beam.testing.util.is_empty">[docs]</a><span class="k">def</span> <span class="nf">is_empty</span><span class="p">():</span>
+  <span class="k">def</span> <span class="nf">_empty</span><span class="p">(</span><span class="n">actual</span><span class="p">):</span>
+    <span class="n">actual</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">actual</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">actual</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="n">BeamAssertException</span><span class="p">(</span>
+          <span class="s1">&#39;Failed assert: [] == </span><span class="si">%r</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">actual</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">_empty</span></div>
+
+
+<div class="viewcode-block" id="assert_that"><a class="viewcode-back" href="../../../apache_beam.testing.util.html#apache_beam.testing.util.assert_that">[docs]</a><span class="k">def</span> <span class="nf">assert_that</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">matcher</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;assert_that&#39;</span><span class="p">,</span> <span class="n">reify_windows</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;A PTransform that checks a PCollection has an expected value.</span>
+
+<span class="sd">  Note that assert_that should be used only for testing pipelines since the</span>
+<span class="sd">  check relies on materializing the entire PCollection being checked.</span>
+
+<span class="sd">  Args:</span>
+<span class="sd">    actual: A PCollection.</span>
+<span class="sd">    matcher: A matcher function taking as argument the actual value of a</span>
+<span class="sd">      materialized PCollection. The matcher validates this actual value against</span>
+<span class="sd">      expectations and raises BeamAssertException if they are not met.</span>
+<span class="sd">    label: Optional string label. This is needed in case several assert_that</span>
+<span class="sd">      transforms are introduced in the same pipeline.</span>
+<span class="sd">    reify_windows: If True, matcher is passed a list of TestWindowedValue.</span>
+
+<span class="sd">  Returns:</span>
+<span class="sd">    Ignored.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">actual</span><span class="p">,</span> <span class="n">pvalue</span><span class="o">.</span><span class="n">PCollection</span><span class="p">)</span>
+
+  <span class="k">class</span> <span class="nc">ReifyTimestampWindow</span><span class="p">(</span><span class="n">DoFn</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">,</span>
+                <span class="n">window</span><span class="o">=</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
+      <span class="c1"># This returns TestWindowedValue instead of</span>
+      <span class="c1"># beam.utils.windowed_value.WindowedValue because ParDo will extract</span>
+      <span class="c1"># the timestamp and window out of the latter.</span>
+      <span class="k">return</span> <span class="p">[</span><span class="n">TestWindowedValue</span><span class="p">(</span><span class="n">element</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="p">[</span><span class="n">window</span><span class="p">])]</span>
+
+  <span class="k">class</span> <span class="nc">AssertThat</span><span class="p">(</span><span class="n">PTransform</span><span class="p">):</span>
+
+    <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">reify_windows</span><span class="p">:</span>
+        <span class="n">pcoll</span> <span class="o">=</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">ParDo</span><span class="p">(</span><span class="n">ReifyTimestampWindow</span><span class="p">())</span>
+
+      <span class="c1"># We must have at least a single element to ensure the matcher</span>
+      <span class="c1"># code gets run even if the input pcollection is empty.</span>
+      <span class="n">keyed_singleton</span> <span class="o">=</span> <span class="n">pcoll</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">|</span> <span class="n">Create</span><span class="p">([(</span><span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)])</span>
+      <span class="n">keyed_actual</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="n">pcoll</span>
+          <span class="o">|</span> <span class="n">WindowInto</span><span class="p">(</span><span class="n">window</span><span class="o">.</span><span class="n">GlobalWindows</span><span class="p">())</span>
+          <span class="o">|</span> <span class="s2">&quot;ToVoidKey&quot;</span> <span class="o">&gt;&gt;</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">v</span><span class="p">)))</span>
+      <span class="n">_</span> <span class="o">=</span> <span class="p">((</span><span class="n">keyed_singleton</span><span class="p">,</span> <span class="n">keyed_actual</span><span class="p">)</span>
+           <span class="o">|</span> <span class="s2">&quot;Group&quot;</span> <span class="o">&gt;&gt;</span> <span class="n">CoGroupByKey</span><span class="p">()</span>
+           <span class="o">|</span> <span class="s2">&quot;Unkey&quot;</span> <span class="o">&gt;&gt;</span> <span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">k___actual_values</span><span class="p">:</span> <span class="n">k___actual_values</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+           <span class="o">|</span> <span class="s2">&quot;Match&quot;</span> <span class="o">&gt;&gt;</span> <span class="n">Map</span><span class="p">(</span><span class="n">matcher</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">default_label</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">label</span>
+
+  <span class="n">actual</span> <span class="o">|</span> <span class="n">AssertThat</span><span class="p">()</span>  <span class="c1"># pylint: disable=expression-not-assigned</span></div>
+
+
+<div class="viewcode-block" id="open_shards"><a class="viewcode-back" href="../../../apache_beam.testing.util.html#apache_beam.testing.util.open_shards">[docs]</a><span class="nd">@experimental</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">open_shards</span><span class="p">(</span><span class="n">glob_pattern</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Returns a composite file of all shards matching the given glob pattern.&quot;&quot;&quot;</span>
+  <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">shard</span> <span class="ow">in</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="n">glob_pattern</span><span class="p">):</span>
+      <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">file</span><span class="p">(</span><span class="n">shard</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+    <span class="n">concatenated_file_name</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">name</span>
+  <span class="k">return</span> <span class="n">file</span><span class="p">(</span><span class="n">concatenated_file_name</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

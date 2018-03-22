@@ -1,0 +1,7 @@
+apache\_beam\.internal\.util module
+===================================
+
+.. automodule:: apache_beam.internal.util
+    :members:
+    :undoc-members:
+    :show-inheritance:

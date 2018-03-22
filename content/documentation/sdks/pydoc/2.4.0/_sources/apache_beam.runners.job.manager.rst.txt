@@ -1,0 +1,7 @@
+apache\_beam\.runners\.job\.manager module
+==========================================
+
+.. automodule:: apache_beam.runners.job.manager
+    :members:
+    :undoc-members:
+    :show-inheritance:

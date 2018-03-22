@@ -1,0 +1,397 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.direct.evaluation_context module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.runners.direct package" href="apache_beam.runners.direct.html"/>
+        <link rel="next" title="apache_beam.runners.direct.executor module" href="apache_beam.runners.direct.executor.html"/>
+        <link rel="prev" title="apache_beam.runners.direct.direct_runner module" href="apache_beam.runners.direct.direct_runner.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="apache_beam.runners.direct.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.experimental.html">apache_beam.runners.experimental package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.job.html">apache_beam.runners.job package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.html">apache_beam.runners package</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a> &raquo;</li>
+        
+      <li>apache_beam.runners.direct.evaluation_context module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.runners.direct.evaluation_context.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.runners.direct.evaluation_context">
+<span id="apache-beam-runners-direct-evaluation-context-module"></span><h1>apache_beam.runners.direct.evaluation_context module<a class="headerlink" href="#module-apache_beam.runners.direct.evaluation_context" title="Permalink to this headline">¶</a></h1>
+<p>EvaluationContext tracks global state, triggers and watermarks.</p>
+<dl class="class">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.evaluation_context.</code><code class="descname">EvaluationContext</code><span class="sig-paren">(</span><em>pipeline_options</em>, <em>bundle_factory</em>, <em>root_transforms</em>, <em>value_to_consumers</em>, <em>step_names</em>, <em>views</em>, <em>clock</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Evaluation context with the global state information of the pipeline.</p>
+<p>The evaluation context for a specific pipeline being executed by the
+DirectRunner. Contains state shared within the execution across all
+transforms.</p>
+<p>EvaluationContext contains shared state for an execution of the
+DirectRunner that can be used while evaluating a PTransform. This
+consists of views into underlying state and watermark implementations, access
+to read and write side inputs, and constructing counter sets and
+execution contexts. This includes executing callbacks asynchronously when
+state changes to the appropriate point (e.g. when a side input is
+requested and known to be empty).</p>
+<p>EvaluationContext also handles results by committing finalizing
+bundles based on the current global state and updating the global state
+appropriately. This includes updating the per-(step,key) state, updating
+global watermarks, and executing any callbacks that can be executed.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.metrics">
+<code class="descname">metrics</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.metrics"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.metrics" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.is_root_transform">
+<code class="descname">is_root_transform</code><span class="sig-paren">(</span><em>applied_ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.is_root_transform"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.is_root_transform" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.handle_result">
+<code class="descname">handle_result</code><span class="sig-paren">(</span><em>completed_bundle</em>, <em>completed_timers</em>, <em>result</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.handle_result"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.handle_result" title="Permalink to this definition">¶</a></dt>
+<dd><p>Handle the provided result produced after evaluating the input bundle.</p>
+<p>Handle the provided TransformResult, produced after evaluating
+the provided committed bundle (potentially None, if the result of a root
+PTransform).</p>
+<p>The result is the output of running the transform contained in the
+TransformResult on the contents of the provided bundle.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>completed_bundle</strong> – the bundle that was processed to produce the result.</li>
+<li><strong>completed_timers</strong> – the timers that were delivered to produce the
+completed_bundle.</li>
+<li><strong>result</strong> – the TransformResult of evaluating the input bundle</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">the committed bundles contained within the handled result.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.get_aggregator_values">
+<code class="descname">get_aggregator_values</code><span class="sig-paren">(</span><em>aggregator_or_name</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.get_aggregator_values"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.get_aggregator_values" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.schedule_pending_unblocked_tasks">
+<code class="descname">schedule_pending_unblocked_tasks</code><span class="sig-paren">(</span><em>executor_service</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.schedule_pending_unblocked_tasks"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.schedule_pending_unblocked_tasks" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.get_execution_context">
+<code class="descname">get_execution_context</code><span class="sig-paren">(</span><em>applied_ptransform</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.get_execution_context"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.get_execution_context" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.create_bundle">
+<code class="descname">create_bundle</code><span class="sig-paren">(</span><em>output_pcollection</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.create_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.create_bundle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create an uncommitted bundle for the specified PCollection.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.create_empty_committed_bundle">
+<code class="descname">create_empty_committed_bundle</code><span class="sig-paren">(</span><em>output_pcollection</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.create_empty_committed_bundle"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.create_empty_committed_bundle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create empty bundle useful for triggering evaluation.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.extract_all_timers">
+<code class="descname">extract_all_timers</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.extract_all_timers"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.extract_all_timers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.is_done">
+<code class="descname">is_done</code><span class="sig-paren">(</span><em>transform=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.is_done"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.is_done" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks completion of a step or the pipeline.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>transform</strong> – AppliedPTransform to check for completion.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True if the step will not produce additional output. If transform is None
+returns true if all steps are done.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.EvaluationContext.get_value_or_schedule_after_output">
+<code class="descname">get_value_or_schedule_after_output</code><span class="sig-paren">(</span><em>side_input</em>, <em>task</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#EvaluationContext.get_value_or_schedule_after_output"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.EvaluationContext.get_value_or_schedule_after_output" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.evaluation_context.DirectUnmergedState">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.evaluation_context.</code><code class="descname">DirectUnmergedState</code><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#DirectUnmergedState"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.DirectUnmergedState" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.trigger.InMemoryUnmergedState</span></code></p>
+<p>UnmergedState implementation for the DirectRunner.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.direct.evaluation_context.DirectStepContext">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.direct.evaluation_context.</code><code class="descname">DirectStepContext</code><span class="sig-paren">(</span><em>existing_keyed_state</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#DirectStepContext"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.DirectStepContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Context for the currently-executing step.</p>
+<dl class="method">
+<dt id="apache_beam.runners.direct.evaluation_context.DirectStepContext.get_keyed_state">
+<code class="descname">get_keyed_state</code><span class="sig-paren">(</span><em>key</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/direct/evaluation_context.html#DirectStepContext.get_keyed_state"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.direct.evaluation_context.DirectStepContext.get_keyed_state" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.runners.direct.executor.html" class="btn btn-neutral float-right" title="apache_beam.runners.direct.executor module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.runners.direct.direct_runner.html" class="btn btn-neutral" title="apache_beam.runners.direct.direct_runner module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

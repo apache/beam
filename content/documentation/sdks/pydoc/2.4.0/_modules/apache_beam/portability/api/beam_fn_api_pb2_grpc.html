@@ -1,0 +1,422 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.portability.api.beam_fn_api_pb2_grpc &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../../../genindex.html"/>
+        <link rel="search" title="Search" href="../../../../search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="../../../../index.html"/>
+        <link rel="up" title="Module code" href="../../../index.html"/> 
+
+  
+  <script src="../../../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../../../index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="../../../index.html">Module code</a> &raquo;</li>
+        
+      <li>apache_beam.portability.api.beam_fn_api_pb2_grpc</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for apache_beam.portability.api.beam_fn_api_pb2_grpc</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Generated by the gRPC Python protocol compiler plugin. DO NOT EDIT!</span>
+<span class="kn">import</span> <span class="nn">grpc</span>
+
+<span class="kn">import</span> <span class="nn">beam_fn_api_pb2</span> <span class="k">as</span> <span class="nn">beam__fn__api__pb2</span>
+
+
+<div class="viewcode-block" id="BeamFnControlStub"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlStub">[docs]</a><span class="k">class</span> <span class="nc">BeamFnControlStub</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  Control Plane API</span>
+
+<span class="sd">  Progress reporting and splitting still need further vetting. Also, this may change</span>
+<span class="sd">  with the addition of new types of instructions/responses related to metrics.</span>
+
+<span class="sd">  An API that describes the work that a SDK harness is meant to do.</span>
+<span class="sd">  Stable</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      channel: A grpc.Channel.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">Control</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">stream_stream</span><span class="p">(</span>
+        <span class="s1">&#39;/org.apache.beam.model.fn_execution.v1.BeamFnControl/Control&#39;</span><span class="p">,</span>
+        <span class="n">request_serializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">InstructionResponse</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+        <span class="n">response_deserializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">InstructionRequest</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeamFnControlServicer"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer">[docs]</a><span class="k">class</span> <span class="nc">BeamFnControlServicer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  Control Plane API</span>
+
+<span class="sd">  Progress reporting and splitting still need further vetting. Also, this may change</span>
+<span class="sd">  with the addition of new types of instructions/responses related to metrics.</span>
+
+<span class="sd">  An API that describes the work that a SDK harness is meant to do.</span>
+<span class="sd">  Stable</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BeamFnControlServicer.Control"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer.Control">[docs]</a>  <span class="k">def</span> <span class="nf">Control</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request_iterator</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Instructions sent by the runner to the SDK requesting different types</span>
+<span class="sd">    of work.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_code</span><span class="p">(</span><span class="n">grpc</span><span class="o">.</span><span class="n">StatusCode</span><span class="o">.</span><span class="n">UNIMPLEMENTED</span><span class="p">)</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_details</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="add_BeamFnControlServicer_to_server"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server">[docs]</a><span class="k">def</span> <span class="nf">add_BeamFnControlServicer_to_server</span><span class="p">(</span><span class="n">servicer</span><span class="p">,</span> <span class="n">server</span><span class="p">):</span>
+  <span class="n">rpc_method_handlers</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s1">&#39;Control&#39;</span><span class="p">:</span> <span class="n">grpc</span><span class="o">.</span><span class="n">stream_stream_rpc_method_handler</span><span class="p">(</span>
+          <span class="n">servicer</span><span class="o">.</span><span class="n">Control</span><span class="p">,</span>
+          <span class="n">request_deserializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">InstructionResponse</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+          <span class="n">response_serializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">InstructionRequest</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+      <span class="p">),</span>
+  <span class="p">}</span>
+  <span class="n">generic_handler</span> <span class="o">=</span> <span class="n">grpc</span><span class="o">.</span><span class="n">method_handlers_generic_handler</span><span class="p">(</span>
+      <span class="s1">&#39;org.apache.beam.model.fn_execution.v1.BeamFnControl&#39;</span><span class="p">,</span> <span class="n">rpc_method_handlers</span><span class="p">)</span>
+  <span class="n">server</span><span class="o">.</span><span class="n">add_generic_rpc_handlers</span><span class="p">((</span><span class="n">generic_handler</span><span class="p">,))</span></div>
+
+
+<div class="viewcode-block" id="BeamFnDataStub"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataStub">[docs]</a><span class="k">class</span> <span class="nc">BeamFnDataStub</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Stable</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      channel: A grpc.Channel.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">Data</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">stream_stream</span><span class="p">(</span>
+        <span class="s1">&#39;/org.apache.beam.model.fn_execution.v1.BeamFnData/Data&#39;</span><span class="p">,</span>
+        <span class="n">request_serializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">Elements</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+        <span class="n">response_deserializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">Elements</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeamFnDataServicer"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer">[docs]</a><span class="k">class</span> <span class="nc">BeamFnDataServicer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Stable</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BeamFnDataServicer.Data"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer.Data">[docs]</a>  <span class="k">def</span> <span class="nf">Data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request_iterator</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Used to send data between harnesses.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_code</span><span class="p">(</span><span class="n">grpc</span><span class="o">.</span><span class="n">StatusCode</span><span class="o">.</span><span class="n">UNIMPLEMENTED</span><span class="p">)</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_details</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="add_BeamFnDataServicer_to_server"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server">[docs]</a><span class="k">def</span> <span class="nf">add_BeamFnDataServicer_to_server</span><span class="p">(</span><span class="n">servicer</span><span class="p">,</span> <span class="n">server</span><span class="p">):</span>
+  <span class="n">rpc_method_handlers</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s1">&#39;Data&#39;</span><span class="p">:</span> <span class="n">grpc</span><span class="o">.</span><span class="n">stream_stream_rpc_method_handler</span><span class="p">(</span>
+          <span class="n">servicer</span><span class="o">.</span><span class="n">Data</span><span class="p">,</span>
+          <span class="n">request_deserializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">Elements</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+          <span class="n">response_serializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">Elements</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+      <span class="p">),</span>
+  <span class="p">}</span>
+  <span class="n">generic_handler</span> <span class="o">=</span> <span class="n">grpc</span><span class="o">.</span><span class="n">method_handlers_generic_handler</span><span class="p">(</span>
+      <span class="s1">&#39;org.apache.beam.model.fn_execution.v1.BeamFnData&#39;</span><span class="p">,</span> <span class="n">rpc_method_handlers</span><span class="p">)</span>
+  <span class="n">server</span><span class="o">.</span><span class="n">add_generic_rpc_handlers</span><span class="p">((</span><span class="n">generic_handler</span><span class="p">,))</span></div>
+
+
+<div class="viewcode-block" id="BeamFnStateStub"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateStub">[docs]</a><span class="k">class</span> <span class="nc">BeamFnStateStub</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="c1"># missing associated documentation comment in .proto file</span>
+  <span class="k">pass</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      channel: A grpc.Channel.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">State</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">stream_stream</span><span class="p">(</span>
+        <span class="s1">&#39;/org.apache.beam.model.fn_execution.v1.BeamFnState/State&#39;</span><span class="p">,</span>
+        <span class="n">request_serializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">StateRequest</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+        <span class="n">response_deserializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">StateResponse</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeamFnStateServicer"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer">[docs]</a><span class="k">class</span> <span class="nc">BeamFnStateServicer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="c1"># missing associated documentation comment in .proto file</span>
+  <span class="k">pass</span>
+
+<div class="viewcode-block" id="BeamFnStateServicer.State"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer.State">[docs]</a>  <span class="k">def</span> <span class="nf">State</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request_iterator</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Used to get/append/clear state stored by the runner on behalf of the SDK.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_code</span><span class="p">(</span><span class="n">grpc</span><span class="o">.</span><span class="n">StatusCode</span><span class="o">.</span><span class="n">UNIMPLEMENTED</span><span class="p">)</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_details</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="add_BeamFnStateServicer_to_server"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server">[docs]</a><span class="k">def</span> <span class="nf">add_BeamFnStateServicer_to_server</span><span class="p">(</span><span class="n">servicer</span><span class="p">,</span> <span class="n">server</span><span class="p">):</span>
+  <span class="n">rpc_method_handlers</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s1">&#39;State&#39;</span><span class="p">:</span> <span class="n">grpc</span><span class="o">.</span><span class="n">stream_stream_rpc_method_handler</span><span class="p">(</span>
+          <span class="n">servicer</span><span class="o">.</span><span class="n">State</span><span class="p">,</span>
+          <span class="n">request_deserializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">StateRequest</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+          <span class="n">response_serializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">StateResponse</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+      <span class="p">),</span>
+  <span class="p">}</span>
+  <span class="n">generic_handler</span> <span class="o">=</span> <span class="n">grpc</span><span class="o">.</span><span class="n">method_handlers_generic_handler</span><span class="p">(</span>
+      <span class="s1">&#39;org.apache.beam.model.fn_execution.v1.BeamFnState&#39;</span><span class="p">,</span> <span class="n">rpc_method_handlers</span><span class="p">)</span>
+  <span class="n">server</span><span class="o">.</span><span class="n">add_generic_rpc_handlers</span><span class="p">((</span><span class="n">generic_handler</span><span class="p">,))</span></div>
+
+
+<div class="viewcode-block" id="BeamFnLoggingStub"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingStub">[docs]</a><span class="k">class</span> <span class="nc">BeamFnLoggingStub</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Stable</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Constructor.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      channel: A grpc.Channel.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">Logging</span> <span class="o">=</span> <span class="n">channel</span><span class="o">.</span><span class="n">stream_stream</span><span class="p">(</span>
+        <span class="s1">&#39;/org.apache.beam.model.fn_execution.v1.BeamFnLogging/Logging&#39;</span><span class="p">,</span>
+        <span class="n">request_serializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">LogEntry</span><span class="o">.</span><span class="n">List</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+        <span class="n">response_deserializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">LogControl</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeamFnLoggingServicer"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer">[docs]</a><span class="k">class</span> <span class="nc">BeamFnLoggingServicer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Stable</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="BeamFnLoggingServicer.Logging"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer.Logging">[docs]</a>  <span class="k">def</span> <span class="nf">Logging</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">request_iterator</span><span class="p">,</span> <span class="n">context</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Allows for the SDK to emit log entries which the runner can</span>
+<span class="sd">    associate with the active job.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_code</span><span class="p">(</span><span class="n">grpc</span><span class="o">.</span><span class="n">StatusCode</span><span class="o">.</span><span class="n">UNIMPLEMENTED</span><span class="p">)</span>
+    <span class="n">context</span><span class="o">.</span><span class="n">set_details</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Method not implemented!&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="add_BeamFnLoggingServicer_to_server"><a class="viewcode-back" href="../../../../apache_beam.portability.api.beam_fn_api_pb2_grpc.html#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server">[docs]</a><span class="k">def</span> <span class="nf">add_BeamFnLoggingServicer_to_server</span><span class="p">(</span><span class="n">servicer</span><span class="p">,</span> <span class="n">server</span><span class="p">):</span>
+  <span class="n">rpc_method_handlers</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="s1">&#39;Logging&#39;</span><span class="p">:</span> <span class="n">grpc</span><span class="o">.</span><span class="n">stream_stream_rpc_method_handler</span><span class="p">(</span>
+          <span class="n">servicer</span><span class="o">.</span><span class="n">Logging</span><span class="p">,</span>
+          <span class="n">request_deserializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">LogEntry</span><span class="o">.</span><span class="n">List</span><span class="o">.</span><span class="n">FromString</span><span class="p">,</span>
+          <span class="n">response_serializer</span><span class="o">=</span><span class="n">beam__fn__api__pb2</span><span class="o">.</span><span class="n">LogControl</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">,</span>
+      <span class="p">),</span>
+  <span class="p">}</span>
+  <span class="n">generic_handler</span> <span class="o">=</span> <span class="n">grpc</span><span class="o">.</span><span class="n">method_handlers_generic_handler</span><span class="p">(</span>
+      <span class="s1">&#39;org.apache.beam.model.fn_execution.v1.BeamFnLogging&#39;</span><span class="p">,</span> <span class="n">rpc_method_handlers</span><span class="p">)</span>
+  <span class="n">server</span><span class="o">.</span><span class="n">add_generic_rpc_handlers</span><span class="p">((</span><span class="n">generic_handler</span><span class="p">,))</span></div>
+</pre></div>
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../../../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../../../_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

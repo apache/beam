@@ -826,22 +826,22 @@ has other limitations that make it insufficient for this task&lt;/em&gt;).&lt;/p
 &lt;h2 id=&quot;beam-source-api&quot;&gt;Beam Source API&lt;/h2&gt;
 
 &lt;p&gt;Apache Beam historically provides a Source API
-(&lt;a href=&quot;/documentation/sdks/javadoc/2.3.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;BoundedSource&lt;/a&gt;
+(&lt;a href=&quot;/documentation/sdks/javadoc/2.4.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;BoundedSource&lt;/a&gt;
 and
-&lt;a href=&quot;/documentation/sdks/javadoc/2.3.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;UnboundedSource&lt;/a&gt;) which does
+&lt;a href=&quot;/documentation/sdks/javadoc/2.4.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;UnboundedSource&lt;/a&gt;) which does
 not have these limitations and allows development of efficient data sources for
 batch and streaming systems. Pipelines use this API via the
-&lt;a href=&quot;/documentation/sdks/javadoc/2.3.0/org/apache/beam/sdk/io/Read.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Read.from(Source)&lt;/code&gt;&lt;/a&gt; built-in &lt;code class=&quot;highlighter-rouge&quot;&gt;PTransform&lt;/code&gt;.&lt;/p&gt;
+&lt;a href=&quot;/documentation/sdks/javadoc/2.4.0/org/apache/beam/sdk/io/Read.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Read.from(Source)&lt;/code&gt;&lt;/a&gt; built-in &lt;code class=&quot;highlighter-rouge&quot;&gt;PTransform&lt;/code&gt;.&lt;/p&gt;
 
 &lt;p&gt;The Source API is largely similar to that of most other data processing
 frameworks, and allows the system to read data in parallel using multiple
 workers, as well as checkpoint and resume reading from an unbounded data source.
 Additionally, the Beam
-&lt;a href=&quot;/documentation/sdks/javadoc/2.3.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource&lt;/code&gt;&lt;/a&gt;
+&lt;a href=&quot;/documentation/sdks/javadoc/2.4.0/org/apache/beam/sdk/io/BoundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;BoundedSource&lt;/code&gt;&lt;/a&gt;
 API provides advanced features such as progress reporting and &lt;a href=&quot;/blog/2016/05/18/splitAtFraction-method.html&quot;&gt;dynamic
 rebalancing&lt;/a&gt;
 (which together enable autoscaling), and
-&lt;a href=&quot;/documentation/sdks/javadoc/2.3.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;UnboundedSource&lt;/code&gt;&lt;/a&gt; supports
+&lt;a href=&quot;/documentation/sdks/javadoc/2.4.0/org/apache/beam/sdk/io/UnboundedSource.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;UnboundedSource&lt;/code&gt;&lt;/a&gt; supports
 reporting the source’s watermark and backlog &lt;em&gt;(until SDF, we believed that
 “batch” and “streaming” data sources are fundamentally different and thus
 require fundamentally different APIs)&lt;/em&gt;.&lt;/p&gt;
