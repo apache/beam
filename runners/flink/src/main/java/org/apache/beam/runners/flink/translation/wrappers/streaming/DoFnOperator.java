@@ -483,6 +483,11 @@ public class DoFnOperator<InputT, OutputT>
   @Override
   public final void processElement2(
       StreamRecord<RawUnionValue> streamRecord) throws Exception {
+    // we finish the bundle because the newly arrived side-input might
+    // make a view available that was previously not ready.
+    // The PushbackSideInputRunner will only reset it's cache of non-ready windows when
+    // finishing a bundle.
+    invokeFinishBundle();
     checkInvokeStartBundle();
 
     @SuppressWarnings("unchecked")
