@@ -111,8 +111,9 @@ import org.slf4j.LoggerFactory;
  *       // settings for ConsumerConfig. e.g :
  *       .updateConsumerProperties(ImmutableMap.of("group.id", "my_beam_app_1"))
  *
- *       // set event times and watermark based on LogAppendTime. To provide a custom
+ *       // set event times and watermark based on 'LogAppendTime'. To provide a custom
  *       // policy see withTimestampPolicyFactory(). withProcessingTime() is the default.
+ *       // Use withCreateTime() with topics that have 'CreateTime' timestamps.
  *       .withLogAppendTime()
  *
  *       // restrict reader to committed messages on Kafka (see method documentation).
@@ -482,7 +483,6 @@ public class KafkaIO {
       return withTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime());
     }
 
-
     /**
      * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy}.
      * This is the default timestamp policy. It assigns processing time to each record.
@@ -515,7 +515,9 @@ public class KafkaIO {
      * Provide custom {@link TimestampPolicyFactory} to set event times and watermark for each
      * partition. {@link TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)}
      * is invoked for each partition when the reader starts.
-     * @see #withLogAppendTime() and {@link #withProcessingTime()}
+     * @see #withLogAppendTime()
+     * @see #withCreateTime(Duration)
+     * @see #withProcessingTime()
      */
     public Read<K, V> withTimestampPolicyFactory(
       TimestampPolicyFactory<K, V> timestampPolicyFactory) {
