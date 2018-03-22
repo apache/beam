@@ -284,7 +284,7 @@ class FakePubsubClient(object):
 
 
 def create_client_message(payload, message_id, attributes, publish_time):
-  """Returns a message as it would be returned from Pubsub client."""
+  """Returns a message as it would be returned from Cloud Pub/Sub client."""
   msg = pubsub.message.Message(payload, message_id, attributes)
   msg._service_timestamp = publish_time
   return msg

@@ -777,7 +777,7 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubSource is currently available for use '
+        raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')
       # Only one of topic or subscription should be set.
       if transform.source.full_subscription:

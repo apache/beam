@@ -184,6 +184,8 @@ class ReadStringsFromPubSub(ReadPayloadsFromPubSub):
   """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub.
 
   Outputs elements of type ``unicode``, decoded from UTF-8.
+
+  This class is deprecated.
   """
 
   def expand(self, pcoll):
@@ -276,7 +278,7 @@ def parse_subscription(full_subscription):
 class _PubSubSource(dataflow_io.NativeSource):
   """Source for the payload of a message as bytes from a Cloud Pub/Sub topic.
 
-  This ``PTransform`` is overridden by a native Pubsub implementation.
+  This ``NativeSource`` is overridden by a native Pubsub implementation.
 
   Attributes:
     with_attributes: If False, will fetch just message payload. Otherwise,
@@ -324,8 +326,7 @@ class _PubSubSource(dataflow_io.NativeSource):
                             label='Pubsub Subscription').drop_if_none()}
 
   def reader(self):
-    raise NotImplementedError(
-        'PubSubSource is not supported in local execution.')
+    raise NotImplementedError
 
   def is_bounded(self):
     return False

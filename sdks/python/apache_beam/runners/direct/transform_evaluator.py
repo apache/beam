@@ -432,16 +432,15 @@ class _PubSubReadEvaluator(_TransformEvaluator):
         if timestamp_attribute:
           try:
             rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
-          except KeyError:
-            raise KeyError('Timestamp attribute not found: %s' %
-                           self.source.timestamp_attribute)
+          except KeyError as e:
+            raise KeyError('Timestamp attribute not found: %s' % e)
           try:
             timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
           except ValueError:
             try:
               timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
-            except ValueError:
-              raise ValueError('Invalid timestamp value: %s', rfc3339_or_milli)
+            except ValueError as e:
+              raise ValueError('Bad timestamp value: %s' % e)
         else:
           timestamp = Timestamp.from_rfc3339(message.service_timestamp)
 
