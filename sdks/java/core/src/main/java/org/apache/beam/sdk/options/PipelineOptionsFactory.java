@@ -273,7 +273,7 @@ public class PipelineOptionsFactory {
      * <p>A key/value set of options. This reuses the same logic than
      * {@link PipelineOptionsFactory#fromArgs(String...)} but using
      * the configuration parameter as input. Keys don't have <pre>--</pre>
-     * as a prefix in this case.
+     * as a prefix in this case.</p>
      *
      * <p>Simple list style properties are able to be bound to {@code boolean[]}, {@code char[]},
      * {@code short[]}, {@code int[]}, {@code long[]}, {@code float[]}, {@code double[]},
