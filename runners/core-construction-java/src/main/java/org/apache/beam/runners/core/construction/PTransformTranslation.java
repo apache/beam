@@ -287,6 +287,7 @@ public class PTransformTranslation {
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
     String getUrn(T transform);
 
+    @Nullable
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
         throws IOException;
 
