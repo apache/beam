@@ -169,10 +169,17 @@ class Environment(object):
     if job_type.startswith('FNAPI_'):
       runner_harness_override = (
           dependency.get_runner_harness_container_image())
+      self.debug_options.experiments = self.debug_options.experiments or []
       if runner_harness_override:
-        self.debug_options.experiments = self.debug_options.experiments or []
         self.debug_options.experiments.append(
             'runner_harness_container_image=' + runner_harness_override)
+      # Add use_multiple_sdk_containers flag if its not already present. Do not
+      # add the flag if 'no_use_multiple_sdk_containers' is present.
+      # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
+      # till version 2.4.
+      if ('use_multiple_sdk_containers' not in self.proto.experiments and
+          'no_use_multiple_sdk_containers' not in self.proto.experiments):
+        self.debug_options.experiments.append('use_multiple_sdk_containers')
     # Experiments
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:
