@@ -23,6 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import com.google.common.base.Preconditions;
 
 /** Read data from Avro format */
 public class AvroHadoopSource extends HadoopFileSource<AvroKey<Record>, NullWritable> {
@@ -68,9 +69,7 @@ public class AvroHadoopSource extends HadoopFileSource<AvroKey<Record>, NullWrit
       } else {
         conf = new Configuration(conf);
       }
-      if (path == null) {
-        throw new IllegalArgumentException("Input path has to be specified");
-      }
+      Preconditions.checkArgument(path != null,"Input path has to be specified");
       conf.set(FileInputFormat.INPUT_DIR, path.toString());
       if (schema != null) {
         conf.set("avro.schema.input.key", schema);
