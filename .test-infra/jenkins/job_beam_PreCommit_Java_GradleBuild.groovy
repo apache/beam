@@ -30,7 +30,7 @@ job('beam_PreCommit_Java_GradleBuild') {
   common_job_properties.setTopLevelMainJobProperties(
     delegate,
     'master',
-    240)
+    90)
 
   // Publish all test results to Jenkins
   publishers {
