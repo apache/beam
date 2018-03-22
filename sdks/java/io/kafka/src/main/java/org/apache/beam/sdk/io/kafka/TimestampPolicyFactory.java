@@ -16,6 +16,8 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.io.Serializable;
 import java.util.Optional;
 import org.apache.beam.sdk.io.kafka.TimestampPolicy.PartitionContext;
@@ -31,6 +33,7 @@ import org.joda.time.Instant;
  * the the reader while starting or resuming from a checkpoint. Two commonly used policies are
  * provided. See {@link #withLogAppendTime()} and {@link #withProcessingTime()}.
  */
+@FunctionalInterface
 public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
 
   /**
@@ -64,6 +67,25 @@ public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
    */
   static <K, V> TimestampPolicyFactory<K, V> withLogAppendTime() {
     return (tp, previousWatermark) -> new LogAppendTimePolicy<>(previousWatermark);
+  }
+
+  /**
+   * {@link CustomTimestampPolicyWithLimitedDelay} using {@link KafkaTimestampType#CREATE_TIME}
+   * from the record for timestamp. See {@link KafkaIO.Read#withCreateTime(Duration)} for more
+   * complete documentation.
+   */
+  static <K, V> TimestampPolicyFactory<K, V> withCreateTime(Duration maxDelay) {
+    SerializableFunction<KafkaRecord<K, V>, Instant> timestampFunction = record -> {
+      checkArgument(
+        record.getTimestampType() == KafkaTimestampType.CREATE_TIME,
+        "Kafka record's timestamp is not 'CREATE_TIME' "
+        + "(topic: %s, partition %s, offset %s, timestamp type '%s')",
+        record.getTopic(), record.getPartition(), record.getOffset(), record.getTimestampType());
+      return new Instant(record.getTimestamp());
+    };
+
+    return (tp, previousWatermark) ->
+      new CustomTimestampPolicyWithLimitedDelay<>(timestampFunction, maxDelay, previousWatermark);
   }
 
   /*
