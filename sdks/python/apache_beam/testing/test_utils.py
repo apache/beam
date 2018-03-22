@@ -144,20 +144,19 @@ def wait_for_topics_created(topics, timeout=60):
 
 
 def _wait_until_all_exist(components, timeout):
-  needs_wait = set(components)
+  unchecked_components = set(components)
   start_time = time.time()
   while time.time() - start_time <= timeout:
-    for c in components:
-      if c in needs_wait and c.exists():
-        needs_wait.remove(c)
-    if len(needs_wait) == 0:
+    unchecked_components = set(
+        [c for c in unchecked_components if not c.exists()])
+    if len(unchecked_components) == 0:
       return True
     time.sleep(2)
 
   raise RuntimeError(
       'Timeout after %d seconds. %d of %d topics/subscriptions not exist. '
-      'They are %s.' %
-      (timeout, len(needs_wait), len(components), list(needs_wait)))
+      'They are %s.' % (timeout, len(unchecked_components),
+                        len(components), list(unchecked_components)))
 
 
 def cleanup_subscriptions(subs):
