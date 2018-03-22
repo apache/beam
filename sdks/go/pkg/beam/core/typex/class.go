@@ -20,6 +20,8 @@ import (
 	"reflect"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/golang/protobuf/proto"
 )
 
 // Class is the type "class" of data as distinguished by the runtime. The class
@@ -44,6 +46,8 @@ const (
 	// that cannot be represented as a single reflect.Type.
 	Composite
 )
+
+var protoMessageType = reflect.TypeOf((*proto.Message)(nil)).Elem()
 
 // TODO(herohde) 5/16/2017: maybe we should add more classes, so that every
 // reasonable type (such as error) is not Invalid, even though it is not
@@ -74,6 +78,12 @@ func ClassOf(t reflect.Type) Class {
 func IsConcrete(t reflect.Type) bool {
 	if t == nil || t == EventTimeType {
 		return false
+	}
+
+	// TODO(BEAM-3306): the coder registry should be consulted here for user
+	// specified types and their coders.
+	if t.Implements(protoMessageType) {
+		return true
 	}
 
 	switch t.Kind() {

@@ -25,11 +25,14 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/coderx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/golang/protobuf/proto"
 )
 
 func init() {
 	RegisterFunction(JSONDec)
 	RegisterFunction(JSONEnc)
+	RegisterFunction(ProtoEnc)
+	RegisterFunction(ProtoDec)
 }
 
 // Coder defines how to encode and decode values of type 'A' into byte streams.
@@ -86,6 +89,8 @@ func NewCoder(t FullType) Coder {
 	return Coder{c}
 }
 
+var protoMessageType = reflect.TypeOf((*proto.Message)(nil)).Elem()
+
 func inferCoder(t FullType) (*coder.Coder, error) {
 	switch t.Class() {
 	case typex.Concrete, typex.Container:
@@ -107,6 +112,16 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			// conversions at runtime in inconvenient places.
 			return &coder.Coder{Kind: coder.Bytes, T: t}, nil
 		default:
+			// TODO(BEAM-3306): the coder registry should be consulted here for user
+			// specified types and their coders.
+			if t.Type().Implements(protoMessageType) {
+				c, err := newProtoCoder(t.Type())
+				if err != nil {
+					return nil, err
+				}
+				return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+			}
+
 			c, err := newJSONCoder(t.Type())
 			if err != nil {
 				return nil, err
@@ -152,6 +167,26 @@ func inferCoders(list []FullType) ([]*coder.Coder, error) {
 // we'll use exploded form coders only using typex.T. We might also need a
 // form that doesn't require LengthPrefix'ing to cut up the bytestream from
 // the FnHarness.
+
+func ProtoEnc(in typex.T) ([]byte, error) {
+	return proto.Marshal(in.(proto.Message))
+}
+
+func ProtoDec(t reflect.Type, in []byte) (typex.T, error) {
+	val := reflect.New(t.Elem()).Interface().(proto.Message)
+	if err := proto.Unmarshal(in, val); err != nil {
+		return nil, err
+	}
+	return val, nil
+}
+
+func newProtoCoder(t reflect.Type) (*coder.CustomCoder, error) {
+	c, err := coder.NewCustomCoder("proto", t, ProtoEnc, ProtoDec)
+	if err != nil {
+		return nil, fmt.Errorf("invalid coder: %v", err)
+	}
+	return c, nil
+}
 
 // Concrete and universal custom coders both have a similar signature.
 // Conversion is handled by reflection.
