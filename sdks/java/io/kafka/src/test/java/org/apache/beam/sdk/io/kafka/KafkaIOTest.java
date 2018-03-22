@@ -549,7 +549,7 @@ public class KafkaIOTest {
       p.apply(mkKafkaReadTransform(numElements, null)
                 .withCreateTime(Duration.millis(0))
                 .updateConsumerProperties(ImmutableMap.of(
-                  TIMESTAMP_TYPE_CONFIG, "LogAppendTime",
+                  TIMESTAMP_TYPE_CONFIG, "CreateTime",
                   TIMESTAMP_START_MILLIS_CONFIG, createTimestampStartMillis))
                 .withoutMetadata())
         .apply(Values.create());

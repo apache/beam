@@ -16,8 +16,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+/** Tests for {@link CustomTimestampPolicyWithLimitedDelay}. */
 @RunWith(JUnit4.class)
-class CustomTimestampPolicyWithLimitedDelayTest {
+public class CustomTimestampPolicyWithLimitedDelayTest {
 
   // Takes offsets of timestamps from now returns the results as offsets from 'now'.
   private static List<Long> getTimestampsForRecords(
@@ -36,7 +37,7 @@ class CustomTimestampPolicyWithLimitedDelayTest {
 
 
   @Test
-  void testCustomTimestampPolicyWithLimitedDelay() {
+  public void testCustomTimestampPolicyWithLimitedDelay() {
     // Verifies that max delay is applies appropriately for reporting watermark
 
     Duration maxDelay = Duration.standardSeconds(60);
