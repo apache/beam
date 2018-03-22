@@ -147,8 +147,8 @@ def _wait_until_all_exist(components, timeout):
   unchecked_components = set(components)
   start_time = time.time()
   while time.time() - start_time <= timeout:
-    unchecked_components -= set(
-        [c for c in unchecked_components if c.exists()])
+    unchecked_components = set(
+        [c for c in unchecked_components if not c.exists()])
     if len(unchecked_components) == 0:
       return True
     time.sleep(2)
