@@ -27,6 +27,7 @@ import (
 )
 
 //go:generate specialize --input=calls.tmpl
+//go:generate gofmt -w calls.go
 
 // Func represents a callable untyped function. This indirection allows
 // us to avoid reflection call overhead for certain types as well as

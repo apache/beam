@@ -6,7 +6,7 @@ package fnexecution_v1
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import google_protobuf2 "github.com/golang/protobuf/ptypes/struct"
+import google_protobuf3 "github.com/golang/protobuf/ptypes/struct"
 
 import (
 	context "golang.org/x/net/context"
@@ -55,7 +55,7 @@ type ProvisionInfo struct {
 	WorkerId string `protobuf:"bytes,5,opt,name=worker_id,json=workerId" json:"worker_id,omitempty"`
 	// (required) Pipeline options. For non-template jobs, the options are
 	// identical to what is passed to job submission.
-	PipelineOptions *google_protobuf2.Struct `protobuf:"bytes,3,opt,name=pipeline_options,json=pipelineOptions" json:"pipeline_options,omitempty"`
+	PipelineOptions *google_protobuf3.Struct `protobuf:"bytes,3,opt,name=pipeline_options,json=pipelineOptions" json:"pipeline_options,omitempty"`
 	// (optional) Resource limits that the SDK harness worker should respect.
 	// Runners may -- but are not required to -- enforce any limits provided.
 	ResourceLimits *Resources `protobuf:"bytes,4,opt,name=resource_limits,json=resourceLimits" json:"resource_limits,omitempty"`
@@ -87,7 +87,7 @@ func (m *ProvisionInfo) GetWorkerId() string {
 	return ""
 }
 
-func (m *ProvisionInfo) GetPipelineOptions() *google_protobuf2.Struct {
+func (m *ProvisionInfo) GetPipelineOptions() *google_protobuf3.Struct {
 	if m != nil {
 		return m.PipelineOptions
 	}
