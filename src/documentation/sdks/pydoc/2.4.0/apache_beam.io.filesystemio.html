@@ -1,0 +1,537 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.io.filesystemio module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.io package" href="apache_beam.io.html"/>
+        <link rel="next" title="apache_beam.io.filesystems module" href="apache_beam.io.filesystems.html"/>
+        <link rel="prev" title="apache_beam.io.filesystem module" href="apache_beam.io.filesystem.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.io.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.io.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.avroio.html">apache_beam.io.avroio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.concat_source.html">apache_beam.io.concat_source module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsink.html">apache_beam.io.filebasedsink module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filebasedsource.html">apache_beam.io.filebasedsource module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystem.html">apache_beam.io.filesystem module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.io.filesystemio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.filesystems.html">apache_beam.io.filesystems module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.hadoopfilesystem.html">apache_beam.io.hadoopfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.iobase.html">apache_beam.io.iobase module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.localfilesystem.html">apache_beam.io.localfilesystem module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.range_trackers.html">apache_beam.io.range_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.restriction_trackers.html">apache_beam.io.restriction_trackers module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.source_test_utils.html">apache_beam.io.source_test_utils module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.textio.html">apache_beam.io.textio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.tfrecordio.html">apache_beam.io.tfrecordio module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.io.vcfio.html">apache_beam.io.vcfio module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.io.html">apache_beam.io package</a> &raquo;</li>
+        
+      <li>apache_beam.io.filesystemio module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.io.filesystemio.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.io.filesystemio">
+<span id="apache-beam-io-filesystemio-module"></span><h1>apache_beam.io.filesystemio module<a class="headerlink" href="#module-apache_beam.io.filesystemio" title="Permalink to this headline">¶</a></h1>
+<p>Utilities for <code class="docutils literal"><span class="pre">FileSystem</span></code> implementations.</p>
+<dl class="class">
+<dt id="apache_beam.io.filesystemio.Downloader">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystemio.</code><code class="descname">Downloader</code><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#Downloader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.Downloader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Download interface for a single file.</p>
+<p>Implementations should support random access reads.</p>
+<dl class="attribute">
+<dt id="apache_beam.io.filesystemio.Downloader.size">
+<code class="descname">size</code><a class="headerlink" href="#apache_beam.io.filesystemio.Downloader.size" title="Permalink to this definition">¶</a></dt>
+<dd><p>Size of file to download.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.Downloader.get_range">
+<code class="descname">get_range</code><span class="sig-paren">(</span><em>start</em>, <em>end</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#Downloader.get_range"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.Downloader.get_range" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieve a given byte range [start, end) from this download.</p>
+<dl class="docutils">
+<dt>Range must be in this form:</dt>
+<dd>0 &lt;= start &lt; end: Fetch the bytes from start to end.</dd>
+</dl>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>start</strong> – (int) Initial byte offset.</li>
+<li><strong>end</strong> – (int) Final byte offset, exclusive.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">(string) A buffer containing the requested data.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.filesystemio.Uploader">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystemio.</code><code class="descname">Uploader</code><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#Uploader"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.Uploader" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Upload interface for a single file.</p>
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.Uploader.put">
+<code class="descname">put</code><span class="sig-paren">(</span><em>data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#Uploader.put"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.Uploader.put" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write data to file sequentially.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>data</strong> – (memoryview) Data to write.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.Uploader.finish">
+<code class="descname">finish</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#Uploader.finish"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.Uploader.finish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Signal to upload any remaining data and close the file.</p>
+<p>File should be fully written upon return from this method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body">Any error encountered during the upload.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.filesystemio.DownloaderStream">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystemio.</code><code class="descname">DownloaderStream</code><span class="sig-paren">(</span><em>downloader</em>, <em>mode='r'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#DownloaderStream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.DownloaderStream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/io.html#io.RawIOBase" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">io.RawIOBase</span></code></a></p>
+<p>Provides a stream interface for Downloader objects.</p>
+<p>Initializes the stream.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>downloader</strong> – (Downloader) Filesystem dependent implementation.</li>
+<li><strong>mode</strong> – (string) Python mode attribute for this stream.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.DownloaderStream.readinto">
+<code class="descname">readinto</code><span class="sig-paren">(</span><em>b</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#DownloaderStream.readinto"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.DownloaderStream.readinto" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read up to len(b) bytes into b.</p>
+<p>Returns number of bytes read (0 for EOF).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>b</strong> – (bytearray/memoryview) Buffer to read into.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.DownloaderStream.seek">
+<code class="descname">seek</code><span class="sig-paren">(</span><em>offset</em>, <em>whence=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#DownloaderStream.seek"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.DownloaderStream.seek" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the stream’s current offset.</p>
+<p>Note if the new offset is out of bound, it is adjusted to either 0 or EOF.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>offset</strong> – seek offset as number.</li>
+<li><strong>whence</strong> – seek mode. Supported modes are os.SEEK_SET (absolute seek),
+os.SEEK_CUR (seek relative to the current position), and os.SEEK_END
+(seek relative to the end, offset should be negative).</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><code class="docutils literal"><span class="pre">ValueError</span></code> – When this stream is closed or if whence is invalid.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.DownloaderStream.tell">
+<code class="descname">tell</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#DownloaderStream.tell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.DownloaderStream.tell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tell the stream’s current offset.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">current offset in reading this stream.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><code class="docutils literal"><span class="pre">ValueError</span></code> – When this stream is closed.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.DownloaderStream.seekable">
+<code class="descname">seekable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#DownloaderStream.seekable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.DownloaderStream.seekable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.DownloaderStream.readable">
+<code class="descname">readable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#DownloaderStream.readable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.DownloaderStream.readable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.filesystemio.UploaderStream">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystemio.</code><code class="descname">UploaderStream</code><span class="sig-paren">(</span><em>uploader</em>, <em>mode='w'</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#UploaderStream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.UploaderStream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/io.html#io.RawIOBase" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">io.RawIOBase</span></code></a></p>
+<p>Provides a stream interface for Uploader objects.</p>
+<p>Initializes the stream.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>uploader</strong> – (Uploader) Filesystem dependent implementation.</li>
+<li><strong>mode</strong> – (string) Python mode attribute for this stream.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.UploaderStream.tell">
+<code class="descname">tell</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#UploaderStream.tell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.UploaderStream.tell" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.UploaderStream.write">
+<code class="descname">write</code><span class="sig-paren">(</span><em>b</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#UploaderStream.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.UploaderStream.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write bytes from b.</p>
+<p>Returns number of bytes written (&lt;= len(b)).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>b</strong> – (memoryview) Buffer with data to write.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.UploaderStream.close">
+<code class="descname">close</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#UploaderStream.close"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.UploaderStream.close" title="Permalink to this definition">¶</a></dt>
+<dd><p>Complete the upload and close this stream.</p>
+<p>This method has no effect if the stream is already closed.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body">Any error encountered by the uploader.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.UploaderStream.writable">
+<code class="descname">writable</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#UploaderStream.writable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.UploaderStream.writable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.io.filesystemio.PipeStream">
+<em class="property">class </em><code class="descclassname">apache_beam.io.filesystemio.</code><code class="descname">PipeStream</code><span class="sig-paren">(</span><em>recv_pipe</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#PipeStream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.PipeStream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>A class that presents a pipe connection as a readable stream.</p>
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.PipeStream.read">
+<code class="descname">read</code><span class="sig-paren">(</span><em>size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#PipeStream.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.PipeStream.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read data from the wrapped pipe connection.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>size</strong> – Number of bytes to read. Actual number of bytes read is always
+equal to size unless EOF is reached.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">data read as str.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.PipeStream.tell">
+<code class="descname">tell</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#PipeStream.tell"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.PipeStream.tell" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tell the file’s current offset.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">current offset in reading this file.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><code class="docutils literal"><span class="pre">ValueError</span></code> – When this stream is closed.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.io.filesystemio.PipeStream.seek">
+<code class="descname">seek</code><span class="sig-paren">(</span><em>offset</em>, <em>whence=0</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/io/filesystemio.html#PipeStream.seek"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.io.filesystemio.PipeStream.seek" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.io.filesystems.html" class="btn btn-neutral float-right" title="apache_beam.io.filesystems module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.io.filesystem.html" class="btn btn-neutral" title="apache_beam.io.filesystem module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

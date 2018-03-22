@@ -1,0 +1,402 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.pvalue module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="next" title="apache_beam.version module" href="apache_beam.version.html"/>
+        <link rel="prev" title="apache_beam.pipeline module" href="apache_beam.pipeline.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+      <li>apache_beam.pvalue module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.pvalue.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.pvalue">
+<span id="apache-beam-pvalue-module"></span><h1>apache_beam.pvalue module<a class="headerlink" href="#module-apache_beam.pvalue" title="Permalink to this headline">¶</a></h1>
+<p>PValue, PCollection: one node of a dataflow graph.</p>
+<p>A node of a dataflow processing graph is a PValue. Currently, there is only
+one type: PCollection (a potentially very large set of arbitrary values).
+Once created, a PValue belongs to a pipeline and has an associated
+transform (of type PTransform), which describes how the value will be
+produced when the pipeline gets executed.</p>
+<dl class="class">
+<dt id="apache_beam.pvalue.PCollection">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">PCollection</code><span class="sig-paren">(</span><em>pipeline</em>, <em>tag=None</em>, <em>element_type=None</em>, <em>windowing=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PCollection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PCollection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.PValue</span></code></p>
+<p>A multiple values (potentially huge) container.</p>
+<p>Dataflow users should not construct PCollection objects directly in their
+pipelines.</p>
+<p>Initializes a PValue with all arguments hidden behind keyword arguments.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>pipeline</strong> – Pipeline object for this PValue.</li>
+<li><strong>tag</strong> – Tag of this PValue.</li>
+<li><strong>element_type</strong> – The type of this PValue.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="apache_beam.pvalue.PCollection.windowing">
+<code class="descname">windowing</code><a class="headerlink" href="#apache_beam.pvalue.PCollection.windowing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.pvalue.PCollection.to_runner_api">
+<code class="descname">to_runner_api</code><span class="sig-paren">(</span><em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PCollection.to_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PCollection.to_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="apache_beam.pvalue.PCollection.from_runner_api">
+<em class="property">static </em><code class="descname">from_runner_api</code><span class="sig-paren">(</span><em>proto</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#PCollection.from_runner_api"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.PCollection.from_runner_api" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.TaggedOutput">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">TaggedOutput</code><span class="sig-paren">(</span><em>tag</em>, <em>value</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#TaggedOutput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.TaggedOutput" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>An object representing a tagged value.</p>
+<p>ParDo, Map, and FlatMap transforms can emit values on multiple outputs which
+are distinguished by string tags. The DoFn will return plain values
+if it wants to emit on the main output and TaggedOutput objects
+if it wants to emit a value on a specific tagged output.</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.AsSingleton">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsSingleton</code><span class="sig-paren">(</span><em>pcoll</em>, <em>default_value=&lt;object object&gt;</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsSingleton"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsSingleton" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.AsSideInput</span></code></p>
+<p>Marker specifying that an entire PCollection is to be used as a side input.</p>
+<p>When a PCollection is supplied as a side input to a PTransform, it is
+necessary to indicate whether the entire PCollection should be made available
+as a PTransform side argument (in the form of an iterable), or whether just
+one value should be pulled from the PCollection and supplied as the side
+argument (as an ordinary value).</p>
+<p>Wrapping a PCollection side input argument to a PTransform in this container
+(e.g., data.apply(‘label’, MyPTransform(), AsSingleton(my_side_input) )
+selects the latter behavor.</p>
+<p>The input PCollection must contain exactly one  value per window, unless a
+default is given, in which case it may be empty.</p>
+<dl class="attribute">
+<dt id="apache_beam.pvalue.AsSingleton.element_type">
+<code class="descname">element_type</code><a class="headerlink" href="#apache_beam.pvalue.AsSingleton.element_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.AsIter">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsIter</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsIter"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsIter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.AsSideInput</span></code></p>
+<p>Marker specifying that an entire PCollection is to be used as a side input.</p>
+<p>When a PCollection is supplied as a side input to a PTransform, it is
+necessary to indicate whether the entire PCollection should be made available
+as a PTransform side argument (in the form of an iterable), or whether just
+one value should be pulled from the PCollection and supplied as the side
+argument (as an ordinary value).</p>
+<p>Wrapping a PCollection side input argument to a PTransform in this container
+(e.g., data.apply(‘label’, MyPTransform(), AsIter(my_side_input) ) selects the
+former behavor.</p>
+<dl class="attribute">
+<dt id="apache_beam.pvalue.AsIter.element_type">
+<code class="descname">element_type</code><a class="headerlink" href="#apache_beam.pvalue.AsIter.element_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.AsList">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsList</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsList"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsList" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.AsSideInput</span></code></p>
+<p>Marker specifying that an entire PCollection is to be used as a side input.</p>
+<p>Intended for use in side-argument specification—the same places where
+AsSingleton and AsIter are used, but forces materialization of this
+PCollection as a list.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pcoll</strong> – Input pcollection.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">An AsList-wrapper around a PCollection whose one element is a list
+containing all elements in pcoll.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.AsDict">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">AsDict</code><span class="sig-paren">(</span><em>pcoll</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/pvalue.html#AsDict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.AsDict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">apache_beam.pvalue.AsSideInput</span></code></p>
+<p>Marker specifying a PCollection to be used as an indexable side input.</p>
+<p>Intended for use in side-argument specification—the same places where
+AsSingleton and AsIter are used, but returns an interface that allows
+key lookup.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>pcoll</strong> – Input pcollection. All elements should be key-value pairs (i.e.
+2-tuples) with unique keys.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><dl class="docutils">
+<dt>An AsDict-wrapper around a PCollection whose one element is a dict with</dt>
+<dd>entries for uniquely-keyed pairs in pcoll.</dd>
+</dl>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.pvalue.EmptySideInput">
+<em class="property">class </em><code class="descclassname">apache_beam.pvalue.</code><code class="descname">EmptySideInput</code><a class="reference internal" href="_modules/apache_beam/pvalue.html#EmptySideInput"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.pvalue.EmptySideInput" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>Value indicating when a singleton side input was empty.</p>
+<p>If a PCollection was furnished as a singleton side input to a PTransform, and
+that PCollection was empty, then this value is supplied to the DoFn in the
+place where a value from a non-empty PCollection would have gone. This alerts
+the DoFn that the side input PCollection was empty. Users may want to check
+whether side input values are EmptySideInput, but they will very likely never
+want to create new instances of this class themselves.</p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.version.html" class="btn btn-neutral float-right" title="apache_beam.version module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.pipeline.html" class="btn btn-neutral" title="apache_beam.pipeline module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

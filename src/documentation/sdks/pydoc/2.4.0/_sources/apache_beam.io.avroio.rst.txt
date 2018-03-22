@@ -1,0 +1,7 @@
+apache\_beam\.io\.avroio module
+===============================
+
+.. automodule:: apache_beam.io.avroio
+    :members:
+    :undoc-members:
+    :show-inheritance:

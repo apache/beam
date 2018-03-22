@@ -1,0 +1,16 @@
+apache\_beam\.runners\.experimental\.python\_rpc\_direct package
+================================================================
+
+.. automodule:: apache_beam.runners.experimental.python_rpc_direct
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.runners.experimental.python_rpc_direct.python_rpc_direct_runner
+   apache_beam.runners.experimental.python_rpc_direct.server
+

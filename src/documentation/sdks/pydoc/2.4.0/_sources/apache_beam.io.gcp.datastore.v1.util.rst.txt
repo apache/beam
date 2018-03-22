@@ -1,0 +1,7 @@
+apache\_beam\.io\.gcp\.datastore\.v1\.util module
+=================================================
+
+.. automodule:: apache_beam.io.gcp.datastore.v1.util
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,7 @@
+apache\_beam\.typehints\.typehints module
+=========================================
+
+.. automodule:: apache_beam.typehints.typehints
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,341 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.internal.gcp.json_value module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.internal.gcp package" href="apache_beam.internal.gcp.html"/>
+        <link rel="next" title="apache_beam.internal.pickler module" href="apache_beam.internal.pickler.html"/>
+        <link rel="prev" title="apache_beam.internal.gcp.auth module" href="apache_beam.internal.gcp.auth.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.internal.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="apache_beam.internal.gcp.html">apache_beam.internal.gcp package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="apache_beam.internal.gcp.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.internal.html">apache_beam.internal package</a> &raquo;</li>
+        
+          <li><a href="apache_beam.internal.gcp.html">apache_beam.internal.gcp package</a> &raquo;</li>
+        
+      <li>apache_beam.internal.gcp.json_value module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.internal.gcp.json_value.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.internal.gcp.json_value">
+<span id="apache-beam-internal-gcp-json-value-module"></span><h1>apache_beam.internal.gcp.json_value module<a class="headerlink" href="#module-apache_beam.internal.gcp.json_value" title="Permalink to this headline">¶</a></h1>
+<p>JSON conversion utility functions.</p>
+<dl class="function">
+<dt id="apache_beam.internal.gcp.json_value.get_typed_value_descriptor">
+<code class="descclassname">apache_beam.internal.gcp.json_value.</code><code class="descname">get_typed_value_descriptor</code><span class="sig-paren">(</span><em>obj</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/gcp/json_value.html#get_typed_value_descriptor"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.gcp.json_value.get_typed_value_descriptor" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Converts a basic type into a &#64;type/value dictionary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>obj</strong> – A basestring, bool, int, or float to be converted.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A dictionary containing the keys <code class="docutils literal"><span class="pre">&#64;type</span></code> and <code class="docutils literal"><span class="pre">value</span></code> with the value for
+the <code class="docutils literal"><span class="pre">&#64;type</span></code> of appropriate type.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – if the Python object has a type that is not
+supported.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.gcp.json_value.to_json_value">
+<code class="descclassname">apache_beam.internal.gcp.json_value.</code><code class="descname">to_json_value</code><span class="sig-paren">(</span><em>obj</em>, <em>with_type=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/gcp/json_value.html#to_json_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.gcp.json_value.to_json_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Converts Python objects into extra_types.JsonValue objects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>obj</strong> – Python object to be converted. Can be <a class="reference external" href="https://docs.python.org/2/library/constants.html#None" title="(in Python v2.7)"><code class="xref py py-data docutils literal"><span class="pre">None</span></code></a>.</li>
+<li><strong>with_type</strong> – If true then the basic types (<code class="docutils literal"><span class="pre">string</span></code>, <code class="docutils literal"><span class="pre">int</span></code>, <code class="docutils literal"><span class="pre">float</span></code>,
+<code class="docutils literal"><span class="pre">bool</span></code>) will be wrapped in <code class="docutils literal"><span class="pre">&#64;type:value</span></code> dictionaries. Otherwise the
+straight value is encoded into a <code class="docutils literal"><span class="pre">JsonValue</span></code>.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">A <code class="docutils literal"><span class="pre">JsonValue</span></code> object using <code class="docutils literal"><span class="pre">JsonValue</span></code>, <code class="docutils literal"><span class="pre">JsonArray</span></code> and <code class="docutils literal"><span class="pre">JsonObject</span></code>
+types for the corresponding values, lists, or dictionaries.</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – if the Python object contains a type that is not
+supported.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>The types supported are <code class="docutils literal"><span class="pre">str</span></code>, <code class="docutils literal"><span class="pre">bool</span></code>, <code class="docutils literal"><span class="pre">list</span></code>, <code class="docutils literal"><span class="pre">tuple</span></code>, <code class="docutils literal"><span class="pre">dict</span></code>, and
+<code class="docutils literal"><span class="pre">None</span></code>. The Dataflow API requires JsonValue(s) in many places, and it is
+quite convenient to be able to specify these hierarchical objects using
+Python syntax.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.gcp.json_value.from_json_value">
+<code class="descclassname">apache_beam.internal.gcp.json_value.</code><code class="descname">from_json_value</code><span class="sig-paren">(</span><em>v</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/gcp/json_value.html#from_json_value"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.gcp.json_value.from_json_value" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Converts <code class="docutils literal"><span class="pre">extra_types.JsonValue</span></code> objects into Python objects.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>v</strong> – <code class="docutils literal"><span class="pre">JsonValue</span></code> object to be converted.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A Python object structured as values, lists, and dictionaries corresponding
+to <code class="docutils literal"><span class="pre">JsonValue</span></code>, <code class="docutils literal"><span class="pre">JsonArray</span></code> and <code class="docutils literal"><span class="pre">JsonObject</span></code> types.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Raises:</th><td class="field-body"><a class="reference external" href="https://docs.python.org/2/library/exceptions.html#exceptions.TypeError" title="(in Python v2.7)"><code class="xref py py-exc docutils literal"><span class="pre">TypeError</span></code></a> – if the <code class="docutils literal"><span class="pre">JsonValue</span></code> object contains a type that is
+not supported.</td>
+</tr>
+</tbody>
+</table>
+<p>The types supported are <code class="docutils literal"><span class="pre">str</span></code>, <code class="docutils literal"><span class="pre">bool</span></code>, <code class="docutils literal"><span class="pre">list</span></code>, <code class="docutils literal"><span class="pre">dict</span></code>, and <code class="docutils literal"><span class="pre">None</span></code>.
+The Dataflow API returns JsonValue(s) in many places and it is quite
+convenient to be able to convert these hierarchical objects to much simpler
+Python objects.</p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.internal.pickler.html" class="btn btn-neutral float-right" title="apache_beam.internal.pickler module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.internal.gcp.auth.html" class="btn btn-neutral" title="apache_beam.internal.gcp.auth module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
