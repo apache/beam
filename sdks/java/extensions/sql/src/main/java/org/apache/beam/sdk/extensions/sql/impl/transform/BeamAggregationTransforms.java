@@ -190,7 +190,7 @@ public class BeamAggregationTransforms implements Serializable{
           sourceFieldExps.add(sourceExp);
         }
 
-        SqlTypeCoder outFieldType = CalciteUtils.toCoder(call.type.getSqlTypeName());
+        SqlTypeCoder outFieldType = CalciteUtils.toCoder(call.type);
         fields.add(RowType.newField(call.name, outFieldType));
 
         switch (call.getAggregation().getName()) {

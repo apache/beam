@@ -67,7 +67,7 @@ public class CalciteUtils {
    * Get the corresponding Calcite's {@link SqlTypeName}
    * for supported Beam SQL type coder, see {@link SqlTypeCoder}.
    */
-  public static SqlTypeName toCalciteType(SqlTypeCoder coder) {
+  public static SqlTypeName toCalciteTypeName(SqlTypeCoder coder) {
     if (SqlTypeCoders.isArray(coder)) {
         return SqlTypeName.ARRAY;
     }
@@ -80,29 +80,9 @@ public class CalciteUtils {
   }
 
   /**
-   * Get the Beam SQL type coder ({@link SqlTypeCoder}) from Calcite's {@link RelDataTypeField}.
-   */
-  public static SqlTypeCoder toCoder(RelDataTypeField relFieldType) {
-    SqlTypeName fieldTypeName = relFieldType.getType().getSqlTypeName();
-
-    if (SqlTypeName.ARRAY.equals(fieldTypeName)) {
-      RelDataType elementType = relFieldType.getValue().getComponentType();
-      SqlTypeCoder elementCoder = CALCITE_TO_BEAM_TYPE_MAPPING.get(elementType.getSqlTypeName());
-      return SqlTypeCoders.arrayOf(elementCoder);
-    }
-
-    if (SqlTypeName.ROW.equals(fieldTypeName)) {
-      RelDataType nestedCalciteRowType = relFieldType.getValue().getComponentType();
-      return SqlTypeCoders.rowOf(toBeamRowType(nestedCalciteRowType));
-    }
-
-    return toCoder(fieldTypeName);
-  }
-
-  /**
    * Get the Beam SQL type coder ({@link SqlTypeCoder}) from Calcite's {@link SqlTypeName}.
    */
-  public static SqlTypeCoder toCoder(SqlTypeName relFieldType) {
+  public static SqlTypeCoder toPrimitiveCoder(SqlTypeName relFieldType) {
     return CALCITE_TO_BEAM_TYPE_MAPPING.get(relFieldType);
   }
 
@@ -110,7 +90,7 @@ public class CalciteUtils {
    * Get the {@code SqlTypeName} for the specified column of a table.
    */
   public static SqlTypeName getFieldCalciteType(RowType schema, int index) {
-    return toCalciteType((SqlTypeCoder) schema.getFieldCoder(index));
+    return toCalciteTypeName((SqlTypeCoder) schema.getFieldCoder(index));
   }
 
   /**
@@ -129,7 +109,26 @@ public class CalciteUtils {
     return
         RowType.newField(
             calciteField.getName(),
-            toCoder(calciteField));
+            toCoder(calciteField.getType()));
+  }
+
+  /**
+   * Get the Beam SQL type coder ({@link SqlTypeCoder}) from Calcite's {@link RelDataTypeField}.
+   */
+  public static SqlTypeCoder toCoder(RelDataType relType) {
+    SqlTypeName fieldTypeName = relType.getSqlTypeName();
+
+    if (SqlTypeName.ARRAY.equals(fieldTypeName)) {
+      RelDataType componentType = relType.getComponentType();
+      SqlTypeCoder elementCoder = toCoder(componentType);
+      return SqlTypeCoders.arrayOf(elementCoder);
+    }
+
+    if (SqlTypeName.ROW.equals(fieldTypeName)) {
+      return SqlTypeCoders.rowOf(toBeamRowType(relType));
+    }
+
+    return toPrimitiveCoder(fieldTypeName);
   }
 
   /**
@@ -153,7 +152,7 @@ public class CalciteUtils {
       int fieldIndex) {
 
     SqlTypeCoder fieldCoder = (SqlTypeCoder) rowType.getFieldCoder(fieldIndex);
-    SqlTypeName typeName = toCalciteType(fieldCoder);
+    SqlTypeName typeName = toCalciteTypeName(fieldCoder);
 
     if (SqlTypeName.ARRAY.equals(typeName)) {
       return createArrayRelType(dataTypeFactory, (SqlArrayCoder) fieldCoder);
@@ -170,13 +169,17 @@ public class CalciteUtils {
       RelDataTypeFactory dataTypeFactory,
       SqlArrayCoder arrayFieldCoder) {
 
-    SqlTypeName elementTypeName = toCalciteType(arrayFieldCoder.getElementCoder());
+    SqlTypeName elementTypeName = toCalciteTypeName(arrayFieldCoder.getElementCoder());
 
     RelDataType elementType;
 
     if (SqlTypeName.ROW.equals(elementTypeName)) {
       RowType rowType = ((SqlRowCoder) arrayFieldCoder.getElementCoder()).getRowType();
       elementType = toCalciteRowType(rowType, dataTypeFactory);
+    } else if (SqlTypeName.ARRAY.equals(elementTypeName)) {
+      elementType = createArrayRelType(
+          dataTypeFactory,
+          (SqlArrayCoder) arrayFieldCoder.getElementCoder());
     } else {
       elementType = dataTypeFactory.createSqlType(elementTypeName);
     }

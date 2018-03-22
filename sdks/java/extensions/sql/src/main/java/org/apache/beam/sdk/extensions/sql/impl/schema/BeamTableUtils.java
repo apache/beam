@@ -89,7 +89,7 @@ public final class BeamTableUtils {
       return null;
     }
 
-    SqlTypeName columnType = CalciteUtils.toCalciteType((SqlTypeCoder) coder);
+    SqlTypeName columnType = CalciteUtils.toCalciteTypeName((SqlTypeCoder) coder);
     // auto-casting for numberics
     if ((rawObj instanceof String && SqlTypeName.NUMERIC_TYPES.contains(columnType))
         || (rawObj instanceof BigDecimal && columnType != SqlTypeName.DECIMAL)) {

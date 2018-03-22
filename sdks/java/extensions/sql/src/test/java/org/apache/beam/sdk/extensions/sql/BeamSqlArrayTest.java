@@ -207,6 +207,64 @@ public class BeamSqlArrayTest {
   }
 
   @Test
+  public void testArrayOfArrays() {
+    RowType arrayOfArrays =
+        RowSqlType
+        .builder()
+        .withArrayField("f_arrayOfArrays",
+                        SqlTypeCoders.arrayOf(SqlTypeCoders.VARCHAR))
+        .build();
+
+    PCollection<Row> input =
+        PBegin
+            .in(pipeline)
+            .apply("nestedArrays",
+                   Create
+                       .of(
+                           Row
+                               .withRowType(arrayOfArrays)
+                               .addArray(
+                                   Arrays.asList(
+                                       Arrays.asList("111", "112"),
+                                       Arrays.asList("121", "122")))
+                               .build(),
+
+                           Row
+                               .withRowType(arrayOfArrays)
+                               .addArray(
+                                   Arrays.asList(
+                                       Arrays.asList("211", "212"),
+                                       Arrays.asList("221", "222")))
+                               .build())
+                       .withCoder(arrayOfArrays.getRowCoder()));
+
+    RowType resultType =
+        RowSqlType
+            .builder()
+            .withVarcharField("f_string")
+            .build();
+
+    PCollection<Row> result =
+        input
+            .apply(
+                "sqlQuery",
+                BeamSql.query("SELECT f_arrayOfArrays[1][0] FROM PCOLLECTION"));
+
+    PAssert.that(result)
+           .containsInAnyOrder(
+               Row
+                   .withRowType(resultType)
+                   .addValues("121")
+                   .build(),
+               Row
+                   .withRowType(resultType)
+                   .addValues("221")
+                   .build());
+
+    pipeline.run();
+  }
+
+  @Test
   public void testSelectRowsFromArrayOfRows() {
     RowType elementRowType =
         RowSqlType
