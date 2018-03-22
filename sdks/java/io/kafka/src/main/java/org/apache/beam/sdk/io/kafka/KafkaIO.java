@@ -174,9 +174,14 @@ import org.slf4j.LoggerFactory;
  *       .withKeySerializer(LongSerializer.class)
  *       .withValueSerializer(StringSerializer.class)
  *
- *       // you can further customize KafkaProducer used to write the records by adding more
+ *       // You can further customize KafkaProducer used to write the records by adding more
  *       // settings for ProducerConfig. e.g, to enable compression :
  *       .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
+ *
+ *       // You set publish timestamp for the Kafka records.
+ *       .withInputTimestamp() // element timestamp is used while publishing to Kafka
+ *       // or you can also set a custom timestamp with a function.
+ *       .withPublishTimestampFunction((elem, elemTs) -> ...)
  *
  *       // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
  *       .withEOS(20, "eos-sink-group-id");
@@ -813,6 +818,8 @@ public class KafkaIO {
     @Nullable abstract Class<? extends Serializer<K>> getKeySerializer();
     @Nullable abstract Class<? extends Serializer<V>> getValueSerializer();
 
+    @Nullable abstract KafkaPublishTimestampFunction<KV<K, V>> getPublishTimestampFunction();
+
     // Configuration for EOS sink
     abstract boolean isEOS();
     @Nullable abstract String getSinkGroupId();
@@ -830,6 +837,8 @@ public class KafkaIO {
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
       abstract Builder<K, V> setKeySerializer(Class<? extends Serializer<K>> serializer);
       abstract Builder<K, V> setValueSerializer(Class<? extends Serializer<V>> serializer);
+      abstract Builder<K, V> setPublishTimestampFunction(
+        KafkaPublishTimestampFunction<KV<K, V>> timestampFunction);
       abstract Builder<K, V> setEOS(boolean eosEnabled);
       abstract Builder<K, V> setSinkGroupId(String sinkGroupId);
       abstract Builder<K, V> setNumShards(int numShards);
@@ -887,6 +896,28 @@ public class KafkaIO {
     public Write<K, V> withProducerFactoryFn(
         SerializableFunction<Map<String, Object>, Producer<K, V>> producerFactoryFn) {
       return toBuilder().setProducerFactoryFn(producerFactoryFn).build();
+    }
+
+    /**
+     * The timestamp for each record being published is set to timestamp of the element in the
+     * pipeline. This is equivalent to {@code withPublishTimestampFunction((e, ts) -> ts)}. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline
+     * is processing messages from the past, they might be deleted immediately by Kafka after
+     * being published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     */
+    public Write<K, V> withInputTimestamp() {
+      return withPublishTimestampFunction(KafkaPublishTimestampFunction.withElementTimestamp());
+    }
+
+    /**
+     * A function to provide timestamp for records being published. <br>
+     * NOTE: Kafka's retention policies are based on message timestamps. If the pipeline
+     * is processing messages from the past, they might be deleted immediately by Kafka after
+     * being published if the timestamps are older than Kafka cluster's {@code log.retention.hours}.
+     */
+    public Write<K, V> withPublishTimestampFunction(
+      KafkaPublishTimestampFunction<KV<K, V>> timestampFunction) {
+      return toBuilder().setPublishTimestampFunction(timestampFunction).build();
     }
 
     /**

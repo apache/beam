@@ -64,6 +64,8 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -173,7 +175,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
   /**
    * Shuffle messages assigning each randomly to a shard.
    */
-  private static class Reshard<K, V> extends DoFn<KV<K, V>, KV<Integer, KV<K, V>>> {
+  private static class Reshard<K, V>
+      extends DoFn<KV<K, V>, KV<Integer, TimestampedValue<KV<K, V>>>> {
 
     private final int numShards;
     private transient int shardId;
@@ -190,12 +193,13 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
     @ProcessElement
     public void processElement(ProcessContext ctx) {
       shardId = (shardId + 1) % numShards; // round-robin among shards.
-      ctx.output(KV.of(shardId, ctx.element()));
+      ctx.output(KV.of(shardId, TimestampedValue.of(ctx.element(), ctx.timestamp())));
     }
   }
 
-  private static class Sequencer<K, V>
-    extends DoFn<KV<Integer, Iterable<KV<K, V>>>, KV<Integer, KV<Long, KV<K, V>>>> {
+  private static class Sequencer<K, V> extends DoFn<
+      KV<Integer, Iterable<TimestampedValue<KV<K, V>>>>,
+      KV<Integer, KV<Long, TimestampedValue<KV<K, V>>>>> {
 
     private static final String NEXT_ID = "nextId";
     @StateId(NEXT_ID)
@@ -205,7 +209,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
     public void processElement(@StateId(NEXT_ID) ValueState<Long> nextIdState, ProcessContext ctx) {
       long nextId = MoreObjects.firstNonNull(nextIdState.read(), 0L);
       int shard = ctx.element().getKey();
-      for (KV<K, V> value : ctx.element().getValue()) {
+      for (TimestampedValue<KV<K, V>> value : ctx.element().getValue()) {
         ctx.output(KV.of(shard, KV.of(nextId, value)));
         nextId++;
       }
@@ -214,7 +218,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
   }
 
   private static class ExactlyOnceWriter<K, V>
-    extends DoFn<KV<Integer, Iterable<KV<Long, KV<K, V>>>>, Void> {
+    extends DoFn<KV<Integer, Iterable<KV<Long, TimestampedValue<KV<K, V>>>>>, Void> {
 
     private static final String NEXT_ID = "nextId";
     private static final String MIN_BUFFERED_ID = "minBufferedId";
@@ -230,7 +234,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
     @StateId(MIN_BUFFERED_ID)
     private final StateSpec<ValueState<Long>> minBufferedIdSpec = StateSpecs.value();
     @StateId(OUT_OF_ORDER_BUFFER)
-    private final StateSpec<BagState<KV<Long, KV<K, V>>>> outOfOrderBufferSpec;
+    private final StateSpec<BagState<KV<Long, TimestampedValue<KV<K, V>>>>> outOfOrderBufferSpec;
     // A random id assigned to each shard. Helps with detecting when multiple jobs are mistakenly
     // started with same groupId used for storing state on Kafka side, including the case where
     // a job is restarted with same groupId, but the metadata from previous run was not cleared.
@@ -248,7 +252,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
     ExactlyOnceWriter(Write<K, V> spec, Coder<KV<K, V>> elemCoder) {
       this.spec = spec;
-      this.outOfOrderBufferSpec = StateSpecs.bag(KvCoder.of(BigEndianLongCoder.of(), elemCoder));
+      this.outOfOrderBufferSpec = StateSpecs.bag(
+          KvCoder.of(BigEndianLongCoder.of(), TimestampedValueCoder.of(elemCoder)));
     }
 
     @Setup
@@ -261,7 +266,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
     public void processElement(@StateId(NEXT_ID) ValueState<Long> nextIdState,
                                @StateId(MIN_BUFFERED_ID) ValueState<Long> minBufferedIdState,
                                @StateId(OUT_OF_ORDER_BUFFER)
-                                 BagState<KV<Long, KV<K, V>>> oooBufferState,
+                                 BagState<KV<Long, TimestampedValue<KV<K, V>>>> oooBufferState,
                                @StateId(WRITER_ID) ValueState<String> writerIdState,
                                ProcessContext ctx)
       throws IOException {
@@ -297,10 +302,10 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
         // There might be out of order messages buffered in earlier iterations. These
         // will get merged if and when minBufferedId matches nextId.
 
-        Iterator<KV<Long, KV<K, V>>> iter = ctx.element().getValue().iterator();
+        Iterator<KV<Long, TimestampedValue<KV<K, V>>>> iter = ctx.element().getValue().iterator();
 
         while (iter.hasNext()) {
-          KV<Long, KV<K, V>> kv = iter.next();
+          KV<Long, TimestampedValue<KV<K, V>>> kv = iter.next();
           long recordId = kv.getKey();
 
           if (recordId < nextId) {
@@ -339,7 +344,8 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
             // Read all of them in to memory and sort them. Reading into memory
             // might be problematic in extreme cases. Might need to improve it in future.
 
-            List<KV<Long, KV<K, V>>> buffered = Lists.newArrayList(oooBufferState.read());
+            List<KV<Long, TimestampedValue<KV<K, V>>>> buffered =
+                Lists.newArrayList(oooBufferState.read());
             buffered.sort(new KV.OrderByKey<>());
 
             LOG.info("{} : merging {} buffered records (min buffered id is {}).",
@@ -349,8 +355,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
             minBufferedIdState.clear();
             minBufferedId = Long.MAX_VALUE;
 
-            iter =
-              Iterators.mergeSorted(
+            iter = Iterators.mergeSorted(
                 ImmutableList.of(iter, buffered.iterator()), new KV.OrderByKey<>());
           }
         }
@@ -428,10 +433,17 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
         ProducerSpEL.beginTransaction(producer);
       }
 
-      void sendRecord(KV<K, V> record, Counter sendCounter) {
+      void sendRecord(TimestampedValue<KV<K, V>> record, Counter sendCounter) {
         try {
+          Long timestampMillis = spec.getPublishTimestampFunction() != null
+            ? spec.getPublishTimestampFunction().getTimestamp(record.getValue(),
+                                                              record.getTimestamp()).getMillis()
+            : null;
+
           producer.send(
-            new ProducerRecord<>(spec.getTopic(), record.getKey(), record.getValue()));
+              new ProducerRecord<>(
+                  spec.getTopic(), null, timestampMillis,
+                  record.getValue().getKey(), record.getValue().getValue()));
           sendCounter.inc();
         } catch (KafkaException e) {
           ProducerSpEL.abortTransaction(producer);
