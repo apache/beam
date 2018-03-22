@@ -30,6 +30,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	pubsub_v1 "github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio/v1"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	df "google.golang.org/api/dataflow/v1b3"
@@ -42,6 +43,10 @@ const (
 	gbkKind     = "GroupByKey"
 
 	sideInputKind = "CollectionToSingleton"
+
+	// Support for Dataflow native I/O, such as PubSub.
+	readKind  = "ParallelRead"
+	writeKind = "ParallelWrite"
 )
 
 // translate translates a Graph into a sequence of Dataflow steps. The step
@@ -148,6 +153,13 @@ func translate(edges []*graph.MultiEdge) ([]*df.Step, error) {
 			Name:       stepID(edge.ID()),
 			Kind:       kind,
 			Properties: newMsg(prop),
+		}
+		if prop.PubSubWithAttributes {
+			// Hack to add a empty-value property for PubSub IO. This
+			// will make PubSub send the entire message, not just
+			// the payload.
+			prop.PubSubWithAttributes = false
+			step.Properties = newMsg(propertiesWithPubSubMessage{properties: prop})
 		}
 		steps = append(steps, step)
 	}
@@ -350,6 +362,45 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		return flattenKind, properties{
 			UserName: buildName(edge.Scope(), "flatten"), // TODO: user-defined
 		}, nil
+
+	case graph.External:
+		switch edge.Payload.URN {
+		case pubsub_v1.PubSubPayloadURN:
+			// Translate to native handling of PubSub I/O.
+
+			var msg pubsub_v1.PubSubPayload
+			if err := proto.Unmarshal(edge.Payload.Data, &msg); err != nil {
+				return "", properties{}, fmt.Errorf("bad pubsub payload: %v", err)
+			}
+			prop := properties{
+				UserName:             buildName(edge.Scope(), fmt.Sprintf("%v", msg.Op)),
+				Format:               "pubsub",
+				PubSubTopic:          msg.GetTopic(),
+				PubSubSubscription:   msg.GetSubscription(),
+				PubSubIDLabel:        msg.GetIdAttribute(),
+				PubSubTimestampLabel: msg.GetTimestampAttribute(),
+				PubSubWithAttributes: msg.GetWithAttributes(),
+			}
+			if prop.PubSubSubscription != "" {
+				prop.PubSubTopic = ""
+			}
+
+			switch msg.Op {
+			case pubsub_v1.PubSubPayload_READ:
+				return readKind, prop, nil
+
+			case pubsub_v1.PubSubPayload_WRITE:
+				c, _ := encodeCoderRef(coder.NewBytes())
+				prop.Encoding = c
+				return writeKind, prop, nil
+
+			default:
+				return "", properties{}, fmt.Errorf("bad pubsub op: %v", msg.Op)
+			}
+
+		default:
+			return "", properties{}, fmt.Errorf("bad external urn: %v", edge.Payload.URN)
+		}
 
 	default:
 		return "", properties{}, fmt.Errorf("bad opcode: %v", edge)
