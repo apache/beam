@@ -13,5 +13,4 @@ dependencies {
         exclude group: 'log4j'
         exclude group: 'org.slf4j'
     }
-    compileOnly "org.projectlombok:lombok:${lombokVersion}"
 }
