@@ -21,6 +21,8 @@ This repository contains:
 
 ### Setup
 
+You need Ruby version >= 2.2.0 to build the project.
+
 Install [Ruby Gems](https://rubygems.org/pages/download), a package management framework for Ruby.
 
 Install [Bundler](http://bundler.io/v1.3/rationale.html), which  we use to specify dependencies and ensure
