@@ -52,6 +52,11 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.dbcp2.BasicDataSource;
+import org.apache.commons.dbcp2.DataSourceConnectionFactory;
+import org.apache.commons.dbcp2.PoolableConnectionFactory;
+import org.apache.commons.dbcp2.PoolingDataSource;
+import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -235,17 +240,17 @@ public class JdbcIO {
       checkArgument(dataSource != null, "dataSource can not be null");
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
-          .setDataSource(dataSource)
-          .build();
+              .setDataSource(dataSource)
+              .build();
     }
 
     public static DataSourceConfiguration create(String driverClassName, String url) {
       checkArgument(driverClassName != null, "driverClassName can not be null");
       checkArgument(url != null, "url can not be null");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
-          .setDriverClassName(ValueProvider.StaticValueProvider.of(driverClassName))
-          .setUrl(ValueProvider.StaticValueProvider.of(url))
-          .build();
+              .setDriverClassName(ValueProvider.StaticValueProvider.of(driverClassName))
+              .setUrl(ValueProvider.StaticValueProvider.of(url))
+              .build();
     }
 
     public static DataSourceConfiguration create(ValueProvider<String> driverClassName,
@@ -254,8 +259,7 @@ public class JdbcIO {
       checkArgument(url != null, "url can not be null");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
               .setDriverClassName(driverClassName)
-              .setUrl(url)
-              .build();
+              .setUrl(url).build();
     }
 
     public DataSourceConfiguration withUsername(String username) {
@@ -307,9 +311,10 @@ public class JdbcIO {
       }
     }
 
-    DataSource buildDatasource() throws Exception{
+    DataSource buildDatasource() throws Exception {
+      DataSource current = null;
       if (getDataSource() != null) {
-        return getDataSource();
+        current = getDataSource();
       } else {
         BasicDataSource basicDataSource = new BasicDataSource();
         if (getDriverClassName() != null) {
@@ -327,8 +332,25 @@ public class JdbcIO {
         if (getConnectionProperties() != null && getConnectionProperties().get() != null) {
           basicDataSource.setConnectionProperties(getConnectionProperties().get());
         }
-        return basicDataSource;
+        current = basicDataSource;
       }
+
+      // wrapping the datasource as a pooling datasource
+      DataSourceConnectionFactory connectionFactory = new DataSourceConnectionFactory(current);
+      PoolableConnectionFactory poolableConnectionFactory =
+              new PoolableConnectionFactory(connectionFactory, null);
+      GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+      poolConfig.setMaxTotal(1);
+      poolConfig.setMinIdle(0);
+      poolConfig.setMinEvictableIdleTimeMillis(10000);
+      poolConfig.setSoftMinEvictableIdleTimeMillis(30000);
+      GenericObjectPool connectionPool =
+              new GenericObjectPool(poolableConnectionFactory, poolConfig);
+      poolableConnectionFactory.setPool(connectionPool);
+      poolableConnectionFactory.setDefaultAutoCommit(false);
+      poolableConnectionFactory.setDefaultReadOnly(false);
+      PoolingDataSource poolingDataSource = new PoolingDataSource(connectionPool);
+      return poolingDataSource;
     }
 
   }
@@ -364,7 +386,6 @@ public class JdbcIO {
     }
 
     public Read<T> withDataSourceConfiguration(DataSourceConfiguration configuration) {
-      checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setDataSourceConfiguration(configuration).build();
     }
 
@@ -398,8 +419,8 @@ public class JdbcIO {
       checkArgument(getQuery() != null, "withQuery() is required");
       checkArgument(getRowMapper() != null, "withRowMapper() is required");
       checkArgument(getCoder() != null, "withCoder() is required");
-      checkArgument(
-          getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
+      checkArgument((getDataSourceConfiguration() != null),
+              "withDataSourceConfiguration() is required");
 
       return input
           .apply(Create.of((Void) null))
@@ -455,8 +476,6 @@ public class JdbcIO {
 
     public ReadAll<ParameterT, OutputT> withDataSourceConfiguration(
             DataSourceConfiguration configuration) {
-      checkArgument(configuration != null, "JdbcIO.readAll().withDataSourceConfiguration"
-              + "(configuration) called with null configuration");
       return toBuilder().setDataSourceConfiguration(configuration).build();
     }
 
@@ -635,8 +654,8 @@ public class JdbcIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      checkArgument(
-          getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
+      checkArgument(getDataSourceConfiguration() != null,
+              "withDataSourceConfiguration() is required");
       checkArgument(getStatement() != null, "withStatement() is required");
       checkArgument(
           getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
@@ -656,6 +675,7 @@ public class JdbcIO {
 
       private DataSource dataSource;
       private Connection connection;
+      private PreparedStatement preparedStatement;
       private List<T> records = new ArrayList<>();
 
       public WriteFn(Write<T> spec) {
@@ -665,8 +685,13 @@ public class JdbcIO {
       @Setup
       public void setup() throws Exception {
         dataSource = spec.getDataSourceConfiguration().buildDatasource();
+      }
+
+      @StartBundle
+      public void startBundle() throws Exception {
         connection = dataSource.getConnection();
         connection.setAutoCommit(false);
+        preparedStatement = connection.prepareStatement(spec.getStatement());
       }
 
       @ProcessElement
@@ -693,6 +718,15 @@ public class JdbcIO {
       @FinishBundle
       public void finishBundle() throws Exception {
         executeBatch();
+        try {
+          if (preparedStatement != null) {
+            preparedStatement.close();
+          }
+        } finally {
+          if (connection != null) {
+            connection.close();
+          }
+        }
       }
 
       private void executeBatch() throws SQLException, IOException, InterruptedException {
@@ -734,9 +768,6 @@ public class JdbcIO {
 
       @Teardown
       public void teardown() throws Exception {
-        if (connection != null) {
-          connection.close();
-        }
         if (dataSource instanceof AutoCloseable) {
           ((AutoCloseable) dataSource).close();
         }
