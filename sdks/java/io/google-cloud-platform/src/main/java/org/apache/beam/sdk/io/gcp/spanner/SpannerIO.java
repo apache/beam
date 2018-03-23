@@ -198,6 +198,7 @@ public class SpannerIO {
         .setSpannerConfig(SpannerConfig.create())
         .setTimestampBound(TimestampBound.strong())
         .setReadOperation(ReadOperation.create())
+        .setBatching(true)
         .build();
   }
 
@@ -210,6 +211,7 @@ public class SpannerIO {
     return new AutoValue_SpannerIO_ReadAll.Builder()
         .setSpannerConfig(SpannerConfig.create())
         .setTimestampBound(TimestampBound.strong())
+        .setBatching(true)
         .build();
   }
 
@@ -263,6 +265,8 @@ public class SpannerIO {
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
 
       abstract Builder setTimestampBound(TimestampBound timestampBound);
+
+      abstract Builder setBatching(Boolean batching);
 
       abstract ReadAll build();
     }
@@ -329,12 +333,26 @@ public class SpannerIO {
       return toBuilder().setTimestampBound(timestampBound).build();
     }
 
+    /** If true the uses Cloud Spanner batch API. */
+    public ReadAll withBatching(boolean batching) {
+      return toBuilder().setBatching(batching).build();
+    }
+
+    abstract Boolean getBatching();
+
     @Override
     public PCollection<Struct> expand(PCollection<ReadOperation> input) {
+      PTransform<PCollection<ReadOperation>, PCollection<Struct>> readTransform;
+      if (getBatching()) {
+        readTransform = BatchSpannerRead
+            .create(getSpannerConfig(), getTransaction(), getTimestampBound());
+      } else {
+        readTransform = NaiveSpannerRead
+            .create(getSpannerConfig(), getTransaction(), getTimestampBound());
+      }
       return input
-          .apply("Reshuffle", Reshuffle.<ReadOperation>viaRandomKey())
-          .apply("Read from Cloud Spanner",
-              BatchSpannerRead.create(getSpannerConfig(), getTransaction(), getTimestampBound()));
+          .apply("Reshuffle", Reshuffle.viaRandomKey())
+          .apply("Read from Cloud Spanner", readTransform);
     }
   }
 
@@ -356,6 +374,8 @@ public class SpannerIO {
     @Nullable
     abstract PartitionOptions getPartitionOptions();
 
+    abstract Boolean getBatching();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -370,6 +390,8 @@ public class SpannerIO {
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
 
       abstract Builder setPartitionOptions(PartitionOptions partitionOptions);
+
+      abstract Builder setBatching(Boolean batching);
 
       abstract Read build();
     }
@@ -416,6 +438,11 @@ public class SpannerIO {
     public Read withHost(String host) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withHost(host));
+    }
+
+    /** If true the uses Cloud Spanner batch API. */
+    public Read withBatching(boolean batching) {
+      return toBuilder().setBatching(batching).build();
     }
 
     @VisibleForTesting
@@ -501,6 +528,7 @@ public class SpannerIO {
       ReadAll readAll = readAll()
           .withSpannerConfig(getSpannerConfig())
           .withTimestampBound(getTimestampBound())
+          .withBatching(getBatching())
           .withTransaction(getTransaction());
       return input.apply(Create.of(getReadOperation())).apply("Execute query", readAll);
     }
