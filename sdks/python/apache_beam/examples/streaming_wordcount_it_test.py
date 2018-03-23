@@ -23,13 +23,17 @@ is in development and is not yet available for use.
 Currently, this test blocks until the job is manually terminated.
 """
 
+import datetime
 import logging
+import random
 import unittest
+import uuid
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
 from apache_beam.examples import streaming_wordcount
+from apache_beam.io.gcp.tests.pubsub_matcher import PubSubMessageMatcher
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
@@ -47,23 +51,27 @@ class StreamingWordCountIT(unittest.TestCase):
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.project = self.test_pipeline.get_option('project')
+    self.uuid = str(uuid.uuid4())
 
     # Set up PubSub environment.
     from google.cloud import pubsub
-    self.pubsub_client = pubsub.Client(
-        project=self.test_pipeline.get_option('project'))
-    self.input_topic = self.pubsub_client.topic(INPUT_TOPIC)
-    self.output_topic = self.pubsub_client.topic(OUTPUT_TOPIC)
-    self.input_sub = self.input_topic.subscription(INPUT_SUB)
-    self.output_sub = self.output_topic.subscription(OUTPUT_SUB)
-
-    self._cleanup_pubsub()
+    self.pubsub_client = pubsub.Client(project=self.project)
+    self.input_topic = self.pubsub_client.topic(INPUT_TOPIC + self.uuid)
+    self.output_topic = self.pubsub_client.topic(OUTPUT_TOPIC + self.uuid)
+    self.input_sub = self.input_topic.subscription(INPUT_SUB + self.uuid)
+    self.output_sub = self.output_topic.subscription(OUTPUT_SUB + self.uuid)
 
     self.input_topic.create()
     self.output_topic.create()
     test_utils.wait_for_topics_created([self.input_topic, self.output_topic])
     self.input_sub.create()
     self.output_sub.create()
+
+  def _generate_identifier(self):
+    seed = random.randint(0, 999)
+    current_time = datetime.datetime.now().strftime('%m%d%H%M%S')
+    return '%s%d' % (current_time, seed)
 
   def _inject_numbers(self, topic, num_messages):
     """Inject numbers as test data to PubSub."""
@@ -79,13 +87,21 @@ class StreamingWordCountIT(unittest.TestCase):
   def tearDown(self):
     self._cleanup_pubsub()
 
-  @attr('developing_test')
+  @attr('IT')
   def test_streaming_wordcount_it(self):
+    # Build expected dataset.
+    expected_msg = [('%d: 1' % num) for num in range(DEFAULT_INPUT_NUMBERS)]
+
     # Set extra options to the pipeline for test purpose
-    pipeline_verifiers = [PipelineStateMatcher(PipelineState.RUNNING)]
-    extra_opts = {'input_sub': self.input_sub.full_name,
+    state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
+    pubsub_msg_verifier = PubSubMessageMatcher(self.project,
+                                               OUTPUT_SUB + self.uuid,
+                                               expected_msg,
+                                               timeout=400)
+    extra_opts = {'input_subscription': self.input_sub.full_name,
                   'output_topic': self.output_topic.full_name,
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
+                  'on_success_matcher': all_of(state_verifier,
+                                               pubsub_msg_verifier)}
 
     # Generate input data and inject to PubSub.
     test_utils.wait_for_subscriptions_created([self.input_sub])
