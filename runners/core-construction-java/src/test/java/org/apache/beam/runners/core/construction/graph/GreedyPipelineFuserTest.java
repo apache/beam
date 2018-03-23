@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction.graph;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertThat;
 
@@ -137,6 +138,48 @@ public class GreedyPipelineFuserTest {
             ExecutableStageMatcher.withInput("impulse.out")
                 .withNoOutputs()
                 .withTransforms("read", "parDo", "window")));
+  }
+
+  /*
+   * impulse -> .out -> mystery -> .out
+   *                 \
+   *                  -> enigma -> .out
+   * becomes all runner-executed
+   */
+  @Test
+  public void unknownTransformsNoEnvironmentBecomeRunnerExecuted() {
+    Components components =
+        partialComponents
+            .toBuilder()
+            .putTransforms(
+                "mystery",
+                PTransform.newBuilder()
+                    .putInputs("input", "impulse.out")
+                    .putOutputs("output", "mystery.out")
+                    .setSpec(FunctionSpec.newBuilder().setUrn("beam:transform:mystery:v1.4"))
+                    .build())
+            .putPcollections(
+                "mystery.out", PCollection.newBuilder().setUniqueName("mystery.out").build())
+            .putTransforms(
+                "enigma",
+                PTransform.newBuilder()
+                    .putInputs("input", "impulse.out")
+                    .putOutputs("output", "enigma.out")
+                    .setSpec(FunctionSpec.newBuilder().setUrn("beam:transform:enigma:v1"))
+                    .build())
+            .putPcollections(
+                "enigma.out", PCollection.newBuilder().setUniqueName("enigma.out").build())
+            .build();
+    FusedPipeline fused =
+        GreedyPipelineFuser.fuse(Pipeline.newBuilder().setComponents(components).build());
+
+    assertThat(
+        fused.getRunnerExecutedTransforms(),
+        containsInAnyOrder(
+            PipelineNode.pTransform("impulse", components.getTransformsOrThrow("impulse")),
+            PipelineNode.pTransform("mystery", components.getTransformsOrThrow("mystery")),
+            PipelineNode.pTransform("enigma", components.getTransformsOrThrow("enigma"))));
+    assertThat(fused.getFusedStages(), emptyIterable());
   }
 
   /*
