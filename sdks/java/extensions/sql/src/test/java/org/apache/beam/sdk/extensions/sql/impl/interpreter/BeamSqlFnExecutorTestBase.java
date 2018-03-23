@@ -68,7 +68,7 @@ public class BeamSqlFnExecutorTestBase {
             .build();
 
     row =
-        Row.withRowType(CalciteUtils.toBeamRowType(relDataType))
+        Row.withSchema(CalciteUtils.toBeamSchema(relDataType))
             .addValues(1234567L, 0, 8.9, 1234567L)
             .build();
 

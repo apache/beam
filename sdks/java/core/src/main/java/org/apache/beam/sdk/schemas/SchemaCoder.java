@@ -32,6 +32,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  */
 @Experimental
 public class SchemaCoder<T> extends CustomCoder<T> {
+  private Schema schema;
+  private SerializableFunction<T, Row> toRowFunction;
+  private SerializableFunction<Row, T> fromRowFunction;
+
+  private SchemaCoder(Schema schema,
+      SerializableFunction<T, Row> toRowFunction,
+      SerializableFunction<Row, T> fromRowFunction) {
+    this.schema = schema;
+    this.toRowFunction = toRowFunction;
+    this.fromRowFunction = fromRowFunction;
+  }
 
   /**
    * Returns a {@link SchemaCoder} for the specified class. If no schema is registered for this
@@ -44,7 +55,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    return null;
+    return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
   }
 
   /**
@@ -56,7 +67,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    return null;
+    return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
   }
 
 
@@ -64,16 +75,31 @@ public class SchemaCoder<T> extends CustomCoder<T> {
    * Returns the schema associated with this type.
    */
   public Schema getSchema() {
-    return null;
+    return schema;
+  }
+
+  /**
+   * Returns the toRow conversion function.
+   */
+  public SerializableFunction<Row, T> getFromRowFunction() {
+    return fromRowFunction;
+  }
+
+  /**
+   * Returns the fromRow conversion function.
+   */
+  public SerializableFunction<T, Row> getToRowFunction() {
+    return toRowFunction;
   }
 
   @Override
   public void encode(T value, OutputStream outStream) throws IOException {
+    throw new IOException();
   }
 
   @Override
   public T decode(InputStream inStream) throws IOException {
-    return null;
+    throw new IOException();
   }
 
   @Override

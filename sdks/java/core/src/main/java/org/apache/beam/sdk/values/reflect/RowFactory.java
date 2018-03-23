@@ -87,7 +87,7 @@ public class RowFactory {
   public Row create(Object pojo) {
     RowTypeGetters getters = getRecordType(pojo.getClass());
     List<Object> fieldValues = getFieldValues(getters.valueGetters(), pojo);
-    return Row.withRowType(getters.rowType()).addValues(fieldValues).build();
+    return Row.withSchema(getters.rowType()).addValues(fieldValues).build();
   }
 
   private synchronized RowTypeGetters getRecordType(Class pojoClass) {

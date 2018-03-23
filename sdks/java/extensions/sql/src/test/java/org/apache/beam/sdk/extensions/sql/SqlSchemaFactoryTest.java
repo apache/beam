@@ -28,13 +28,14 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.reflect.DefaultRowTypeFactory;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
+import org.apache.beam.sdk.values.reflect.RowTypeFactory;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Unit tests for {@link SqlRowTypeFactory}.
  */
 public class SqlSchemaFactoryTest {
 
@@ -58,7 +59,7 @@ public class SqlSchemaFactoryTest {
 
   @Test
   public void testContainsCorrectFields() throws Exception {
-    SqlRowTypeFactory factory = new SqlRowTypeFactory();
+    RowTypeFactory factory = new DefaultRowTypeFactory();
 
     Schema schema = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
 
@@ -80,33 +81,10 @@ public class SqlSchemaFactoryTest {
   }
 
   @Test
-  public void testContainsCorrectCoders() throws Exception {
-    SqlRowTypeFactory factory = new SqlRowTypeFactory();
-
-    Schema schema = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
-
-    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), schema.getFieldCount());
-    assertEquals(
-        Arrays.asList(
-            SqlTypeCoders.TINYINT,
-            SqlTypeCoders.SMALLINT,
-            SqlTypeCoders.INTEGER,
-            SqlTypeCoders.BIGINT,
-            SqlTypeCoders.FLOAT,
-            SqlTypeCoders.DOUBLE,
-            SqlTypeCoders.DECIMAL,
-            SqlTypeCoders.BOOLEAN,
-            SqlTypeCoders.VARCHAR,
-            SqlTypeCoders.TIME,
-            SqlTypeCoders.TIMESTAMP),
-        schema.getRowCoder().getCoders());
-  }
-
-  @Test
   public void testThrowsForUnsupportedTypes() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
 
-    SqlRowTypeFactory factory = new SqlRowTypeFactory();
+    RowTypeFactory factory = new DefaultRowTypeFactory();
 
     factory.createRowType(
         Arrays.<FieldValueGetter>asList(getter("arrayListGetter", ArrayList.class)));

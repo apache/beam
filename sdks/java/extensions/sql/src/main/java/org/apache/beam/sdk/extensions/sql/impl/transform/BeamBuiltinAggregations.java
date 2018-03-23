@@ -37,9 +37,13 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
  * Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP.
+ *
+ * <p>TODO: Consider making the interface in terms of (1-column) rows. reuvenlax
  */
 class BeamBuiltinAggregations {
   private static MathContext mc = new MathContext(10, RoundingMode.HALF_UP);
+
+
 
   /**
    * {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}.

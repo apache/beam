@@ -24,10 +24,10 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step.
@@ -64,14 +64,13 @@ public class BeamSqlProjectFn extends DoFn<Row, Row> {
 
     c.output(
         Row
-            .withRowType(outputSchema)
+            .withSchema(outputSchema)
             .addValues(castResultValues)
             .build());
   }
 
   private Object castField(List<Object> resultValues, int i) {
-    return BeamTableUtils
-        .autoCastField(outputSchema.getFieldCoder(i), resultValues.get(i));
+    return BeamTableUtils.autoCastField(outputSchema.getField(i), resultValues.get(i));
   }
 
   @Teardown

@@ -21,13 +21,13 @@ import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beam
 import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLine2BeamRow;
 
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.commons.csv.CSVFormat;
 
 /**

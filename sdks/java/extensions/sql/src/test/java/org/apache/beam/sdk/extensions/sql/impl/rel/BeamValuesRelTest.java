@@ -18,10 +18,10 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -43,14 +43,14 @@ public class BeamValuesRelTest extends BaseRelTest {
   public static void prepare() {
     sqlEnv.registerTable("string_table",
         MockedBoundedTable.of(
-            SqlTypeCoders.VARCHAR, "name",
-            SqlTypeCoders.VARCHAR, "description"
+            FieldType.STRING, "name",
+            FieldType.STRING, "description"
         )
     );
     sqlEnv.registerTable("int_table",
         MockedBoundedTable.of(
-            SqlTypeCoders.INTEGER, "c0",
-            SqlTypeCoders.INTEGER, "c1"
+            FieldType.INT32, "c0",
+            FieldType.INT32, "c1"
         )
     );
   }
@@ -62,8 +62,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            SqlTypeCoders.VARCHAR, "name",
-            SqlTypeCoders.VARCHAR, "description"
+            FieldType.STRING, "name",
+            FieldType.STRING, "description"
         ).addRows(
             "hello", "world",
             "james", "bond"
@@ -78,8 +78,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            SqlTypeCoders.INTEGER, "c0",
-            SqlTypeCoders.INTEGER, "c1"
+            FieldType.INT32, "c0",
+            FieldType.INT32, "c1"
         ).addRows(
             1, 2
         ).getRows()
@@ -93,8 +93,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            SqlTypeCoders.INTEGER, "EXPR$0",
-            SqlTypeCoders.CHAR, "EXPR$1"
+            FieldType.INT32, "EXPR$0",
+            FieldType.CHAR, "EXPR$1"
         ).addRows(
             1, "1"
         ).getRows()

@@ -23,9 +23,9 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
@@ -54,13 +54,13 @@ public class BeamSqlRowCoderTest {
         .add("col_boolean", SqlTypeName.BOOLEAN)
         .build();
 
-    Schema beamSchema = CalciteUtils.toBeamRowType(relDataType);
+    Schema beamSchema = CalciteUtils.toBeamSchema(relDataType);
 
     GregorianCalendar calendar = new GregorianCalendar();
     calendar.setTime(new Date());
     Row row =
         Row
-            .withRowType(beamSchema)
+            .withSchema(beamSchema)
             .addValues(
                 Byte.valueOf("1"),
                 Short.valueOf("1"),

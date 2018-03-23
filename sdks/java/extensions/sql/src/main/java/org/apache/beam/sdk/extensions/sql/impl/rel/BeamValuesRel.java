@@ -26,12 +26,12 @@ import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.core.Values;
@@ -73,7 +73,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
         throw new IllegalStateException("Values with empty tuples!");
       }
 
-      Schema schema = CalciteUtils.toBeamRowType(getRowType());
+      Schema schema = CalciteUtils.toBeamSchema(getRowType());
 
       List<Row> rows = tuples.stream().map(tuple -> tupleToRow(schema, tuple)).collect(toList());
 
@@ -88,7 +88,7 @@ public class BeamValuesRel extends Values implements BeamRelNode {
     return
         IntStream
             .range(0, tuple.size())
-            .mapToObj(i -> autoCastField(schema.getFieldCoder(i), tuple.get(i).getValue()))
+            .mapToObj(i -> autoCastField(schema.getField(i), tuple.get(i).getValue()))
             .collect(toRow(schema));
   }
 }

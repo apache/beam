@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.sql;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.values.Row.toRow;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
@@ -29,14 +29,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
@@ -211,7 +212,7 @@ public class TestUtils {
       checkArgument(rows.size() > 0);
 
       if (type == null) {
-        type = rows.get(0).getRowType();
+        type = rows.get(0).getSchema();
       }
 
       TestStream.Builder<Row> values = TestStream.create(type.getRowCoder());
@@ -253,8 +254,10 @@ public class TestUtils {
             .collect(toSchema());
   }
 
+  // TODO: support nested.
   private static Schema.Field toRecordField(Object[] args, int i) {
-    return Schema.newField((String) args[i + 1], (Coder) args[i]);
+    return Schema.Field.of((String) args[i + 1],
+        FieldTypeDescriptor.of((FieldType) args[i]));
   }
 
   /**

@@ -91,7 +91,7 @@ public class RowFactoryTest {
 
     Row row = factory.create(pojo);
 
-    assertThat(row.getRowType().getFieldNames(),
+    assertThat(row.getSchema().getFieldNames(),
         containsInAnyOrder("someStringField", "someIntegerField"));
   }
 
@@ -114,7 +114,7 @@ public class RowFactoryTest {
     Row row1 = factory.create(pojo);
     Row row2 = factory.create(pojo);
 
-    assertSame(row1.getRowType(), row2.getRowType());
+    assertSame(row1.getSchema(), row2.getSchema());
   }
 
   @Test

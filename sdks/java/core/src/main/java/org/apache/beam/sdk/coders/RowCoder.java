@@ -17,15 +17,22 @@
  */
 package org.apache.beam.sdk.coders;
 
+import com.google.common.collect.ImmutableMap;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Collections;
+import java.util.Date;
+import java.util.GregorianCalendar;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -33,42 +40,139 @@ import org.apache.beam.sdk.values.Row;
  */
 @Experimental
 public class RowCoder extends CustomCoder<Row> {
+  /**
+   * {@link Coder} for Java type {@link GregorianCalendar}, it's stored as {@link Long}.
+   */
+  private static class TimeCoder extends AtomicCoder<GregorianCalendar> {
+    private static final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
+    private static final TimeCoder INSTANCE = new TimeCoder();
+
+    public static TimeCoder of() {
+      return INSTANCE;
+    }
+
+    private TimeCoder() {
+    }
+
+    @Override
+    public void encode(GregorianCalendar value, OutputStream outStream)
+        throws CoderException, IOException {
+      longCoder.encode(value.getTime().getTime(), outStream);
+    }
+
+    @Override
+    public GregorianCalendar decode(InputStream inStream) throws CoderException, IOException {
+      GregorianCalendar calendar = new GregorianCalendar();
+      calendar.setTime(new Date(longCoder.decode(inStream)));
+      return calendar;
+    }
+  }
+
+  /**
+   * {@link Coder} for Java type {@link Date}, it's stored as {@link Long}.
+   */
+  private static class DateCoder extends AtomicCoder<Date> {
+    private static final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
+    private static final DateCoder INSTANCE = new DateCoder();
+
+    public static DateCoder of() {
+      return INSTANCE;
+    }
+
+    private DateCoder() {
+    }
+
+    @Override
+    public void encode(Date value, OutputStream outStream) throws CoderException, IOException {
+      longCoder.encode(value.getTime(), outStream);
+    }
+
+    @Override
+    public Date decode(InputStream inStream) throws CoderException, IOException {
+      return new Date(longCoder.decode(inStream));
+    }
+  }
+
+  /**
+   * {@link Coder} for Java type {@link Boolean}.
+   */
+  public static class BooleanCoder extends AtomicCoder<Boolean> {
+    private static final BooleanCoder INSTANCE = new BooleanCoder();
+
+    public static BooleanCoder of() {
+      return INSTANCE;
+    }
+
+    private BooleanCoder() {
+    }
+
+    @Override
+    public void encode(Boolean value, OutputStream outStream) throws CoderException, IOException {
+      new DataOutputStream(outStream).writeBoolean(value);
+    }
+
+    @Override
+    public Boolean decode(InputStream inStream) throws CoderException, IOException {
+      return new DataInputStream(inStream).readBoolean();
+    }
+  }
+
+  private static final Map<FieldType, Coder> CODER_MAP = ImmutableMap.<FieldType, Coder>builder()
+      .put(FieldType.BYTE, ByteCoder.of())
+      .put(FieldType.INT16, BigEndianIntegerCoder.of())
+      .put(FieldType.INT32, BigEndianLongCoder.of())
+      .put(FieldType.INT64, BigEndianLongCoder.of())
+      .put(FieldType.FLOAT, DoubleCoder.of())
+      .put(FieldType.DOUBLE, DoubleCoder.of())
+      .put(FieldType.CHAR, StringUtf8Coder.of())
+      .put(FieldType.STRING, StringUtf8Coder.of())
+      .put(FieldType.DATE, DateCoder.of())
+      .put(FieldType.DATETIME, TimeCoder.of())
+      .put(FieldType.BOOLEAN, BooleanCoder.of())
+      .build();
   private static final BitSetCoder nullListCoder = BitSetCoder.of();
 
   private Schema schema;
-  private List<Coder> coders;
 
-  private RowCoder(Schema schema, List<Coder> coders) {
+  private RowCoder(Schema schema) {
     this.schema = schema;
-    this.coders = coders;
   }
 
-  public static RowCoder of(Schema schema, List<Coder> coderArray) {
-    if (schema.getFieldCount() != coderArray.size()) {
-      throw new IllegalArgumentException("Coder size doesn't match with field size");
-    }
-    return new RowCoder(schema, coderArray);
+  public static RowCoder of(Schema schema) {
+    return new RowCoder(schema);
   }
 
   public Schema getSchema() {
     return schema;
   }
 
+  public static <T> Coder<T> coderForPrimitiveType(FieldType fieldType) {
+    return (Coder<T>) CODER_MAP.get(fieldType);
+  }
+
+  Coder getCoder(FieldTypeDescriptor fieldTypeDescriptor) {
+    if (FieldType.ARRAY.equals(fieldTypeDescriptor.getType())) {
+      return ListCoder.of(getCoder(fieldTypeDescriptor.getComponentType()));
+    } else if (FieldType.ROW.equals((fieldTypeDescriptor.getType()))) {
+      return RowCoder.of(fieldTypeDescriptor.getRowSchema());
+    } else {
+      return CODER_MAP.get(fieldTypeDescriptor.getType());
+    }
+  }
+
   @Override
-  public void encode(Row value, OutputStream outStream)
-      throws CoderException, IOException {
+  public void encode(Row value, OutputStream outStream) throws IOException {
     nullListCoder.encode(scanNullFields(value), outStream);
     for (int idx = 0; idx < value.getFieldCount(); ++idx) {
       if (value.getValue(idx) == null) {
         continue;
       }
-
-      coders.get(idx).encode(value.getValue(idx), outStream);
+      getCoder(schema.getField(idx).getTypeDescriptor()).encode(value.getValue(idx), outStream);
     }
   }
 
   @Override
-  public Row decode(InputStream inStream) throws CoderException, IOException {
+  public Row decode(InputStream inStream) throws IOException {
     BitSet nullFields = nullListCoder.decode(inStream);
 
     List<Object> fieldValues = new ArrayList<>(schema.getFieldCount());
@@ -76,10 +180,10 @@ public class RowCoder extends CustomCoder<Row> {
       if (nullFields.get(idx)) {
         fieldValues.add(null);
       } else {
-        fieldValues.add(coders.get(idx).decode(inStream));
+        fieldValues.add(getCoder(schema.getField(idx).getTypeDescriptor()).decode(inStream));
       }
     }
-    return Row.withRowType(schema).addValues(fieldValues).build();
+    return Row.withSchema(schema).addValues(fieldValues).build();
   }
 
   /**
@@ -98,12 +202,5 @@ public class RowCoder extends CustomCoder<Row> {
   @Override
   public void verifyDeterministic()
       throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
-    for (Coder c : coders) {
-      c.verifyDeterministic();
-    }
-  }
-
-  public List<Coder> getCoders() {
-    return Collections.unmodifiableList(coders);
   }
 }

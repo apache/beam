@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.linq4j.function.Parameter;
 import org.junit.Test;
@@ -43,7 +43,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         .withIntegerField("squaresum")
         .build();
 
-    Row row = Row.withRowType(resultType).addValues(0, 30).build();
+    Row row = Row.withSchema(resultType).addValues(0, 30).build();
 
     String sql1 = "SELECT f_int2, squaresum1(f_int) AS `squaresum`"
         + " FROM PCOLLECTION GROUP BY f_int2";
@@ -78,7 +78,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         .withIntegerField("squaresum")
         .build();
 
-    Row row = Row.withRowType(resultType).addValues(0, 354).build();
+    Row row = Row.withSchema(resultType).addValues(0, 354).build();
 
     String sql1 = "SELECT f_int2, double_square_sum(f_int) AS `squaresum`"
         + " FROM PCOLLECTION GROUP BY f_int2";
@@ -107,7 +107,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         .withIntegerField("squaresum")
         .build();
 
-    Row row = Row.withRowType(resultType).addValues(0, 354).build();
+    Row row = Row.withSchema(resultType).addValues(0, 354).build();
 
     String sql1 = "SELECT f_int2, squaresum(f_int) AS `squaresum`"
         + " FROM PCOLLECTION GROUP BY f_int2";
@@ -126,7 +126,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         .withIntegerField("f_int")
         .withIntegerField("cubicvalue")
         .build();
-    Row row = Row.withRowType(resultType).addValues(2, 8).build();
+    Row row = Row.withSchema(resultType).addValues(2, 8).build();
 
     String sql1 = "SELECT f_int, cubic1(f_int) as cubicvalue FROM PCOLLECTION WHERE f_int = 2";
     PCollection<Row> result1 =
@@ -151,7 +151,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
         .withIntegerField("f_int")
         .withVarcharField("sub_string")
         .build();
-    Row subStrRow = Row.withRowType(subStrSchema).addValues(2, "s").build();
+    Row subStrRow = Row.withSchema(subStrSchema).addValues(2, "s").build();
     PAssert.that(result3).containsInAnyOrder(subStrRow);
 
     pipeline.run().waitUntilFinish();

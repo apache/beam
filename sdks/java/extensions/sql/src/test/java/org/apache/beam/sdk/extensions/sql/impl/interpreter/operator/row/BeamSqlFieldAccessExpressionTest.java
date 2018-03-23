@@ -23,9 +23,9 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,7 +56,7 @@ public class BeamSqlFieldAccessExpressionTest {
 
   @Test
   public void testAccessesFieldOfRow() {
-    RowType rowType =
+    Schema schema =
         RowSqlType
             .builder()
             .withVarcharField("f_string1")
@@ -68,7 +68,7 @@ public class BeamSqlFieldAccessExpressionTest {
         BeamSqlPrimitive.of(
             SqlTypeName.ROW,
             Row
-                .withRowType(rowType)
+                .withSchema(schema)
                 .addValues("aa", "bb", "cc")
                 .build());
 

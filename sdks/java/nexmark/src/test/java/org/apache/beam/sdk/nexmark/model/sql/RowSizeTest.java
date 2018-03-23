@@ -63,7 +63,7 @@ public class RowSizeTest {
 
   private static final Row ROW =
       Row
-          .withRowType(ROW_TYPE)
+          .withSchema(ROW_TYPE)
           .addValues(
               (byte) 1,
               (short) 2,

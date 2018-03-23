@@ -18,12 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * {@code BeamPCollectionTable} converts a {@code PCollection<BeamSqlRow>} as a virtual table,
