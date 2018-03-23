@@ -344,6 +344,7 @@ public class TestPipeline extends Pipeline implements TestRule {
           .as(TestValueProviderOptions.class)
           .setProviderRuntimeValues(StaticValueProvider.of(providerRuntimeValues));
       pipelineResult = super.run(updatedOptions);
+      pipelineResult.waitUntilFinish();
       verifyPAssertsSucceeded(this, pipelineResult);
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
