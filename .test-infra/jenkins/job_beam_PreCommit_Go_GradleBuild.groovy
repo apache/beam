@@ -30,7 +30,7 @@ job('beam_PreCommit_Go_GradleBuild') {
   common_job_properties.setTopLevelMainJobProperties(
     delegate,
     'master',
-    240)
+    150)
 
   def gradle_switches = [
     // Gradle log verbosity enough to diagnose basic build issues
