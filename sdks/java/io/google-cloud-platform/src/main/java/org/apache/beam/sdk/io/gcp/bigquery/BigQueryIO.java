@@ -184,7 +184,8 @@ import org.slf4j.LoggerFactory;
  *
  * PCollection<Quote> quotes = ...
  *
- * quotes.apply(BigQueryIO.write()
+ * quotes.apply(BigQueryIO
+ *     .<Quote>write()
  *     .to("my-project:my_dataset.my_table")
  *     .withSchema(new TableSchema().setFields(
  *         ImmutableList.of(
