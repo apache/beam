@@ -19,12 +19,8 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
-
-import com.google.common.collect.Maps;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -51,6 +47,14 @@ public interface ExecutableStage {
    * The URN identifying an {@link ExecutableStage} that has been converted to a {@link PTransform}.
    */
   String URN = "beam:runner:executable_stage:v1";
+
+  /**
+   * Return the {@link Components} required to execute this {@link ExecutableStage}.
+   *
+   * <p>This must contain all of the transforms returned by {@link #getTransforms()} and the closure
+   * of all components that those {@link PTransformNode transforms} reference.
+   */
+  RunnerApi.Components getComponents();
 
   /**
    * Returns the {@link Environment} this stage executes in.
@@ -92,8 +96,8 @@ public interface ExecutableStage {
    * follows:
    *
    * <ul>
-   *   <li>The {@link PTransform#getSubtransformsList()} is empty. This ensures
-   *       that executable stages are treated as primitive transforms.
+   *   <li>The {@link PTransform#getSubtransformsList()} is empty. This ensures that executable
+   *       stages are treated as primitive transforms.
    *   <li>The only {@link PCollection} in the {@link PTransform#getInputsMap()} is the result of
    *       {@link #getInputPCollection()}.
    *   <li>The output {@link PCollection PCollections} in the values of {@link
@@ -105,9 +109,9 @@ public interface ExecutableStage {
    * </ul>
    *
    * <p>The executable stage can be reconstructed from the resulting {@link ExecutableStagePayload}
-   * and components alone via {@link #fromPayload(ExecutableStagePayload, Components)}.
+   * via {@link #fromPayload(ExecutableStagePayload)}.
    */
-  default PTransform toPTransform(RunnerApi.Components components) {
+  default PTransform toPTransform() {
     PTransform.Builder pt = PTransform.newBuilder();
     ExecutableStagePayload.Builder payload = ExecutableStagePayload.newBuilder();
 
@@ -138,7 +142,7 @@ public interface ExecutableStage {
       payload.addTransforms(transform.getId());
     }
     payload.setComponents(
-        components
+        getComponents()
             .toBuilder()
             .clearTransforms()
             .putAllTransforms(
@@ -158,12 +162,14 @@ public interface ExecutableStage {
    * Return an {@link ExecutableStage} constructed from the provided {@link FunctionSpec}
    * representation.
    *
-   * <p>See {@link #toPTransform(RunnerApi.Components)} for how the payload is constructed. Note
-   * that the payload contains some information redundant with the {@link PTransform} due to runner
-   * implementations not having the full transform context at translation time, but rather access to
-   * an {@link org.apache.beam.sdk.runners.AppliedPTransform}.
+   * <p>See {@link #toPTransform()} for how the payload is constructed.
+   *
+   * <p>Note: The payload contains some information redundant with the {@link PTransform} it is the
+   * payload of. The {@link ExecutableStagePayload} should be sufficiently rich to construct a
+   * {@code ProcessBundleDescriptor} using only the payload.
    */
-  static ExecutableStage fromPayload(ExecutableStagePayload payload, Components components) {
+  static ExecutableStage fromPayload(ExecutableStagePayload payload) {
+    Components components = payload.getComponents();
     Environment environment = payload.getEnvironment();
     PCollectionNode input =
         PipelineNode.pCollection(
@@ -186,6 +192,7 @@ public interface ExecutableStage {
             .stream()
             .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
             .collect(Collectors.toList());
-    return ImmutableExecutableStage.of(environment, input, sideInputs, transforms, outputs);
+    return ImmutableExecutableStage.of(
+        components, environment, input, sideInputs, transforms, outputs);
   }
 }

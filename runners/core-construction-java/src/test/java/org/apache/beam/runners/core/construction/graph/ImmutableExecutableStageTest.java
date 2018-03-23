@@ -15,19 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.runners.core.construction.graph;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasValue;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.collect.ImmutableSet;
 import java.util.Collections;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
@@ -35,21 +33,18 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
-import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for the default and static methods of {@link ExecutableStage}.
+ * Tests for {@link ImmutableExecutableStage}.
  */
 @RunWith(JUnit4.class)
-public class ExecutableStageTest {
+public class ImmutableExecutableStageTest {
   @Test
-  public void testRoundTripToFromTransform() throws Exception {
+  public void ofFullComponentsOnlyHasStagePTransforms() throws Exception {
     Environment env = Environment.newBuilder().setUrl("foo").build();
     PTransform pt =
         PTransform.newBuilder()
@@ -61,8 +56,8 @@ public class ExecutableStageTest {
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
                     .setPayload(
                         ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
-                            .putSideInputs("side_input", SideInput.getDefaultInstance())
+                            .setDoFn(RunnerApi.SdkFunctionSpec.newBuilder().setEnvironmentId("foo"))
+                            .putSideInputs("side_input", RunnerApi.SideInput.getDefaultInstance())
                             .build()
                             .toByteString()))
             .build();
@@ -73,6 +68,7 @@ public class ExecutableStageTest {
     Components components =
         Components.newBuilder()
             .putTransforms("pt", pt)
+            .putTransforms("other_pt", PTransform.newBuilder().setUniqueName("other").build())
             .putPcollections("input.out", input)
             .putPcollections("sideInput.in", sideInput)
             .putPcollections("output.out", output)
@@ -80,13 +76,16 @@ public class ExecutableStageTest {
             .build();
 
     ImmutableExecutableStage stage =
-        ImmutableExecutableStage.of(
+        ImmutableExecutableStage.ofFullComponents(
             components,
             env,
             PipelineNode.pCollection("input.out", input),
             Collections.singleton(PipelineNode.pCollection("sideInput.in", sideInput)),
             Collections.singleton(PipelineNode.pTransform("pt", pt)),
             Collections.singleton(PipelineNode.pCollection("output.out", output)));
+
+    assertThat(stage.getComponents().containsTransforms("pt"), is(true));
+    assertThat(stage.getComponents().containsTransforms("other_pt"), is(false));
 
     PTransform stagePTransform = stage.toPTransform();
     assertThat(stagePTransform.getOutputsMap(), hasValue("output.out"));
@@ -99,72 +98,5 @@ public class ExecutableStageTest {
         stagePTransform.getSpec().getPayload());
     assertThat(payload.getTransformsList(), contains("pt"));
     assertThat(ExecutableStage.fromPayload(payload), equalTo(stage));
-  }
-
-  @Test
-  public void testRoundTripToFromTransformFused() throws Exception {
-    PTransform parDoTransform =
-        PTransform.newBuilder()
-            .putInputs("input", "impulse.out")
-            .putOutputs("output", "parDo.out")
-            .setSpec(
-                FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
-                    .setPayload(
-                        ParDoPayload.newBuilder()
-                            .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
-                            .build()
-                            .toByteString()))
-            .build();
-    PTransform windowTransform =
-        PTransform.newBuilder()
-            .putInputs("input", "impulse.out")
-            .putOutputs("output", "window.out")
-            .setSpec(
-                FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
-                    .setPayload(
-                        WindowIntoPayload.newBuilder()
-                            .setWindowFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
-                            .build()
-                            .toByteString()))
-            .build();
-
-    Components components = Components.newBuilder()
-        .putTransforms("impulse",
-            PTransform.newBuilder()
-                .putOutputs("output", "impulse.out")
-                .setSpec(FunctionSpec.newBuilder()
-                    .setUrn(PTransformTranslation.IMPULSE_TRANSFORM_URN))
-                .build())
-        .putPcollections("impulse.out",
-            PCollection.newBuilder().setUniqueName("impulse.out").build())
-        .putTransforms("parDo", parDoTransform)
-        .putPcollections("parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
-        .putTransforms("window", windowTransform)
-        .putPcollections("window.out", PCollection.newBuilder().setUniqueName("window.out").build())
-        .putEnvironments("common", Environment.newBuilder().setUrl("common").build())
-        .build();
-    QueryablePipeline p = QueryablePipeline.forPrimitivesIn(components);
-
-    ExecutableStage subgraph =
-        GreedyStageFuser.forGrpcPortRead(
-            p,
-            PipelineNode.pCollection(
-                "impulse.out", PCollection.newBuilder().setUniqueName("impulse.out").build()),
-            ImmutableSet.of(
-                PipelineNode.pTransform("parDo", parDoTransform),
-                PipelineNode.pTransform("window", windowTransform)));
-
-    PTransform ptransform = subgraph.toPTransform();
-    assertThat(ptransform.getSpec().getUrn(), equalTo(ExecutableStage.URN));
-    assertThat(ptransform.getInputsMap().values(), containsInAnyOrder("impulse.out"));
-    assertThat(ptransform.getOutputsMap().values(), emptyIterable());
-
-    ExecutableStagePayload payload = ExecutableStagePayload.parseFrom(
-        ptransform.getSpec().getPayload());
-    assertThat(payload.getTransformsList(), contains("parDo", "window"));
-    ExecutableStage desered = ExecutableStage.fromPayload(payload);
-    assertThat(desered, equalTo(subgraph));
   }
 }
