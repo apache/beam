@@ -185,6 +185,7 @@ class Pipeline(object):
     output_map = {}
     output_replacements = {}
     input_replacements = {}
+    side_input_replacements = {}
 
     class TransformUpdater(PipelineVisitor): # pylint: disable=used-before-assignment
       """"A visitor that replaces the matching PTransforms."""
@@ -312,11 +313,27 @@ class Pipeline(object):
             replace_input = True
             break
 
+        replace_side_inputs = False
+        for side_input in transform_node.side_inputs:
+          if side_input.pvalue in output_map:
+            replace_side_inputs = True
+            break
+
         if replace_input:
           new_input = [
               input if not input in output_map else output_map[input]
               for input in transform_node.inputs]
           input_replacements[transform_node] = new_input
+
+        if replace_side_inputs:
+          new_side_inputs = []
+          for side_input in transform_node.side_inputs:
+            if side_input.pvalue in output_map:
+              side_input.pvalue = output_map[side_input.pvalue]
+              new_side_inputs.append(side_input)
+            else:
+              new_side_inputs.append(side_input)
+          side_input_replacements[transform_node] = new_side_inputs
 
     self.visit(InputOutputUpdater(self))
 
@@ -325,6 +342,9 @@ class Pipeline(object):
 
     for transform in input_replacements:
       transform.inputs = input_replacements[transform]
+
+    for transform in side_input_replacements:
+      transform.side_inputs = side_input_replacements[transform]
 
   def _check_replacement(self, override):
 
