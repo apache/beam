@@ -80,7 +80,7 @@ public class GreedyPipelineFuser {
    */
   public static FusedPipeline fuse(Pipeline p) {
     GreedyPipelineFuser fuser = new GreedyPipelineFuser(p);
-    return FusedPipeline.of(fuser.stages, fuser.unfusedTransforms);
+    return FusedPipeline.of(p.getComponents(), fuser.stages, fuser.unfusedTransforms);
   }
 
   /**
