@@ -39,4 +39,5 @@ dependencies {
   shadowTest library.java.guava
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
+  shadowTest library.java.jaxb_api
 }
