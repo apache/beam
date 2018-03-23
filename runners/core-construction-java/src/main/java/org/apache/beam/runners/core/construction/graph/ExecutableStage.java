@@ -19,8 +19,13 @@
 package org.apache.beam.runners.core.construction.graph;
 
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.google.common.collect.Maps;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
@@ -102,7 +107,7 @@ public interface ExecutableStage {
    * <p>The executable stage can be reconstructed from the resulting {@link ExecutableStagePayload}
    * and components alone via {@link #fromPayload(ExecutableStagePayload, Components)}.
    */
-  default PTransform toPTransform() {
+  default PTransform toPTransform(RunnerApi.Components components) {
     PTransform.Builder pt = PTransform.newBuilder();
     ExecutableStagePayload.Builder payload = ExecutableStagePayload.newBuilder();
 
@@ -132,6 +137,15 @@ public interface ExecutableStage {
     for (PTransformNode transform : getTransforms()) {
       payload.addTransforms(transform.getId());
     }
+    payload.setComponents(
+        components
+            .toBuilder()
+            .clearTransforms()
+            .putAllTransforms(
+                getTransforms()
+                    .stream()
+                    .collect(
+                        Collectors.toMap(PTransformNode::getId, PTransformNode::getTransform))));
 
     pt.setSpec(FunctionSpec.newBuilder()
         .setUrn(ExecutableStage.URN)
@@ -144,10 +158,10 @@ public interface ExecutableStage {
    * Return an {@link ExecutableStage} constructed from the provided {@link FunctionSpec}
    * representation.
    *
-   * <p>See {@link #toPTransform()} for how the payload is constructed. Note that the payload
-   * contains some information redundant with the {@link PTransform} due to runner implementations
-   * not having the full transform context at translation time, but rather access to an
-   * {@link org.apache.beam.sdk.runners.AppliedPTransform}.
+   * <p>See {@link #toPTransform(RunnerApi.Components)} for how the payload is constructed. Note
+   * that the payload contains some information redundant with the {@link PTransform} due to runner
+   * implementations not having the full transform context at translation time, but rather access to
+   * an {@link org.apache.beam.sdk.runners.AppliedPTransform}.
    */
   static ExecutableStage fromPayload(ExecutableStagePayload payload, Components components) {
     Environment environment = payload.getEnvironment();

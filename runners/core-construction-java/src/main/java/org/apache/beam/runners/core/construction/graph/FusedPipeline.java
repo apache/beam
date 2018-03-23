@@ -102,7 +102,7 @@ public abstract class FusedPipeline {
           generateStageId(
               stage,
               Sets.union(getComponents().getTransformsMap().keySet(), topLevelTransforms.keySet())),
-          stage.toPTransform());
+          stage.toPTransform(getComponents()));
     }
     return topLevelTransforms;
   }
