@@ -111,13 +111,13 @@ class SpannerSchema implements Serializable {
 
     private static Type parseSpannerType(String spannerType) {
       spannerType = spannerType.toUpperCase();
-      if (spannerType.equals("BOOL")) {
+      if ("BOOL".equals(spannerType)) {
         return Type.bool();
       }
-      if (spannerType.equals("INT64")) {
+      if ("INT64".equals(spannerType)) {
         return Type.int64();
       }
-      if (spannerType.equals("FLOAT64")) {
+      if ("FLOAT64".equals(spannerType)) {
         return Type.float64();
       }
       if (spannerType.startsWith("STRING")) {
@@ -126,10 +126,10 @@ class SpannerSchema implements Serializable {
       if (spannerType.startsWith("BYTES")) {
         return Type.bytes();
       }
-      if (spannerType.equals("TIMESTAMP")) {
+      if ("TIMESTAMP".equals(spannerType)) {
         return Type.timestamp();
       }
-      if (spannerType.equals("DATE")) {
+      if ("DATE".equals(spannerType)) {
         return Type.date();
       }
 
