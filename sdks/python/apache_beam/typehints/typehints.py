@@ -1127,7 +1127,6 @@ def coerce_to_kv_type(element_type, label=None):
         Union[tuple(t.tuple_types[1] for t in union_types)]]
   else:
     # TODO: Possibly handle other valid types.
-    print "element_type", element_type
     raise ValueError(
         "Input to %r must be compatible with KV[Any, Any]. "
         "Found %s." % (label, element_type))
