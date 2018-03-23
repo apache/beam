@@ -276,6 +276,8 @@ class GreedyPCollectionFusers {
     return false;
   }
 
+  // Things with unknown URNs either execute within their own stage or are executed by the runner.
+  // In either case, assume the system is capable of executing the expressed transform
   private static boolean unknownTransformFusion(
       PTransformNode transform,
       @SuppressWarnings("unused") Environment environment,
@@ -291,7 +293,7 @@ class GreedyPCollectionFusers {
   }
 
   // Things with unknown URNs either execute within their own stage or are executed by the runner.
-  // In either case, assume the
+  // In either case, assume the system is capable of executing the expressed transform
   private static boolean unknownTransformCompatibility(
       PTransformNode transform,
       @SuppressWarnings("unused") PTransformNode other,
