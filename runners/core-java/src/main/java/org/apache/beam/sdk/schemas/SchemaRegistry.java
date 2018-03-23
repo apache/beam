@@ -28,8 +28,8 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *{@link TypeDescriptor}.
  *
  * <p>Types registered in a pipeline's schema registry will automatically be discovered by any
- * {@ink PCollection} that uses {@link SchemaCoder}. This allows users to write pipelines in terms
- * of their own Java types, yet still register schemas for these types.
+ * {@link org.apache.beam.sdk.values.PCollection} that uses {@link SchemaCoder}. This allows users
+ * to write pipelines in terms of their own Java types, yet still register schemas for these types.
  */
 @Experimental
 public class SchemaRegistry {
@@ -67,10 +67,10 @@ public class SchemaRegistry {
 
   /**
    * Get a schema for a given {@link Class} type. If no schema exists, throws
-   * @link NoSuchSchemaException}.
+   * {@link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(Class<T> clazz) throws NoSuchSchemaException {
-    return null;
+    throw new NoSuchSchemaException();
   }
 
   /**
@@ -78,7 +78,7 @@ public class SchemaRegistry {
    * {@link NoSuchSchemaException}.
    */
   public <T> Schema getSchema(TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-    return null;
+    throw new NoSuchSchemaException();
   }
 
   /**
@@ -86,7 +86,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<T, Row> getToRowFunction(
       Class<T> clazz) throws NoSuchSchemaException {
-    return null;
+    throw new NoSuchSchemaException();
   }
 
   /**
@@ -94,7 +94,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<T, Row> getToRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-    return null;
+    throw new NoSuchSchemaException();
   }
 
   /**
@@ -102,7 +102,7 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<Row, T> getFromRowFunction(
       Class<T> clazz) throws NoSuchSchemaException {
-    return null;
+    throw new NoSuchSchemaException();
   }
 
   /**
@@ -110,6 +110,6 @@ public class SchemaRegistry {
    */
   public <T> SerializableFunction<Row, T> getFromRowFunction(
       TypeDescriptor<T> typeDescriptor) throws NoSuchSchemaException {
-    return null;
+    throw new NoSuchSchemaException();
   }
 }
