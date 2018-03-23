@@ -125,7 +125,8 @@ public class GreedyStageFuser {
       }
     }
 
-    return ImmutableExecutableStage.of(
+    return ImmutableExecutableStage.ofFullComponents(
+        pipeline.getComponents(),
         environment,
         inputPCollection,
         sideInputs,
