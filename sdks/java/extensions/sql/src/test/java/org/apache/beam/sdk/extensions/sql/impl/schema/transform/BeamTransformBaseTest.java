@@ -23,8 +23,8 @@ import java.text.SimpleDateFormat;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.Row;
 import org.junit.BeforeClass;
 
 /**

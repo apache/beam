@@ -21,6 +21,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -29,7 +30,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Rule;
@@ -43,12 +43,12 @@ public class BeamKafkaCSVTableTest {
 
   private static final Row ROW1 =
       Row
-          .withRowType(genRowType())
+          .withSchema(genRowType())
           .addValues(1L, 1, 1.0)
           .build();
 
   private static final Row ROW2 =
-      Row.withRowType(genRowType())
+      Row.withSchema(genRowType())
           .addValues(2L, 2, 2.0)
           .build();
 
@@ -84,7 +84,7 @@ public class BeamKafkaCSVTableTest {
   }
 
   private static Schema genRowType() {
-    return CalciteUtils.toBeamRowType(
+    return CalciteUtils.toBeamSchema(
         BeamQueryPlanner.TYPE_FACTORY.builder()
             .add("order_id", SqlTypeName.BIGINT)
             .add("site_id", SqlTypeName.INTEGER)

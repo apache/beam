@@ -17,41 +17,209 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collector;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.values.Row;
 
 /**
  * {@link Schema} describes the fields in {@link Row}.
  *
- * <p>TODO: Currently this is a mpaping of field names to Coders. We want this to instead directly
- * represent a schema, with direct support for nested schemas.
  */
 @Experimental
 @AutoValue
 public abstract class Schema implements Serializable{
-  abstract List<String> fieldNames();
-  abstract List<Coder> fieldCoders();
+  // A mapping between field names an indices.
+  private BiMap<String, Integer> fieldIndices = HashBiMap.create();
+  abstract public List<Field> getFields();
+
+  @AutoValue.Builder
+  abstract static class Builder {
+    abstract Builder setFields(List<Field> fields);
+    abstract Schema build();
+  }
+
+  public static Schema of(List<Field> fields) {
+    return new AutoValue_Schema.Builder().setFields(fields).build();
+  }
 
   /**
-   * Field of a row.
+   * An enumerated list of supported types.
+   */
+  public enum FieldType {
+    BYTE,    // One-byte signed integer.
+    INT16,   // two-byte signed integer.
+    INT32,   // four-byte signed integer.
+    INT64,   // eight-byte signed integer.
+    DECIMAL,  // Decimal integer
+    FLOAT,
+    DOUBLE,
+    CHAR,
+    STRING,  // String.
+    DATE,    // Date.
+    TIME,    // Time
+    DATETIME, // Date and time.
+    BOOLEAN,  // Boolean.
+    ARRAY,
+    ROW;    // The field is itself a nested row.
+
+    public static final List<FieldType> NUMERIC_TYPES = ImmutableList.of(
+        BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
+    public static final List<FieldType> STRING_TYPES = ImmutableList.of(CHAR, STRING);
+    public static final List<FieldType> DATE_TYPES = ImmutableList.of(DATE, TIME, DATETIME);
+    public static final List<FieldType> CONTAINER_TYPES = ImmutableList.of(ARRAY);
+    public static final List<FieldType> COMPOSITE_TYPES = ImmutableList.of(ROW);
+
+    public boolean isNumericType() {
+      return NUMERIC_TYPES.contains(this);
+    }
+    public boolean isStringType() {
+      return STRING_TYPES.contains(this);
+    }
+    public boolean isDateType() {
+      return DATE_TYPES.contains(this);
+    }
+    public boolean isContainerType() {
+      return CONTAINER_TYPES.contains(this);
+    }
+    public boolean isCompositeType() {
+      return COMPOSITE_TYPES.contains(this);
+    }
+  }
+
+  /**
+   * A descriptor of a single field type. This is a recursive descriptor, as nested types are
+   * allowed.
+   */
+  @AutoValue
+  public abstract static class FieldTypeDescriptor {
+    // Returns the type of this field.
+    public abstract FieldType getType();
+    // For container types (e.g. ARRAY), returns the type of the contained element.
+    @Nullable public abstract FieldTypeDescriptor getComponentType();
+    // For ROW types, returns the schema for the row.
+    @Nullable public abstract Schema getRowSchema();
+
+    abstract FieldTypeDescriptor.Builder toBuilder();
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setType(FieldType fieldType);
+      abstract Builder setComponentType(@Nullable FieldTypeDescriptor componentType);
+      abstract Builder setRowSchema(@Nullable Schema rowSchema);
+      abstract FieldTypeDescriptor build();
+    }
+
+    /**
+     * Create a {@link FieldTypeDescriptor} for the given type.
+     */
+    public static FieldTypeDescriptor of(FieldType fieldType) {
+      return new AutoValue_Schema_FieldTypeDescriptor.Builder().setType(fieldType).build();
+    }
+
+    /**
+     * For container types, adds the type of the component element.
+     */
+    public FieldTypeDescriptor withComponentType(@Nullable FieldTypeDescriptor componentType) {
+      checkArgument(getType().isContainerType());
+      return toBuilder().setComponentType(componentType).build();
+    }
+
+    /**
+     * For ROW types, sets the schema of the row.
+     */
+    public FieldTypeDescriptor withRowSchema(@Nullable Schema rowSchema) {
+      checkArgument(getType().isCompositeType());
+      return toBuilder().setRowSchema(rowSchema).build();
+    }
+  }
+
+
+  /**
+   * Field of a row. Contains the {@link FieldTypeDescriptor} along with associated metadata.
    *
-   * <p>Contains field name and its coder.
    */
   @AutoValue
   public abstract static class Field {
-    abstract String name();
-    abstract Coder coder();
+    /**
+     * Returns the field name.
+     */
+    public abstract String getName();
 
-    public static Field of(String name, Coder coder) {
-      return new AutoValue_Schema_Field(name, coder);
+    /**
+     * Returns the field's description.
+     */
+    public abstract String getDescription();
+
+    /**
+     * Returns the fields {@link FieldTypeDescriptor}.
+     */
+    public abstract FieldTypeDescriptor getTypeDescriptor();
+
+    /**
+     * Returns whether the field supports null values.
+     */
+    public abstract Boolean getNullable();
+
+    public abstract Builder toBuilder();
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setName(String name);
+      abstract Builder setDescription(String description);
+      abstract Builder setTypeDescriptor(FieldTypeDescriptor fieldTypeDescriptor);
+      abstract Builder setNullable(Boolean nullable);
+      abstract Field build();
+    }
+
+    /**
+     * Return's a field with the give name.
+     */
+    public static Field of(String name, FieldTypeDescriptor fieldTypeDescriptor) {
+      return new AutoValue_Schema_Field.Builder()
+          .setName(name)
+          .setDescription("")
+          .setTypeDescriptor(fieldTypeDescriptor)
+          .setNullable(false)  // By default fields are not nullable.
+          .build();
+    }
+
+    /**
+     * Returns a copy of the Field with the name set.
+     */
+    public Field withName(String name) {
+      return toBuilder().setName(name).build();
+
+    }
+
+    /**
+     * Returns a copy of the Field with the description set.
+     */
+    public Field withDescription(String description) {
+      return toBuilder().setDescription(description).build();
+    }
+
+    /**
+     * Returns a copy of the Field with the {@link org.apache.beam.sdk.values.TypeDescriptor} set.
+     */
+    public Field withTypeDescriptor(FieldTypeDescriptor fieldTypeDescriptor) {
+      return toBuilder().setTypeDescriptor(fieldTypeDescriptor).build();
+    }
+
+    /**
+     * Returns a copy of the Field with isNullable set.
+     */
+    public Field withNullable(boolean isNullable) {
+      return toBuilder().setNullable(isNullable).build();
     }
   }
 
@@ -70,75 +238,58 @@ public abstract class Schema implements Serializable{
   }
 
   private static Schema fromFields(List<Field> fields) {
-    ImmutableList.Builder<String> names = ImmutableList.builder();
-    ImmutableList.Builder<Coder> coders = ImmutableList.builder();
-
+    Schema schema = new AutoValue_Schema.Builder().setFields(fields).build();
+    int index = 0;
     for (Field field : fields) {
-      names.add(field.name());
-      coders.add(field.coder());
+      schema.fieldIndices.put(field.getName(), index++);
     }
-
-    return fromNamesAndCoders(names.build(), coders.build());
+    return schema;
   }
+
 
   /**
-   * Creates a new {@link Field} with specified name and coder.
-   */
-  public static Field newField(String name, Coder coder) {
-    return Field.of(name, coder);
-  }
-
-  public static Schema fromNamesAndCoders(
-      List<String> fieldNames,
-      List<Coder> fieldCoders) {
-
-    if (fieldNames.size() != fieldCoders.size()) {
-      throw new IllegalStateException(
-          "the size of fieldNames and fieldCoders need to be the same.");
-    }
-
-    return new AutoValue_Schema(fieldNames, fieldCoders);
-  }
-
-  /**
-   * Return the coder for {@link Row}, which wraps {@link #fieldCoders} for each field.
+   * Return the coder for a {@link Row} with this schema.
    */
   public RowCoder getRowCoder() {
-    return RowCoder.of(this, fieldCoders());
+    return RowCoder.of(this);
   }
 
   /**
-   * Return the field coder for {@code index}.
-   */
-  public Coder getFieldCoder(int index) {
-    return fieldCoders().get(index);
-  }
-
-  /**
-   * Returns an immutable list of field names.
+   * Return the list of all field names.
    */
   public List<String> getFieldNames() {
-    return ImmutableList.copyOf(fieldNames());
+    return getFields().stream().map(Schema.Field::getName).collect(Collectors.toList());
   }
 
   /**
-   * Return the name of field by index.
+   * Return a field by index.
    */
-  public String getFieldName(int index) {
-    return fieldNames().get(index);
+  public Field getField(int index) {
+    return getFields().get(index);
+  }
+
+  public Field getField(String name) {
+    return getFields().get(fieldIndices.get(name));
   }
 
   /**
    * Find the index of a given field.
    */
   public int indexOf(String fieldName) {
-    return fieldNames().indexOf(fieldName);
+    return fieldIndices.get(fieldName);
+  }
+
+  /**
+   * Return the name of field by index.
+   */
+  public String nameOf(int fieldIndex) {
+    return fieldIndices.inverse().get(fieldIndex);
   }
 
   /**
    * Return the count of fields.
    */
   public int getFieldCount() {
-    return fieldNames().size();
+    return getFields().size();
   }
 }

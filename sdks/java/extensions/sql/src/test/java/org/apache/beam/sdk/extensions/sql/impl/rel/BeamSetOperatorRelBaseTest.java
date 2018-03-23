@@ -20,11 +20,11 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Date;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -48,10 +48,10 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
   public static void prepare() {
     sqlEnv.registerTable("ORDER_DETAILS",
         MockedBoundedTable.of(
-            SqlTypeCoders.BIGINT, "order_id",
-            SqlTypeCoders.INTEGER, "site_id",
-            SqlTypeCoders.DOUBLE, "price",
-            SqlTypeCoders.TIMESTAMP, "order_time"
+            FieldType.INT64, "order_id",
+            FieldType.INT32, "site_id",
+            FieldType.DOUBLE, "price",
+            FieldType.DATETIME, "order_time"
         ).addRows(
             1L, 1, 1.0, THE_DATE,
             2L, 2, 2.0, THE_DATE
@@ -75,9 +75,9 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                SqlTypeCoders.BIGINT, "order_id",
-                SqlTypeCoders.INTEGER, "site_id",
-                SqlTypeCoders.BIGINT, "cnt"
+                FieldType.INT64, "order_id",
+                FieldType.INT32, "site_id",
+                FieldType.INT64, "cnt"
             ).addRows(
                 1L, 1, 1L,
                 2L, 2, 1L

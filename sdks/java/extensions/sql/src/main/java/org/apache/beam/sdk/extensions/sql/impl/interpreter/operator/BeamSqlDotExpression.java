@@ -18,11 +18,10 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -53,15 +52,7 @@ public class BeamSqlDotExpression extends BeamSqlExpression {
   }
 
   private SqlTypeName getFieldType(Row row, String fieldName) {
-    Schema rowType = row.getRowType();
-    int fieldIndex = rowType.indexOf(fieldName);
-
-    if (fieldIndex < 0) {
-      throw new IllegalArgumentException(
-          "Cannot find field '" + fieldName + "' in " + row.getRowType());
-    }
-
-    SqlTypeCoder fieldCoder = (SqlTypeCoder) row.getRowType().getFieldCoder(fieldIndex);
-    return CalciteUtils.toCalciteType(fieldCoder);
+    Schema.Field field = row.getSchema().getField(fieldName);
+    return CalciteUtils.toSqlTypeName(field.getTypeDescriptor().getType());
   }
 }

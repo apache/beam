@@ -21,11 +21,11 @@ import static java.util.stream.Collectors.toList;
 
 import java.util.List;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.TupleTag;
 import org.junit.Test;
 
@@ -140,7 +140,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
   private Row rowAtIndex(Schema schema, int index) {
     return Row
-        .withRowType(schema)
+        .withSchema(schema)
         .addValues(
             rowsInTableA.get(index).getValue(0),
             rowsInTableA.get(index).getValue(1))
@@ -216,7 +216,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     Schema resultType =
         RowSqlType.builder().withIntegerField("literal_field").build();
 
-    Row row = Row.withRowType(resultType).addValues(1).build();
+    Row row = Row.withSchema(resultType).addValues(1).build();
 
     PAssert.that(result).containsInAnyOrder(row);
 

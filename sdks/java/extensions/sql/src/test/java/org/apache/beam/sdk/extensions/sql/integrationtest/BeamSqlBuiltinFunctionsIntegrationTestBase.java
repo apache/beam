@@ -32,15 +32,15 @@ import java.util.Map;
 import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.util.Pair;
 import org.junit.Rule;
 
@@ -48,18 +48,18 @@ import org.junit.Rule;
  * Base class for all built-in functions integration tests.
  */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
-  private static final Map<Class, SqlTypeCoder> JAVA_CLASS_TO_CODER = ImmutableMap
-      .<Class, SqlTypeCoder>builder()
-      .put(Byte.class, SqlTypeCoders.TINYINT)
-      .put(Short.class, SqlTypeCoders.SMALLINT)
-      .put(Integer.class, SqlTypeCoders.INTEGER)
-      .put(Long.class, SqlTypeCoders.BIGINT)
-      .put(Float.class, SqlTypeCoders.FLOAT)
-      .put(Double.class, SqlTypeCoders.DOUBLE)
-      .put(BigDecimal.class, SqlTypeCoders.DECIMAL)
-      .put(String.class, SqlTypeCoders.VARCHAR)
-      .put(Date.class, SqlTypeCoders.DATE)
-      .put(Boolean.class, SqlTypeCoders.BOOLEAN)
+  private static final Map<Class, FieldType> JAVA_CLASS_TO_FIELDTYPE = ImmutableMap
+      .<Class, FieldType>builder()
+      .put(Byte.class, FieldType.BYTE)
+      .put(Short.class, FieldType.INT16)
+      .put(Integer.class, FieldType.INT32)
+      .put(Long.class, FieldType.INT64)
+      .put(Float.class, FieldType.FLOAT)
+      .put(Double.class, FieldType.DOUBLE)
+      .put(BigDecimal.class, FieldType.DECIMAL)
+      .put(String.class, FieldType.STRING)
+      .put(Date.class, FieldType.DATE)
+      .put(Boolean.class, FieldType.BOOLEAN)
       .build();
 
   private static final Schema ROW_TYPE = RowSqlType.builder()
@@ -155,9 +155,9 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       try {
         Schema schema =
             exps.stream()
-                .map(exp -> Schema.newField(
+                .map(exp -> Schema.Field.of(
                     exp.getKey(),
-                    JAVA_CLASS_TO_CODER.get(exp.getValue().getClass())))
+                    FieldTypeDescriptor.of(JAVA_CLASS_TO_FIELDTYPE.get(exp.getValue().getClass()))))
                 .collect(toSchema());
 
         List<Object> values = exps.stream().map(Pair::getValue).collect(toList());

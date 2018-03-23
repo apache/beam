@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.INTEGER;
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.VARCHAR;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -35,6 +34,8 @@ import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
@@ -131,9 +132,16 @@ public class InMemoryMetaStoreTest {
         .comment(name + " table")
         .location(URI.create("text://home/admin/" + name))
         .columns(ImmutableList.of(
-            Column.builder().name("id").coder(INTEGER).primaryKey(true).build(),
-            Column.builder().name("name").coder(VARCHAR).primaryKey(false).build()
-        ))
+            Column.builder()
+                .name("id")
+                .typeDescriptor(FieldTypeDescriptor.of(FieldType.INT32))
+                .primaryKey(true)
+                .build(),
+            Column.builder()
+                .name("name")
+                .typeDescriptor(FieldTypeDescriptor.of(FieldType.STRING))
+                .primaryKey(false)
+                .build()))
         .type(type)
         .properties(new JSONObject())
         .build();

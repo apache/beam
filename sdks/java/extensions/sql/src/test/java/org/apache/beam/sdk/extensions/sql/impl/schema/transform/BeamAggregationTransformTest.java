@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -38,7 +39,6 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.SqlKind;
@@ -422,7 +422,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             .range(0, 4)
             .mapToObj(i -> KV.of(
                 Row
-                    .withRowType(keyType)
+                    .withSchema(keyType)
                     .addValues(inputRows.get(i).getInteger(0))
                     .build(),
                 inputRows.get(i)
@@ -437,11 +437,11 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
     return Arrays.asList(
         KV.of(
             Row
-                .withRowType(keyType)
+                .withSchema(keyType)
                 .addValues(inputRows.get(0).getInteger(0))
                 .build(),
             Row
-                .withRowType(aggPartType)
+                .withSchema(aggPartType)
                 .addValues(
                     4L,
                     10000L,
@@ -525,7 +525,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
    */
   private Row prepareResultOfMergeAggregationRow() throws ParseException {
     return Row
-        .withRowType(outputType)
+        .withSchema(outputType)
         .addValues(
             1,
             4L,

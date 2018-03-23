@@ -32,7 +32,7 @@ public class SchemaGettersTest {
 
   @Test
   public void testGetters() {
-    Schema schema = Schema.fromNamesAndCoders(emptyList(), emptyList());
+    Schema schema = Schema.of(emptyList());
     List<FieldValueGetter> fieldValueGetters = emptyList();
 
     RowTypeGetters getters = new RowTypeGetters(schema, fieldValueGetters);

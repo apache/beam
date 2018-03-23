@@ -23,12 +23,6 @@ import static org.junit.Assert.assertEquals;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.coders.BooleanCoder;
-import org.apache.beam.sdk.coders.ByteCoder;
-import org.apache.beam.sdk.coders.DoubleCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Rule;
 import org.junit.Test;
@@ -74,24 +68,6 @@ public class DefaultSchemaFactoryTest {
             "booleanGetter",
             "stringGetter"),
         schema.getFieldNames());
-  }
-
-  @Test
-  public void testContainsCorrectCoders() throws Exception {
-    DefaultRowTypeFactory factory = new DefaultRowTypeFactory();
-
-    Schema recordType = factory.createRowType(GETTERS);
-
-    assertEquals(GETTERS.size(), recordType.getFieldCount());
-    assertEquals(
-        Arrays.asList(
-            ByteCoder.of(),
-            VarIntCoder.of(),
-            VarLongCoder.of(),
-            DoubleCoder.of(),
-            BooleanCoder.of(),
-            StringUtf8Coder.of()),
-        recordType.getRowCoder().getCoders());
   }
 
   @Test

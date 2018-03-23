@@ -31,11 +31,11 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.junit.AfterClass;
@@ -73,8 +73,8 @@ public class BeamTextCSVTableTest {
 
   private static List<Object[]> testData = Arrays.asList(data1, data2);
   private static List<Row> testDataRows = Arrays.asList(
-      Row.withRowType(schema).addValues(data1).build(),
-      Row.withRowType(schema).addValues(data2).build());
+      Row.withSchema(schema).addValues(data1).build(),
+      Row.withSchema(schema).addValues(data2).build());
 
   private static Path tempFolder;
   private static File readerSourceFile;

@@ -18,24 +18,26 @@
 
 package org.apache.beam.sdk.schemas;
 
+import com.google.common.collect.ImmutableList;
+
 /**
- * Used inside of a {@link DoFn} to describe which fields in a schema type need to be accessed for
- * processing.
+ * Used inside of a {@link org.apache.beam.sdk.transforms.DoFn} to describe which fields in a schema
+ * type need to be accessed for processing.
  */
 public class FieldAccessDescriptor {
   // Return a descriptor that accesses all fields in a row.
   public static FieldAccessDescriptor allFields() {
-    return null;
+    return new FieldAccessDescriptor();
   }
 
   // Return a descriptor that accesses only the given set of fields in a row.
   public static FieldAccessDescriptor fromIterable(Iterable<String> fieldNames) {
-    return null;
+    return new FieldAccessDescriptor();
 
   }
 
   public Iterable<String> getFieldsAccessed() {
-    return null;
+    return ImmutableList.of();
   }
 
   // TODO: FieldAccessDescriptor currently assumes all fields are top level. Once we have native

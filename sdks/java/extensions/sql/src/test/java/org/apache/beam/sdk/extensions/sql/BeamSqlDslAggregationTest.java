@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
@@ -41,7 +42,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -110,7 +110,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         .withBigIntField("size")
         .build();
 
-    Row row = Row.withRowType(resultType).addValues(0, 4L).build();
+    Row row = Row.withSchema(resultType).addValues(0, 4L).build();
 
     PAssert.that(result).containsInAnyOrder(row);
 
@@ -185,7 +185,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
     Row row =
         Row
-            .withRowType(resultType)
+            .withSchema(resultType)
             .addValues(
                 0, 4L,
                 10000L, 2500L, 4000L, 1000L,
@@ -345,18 +345,18 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         pipeline.apply(
             TestStream.create(inputSchema.getRowCoder())
                 .addElements(
-                    Row.withRowType(inputSchema)
+                    Row.withSchema(inputSchema)
                         .addValues(1, FORMAT.parse("2017-01-01 01:01:01"))
                         .build(),
-                    Row.withRowType(inputSchema)
+                    Row.withSchema(inputSchema)
                         .addValues(2, FORMAT.parse("2017-01-01 01:01:01"))
                         .build())
                 .addElements(
-                    Row.withRowType(inputSchema)
+                    Row.withSchema(inputSchema)
                         .addValues(3, FORMAT.parse("2017-01-01 01:01:01"))
                         .build())
                 .addElements(
-                    Row.withRowType(inputSchema)
+                    Row.withSchema(inputSchema)
                         .addValues(4, FORMAT.parse("2017-01-01 01:01:01"))
                         .build())
                 .advanceWatermarkToInfinity());

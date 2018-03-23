@@ -38,6 +38,7 @@ public class MetaUtils {
   }
 
   private static Schema.Field toRecordField(Column column) {
-    return Schema.newField(column.getName(), column.getCoder());
+    return Schema.Field.of(column.getName(), column.getTypeDescriptor())
+        .withDescription(column.getComment());
   }
 }

@@ -22,7 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
@@ -31,26 +31,25 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
  */
 public class BigDecimalConverter {
 
-  private static final Map<SqlTypeCoder, SerializableFunction<BigDecimal, ? extends Number>>
+  private static final Map<FieldType, SerializableFunction<BigDecimal, ? extends Number>>
       CONVERTER_MAP = ImmutableMap
-      .<SqlTypeCoder, SerializableFunction<BigDecimal, ? extends Number>>builder()
-      .put(SqlTypeCoders.INTEGER, BigDecimal::intValue)
-      .put(SqlTypeCoders.SMALLINT, BigDecimal::shortValue)
-      .put(SqlTypeCoders.TINYINT, BigDecimal::byteValue)
-      .put(SqlTypeCoders.BIGINT, BigDecimal::longValue)
-      .put(SqlTypeCoders.FLOAT, BigDecimal::floatValue)
-      .put(SqlTypeCoders.DOUBLE, BigDecimal::doubleValue)
-      .put(SqlTypeCoders.DECIMAL, v -> v)
+      .<FieldType, SerializableFunction<BigDecimal, ? extends Number>>builder()
+      .put(FieldType.INT32, BigDecimal::intValue)
+      .put(FieldType.INT16, BigDecimal::shortValue)
+      .put(FieldType.BYTE, BigDecimal::byteValue)
+      .put(FieldType.INT64, BigDecimal::longValue)
+      .put(FieldType.FLOAT, BigDecimal::floatValue)
+      .put(FieldType.DOUBLE, BigDecimal::doubleValue)
+      .put(FieldType.DECIMAL, v -> v)
       .build();
 
   public static SerializableFunction<BigDecimal, ? extends Number> forSqlType(
-      SqlTypeCoder sqlTypeCoder) {
-
-    if (!CONVERTER_MAP.containsKey(sqlTypeCoder)) {
+      FieldType fieldType) {
+    if (!CONVERTER_MAP.containsKey(fieldType)) {
       throw new UnsupportedOperationException(
-          "Conversion from " + sqlTypeCoder + " to BigDecimal is not supported");
+          "Conversion from " + fieldType + " to BigDecimal is not supported");
     }
 
-    return CONVERTER_MAP.get(sqlTypeCoder);
+    return CONVERTER_MAP.get(fieldType);
   }
 }

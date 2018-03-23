@@ -103,7 +103,7 @@ public class ToRowTest {
   private static Row toRow(Object obj) {
     ModelFieldsAdapter adapter = ADAPTERS.get(obj.getClass());
     return Row
-            .withRowType(adapter.getSchema())
+            .withSchema(adapter.getSchema())
             .addValues(adapter.getFieldsValues(obj))
             .build();
   }

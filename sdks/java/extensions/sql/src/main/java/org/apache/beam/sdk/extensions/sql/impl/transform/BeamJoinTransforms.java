@@ -19,14 +19,14 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.values.Row.toRow;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
+import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -35,7 +35,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -67,7 +66,7 @@ public class BeamJoinTransforms {
       Schema schema =
           joinColumns
               .stream()
-              .map(fieldIndex -> toField(input.getRowType(), fieldIndex))
+              .map(fieldIndex -> toField(input.getSchema(), fieldIndex))
               .collect(toSchema());
 
       Row row =
@@ -80,10 +79,8 @@ public class BeamJoinTransforms {
     }
 
     private Schema.Field toField(Schema schema, Integer fieldIndex) {
-      return Schema.newField(
-          "c" + fieldIndex,
-          //schema.getFieldName(fieldIndex),
-          schema.getFieldCoder(fieldIndex));
+      Schema.Field original = schema.getField(fieldIndex);
+      return original.withName("c" + fieldIndex);
     }
   }
 
@@ -154,17 +151,14 @@ public class BeamJoinTransforms {
    */
   private static Row combineTwoRowsIntoOneHelper(Row leftRow, Row rightRow) {
     // build the type
-    List<String> names = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
-    names.addAll(leftRow.getRowType().getFieldNames());
-    names.addAll(rightRow.getRowType().getFieldNames());
-
-    List<Coder> types = new ArrayList<>(leftRow.getFieldCount() + rightRow.getFieldCount());
-    types.addAll(leftRow.getRowType().getRowCoder().getCoders());
-    types.addAll(rightRow.getRowType().getRowCoder().getCoders());
-    Schema type = Schema.fromNamesAndCoders(names, types);
+    List<Schema.Field> fields = new ArrayList<>(
+        leftRow.getFieldCount() + rightRow.getFieldCount());
+    fields.addAll(leftRow.getSchema().getFields());
+    fields.addAll(rightRow.getSchema().getFields());
+    Schema type = Schema.of(fields);
 
     return Row
-            .withRowType(type)
+            .withSchema(type)
             .addValues(leftRow.getValues())
             .addValues(rightRow.getValues())
             .build();
@@ -190,8 +184,7 @@ public class BeamJoinTransforms {
 
     private void joinFieldsMapping(RexNode joinCondition, int factTableColSize) {
       factJoinIdx = new ArrayList<>();
-      List<String> lkpJoinFieldsName = new ArrayList<>();
-      List<Coder> lkpJoinFieldsType = new ArrayList<>();
+      List<Schema.Field> lkpJoinFields = new ArrayList<>();
 
       RexCall call = (RexCall) joinCondition;
       if ("AND".equals(call.getOperator().getName())) {
@@ -200,21 +193,19 @@ public class BeamJoinTransforms {
           factJoinIdx.add(((RexInputRef) ((RexCall) rexNode).getOperands().get(0)).getIndex());
           int lkpJoinIdx = ((RexInputRef) ((RexCall) rexNode).getOperands().get(1)).getIndex()
               - factTableColSize;
-          lkpJoinFieldsName.add(lkpSchema.getFieldName(lkpJoinIdx));
-          lkpJoinFieldsType.add(lkpSchema.getFieldCoder(lkpJoinIdx));
+          lkpJoinFields.add(lkpSchema.getField(lkpJoinIdx));
         }
       } else if ("=".equals(call.getOperator().getName())) {
         factJoinIdx.add(((RexInputRef) call.getOperands().get(0)).getIndex());
         int lkpJoinIdx = ((RexInputRef) call.getOperands().get(1)).getIndex()
             - factTableColSize;
-        lkpJoinFieldsName.add(lkpSchema.getFieldName(lkpJoinIdx));
-        lkpJoinFieldsType.add(lkpSchema.getFieldCoder(lkpJoinIdx));
+        lkpJoinFields.add(lkpSchema.getField(lkpJoinIdx));
       } else {
         throw new UnsupportedOperationException(
             "Operator " + call.getOperator().getName() + " is not supported in join condition");
       }
 
-      joinSubsetType = Schema.fromNamesAndCoders(lkpJoinFieldsName, lkpJoinFieldsType);
+      joinSubsetType = Schema.of(lkpJoinFields);
     }
 
     @Override
@@ -249,7 +240,7 @@ public class BeamJoinTransforms {
 
           return
               Row
-                  .withRowType(joinSubsetType)
+                  .withSchema(joinSubsetType)
                   .addValues(joinSubsetValues)
                   .build();
         }

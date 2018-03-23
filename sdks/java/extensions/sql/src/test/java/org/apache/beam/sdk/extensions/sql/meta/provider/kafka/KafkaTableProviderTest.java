@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
 
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.INTEGER;
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.VARCHAR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -30,6 +28,8 @@ import java.net.URI;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.junit.Test;
 
 /**
@@ -67,9 +67,16 @@ public class KafkaTableProviderTest {
         .comment(name + " table")
         .location(URI.create("kafka://localhost:2181/brokers?topic=test"))
         .columns(ImmutableList.of(
-            Column.builder().name("id").coder(INTEGER).primaryKey(true).build(),
-            Column.builder().name("name").coder(VARCHAR).primaryKey(false).build()
-        ))
+            Column.builder()
+                .name("id")
+                .typeDescriptor(FieldTypeDescriptor.of(FieldType.INT32))
+                .primaryKey(true)
+            .build(),
+            Column.builder()
+                .name("name")
+                .typeDescriptor(FieldTypeDescriptor.of(FieldType.STRING))
+                .primaryKey(false)
+                .build()))
         .type("kafka")
         .properties(properties)
         .build();

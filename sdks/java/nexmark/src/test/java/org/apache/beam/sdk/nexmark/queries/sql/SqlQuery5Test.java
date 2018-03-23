@@ -96,7 +96,7 @@ public class SqlQuery5Test {
   private static Row newBidRow(Bid bid) {
     return
         Row
-            .withRowType(BID_ADAPTER.getSchema())
+            .withSchema(BID_ADAPTER.getSchema())
             .addValues(BID_ADAPTER.getFieldsValues(bid))
             .build();
   }

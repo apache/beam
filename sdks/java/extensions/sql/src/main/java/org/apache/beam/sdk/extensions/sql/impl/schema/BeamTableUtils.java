@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.schema;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.io.IOException;
@@ -26,12 +25,9 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.util.stream.IntStream;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -40,6 +36,8 @@ import org.apache.commons.csv.CSVRecord;
 
 /**
  * Utility methods for working with {@code BeamTable}.
+ *
+ * <p>TODO: Does not yet support nested types.
  */
 public final class BeamTableUtils {
   public static Row csvLine2BeamRow(
@@ -61,7 +59,7 @@ public final class BeamTableUtils {
       return
           IntStream
               .range(0, schema.getFieldCount())
-              .mapToObj(idx -> autoCastField(schema.getFieldCoder(idx), rawRecord.get(idx)))
+              .mapToObj(idx -> autoCastField(schema.getField(idx), rawRecord.get(idx)))
               .collect(toRow(schema));
 
     } catch (IOException e) {
@@ -82,44 +80,44 @@ public final class BeamTableUtils {
     return writer.toString();
   }
 
-  public static Object autoCastField(Coder coder, Object rawObj) {
-    checkArgument(coder instanceof SqlTypeCoder);
-
+  public static Object autoCastField(Schema.Field field, Object rawObj) {
     if (rawObj == null) {
+      if (!field.getNullable()) {
+        throw new IllegalArgumentException(String.format("Field %s not nullable", field.getName()));
+      }
       return null;
     }
 
-    SqlTypeName columnType = CalciteUtils.toCalciteType((SqlTypeCoder) coder);
-    // auto-casting for numberics
-    if ((rawObj instanceof String && SqlTypeName.NUMERIC_TYPES.contains(columnType))
-        || (rawObj instanceof BigDecimal && columnType != SqlTypeName.DECIMAL)) {
-      String raw = rawObj.toString();
-      switch (columnType) {
-        case TINYINT:
-          return Byte.valueOf(raw);
-        case SMALLINT:
-          return Short.valueOf(raw);
-        case INTEGER:
-          return Integer.valueOf(raw);
-        case BIGINT:
-          return Long.valueOf(raw);
-        case FLOAT:
-          return Float.valueOf(raw);
-        case DOUBLE:
-          return Double.valueOf(raw);
-        default:
-          throw new UnsupportedOperationException(
-              String.format("Column type %s is not supported yet!", columnType));
-      }
-    } else if (SqlTypeName.CHAR_TYPES.contains(columnType)) {
-      // convert NlsString to String
+    FieldType type = field.getTypeDescriptor().getType();
+    if (type.isStringType()) {
       if (rawObj instanceof NlsString) {
         return ((NlsString) rawObj).getValue();
       } else {
         return rawObj;
       }
-    } else {
-      return rawObj;
+    } else if (type.isNumericType()) {
+      if ((rawObj instanceof String)
+          || (rawObj instanceof BigDecimal && type != FieldType.DECIMAL)) {
+        String raw = rawObj.toString();
+        switch (type) {
+          case BYTE:
+            return Byte.valueOf(raw);
+          case INT16:
+            return Short.valueOf(raw);
+          case INT32:
+            return Integer.valueOf(raw);
+          case INT64:
+            return Long.valueOf(raw);
+          case FLOAT:
+            return Float.valueOf(raw);
+          case DOUBLE:
+            return Double.valueOf(raw);
+          default:
+            throw new UnsupportedOperationException(
+                String.format("Column type %s is not supported yet!", type));
+        }
+      }
     }
+    return rawObj;
   }
 }

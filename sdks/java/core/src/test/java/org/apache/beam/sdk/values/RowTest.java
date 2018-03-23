@@ -24,10 +24,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.util.stream.Stream;
-import org.apache.beam.sdk.coders.DoubleCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -45,9 +44,9 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.newField("f_int", VarIntCoder.of()),
-                Schema.newField("f_str", StringUtf8Coder.of()),
-                Schema.newField("f_double", DoubleCoder.of()))
+                Schema.Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32)),
+                Schema.Field.of("f_str", FieldTypeDescriptor.of(FieldType.STRING)),
+                Schema.Field.of("f_double", FieldTypeDescriptor.of(FieldType.DOUBLE)))
             .collect(toSchema());
 
     Row row = Row.nullRow(type);
@@ -62,14 +61,14 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.newField("f_int", VarIntCoder.of()),
-                Schema.newField("f_str", StringUtf8Coder.of()),
-                Schema.newField("f_double", DoubleCoder.of()))
+                Schema.Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32)),
+                Schema.Field.of("f_str", FieldTypeDescriptor.of(FieldType.STRING)),
+                Schema.Field.of("f_double", FieldTypeDescriptor.of(FieldType.DOUBLE)))
             .collect(toSchema());
 
     Row row =
         Row
-            .withRowType(type)
+            .withSchema(type)
             .addValues(1, "2", 3.0d)
             .build();
 
@@ -83,9 +82,9 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.newField("f_int", VarIntCoder.of()),
-                Schema.newField("f_str", StringUtf8Coder.of()),
-                Schema.newField("f_double", DoubleCoder.of()))
+                Schema.Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32)),
+                Schema.Field.of("f_str", FieldTypeDescriptor.of(FieldType.STRING)),
+                Schema.Field.of("f_double", FieldTypeDescriptor.of(FieldType.DOUBLE)))
             .collect(toSchema());
 
     Row row =
@@ -103,12 +102,12 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.newField("f_int", VarIntCoder.of()),
-                Schema.newField("f_str", StringUtf8Coder.of()),
-                Schema.newField("f_double", DoubleCoder.of()))
+                Schema.Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32)),
+                Schema.Field.of("f_str", FieldTypeDescriptor.of(FieldType.STRING)),
+                Schema.Field.of("f_double", FieldTypeDescriptor.of(FieldType.DOUBLE)))
             .collect(toSchema());
 
     thrown.expect(IllegalArgumentException.class);
-    Row.withRowType(type).addValues(1, "2").build();
+    Row.withSchema(type).addValues(1, "2").build();
   }
 }

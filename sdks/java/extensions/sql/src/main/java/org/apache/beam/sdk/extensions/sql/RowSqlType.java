@@ -20,8 +20,14 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.beam.sdk.values.Row;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.Field;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.rel.type.RelDataType;
 
 
 /**
@@ -31,7 +37,6 @@ import org.apache.beam.sdk.schemas.Schema;
  * <a href="https://beam.apache.org/documentation/dsls/sql/#data-types">data types</a>
  * for more details.
  *
- * <p>SQL types are represented by instances of {@link SqlTypeCoder}, see {@link SqlTypeCoders}.
  */
 public class RowSqlType {
   public static Builder builder() {
@@ -45,79 +50,119 @@ public class RowSqlType {
 
     private ImmutableList.Builder<Schema.Field> fields;
 
-    public Builder withField(String fieldName, SqlTypeCoder fieldCoder) {
-      fields.add(Schema.newField(fieldName, fieldCoder));
+    public Builder withField(String fieldName, Schema.FieldType fieldType,
+                             @Nullable Schema.FieldTypeDescriptor componentType,
+                             @Nullable Schema fieldSchema) {
+      FieldTypeDescriptor fieldTypeDescriptor =
+          FieldTypeDescriptor.of(fieldType)
+              .withComponentType(componentType)
+              .withRowSchema(fieldSchema);
+      fields.add(Field.of(fieldName, fieldTypeDescriptor));
       return this;
     }
 
     public Builder withTinyIntField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.TINYINT);
+      return withField(fieldName, FieldType.BYTE, null, null);
     }
 
     public Builder withSmallIntField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.SMALLINT);
+      return withField(fieldName, FieldType.INT16, null, null);
     }
 
     public Builder withIntegerField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.INTEGER);
+      return withField(fieldName, FieldType.INT16, null, null);
     }
 
     public Builder withBigIntField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.BIGINT);
+      return withField(fieldName, FieldType.INT64, null, null);
     }
 
     public Builder withFloatField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.FLOAT);
+      return withField(fieldName, FieldType.FLOAT, null, null);
     }
 
     public Builder withDoubleField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.DOUBLE);
+      return withField(fieldName, FieldType.DOUBLE, null, null);
     }
 
     public Builder withDecimalField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.DECIMAL);
+      return withField(fieldName, FieldType.DECIMAL, null, null);
     }
 
     public Builder withBooleanField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.BOOLEAN);
+      return withField(fieldName, FieldType.BOOLEAN, null, null);
     }
 
     public Builder withCharField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.CHAR);
+      return withField(fieldName, FieldType.CHAR, null, null);
     }
 
     public Builder withVarcharField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.VARCHAR);
+      return withField(fieldName, FieldType.STRING, null, null);
     }
 
     public Builder withTimeField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.TIME);
+      return withField(fieldName, FieldType.TIME, null, null);
     }
 
     public Builder withDateField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.DATE);
+      return withField(fieldName, FieldType.DATE, null, null);
     }
 
     public Builder withTimestampField(String fieldName) {
-      return withField(fieldName, SqlTypeCoders.TIMESTAMP);
+      return withField(fieldName, FieldType.DATETIME, null, null);
     }
 
     /**
-     * Adds an ARRAY field with elements of {@code elementCoder}.
+     * Adds an ARRAY field with elements of the give type.
      */
-    public Builder withArrayField(String fieldName, SqlTypeCoder elementCoder) {
-      return withField(fieldName, SqlTypeCoders.arrayOf(elementCoder));
+    public Builder withArrayField(String fieldName, RelDataType relDataType) {
+      return withField(
+          fieldName,
+          FieldType.ARRAY,
+          CalciteUtils.toFieldTypeDescriptor(relDataType),
+          null);
+    }
+
+    /**
+     * Adds an ARRAY field with elements of the give type.
+     */
+    public Builder withArrayField(String fieldName, FieldTypeDescriptor typeDescriptor) {
+      return withField(
+          fieldName,
+          FieldType.ARRAY,
+          typeDescriptor,
+          null);
+    }
+
+    /**
+     * Adds an ARRAY field with elements of the give primitive type.
+     */
+    public Builder withArrayField(String fieldName, FieldType fieldType) {
+      return withField(
+          fieldName,
+          FieldType.ARRAY,
+          FieldTypeDescriptor.of(fieldType),
+          null);
     }
 
     /**
      * Adds an ARRAY field with elements of {@code rowType}.
      */
     public Builder withArrayField(String fieldName, Schema schema) {
-      return withField(fieldName, SqlTypeCoders.arrayOf(schema));
+      FieldTypeDescriptor componentType =
+          FieldTypeDescriptor
+              .of(FieldType.ROW)
+              .withRowSchema(schema);
+      return withField(
+          fieldName,
+          FieldType.ARRAY,
+          componentType,
+          null);
     }
 
     public Builder withRowField(String fieldName, Schema schema) {
-      return withField(fieldName, SqlTypeCoders.rowOf(schema));
+      return withField(fieldName, FieldType.ROW, null, schema);
     }
 
     private Builder() {
