@@ -1,5 +1,6 @@
 require 'fileutils'
 require 'html-proofer'
+require 'etc'
 
 task :test do
   FileUtils.rm_rf('./.testcontent')
@@ -10,6 +11,7 @@ task :test do
       :connecttimeout => 40 },
     :allow_hash_href => true,
     :check_html => true,
-    :file_ignore => [/javadoc/, /v2/, /pydoc/]
+    :file_ignore => [/javadoc/, /v2/, /pydoc/],
+    :parallel => { :in_processes => Etc.nprocessors },
     }).run
 end
