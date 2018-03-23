@@ -37,7 +37,7 @@ public class BeamSqlOrExpression extends BeamSqlLogicalExpression {
     boolean result = false;
     for (BeamSqlExpression exp : operands) {
       BeamSqlPrimitive<Boolean> expOut = exp.evaluate(inputRow, window);
-        result = result || expOut.getValue();
+        result = expOut.getValue();
         if (result) {
           break;
         }
