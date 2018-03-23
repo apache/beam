@@ -20,6 +20,7 @@ import (
 )
 
 //go:generate specialize --input=max_switch.tmpl --x=integers,floats
+//go:generate gofmt -w max_switch.go
 
 // Max returns the maximal element in a PCollection<A> as a singleton
 // PCollection<A>. It can only be used for numbers, such as int, uint16,
