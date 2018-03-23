@@ -513,8 +513,7 @@ public class DirectRunnerTest implements Serializable {
           }
         }));
 
-    thrown.expectCause(
-        new ThrowableMessageMatcher<IllegalArgumentException>(equalTo("Custom exception "
+    thrown.expectCause(new ThrowableMessageMatcher<>(equalTo("Custom exception "
             + "element 1")));
     thrown.expectMessage("Exception occurred while executing transform Step 2");
     p.run();

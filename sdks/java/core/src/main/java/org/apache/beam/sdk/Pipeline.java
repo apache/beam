@@ -126,8 +126,8 @@ public class Pipeline {
     /**
      * Wraps {@code cause} into a {@link PipelineExecutionException}.
      */
-    public static PipelineExecutionException wrap(String transformName, Throwable cause) {
-      if (Strings.isNullOrEmpty(transformName)) {
+    public static PipelineExecutionException wrap(@Nullable String transformName, Throwable cause) {
+      if (transformName == null) {
         return new PipelineExecutionException(cause);
       }
       return new PipelineExecutionException(

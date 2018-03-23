@@ -20,6 +20,7 @@ package org.apache.beam.sdk.util;
 import com.google.common.base.Strings;
 import java.util.Arrays;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
  * An exception that was thrown in user-code. Sets the stack trace
@@ -33,15 +34,15 @@ public class UserCodeException extends RuntimeException {
     return wrap("", t);
   }
 
-  public static UserCodeException wrap(String step, Throwable t) {
+  public static UserCodeException wrap(@Nullable String stepName, Throwable t) {
     if (t instanceof UserCodeException) {
       UserCodeException underlying = (UserCodeException) t;
-      if (Strings.isNullOrEmpty(step)) {
+      if (stepName == null) {
         return underlying;
       }
-      return new UserCodeException(step, underlying.getCause());
+      return new UserCodeException(stepName, underlying.getCause());
     }
-    return new UserCodeException(step, t);
+    return new UserCodeException(stepName, t);
   }
 
   public static RuntimeException wrapIf(boolean condition, Throwable t) {

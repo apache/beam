@@ -22,25 +22,22 @@ import static org.hamcrest.Matchers.equalTo;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
+import org.hamcrest.TypeSafeMatcher;
 
-class ThrowableMessageMatcher extends BaseMatcher<Throwable> {
+class ThrowableMessageMatcher extends TypeSafeMatcher<Throwable> {
   private final Matcher<String> messageMatcher;
 
-  public ThrowableMessageMatcher(String message) {
+  ThrowableMessageMatcher(String message) {
     this.messageMatcher = equalTo(message);
-  }
-
-  @Override
-  public boolean matches(Object item) {
-    if (!(item instanceof Throwable)) {
-      return false;
-    }
-    Throwable that = (Throwable) item;
-    return messageMatcher.matches(that.getMessage());
   }
 
   @Override
   public void describeTo(Description description) {
     description.appendText("a throwable with a message ").appendDescriptionOf(messageMatcher);
+  }
+
+  @Override
+  protected boolean matchesSafely(Throwable item) {
+    return messageMatcher.matches(item.getMessage());
   }
 }
