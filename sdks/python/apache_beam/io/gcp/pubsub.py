@@ -28,22 +28,6 @@ Description of common arguments used in this module:
     form "projects/<project>/subscriptions/<subscription>". If not specified,
     a temporary subscription will be created from the specified topic. If
     provided, topic must be None.
-  id_label: The attribute on incoming Pub/Sub messages to use as a unique
-    record identifier. When specified, the value of this attribute (which
-    can be any string that uniquely identifies the record) will be used for
-    deduplication of messages. If not provided, we cannot guarantee
-    that no duplicate data will be delivered on the Pub/Sub stream. In this
-    case, deduplication of the stream will be strictly best effort.
-  timestamp_attribute: Message value to use as element timestamp. If None,
-    uses message publishing time as the timestamp.
-
-    Timestamp values should be in one of two formats:
-    - A numerical value representing the number of milliseconds since the Unix
-      epoch.
-    - A string in RFC 3339 format. For example,
-      {@code 2015-10-29T23:41:41.123Z}. The sub-second component of the
-      timestamp is optional, and digits beyond the first three (i.e., time units
-      smaller than milliseconds) will be ignored.
 """
 
 from __future__ import absolute_import
@@ -58,8 +42,6 @@ from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
-from apache_beam.transforms import core
-from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 
 try:
@@ -68,27 +50,24 @@ except ImportError:
   pubsub_pb2 = None
 
 
-__all__ = ['PubsubMessage', 'ReadMessagesFromPubSub', 'ReadPayloadsFromPubSub',
-           'ReadStringsFromPubSub', 'WriteStringsToPubSub']
+__all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
+           'WriteStringsToPubSub']
 
 
 class PubsubMessage(object):
   """Represents a message from Cloud Pub/Sub.
 
   This interface is experimental. No backwards compatibility guarantees.
+
+  Attributes:
+    payload: (str) Message payload, as a byte string.
+    attributes: (dict) Map of string to string.
   """
 
   def __init__(self, payload, attributes):
     """Constructs a message.
 
-    This interface is experimental. No backwards compatibility guarantees.
-
-    See also:
-      https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
-
-    Attributes:
-      payload: (str) Message payload, as a byte string.
-      attributes: (dict) Map of string to string.
+    Beam users should not directly construct ``PubsubMessages``.
     """
     self.payload = payload
     self.attributes = attributes
@@ -124,95 +103,41 @@ class PubsubMessage(object):
     return PubsubMessage(msg.data, attributes)
 
 
-class ReadMessagesFromPubSub(PTransform):
-  """A ``PTransform`` for reading from Cloud Pub/Sub.
-
-  This interface is experimental. No backwards compatibility guarantees.
-
-  Outputs elements of type :class:`~PubsubMessage`.
-  """
+class ReadFromPubSub(PTransform):
+  """A ``PTransform`` for reading from Cloud Pub/Sub."""
+  # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
   def __init__(self, topic=None, subscription=None, id_label=None,
-               timestamp_attribute=None):
-    """Initializes ``ReadMessagesFromPubSub``.
+               with_attributes=False, timestamp_attribute=None):
+    """Initializes ``ReadFromPubSub``.
 
     Args:
+      id_label: The attribute on incoming Pub/Sub messages to use as a unique
+        record identifier. When specified, the value of this attribute (which
+        can be any string that uniquely identifies the record) will be used for
+        deduplication of messages. If not provided, we cannot guarantee
+        that no duplicate data will be delivered on the Pub/Sub stream. In this
+        case, deduplication of the stream will be strictly best effort.
+      with_attributes:
+        True - output elements will be :class:`~PubsubMessage` objects.
+        False - output elements will be of type ``str`` (message payload only).
+      timestamp_attribute: Message value to use as element timestamp. If None,
+        uses message publishing time as the timestamp.
+        Note that this argument doesn't require with_attributes=True.
+
+        Timestamp values should be in one of two formats:
+
+        - A numerical value representing the number of milliseconds since the
+          Unix epoch.
+        - A string in RFC 3339 format, UTC timezone. Example:
+          ``2015-10-29T23:41:41.123Z``. The sub-second component of the
+          timestamp is optional, and digits beyond the first three (i.e., time
+          units smaller than milliseconds) may be ignored.
     """
-    super(ReadMessagesFromPubSub, self).__init__()
-    self.topic = topic
-    self.subscription = subscription
-    self.id_label = id_label
-    self.timestamp_attribute = timestamp_attribute
-
-  def get_windowing(self, unused_inputs):
-    return core.Windowing(window.GlobalWindows())
-
-  def expand(self, pcoll):
-    p = (pcoll.pipeline
-         | _ReadFromPubSub(self.topic, self.subscription, self.id_label,
-                           with_attributes=True,
-                           timestamp_attribute=self.timestamp_attribute))
-    return p
-
-
-class ReadPayloadsFromPubSub(PTransform):
-  """A ``PTransform`` for reading raw payloads from Cloud Pub/Sub.
-
-  Outputs elements of type ``str``.
-  """
-
-  def __init__(self, topic=None, subscription=None, id_label=None,
-               timestamp_attribute=None):
-    super(ReadPayloadsFromPubSub, self).__init__()
-    self.topic = topic
-    self.subscription = subscription
-    self.id_label = id_label
-    self.timestamp_attribute = timestamp_attribute
-
-  def get_windowing(self, unused_inputs):
-    return core.Windowing(window.GlobalWindows())
-
-  def expand(self, pcoll):
-    p = (pcoll.pipeline
-         | _ReadFromPubSub(self.topic, self.subscription, self.id_label,
-                           with_attributes=False,
-                           timestamp_attribute=self.timestamp_attribute))
-    return p
-
-
-class ReadStringsFromPubSub(ReadPayloadsFromPubSub):
-  """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub.
-
-  Outputs elements of type ``unicode``, decoded from UTF-8.
-
-  This class is deprecated.
-  """
-
-  def expand(self, pcoll):
-    p = (super(ReadStringsFromPubSub, self).expand(pcoll)
-         | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
-    p.element_type = text_type
-    return p
-
-
-class _ReadFromPubSub(PTransform):
-  """A ``PTransform`` for reading from Cloud Pub/Sub.
-
-  This ``PTransform`` is overridden by Directrunner.
-  """
-
-  def __init__(self, topic, subscription, id_label, with_attributes,
-               timestamp_attribute):
-    """Initializes ``_ReadFromPubSub``.
-
-    Args:
-      with_attributes: False - output elements will be raw payload bytes.
-        True - output will be :class:`~PubsubMessage` objects.
-    """
-    super(_ReadFromPubSub, self).__init__()
+    super(ReadFromPubSub, self).__init__()
     self.with_attributes = with_attributes
     self._source = _PubSubSource(
-        topic,
+        topic=topic,
         subscription=subscription,
         id_label=id_label,
         with_attributes=with_attributes,
@@ -226,6 +151,29 @@ class _ReadFromPubSub(PTransform):
     else:
       pcoll.element_type = bytes
     return pcoll
+
+
+class ReadStringsFromPubSub(PTransform):
+  """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub.
+
+  Outputs elements of type ``unicode``, decoded from UTF-8.
+
+  This class is deprecated.
+  """
+
+  def __init__(self, topic=None, subscription=None, id_label=None):
+    super(ReadStringsFromPubSub, self).__init__()
+    self.topic = topic
+    self.subscription = subscription
+    self.id_label = id_label
+
+  def expand(self, pvalue):
+    p = (pvalue.pipeline
+         | ReadFromPubSub(self.topic, self.subscription, self.id_label,
+                          with_attributes=False)
+         | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
+    p.element_type = text_type
+    return p
 
 
 class WriteStringsToPubSub(PTransform):

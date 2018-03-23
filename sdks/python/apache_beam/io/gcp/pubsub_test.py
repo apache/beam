@@ -27,22 +27,20 @@ import mock
 
 import apache_beam as beam
 from apache_beam.io.gcp.pubsub import PubsubMessage
-from apache_beam.io.gcp.pubsub import ReadMessagesFromPubSub
-from apache_beam.io.gcp.pubsub import ReadPayloadsFromPubSub
+from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
 from apache_beam.io.gcp.pubsub import WriteStringsToPubSub
 from apache_beam.io.gcp.pubsub import _PubSubPayloadSink
 from apache_beam.io.gcp.pubsub import _PubSubSource
-from apache_beam.io.gcp.pubsub import _ReadFromPubSub
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners.direct import transform_evaluator
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
 from apache_beam.runners.direct.direct_runner import _get_transform_overrides
 from apache_beam.runners.direct.transform_evaluator import _PubSubReadEvaluator
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.testing.util import TestWindowedValue
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
@@ -64,9 +62,9 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
-             | _ReadFromPubSub('projects/fakeprj/topics/a_topic',
-                               None, 'a_label', with_attributes=False,
-                               timestamp_attribute=None)
+             | ReadFromPubSub('projects/fakeprj/topics/a_topic',
+                              None, 'a_label', with_attributes=False,
+                              timestamp_attribute=None)
              | beam.Map(lambda x: x))
     self.assertEqual(str, pcoll.element_type)
 
@@ -74,7 +72,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     overrides = _get_transform_overrides(p.options)
     p.replace_all(overrides)
 
-    # Note that the direct output of ReadMessagesFromPubSub will be replaced
+    # Note that the direct output of ReadFromPubSub will be replaced
     # by a PTransformOverride, so we use a no-op Map.
     read_transform = pcoll.producer.inputs[0].producer.transform
 
@@ -87,7 +85,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
-             | _ReadFromPubSub(
+             | ReadFromPubSub(
                  None, 'projects/fakeprj/subscriptions/a_subscription',
                  'a_label', with_attributes=False, timestamp_attribute=None)
              | beam.Map(lambda x: x))
@@ -97,7 +95,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     overrides = _get_transform_overrides(p.options)
     p.replace_all(overrides)
 
-    # Note that the direct output of ReadMessagesFromPubSub will be replaced
+    # Note that the direct output of ReadFromPubSub will be replaced
     # by a PTransformOverride, so we use a no-op Map.
     read_transform = pcoll.producer.inputs[0].producer.transform
 
@@ -109,22 +107,22 @@ class TestReadFromPubSubOverride(unittest.TestCase):
   def test_expand_with_no_topic_or_subscription(self):
     with self.assertRaisesRegexp(
         ValueError, "Either a topic or subscription must be provided."):
-      _ReadFromPubSub(None, None, 'a_label', with_attributes=False,
-                      timestamp_attribute=None)
+      ReadFromPubSub(None, None, 'a_label', with_attributes=False,
+                     timestamp_attribute=None)
 
   def test_expand_with_both_topic_and_subscription(self):
     with self.assertRaisesRegexp(
         ValueError, "Only one of topic or subscription should be provided."):
-      _ReadFromPubSub('a_topic', 'a_subscription', 'a_label',
-                      with_attributes=False, timestamp_attribute=None)
+      ReadFromPubSub('a_topic', 'a_subscription', 'a_label',
+                     with_attributes=False, timestamp_attribute=None)
 
   def test_expand_with_other_options(self):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
-             | _ReadFromPubSub('projects/fakeprj/topics/a_topic',
-                               None, 'a_label', with_attributes=True,
-                               timestamp_attribute='time')
+             | ReadFromPubSub('projects/fakeprj/topics/a_topic',
+                              None, 'a_label', with_attributes=True,
+                              timestamp_attribute='time')
              | beam.Map(lambda x: x))
     self.assertEqual(PubsubMessage, pcoll.element_type)
 
@@ -132,7 +130,7 @@ class TestReadFromPubSubOverride(unittest.TestCase):
     overrides = _get_transform_overrides(p.options)
     p.replace_all(overrides)
 
-    # Note that the direct output of ReadMessagesFromPubSub will be replaced
+    # Note that the direct output of ReadFromPubSub will be replaced
     # by a PTransformOverride, so we use a no-op Map.
     read_transform = pcoll.producer.inputs[0].producer.transform
 
@@ -311,8 +309,8 @@ class TestReadFromPubSub(unittest.TestCase):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
-             | ReadMessagesFromPubSub('projects/fakeprj/topics/a_topic',
-                                      None, 'a_label'))
+             | ReadFromPubSub('projects/fakeprj/topics/a_topic',
+                              None, 'a_label', with_attributes=True))
     assert_that(pcoll, equal_to(expected_data), reify_windows=True)
     p.run()
 
@@ -350,8 +348,8 @@ class TestReadFromPubSub(unittest.TestCase):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
-             | ReadPayloadsFromPubSub('projects/fakeprj/topics/a_topic',
-                                      None, 'a_label'))
+             | ReadFromPubSub('projects/fakeprj/topics/a_topic',
+                              None, 'a_label'))
     assert_that(pcoll, equal_to(expected_data))
     p.run()
 
@@ -364,10 +362,10 @@ class TestReadFromPubSub(unittest.TestCase):
     data = [create_client_message(
         payload, message_id, attributes, publish_time)]
     expected_data = [
-      TestWindowedValue(
-          PubsubMessage(payload, attributes),
-          timestamp.Timestamp(micros=int(attributes['time']) * 1000),
-          [window.GlobalWindow()]),
+        TestWindowedValue(
+            PubsubMessage(payload, attributes),
+            timestamp.Timestamp(micros=int(attributes['time']) * 1000),
+            [window.GlobalWindow()]),
     ]
 
     mock_pubsub.Client = functools.partial(FakePubsubClient, data)
@@ -376,9 +374,9 @@ class TestReadFromPubSub(unittest.TestCase):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
-             | ReadMessagesFromPubSub(
-                'projects/fakeprj/topics/a_topic',
-                None, 'a_label', timestamp_attribute='time'))
+             | ReadFromPubSub(
+                 'projects/fakeprj/topics/a_topic', None, 'a_label',
+                 with_attributes=True, timestamp_attribute='time'))
     assert_that(pcoll, equal_to(expected_data), reify_windows=True)
     p.run()
 
@@ -391,10 +389,10 @@ class TestReadFromPubSub(unittest.TestCase):
     data = [create_client_message(
         payload, message_id, attributes, publish_time)]
     expected_data = [
-      TestWindowedValue(
-          PubsubMessage(payload, attributes),
-          timestamp.Timestamp.from_rfc3339(attributes['time']),
-          [window.GlobalWindow()]),
+        TestWindowedValue(
+            PubsubMessage(payload, attributes),
+            timestamp.Timestamp.from_rfc3339(attributes['time']),
+            [window.GlobalWindow()]),
     ]
 
     mock_pubsub.Client = functools.partial(FakePubsubClient, data)
@@ -403,9 +401,9 @@ class TestReadFromPubSub(unittest.TestCase):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     pcoll = (p
-             | ReadMessagesFromPubSub(
-                'projects/fakeprj/topics/a_topic',
-                None, 'a_label', timestamp_attribute='time'))
+             | ReadFromPubSub(
+                 'projects/fakeprj/topics/a_topic', None, 'a_label',
+                 with_attributes=True, timestamp_attribute='time'))
     assert_that(pcoll, equal_to(expected_data), reify_windows=True)
     p.run()
 
@@ -424,9 +422,9 @@ class TestReadFromPubSub(unittest.TestCase):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     _ = (p
-         | ReadMessagesFromPubSub(
-            'projects/fakeprj/topics/a_topic',
-            None, 'a_label', timestamp_attribute='nonexistent'))
+         | ReadFromPubSub(
+             'projects/fakeprj/topics/a_topic', None, 'a_label',
+             with_attributes=True, timestamp_attribute='nonexistent'))
     with self.assertRaisesRegexp(KeyError, r'Timestamp.*nonexistent'):
       p.run()
 
@@ -445,9 +443,9 @@ class TestReadFromPubSub(unittest.TestCase):
     p = TestPipeline()
     p.options.view_as(StandardOptions).streaming = True
     _ = (p
-         | ReadMessagesFromPubSub(
-            'projects/fakeprj/topics/a_topic',
-            None, 'a_label', timestamp_attribute='time'))
+         | ReadFromPubSub(
+             'projects/fakeprj/topics/a_topic', None, 'a_label',
+             with_attributes=True, timestamp_attribute='time'))
     with self.assertRaisesRegexp(ValueError, r'parse'):
       p.run()
 

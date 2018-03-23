@@ -24,8 +24,9 @@ from __future__ import absolute_import
 from __future__ import division
 
 import datetime
-import pytz
 import re
+
+import pytz
 
 
 class Timestamp(object):
@@ -42,10 +43,10 @@ class Timestamp(object):
   def __init__(self, seconds=0, micros=0):
     if not isinstance(seconds, (int, float, long)):
       raise TypeError('Cannot interpret %s %s as seconds.' % (
-        seconds, type(seconds)))
+          seconds, type(seconds)))
     if not isinstance(micros, (int, float, long)):
       raise TypeError('Cannot interpret %s %s as micros.' % (
-        micros, type(micros)))
+          micros, type(micros)))
     self.micros = int(seconds * 1000000) + int(micros)
 
   @staticmethod
@@ -63,7 +64,7 @@ class Timestamp(object):
 
     if not isinstance(seconds, (int, float, Timestamp)):
       raise TypeError('Cannot interpret %s %s as Timestamp.' % (
-        seconds, type(seconds)))
+          seconds, type(seconds)))
     if isinstance(seconds, Timestamp):
       return seconds
     return Timestamp(seconds)
