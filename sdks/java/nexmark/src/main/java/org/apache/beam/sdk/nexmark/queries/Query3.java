@@ -110,9 +110,9 @@ public class Query3 extends NexmarkQuery {
                 name + ".InState",
                 Filter.by(
                     person ->
-                        person.state.equals("OR")
-                            || person.state.equals("ID")
-                            || person.state.equals("CA")))
+                        "OR".equals(person.state)
+                            || "ID".equals(person.state)
+                            || "CA".equals(person.state)))
 
             // Key people by their id.
             .apply("PersonById", PERSON_BY_ID);

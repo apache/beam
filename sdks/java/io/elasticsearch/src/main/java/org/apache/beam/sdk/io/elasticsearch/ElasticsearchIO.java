@@ -397,7 +397,7 @@ public class ElasticsearchIO {
      */
     public Read withScrollKeepalive(String scrollKeepalive) {
       checkArgument(scrollKeepalive != null, "scrollKeepalive can not be null");
-      checkArgument(!scrollKeepalive.equals("0m"), "scrollKeepalive can not be 0m");
+      checkArgument(!"0m".equals(scrollKeepalive), "scrollKeepalive can not be 0m");
       return builder().setScrollKeepalive(scrollKeepalive).build();
     }
 
