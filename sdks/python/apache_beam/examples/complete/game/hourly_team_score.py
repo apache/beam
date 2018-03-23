@@ -175,22 +175,14 @@ class WriteToBigQuery(beam.PTransform):
     return ', '.join(
         '%s:%s' % (col, self.schema[col]) for col in self.schema)
 
-  def get_table(self, pipeline):
-    """Utility to construct an output table reference."""
-    project = pipeline.options.view_as(GoogleCloudOptions).project
-    return '%s:%s.%s' % (project, self.dataset, self.table_name)
-
   def expand(self, pcoll):
-    table = self.get_table(pcoll.pipeline)
+    project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
     return (
         pcoll
         | 'ConvertToRow' >> beam.Map(
             lambda elem: {col: elem[col] for col in self.schema})
-        | beam.io.Write(beam.io.BigQuerySink(
-            table,
-            schema=self.get_schema(),
-            create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
+        | beam.io.WriteToBigQuery(
+            self.table_name, self.dataset, project, self.get_schema()))
 
 
 # [START main]
