@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.Row;
  */
 @Experimental
 @AutoValue
-public abstract class Schema implements Serializable{
+public abstract class Schema implements Serializable {
   // A mapping between field names an indices.
   private BiMap<String, Integer> fieldIndices = HashBiMap.create();
   abstract public List<Field> getFields();
@@ -103,7 +103,7 @@ public abstract class Schema implements Serializable{
    * allowed.
    */
   @AutoValue
-  public abstract static class FieldTypeDescriptor {
+  public abstract static class FieldTypeDescriptor implements Serializable {
     // Returns the type of this field.
     public abstract FieldType getType();
     // For container types (e.g. ARRAY), returns the type of the contained element.
@@ -131,7 +131,9 @@ public abstract class Schema implements Serializable{
      * For container types, adds the type of the component element.
      */
     public FieldTypeDescriptor withComponentType(@Nullable FieldTypeDescriptor componentType) {
-      checkArgument(getType().isContainerType());
+      if (componentType != null) {
+        checkArgument(getType().isContainerType());
+      }
       return toBuilder().setComponentType(componentType).build();
     }
 
@@ -139,7 +141,9 @@ public abstract class Schema implements Serializable{
      * For ROW types, sets the schema of the row.
      */
     public FieldTypeDescriptor withRowSchema(@Nullable Schema rowSchema) {
-      checkArgument(getType().isCompositeType());
+      if (rowSchema != null) {
+        checkArgument(getType().isCompositeType());
+      }
       return toBuilder().setRowSchema(rowSchema).build();
     }
   }
@@ -150,7 +154,7 @@ public abstract class Schema implements Serializable{
    *
    */
   @AutoValue
-  public abstract static class Field {
+  public abstract static class Field implements Serializable {
     /**
      * Returns the field name.
      */
