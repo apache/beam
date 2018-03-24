@@ -1238,7 +1238,8 @@ class CombinePerKey(PTransformWithSideInputs):
         _combine_payload(combine_fn, context))
 
   @PTransform.register_urn(
-      common_urns.composites.COMBINE_PER_KEY.urn, beam_runner_api_pb2.CombinePayload)
+      common_urns.composites.COMBINE_PER_KEY.urn,
+      beam_runner_api_pb2.CombinePayload)
   def from_runner_api_parameter(combine_payload, context):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))

@@ -22,7 +22,6 @@ import contextlib
 import copy
 import logging
 import Queue as queue
-import re
 import threading
 import time
 from concurrent import futures
@@ -435,7 +434,8 @@ class FnApiRunner(runner.PipelineRunner):
               beam_runner_api_pb2.PTransform(
                   unique_name=transform.unique_name + '/Merge',
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.combine_components.COMBINE_MERGE_ACCUMULATORS.urn,
+                      urn=common_urns.combine_components
+                      .COMBINE_MERGE_ACCUMULATORS.urn,
                       payload=transform.spec.payload),
                   inputs={'in': grouped_pcoll_id},
                   outputs={'out': merged_pcoll_id}))
@@ -445,7 +445,8 @@ class FnApiRunner(runner.PipelineRunner):
               beam_runner_api_pb2.PTransform(
                   unique_name=transform.unique_name + '/ExtractOutputs',
                   spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.combine_components.COMBINE_EXTRACT_OUTPUTS.urn,
+                      urn=common_urns.combine_components
+                      .COMBINE_EXTRACT_OUTPUTS.urn,
                       payload=transform.spec.payload),
                   inputs={'in': merged_pcoll_id},
                   outputs=transform.outputs))
