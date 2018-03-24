@@ -255,9 +255,11 @@ public class TestUtils {
   }
 
   // TODO: support nested.
+  // TODO: support nullable.
   private static Schema.Field toRecordField(Object[] args, int i) {
     return Schema.Field.of((String) args[i + 1],
-        FieldTypeDescriptor.of((FieldType) args[i]));
+        FieldTypeDescriptor.of((FieldType) args[i]))
+        .withNullable(true);
   }
 
   /**

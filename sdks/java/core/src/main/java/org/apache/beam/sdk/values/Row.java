@@ -397,6 +397,8 @@ public abstract class Row implements Serializable {
         if (value == null && !field.getNullable()) {
           throw new IllegalArgumentException(
               String.format("Field %s is not nullable", field.getName()));
+        } else if (value == null) {
+          continue;
         }
 
         FieldTypeDescriptor typeDescriptor = field.getTypeDescriptor();

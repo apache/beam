@@ -139,9 +139,9 @@ public class CalciteUtils {
 
   public static Schema.Field toBeamSchemaField(RelDataTypeField calciteField) {
     Schema.FieldTypeDescriptor fieldTypeDescriptor = toFieldTypeDescriptor(calciteField.getType());
-    boolean isNullable = calciteField.getType().isNullable();
+    // TODO: We should support Calcite's nullable annotations.
     return Schema.Field.of(calciteField.getName(), fieldTypeDescriptor)
-        .withNullable(isNullable);
+        .withNullable(true);
   }
 
   /**
