@@ -76,7 +76,7 @@ public class ModelAdaptersMapping {
       @Override
       public Person getRowModel(Row row) {
         return new Person(
-           row.getLong("id"),
+           row.getInt64("id"),
            row.getString("name"),
            row.getString("emailAddress"),
            row.getString("creditCard"),
@@ -110,9 +110,9 @@ public class ModelAdaptersMapping {
       @Override
       public Bid getRowModel(Row row) {
         return new Bid(
-            row.getLong("auction"),
-            row.getLong("bidder"),
-            row.getLong("price"),
+            row.getInt64("auction"),
+            row.getInt64("bidder"),
+            row.getInt64("price"),
             row.getDate("dateTime").getTime(),
             row.getString("extra"));
       }
@@ -151,15 +151,15 @@ public class ModelAdaptersMapping {
       @Override
       public Auction getRowModel(Row row) {
         return new Auction(
-            row.getLong("id"),
+            row.getInt64("id"),
             row.getString("itemName"),
             row.getString("description"),
-            row.getLong("initialBid"),
-            row.getLong("reserve"),
+            row.getInt64("initialBid"),
+            row.getInt64("reserve"),
             row.getDate("dateTime").getTime(),
             row.getDate("expires").getTime(),
-            row.getLong("seller"),
-            row.getLong("category"),
+            row.getInt64("seller"),
+            row.getInt64("category"),
             row.getString("extra"));
       }
     };
@@ -181,8 +181,8 @@ public class ModelAdaptersMapping {
       @Override
       public AuctionCount getRowModel(Row row) {
         return new AuctionCount(
-            row.getLong("auction"),
-            row.getLong("num"));
+            row.getInt64("auction"),
+            row.getInt64("num"));
       }
     };
   }
@@ -203,8 +203,8 @@ public class ModelAdaptersMapping {
       @Override
       public AuctionPrice getRowModel(Row row) {
         return new AuctionPrice(
-            row.getLong("auction"),
-            row.getLong("price"));
+            row.getInt64("auction"),
+            row.getInt64("price"));
       }
     };
   }
@@ -232,7 +232,7 @@ public class ModelAdaptersMapping {
             row.getString("name"),
             row.getString("city"),
             row.getString("state"),
-            row.getLong("id"));
+            row.getInt64("id"));
       }
     };
   }

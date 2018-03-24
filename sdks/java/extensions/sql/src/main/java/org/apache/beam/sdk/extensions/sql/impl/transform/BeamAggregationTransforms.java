@@ -149,7 +149,7 @@ public class BeamAggregationTransforms implements Serializable{
 
     @Override
     public Instant apply(Row input) {
-      return new Instant(input.getDate(windowFieldIdx).getTime());
+      return new Instant(input.getDateTime(windowFieldIdx));
     }
   }
 
@@ -179,20 +179,25 @@ public class BeamAggregationTransforms implements Serializable{
           int refIndexKey = call.getArgList().get(0);
           int refIndexValue = call.getArgList().get(1);
 
+          FieldTypeDescriptor keyDescriptor =
+              sourceSchema.getField(refIndexKey).getTypeDescriptor();
           BeamSqlInputRefExpression sourceExpKey = new BeamSqlInputRefExpression(
-              CalciteUtils.toSqlTypeName(
-                  sourceSchema.getField(refIndexKey).getTypeDescriptor().getType()), refIndexKey);
+              CalciteUtils.toSqlTypeName(keyDescriptor.getType(), keyDescriptor.getMetadata()),
+              refIndexKey);
+
+          FieldTypeDescriptor valueDescriptor =
+              sourceSchema.getField(refIndexValue).getTypeDescriptor();
           BeamSqlInputRefExpression sourceExpValue = new BeamSqlInputRefExpression(
-              CalciteUtils.toSqlTypeName(
-                  sourceSchema.getField(refIndexValue).getTypeDescriptor().getType()),
+              CalciteUtils.toSqlTypeName(valueDescriptor.getType(), valueDescriptor.getMetadata()),
                   refIndexValue);
 
           sourceFieldExps.add(KV.of(sourceExpKey, sourceExpValue));
         } else {
           int refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
+          FieldTypeDescriptor typeDescriptor = sourceSchema.getField(refIndex).getTypeDescriptor();
           BeamSqlInputRefExpression sourceExp = new BeamSqlInputRefExpression(
-              CalciteUtils.toSqlTypeName(
-                  sourceSchema.getField(refIndex).getTypeDescriptor().getType()), refIndex);
+              CalciteUtils.toSqlTypeName(typeDescriptor.getType(), typeDescriptor.getMetadata()),
+              refIndex);
           sourceFieldExps.add(sourceExp);
         }
 

@@ -219,7 +219,7 @@ public class TestUtils {
 
       for (Row row : rows) {
         if (timestampField != null) {
-          values = values.advanceWatermarkTo(new Instant(row.getDate(timestampField)));
+          values = values.advanceWatermarkTo(new Instant(row.getDateTime(timestampField)));
         }
 
         values = values.addElements(row);

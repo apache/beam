@@ -58,7 +58,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       .put(Double.class, FieldType.DOUBLE)
       .put(BigDecimal.class, FieldType.DECIMAL)
       .put(String.class, FieldType.STRING)
-      .put(Date.class, FieldType.DATE)
+      .put(Date.class, FieldType.DATETIME)
       .put(Boolean.class, FieldType.BOOLEAN)
       .build();
 

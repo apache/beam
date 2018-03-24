@@ -53,6 +53,7 @@ public class BeamSqlDotExpression extends BeamSqlExpression {
 
   private SqlTypeName getFieldType(Row row, String fieldName) {
     Schema.Field field = row.getSchema().getField(fieldName);
-    return CalciteUtils.toSqlTypeName(field.getTypeDescriptor().getType());
+    return CalciteUtils.toSqlTypeName(field.getTypeDescriptor().getType(),
+        field.getTypeDescriptor().getMetadata());
   }
 }

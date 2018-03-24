@@ -220,7 +220,7 @@ public class BeamSortRelTest extends BaseRelTest {
     String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
         + " order_id, site_id, price "
         + "FROM ORDER_DETAILS "
-        + "ORDER BY order_id asc, site_id desc limit 11";
+        + "ORDER BY or`der_id asc, site_id desc limit 11";
 
     PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(

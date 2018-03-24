@@ -94,7 +94,7 @@ public class BeamValuesRelTest extends BaseRelTest {
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
             FieldType.INT32, "EXPR$0",
-            FieldType.CHAR, "EXPR$1"
+            FieldType.STRING, "EXPR$1"
         ).addRows(
             1, "1"
         ).getRows()

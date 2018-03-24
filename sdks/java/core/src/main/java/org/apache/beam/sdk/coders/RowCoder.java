@@ -41,59 +41,6 @@ import org.apache.beam.sdk.values.Row;
 @Experimental
 public class RowCoder extends CustomCoder<Row> {
   /**
-   * {@link Coder} for Java type {@link GregorianCalendar}, it's stored as {@link Long}.
-   */
-  private static class TimeCoder extends AtomicCoder<GregorianCalendar> {
-    private static final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
-    private static final TimeCoder INSTANCE = new TimeCoder();
-
-    public static TimeCoder of() {
-      return INSTANCE;
-    }
-
-    private TimeCoder() {
-    }
-
-    @Override
-    public void encode(GregorianCalendar value, OutputStream outStream)
-        throws CoderException, IOException {
-      longCoder.encode(value.getTime().getTime(), outStream);
-    }
-
-    @Override
-    public GregorianCalendar decode(InputStream inStream) throws CoderException, IOException {
-      GregorianCalendar calendar = new GregorianCalendar();
-      calendar.setTime(new Date(longCoder.decode(inStream)));
-      return calendar;
-    }
-  }
-
-  /**
-   * {@link Coder} for Java type {@link Date}, it's stored as {@link Long}.
-   */
-  private static class DateCoder extends AtomicCoder<Date> {
-    private static final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
-    private static final DateCoder INSTANCE = new DateCoder();
-
-    public static DateCoder of() {
-      return INSTANCE;
-    }
-
-    private DateCoder() {
-    }
-
-    @Override
-    public void encode(Date value, OutputStream outStream) throws CoderException, IOException {
-      longCoder.encode(value.getTime(), outStream);
-    }
-
-    @Override
-    public Date decode(InputStream inStream) throws CoderException, IOException {
-      return new Date(longCoder.decode(inStream));
-    }
-  }
-
-  /**
    * {@link Coder} for Java type {@link Boolean}.
    */
   public static class BooleanCoder extends AtomicCoder<Boolean> {
@@ -107,12 +54,12 @@ public class RowCoder extends CustomCoder<Row> {
     }
 
     @Override
-    public void encode(Boolean value, OutputStream outStream) throws CoderException, IOException {
+    public void encode(Boolean value, OutputStream outStream) throws IOException {
       new DataOutputStream(outStream).writeBoolean(value);
     }
 
     @Override
-    public Boolean decode(InputStream inStream) throws CoderException, IOException {
+    public Boolean decode(InputStream inStream) throws IOException {
       return new DataInputStream(inStream).readBoolean();
     }
   }
@@ -124,10 +71,8 @@ public class RowCoder extends CustomCoder<Row> {
       .put(FieldType.INT64, BigEndianLongCoder.of())
       .put(FieldType.FLOAT, DoubleCoder.of())
       .put(FieldType.DOUBLE, DoubleCoder.of())
-      .put(FieldType.CHAR, StringUtf8Coder.of())
       .put(FieldType.STRING, StringUtf8Coder.of())
-      .put(FieldType.DATE, DateCoder.of())
-      .put(FieldType.DATETIME, TimeCoder.of())
+      .put(FieldType.DATETIME, InstantCoder.of())
       .put(FieldType.BOOLEAN, BooleanCoder.of())
       .build();
   private static final BitSetCoder nullListCoder = BitSetCoder.of();
