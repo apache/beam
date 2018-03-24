@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.beam.sdk.coders;
 
 import java.io.DataInputStream;
@@ -27,34 +28,34 @@ import java.io.UTFDataFormatException;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
- * A {@link BigEndianIntegerCoder} encodes {@link Integer Integers} in 4 bytes, big-endian.
+ * A {@link BigEndianShortCoder} encodes {@link Short Shorts} in 4 bytes, big-endian.
  */
-public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
+public class BigEndianShortCoder extends AtomicCoder<Short> {
 
-  public static BigEndianIntegerCoder of() {
+  public static BigEndianShortCoder of() {
     return INSTANCE;
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private static final BigEndianIntegerCoder INSTANCE = new BigEndianIntegerCoder();
-  private static final TypeDescriptor<Integer> TYPE_DESCRIPTOR = new TypeDescriptor<Integer>() {};
+  private static final BigEndianShortCoder INSTANCE = new BigEndianShortCoder();
+  private static final TypeDescriptor<Short> TYPE_DESCRIPTOR = new TypeDescriptor<Short>() {};
 
-  private BigEndianIntegerCoder() {}
+  private BigEndianShortCoder() {}
 
   @Override
-  public void encode(Integer value, OutputStream outStream) throws IOException {
+  public void encode(Short value, OutputStream outStream) throws IOException {
     if (value == null) {
-      throw new CoderException("cannot encode a null Integer");
+      throw new CoderException("cannot encode a null Short");
     }
     new DataOutputStream(outStream).writeInt(value);
   }
 
   @Override
-  public Integer decode(InputStream inStream)
+  public Short decode(InputStream inStream)
       throws IOException, CoderException {
     try {
-      return new DataInputStream(inStream).readInt();
+      return new DataInputStream(inStream).readShort();
     } catch (EOFException | UTFDataFormatException exn) {
       // These exceptions correspond to decoding problems, so change
       // what kind of exception they're branded as.
@@ -81,26 +82,26 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
    * @return {@code true}, because {@link #getEncodedElementByteSize} runs in constant time.
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(Integer value) {
+  public boolean isRegisterByteSizeObserverCheap(Short value) {
     return true;
   }
 
   @Override
-  public TypeDescriptor<Integer> getEncodedTypeDescriptor() {
+  public TypeDescriptor<Short> getEncodedTypeDescriptor() {
     return TYPE_DESCRIPTOR;
   }
 
   /**
    * {@inheritDoc}
    *
-   * @return {@code 4}, the size in bytes of an integer's big endian encoding.
+   * @return {@code 4}, the size in bytes of an short's big endian encoding.
    */
   @Override
-  protected long getEncodedElementByteSize(Integer value)
+  protected long getEncodedElementByteSize(Short value)
       throws Exception {
     if (value == null) {
-      throw new CoderException("cannot encode a null Integer");
+      throw new CoderException("cannot encode a null Short");
     }
-    return 4;
+    return 2;
   }
 }

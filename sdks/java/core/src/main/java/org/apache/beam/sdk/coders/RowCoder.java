@@ -119,8 +119,8 @@ public class RowCoder extends CustomCoder<Row> {
 
   private static final Map<FieldType, Coder> CODER_MAP = ImmutableMap.<FieldType, Coder>builder()
       .put(FieldType.BYTE, ByteCoder.of())
-      .put(FieldType.INT16, BigEndianIntegerCoder.of())
-      .put(FieldType.INT32, BigEndianLongCoder.of())
+      .put(FieldType.INT16, BigEndianShortCoder.of())
+      .put(FieldType.INT32, BigEndianIntegerCoder.of())
       .put(FieldType.INT64, BigEndianLongCoder.of())
       .put(FieldType.FLOAT, DoubleCoder.of())
       .put(FieldType.DOUBLE, DoubleCoder.of())
