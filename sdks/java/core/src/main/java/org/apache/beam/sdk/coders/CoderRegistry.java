@@ -104,6 +104,8 @@ public class CoderRegistry {
           CoderProviders.fromStaticMethods(Byte.class, ByteCoder.class));
       builder.put(BitSet.class,
           CoderProviders.fromStaticMethods(BitSet.class, BitSetCoder.class));
+      builder.put(FloatCoder.class,
+          CoderProviders.fromStaticMethods(Float.class, Float.class));
       builder.put(Double.class,
           CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class));
       builder.put(Instant.class,
