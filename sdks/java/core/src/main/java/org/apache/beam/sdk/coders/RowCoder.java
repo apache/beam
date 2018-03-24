@@ -40,30 +40,6 @@ import org.apache.beam.sdk.values.Row;
  */
 @Experimental
 public class RowCoder extends CustomCoder<Row> {
-  /**
-   * {@link Coder} for Java type {@link Boolean}.
-   */
-  public static class BooleanCoder extends AtomicCoder<Boolean> {
-    private static final BooleanCoder INSTANCE = new BooleanCoder();
-
-    public static BooleanCoder of() {
-      return INSTANCE;
-    }
-
-    private BooleanCoder() {
-    }
-
-    @Override
-    public void encode(Boolean value, OutputStream outStream) throws IOException {
-      new DataOutputStream(outStream).writeBoolean(value);
-    }
-
-    @Override
-    public Boolean decode(InputStream inStream) throws IOException {
-      return new DataInputStream(inStream).readBoolean();
-    }
-  }
-
   private static final Map<FieldType, Coder> CODER_MAP = ImmutableMap.<FieldType, Coder>builder()
       .put(FieldType.BYTE, ByteCoder.of())
       .put(FieldType.INT16, BigEndianShortCoder.of())
