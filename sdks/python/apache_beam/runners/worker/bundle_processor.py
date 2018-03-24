@@ -543,7 +543,8 @@ def _create_simple_pardo_operation(
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.primitives.ASSIGN_WINDOWS.urn, beam_runner_api_pb2.WindowingStrategy)
+    common_urns.primitives.ASSIGN_WINDOWS.urn,
+    beam_runner_api_pb2.WindowingStrategy)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   class WindowIntoDoFn(beam.DoFn):
     def __init__(self, windowing):
@@ -576,7 +577,8 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
 
 
 @BeamTransformFactory.register_urn(
-    common_urns.combine_components.COMBINE_PGBKCV.urn, beam_runner_api_pb2.CombinePayload)
+    common_urns.combine_components.COMBINE_PGBKCV.urn,
+    beam_runner_api_pb2.CombinePayload)
 def create(factory, transform_id, transform_proto, payload, consumers):
   # TODO: Combine side inputs.
   serialized_combine_fn = pickler.dumps(
