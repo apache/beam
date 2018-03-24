@@ -74,7 +74,6 @@ public class BeamSqlRowCoderTest {
                 new Date(),
                 true)
             .build();
-
     RowCoder coder = beamSchema.getRowCoder();
     CoderProperties.coderDecodeEncodeEqual(coder, row);
   }
