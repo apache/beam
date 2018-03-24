@@ -69,7 +69,7 @@ public class RowCoder extends CustomCoder<Row> {
       .put(FieldType.INT16, BigEndianShortCoder.of())
       .put(FieldType.INT32, BigEndianIntegerCoder.of())
       .put(FieldType.INT64, BigEndianLongCoder.of())
-      .put(FieldType.FLOAT, DoubleCoder.of())
+      .put(FieldType.FLOAT, FloatCoder.of())
       .put(FieldType.DOUBLE, DoubleCoder.of())
       .put(FieldType.STRING, StringUtf8Coder.of())
       .put(FieldType.DATETIME, InstantCoder.of())

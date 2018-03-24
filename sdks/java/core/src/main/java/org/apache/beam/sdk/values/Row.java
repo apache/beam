@@ -21,21 +21,22 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.joda.time.DateTime;
 import org.joda.time.ReadableDateTime;
 
 /**
@@ -48,23 +49,6 @@ import org.joda.time.ReadableDateTime;
 @Experimental
 @AutoValue
 public abstract class Row implements Serializable {
-  private static final BiMap<FieldType, Class> FIELD_TYPE_TO_CLASS =
-      ImmutableBiMap.<FieldType, Class>builder()
-      .put(FieldType.BYTE, Byte.class)
-      .put(FieldType.INT16, Short.class)
-      .put(FieldType.INT32, Integer.class)
-      .put(FieldType.INT64, Long.class)
-      .put(FieldType.DECIMAL, BigDecimal.class)
-      .put(FieldType.FLOAT, Float.class)
-      .put(FieldType.DOUBLE, Double.class)
-      .put(FieldType.STRING, String.class)
-      .put(FieldType.DATETIME, ReadableDateTime.class)
-      .build();
-
-  public static Class getClassForPrimitiveType(FieldType fieldType) {
-    return FIELD_TYPE_TO_CLASS.get(fieldType);
-  }
-
   /**
    * Creates a {@link Row} from the list of values and {@link #getSchema()}.
    */
@@ -384,7 +368,8 @@ public abstract class Row implements Serializable {
       return this;
     }
 
-    private void verify(Schema schema, List<Object> values) {
+    private List<Object> verify(Schema schema, List<Object> values) {
+      List<Object> verifiedVaues = Lists.newArrayListWithCapacity(values.size());
       if (schema.getFieldCount() != values.size()) {
         throw new IllegalArgumentException(
             String.format(
@@ -397,32 +382,124 @@ public abstract class Row implements Serializable {
         if (value == null && !field.getNullable()) {
           throw new IllegalArgumentException(
               String.format("Field %s is not nullable", field.getName()));
-        } else if (value == null) {
-          continue;
+        } else if (value != null) {
+          FieldTypeDescriptor typeDescriptor = field.getTypeDescriptor();
+          if (FieldType.ARRAY.equals(typeDescriptor.getType())) {
+            List<Object> arrayElements = verifyArray(
+                value, typeDescriptor.getComponentType(), field.getName());
+            verifiedVaues.addAll(arrayElements);
+          } else if (FieldType.ROW.equals(typeDescriptor.getType())) {
+            verifiedVaues.add(verifyRow(value, field.getName()));
+          } else {
+            verifiedVaues.add(verifyPrimitiveType(value, typeDescriptor.getType(),
+                field.getName()));
+          }
         }
+      }
+      return verifiedVaues;
+    }
 
-        FieldTypeDescriptor typeDescriptor = field.getTypeDescriptor();
+    private List<Object> verifyArray(Object value, FieldTypeDescriptor typeDescriptor,
+                                     String fieldName) {
+      if (!(value instanceof List)) {
+        throw new IllegalArgumentException(
+            String.format("For field name %s and array type expected List class. Instead " +
+                    "class type was %s.", fieldName, value.getClass()));
+      }
+      List<Object> valueList = (List<Object>) value;
+      List<Object> verifiedList = Lists.newArrayListWithCapacity(valueList.size());
+      for (Object listValue : valueList) {
         if (FieldType.ARRAY.equals(typeDescriptor.getType())) {
-          // TODO: Verify arrays
+          verifiedList.add(verifyArray(listValue, typeDescriptor.getComponentType(),
+              fieldName + "nested"));
         } else if (FieldType.ROW.equals(typeDescriptor.getType())) {
-          if (!value.getClass().equals(Row.class)) {
-            throw new IllegalArgumentException(
-                String.format("For field name %s expected Row type. " +
-            "Instead class type was %s.", field.getName(), value.getClass()));
-          }
-          // Recursively verify the nested row.
-          Row row = (Row) value;
-          verify(typeDescriptor.getRowSchema(), row.getValues());
-        } else {
-          Class expectedClass = getClassForPrimitiveType(typeDescriptor.getType());
-          if (!value.getClass().equals(expectedClass) &&
-              !TypeDescriptor.of(value.getClass()).isSubtypeOf(TypeDescriptor.of(expectedClass))) {
-            throw new IllegalArgumentException(
-                String.format("For field name %s and type %s expected class type %s. Instead " +
-                    "class type was %s.", field.getName(), typeDescriptor.getType(), expectedClass,
-                    value.getClass()));
-          }
+          verifiedList.add(verifyRow(value, fieldName));
         }
+      }
+      return verifiedList;
+    }
+
+    private Row verifyRow(Object value, String fieldName) {
+      if (!(value instanceof Row)) {
+        throw new IllegalArgumentException(
+            String.format("For field name %s expected Row type. " +
+                "Instead class type was %s.", fieldName, value.getClass()));
+      }
+      // No need to recursively validate the nested Row, since there's no way to build the
+      // Row object without it validating
+      return (Row) value;
+    }
+
+    private Object verifyPrimitiveType(Object value, FieldType type, String fieldName) {
+      if (type.isDateType()) {
+        return verifyDateTime(value, fieldName);
+      } else {
+        Class expectedClass = null;
+        switch (type) {
+          case BYTE:
+            if (!(value instanceof Byte)) {
+              expectedClass = Byte.class;
+            }
+            break;
+          case INT16:
+            if (!(value instanceof Short)) {
+              expectedClass = Short.class;
+            }
+            break;
+          case INT32:
+            if (!(value instanceof Integer)) {
+              expectedClass = Integer.class;
+            }
+            break;
+          case INT64:
+            if (!(value instanceof Long)) {
+              expectedClass = Long.class;
+            }
+            break;
+          case DECIMAL:
+            if (!(value instanceof BigDecimal)) {
+              expectedClass = BigDecimal.class;
+            }
+            break;
+          case FLOAT:
+            if (!(value instanceof Float)) {
+              expectedClass = Float.class;
+            }
+            break;
+          case DOUBLE:
+            if (!(value instanceof Double)) {
+              expectedClass = Double.class;
+            }
+            break;
+          case STRING:
+            if (!(value instanceof String)) {
+              expectedClass = String.class;
+            }
+            break;
+        }
+        if (expectedClass != null) {
+          throw new IllegalArgumentException(
+              String.format("For field name %s and type %s expected class type %s. Instead " +
+                      "class type was %s.", fieldName, type, expectedClass, value.getClass()));
+        }
+        return value;
+      }
+    }
+
+    private ReadableDateTime verifyDateTime(Object value, String fieldName) {
+      // We support the following classes for datetimes.
+      if (value instanceof ReadableDateTime) {
+        return (ReadableDateTime) value;
+      } else if (value instanceof Date) {
+        Date date = (Date) value;
+        return new DateTime(date);
+      } else if (value instanceof Calendar) {
+        Calendar calendar = (Calendar) value;
+        return new DateTime(calendar);
+      } else {
+        throw new IllegalArgumentException(
+          String.format("For field name %s and DATETIME type got unexpected class %s " +
+                  "class type was %s.", fieldName, value.getClass()));
       }
     }
 

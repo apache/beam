@@ -54,6 +54,8 @@ public abstract class Schema implements Serializable {
     return new AutoValue_Schema.Builder().setFields(fields).build();
   }
 
+
+
   /**
    * An enumerated list of supported types.
    */
@@ -282,21 +284,29 @@ public abstract class Schema implements Serializable {
   }
 
   public Field getField(String name) {
-    return getFields().get(fieldIndices.get(name));
+    return getFields().get(indexOf(name));
   }
 
   /**
    * Find the index of a given field.
    */
   public int indexOf(String fieldName) {
-    return fieldIndices.get(fieldName);
+    Integer index = fieldIndices.get(fieldName);
+    if (index == null) {
+      throw new IllegalArgumentException(String.format("Cannot find field %s", fieldName));
+    }
+    return index;
   }
 
   /**
    * Return the name of field by index.
    */
   public String nameOf(int fieldIndex) {
-    return fieldIndices.inverse().get(fieldIndex);
+    String name = fieldIndices.inverse().get(fieldIndex);
+    if (name == null) {
+      throw new IllegalArgumentException(String.format("Cannot find field %d", fieldIndex));
+    }
+    return name;
   }
 
   /**

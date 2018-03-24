@@ -39,6 +39,8 @@ import org.apache.beam.sdk.values.Row;
 @Experimental
 public class RowHelper {
 
+  // TODO: WHy not use standard types?
+
   /**
    * {@link Coder} for Java type {@link Short}.
    */
