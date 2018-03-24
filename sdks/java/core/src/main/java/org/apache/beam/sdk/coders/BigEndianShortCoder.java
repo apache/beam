@@ -48,7 +48,7 @@ public class BigEndianShortCoder extends AtomicCoder<Short> {
     if (value == null) {
       throw new CoderException("cannot encode a null Short");
     }
-    new DataOutputStream(outStream).writeInt(value);
+    new DataOutputStream(outStream).writeShort(value);
   }
 
   @Override

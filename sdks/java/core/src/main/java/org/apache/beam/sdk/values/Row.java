@@ -37,7 +37,9 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.joda.time.DateTime;
+import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
+import org.joda.time.base.AbstractInstant;
 
 /**
  * {@link Row} is an immutable tuple-like schema to represent one element in a
@@ -263,7 +265,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public ReadableDateTime getDateTime(int idx) {
-    return getValue(idx);
+    return new DateTime((Instant) getValue(idx));
   }
 
   /**
@@ -486,16 +488,16 @@ public abstract class Row implements Serializable {
       }
     }
 
-    private ReadableDateTime verifyDateTime(Object value, String fieldName) {
+    private Instant verifyDateTime(Object value, String fieldName) {
       // We support the following classes for datetimes.
-      if (value instanceof ReadableDateTime) {
-        return (ReadableDateTime) value;
+      if (value instanceof AbstractInstant) {
+        return ((AbstractInstant) value).toInstant();
       } else if (value instanceof Date) {
         Date date = (Date) value;
-        return new DateTime(date);
+        return new DateTime(date).toInstant();
       } else if (value instanceof Calendar) {
         Calendar calendar = (Calendar) value;
-        return new DateTime(calendar);
+        return new DateTime(calendar).toInstant();
       } else {
         throw new IllegalArgumentException(
           String.format("For field name %s and DATETIME type got unexpected class %s " +
@@ -505,8 +507,7 @@ public abstract class Row implements Serializable {
 
     public Row build() {
       checkNotNull(schema);
-      verify(schema, values);
-      return new AutoValue_Row(values, schema);
+      return new AutoValue_Row(verify(schema, values), schema);
     }
   }
 }

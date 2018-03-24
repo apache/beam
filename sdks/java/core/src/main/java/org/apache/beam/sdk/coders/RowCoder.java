@@ -18,15 +18,11 @@
 package org.apache.beam.sdk.coders;
 
 import com.google.common.collect.ImmutableMap;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -78,31 +74,34 @@ public class RowCoder extends CustomCoder<Row> {
     } else if (FieldType.ROW.equals((fieldTypeDescriptor.getType()))) {
       return RowCoder.of(fieldTypeDescriptor.getRowSchema());
     } else {
-      return CODER_MAP.get(fieldTypeDescriptor.getType());
+      return coderForPrimitiveType(fieldTypeDescriptor.getType());
     }
   }
 
   @Override
   public void encode(Row value, OutputStream outStream) throws IOException {
     nullListCoder.encode(scanNullFields(value), outStream);
+
     for (int idx = 0; idx < value.getFieldCount(); ++idx) {
       if (value.getValue(idx) == null) {
         continue;
       }
-      getCoder(schema.getField(idx).getTypeDescriptor()).encode(value.getValue(idx), outStream);
+      Coder coder = getCoder(schema.getField(idx).getTypeDescriptor());
+      coder.encode(value.getValue(idx), outStream);
     }
   }
 
   @Override
   public Row decode(InputStream inStream) throws IOException {
     BitSet nullFields = nullListCoder.decode(inStream);
-
     List<Object> fieldValues = new ArrayList<>(schema.getFieldCount());
     for (int idx = 0; idx < schema.getFieldCount(); ++idx) {
       if (nullFields.get(idx)) {
         fieldValues.add(null);
       } else {
-        fieldValues.add(getCoder(schema.getField(idx).getTypeDescriptor()).decode(inStream));
+        Coder coder = getCoder(schema.getField(idx).getTypeDescriptor());
+        Object value = coder.decode(inStream);
+        fieldValues.add(value);
       }
     }
     return Row.withSchema(schema).addValues(fieldValues).build();
