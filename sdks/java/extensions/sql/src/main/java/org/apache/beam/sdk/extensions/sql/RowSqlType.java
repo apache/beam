@@ -60,7 +60,12 @@ public class RowSqlType {
               .withComponentType(componentType)
               .withRowSchema(fieldSchema)
               .withMetadata(metadata);
-      fields.add(Field.of(fieldName, fieldTypeDescriptor));
+
+      // For now, we mark all fields as Nullable. Calcite supports nullable annotations, so
+      // TODO: Support proper nullable annotations in SQL. Note that Join schemas still need to be
+      // marked nullable (for the case of outer joins).
+      fields.add(Field.of(fieldName, fieldTypeDescriptor)
+          .withNullable(true));
       return this;
     }
 
