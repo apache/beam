@@ -65,10 +65,7 @@ public abstract class Schema implements Serializable {
     DECIMAL,  // Decimal integer
     FLOAT,
     DOUBLE,
-    CHAR,
     STRING,  // String.
-    DATE,    // Date.
-    TIME,    // Time
     DATETIME, // Date and time.
     BOOLEAN,  // Boolean.
     ARRAY,
@@ -76,8 +73,8 @@ public abstract class Schema implements Serializable {
 
     public static final List<FieldType> NUMERIC_TYPES = ImmutableList.of(
         BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
-    public static final List<FieldType> STRING_TYPES = ImmutableList.of(CHAR, STRING);
-    public static final List<FieldType> DATE_TYPES = ImmutableList.of(DATE, TIME, DATETIME);
+    public static final List<FieldType> STRING_TYPES = ImmutableList.of(STRING);
+    public static final List<FieldType> DATE_TYPES = ImmutableList.of(DATETIME);
     public static final List<FieldType> CONTAINER_TYPES = ImmutableList.of(ARRAY);
     public static final List<FieldType> COMPOSITE_TYPES = ImmutableList.of(ROW);
 
@@ -110,13 +107,17 @@ public abstract class Schema implements Serializable {
     @Nullable public abstract FieldTypeDescriptor getComponentType();
     // For ROW types, returns the schema for the row.
     @Nullable public abstract Schema getRowSchema();
-
+    /**
+     * Returns optional extra metadata.
+     */
+    @Nullable public abstract byte[] getMetadata();
     abstract FieldTypeDescriptor.Builder toBuilder();
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setType(FieldType fieldType);
       abstract Builder setComponentType(@Nullable FieldTypeDescriptor componentType);
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
+      abstract Builder setMetadata(@Nullable byte[] metadata);
       abstract FieldTypeDescriptor build();
     }
 
@@ -146,6 +147,13 @@ public abstract class Schema implements Serializable {
       }
       return toBuilder().setRowSchema(rowSchema).build();
     }
+
+    /**
+     * Returns a copy of the descriptor with metadata sert set.
+     */
+    public FieldTypeDescriptor withMetadata(@Nullable byte[] metadata) {
+      return toBuilder().setMetadata(metadata).build();
+    }
   }
 
 
@@ -174,6 +182,7 @@ public abstract class Schema implements Serializable {
      * Returns whether the field supports null values.
      */
     public abstract Boolean getNullable();
+
 
     public abstract Builder toBuilder();
     @AutoValue.Builder

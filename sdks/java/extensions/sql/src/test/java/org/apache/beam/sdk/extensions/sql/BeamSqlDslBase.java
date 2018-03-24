@@ -114,7 +114,7 @@ public class BeamSqlDslBase {
         .create(schemaInTableA.getRowCoder());
 
     for (Row row : rowsInTableA) {
-      values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
+      values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));
       values = values.addElements(row);
     }
 
@@ -130,7 +130,7 @@ public class BeamSqlDslBase {
         .create(schemaInTableA.getRowCoder());
 
     Row row = rowsInTableA.get(0);
-    values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
+    values = values.advanceWatermarkTo(new Instant(row.getDateTime("f_timestamp")));
     values = values.addElements(row);
 
     return PBegin

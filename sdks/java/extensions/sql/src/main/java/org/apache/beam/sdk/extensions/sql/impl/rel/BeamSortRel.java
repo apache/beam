@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -202,8 +203,10 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
 
+        FieldTypeDescriptor fieldTypeDescriptor =
+            row1.getSchema().getField(fieldIndex).getTypeDescriptor();
         SqlTypeName fieldType = CalciteUtils.toSqlTypeName(
-            row1.getSchema().getField(fieldIndex).getTypeDescriptor().getType());
+            fieldTypeDescriptor.getType(), fieldTypeDescriptor.getMetadata());
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
         boolean isValue1Null = (row1.getValue(fieldIndex) == null);

@@ -28,6 +28,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 
 /**
@@ -52,65 +53,72 @@ public class RowSqlType {
 
     public Builder withField(String fieldName, Schema.FieldType fieldType,
                              @Nullable Schema.FieldTypeDescriptor componentType,
-                             @Nullable Schema fieldSchema) {
+                             @Nullable Schema fieldSchema,
+                             @Nullable byte[] metadata) {
       FieldTypeDescriptor fieldTypeDescriptor =
           FieldTypeDescriptor.of(fieldType)
               .withComponentType(componentType)
-              .withRowSchema(fieldSchema);
+              .withRowSchema(fieldSchema)
+              .withMetadata(metadata);
       fields.add(Field.of(fieldName, fieldTypeDescriptor));
       return this;
     }
 
     public Builder withTinyIntField(String fieldName) {
-      return withField(fieldName, FieldType.BYTE, null, null);
+      return withField(fieldName, FieldType.BYTE, null, null, null);
     }
 
     public Builder withSmallIntField(String fieldName) {
-      return withField(fieldName, FieldType.INT16, null, null);
+      return withField(fieldName, FieldType.INT16, null, null, null);
     }
 
     public Builder withIntegerField(String fieldName) {
-      return withField(fieldName, FieldType.INT16, null, null);
+      return withField(fieldName, FieldType.INT32, null, null, null);
     }
 
     public Builder withBigIntField(String fieldName) {
-      return withField(fieldName, FieldType.INT64, null, null);
+      return withField(fieldName, FieldType.INT64, null, null, null);
     }
 
     public Builder withFloatField(String fieldName) {
-      return withField(fieldName, FieldType.FLOAT, null, null);
+      return withField(fieldName, FieldType.FLOAT, null, null, null);
     }
 
     public Builder withDoubleField(String fieldName) {
-      return withField(fieldName, FieldType.DOUBLE, null, null);
+      return withField(fieldName, FieldType.DOUBLE, null, null, null);
     }
 
     public Builder withDecimalField(String fieldName) {
-      return withField(fieldName, FieldType.DECIMAL, null, null);
+      return withField(fieldName, FieldType.DECIMAL, null, null, null);
     }
 
     public Builder withBooleanField(String fieldName) {
-      return withField(fieldName, FieldType.BOOLEAN, null, null);
+      return withField(fieldName, FieldType.BOOLEAN, null, null, null);
     }
 
     public Builder withCharField(String fieldName) {
-      return withField(fieldName, FieldType.CHAR, null, null);
+      return withField(fieldName, FieldType.STRING, null, null,
+          CalciteUtils.typeToMetadata(SqlTypeName.CHAR));
     }
 
     public Builder withVarcharField(String fieldName) {
-      return withField(fieldName, FieldType.STRING, null, null);
+      return withField(fieldName, FieldType.STRING, null, null,
+          CalciteUtils.typeToMetadata(SqlTypeName.VARCHAR));
     }
 
     public Builder withTimeField(String fieldName) {
-      return withField(fieldName, FieldType.TIME, null, null);
+      return withField(fieldName, FieldType.DATETIME, null, null,
+          CalciteUtils.typeToMetadata(SqlTypeName.TIME));
     }
 
     public Builder withDateField(String fieldName) {
-      return withField(fieldName, FieldType.DATE, null, null);
+      return withField(fieldName, FieldType.DATETIME, null, null,
+          CalciteUtils.typeToMetadata(SqlTypeName.DATE));
     }
 
     public Builder withTimestampField(String fieldName) {
-      return withField(fieldName, FieldType.DATETIME, null, null);
+      return withField(fieldName, FieldType.DATETIME, null, null,
+          CalciteUtils.typeToMetadata(SqlTypeName.TIMESTAMP));
     }
 
     /**
@@ -121,6 +129,7 @@ public class RowSqlType {
           fieldName,
           FieldType.ARRAY,
           CalciteUtils.toFieldTypeDescriptor(relDataType),
+          null,
           null);
     }
 
@@ -132,6 +141,7 @@ public class RowSqlType {
           fieldName,
           FieldType.ARRAY,
           typeDescriptor,
+          null,
           null);
     }
 
@@ -143,6 +153,7 @@ public class RowSqlType {
           fieldName,
           FieldType.ARRAY,
           FieldTypeDescriptor.of(fieldType),
+          null,
           null);
     }
 
@@ -158,11 +169,12 @@ public class RowSqlType {
           fieldName,
           FieldType.ARRAY,
           componentType,
+          null,
           null);
     }
 
     public Builder withRowField(String fieldName, Schema schema) {
-      return withField(fieldName, FieldType.ROW, null, schema);
+      return withField(fieldName, FieldType.ROW, null, schema, null);
     }
 
     private Builder() {

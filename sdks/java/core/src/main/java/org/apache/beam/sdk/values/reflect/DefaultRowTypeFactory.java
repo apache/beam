@@ -61,7 +61,7 @@ public class DefaultRowTypeFactory implements RowTypeFactory {
           .put(Float.class, FieldType.FLOAT)
           .put(Double.class, FieldType.DOUBLE)
           .put(BigDecimal.class, FieldType.DECIMAL)
-          .put(GregorianCalendar.class, FieldType.TIME)
+          .put(GregorianCalendar.class, FieldType.DATETIME)
           .put(Date.class, FieldType.DATETIME)
           .build();
 

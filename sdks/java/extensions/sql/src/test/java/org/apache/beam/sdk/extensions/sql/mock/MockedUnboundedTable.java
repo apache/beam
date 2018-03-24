@@ -99,7 +99,7 @@ public class MockedUnboundedTable extends MockedTable {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));
       for (int i = 0; i < pair.getValue().size(); i++) {
         values = values.addElements(TimestampedValue.of(pair.getValue().get(i),
-            new Instant(pair.getValue().get(i).getDate(timestampField))));
+            new Instant(pair.getValue().get(i).getDateTime(timestampField))));
       }
     }
 

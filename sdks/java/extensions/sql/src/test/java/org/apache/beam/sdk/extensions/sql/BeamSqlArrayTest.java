@@ -54,7 +54,7 @@ public class BeamSqlArrayTest {
         RowSqlType
             .builder()
             .withIntegerField("f_int")
-            .withArrayField("f_arr", FieldTypeDescriptor.of(FieldType.CHAR))
+            .withArrayField("f_arr", FieldTypeDescriptor.of(FieldType.STRING))
             .build();
 
     PCollection<Row> result =

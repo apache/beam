@@ -423,7 +423,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             .mapToObj(i -> KV.of(
                 Row
                     .withSchema(keyType)
-                    .addValues(inputRows.get(i).getInteger(0))
+                    .addValues(inputRows.get(i).getInt32(0))
                     .build(),
                 inputRows.get(i)
             )).collect(Collectors.toList());
@@ -438,7 +438,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
         KV.of(
             Row
                 .withSchema(keyType)
-                .addValues(inputRows.get(0).getInteger(0))
+                .addValues(inputRows.get(0).getInt32(0))
                 .build(),
             Row
                 .withSchema(aggPartType)

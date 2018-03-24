@@ -212,11 +212,11 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
       assertTrue(iter.hasNext());
       Row row = iter.next();
       assertEquals(row.getDouble("avg1"), 8.142857143, 1e-7);
-      assertTrue(row.getInteger("avg2") == 8);
+      assertTrue(row.getInt32("avg2") == 8);
       assertEquals(row.getDouble("varpop1"), 26.40816326, 1e-7);
-      assertTrue(row.getInteger("varpop2") == 26);
+      assertTrue(row.getInt32("varpop2") == 26);
       assertEquals(row.getDouble("varsamp1"), 30.80952381, 1e-7);
-      assertTrue(row.getInteger("varsamp2") == 30);
+      assertTrue(row.getInt32("varsamp2") == 30);
       assertFalse(iter.hasNext());
       return null;
     }
