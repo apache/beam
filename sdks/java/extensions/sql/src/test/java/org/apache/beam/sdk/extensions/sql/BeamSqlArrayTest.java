@@ -172,7 +172,7 @@ public class BeamSqlArrayTest {
            .containsInAnyOrder(
                Row
                    .withSchema(resultType)
-                   .addValues("111")
+                   .addValues(Arrays.asList("111"))
                    .build());
 
     pipeline.run();

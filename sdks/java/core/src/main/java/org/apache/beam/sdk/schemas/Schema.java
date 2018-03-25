@@ -123,10 +123,17 @@ public abstract class Schema implements Serializable {
       abstract FieldTypeDescriptor build();
     }
 
+    public FieldTypeDescriptor() {
+    //  System.err.println("CONSTRUCTING FTD AT " +
+     //     Arrays.toString(Thread.currentThread().getStackTrace()));
+    }
+
     /**
      * Create a {@link FieldTypeDescriptor} for the given type.
      */
     public static FieldTypeDescriptor of(FieldType fieldType) {
+    //  System.err.println("CREATING FTD " + fieldType + " AT " +
+    //      Arrays.toString(Thread.currentThread().getStackTrace()));
       return new AutoValue_Schema_FieldTypeDescriptor.Builder().setType(fieldType).build();
     }
 
