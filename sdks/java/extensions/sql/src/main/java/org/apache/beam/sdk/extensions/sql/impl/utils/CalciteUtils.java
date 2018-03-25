@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
+import java.nio.charset.StandardCharsets;
 import java.util.stream.IntStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -65,26 +66,29 @@ public class CalciteUtils {
   // can tell which time class this is.
   //
   // Same story with CHAR and VARCHAR - they both map to STRING.
-  private static final BiMap<byte[], SqlTypeName> METADATA_TO_TYPE =
-      ImmutableBiMap.<byte[], SqlTypeName>builder()
-          .put(new byte[] {'1'}, SqlTypeName.DATE)
-          .put(new byte[] {'2'}, SqlTypeName.TIME)
-          .put(new byte[] {'3'}, SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
-          .put(new byte[] {'4'}, SqlTypeName.TIMESTAMP)
-          .put(new byte[] {'5'}, SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
-          .put(new byte[] {'6'}, SqlTypeName.CHAR)
-          .put(new byte[] {'7'}, SqlTypeName.VARCHAR)
+  private static final BiMap<String, SqlTypeName> METADATA_TO_TYPE =
+      ImmutableBiMap.<String, SqlTypeName>builder()
+          .put("1", SqlTypeName.DATE)
+          .put("2", SqlTypeName.TIME)
+          .put("3", SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
+          .put("4", SqlTypeName.TIMESTAMP)
+          .put("5", SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
+          .put("6", SqlTypeName.CHAR)
+          .put("7", SqlTypeName.VARCHAR)
       .build();
 
-  private static final BiMap<SqlTypeName, byte[]> TYPE_TO_METADATA =
+  private static final BiMap<SqlTypeName, String> TYPE_TO_METADATA =
       METADATA_TO_TYPE.inverse();
 
   public static SqlTypeName metadataToType(byte[] metadata) {
-    return METADATA_TO_TYPE.get(metadata);
+    String strMetadata = new String(metadata, StandardCharsets.UTF_8);
+    return METADATA_TO_TYPE.get(strMetadata);
   }
 
   public static byte[] typeToMetadata(SqlTypeName sqlTypeName) {
-    return TYPE_TO_METADATA.get(sqlTypeName);
+    String metadata = TYPE_TO_METADATA.get(sqlTypeName);
+    return (metadata != null)
+        ? TYPE_TO_METADATA.get(sqlTypeName).getBytes(StandardCharsets.UTF_8) : null;
   }
 
   /**
