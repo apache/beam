@@ -31,6 +31,7 @@ public abstract class Column implements Serializable {
   // TODO: Add Nullable types.
   public abstract String getName();
   public abstract FieldTypeDescriptor getTypeDescriptor();
+
   @Nullable
   public abstract String getComment();
   public abstract boolean isPrimaryKey();

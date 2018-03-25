@@ -30,12 +30,14 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
@@ -139,7 +141,8 @@ public class InMemoryMetaStoreTest {
                 .build(),
             Column.builder()
                 .name("name")
-                .typeDescriptor(FieldTypeDescriptor.of(FieldType.STRING))
+                .typeDescriptor(FieldTypeDescriptor.of(FieldType.STRING)
+                    .withMetadata(CalciteUtils.typeToMetadata(SqlTypeName.VARCHAR)))
                 .primaryKey(false)
                 .build()))
         .type(type)

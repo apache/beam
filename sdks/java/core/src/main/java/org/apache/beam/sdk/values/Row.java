@@ -389,7 +389,7 @@ public abstract class Row implements Serializable {
           if (FieldType.ARRAY.equals(typeDescriptor.getType())) {
             List<Object> arrayElements = verifyArray(
                 value, typeDescriptor.getComponentType(), field.getName());
-            verifiedVaues.addAll(arrayElements);
+            verifiedVaues.add(arrayElements);
           } else if (FieldType.ROW.equals(typeDescriptor.getType())) {
             verifiedVaues.add(verifyRow(value, field.getName()));
           } else {
@@ -415,7 +415,7 @@ public abstract class Row implements Serializable {
           verifiedList.add(verifyArray(listValue, typeDescriptor.getComponentType(),
               fieldName + "nested"));
         } else if (FieldType.ROW.equals(typeDescriptor.getType())) {
-          verifiedList.add(verifyRow(value, fieldName));
+          verifiedList.add(verifyRow(listValue, fieldName));
         }
       }
       return verifiedList;

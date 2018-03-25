@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.utils;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import com.google.common.collect.BiMap;
@@ -112,9 +111,10 @@ public class CalciteUtils {
 
   public static SqlTypeName toSqlTypeName(Schema.FieldType fieldType,
                                           @Nullable byte[] metadata) {
-    if (fieldType.isDateType() || fieldType.isStringType()) {
-      checkNotNull(metadata);
-      return metadataToType(metadata);
+    if (fieldType.isDateType()) {
+      return (metadata != null) ? metadataToType(metadata) : SqlTypeName.TIMESTAMP;
+    } else if (fieldType.isStringType()) {
+      return (metadata != null) ? metadataToType(metadata) : SqlTypeName.VARCHAR;
     } else {
       return BEAM_TO_CALCITE_TYPE_MAPPING.get(fieldType);
     }

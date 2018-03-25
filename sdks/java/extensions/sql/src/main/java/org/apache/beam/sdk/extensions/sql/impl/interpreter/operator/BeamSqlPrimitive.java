@@ -25,6 +25,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
+import org.joda.time.ReadableInstant;
 
 /**
  * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}.
@@ -37,6 +38,15 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   private BeamSqlPrimitive() {
   }
 
+  private  BeamSqlPrimitive(T value, SqlTypeName typeName) {
+    this.outputType = typeName;
+    this.value = value;
+    if (!accept()) {
+      throw new IllegalArgumentException(
+          String.format("value [%s] doesn't match type [%s].", value, outputType));
+    }
+  }
+
   private BeamSqlPrimitive(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
@@ -45,14 +55,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
    * A builder function to create from Type and value directly.
    */
   public static <T> BeamSqlPrimitive<T> of(SqlTypeName outputType, T value) {
-    BeamSqlPrimitive<T> exp = new BeamSqlPrimitive<>();
-    exp.outputType = outputType;
-    exp.value = value;
-    if (!exp.accept()) {
-      throw new IllegalArgumentException(
-          String.format("value [%s] doesn't match type [%s].", value, outputType));
-    }
-    return exp;
+    return new BeamSqlPrimitive<>(convertValue(value, outputType), outputType);
   }
 
   public SqlTypeName getOutputType() {
@@ -151,6 +154,27 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
       throw new UnsupportedOperationException(
           "Unsupported Beam SQL type in expression: " + outputType.name());
     }
+  }
+
+  //
+  private static <T> T convertValue(T value, SqlTypeName typeName) {
+    // TODO: We should just convert Calcite to use either Joda or Java8 time.
+    if (SqlTypeName.TIME.equals(typeName)) {
+      if (value instanceof ReadableInstant) {
+        long millis = ((ReadableInstant) value).getMillis();
+        GregorianCalendar calendar = new GregorianCalendar();
+        calendar.setTimeInMillis(millis);
+        return (T) calendar;
+      }
+    } else if (SqlTypeName.TIMESTAMP.equals(typeName) || SqlTypeName.DATE.equals(typeName)) {
+      if (value instanceof ReadableInstant) {
+        long millis = ((ReadableInstant) value).getMillis();
+        Date date = new Date();
+        date.setTime(millis);
+        return (T) date;
+      }
+    }
+    return (T) value;
   }
 
   @Override
