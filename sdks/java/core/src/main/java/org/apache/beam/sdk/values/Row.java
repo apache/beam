@@ -30,6 +30,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -328,6 +329,21 @@ public abstract class Row implements Serializable {
    */
   public abstract Schema getSchema();
 
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof Row)) {
+      return false;
+    }
+    Row other = (Row) o;
+    return Objects.equals(getSchema(), other.getSchema()) &&
+        Objects.equals(getValues(), other.getValues());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getSchema(), getValues());
+  }
+
   /**
    * Creates a record builder with specified {@link #getSchema()}.
    * {@link Builder#build()} will throw an {@link IllegalArgumentException} if number of fields
@@ -428,7 +444,7 @@ public abstract class Row implements Serializable {
                 "Instead class type was %s.", fieldName, value.getClass()));
       }
       // No need to recursively validate the nested Row, since there's no way to build the
-      // Row object without it validating
+      // Row object without it validating.
       return (Row) value;
     }
 
@@ -442,42 +458,42 @@ public abstract class Row implements Serializable {
             if (!(value instanceof Byte)) {
               expectedClass = Byte.class;
             }
-            break;
+            return (Byte) value;
           case INT16:
             if (!(value instanceof Short)) {
               expectedClass = Short.class;
             }
-            break;
+            return (Short) value;
           case INT32:
             if (!(value instanceof Integer)) {
               expectedClass = Integer.class;
             }
-            break;
+            return (Integer) value;
           case INT64:
             if (!(value instanceof Long)) {
               expectedClass = Long.class;
             }
-            break;
+            return (Long) value;
           case DECIMAL:
             if (!(value instanceof BigDecimal)) {
               expectedClass = BigDecimal.class;
             }
-            break;
+            return (BigDecimal) value;
           case FLOAT:
             if (!(value instanceof Float)) {
               expectedClass = Float.class;
             }
-            break;
+            return (Float) value;
           case DOUBLE:
             if (!(value instanceof Double)) {
               expectedClass = Double.class;
             }
-            break;
+            return (Double) value;
           case STRING:
             if (!(value instanceof String)) {
               expectedClass = String.class;
             }
-            break;
+            return (String) value;
         }
         if (expectedClass != null) {
           throw new IllegalArgumentException(
