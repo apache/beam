@@ -371,7 +371,7 @@ public abstract class Row implements Serializable {
     }
 
     private List<Object> verify(Schema schema, List<Object> values) {
-      List<Object> verifiedVaues = Lists.newArrayListWithCapacity(values.size());
+      List<Object> verifiedValues = Lists.newArrayListWithCapacity(values.size());
       if (schema.getFieldCount() != values.size()) {
         throw new IllegalArgumentException(
             String.format(
@@ -389,16 +389,16 @@ public abstract class Row implements Serializable {
           if (FieldType.ARRAY.equals(typeDescriptor.getType())) {
             List<Object> arrayElements = verifyArray(
                 value, typeDescriptor.getComponentType(), field.getName());
-            verifiedVaues.add(arrayElements);
+            verifiedValues.add(arrayElements);
           } else if (FieldType.ROW.equals(typeDescriptor.getType())) {
-            verifiedVaues.add(verifyRow(value, field.getName()));
+            verifiedValues.add(verifyRow(value, field.getName()));
           } else {
-            verifiedVaues.add(verifyPrimitiveType(value, typeDescriptor.getType(),
+            verifiedValues.add(verifyPrimitiveType(value, typeDescriptor.getType(),
                 field.getName()));
           }
         }
       }
-      return verifiedVaues;
+      return verifiedValues;
     }
 
     private List<Object> verifyArray(Object value, FieldTypeDescriptor typeDescriptor,
