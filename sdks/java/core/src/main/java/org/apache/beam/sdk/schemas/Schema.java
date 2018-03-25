@@ -23,9 +23,12 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -54,7 +57,20 @@ public abstract class Schema implements Serializable {
     return new AutoValue_Schema.Builder().setFields(fields).build();
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (!(o instanceof Schema)) {
+      return false;
+    }
+    Schema other = (Schema) o;
+    return Objects.equals(fieldIndices, other.fieldIndices) &&
+        Objects.equals(getFields(), other.getFields());
+  }
 
+  @Override
+  public int hashCode() {
+    return Objects.hash(fieldIndices, getFields());
+  }
 
   /**
    * An enumerated list of supported types.
@@ -123,17 +139,10 @@ public abstract class Schema implements Serializable {
       abstract FieldTypeDescriptor build();
     }
 
-    public FieldTypeDescriptor() {
-    //  System.err.println("CONSTRUCTING FTD AT " +
-     //     Arrays.toString(Thread.currentThread().getStackTrace()));
-    }
-
     /**
      * Create a {@link FieldTypeDescriptor} for the given type.
      */
     public static FieldTypeDescriptor of(FieldType fieldType) {
-    //  System.err.println("CREATING FTD " + fieldType + " AT " +
-    //      Arrays.toString(Thread.currentThread().getStackTrace()));
       return new AutoValue_Schema_FieldTypeDescriptor.Builder().setType(fieldType).build();
     }
 
@@ -162,6 +171,25 @@ public abstract class Schema implements Serializable {
      */
     public FieldTypeDescriptor withMetadata(@Nullable byte[] metadata) {
       return toBuilder().setMetadata(metadata).build();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof FieldTypeDescriptor)) {
+        return false;
+      }
+      FieldTypeDescriptor other = (FieldTypeDescriptor) o;
+      return Objects.equals(getType(), other.getType()) &&
+          Objects.equals(getComponentType(), other.getComponentType()) &&
+          Objects.equals(getRowSchema(), other.getRowSchema()) &&
+          Arrays.equals(getMetadata(), other.getMetadata());
+
+    }
+
+    @Override
+    public int hashCode() {
+      return Arrays.deepHashCode(
+          new Object[] {getType(), getComponentType(), getRowSchema(), getMetadata()});
     }
   }
 
@@ -242,6 +270,23 @@ public abstract class Schema implements Serializable {
      */
     public Field withNullable(boolean isNullable) {
       return toBuilder().setNullable(isNullable).build();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof Field)) {
+        return false;
+      }
+      Field other = (Field) o;
+      return Objects.equals(getName(), other.getName()) &&
+          Objects.equals(getDescription(), other.getDescription()) &&
+          Objects.equals(getTypeDescriptor(), other.getTypeDescriptor()) &&
+          Objects.equals(getNullable(), other.getNullable());
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(getName(), getDescription(), getTypeDescriptor(), getNullable());
     }
   }
 
