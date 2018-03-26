@@ -564,13 +564,13 @@ public class KafkaIOTest {
 
     MetricQueryResults metrics = result.metrics().queryMetrics(
       MetricsFilter.builder()
-        .addNameFilter(MetricNameFilter.inNamespace(elementsRead.namespace()))
+        .addNameFilter(MetricNameFilter.inNamespace(elementsRead.getNamespace()))
         .build());
 
-    assertThat(metrics.counters(), hasItem(
+    assertThat(metrics.getCounters(), hasItem(
       attemptedMetricsResult(
-        elementsRead.namespace(),
-        elementsRead.name(),
+        elementsRead.getNamespace(),
+        elementsRead.getName(),
         "readFromKafka",
               (long) numElements)));
   }
@@ -768,29 +768,29 @@ public class KafkaIOTest {
     MetricQueryResults metrics = result.metrics().queryMetrics(
         MetricsFilter.builder().build());
 
-    Iterable<MetricResult<Long>> counters = metrics.counters();
+    Iterable<MetricResult<Long>> counters = metrics.getCounters();
 
     assertThat(counters, hasItem(attemptedMetricsResult(
-        elementsRead.namespace(),
-        elementsRead.name(),
+        elementsRead.getNamespace(),
+        elementsRead.getName(),
         readStep,
         1000L)));
 
     assertThat(counters, hasItem(attemptedMetricsResult(
-        elementsReadBySplit.namespace(),
-        elementsReadBySplit.name(),
+        elementsReadBySplit.getNamespace(),
+        elementsReadBySplit.getName(),
         readStep,
         1000L)));
 
     assertThat(counters, hasItem(attemptedMetricsResult(
-        bytesRead.namespace(),
-        bytesRead.name(),
+        bytesRead.getNamespace(),
+        bytesRead.getName(),
         readStep,
         12000L)));
 
     assertThat(counters, hasItem(attemptedMetricsResult(
-        bytesReadBySplit.namespace(),
-        bytesReadBySplit.name(),
+        bytesReadBySplit.getNamespace(),
+        bytesReadBySplit.getName(),
         readStep,
         12000L)));
 
@@ -799,24 +799,24 @@ public class KafkaIOTest {
             MetricsFilter.builder()
                 .addNameFilter(
                     MetricNameFilter.named(
-                        backlogElementsOfSplit.namespace(),
-                        backlogElementsOfSplit.name()))
+                        backlogElementsOfSplit.getNamespace(),
+                        backlogElementsOfSplit.getName()))
                 .build());
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
-    assertThat(backlogElementsMetrics.gauges(), IsIterableWithSize.iterableWithSize(1));
+    assertThat(backlogElementsMetrics.getGauges(), IsIterableWithSize.iterableWithSize(1));
 
     MetricQueryResults backlogBytesMetrics =
         result.metrics().queryMetrics(
             MetricsFilter.builder()
                 .addNameFilter(
                     MetricNameFilter.named(
-                        backlogBytesOfSplit.namespace(),
-                        backlogBytesOfSplit.name()))
+                        backlogBytesOfSplit.getNamespace(),
+                        backlogBytesOfSplit.getName()))
                 .build());
 
     // since gauge values may be inconsistent in some environments assert only on their existence.
-    assertThat(backlogBytesMetrics.gauges(), IsIterableWithSize.iterableWithSize(1));
+    assertThat(backlogBytesMetrics.getGauges(), IsIterableWithSize.iterableWithSize(1));
 
     // Check checkpointMarkCommitsEnqueued metric.
     MetricQueryResults commitsEnqueuedMetrics =
@@ -828,8 +828,9 @@ public class KafkaIOTest {
                         KafkaUnboundedReader.CHECKPOINT_MARK_COMMITS_ENQUEUED_METRIC))
                 .build());
 
-    assertThat(commitsEnqueuedMetrics.counters(), IsIterableWithSize.iterableWithSize(1));
-    assertThat(commitsEnqueuedMetrics.counters().iterator().next().attempted(), greaterThan(0L));
+    assertThat(commitsEnqueuedMetrics.getCounters(), IsIterableWithSize.iterableWithSize(1));
+    assertThat(
+        commitsEnqueuedMetrics.getCounters().iterator().next().getAttempted(), greaterThan(0L));
   }
 
   @Test
@@ -1185,13 +1186,13 @@ public class KafkaIOTest {
 
       MetricQueryResults metrics = result.metrics().queryMetrics(
           MetricsFilter.builder()
-              .addNameFilter(MetricNameFilter.inNamespace(elementsWritten.namespace()))
+              .addNameFilter(MetricNameFilter.inNamespace(elementsWritten.getNamespace()))
               .build());
 
-      assertThat(metrics.counters(), hasItem(
+      assertThat(metrics.getCounters(), hasItem(
           attemptedMetricsResult(
-              elementsWritten.namespace(),
-              elementsWritten.name(),
+              elementsWritten.getNamespace(),
+              elementsWritten.getName(),
               "writeToKafka",
               1000L)));
 

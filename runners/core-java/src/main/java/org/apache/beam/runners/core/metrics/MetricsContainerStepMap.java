@@ -115,9 +115,9 @@ public class MetricsContainerStepMap implements Serializable {
    * Returns {@link MetricResults} based on given {@link MetricsContainerStepMap} of attempted
    * metrics.
    *
-   * <p>This constructor is intended for runners which only support `attempted` metrics.
-   * Accessing {@link MetricResult#committed()} in the resulting {@link MetricResults} will result
-   * in an {@link UnsupportedOperationException}.</p>
+   * <p>This constructor is intended for runners which only support `attempted` metrics. Accessing
+   * {@link MetricResult#getCommitted()} in the resulting {@link MetricResults} will result in an
+   * {@link UnsupportedOperationException}.
    */
   public static MetricResults asAttemptedOnlyMetricResults(
       MetricsContainerStepMap attemptedMetricsContainers) {
@@ -230,7 +230,7 @@ public class MetricsContainerStepMap implements Serializable {
       }
 
       @Override
-      public Iterable<MetricResult<Long>> counters() {
+      public Iterable<MetricResult<Long>> getCounters() {
         return
             FluentIterable
                 .from(counters.values())
@@ -240,7 +240,7 @@ public class MetricsContainerStepMap implements Serializable {
       }
 
       @Override
-      public Iterable<MetricResult<DistributionResult>> distributions() {
+      public Iterable<MetricResult<DistributionResult>> getDistributions() {
         return
             FluentIterable
                 .from(distributions.values())
@@ -250,7 +250,7 @@ public class MetricsContainerStepMap implements Serializable {
       }
 
       @Override
-      public Iterable<MetricResult<GaugeResult>> gauges() {
+      public Iterable<MetricResult<GaugeResult>> getGauges() {
         return
             FluentIterable
                 .from(gauges.values())
@@ -401,17 +401,17 @@ public class MetricsContainerStepMap implements Serializable {
       }
 
       @Override
-      public MetricName name() {
+      public MetricName getName() {
         return name;
       }
 
       @Override
-      public String step() {
+      public String getStep() {
         return step;
       }
 
       @Override
-      public T committed() {
+      public T getCommitted() {
         if (!isCommittedSupported) {
           throw new UnsupportedOperationException("This runner does not currently support committed"
               + " metrics results. Please use 'attempted' instead.");
@@ -420,7 +420,7 @@ public class MetricsContainerStepMap implements Serializable {
       }
 
       @Override
-      public T attempted() {
+      public T getAttempted() {
         return attempted;
       }
     }

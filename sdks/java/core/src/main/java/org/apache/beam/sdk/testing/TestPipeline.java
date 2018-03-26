@@ -494,9 +494,9 @@ public class TestPipeline extends Pipeline implements TestRule {
               MetricsFilter.builder()
                   .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
                   .build())
-              .counters();
+              .getCounters();
       for (MetricResult<Long> counter : successCounterResults) {
-        if (counter.attempted() > 0) {
+        if (counter.getAttempted() > 0) {
           successfulAssertions++;
         }
       }
