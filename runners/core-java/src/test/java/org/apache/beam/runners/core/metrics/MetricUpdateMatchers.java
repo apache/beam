@@ -38,7 +38,7 @@ public class MetricUpdateMatchers {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
       protected boolean matchesSafely(MetricUpdate<T> item) {
-        return Objects.equals(name, item.getKey().metricName().name())
+        return Objects.equals(name, item.getKey().metricName().getName())
             && Objects.equals(update, item.getUpdate());
       }
 
@@ -62,8 +62,8 @@ public class MetricUpdateMatchers {
     return new TypeSafeMatcher<MetricUpdate<T>>() {
       @Override
       protected boolean matchesSafely(MetricUpdate<T> item) {
-        return Objects.equals(namespace, item.getKey().metricName().namespace())
-            && Objects.equals(name, item.getKey().metricName().name())
+        return Objects.equals(namespace, item.getKey().metricName().getNamespace())
+            && Objects.equals(name, item.getKey().metricName().getName())
             && Objects.equals(step, item.getKey().stepName())
             && Objects.equals(update, item.getUpdate());
       }
