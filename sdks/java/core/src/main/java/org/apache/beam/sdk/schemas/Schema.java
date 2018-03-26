@@ -208,7 +208,7 @@ public abstract class Schema implements Serializable {
     /**
      * Returns the field's description.
      */
-    public abstract String getDescription();
+    @Nullable public abstract String getDescription();
 
     /**
      * Returns the fields {@link FieldTypeDescriptor}.
@@ -225,7 +225,7 @@ public abstract class Schema implements Serializable {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setName(String name);
-      abstract Builder setDescription(String description);
+      abstract Builder setDescription(@Nullable String description);
       abstract Builder setTypeDescriptor(FieldTypeDescriptor fieldTypeDescriptor);
       abstract Builder setNullable(Boolean nullable);
       abstract Field build();
