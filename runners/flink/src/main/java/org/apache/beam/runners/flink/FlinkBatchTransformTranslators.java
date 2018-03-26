@@ -393,15 +393,6 @@ class FlinkBatchTransformTranslators {
       Grouping<WindowedValue<KV<K, InputT>>> inputGrouping =
           inputDataSet.groupBy(new KvKeySelector<>(inputCoder.getKeyCoder()));
 
-      // construct a map from side input to WindowingStrategy so that
-      // the DoFn runner can map main-input windows to side input windows
-      Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputStrategies = new HashMap<>();
-      List<PCollectionView<?>> sideInputs = new ArrayList<>();
-
-      for (PCollectionView<?> sideInput: sideInputs) {
-        sideInputStrategies.put(sideInput, sideInput.getWindowingStrategyInternal());
-      }
-
       WindowingStrategy<Object, BoundedWindow> boundedStrategy =
           (WindowingStrategy<Object, BoundedWindow>) windowingStrategy;
 
@@ -412,14 +403,14 @@ class FlinkBatchTransformTranslators {
             new FlinkPartialReduceFunction<>(
                 combineFn,
                 boundedStrategy,
-                sideInputStrategies,
+                new HashMap<>(),
                 context.getPipelineOptions());
 
         FlinkReduceFunction<K, AccumT, OutputT, ?> reduceFunction =
             new FlinkReduceFunction<>(
                 combineFn,
                 boundedStrategy,
-                sideInputStrategies,
+                new HashMap<>(),
                 context.getPipelineOptions());
 
         // Partially GroupReduce the values into the intermediate format AccumT (combine)
@@ -431,8 +422,6 @@ class FlinkBatchTransformTranslators {
                 partialReduceTypeInfo,
                 partialReduceFunction,
                 "GroupCombine: " + fullName);
-
-        transformSideInputs(sideInputs, groupCombine, context);
 
         TypeInformation<WindowedValue<KV<K, OutputT>>> reduceTypeInfo =
             context.getTypeInfo(context.getOutput(transform));
@@ -446,8 +435,6 @@ class FlinkBatchTransformTranslators {
             new GroupReduceOperator<>(
                 intermediateGrouping, reduceTypeInfo, reduceFunction, fullName);
 
-        transformSideInputs(sideInputs, outputDataSet, context);
-
         context.setOutputDataSet(context.getOutput(transform), outputDataSet);
 
       } else {
@@ -457,7 +444,7 @@ class FlinkBatchTransformTranslators {
 
         RichGroupReduceFunction<WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, OutputT>>>
             reduceFunction = new FlinkMergingNonShuffleReduceFunction<>(
-                combineFn, boundedStrategy, sideInputStrategies, context.getPipelineOptions());
+                combineFn, boundedStrategy, new HashMap<>(), context.getPipelineOptions());
 
         TypeInformation<WindowedValue<KV<K, OutputT>>> reduceTypeInfo =
             context.getTypeInfo(context.getOutput(transform));
@@ -469,8 +456,6 @@ class FlinkBatchTransformTranslators {
         GroupReduceOperator<
             WindowedValue<KV<K, InputT>>, WindowedValue<KV<K, OutputT>>> outputDataSet =
             new GroupReduceOperator<>(grouping, reduceTypeInfo, reduceFunction, fullName);
-
-        transformSideInputs(sideInputs, outputDataSet, context);
 
         context.setOutputDataSet(context.getOutput(transform), outputDataSet);
       }
