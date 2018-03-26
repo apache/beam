@@ -54,17 +54,17 @@ def testsConfigurations = [
                         numberOfRecords: '1000000'
                 ]
         ],
-        [
-                jobName           : 'beam_PerformanceTests_TFRecordIOIT_HDFS',
-                jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_TFRecordIOIT on HDFS',
-                itClass           : 'org.apache.beam.sdk.io.tfrecord.TFRecordIOIT',
-                bqTable           : 'beam_performance.tfrecordioit_hdfs_pkb_results',
-                prCommitStatusName: 'Java TFRecordIO Performance Test on HDFS',
-                prTriggerPhase    : 'Run Java TFRecordIO Performance Test HDFS',
-                extraPipelineArgs: [
-                        numberOfRecords: '1000000'
-                ]
-        ],
+//        [
+//                jobName           : 'beam_PerformanceTests_TFRecordIOIT_HDFS',
+//                jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_TFRecordIOIT on HDFS',
+//                itClass           : 'org.apache.beam.sdk.io.tfrecord.TFRecordIOIT',
+//                bqTable           : 'beam_performance.tfrecordioit_hdfs_pkb_results',
+//                prCommitStatusName: 'Java TFRecordIO Performance Test on HDFS',
+//                prTriggerPhase    : 'Run Java TFRecordIO Performance Test HDFS',
+//                extraPipelineArgs: [
+//                        numberOfRecords: '1000000'
+//                ]
+//        ],
         [
                 jobName           : 'beam_PerformanceTests_XmlIOIT_HDFS',
                 jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_XmlIOIT on HDFS',
