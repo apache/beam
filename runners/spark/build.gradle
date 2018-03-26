@@ -58,7 +58,6 @@ dependencies {
   shadow library.java.jackson_annotations
   shadow library.java.slf4j_api
   shadow library.java.joda_time
-  shadow library.java.commons_text
   shadow "io.dropwizard.metrics:metrics-core:3.1.2"
   shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9"
   provided library.java.spark_core
