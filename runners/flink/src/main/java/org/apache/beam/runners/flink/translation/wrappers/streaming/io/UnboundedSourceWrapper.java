@@ -186,7 +186,7 @@ public class UnboundedSourceWrapper<
 
     if (isRestored) {
       // restore the splitSources from the checkpoint to ensure consistent ordering
-      for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored:
+      for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored :
           stateForCheckpoint.get()) {
         localSplitSources.add(restored.getKey());
         localReaders.add(restored.getKey().createReader(
@@ -229,19 +229,25 @@ public class UnboundedSourceWrapper<
       // the easy case, we just read from one reader
       UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
 
-      boolean dataAvailable = readerInvoker.invokeStart(reader);
-      if (dataAvailable) {
-        emitElement(ctx, reader);
+      synchronized (ctx.getCheckpointLock()) {
+        boolean dataAvailable = readerInvoker.invokeStart(reader);
+        if (dataAvailable) {
+          emitElement(ctx, reader);
+        }
       }
 
       setNextWatermarkTimer(this.runtimeContext);
 
       while (isRunning) {
-        dataAvailable = readerInvoker.invokeAdvance(reader);
+        boolean dataAvailable;
+        synchronized (ctx.getCheckpointLock()) {
+          dataAvailable = readerInvoker.invokeAdvance(reader);
 
-        if (dataAvailable)  {
-          emitElement(ctx, reader);
-        } else {
+          if (dataAvailable) {
+            emitElement(ctx, reader);
+          }
+        }
+        if (!dataAvailable) {
           Thread.sleep(50);
         }
       }
@@ -254,9 +260,11 @@ public class UnboundedSourceWrapper<
 
       // start each reader and emit data if immediately available
       for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
-        boolean dataAvailable = readerInvoker.invokeStart(reader);
-        if (dataAvailable) {
-          emitElement(ctx, reader);
+        synchronized (ctx.getCheckpointLock()) {
+          boolean dataAvailable = readerInvoker.invokeStart(reader);
+          if (dataAvailable) {
+            emitElement(ctx, reader);
+          }
         }
       }
 
@@ -267,11 +275,13 @@ public class UnboundedSourceWrapper<
       boolean hadData = false;
       while (isRunning) {
         UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(currentReader);
-        boolean dataAvailable = readerInvoker.invokeAdvance(reader);
 
-        if (dataAvailable) {
-          emitElement(ctx, reader);
-          hadData = true;
+        synchronized (ctx.getCheckpointLock()) {
+          boolean dataAvailable = readerInvoker.invokeAdvance(reader);
+          if (dataAvailable) {
+            emitElement(ctx, reader);
+            hadData = true;
+          }
         }
 
         currentReader = (currentReader + 1) % numReaders;
@@ -321,24 +331,21 @@ public class UnboundedSourceWrapper<
       UnboundedSource.UnboundedReader<OutputT> reader) {
     // make sure that reader state update and element emission are atomic
     // with respect to snapshots
-    synchronized (ctx.getCheckpointLock()) {
+    OutputT item = reader.getCurrent();
+    byte[] recordId = reader.getCurrentRecordId();
+    Instant timestamp = reader.getCurrentTimestamp();
 
-      OutputT item = reader.getCurrent();
-      byte[] recordId = reader.getCurrentRecordId();
-      Instant timestamp = reader.getCurrentTimestamp();
-
-      WindowedValue<ValueWithRecordId<OutputT>> windowedValue =
-          WindowedValue.of(new ValueWithRecordId<>(item, recordId), timestamp,
-              GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
-      ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
-    }
+    WindowedValue<ValueWithRecordId<OutputT>> windowedValue =
+        WindowedValue.of(new ValueWithRecordId<>(item, recordId), timestamp,
+            GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+    ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
   }
 
   @Override
   public void close() throws Exception {
     super.close();
     if (localReaders != null) {
-      for (UnboundedSource.UnboundedReader<OutputT> reader: localReaders) {
+      for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
         reader.close();
       }
     }
@@ -394,8 +401,8 @@ public class UnboundedSourceWrapper<
       int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
       if (diff >= 0) {
         for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator();
-             diff >= 0;
-             diff--) {
+            diff >= 0;
+            diff--) {
           iterator.next();
           iterator.remove();
         }
@@ -434,7 +441,7 @@ public class UnboundedSourceWrapper<
       synchronized (context.getCheckpointLock()) {
         // find minimum watermark over all localReaders
         long watermarkMillis = Long.MAX_VALUE;
-        for (UnboundedSource.UnboundedReader<OutputT> reader: localReaders) {
+        for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
           Instant watermark = reader.getWatermark();
           if (watermark != null) {
             watermarkMillis = Math.min(watermark.getMillis(), watermarkMillis);
