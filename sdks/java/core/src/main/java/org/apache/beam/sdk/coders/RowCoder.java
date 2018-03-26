@@ -83,10 +83,11 @@ public class RowCoder extends CustomCoder<Row> {
     nullListCoder.encode(scanNullFields(value), outStream);
 
     for (int idx = 0; idx < value.getFieldCount(); ++idx) {
+      Schema.Field field = schema.getField(idx);
       if (value.getValue(idx) == null) {
         continue;
       }
-      Coder coder = getCoder(schema.getField(idx).getTypeDescriptor());
+      Coder coder = getCoder(field.getTypeDescriptor());
       coder.encode(value.getValue(idx), outStream);
     }
   }

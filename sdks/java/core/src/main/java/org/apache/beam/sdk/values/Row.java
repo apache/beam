@@ -397,10 +397,13 @@ public abstract class Row implements Serializable {
       for (int i = 0; i < values.size(); ++i) {
         Object value = values.get(i);
         Schema.Field field = schema.getField(i);
-        if (value == null && !field.getNullable()) {
-          throw new IllegalArgumentException(
-              String.format("Field %s is not nullable", field.getName()));
-        } else if (value != null) {
+        if (value == null) {
+          if (!field.getNullable()) {
+            throw new IllegalArgumentException(
+                String.format("Field %s is not nullable", field.getName()));
+          }
+          verifiedValues.add(null);
+        } else {
           FieldTypeDescriptor typeDescriptor = field.getTypeDescriptor();
           if (FieldType.ARRAY.equals(typeDescriptor.getType())) {
             List<Object> arrayElements = verifyArray(
