@@ -29,6 +29,8 @@ import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.testing.DatasetAssert;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
@@ -46,7 +48,7 @@ import org.junit.Test;
 /**
  * Test for {@link BeamFlow}.
  */
-public class BeamFlowTest {
+public class BeamFlowTest implements Serializable {
 
   private PipelineOptions options() {
     String[] args = {"--runner=DirectRunner"};
@@ -55,7 +57,8 @@ public class BeamFlowTest {
 
   @Test
   public void testPipelineExec() {
-    BeamFlow flow = BeamFlow.create();
+    Pipeline pipeline = Pipeline.create(options());
+    BeamFlow flow = BeamFlow.create(pipeline);
     ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(
         1, 2, 3, 4, 5));
     ListDataSink<Integer> sink = ListDataSink.get();
@@ -64,26 +67,27 @@ public class BeamFlowTest {
         .using(e -> e + 1)
         .output()
         .persist(sink);
-    Pipeline pipeline = flow.asPipeline(options());
+
     pipeline.run().waitUntilFinish();
     DatasetAssert.unorderedEquals(sink.getOutputs(), 2, 3, 4, 5, 6);
   }
 
   @Test
   public void testEuphoriaLoadBeamProcess() {
-    BeamFlow flow = BeamFlow.create();
+    Pipeline pipeline = Pipeline.create(options());
+    BeamFlow flow = BeamFlow.create(pipeline);
     ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(
         1, 2, 3, 4, 5));
     Dataset<Integer> input = flow.createInput(source);
     PCollection<Integer> unwrapped = flow.unwrapped(input);
     PCollection<Integer> output = unwrapped.apply(ParDo.of(new DoFn<Integer, Integer>() {
+      @SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
       @ProcessElement
       public void process(ProcessContext context) {
         context.output(context.element() + 1);
       }
     })).setTypeDescriptor(TypeDescriptor.of(Integer.class));
     PAssert.that(output).containsInAnyOrder(2, 3, 4, 5, 6);
-    Pipeline pipeline = flow.asPipeline(options());
     pipeline.run();
   }
 
