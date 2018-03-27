@@ -19,13 +19,13 @@ package org.apache.beam.sdk.extensions.sql;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -223,7 +223,7 @@ public class BeamSqlDslNestedRowsTest {
     Schema resultSchema =
         RowSqlType
             .builder()
-            .withArrayField("f_nestedArray", FieldType.STRING)
+            .withArrayField("f_nestedArray", SqlTypeName.VARCHAR)
             .build();
 
     Schema nestedSchema =
@@ -232,7 +232,7 @@ public class BeamSqlDslNestedRowsTest {
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
             .withIntegerField("f_nestedIntPlusOne")
-            .withArrayField("f_nestedArray", FieldType.STRING)
+            .withArrayField("f_nestedArray", SqlTypeName.VARCHAR)
             .build();
 
     Schema inputType =
@@ -299,7 +299,7 @@ public class BeamSqlDslNestedRowsTest {
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
             .withIntegerField("f_nestedIntPlusOne")
-            .withArrayField("f_nestedArray", FieldType.STRING)
+            .withArrayField("f_nestedArray", SqlTypeName.VARCHAR)
             .build();
 
     Schema inputType =
