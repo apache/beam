@@ -104,7 +104,6 @@
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
     <apache.commons.compress.version>1.16.1</apache.commons.compress.version>
     <apache.commons.lang.version>3.6</apache.commons.lang.version>
-    <apache.commons.text.version>1.1</apache.commons.text.version>
     <apex.kryo.version>2.24.0</apex.kryo.version>
     <api-common.version>1.0.0-rc2</api-common.version>
     <args4j.version>2.33</args4j.version>
@@ -826,12 +825,6 @@
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>${apache.commons.lang.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-text</artifactId>
-        <version>${apache.commons.text.version}</version>
       </dependency>
 
       <dependency>
