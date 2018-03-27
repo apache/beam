@@ -144,7 +144,7 @@ latest: digest: sha256:86ad57055324457c3ea950f914721c596c7fa261c216efb881d0ca0bb
 ```
 
 Similarly for the Java and Go SDK harness container images. If you want to push the same image
-to multiple registries, you can retagging the image using `docker tag` and push.
+to multiple registries, you can retag the image using `docker tag` and push.
 
 **(Optional)** On any machine, you can now pull the pushed container image:
 

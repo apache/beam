@@ -489,6 +489,12 @@ ext.applyDockerNature = {
   }
 }
 
+// containerImageName returns a configurable container image name, by default a
+// development image at bintray.io (see sdks/CONTAINERS.md):
+//
+//     $USER-docker-apache.bintray.io/beam/$NAME:latest
+//
+// Both the repository root and tag can be defined using properties.
 def containerImageName(name) {
   String repositoryRoot
   if (rootProject.hasProperty(["docker-repository-root"])) {
