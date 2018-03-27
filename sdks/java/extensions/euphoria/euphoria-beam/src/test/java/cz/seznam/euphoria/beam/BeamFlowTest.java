@@ -37,6 +37,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Test;
@@ -65,6 +67,24 @@ public class BeamFlowTest {
     Pipeline pipeline = flow.asPipeline(options());
     pipeline.run().waitUntilFinish();
     DatasetAssert.unorderedEquals(sink.getOutputs(), 2, 3, 4, 5, 6);
+  }
+
+  @Test
+  public void testEuphoriaLoadBeamProcess() {
+    BeamFlow flow = BeamFlow.create();
+    ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(
+        1, 2, 3, 4, 5));
+    Dataset<Integer> input = flow.createInput(source);
+    PCollection<Integer> unwrapped = flow.unwrapped(input);
+    PCollection<Integer> output = unwrapped.apply(ParDo.of(new DoFn<Integer, Integer>() {
+      @ProcessElement
+      public void process(ProcessContext context) {
+        context.output(context.element() + 1);
+      }
+    })).setTypeDescriptor(TypeDescriptor.of(Integer.class));
+    PAssert.that(output).containsInAnyOrder(2, 3, 4, 5, 6);
+    Pipeline pipeline = flow.asPipeline(options());
+    pipeline.run();
   }
 
   @Test
