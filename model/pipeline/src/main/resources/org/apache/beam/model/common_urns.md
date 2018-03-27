@@ -125,6 +125,8 @@ but are used at runtime and must be supported by every SDK.
 
 ###  beam:coder:windowed_value:v1
 
+###  beam:coder:windowed_value:v2
+
 
 ## Side input access
 

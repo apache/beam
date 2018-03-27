@@ -496,6 +496,15 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
                 }
 
                 @Override
+                public void outputRetractionOf(OutputT output,
+                                               Instant timestamp,
+                                               Collection<? extends BoundedWindow> windows,
+                                               PaneInfo pane) {
+                  throw new UnsupportedOperationException(
+                      "Retractions are not supported in Apex runner");
+                }
+
+                @Override
                 public <AdditionalOutputT> void outputWindowedValue(TupleTag<AdditionalOutputT> tag,
                     AdditionalOutputT output, Instant timestamp,
                     Collection<? extends BoundedWindow> windows, PaneInfo pane) {

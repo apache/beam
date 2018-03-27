@@ -75,6 +75,8 @@ public class WindowingStrategyTranslation implements Serializable {
         return RunnerApi.AccumulationMode.Enum.DISCARDING;
       case ACCUMULATING_FIRED_PANES:
         return RunnerApi.AccumulationMode.Enum.ACCUMULATING;
+      case ACCUMULATING_AND_RETRACTING_FIRED_PLANES:
+        return RunnerApi.AccumulationMode.Enum.RETRACTING;
       default:
         throw new IllegalArgumentException(
             String.format(

@@ -61,6 +61,10 @@ public abstract class DoFnSignature {
   /** Details about this {@link DoFn}'s {@link DoFn.ProcessElement} method. */
   public abstract ProcessElementMethod processElement();
 
+  /** Details about this {@link DoFn}'s {@link DoFn.ProcessRetraction} method. */
+  @Nullable
+  public abstract ProcessElementMethod processRetraction();
+
   /** Details about the state cells that this {@link DoFn} declares. Immutable. */
   public abstract Map<String, StateDeclaration> stateDeclarations();
 
@@ -128,6 +132,7 @@ public abstract class DoFnSignature {
     abstract Builder setFnClass(Class<? extends DoFn<?, ?>> fnClass);
     abstract Builder setIsBoundedPerElement(PCollection.IsBounded isBounded);
     abstract Builder setProcessElement(ProcessElementMethod processElement);
+    abstract Builder setProcessRetraction(ProcessElementMethod processRetraction);
     abstract Builder setStartBundle(BundleMethod startBundle);
     abstract Builder setFinishBundle(BundleMethod finishBundle);
     abstract Builder setSetup(LifecycleMethod setup);

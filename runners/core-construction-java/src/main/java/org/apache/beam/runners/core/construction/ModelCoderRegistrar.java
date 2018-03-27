@@ -34,7 +34,9 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoderWithRetractions;
 
 /** The {@link CoderTranslatorRegistrar} for coders which are shared across languages. */
 @AutoService(CoderTranslatorRegistrar.class)
@@ -51,6 +53,8 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(LengthPrefixCoder.class, validateCommonUrn("beam:coder:length_prefix:v1"))
           .put(GlobalWindow.Coder.class, validateCommonUrn("beam:coder:global_window:v1"))
           .put(FullWindowedValueCoder.class, validateCommonUrn("beam:coder:windowed_value:v1"))
+          .put(FullWindowedValueCoderWithRetractions.class,
+               validateCommonUrn("beam:coder:windowed_value:v2"))
           .build();
 
   @VisibleForTesting
@@ -66,7 +70,9 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(KvCoder.class, CoderTranslators.kv())
           .put(IterableCoder.class, CoderTranslators.iterable())
           .put(LengthPrefixCoder.class, CoderTranslators.lengthPrefix())
-          .put(FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
+          .put(WindowedValue.FullWindowedValueCoder.class, CoderTranslators.fullWindowedValue())
+          .put(FullWindowedValueCoderWithRetractions.class,
+               CoderTranslators.fullWindowedValueV2())
           .build();
 
   @Override

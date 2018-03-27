@@ -135,6 +135,15 @@ class SplittableProcessElementsEvaluatorFactory<
           }
 
           @Override
+          public void outputRetractionOf(OutputT output,
+                                         Instant timestamp,
+                                         Collection<? extends BoundedWindow> windows,
+                                         PaneInfo pane) {
+            throw new UnsupportedOperationException(
+                "Retractions are not supported in direct runner for splittable ParDos");
+          }
+
+          @Override
           public <AdditionalOutputT> void outputWindowedValue(
               TupleTag<AdditionalOutputT> tag,
               AdditionalOutputT output,

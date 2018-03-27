@@ -130,6 +130,14 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       windowedValues.add(WindowedValue.of(output, timestamp, windows, pane));
     }
 
+    @Override
+    public void outputRetractionOf(KV<K, Iterable<V>> output,
+                                   Instant timestamp,
+                                   Collection<? extends BoundedWindow> windows,
+                                   PaneInfo pane) {
+      throw new UnsupportedOperationException("Retractions are not supported in Spark runner");
+    }
+
     private List<WindowedValue<KV<K, Iterable<V>>>> getWindowedValues() {
       return windowedValues;
     }

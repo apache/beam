@@ -135,10 +135,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   public void processElement(WindowedValue<InputT> compressedElem) {
     if (observesWindow) {
       for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
-        invokeProcessElement(elem);
+        invokeProcessElementOrRetraction(elem);
       }
     } else {
-      invokeProcessElement(compressedElem);
+      invokeProcessElementOrRetraction(compressedElem);
     }
   }
 
@@ -171,10 +171,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     invoker.invokeOnTimer(timerId, argumentProvider);
   }
 
-  private void invokeProcessElement(WindowedValue<InputT> elem) {
+  private void invokeProcessElementOrRetraction(WindowedValue<InputT> elem) {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeProcessElement(new DoFnProcessContext(elem));
+      if (elem.isRetraction()) {
+        invoker.invokeProcessRetraction(new DoFnProcessContext(elem));
+      } else {
+        invoker.invokeProcessElement(new DoFnProcessContext(elem));
+      }
     } catch (Exception ex) {
       throw wrapUserCodeException(ex);
     }

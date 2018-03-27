@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoderWithRetractions;
 
 /** {@link CoderTranslator} implementations for known coder types. */
 class CoderTranslators {
@@ -101,6 +102,21 @@ class CoderTranslators {
       public FullWindowedValueCoder<?> fromComponents(List<Coder<?>> components) {
         return WindowedValue.getFullCoder(
             components.get(0), (Coder<BoundedWindow>) components.get(1));
+      }
+    };
+  }
+
+  static CoderTranslator<FullWindowedValueCoderWithRetractions<?>> fullWindowedValueV2() {
+    return new SimpleStructuredCoderTranslator<FullWindowedValueCoderWithRetractions<?>>() {
+      @Override
+      public List<? extends Coder<?>> getComponents(FullWindowedValueCoderWithRetractions<?> from) {
+        return ImmutableList.of(from.getValueCoder(), from.getWindowCoder());
+      }
+
+      @Override
+      public FullWindowedValueCoderWithRetractions<?> fromComponents(List<Coder<?>> components) {
+        return WindowedValue.getFullCoderWithRetractions(
+                components.get(0), (Coder<BoundedWindow>) components.get(1));
       }
     };
   }

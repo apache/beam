@@ -155,6 +155,14 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
     }
 
     @Override
+    public void outputRetractionOf(KV<K, Iterable<V>> output,
+                                   Instant timestamp,
+                                   Collection<? extends BoundedWindow> windows,
+                                   PaneInfo pane) {
+      throw new UnsupportedOperationException("Retractions are not supported in Spark runner");
+    }
+
+    @Override
     public <AdditionalOutputT> void outputWindowedValue(
         TupleTag<AdditionalOutputT> tag,
         AdditionalOutputT output,

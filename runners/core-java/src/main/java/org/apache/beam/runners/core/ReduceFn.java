@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.core;
 
+import static org.apache.beam.sdk.util.WindowedValue.NOT_RETRACTION;
+
 import java.io.Serializable;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.Timers;
@@ -61,6 +63,8 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
 
     /** Return the timestamp associated with the value. */
     public abstract Instant timestamp();
+
+    public abstract boolean isRetraction();
   }
 
   /** Information accessible within {@link #onMerge}. */
@@ -75,8 +79,12 @@ public abstract class ReduceFn<K, InputT, OutputT, W extends BoundedWindow>
     /** Returns the {@link PaneInfo} for the trigger firing being processed. */
     public abstract PaneInfo paneInfo();
 
+    public void output(OutputT value) {
+      output(value, NOT_RETRACTION);
+    }
+
     /** Output the given value in the current window. */
-    public abstract void output(OutputT value);
+    public abstract void output(OutputT value, boolean isRetraction);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////

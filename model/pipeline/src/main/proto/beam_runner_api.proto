@@ -514,6 +514,9 @@ message AccumulationMode {
 
     // The aggregation is accumulated across outputs
     ACCUMULATING = 2;
+
+    // The aggregation is accumulated while retracting old values across outputs
+    RETRACTING = 3;
   }
 }
 

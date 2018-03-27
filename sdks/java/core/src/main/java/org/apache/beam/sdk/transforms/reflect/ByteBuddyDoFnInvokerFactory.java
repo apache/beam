@@ -300,6 +300,9 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
             .method(ElementMatchers.named("invokeProcessElement"))
             .intercept(new ProcessElementDelegation(clazzDescription, signature.processElement()))
 
+            .method(ElementMatchers.named("invokeProcessRetraction"))
+            .intercept(delegateProcessRetractionOrThrow(signature, clazzDescription))
+
             //   public invokeStartBundle(Context c) { delegate.<@StartBundle>(c); }
             //   ... etc ...
             .method(ElementMatchers.named("invokeStartBundle"))
@@ -331,6 +334,24 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                     ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded();
     return res;
+  }
+
+  private static Implementation delegateProcessRetractionOrThrow(
+      DoFnSignature signature,
+      TypeDescription clazzDescription) {
+
+    return (signature.processRetraction() == null)
+        ? ExceptionMethod.throwing(IllegalArgumentException.class,
+                                   String.format(
+                                       "Attempted to process a retraction of an element by '%s', "
+                                       + "but no method annotated with either "
+                                       + "@Pure or @ProcessRetraction found in the DoFn class. "
+                                       + "This can happen if you enabled retractions mode for the "
+                                       + "pipeline but "
+                                       + "did not update the DoFns to process retractions. "
+                                       + "See documentation on how retractions mode work.",
+                                       signature.fnClass()))
+        : new ProcessElementDelegation(clazzDescription, signature.processRetraction());
   }
 
   private static Implementation getRestrictionCoderDelegation(
