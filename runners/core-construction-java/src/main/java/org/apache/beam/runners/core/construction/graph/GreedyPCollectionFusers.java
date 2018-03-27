@@ -27,17 +27,22 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A Fuser that constructs a fused pipeline by fusing as many PCollections into a stage as possible.
  */
 class GreedyPCollectionFusers {
+  private static final Logger LOG = LoggerFactory.getLogger(GreedyPCollectionFusers.class);
+
   private static final Map<String, FusibilityChecker> URN_FUSIBILITY_CHECKERS =
       ImmutableMap.<String, FusibilityChecker>builder()
           .put(PTransformTranslation.PAR_DO_TRANSFORM_URN, GreedyPCollectionFusers::canFuseParDo)
@@ -271,21 +276,34 @@ class GreedyPCollectionFusers {
     return false;
   }
 
+  // Things with unknown URNs either execute within their own stage or are executed by the runner.
+  // In either case, assume the system is capable of executing the expressed transform
   private static boolean unknownTransformFusion(
       PTransformNode transform,
       @SuppressWarnings("unused") Environment environment,
       @SuppressWarnings("unused") Collection<PCollectionNode> stagePCollections,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
-    throw new IllegalArgumentException(
-        String.format("Unknown URN %s", transform.getTransform().getSpec().getUrn()));
+    LOG.debug(
+        "Unknown {} {} will not fuse into an existing {}",
+        PTransform.class.getSimpleName(),
+        transform.getTransform(),
+        ExecutableStage.class.getSimpleName(),
+        PTransform.class.getSimpleName());
+    return false;
   }
 
+  // Things with unknown URNs either execute within their own stage or are executed by the runner.
+  // In either case, assume the system is capable of executing the expressed transform
   private static boolean unknownTransformCompatibility(
       PTransformNode transform,
       @SuppressWarnings("unused") PTransformNode other,
       @SuppressWarnings("unused") QueryablePipeline pipeline) {
-    throw new IllegalArgumentException(
-        String.format(
-            "Unknown or unsupported URN %s", transform.getTransform().getSpec().getUrn()));
+    LOG.debug(
+        "Unknown {} {} will not root a {} with other {}",
+        PTransform.class.getSimpleName(),
+        transform.getTransform(),
+        ExecutableStage.class.getSimpleName(),
+        PTransform.class.getSimpleName());
+    return false;
   }
 }
