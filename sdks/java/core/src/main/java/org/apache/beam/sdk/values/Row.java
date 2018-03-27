@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.values;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -38,6 +38,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
+import org.joda.time.ReadableInstant;
 import org.joda.time.base.AbstractInstant;
 
 
@@ -178,8 +179,8 @@ public abstract class Row implements Serializable {
    * Get an array value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
-  public <T> List<T> getArray(String fieldName, Class<T> elementType) {
-    return getArray(getSchema().indexOf(fieldName), elementType);
+  public <T> List<T> getArray(String fieldName) {
+    return getArray(getSchema().indexOf(fieldName));
   }
 
   /**
@@ -195,7 +196,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Byte getByte(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.BYTE.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -205,7 +206,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Short getInt16(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.INT16.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -215,7 +216,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Integer getInt32(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.INT32.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -225,7 +226,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Float getFloat(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.FLOAT.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -235,7 +236,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Double getDouble(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.DOUBLE.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -245,7 +246,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Long getInt64(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.INT64.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -255,7 +256,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public String getString(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.STRING.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -265,7 +266,8 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public ReadableDateTime getDateTime(int idx) {
-    return new DateTime((Instant) getValue(idx));
+    ReadableInstant instant = getValue(idx);
+    return new DateTime(instant).withZone(instant.getZone());
   }
 
   /**
@@ -273,7 +275,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public BigDecimal getDecimal(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.DECIMAL.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -283,7 +285,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public boolean getBoolean(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.BOOLEAN.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -292,12 +294,9 @@ public abstract class Row implements Serializable {
    * Get an array value by field index, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
-  public <T> List<T> getArray(int idx, Class<T> elementType) {
-    Preconditions.checkState(
+  public <T> List<T> getArray(int idx) {
+    checkState(
         FieldType.ARRAY.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
-    // Preconditions.checkState(
-    //   FieldType.BYTE.equals(
-    //       getSchema().getField(fieldName).getTypeDescriptor().getComponentType()));
     return getValue(idx);
   }
 
@@ -306,7 +305,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Row getRow(int idx) {
-    Preconditions.checkState(
+    checkState(
         FieldType.ROW.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
@@ -334,8 +333,8 @@ public abstract class Row implements Serializable {
       return false;
     }
     Row other = (Row) o;
-    return Objects.equals(getSchema(), other.getSchema()) &&
-        Objects.equals(getValues(), other.getValues());
+    return Objects.equals(getSchema(), other.getSchema())
+        && Objects.equals(getValues(), other.getValues());
   }
 
   @Override
@@ -356,7 +355,6 @@ public abstract class Row implements Serializable {
   /**
    * Builder for {@link Row}.
    *
-   * TODO: Add Schema verification here! reuvenlax
    */
   public static class Builder {
     private List<Object> values = new ArrayList<>();
@@ -375,7 +373,7 @@ public abstract class Row implements Serializable {
       return addValues(Arrays.asList(values));
     }
 
-    public Builder addArray(List<Object> values) {
+    public <T> Builder addArray(List<T> values) {
       this.values.add(values);
       return this;
     }
@@ -419,24 +417,24 @@ public abstract class Row implements Serializable {
       return verifiedValues;
     }
 
-    private List<Object> verifyArray(Object value, FieldTypeDescriptor typeDescriptor,
+    private List<Object> verifyArray(Object value, FieldTypeDescriptor componentType,
                                      String fieldName) {
       if (!(value instanceof List)) {
         throw new IllegalArgumentException(
-            String.format("For field name %s and array type expected List class. Instead " +
-                    "class type was %s.", fieldName, value.getClass()));
+            String.format("For field name %s and array type expected List class. Instead "
+                + "class type was %s.", fieldName, value.getClass()));
       }
       List<Object> valueList = (List<Object>) value;
       List<Object> verifiedList = Lists.newArrayListWithCapacity(valueList.size());
       for (Object listValue : valueList) {
-        if (FieldType.ARRAY.equals(typeDescriptor.getType())) {
-          verifiedList.add(verifyArray(listValue, typeDescriptor.getComponentType(),
+        if (FieldType.ARRAY.equals(componentType.getType())) {
+          verifiedList.add(verifyArray(listValue, componentType.getComponentType(),
               fieldName + "nested"));
-        } else if (FieldType.ROW.equals(typeDescriptor.getType())) {
+        } else if (FieldType.ROW.equals(componentType.getType())) {
           verifiedList.add(verifyRow(listValue, fieldName));
         } else {
           verifiedList.add(verifyPrimitiveType(listValue,
-              typeDescriptor.getType(), fieldName));
+              componentType.getType(), fieldName));
         }
       }
       return verifiedList;
@@ -445,8 +443,8 @@ public abstract class Row implements Serializable {
     private Row verifyRow(Object value, String fieldName) {
       if (!(value instanceof Row)) {
         throw new IllegalArgumentException(
-            String.format("For field name %s expected Row type. " +
-                "Instead class type was %s.", fieldName, value.getClass()));
+            String.format("For field name %s expected Row type. "
+                + "Instead class type was %s.", fieldName, value.getClass()));
       }
       // No need to recursively validate the nested Row, since there's no way to build the
       // Row object without it validating.
@@ -457,55 +455,56 @@ public abstract class Row implements Serializable {
       if (type.isDateType()) {
         return verifyDateTime(value, fieldName);
       } else {
-        Class expectedClass = null;
         switch (type) {
           case BYTE:
-            if (!(value instanceof Byte)) {
-              expectedClass = Byte.class;
+            if (value instanceof Byte) {
+              return value;
             }
-            return (Byte) value;
+            break;
           case INT16:
-            if (!(value instanceof Short)) {
-              expectedClass = Short.class;
-            }
-            return (Short) value;
+            if (value instanceof Short){
+            return value;
+          }
+            break;
           case INT32:
-            if (!(value instanceof Integer)) {
-              expectedClass = Integer.class;
+            if (value instanceof Integer) {
+              return value;
             }
-            return (Integer) value;
+            break;
           case INT64:
-            if (!(value instanceof Long)) {
-              expectedClass = Long.class;
+            if (value instanceof Long) {
+              return value;
             }
-            return (Long) value;
+            break;
           case DECIMAL:
-            if (!(value instanceof BigDecimal)) {
-              expectedClass = BigDecimal.class;
+            if (value instanceof BigDecimal) {
+              return value;
             }
-            return (BigDecimal) value;
+            break;
           case FLOAT:
-            if (!(value instanceof Float)) {
-              expectedClass = Float.class;
+            if (value instanceof Float) {
+              return value;
             }
-            return (Float) value;
+            break;
           case DOUBLE:
-            if (!(value instanceof Double)) {
-              expectedClass = Double.class;
+            if (value instanceof Double) {
+              return value;
             }
-            return (Double) value;
+            break;
           case STRING:
-            if (!(value instanceof String)) {
-              expectedClass = String.class;
+            if (value instanceof String) {
+              return value;
             }
-            return (String) value;
+            break;
+          case BOOLEAN:
+            if (value instanceof Boolean) {
+              return value;
+            }
+            break;
         }
-        if (expectedClass != null) {
-          throw new IllegalArgumentException(
-              String.format("For field name %s and type %s expected class type %s. Instead " +
-                      "class type was %s.", fieldName, type, expectedClass, value.getClass()));
-        }
-        return value;
+        throw new IllegalArgumentException(
+            String.format("For field name %s and type %s found incorrect class type %s",
+                fieldName, type, value.getClass()));
       }
     }
 
@@ -521,9 +520,6 @@ public abstract class Row implements Serializable {
     }
 
     public Row build() {
-    //  System.err.println("BUILDING FROM " + values + " FOR " + schema
-     //     + "STACKTRACE ");
-     // new Exception().printStackTrace();
       checkNotNull(schema);
       return new AutoValue_Row(verify(schema, values), schema);
     }

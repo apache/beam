@@ -23,7 +23,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,7 +44,7 @@ import org.apache.beam.sdk.values.Row;
 public abstract class Schema implements Serializable {
   // A mapping between field names an indices.
   private BiMap<String, Integer> fieldIndices = HashBiMap.create();
-  abstract public List<Field> getFields();
+  public abstract List<Field> getFields();
 
   @AutoValue.Builder
   abstract static class Builder {
@@ -54,7 +53,11 @@ public abstract class Schema implements Serializable {
   }
 
   public static Schema of(List<Field> fields) {
-    return new AutoValue_Schema.Builder().setFields(fields).build();
+    return Schema.fromFields(fields);
+  }
+
+  public static Schema of(Field ... fields) {
+    return Schema.of(Arrays.asList(fields));
   }
 
   @Override
@@ -63,8 +66,8 @@ public abstract class Schema implements Serializable {
       return false;
     }
     Schema other = (Schema) o;
-    return Objects.equals(fieldIndices, other.fieldIndices) &&
-        Objects.equals(getFields(), other.getFields());
+    return Objects.equals(fieldIndices, other.fieldIndices)
+        && Objects.equals(getFields(), other.getFields());
   }
 
   @Override
@@ -179,10 +182,10 @@ public abstract class Schema implements Serializable {
         return false;
       }
       FieldTypeDescriptor other = (FieldTypeDescriptor) o;
-      return Objects.equals(getType(), other.getType()) &&
-          Objects.equals(getComponentType(), other.getComponentType()) &&
-          Objects.equals(getRowSchema(), other.getRowSchema()) &&
-          Arrays.equals(getMetadata(), other.getMetadata());
+      return Objects.equals(getType(), other.getType())
+          && Objects.equals(getComponentType(), other.getComponentType())
+          && Objects.equals(getRowSchema(), other.getRowSchema())
+          && Arrays.equals(getMetadata(), other.getMetadata());
 
     }
 
@@ -278,10 +281,10 @@ public abstract class Schema implements Serializable {
         return false;
       }
       Field other = (Field) o;
-      return Objects.equals(getName(), other.getName()) &&
-          Objects.equals(getDescription(), other.getDescription()) &&
-          Objects.equals(getTypeDescriptor(), other.getTypeDescriptor()) &&
-          Objects.equals(getNullable(), other.getNullable());
+      return Objects.equals(getName(), other.getName())
+          && Objects.equals(getDescription(), other.getDescription())
+          && Objects.equals(getTypeDescriptor(), other.getTypeDescriptor())
+          && Objects.equals(getNullable(), other.getNullable());
     }
 
     @Override
