@@ -489,6 +489,22 @@ ext.applyDockerNature = {
   }
 }
 
+def containerImageName(name) {
+  String repositoryRoot
+  if (rootProject.hasProperty(["docker-repository-root"])) {
+    repositoryRoot = rootProject["docker-repository-root"]
+  } else {
+    repositoryRoot = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
+  }
+  String tag = 'latest'
+  if (rootProject.hasProperty(["docker-tag"])) {
+    tag = rootProject["docker-tag"]
+  }
+  return "${repositoryRoot}/${name}:${tag}"
+}
+
+ext.containerImageName = this.&containerImageName
+
 /*************************************************************************************************/
 
 ext.applyGrpcNature = {
