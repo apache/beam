@@ -21,9 +21,12 @@ import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -47,6 +50,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.stubbing.Answer;
 
 /**
  * Tests SerializableCoder.
@@ -295,5 +299,16 @@ public class SerializableCoderTest implements Serializable {
   public void coderChecksForEquals() throws Exception {
     SerializableCoder.of(ProperEquals.class);
     expectedLogs.verifyNotLogged("Can't verify serialized elements of type");
+  }
+
+  @Test(expected = IOException.class)
+  public void coderDoesNotWrapIoException() throws Exception {
+    final SerializableCoder<String> coder = SerializableCoder.of(String.class);
+
+    final OutputStream outputStream = mock(OutputStream.class, (Answer) invocationOnMock -> {
+      throw new IOException();
+    });
+
+    coder.encode("", outputStream);
   }
 }
