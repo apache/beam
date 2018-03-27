@@ -22,6 +22,8 @@ import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
+import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.util.Settings;
@@ -109,6 +111,24 @@ public class BeamFlow extends Flow {
   private BeamFlow(Pipeline pipeline) {
     super(null, new Settings());
     this.pipeline = pipeline;
+  }
+
+  @Override
+  public <T> Dataset<T> createInput(DataSource<T> source, ExtractEventTime<T> evtTimeFn) {
+    ensureContext();
+    Dataset<T> ret = super.createInput(source, evtTimeFn);
+    PCollection<T> output = InputTranslator.doTranslate(source, context);
+    context.setPCollection(ret, output);
+    return ret;
+  }
+
+  @Override
+  public <T> Dataset<T> createInput(DataSource<T> source) {
+    ensureContext();
+    Dataset<T> ret = super.createInput(source);
+    PCollection<T> output = InputTranslator.doTranslate(source, context);
+    context.setPCollection(ret, output);
+    return ret;
   }
 
   /**
@@ -237,7 +257,7 @@ public class BeamFlow extends Flow {
    * @return associated pipeline
    * @throws NullPointerException when the flow has no associated pipeline.
    * Note that the flow has associated pipeline if and only if it was created
-   * by {@link create(Pipeline)}.
+   * by {@link #create(Pipeline)}.
    */
   public Pipeline getPipeline() {
     return Objects.requireNonNull(pipeline);
