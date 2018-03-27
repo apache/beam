@@ -18,9 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.math.BigDecimal;
-import java.text.DateFormat;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -33,6 +31,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -45,7 +45,8 @@ import org.junit.rules.ExpectedException;
  *
  */
 public class BeamSqlDslBase {
-  public static final DateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+  public static final DateTimeFormatter FORMAT =
+      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
@@ -84,16 +85,16 @@ public class BeamSqlDslBase {
         TestUtils.RowsBuilder.of(schemaInTableA)
             .addRows(
                 1, 1000L, (short) 1, (byte) 1, 1.0f, 1.0d, "string_row1",
-                FORMAT.parse("2017-01-01 01:01:03"), 0, new BigDecimal(1))
+                FORMAT.parseDateTime("2017-01-01 01:01:03"), 0, new BigDecimal(1))
             .addRows(
                 2, 2000L, (short) 2, (byte) 2, 2.0f, 2.0d, "string_row2",
-                FORMAT.parse("2017-01-01 01:02:03"), 0, new BigDecimal(2))
+                FORMAT.parseDateTime("2017-01-01 01:02:03"), 0, new BigDecimal(2))
             .addRows(
                 3, 3000L, (short) 3, (byte) 3, 3.0f, 3.0d, "string_row3",
-                FORMAT.parse("2017-01-01 01:06:03"), 0, new BigDecimal(3))
+                FORMAT.parseDateTime("2017-01-01 01:06:03"), 0, new BigDecimal(3))
             .addRows(
                 4, 4000L, (short) 4, (byte) 4, 4.0f, 4.0d, "第四行",
-                FORMAT.parse("2017-01-01 02:04:03"), 0, new BigDecimal(4))
+                FORMAT.parseDateTime("2017-01-01 02:04:03"), 0, new BigDecimal(4))
             .getRows();
   }
 

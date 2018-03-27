@@ -20,10 +20,10 @@ package org.apache.beam.sdk.nexmark.model.sql.adapter;
 
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.Schema;
 
 /**
  * Helper class to help map Java model fields to {@link Schema} fields.

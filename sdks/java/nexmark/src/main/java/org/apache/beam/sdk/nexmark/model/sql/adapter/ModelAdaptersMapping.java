@@ -21,7 +21,6 @@ package org.apache.beam.sdk.nexmark.model.sql.adapter;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
 
 /**
  * Maps Java model classes to Beam SQL record types.
@@ -70,7 +70,7 @@ public class ModelAdaptersMapping {
                 p.creditCard,
                 p.city,
                 p.state,
-                new Date(p.dateTime),
+                new DateTime(p.dateTime),
                 p.extra));
       }
       @Override
@@ -82,7 +82,7 @@ public class ModelAdaptersMapping {
            row.getString("creditCard"),
            row.getString("city"),
            row.getString("state"),
-           row.getDate("dateTime").getTime(),
+           row.getDateTime("dateTime").getMillis(),
            row.getString("extra"));
       }
     };
@@ -104,7 +104,7 @@ public class ModelAdaptersMapping {
                 b.auction,
                 b.bidder,
                 b.price,
-                new Date(b.dateTime),
+                new DateTime(b.dateTime),
                 b.extra));
       }
       @Override
@@ -113,7 +113,7 @@ public class ModelAdaptersMapping {
             row.getInt64("auction"),
             row.getInt64("bidder"),
             row.getInt64("price"),
-            row.getDate("dateTime").getTime(),
+            row.getDateTime("dateTime").getMillis(),
             row.getString("extra"));
       }
     };
@@ -142,8 +142,8 @@ public class ModelAdaptersMapping {
                 a.description,
                 a.initialBid,
                 a.reserve,
-                new Date(a.dateTime),
-                new Date(a.expires),
+                new DateTime(a.dateTime),
+                new DateTime(a.expires),
                 a.seller,
                 a.category,
                 a.extra));
@@ -156,8 +156,8 @@ public class ModelAdaptersMapping {
             row.getString("description"),
             row.getInt64("initialBid"),
             row.getInt64("reserve"),
-            row.getDate("dateTime").getTime(),
-            row.getDate("expires").getTime(),
+            row.getDateTime("dateTime").getMillis(),
+            row.getDateTime("expires").getMillis(),
             row.getInt64("seller"),
             row.getInt64("category"),
             row.getString("extra"));

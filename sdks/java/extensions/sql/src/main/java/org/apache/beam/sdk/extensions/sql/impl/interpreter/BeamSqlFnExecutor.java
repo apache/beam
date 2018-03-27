@@ -110,6 +110,7 @@ import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlUserDefinedFunction;
 import org.apache.calcite.util.NlsString;
+import org.joda.time.DateTime;
 
 /**
  * Executor based on {@link BeamSqlExpression} and {@link BeamSqlPrimitive}.
@@ -157,7 +158,7 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
       } else if (isDateNode(type, value)) {
         // does this actually make sense?
         // Calcite actually treat Calendar as the java type of Date Literal
-        return BeamSqlPrimitive.of(type, ((Calendar) value).getTime());
+        return BeamSqlPrimitive.of(type, new DateTime(((Calendar) value).getTimeInMillis()));
       } else {
         // node.getType().getSqlTypeName() and node.getSqlTypeName() can be different
         // e.g. sql: "select 1"

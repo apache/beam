@@ -24,8 +24,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.Iterables;
 import java.math.BigDecimal;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -34,6 +32,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.schemas.Schema;
+import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -73,9 +72,9 @@ public class RowSizeTest {
               (double) 6.32,
               new BigDecimal(7),
               false,
-              new GregorianCalendar(2019, 03, 02),
-              new Date(10L),
-              new Date(11L),
+              new DateTime().withDate(2019, 03, 02),
+              new DateTime(10L),
+              new DateTime(11L),
               "12",
               "13")
           .build();

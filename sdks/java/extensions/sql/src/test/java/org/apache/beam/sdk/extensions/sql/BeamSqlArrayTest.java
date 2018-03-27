@@ -117,7 +117,7 @@ public class BeamSqlArrayTest {
     Schema resultType =
         RowSqlType
             .builder()
-            .withArrayField("f_arrElem", SqlTypeName.VARCHAR)
+            .withVarcharField("f_arrElem")
             .build();
 
     PCollection<Row> result =

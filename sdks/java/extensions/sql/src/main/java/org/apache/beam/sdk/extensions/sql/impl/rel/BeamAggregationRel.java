@@ -84,18 +84,17 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
 
     public PCollection<Row> expand(PCollectionTuple inputPCollections) {
-
-    RelNode input = getInput();
+      RelNode input = getInput();
       String stageName = BeamSqlRelUtils.getStageName(BeamAggregationRel.this) + "_";
 
       PCollection<Row> upstream =
           inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
-    if (windowField.isPresent()) {
-      upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
+      if (windowField.isPresent()) {
+        upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
           .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIndex))
           .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
           .setCoder(upstream.getCoder());
-    }
+      }
 
     PCollection<Row> windowedStream =
         windowField.isPresent()
@@ -104,13 +103,14 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
     validateWindowIsSupported(windowedStream);
 
-    RowCoder keyCoder = exKeyFieldsSchema(input.getRowType()).getRowCoder();
+    Schema keySchema = exKeyFieldsSchema(input.getRowType());
+    RowCoder keyCoder = keySchema.getRowCoder();
     PCollection<KV<Row, Row>> exCombineByStream = windowedStream.apply(
         stageName + "exCombineBy",
         WithKeys
-            .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(windowFieldIndex, groupSet)))
+            .of(new BeamAggregationTransforms.AggregationGroupByKeyFn(
+                keySchema, windowFieldIndex, groupSet)))
         .setCoder(KvCoder.of(keyCoder, upstream.getCoder()));
-
 
     RowCoder aggCoder = exAggFieldsSchema().getRowCoder();
 

@@ -91,7 +91,7 @@ public class BeamAggregationTransforms implements Serializable{
       fieldValues.addAll(kvRow.getValue().getValues());
 
       if (windowStartFieldIdx != -1) {
-        fieldValues.add(windowStartFieldIdx, ((IntervalWindow) window).start().toDate());
+        fieldValues.add(windowStartFieldIdx, ((IntervalWindow) window).start());
       }
 
       c.output(Row
@@ -106,9 +106,11 @@ public class BeamAggregationTransforms implements Serializable{
    */
   public static class AggregationGroupByKeyFn
       implements SerializableFunction<Row, Row> {
+    private Schema keySchema;
     private List<Integer> groupByKeys;
 
-    public AggregationGroupByKeyFn(int windowFieldIdx, ImmutableBitSet groupSet) {
+    public AggregationGroupByKeyFn(Schema keySchema, int windowFieldIdx, ImmutableBitSet groupSet) {
+      this.keySchema = keySchema;
       this.groupByKeys = new ArrayList<>();
       for (int i : groupSet.asList()) {
         if (i != windowFieldIdx) {
@@ -119,20 +121,10 @@ public class BeamAggregationTransforms implements Serializable{
 
     @Override
     public Row apply(Row input) {
-      Schema typeOfKey = exTypeOfKeyRow(input.getSchema());
-
       return groupByKeys
           .stream()
           .map(input::getValue)
-          .collect(toRow(typeOfKey));
-    }
-
-    private Schema exTypeOfKeyRow(Schema schema) {
-      return
-          groupByKeys
-              .stream()
-              .map(schema::getField)
-              .collect(toSchema());
+          .collect(toRow(keySchema));
     }
   }
 
@@ -325,6 +317,7 @@ public class BeamAggregationTransforms implements Serializable{
     public Coder<AggregationAccumulator> getAccumulatorCoder(
         CoderRegistry registry, Coder<Row> inputCoder)
         throws CannotProvideCoderException {
+      // TODO: Doing this here is wrong.
       registry.registerCoderForClass(BigDecimal.class, BigDecimalCoder.of());
       List<Coder> aggAccuCoderList = new ArrayList<>();
       for (int idx = 0; idx < aggregators.size(); ++idx) {

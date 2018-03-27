@@ -26,9 +26,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collector;
@@ -41,6 +39,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
 import org.joda.time.base.AbstractInstant;
+
 
 /**
  * {@link Row} is an immutable tuple-like schema to represent one element in a
@@ -148,7 +147,7 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public double getDouble(String fieldName) {
-    return getFloat(getSchema().indexOf(fieldName));
+    return getDouble(getSchema().indexOf(fieldName));
   }
 
   /**
@@ -514,16 +513,10 @@ public abstract class Row implements Serializable {
       // We support the following classes for datetimes.
       if (value instanceof AbstractInstant) {
         return ((AbstractInstant) value).toInstant();
-      } else if (value instanceof Date) {
-        Date date = (Date) value;
-        return new DateTime(date).toInstant();
-      } else if (value instanceof Calendar) {
-        Calendar calendar = (Calendar) value;
-        return new DateTime(calendar).toInstant();
       } else {
         throw new IllegalArgumentException(
-          String.format("For field name %s and DATETIME type got unexpected class %s " +
-                  "class type was %s.", fieldName, value.getClass()));
+          String.format("For field name %s and DATETIME type got unexpected class %s ",
+              fieldName, value.getClass()));
       }
     }
 

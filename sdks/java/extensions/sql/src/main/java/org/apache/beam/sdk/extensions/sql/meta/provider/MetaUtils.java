@@ -38,7 +38,9 @@ public class MetaUtils {
   }
 
   private static Schema.Field toRecordField(Column column) {
+    String description = column.getComment() != null ? column.getComment() : "";
     return Schema.Field.of(column.getName(), column.getTypeDescriptor())
-        .withDescription(column.getComment());
+        .withDescription(description)
+        .withNullable(true);
   }
 }
