@@ -104,7 +104,7 @@ def run(argv=None):
   # Format the counts into a PCollection of strings.
   def format_result(word_count):
     (word, count) = word_count
-    return '%s: %s' % (word, count)
+    return '%s: %d' % (word, count)
 
   output = counts | 'format' >> beam.Map(format_result)
 
