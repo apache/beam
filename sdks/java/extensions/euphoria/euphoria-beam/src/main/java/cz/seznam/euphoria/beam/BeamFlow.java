@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.PCollection;
@@ -43,42 +42,6 @@ import org.apache.beam.sdk.values.PCollection;
  * and integrates seamlessly with Beam.
  */
 public class BeamFlow extends Flow {
-
-  /**
-   * Create unnamed {@link BeamFlow}.
-   * @return constructed flow
-   */
-  public static BeamFlow create() {
-    return new BeamFlow(null, new Settings());
-  }
-
-  /**
-   * Create flow with given name.
-   * @param name name of the created flow
-   * @return constructed flow
-   */
-  public static BeamFlow create(String name) {
-    return new BeamFlow(name, new Settings());
-  }
-
-  /**
-   * Create flow with given name and settings.
-   * @param name name of the created flow
-   * @param settings settings to be used
-   * @return constructed flow
-   */
-  public static BeamFlow create(String name, Settings settings) {
-    return new BeamFlow(name, settings);
-  }
-
-  /**
-   * Create unnamed flow with given settings.
-   * @param settings settings to be used
-   * @return constructed flow
-   */
-  public static BeamFlow create(Settings settings) {
-    return new BeamFlow(null, settings);
-  }
 
   /**
    * Create flow from pipeline.
@@ -92,25 +55,35 @@ public class BeamFlow extends Flow {
   private final transient Map<PCollection<?>, Dataset<?>> wrapped = new HashMap<>();
   private Duration allowedLateness = Duration.ZERO;
   private AccumulatorProvider.Factory accumulatorFactory = VoidAccumulatorProvider.getFactory();
-  private transient BeamExecutorContext context;
-  @Nullable
-  private transient Pipeline pipeline;
+  private transient final BeamExecutorContext context;
+  private transient final Pipeline pipeline;
 
   /**
    * Construct the {@link BeamFlow}.
-   * @param name name of the flow (optional)
-   * @param settings settings to be used
+   * @param pipeline pipeline to wrap into this flow
    */
-  private BeamFlow(
-      @Nullable String name,
-      Settings settings) {
-
-    super(name, settings);
-  }
-
   private BeamFlow(Pipeline pipeline) {
     super(null, new Settings());
     this.pipeline = pipeline;
+    this.context = new BeamExecutorContext(
+          DAG.empty(), accumulatorFactory, pipeline, getSettings(),
+          org.joda.time.Duration.millis(allowedLateness.toMillis()));
+  }
+
+  @Override
+  public <T> Dataset<T> createInput(DataSource<T> source, ExtractEventTime<T> evtTimeFn) {
+    Dataset<T> ret = super.createInput(source, evtTimeFn);
+    PCollection<T> output = InputTranslator.doTranslate(source, context);
+    context.setPCollection(ret, output);
+    return ret;
+  }
+
+  @Override
+  public <T> Dataset<T> createInput(DataSource<T> source) {
+    Dataset<T> ret = super.createInput(source);
+    PCollection<T> output = InputTranslator.doTranslate(source, context);
+    context.setPCollection(ret, output);
+    return ret;
   }
 
   @Override
@@ -187,7 +160,6 @@ public class BeamFlow extends Flow {
   }
 
   private <T> Dataset<T> newDataset(PCollection<T> coll) {
-    ensureContext();
     Operator<?, T> wrap = new WrappedPCollectionOperator<>(this, coll);
     add(wrap);
     return wrap.output();
@@ -197,39 +169,28 @@ public class BeamFlow extends Flow {
   @Override
   public <IN, OUT, T extends Operator<IN, OUT>> T add(T operator) {
     T ret = super.add(operator);
-    if (pipeline != null) {
-      ensureContext();
-      List<Operator<?, ?>> inputOperators = operator.listInputs()
-          .stream()
-          .map(d -> (Operator<?, ?>) new WrappedPCollectionOperator(this, unwrapped(d), d))
-          .collect(Collectors.toList());
-      final DAG<Operator<?, ?>> dag;
-      if (inputOperators.isEmpty()) {
-        dag = DAG.of(operator);
-      } else {
-        dag = DAG.of(inputOperators);
-        dag.add(operator, inputOperators);
-      }
-      DAG<Operator<?, ?>> unfolded = FlowTranslator.unfold(dag);
-      context.setTranslationDAG(unfolded);
-      FlowTranslator.updateContextBy(unfolded, context);
-      // register the output of the sub-dag as output of the original operator
-      Dataset<OUT> output = operator.output();
-      Dataset<OUT> dagOutput = (Dataset) Iterables.getOnlyElement(
-          unfolded.getLeafs()).get().output();
-      if (output != dagOutput) {
-        context.setPCollection(output, unwrapped(dagOutput));
-      }
+    List<Operator<?, ?>> inputOperators = operator.listInputs()
+        .stream()
+        .map(d -> (Operator<?, ?>) new WrappedPCollectionOperator(this, unwrapped(d), d))
+        .collect(Collectors.toList());
+    final DAG<Operator<?, ?>> dag;
+    if (inputOperators.isEmpty()) {
+      dag = DAG.of(operator);
+    } else {
+      dag = DAG.of(inputOperators);
+      dag.add(operator, inputOperators);
+    }
+    DAG<Operator<?, ?>> unfolded = FlowTranslator.unfold(dag);
+    context.setTranslationDAG(unfolded);
+    FlowTranslator.updateContextBy(unfolded, context);
+    // register the output of the sub-dag as output of the original operator
+    Dataset<OUT> output = operator.output();
+    Dataset<OUT> dagOutput = (Dataset) Iterables.getOnlyElement(
+        unfolded.getLeafs()).get().output();
+    if (output != dagOutput) {
+      context.setPCollection(output, unwrapped(dagOutput));
     }
     return ret;
-  }
-
-  private void ensureContext() {
-    if (context == null) {
-      context = new BeamExecutorContext(
-          DAG.empty(), accumulatorFactory, pipeline, getSettings(),
-          org.joda.time.Duration.millis(allowedLateness.toMillis()));
-    }
   }
 
   @Override
