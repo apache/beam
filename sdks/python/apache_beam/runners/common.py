@@ -534,7 +534,7 @@ class DoFnRunner(Receiver):
           traceback.format_exception_only(type(exn), exn)[-1].strip()
           + step_annotation)
       new_exn._tagged_with_step = True
-    six.raise_from(new_exn, original_traceback)
+    six.reraise(type(new_exn), new_exn, original_traceback)
 
 
 class OutputProcessor(object):
