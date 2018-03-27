@@ -185,9 +185,9 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                FieldType.INT32, "order_id",
+                FieldType.INT32, "order_id1",
                 FieldType.INT32, "sum_site_id",
-                FieldType.INT32, "order_id0",
+                FieldType.INT32, "order_id",
                 FieldType.INT32, "sum_site_id0"
             ).addRows(
                 1, 1, 1, 3,
