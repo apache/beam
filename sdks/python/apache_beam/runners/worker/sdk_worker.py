@@ -127,15 +127,14 @@ class SdkHarness(object):
   def _execute(self, task, request):
     try:
       response = task()
-    except Exception as e:  # pylint: disable=broad-except
-      traceback.print_exc(file=sys.stderr)
+    except Exception:  # pylint: disable=broad-except
+      traceback_string = traceback.format_exc()
+      print(traceback_string, file=sys.stderr)
       logging.error(
           'Error processing instruction %s. Original traceback is\n%s\n',
-          request.instruction_id,
-          traceback.format_exc(e),
-          exc_info=True)
+          request.instruction_id, traceback_string)
       response = beam_fn_api_pb2.InstructionResponse(
-          instruction_id=request.instruction_id, error=str(e))
+          instruction_id=request.instruction_id, error=traceback_string)
     self._responses.put(response)
 
   def _request_register(self, request):
