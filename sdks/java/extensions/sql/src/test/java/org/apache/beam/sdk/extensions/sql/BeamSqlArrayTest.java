@@ -19,14 +19,13 @@ package org.apache.beam.sdk.extensions.sql;
 
 import java.util.Arrays;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -40,7 +39,7 @@ public class BeamSqlArrayTest {
       RowSqlType
         .builder()
         .withIntegerField("f_int")
-        .withArrayField("f_stringArr", FieldTypeDescriptor.of(FieldType.STRING))
+        .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
         .build();
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
@@ -54,7 +53,7 @@ public class BeamSqlArrayTest {
         RowSqlType
             .builder()
             .withIntegerField("f_int")
-            .withArrayField("f_arr", FieldTypeDescriptor.of(FieldType.STRING))
+            .withArrayField("f_arr", SqlTypeName.VARCHAR)
             .build();
 
     PCollection<Row> result =
@@ -86,7 +85,7 @@ public class BeamSqlArrayTest {
         RowSqlType
             .builder()
             .withIntegerField("f_int")
-            .withArrayField("f_stringArr", FieldTypeDescriptor.of(FieldType.STRING))
+            .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
             .build();
 
     PCollection<Row> result =
@@ -118,7 +117,7 @@ public class BeamSqlArrayTest {
     Schema resultType =
         RowSqlType
             .builder()
-            .withArrayField("f_arrElem", FieldTypeDescriptor.of(FieldType.STRING))
+            .withArrayField("f_arrElem", SqlTypeName.VARCHAR)
             .build();
 
     PCollection<Row> result =
@@ -142,24 +141,25 @@ public class BeamSqlArrayTest {
   }
 
   @Test
-  public void testSingleElement() {
+  public void testSingleElement() throws Exception {
+    Row inputRow = Row.withSchema(INPUT_ROW_TYPE)
+        .addValues(1)
+        .addArray(Arrays.asList("111"))
+        .build();
+
     PCollection<Row> input =
         PBegin
             .in(pipeline)
             .apply(
                 "boundedInput1",
                 Create
-                    .of(
-                        Row.withSchema(INPUT_ROW_TYPE)
-                            .addValues(1)
-                            .addArray(Arrays.asList("111"))
-                            .build())
+                    .of(inputRow)
                     .withCoder(INPUT_ROW_TYPE.getRowCoder()));
 
     Schema resultType =
         RowSqlType
             .builder()
-            .withArrayField("f_arrElem", FieldTypeDescriptor.of(FieldType.STRING))
+            .withVarcharField("f_arrElem")
             .build();
 
     PCollection<Row> result =
@@ -172,7 +172,7 @@ public class BeamSqlArrayTest {
            .containsInAnyOrder(
                Row
                    .withSchema(resultType)
-                   .addValues(Arrays.asList("111"))
+                   .addValues("111")
                    .build());
 
     pipeline.run();

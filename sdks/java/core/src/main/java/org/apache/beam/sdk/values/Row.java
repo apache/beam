@@ -435,6 +435,9 @@ public abstract class Row implements Serializable {
               fieldName + "nested"));
         } else if (FieldType.ROW.equals(typeDescriptor.getType())) {
           verifiedList.add(verifyRow(listValue, fieldName));
+        } else {
+          verifiedList.add(verifyPrimitiveType(listValue,
+              typeDescriptor.getType(), fieldName));
         }
       }
       return verifiedList;
@@ -525,6 +528,9 @@ public abstract class Row implements Serializable {
     }
 
     public Row build() {
+    //  System.err.println("BUILDING FROM " + values + " FOR " + schema
+     //     + "STACKTRACE ");
+     // new Exception().printStackTrace();
       checkNotNull(schema);
       return new AutoValue_Row(verify(schema, values), schema);
     }

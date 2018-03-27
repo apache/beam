@@ -51,7 +51,7 @@ public class RowSqlType {
 
     private ImmutableList.Builder<Schema.Field> fields;
 
-    public Builder withField(String fieldName, Schema.FieldType fieldType,
+    private Builder withField(String fieldName, Schema.FieldType fieldType,
                              @Nullable Schema.FieldTypeDescriptor componentType,
                              @Nullable Schema fieldSchema,
                              @Nullable byte[] metadata) {
@@ -141,23 +141,12 @@ public class RowSqlType {
     /**
      * Adds an ARRAY field with elements of the give type.
      */
-    public Builder withArrayField(String fieldName, FieldTypeDescriptor typeDescriptor) {
+    public Builder withArrayField(String fieldName, SqlTypeName typeName) {
       return withField(
           fieldName,
           FieldType.ARRAY,
-          typeDescriptor,
-          null,
-          null);
-    }
-
-    /**
-     * Adds an ARRAY field with elements of the give primitive type.
-     */
-    public Builder withArrayField(String fieldName, FieldType fieldType) {
-      return withField(
-          fieldName,
-          FieldType.ARRAY,
-          FieldTypeDescriptor.of(fieldType),
+          FieldTypeDescriptor.of(CalciteUtils.toFieldType(typeName))
+          .withMetadata(CalciteUtils.typeToMetadata(typeName)),
           null,
           null);
     }
