@@ -17,6 +17,6 @@
  */
 
 /**
- * Table schema for KafkaIO.
+ * Table schema for BigQuery.
  */
-package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
+package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
