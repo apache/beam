@@ -106,6 +106,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<5',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
+    'pytz>=2018.3',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',
     'six>=1.9,<1.12',
