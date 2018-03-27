@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.math.BigDecimal;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
@@ -97,8 +97,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     return (String) getValue();
   }
 
-  public Date getDate() {
-    return (Date) getValue();
+  public ReadableInstant getDate() {
+    return (ReadableInstant) getValue();
   }
 
   public BigDecimal getDecimal() {
@@ -132,10 +132,10 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     case VARCHAR:
       return value instanceof String || value instanceof NlsString;
     case TIME:
-      return value instanceof GregorianCalendar;
+      return value instanceof ReadableInstant;
     case TIMESTAMP:
     case DATE:
-      return value instanceof Date;
+      return value instanceof ReadableInstant;
     case INTERVAL_SECOND:
     case INTERVAL_MINUTE:
     case INTERVAL_HOUR:
@@ -159,20 +159,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   //
   private static <T> T convertValue(T value, SqlTypeName typeName) {
     // TODO: We should just convert Calcite to use either Joda or Java8 time.
-    if (SqlTypeName.TIME.equals(typeName)) {
-      if (value instanceof ReadableInstant) {
-        long millis = ((ReadableInstant) value).getMillis();
-        GregorianCalendar calendar = new GregorianCalendar();
-        calendar.setTimeInMillis(millis);
-        return (T) calendar;
-      }
-    } else if (SqlTypeName.TIMESTAMP.equals(typeName) || SqlTypeName.DATE.equals(typeName)) {
-      if (value instanceof ReadableInstant) {
-        long millis = ((ReadableInstant) value).getMillis();
-        Date date = new Date();
-        date.setTime(millis);
-        return (T) date;
-      }
+    if (SqlTypeName.DATETIME_TYPES.contains(typeName)) {
+      checkArgument(value instanceof ReadableInstant);
     }
     return (T) value;
   }

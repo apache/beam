@@ -18,13 +18,11 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import java.sql.Date;
-import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -66,7 +64,8 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
   public void testForIntegerToDateCast() {
     // test for yyyyMMdd format
     operands.add(BeamSqlPrimitive.of(SqlTypeName.INTEGER, 20170521));
-    Assert.assertEquals(Date.valueOf("2017-05-21"),
+    Assert.assertEquals(new DateTime().withDate(2017, 05, 21)
+            .withTimeAtStartOfDay(),
         new BeamSqlCastExpression(operands, SqlTypeName.DATE).evaluate(row, null).getValue());
   }
 
@@ -74,7 +73,8 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
   public void testyyyyMMddDateFormat() {
     //test for yyyy-MM-dd format
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2017-05-21"));
-    Assert.assertEquals(Date.valueOf("2017-05-21"),
+    Assert.assertEquals(new DateTime().withDate(2017, 05, 21)
+        .withTimeAtStartOfDay(),
         new BeamSqlCastExpression(operands, SqlTypeName.DATE).evaluate(row, null).getValue());
   }
 
@@ -82,7 +82,8 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
   public void testyyMMddDateFormat() {
     // test for yy.MM.dd format
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "17.05.21"));
-    Assert.assertEquals(Date.valueOf("2017-05-21"),
+    Assert.assertEquals(new DateTime().withDate(2017, 05, 21)
+        .withTimeAtStartOfDay(),
         new BeamSqlCastExpression(operands, SqlTypeName.DATE).evaluate(row, null).getValue());
   }
 
@@ -97,7 +98,8 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test
   public void testDateTimeFormatWithMillis() {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2017-05-21 23:59:59.989"));
-    Assert.assertEquals(Timestamp.valueOf("2017-05-22 00:00:00.0"),
+    Assert.assertEquals(new DateTime().withDate(2017, 05, 22)
+        .withTime(0, 0, 0, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
           .evaluate(row, null).getValue());
   }
@@ -105,7 +107,8 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test
   public void testDateTimeFormatWithTimezone() {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2017-05-21 23:59:59.89079 PST"));
-    Assert.assertEquals(Timestamp.valueOf("2017-05-22 00:00:00.0"),
+    Assert.assertEquals(new DateTime().withDate(2017, 05, 22)
+            .withTime(0, 0, 0, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
           .evaluate(row, null).getValue());
   }
@@ -113,15 +116,17 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test
   public void testDateTimeFormat() {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2017-05-21 23:59:59"));
-    Assert.assertEquals(Timestamp.valueOf("2017-05-21 23:59:59"),
+    Assert.assertEquals(new DateTime().withDate(2017, 05, 21)
+        .withTime(23, 59, 59, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
           .evaluate(row, null).getValue());
   }
 
   @Test(expected = RuntimeException.class)
   public void testForCastTypeNotSupported() {
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIME, Calendar.getInstance().getTime()));
-    Assert.assertEquals(Timestamp.valueOf("2017-05-22 00:00:00.0"),
+    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIME, DateTime.now()));
+    Assert.assertEquals(new DateTime().withDate(2017, 05, 22)
+            .withTime(0, 0, 0, 0),
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
           .evaluate(row, null).getValue());
   }

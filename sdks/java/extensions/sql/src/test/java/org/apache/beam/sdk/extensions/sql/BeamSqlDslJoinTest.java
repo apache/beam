@@ -324,11 +324,11 @@ public class BeamSqlDslJoinTest {
                     .withTimestampField("timestamp")
                     .build())
             .addRows(
-                1, 2, 2, ts.plusSeconds(0).toDate(),
-                2, 2, 1, ts.plusSeconds(40).toDate(),
-                1, 4, 3, ts.plusSeconds(60).toDate(),
-                3, 2, 1, ts.plusSeconds(65).toDate(),
-                3, 3, 1, ts.plusSeconds(70).toDate())
+                1, 2, 2, ts.plusSeconds(0),
+                2, 2, 1, ts.plusSeconds(40),
+                1, 4, 3, ts.plusSeconds(60),
+                3, 2, 1, ts.plusSeconds(65),
+                3, 3, 1, ts.plusSeconds(70))
             .getPCollectionBuilder()
             .withTimestampField("timestamp")
             .inPipeline(pipeline)

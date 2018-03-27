@@ -21,15 +21,13 @@ package org.apache.beam.sdk.values.reflect;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.math.BigDecimal;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.joda.time.DateTime;
 
 /**
  * A default implementation of the {@link RowTypeFactory} interface. The purpose of
@@ -61,8 +59,7 @@ public class DefaultRowTypeFactory implements RowTypeFactory {
           .put(Float.class, FieldType.FLOAT)
           .put(Double.class, FieldType.DOUBLE)
           .put(BigDecimal.class, FieldType.DECIMAL)
-          .put(GregorianCalendar.class, FieldType.DATETIME)
-          .put(Date.class, FieldType.DATETIME)
+          .put(DateTime.class, FieldType.DATETIME)
           .build();
 
   // Does not support neested types.

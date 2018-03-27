@@ -24,13 +24,12 @@ import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.reflect.DefaultRowTypeFactory;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
 import org.apache.beam.sdk.values.reflect.RowTypeFactory;
+import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -50,8 +49,8 @@ public class SqlSchemaFactoryTest {
       .add(getter("bigDecimalGetter", BigDecimal.class))
       .add(getter("booleanGetter", Boolean.class))
       .add(getter("stringGetter", String.class))
-      .add(getter("timeGetter", GregorianCalendar.class))
-      .add(getter("dateGetter", Date.class))
+      .add(getter("timeGetter", DateTime.class))
+      .add(getter("dateGetter", DateTime.class))
       .build();
 
   @Rule

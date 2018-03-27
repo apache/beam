@@ -193,8 +193,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                 (byte) 10, (byte) 2, (byte) 4, (byte) 1,
                 10.0F, 2.5F, 4.0F, 1.0F,
                 10.0, 2.5, 4.0, 1.0,
-                FORMAT.parse("2017-01-01 02:04:03"),
-                FORMAT.parse("2017-01-01 01:01:03"),
+                FORMAT.parseDateTime("2017-01-01 02:04:03"),
+                FORMAT.parseDateTime("2017-01-01 01:01:03"),
                 1.25, 1.666666667, 1, 1)
             .build();
 
@@ -322,8 +322,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         TestUtils.RowsBuilder
             .of(resultType)
             .addRows(
-                0, 3L, FORMAT.parse("2017-01-01 01:00:00"),
-                0, 1L, FORMAT.parse("2017-01-01 02:00:00"))
+                0, 3L, FORMAT.parseDateTime("2017-01-01 01:00:00"),
+                0, 1L, FORMAT.parseDateTime("2017-01-01 02:00:00"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -346,18 +346,18 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             TestStream.create(inputSchema.getRowCoder())
                 .addElements(
                     Row.withSchema(inputSchema)
-                        .addValues(1, FORMAT.parse("2017-01-01 01:01:01"))
+                        .addValues(1, FORMAT.parseDateTime("2017-01-01 01:01:01"))
                         .build(),
                     Row.withSchema(inputSchema)
-                        .addValues(2, FORMAT.parse("2017-01-01 01:01:01"))
+                        .addValues(2, FORMAT.parseDateTime("2017-01-01 01:01:01"))
                         .build())
                 .addElements(
                     Row.withSchema(inputSchema)
-                        .addValues(3, FORMAT.parse("2017-01-01 01:01:01"))
+                        .addValues(3, FORMAT.parseDateTime("2017-01-01 01:01:01"))
                         .build())
                 .addElements(
                     Row.withSchema(inputSchema)
-                        .addValues(4, FORMAT.parse("2017-01-01 01:01:01"))
+                        .addValues(4, FORMAT.parseDateTime("2017-01-01 01:01:01"))
                         .build())
                 .advanceWatermarkToInfinity());
 
@@ -426,10 +426,10 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         TestUtils.RowsBuilder
             .of(resultType)
             .addRows(
-                0, 3L, FORMAT.parse("2017-01-01 00:30:00"),
-                0, 3L, FORMAT.parse("2017-01-01 01:00:00"),
-                0, 1L, FORMAT.parse("2017-01-01 01:30:00"),
-                0, 1L, FORMAT.parse("2017-01-01 02:00:00"))
+                0, 3L, FORMAT.parseDateTime("2017-01-01 00:30:00"),
+                0, 3L, FORMAT.parseDateTime("2017-01-01 01:00:00"),
+                0, 1L, FORMAT.parseDateTime("2017-01-01 01:30:00"),
+                0, 1L, FORMAT.parseDateTime("2017-01-01 02:00:00"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -474,8 +474,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         TestUtils.RowsBuilder
             .of(resultType)
             .addRows(
-                0, 3L, FORMAT.parse("2017-01-01 01:01:03"),
-                0, 1L, FORMAT.parse("2017-01-01 02:04:03"))
+                0, 3L, FORMAT.parseDateTime("2017-01-01 01:01:03"),
+                0, 1L, FORMAT.parseDateTime("2017-01-01 02:04:03"))
             .getRows();
 
     PAssert.that(result).containsInAnyOrder(expectedRows);
@@ -545,12 +545,12 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .build();
 
     Object[] rows = new Object[]{
-        0, 1, startTime.plusSeconds(0).toDate(),
-        0, 2, startTime.plusSeconds(1).toDate(),
-        0, 3, startTime.plusSeconds(2).toDate(),
-        0, 4, startTime.plusSeconds(3).toDate(),
-        0, 5, startTime.plusSeconds(4).toDate(),
-        0, 6, startTime.plusSeconds(6).toDate()
+        0, 1, startTime.plusSeconds(0),
+        0, 2, startTime.plusSeconds(1),
+        0, 3, startTime.plusSeconds(2),
+        0, 4, startTime.plusSeconds(3),
+        0, 5, startTime.plusSeconds(4),
+        0, 6, startTime.plusSeconds(6)
     };
 
     PCollection<Row> input =
@@ -588,12 +588,12 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .build();
 
     Object[] rows = new Object[]{
-        0, 1, startTime.plusSeconds(0).toDate(),
-        0, 2, startTime.plusSeconds(1).toDate(),
-        0, 3, startTime.plusSeconds(2).toDate(),
-        0, 4, startTime.plusSeconds(3).toDate(),
-        0, 5, startTime.plusSeconds(4).toDate(),
-        0, 6, startTime.plusSeconds(6).toDate()
+        0, 1, startTime.plusSeconds(0),
+        0, 2, startTime.plusSeconds(1),
+        0, 3, startTime.plusSeconds(2),
+        0, 4, startTime.plusSeconds(3),
+        0, 5, startTime.plusSeconds(4),
+        0, 6, startTime.plusSeconds(6)
     };
 
     PCollection<Row> input =

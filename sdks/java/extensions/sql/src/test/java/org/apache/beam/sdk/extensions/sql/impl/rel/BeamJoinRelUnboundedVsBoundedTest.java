@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
@@ -39,6 +38,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -51,9 +51,9 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
   private static final BeamSqlEnv BEAM_SQL_ENV = new BeamSqlEnv();
-  public static final Date FIRST_DATE = new Date(1);
-  public static final Date SECOND_DATE = new Date(1 + 3600 * 1000);
-  public static final Date THIRD_DATE = new Date(1 + 3600 * 1000 + 3600 * 1000 + 1);
+  public static final DateTime FIRST_DATE = new DateTime(1);
+  public static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
+  public static final DateTime THIRD_DATE = new DateTime(1 + 3600 * 1000 + 3600 * 1000 + 1);
   private static final Duration WINDOW_SIZE = Duration.standardHours(1);
 
   @BeforeClass
@@ -68,21 +68,21 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
         .timestampColumnIndex(3)
         .addRows(
             Duration.ZERO,
-            1, 1, 1, FIRST_DATE,
-            1, 2, 2, FIRST_DATE
+            1, 1, 1, FIRST_DATE.getMillis(),
+            1, 2, 2, FIRST_DATE.getMillis()
         )
         .addRows(
             WINDOW_SIZE.plus(Duration.standardSeconds(1)),
-            2, 2, 3, SECOND_DATE,
-            2, 3, 3, SECOND_DATE,
+            2, 2, 3, SECOND_DATE.getMillis(),
+            2, 3, 3, SECOND_DATE.getMillis(),
             // this late data is omitted
-            1, 2, 3, FIRST_DATE
+            1, 2, 3, FIRST_DATE.getMillis()
         )
         .addRows(
             WINDOW_SIZE.plus(WINDOW_SIZE).plus(Duration.standardSeconds(1)),
-            3, 3, 3, THIRD_DATE,
+            3, 3, 3, THIRD_DATE.getMillis(),
             // this late data is omitted
-            2, 2, 3, SECOND_DATE
+            2, 2, 3, SECOND_DATE.getMillis()
         )
     );
 

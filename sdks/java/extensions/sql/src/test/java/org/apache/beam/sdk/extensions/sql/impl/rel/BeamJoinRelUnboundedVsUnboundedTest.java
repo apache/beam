@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.Date;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
@@ -29,6 +28,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -41,8 +41,8 @@ public class BeamJoinRelUnboundedVsUnboundedTest extends BaseRelTest {
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
   private static final BeamSqlEnv BEAM_SQL_ENV = new BeamSqlEnv();
-  public static final Date FIRST_DATE = new Date(1);
-  public static final Date SECOND_DATE = new Date(1 + 3600 * 1000);
+  public static final DateTime FIRST_DATE = new DateTime(1);
+  public static final DateTime SECOND_DATE = new DateTime(1 + 3600 * 1000);
 
   private static final Duration WINDOW_SIZE = Duration.standardHours(1);
 

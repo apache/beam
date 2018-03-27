@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema.transform;
 
+import com.google.common.collect.Lists;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -101,6 +102,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
     PCollection<Row> input = p.apply(Create.of(inputRows));
 
+    Schema keySchema = Schema.of(Lists.newArrayList(inputSchema.getField(0)));
     // 1. extract fields in group-by key part
     PCollection<KV<Row, Row>> exGroupByStream =
         input
@@ -108,7 +110,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
                 "exGroupBy",
                 WithKeys.of(
                     new BeamAggregationTransforms.AggregationGroupByKeyFn(
-                        -1, ImmutableBitSet.of(0))))
+                        keySchema, -1, ImmutableBitSet.of(0))))
             .setCoder(KvCoder.of(keyCoder, inRecordCoder));
 
     // 2. apply a GroupByKey.
@@ -464,8 +466,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
                     2.5,
                     4.0,
                     1.0,
-                    format.parse("2017-01-01 02:04:03"),
-                    format.parse("2017-01-01 01:01:03"),
+                    FORMAT.parseDateTime("2017-01-01 02:04:03"),
+                    FORMAT.parseDateTime("2017-01-01 01:01:03"),
                     10,
                     2,
                     4,
@@ -549,8 +551,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             2.5,
             4.0,
             1.0,
-            format.parse("2017-01-01 02:04:03"),
-            format.parse("2017-01-01 01:01:03"),
+            FORMAT.parseDateTime("2017-01-01 02:04:03"),
+            FORMAT.parseDateTime("2017-01-01 01:01:03"),
             10,
             2,
             4,

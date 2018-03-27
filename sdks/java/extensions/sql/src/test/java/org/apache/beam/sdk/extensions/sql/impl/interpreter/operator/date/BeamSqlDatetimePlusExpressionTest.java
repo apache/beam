@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Date;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
+import org.joda.time.ReadableInstant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -44,14 +44,14 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
 
   private static final Row NULL_INPUT_ROW = null;
   private static final BoundedWindow NULL_WINDOW = null;
-  private static final Date DATE = str2DateTime("1984-04-19 01:02:03");
+  private static final DateTime DATE = str2DateTime("1984-04-19 01:02:03");
 
-  private static final Date DATE_PLUS_15_SECONDS = new DateTime(DATE).plusSeconds(15).toDate();
-  private static final Date DATE_PLUS_10_MINUTES = new DateTime(DATE).plusMinutes(10).toDate();
-  private static final Date DATE_PLUS_7_HOURS = new DateTime(DATE).plusHours(7).toDate();
-  private static final Date DATE_PLUS_3_DAYS = new DateTime(DATE).plusDays(3).toDate();
-  private static final Date DATE_PLUS_2_MONTHS = new DateTime(DATE).plusMonths(2).toDate();
-  private static final Date DATE_PLUS_11_YEARS = new DateTime(DATE).plusYears(11).toDate();
+  private static final DateTime DATE_PLUS_15_SECONDS = new DateTime(DATE).plusSeconds(15);
+  private static final DateTime DATE_PLUS_10_MINUTES = new DateTime(DATE).plusMinutes(10);
+  private static final DateTime DATE_PLUS_7_HOURS = new DateTime(DATE).plusHours(7);
+  private static final DateTime DATE_PLUS_3_DAYS = new DateTime(DATE).plusDays(3);
+  private static final DateTime DATE_PLUS_2_MONTHS = new DateTime(DATE).plusMonths(2);
+  private static final DateTime DATE_PLUS_11_YEARS = new DateTime(DATE).plusYears(11);
 
   private static final BeamSqlExpression SQL_INTERVAL_15_SECONDS =
       interval(SqlTypeName.INTERVAL_SECOND, 15);
@@ -118,7 +118,8 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
     evalDatetimePlus(SQL_TIMESTAMP, unsupportedInterval);
   }
 
-  private static Date evalDatetimePlus(BeamSqlExpression date, BeamSqlExpression interval) {
+  private static ReadableInstant evalDatetimePlus(
+      BeamSqlExpression date, BeamSqlExpression interval) {
     return dateTimePlus(date, interval).evaluate(NULL_INPUT_ROW, NULL_WINDOW).getDate();
   }
 

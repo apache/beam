@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
-import java.util.Date;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
@@ -30,6 +29,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -42,7 +42,7 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
-  public static final Date THE_DATE = new Date(100000);
+  public static final DateTime THE_DATE = new DateTime(100000);
 
   @BeforeClass
   public static void prepare() {

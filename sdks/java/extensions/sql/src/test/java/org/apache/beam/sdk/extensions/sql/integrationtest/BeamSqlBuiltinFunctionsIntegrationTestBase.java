@@ -24,12 +24,9 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
@@ -42,6 +39,8 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.util.Pair;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
 import org.junit.Rule;
 
 /**
@@ -58,7 +57,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
       .put(Double.class, FieldType.DOUBLE)
       .put(BigDecimal.class, FieldType.DECIMAL)
       .put(String.class, FieldType.STRING)
-      .put(Date.class, FieldType.DATETIME)
+      .put(DateTime.class, FieldType.DATETIME)
       .put(Boolean.class, FieldType.BOOLEAN)
       .build();
 
@@ -105,14 +104,8 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     }
   }
 
-  protected static Date parseDate(String str) {
-    try {
-      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      sdf.setTimeZone(TimeZone.getTimeZone("GMT"));
-      return sdf.parse(str);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+  protected static DateTime parseDate(String str) {
+    return DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC().parseDateTime(str);
   }
 
 
