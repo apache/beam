@@ -82,7 +82,7 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
-  def test_errors(self):
+  def test_error_message_includes_stage(self):
     # TODO: figure out a way for runner to parse and raise the
     # underlying exception.
     with self.assertRaises(Exception):
@@ -96,6 +96,11 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
          | 'StageB' >> beam.Map(lambda x: x)
          | 'StageC' >> beam.Map(raise_error)
          | 'StageD' >> beam.Map(lambda x: x))
+
+  def test_error_traceback_includes_user_code(self):
+    # TODO: figure out a way for runner to parse and raise the
+    # underlying exception.
+    raise unittest.SkipTest('TODO')
 
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
 
