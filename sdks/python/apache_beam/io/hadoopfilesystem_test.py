@@ -28,6 +28,7 @@ from apache_beam.io import hadoopfilesystem as hdfs
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.options.pipeline_options import HadoopFileSystemOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 
 
 class FakeFile(io.BytesIO):
@@ -515,6 +516,51 @@ class HadoopFileSystemTest(unittest.TestCase):
                                  r'^Delete operation failed .* %s' % path1):
       self.fs.delete([url1, url2])
     self.assertFalse(self.fs.exists(url2))
+
+
+class HadoopFileSystemRuntimeValueProviderTest(unittest.TestCase):
+  """Tests pipeline_options, as passed via RuntimeValueProvider."""
+
+  def test_dict_options(self):
+    self._fake_hdfs = FakeHdfs()
+    hdfs.hdfs.InsecureClient = (
+        lambda *args, **kwargs: self._fake_hdfs)
+    pipeline_options = {
+      'hdfs_host': '',
+      'hdfs_port': 0,
+      'hdfs_user': '',
+    }
+
+    self.fs = hdfs.HadoopFileSystem(pipeline_options=pipeline_options)
+
+  def test_dict_options_missing(self):
+    self._fake_hdfs = FakeHdfs()
+    hdfs.hdfs.InsecureClient = (
+        lambda *args, **kwargs: self._fake_hdfs)
+
+    with self.assertRaisesRegexp(ValueError, r'hdfs_host'):
+      self.fs = hdfs.HadoopFileSystem(
+          pipeline_options={
+            'hdfs_port': 0,
+            'hdfs_user': '',
+          }
+      )
+
+    with self.assertRaisesRegexp(ValueError, r'hdfs_port'):
+      self.fs = hdfs.HadoopFileSystem(
+          pipeline_options={
+            'hdfs_host': '',
+            'hdfs_user': '',
+          }
+      )
+
+    with self.assertRaisesRegexp(ValueError, r'hdfs_user'):
+      self.fs = hdfs.HadoopFileSystem(
+          pipeline_options={
+            'hdfs_host': '',
+            'hdfs_port': 0,
+          }
+      )
 
 
 if __name__ == '__main__':
