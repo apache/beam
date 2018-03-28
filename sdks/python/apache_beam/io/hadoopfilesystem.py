@@ -35,6 +35,7 @@ from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import MatchResult
 from apache_beam.options.pipeline_options import HadoopFileSystemOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = ['HadoopFileSystem']
 
@@ -106,20 +107,26 @@ class HadoopFileSystem(FileSystem):
     """
     super(HadoopFileSystem, self).__init__(pipeline_options)
     logging.getLogger('hdfs.client').setLevel(logging.WARN)
-
     if pipeline_options is None:
       raise ValueError('pipeline_options is not set')
-    hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
-    if hdfs_options.hdfs_host is None:
+    if isinstance(pipeline_options, PipelineOptions):
+      hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
+      hdfs_host = hdfs_options.hdfs_host
+      hdfs_port = hdfs_options.hdfs_port
+      hdfs_user = hdfs_options.hdfs_user
+    else:
+      hdfs_host = pipeline_options.get('hdfs_host')
+      hdfs_port = pipeline_options.get('hdfs_port')
+      hdfs_user = pipeline_options.get('hdfs_user')
+
+    if hdfs_host is None:
       raise ValueError('hdfs_host is not set')
-    if hdfs_options.hdfs_port is None:
+    if hdfs_port is None:
       raise ValueError('hdfs_port is not set')
-    if hdfs_options.hdfs_user is None:
+    if hdfs_user is None:
       raise ValueError('hdfs_user is not set')
     self._hdfs_client = hdfs.InsecureClient(
-        'http://%s:%s' % (
-            hdfs_options.hdfs_host, str(hdfs_options.hdfs_port)),
-        user=hdfs_options.hdfs_user)
+        'http://%s:%s' % (hdfs_host, str(hdfs_port)), user=hdfs_user)
 
   @classmethod
   def scheme(cls):

@@ -24,6 +24,7 @@ from six import string_types
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
+from apache_beam.options.value_provider import RuntimeValueProvider
 
 # All filesystem implements should be added here as
 # best effort imports. We don't want to force loading
@@ -85,7 +86,9 @@ class FileSystems(object):
       if len(systems) == 0:
         raise ValueError('Unable to get the Filesystem for path %s' % path)
       elif len(systems) == 1:
-        return systems[0](pipeline_options=FileSystems._pipeline_options)
+        options = (FileSystems._pipeline_options or
+                   RuntimeValueProvider.runtime_options)
+        return systems[0](pipeline_options=options)
       else:
         raise ValueError('Found more than one filesystem for path %s' % path)
     except ValueError:
