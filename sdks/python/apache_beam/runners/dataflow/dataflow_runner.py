@@ -948,6 +948,10 @@ class _DataflowSideInput(beam.pvalue.AsSideInput):
   def _side_input_data(self):
     return self._data
 
+  @staticmethod
+  def _from_runtime_iterable(it, options):
+    return options['data'].view_fn(it)
+
 
 class _DataflowIterableSideInput(_DataflowSideInput):
   """Wraps an iterable side input as dataflow-compatible side input."""
