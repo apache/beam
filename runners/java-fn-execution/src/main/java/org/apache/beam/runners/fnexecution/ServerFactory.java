@@ -29,7 +29,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.sdk.fn.channel.SocketAddressFactory;
+import org.apache.beam.util.fn.channel.SocketAddressFactory;
 
 /**
  * A {@link Server gRPC server} factory.

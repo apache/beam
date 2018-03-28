@@ -25,12 +25,12 @@ import java.util.List;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.util.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.util.fn.data.LogicalEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

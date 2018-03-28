@@ -35,11 +35,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builder;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.util.fn.channel.ManagedChannelFactory;
+import org.apache.beam.util.fn.stream.StreamObserverFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

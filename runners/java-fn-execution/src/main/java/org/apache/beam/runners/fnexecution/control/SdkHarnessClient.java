@@ -34,12 +34,12 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 import org.apache.beam.runners.fnexecution.data.RemoteInputDestination;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.util.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.util.fn.data.FnDataReceiver;
+import org.apache.beam.util.fn.data.InboundDataClient;
+import org.apache.beam.util.fn.data.LogicalEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

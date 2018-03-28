@@ -33,9 +33,9 @@ import org.apache.beam.runners.fnexecution.control.SdkHarnessClient;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.logging.Slf4jLogWriter;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.util.fn.channel.ManagedChannelFactory;
+import org.apache.beam.util.fn.stream.StreamObserverFactory;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
 
