@@ -120,6 +120,9 @@ class MutationSizeEstimator {
   }
 
   private static long estimateArrayValue(Value v) {
+    if (v.isNull()) {
+      return 0;
+    }
     switch (v.getType().getArrayElementType().getCode()) {
       case BOOL:
         return v.getBoolArray().size();
