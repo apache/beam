@@ -234,7 +234,7 @@ These tables contain statuses of the queries runs in the different runners. Goog
     <tr>
       <td>3</td>
       <td>ok</td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-1115">BEAM-1115</a></td>
+      <td>ok</td>
       <td>ok</td>
       <td><a href="https://issues.apache.org/jira/browse/BEAM-1114">BEAM-1114</a></td>
     </tr>
@@ -337,7 +337,7 @@ These tables contain statuses of the queries runs in the different runners. Goog
     <tr>
       <td>3</td>
       <td>ok</td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-1035">BEAM-1035</a>, <a href="https://issues.apache.org/jira/browse/BEAM-1115">BEAM-1115</a></td>
+      <td><a href="https://issues.apache.org/jira/browse/BEAM-2176">BEAM-2176</a>, <a href="https://issues.apache.org/jira/browse/BEAM-3961">BEAM-3961</a></td>
       <td>ok</td>
       <td><a href="https://issues.apache.org/jira/browse/BEAM-1114">BEAM-1114</a></td>
     </tr>
