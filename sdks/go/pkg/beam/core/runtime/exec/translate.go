@@ -17,6 +17,7 @@ package exec
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 
@@ -295,11 +296,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
-				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
+				n := &ParDo{UID: b.idgen.New(), PID: id.to, Inbound: in, Out: out}
 				n.Fn, err = graph.AsDoFn(fn)
 				if err != nil {
 					return nil, err
 				}
+				// TODO(lostluck): 2018/03/22 Look into why transform.UniqueName isn't populated at this point, and switch n.PID to that instead.
+				n.PID = path.Base(n.Fn.Name())
 				if len(in) == 1 {
 					u = n
 					break

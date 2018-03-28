@@ -154,7 +154,7 @@ type control struct {
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	id := req.GetInstructionId()
-	ctx = context.WithValue(ctx, instKey, id)
+	ctx = setInstID(ctx, id)
 
 	switch {
 	case req.GetRegister() != nil:
@@ -202,7 +202,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		}
 
 		err := plan.Execute(ctx, id, c.data)
-
+		m := plan.Metrics()
 		// Move the plan back to the candidate state
 		c.mu.Lock()
 		c.plans[plan.ID()] = plan
@@ -216,7 +216,9 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundle{
-				ProcessBundle: &fnpb.ProcessBundleResponse{},
+				ProcessBundle: &fnpb.ProcessBundleResponse{
+					Metrics: m,
+				},
 			},
 		}
 
@@ -233,25 +235,13 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			return fail(id, "execution plan for %v not found", ref)
 		}
 
-		snapshot := plan.ProgressReport()
+		m := plan.Metrics()
 
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
 				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
-					Metrics: &fnpb.Metrics{
-						Ptransforms: map[string]*fnpb.Metrics_PTransform{
-							snapshot.ID: &fnpb.Metrics_PTransform{
-								ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
-									Measured: &fnpb.Metrics_PTransform_Measured{
-										OutputElementCounts: map[string]int64{
-											snapshot.Name: snapshot.Count,
-										},
-									},
-								},
-							},
-						},
-					},
+					Metrics: m,
 				},
 			},
 		}
