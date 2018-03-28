@@ -21,8 +21,6 @@ import glob
 import logging
 import multiprocessing
 import os
-import pip
-import pkg_resources
 import platform
 import pprint
 import shutil
@@ -31,12 +29,15 @@ import sys
 import time
 import warnings
 
+import pip
+import pkg_resources
+
 GRPC_TOOLS = 'grpcio-tools>=1.3.5,<2'
 
 BEAM_PROTO_PATHS = [
-  os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
-  os.path.join('..', '..', 'model', 'job-management', 'src', 'main', 'proto'),
-  os.path.join('..', '..', 'model', 'fn-execution', 'src', 'main', 'proto'),
+    os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
+    os.path.join('..', '..', 'model', 'job-management', 'src', 'main', 'proto'),
+    os.path.join('..', '..', 'model', 'fn-execution', 'src', 'main', 'proto'),
 ]
 
 PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
@@ -45,7 +46,7 @@ PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
 def generate_proto_files(force=False):
 
   try:
-    import grpc_tools
+    import grpc_tools  # pylint: disable=unused-variable
   except ImportError:
     warnings.warn('Installing grpcio-tools is recommended for development.')
 
@@ -98,27 +99,27 @@ def generate_proto_files(force=False):
       logging.info('Regenerating out-of-date Python proto definitions.')
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
       args = (
-        [sys.executable] +  # expecting to be called from command line
-        ['--proto_path=%s' % builtin_protos] +
-        ['--proto_path=%s' % d for d in proto_dirs] +
-        ['--python_out=%s' % out_dir] +
-        # TODO(robertwb): Remove the prefix once it's the default.
-        ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
-        proto_files)
+          [sys.executable] +  # expecting to be called from command line
+          ['--proto_path=%s' % builtin_protos] +
+          ['--proto_path=%s' % d for d in proto_dirs] +
+          ['--python_out=%s' % out_dir] +
+          # TODO(robertwb): Remove the prefix once it's the default.
+          ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
+          proto_files)
       ret_code = protoc.main(args)
       if ret_code:
         raise RuntimeError(
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
 
-
     if sys.version_info[0] >= 3:
       ret_code = subprocess.call(
-        ["futurize", "--both-stages", "--write", "--verbose", "--no-diff", out_dir])
+          ["futurize", "--both-stages", "--write", "--verbose", "--no-diff",
+           out_dir])
 
       if ret_code:
         raise RuntimeError(
-          'Error applying futurize to generated protobuf python files.')
+            'Error applying futurize to generated protobuf python files.')
 
 
 # Though wheels are available for grpcio-tools, setup_requires uses
@@ -133,7 +134,7 @@ def _install_grpcio_tools_and_generate_proto_files():
   build_path = install_path + '-build'
   if os.path.exists(build_path):
     shutil.rmtree(build_path)
-  logging.warning('Installing grpcio-tools into %s' % install_path)
+  logging.warning('Installing grpcio-tools into %s', install_path)
   try:
     start = time.time()
     pprint.pprint(pip.pep425tags.get_supported())
@@ -142,7 +143,7 @@ def _install_grpcio_tools_and_generate_proto_files():
          '--target', install_path, '--build', build_path,
          '--upgrade', GRPC_TOOLS])
     logging.warning(
-        'Installing grpcio-tools took %0.2f seconds.' % (time.time() - start))
+        'Installing grpcio-tools took %0.2f seconds.', time.time() - start)
   finally:
     sys.stderr.flush()
     shutil.rmtree(build_path)
