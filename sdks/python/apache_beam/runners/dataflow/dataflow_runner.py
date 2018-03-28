@@ -211,67 +211,42 @@ class DataflowRunner(PipelineRunner):
         from apache_beam.transforms.core import GroupByKey, _GroupByKeyOnly
         if isinstance(transform_node.transform, (GroupByKey, _GroupByKeyOnly)):
           pcoll = transform_node.inputs[0]
-          pcoll.element_type = typehints.coerce_to_kv_type(
-              pcoll.element_type, transform_node.full_label)
+          input_type = pcoll.element_type
+          # If input_type is not specified, then treat it as `Any`.
+          if not input_type:
+            input_type = typehints.Any
+
+          def coerce_to_kv_type(element_type):
+            if isinstance(element_type, typehints.TupleHint.TupleConstraint):
+              if len(element_type.tuple_types) == 2:
+                return element_type
+              else:
+                raise ValueError(
+                    "Tuple input to GroupByKey must be have two components. "
+                    "Found %s for %s" % (element_type, pcoll))
+            elif isinstance(input_type, typehints.AnyTypeConstraint):
+              # `Any` type needs to be replaced with a KV[Any, Any] to
+              # force a KV coder as the main output coder for the pcollection
+              # preceding a GroupByKey.
+              return typehints.KV[typehints.Any, typehints.Any]
+            elif isinstance(element_type, typehints.UnionConstraint):
+              union_types = [
+                  coerce_to_kv_type(t) for t in element_type.union_types]
+              return typehints.KV[
+                  typehints.Union[tuple(t.tuple_types[0] for t in union_types)],
+                  typehints.Union[tuple(t.tuple_types[1] for t in union_types)]]
+            else:
+              # TODO: Possibly handle other valid types.
+              raise ValueError(
+                  "Input to GroupByKey must be of Tuple or Any type. "
+                  "Found %s for %s" % (element_type, pcoll))
+          pcoll.element_type = coerce_to_kv_type(input_type)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
             transform_node.outputs[None].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
 
     return GroupByKeyInputVisitor()
-
-  @staticmethod
-  def side_input_visitor():
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.pipeline import PipelineVisitor
-    from apache_beam.transforms.core import ParDo
-
-    class SideInputVisitor(PipelineVisitor):
-      """Ensures input `PCollection` used as a side inputs has a `KV` type.
-
-      TODO(BEAM-115): Once Python SDK is compatible with the new Runner API,
-      we could directly replace the coder instead of mutating the element type.
-      """
-      def visit_transform(self, transform_node):
-        if isinstance(transform_node.transform, ParDo):
-          new_side_inputs = []
-          for ix, side_input in enumerate(transform_node.side_inputs):
-            access_pattern = side_input._side_input_data().access_pattern
-            if access_pattern == common_urns.ITERABLE_SIDE_INPUT:
-              # Add a map to ('', value) as Dataflow currently only handles
-              # keyed side inputs.
-              pipeline = side_input.pvalue.pipeline
-              new_side_input = _DataflowIterableSideInput(side_input)
-              new_side_input.pvalue = beam.pvalue.PCollection(
-                  pipeline,
-                  element_type=typehints.KV[
-                      str, side_input.pvalue.element_type])
-              parent = transform_node.parent or pipeline._root_transform()
-              map_to_void_key = beam.pipeline.AppliedPTransform(
-                  pipeline,
-                  beam.Map(lambda x: ('', x)),
-                  transform_node.full_label + '/MapToVoidKey%s' % ix,
-                  (side_input.pvalue,))
-              new_side_input.pvalue.producer = map_to_void_key
-              map_to_void_key.add_output(new_side_input.pvalue)
-              parent.add_part(map_to_void_key)
-              transform_node.update_input_refcounts()
-            elif access_pattern == common_urns.MULTIMAP_SIDE_INPUT:
-              # Ensure the input coder is a KV coder and patch up the
-              # access pattern to appease Dataflow.
-              side_input.pvalue.element_type = typehints.coerce_to_kv_type(
-                  side_input.pvalue.element_type, transform_node.full_label)
-              new_side_input = _DataflowMultimapSideInput(side_input)
-            else:
-              raise ValueError(
-                  'Unsupported access pattern for %r: %r' %
-                  (transform_node.full_label, access_pattern))
-            new_side_inputs.append(new_side_input)
-          transform_node.side_inputs = new_side_inputs
-          transform_node.transform.side_inputs = new_side_inputs
-
-    return SideInputVisitor()
 
   @staticmethod
   def flatten_input_visitor():
@@ -305,19 +280,9 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
-    # Convert all side inputs into a form acceptable to Dataflow.
-    pipeline.visit(self.side_input_visitor())
-
     # Snapshot the pipeline in a portable proto before mutating it
     proto_pipeline, self.proto_context = pipeline.to_runner_api(
         return_context=True)
-
-    # TODO(BEAM-2717): Remove once Coders are already in proto.
-    for pcoll in proto_pipeline.components.pcollections.values():
-      if pcoll.coder_id not in self.proto_context.coders:
-        coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
-        pcoll.coder_id = self.proto_context.coders.get_id(coder)
-    self.proto_context.coders.populate_map(proto_pipeline.components.coders)
 
     # Performing configured PTransform overrides.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
@@ -578,10 +543,10 @@ class DataflowRunner(PipelineRunner):
     si_labels = {}
     full_label_counts = defaultdict(int)
     lookup_label = lambda side_pval: si_labels[side_pval]
-    for ix, side_pval in enumerate(transform_node.side_inputs):
+    for side_pval in transform_node.side_inputs:
       assert isinstance(side_pval, AsSideInput)
-      step_name = 'SideInput-' + self._get_unique_step_name()
-      si_label = 'side%d' % ix
+      step_number = self._get_unique_step_name()
+      si_label = 'SideInput-' + step_number
       pcollection_label = '%s.%s' % (
           side_pval.pvalue.producer.full_label.split('/')[-1],
           side_pval.pvalue.tag if side_pval.pvalue.tag else 'out')
@@ -595,11 +560,11 @@ class DataflowRunner(PipelineRunner):
       full_label_counts[pcollection_label] += 1
 
       self._add_singleton_step(
-          step_name, si_full_label, side_pval.pvalue.tag,
+          si_label, si_full_label, side_pval.pvalue.tag,
           self._cache.get_pvalue(side_pval.pvalue))
       si_dict[si_label] = {
           '@type': 'OutputReference',
-          PropertyNames.STEP_NAME: step_name,
+          PropertyNames.STEP_NAME: si_label,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}
       si_labels[side_pval] = si_label
 
@@ -814,9 +779,8 @@ class DataflowRunner(PipelineRunner):
     # PickleCoder because GlobalWindowCoder is known coder.
     # TODO(robertwb): Query the collection for the windowfn to extract the
     # correct coder.
-    coder = coders.WindowedValueCoder(
-        coders.registry.get_coder(transform_node.outputs[None].element_type),
-        coders.coders.GlobalWindowCoder())
+    coder = coders.WindowedValueCoder(transform._infer_output_coder(),
+                                      coders.coders.GlobalWindowCoder())  # pylint: disable=protected-access
 
     step.encoding = self._get_cloud_encoding(coder)
     step.add_property(
@@ -932,54 +896,6 @@ class DataflowRunner(PipelineRunner):
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
     return urllib.unquote(encoded_string)
-
-
-class _DataflowSideInput(beam.pvalue.AsSideInput):
-  """Wraps a side input as a dataflow-compatible side input."""
-
-  # Dataflow does not yet accept the shared urn definition for access.
-  DATAFLOW_MULTIMAP_URN = 'urn:beam:sideinput:materialization:multimap:0.1'
-
-  def _view_options(self):
-    return {
-        'data': self._data,
-    }
-
-  def _side_input_data(self):
-    return self._data
-
-
-class _DataflowIterableSideInput(_DataflowSideInput):
-  """Wraps an iterable side input as dataflow-compatible side input."""
-
-  def __init__(self, iterable_side_input):
-    # pylint: disable=protected-access
-    side_input_data = iterable_side_input._side_input_data()
-    assert side_input_data.access_pattern == common_urns.ITERABLE_SIDE_INPUT
-    iterable_view_fn = side_input_data.view_fn
-    self._data = beam.pvalue.SideInputData(
-        self.DATAFLOW_MULTIMAP_URN,
-        side_input_data.window_mapping_fn,
-        lambda multimap: iterable_view_fn(multimap['']),
-        coders.WindowedValueCoder(
-            coders.TupleCoder((coders.BytesCoder(),
-                               side_input_data.coder.wrapped_value_coder)),
-            side_input_data.coder.window_coder))
-
-
-class _DataflowMultimapSideInput(_DataflowSideInput):
-  """Wraps a multimap side input as dataflow-compatible side input."""
-
-  def __init__(self, side_input):
-    # pylint: disable=protected-access
-    self.pvalue = side_input.pvalue
-    side_input_data = side_input._side_input_data()
-    assert side_input_data.access_pattern == common_urns.MULTIMAP_SIDE_INPUT
-    self._data = beam.pvalue.SideInputData(
-        self.DATAFLOW_MULTIMAP_URN,
-        side_input_data.window_mapping_fn,
-        side_input_data.view_fn,
-        self._input_element_coder())
 
 
 class DataflowPipelineResult(PipelineResult):
