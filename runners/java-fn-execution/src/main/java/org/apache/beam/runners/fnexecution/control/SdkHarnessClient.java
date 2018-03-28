@@ -180,7 +180,7 @@ public class SdkHarnessClient implements AutoCloseable {
 
     /**
      * Returns a {@link FnDataReceiver receiver} which consumes input elements forwarding them
-     * to the SDK. When
+     * to the SDK.
      */
     public FnDataReceiver<WindowedValue<InputT>> getInputReceiver() {
       return inputReceiver;
@@ -211,8 +211,9 @@ public class SdkHarnessClient implements AutoCloseable {
         if (exception == null) {
           MoreFutures.get(response);
         } else {
-          // TODO: Handle aborting the bundle being processed.
-          throw new IllegalStateException("Processing bundle failed, TODO: abort bundle.");
+          // TODO: [BEAM-3962] Handle aborting the bundle being processed.
+          throw new IllegalStateException("Processing bundle failed, "
+              + "TODO: [BEAM-3962] abort bundle.");
         }
       } catch (Exception e) {
         if (exception == null) {
