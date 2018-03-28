@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.schemas;
 
+/**
+ * Indicates that we are missing a schema for a type.
+ */
 public class NoSuchSchemaException extends Exception {
 
 }

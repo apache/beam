@@ -172,7 +172,6 @@ public class PCollection<T> extends PValueBase implements PValue {
     if (token != null) {
       try {
         SchemaCoder<T> schemaCoder = SchemaCoder.of(
-            token,
             schemaRegistry.getSchema(token),
             schemaRegistry.getToRowFunction(token),
             schemaRegistry.getFromRowFunction(token));
@@ -296,7 +295,7 @@ public class PCollection<T> extends PValueBase implements PValue {
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
-    return setCoder(SchemaCoder.of(getTypeDescriptor(), schema, toRowFunction, fromRowFunction));
+    return setCoder(SchemaCoder.of(schema, toRowFunction, fromRowFunction));
   }
 
   /**
