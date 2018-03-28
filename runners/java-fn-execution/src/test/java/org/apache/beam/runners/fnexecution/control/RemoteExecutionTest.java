@@ -197,21 +197,10 @@ public class RemoteExecutionTest implements Serializable {
           targetCoder.getKey(),
           RemoteOutputReceiver.of(targetCoder.getValue(), outputContents::add));
     }
-    ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers);
     // The impulse example
-    bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(new byte[0]));
-    bundle.getInputReceiver().close();
-    bundle
-        .getOutputClients()
-        .values()
-        .forEach(
-            inboundDataClient -> {
-              try {
-                inboundDataClient.awaitCompletion();
-              } catch (Exception e) {
-                throw new IllegalStateException(e);
-              }
-            });
+    try (ActiveBundle<byte[]> bundle = processor.newBundle(outputReceivers)) {
+      bundle.getInputReceiver().accept(WindowedValue.valueInGlobalWindow(new byte[0]));
+    }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
