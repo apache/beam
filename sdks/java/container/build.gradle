@@ -61,7 +61,7 @@ golang {
 }
 
 docker {
-  name containerImageName("java")
+  name containerImageName(name: "java")
   files "./build/"
 }
 // Ensure that we build the required resources and copy and file dependencies from related projects

@@ -46,7 +46,7 @@ golang {
 }
 
 docker {
-  name containerImageName("go")
+  name containerImageName(name: "go")
   files "./build/"
 }
 // Ensure that making the docker image builds any required artifacts
