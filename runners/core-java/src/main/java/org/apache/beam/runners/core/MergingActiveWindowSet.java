@@ -42,8 +42,8 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 /**
  * An {@link ActiveWindowSet} for merging {@link WindowFn} implementations.
  */
-public class MergingActiveWindowSet<ElementT, W extends BoundedWindow> implements ActiveWindowSet<W> {
-  private final WindowFn<ElementT, W> windowFn;
+public class MergingActiveWindowSet<W extends BoundedWindow> implements ActiveWindowSet<W> {
+  private final WindowFn<Object, W> windowFn;
 
   /**
    * Map ACTIVE and NEW windows to their state address windows. Persisted.
@@ -66,7 +66,7 @@ public class MergingActiveWindowSet<ElementT, W extends BoundedWindow> implement
    */
   private final ValueState<Map<W, Set<W>>> valueState;
 
-  public MergingActiveWindowSet(WindowFn<ElementT, W> windowFn, StateInternals state) {
+  public MergingActiveWindowSet(WindowFn<Object, W> windowFn, StateInternals state) {
     this.windowFn = windowFn;
 
     StateTag<ValueState<Map<W, Set<W>>>> tag =
@@ -162,7 +162,7 @@ public class MergingActiveWindowSet<ElementT, W extends BoundedWindow> implement
     activeWindowToStateAddressWindows.remove(window);
   }
 
-  private class MergeContextImpl extends WindowFn<ElementT, W>.MergeContext {
+  private class MergeContextImpl extends WindowFn<Object, W>.MergeContext {
     private MergeCallback<W> mergeCallback;
     private final List<Collection<W>> allToBeMerged;
     private final List<W> allMergeResults;
@@ -376,7 +376,7 @@ public class MergingActiveWindowSet<ElementT, W extends BoundedWindow> implement
     }
 
     @SuppressWarnings("unchecked")
-    MergingActiveWindowSet<ElementT, W> other = (MergingActiveWindowSet<ElementT, W>) o;
+    MergingActiveWindowSet<W> other = (MergingActiveWindowSet<W>) o;
 
     return activeWindowToStateAddressWindows.equals(other.activeWindowToStateAddressWindows);
   }
