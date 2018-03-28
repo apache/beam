@@ -28,6 +28,7 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nonnull;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
@@ -291,34 +292,51 @@ public class CombineTranslation {
   public static Coder<?> getAccumulatorCoder(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
     SdkComponents sdkComponents = SdkComponents.create();
-    String id = getCombinePayload(transform, sdkComponents).getAccumulatorCoderId();
+    String id = getCombinePayload(transform, sdkComponents)
+        .map(CombinePayload::getAccumulatorCoderId)
+        .orElseThrow(() -> new IOException("Transform does not contain an AccumulatorCoder"));
     Components components = sdkComponents.toComponents();
     return CoderTranslation.fromProto(
         components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
   }
 
   public static GlobalCombineFn<?, ?, ?> getCombineFn(CombinePayload payload) throws IOException {
-    checkArgument(payload.getCombineFn().getSpec().getUrn().equals(JAVA_SERIALIZED_COMBINE_FN_URN));
+    checkArgument(payload.getCombineFn().getSpec().getUrn().equals(JAVA_SERIALIZED_COMBINE_FN_URN),
+        "Payload URN was \"%s\", should have been \"%s\".",
+        payload.getCombineFn().getSpec().getUrn(),
+        JAVA_SERIALIZED_COMBINE_FN_URN);
     return (GlobalCombineFn<?, ?, ?>)
         SerializableUtils.deserializeFromByteArray(
             payload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
   }
 
-  public static GlobalCombineFn<?, ?, ?> getCombineFn(AppliedPTransform<?, ?, ?> transform)
+  public static Optional<GlobalCombineFn<?, ?, ?>> getCombineFn(
+      AppliedPTransform<?, ?, ?> transform)
       throws IOException {
-    return getCombineFn(getCombinePayload(transform));
+    Optional<CombinePayload> payload = getCombinePayload(transform);
+    if (payload.isPresent()) {
+      return Optional.of(getCombineFn(payload.get()));
+    } else {
+      return Optional.empty();
+    }
   }
 
-  private static CombinePayload getCombinePayload(AppliedPTransform<?, ?, ?> transform)
+  private static Optional<CombinePayload> getCombinePayload(AppliedPTransform<?, ?, ?> transform)
       throws IOException {
     return getCombinePayload(transform, SdkComponents.create());
   }
 
-  private static CombinePayload getCombinePayload(
+  private static Optional<CombinePayload> getCombinePayload(
       AppliedPTransform<?, ?, ?> transform, SdkComponents components) throws IOException {
-    return CombinePayload.parseFrom(
-        PTransformTranslation.toProto(transform, Collections.emptyList(), components)
-            .getSpec()
-            .getPayload());
+    RunnerApi.PTransform proto = PTransformTranslation
+        .toProto(transform, Collections.emptyList(), components);
+
+    // Even if the proto has no spec, calling getSpec still returns a blank spec, which we want to
+    // avoid. It should be clear to the caller whether or not there was a spec in the transform.
+    if (proto.hasSpec()) {
+      return Optional.of(CombinePayload.parseFrom(proto.getSpec().getPayload()));
+    } else {
+      return Optional.empty();
+    }
   }
 }
