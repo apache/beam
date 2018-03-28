@@ -46,13 +46,7 @@ golang {
 }
 
 docker {
-  String repositoryRoot
-  if (rootProject.hasProperty(["docker-repository-root"])) {
-    repositoryRoot = rootProject["docker-repository-root"]
-  } else {
-    repositoryRoot = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
-  }
-  name "${repositoryRoot}/go:latest"
+  name containerImageName(name: "go")
   files "./build/"
 }
 // Ensure that making the docker image builds any required artifacts
