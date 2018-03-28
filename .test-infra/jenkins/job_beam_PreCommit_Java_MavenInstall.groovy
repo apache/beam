@@ -40,11 +40,19 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/java/core,runners/direct-java,sdks/java/fn-execution -am -amd', 'Run Java PreCommit')
 
+  runner_profiles = [
+    'direct-runner',
+    // BEAM-3964: Metric method renaming breaks Dataflow
+    // 'dataflow-runner',
+    'spark-runner',
+    'flink-runner',
+    'apex-runner'
+  ].join(',')
   // Maven goals for this job: The Java SDK, its dependencies, and things that depend on it.
   goals([
     '--batch-mode',
     '--errors',
-    '--activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner',
+    '--activate-profiles release,jenkins-precommit,${runner_profiles}',
     '--projects sdks/java/core,runners/direct-java,sdks/java/fn-execution',
     '--also-make',
     '--also-make-dependents',

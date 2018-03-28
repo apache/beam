@@ -37,6 +37,7 @@ processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'dataflow.legacy_environment_major_version' : '7',
     'dataflow.fnapi_environment_major_version' : '1',
+    /* BEAM-3964: Metric method renaming breaks Dataflow. Reenable Dataflow Tests once updated */
     'dataflow.container_version' : 'beam-master-20180228'
   ]
 }

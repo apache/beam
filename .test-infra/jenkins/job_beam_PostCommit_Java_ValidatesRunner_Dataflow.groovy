@@ -21,6 +21,9 @@ import common_job_properties
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
 mavenJob('beam_PostCommit_Java_ValidatesRunner_Dataflow') {
+  // BEAM-3964: Metric method renaming breaks Dataflow
+  disabled()
+
   description('Runs the ValidatesRunner suite on the Dataflow runner.')
   previousNames('beam_PostCommit_Java_RunnableOnService_Dataflow')
 
