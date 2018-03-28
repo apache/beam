@@ -32,7 +32,6 @@ from apache_beam.pvalue import PCollection
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
 from apache_beam.runners import create_runner
-from apache_beam.runners.dataflow import dataflow_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
@@ -286,11 +285,9 @@ class DataflowRunnerTest(unittest.TestCase):
     pcoll1 = PCollection(p)
     pcoll2 = PCollection(p)
     for transform in [_GroupByKeyOnly(), beam.GroupByKey()]:
-      pcoll1.element_type = str
+      pcoll1.element_type = typehints.TupleSequenceConstraint
       pcoll2.element_type = typehints.Set
-      err_msg = (
-          r"Input to 'label' must be compatible with KV\[Any, Any\]. "
-          "Found .*")
+      err_msg = "Input to GroupByKey must be of Tuple or Any type"
       for pcoll in [pcoll1, pcoll2]:
         with self.assertRaisesRegexp(ValueError, err_msg):
           DataflowRunner.group_by_key_input_visitor().visit_transform(
@@ -358,22 +355,6 @@ class DataflowRunnerTest(unittest.TestCase):
         strategy,
         DataflowRunner.deserialize_windowing_strategy(
             DataflowRunner.serialize_windowing_strategy(strategy)))
-
-  def test_side_input_visitor(self):
-    p = TestPipeline()
-    pc = p | beam.Create([])
-
-    transform = beam.Map(
-        lambda x, y, z: (x, y, z),
-        beam.pvalue.AsSingleton(pc),
-        beam.pvalue.AsMultiMap(pc))
-    applied_transform = AppliedPTransform(None, transform, "label", [pc])
-    DataflowRunner.side_input_visitor().visit_transform(applied_transform)
-    self.assertEqual(2, len(applied_transform.side_inputs))
-    for side_input in applied_transform.side_inputs:
-      self.assertEqual(
-          dataflow_runner._DataflowSideInput.DATAFLOW_MULTIMAP_URN,
-          side_input._side_input_data().access_pattern)
 
 
 if __name__ == '__main__':
