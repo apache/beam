@@ -38,6 +38,7 @@ import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,6 +97,13 @@ public class SdkHarnessClient implements AutoCloseable {
      *
      * <p>The input channels for the returned {@link ActiveBundle} are derived from the instructions
      * in the {@link BeamFnApi.ProcessBundleDescriptor}.
+     *
+     * <p>NOTE: It is important to {@link #close()} each bundle after all elements are emitted.
+     * <pre>{@code
+     * try (ActiveBundle<InputT> bundle = SdkHarnessClient.newBundle(...)) {
+     *   // send all elements
+     * }
+     * }</pre>
      */
     public ActiveBundle<T> newBundle(
         Map<BeamFnApi.Target, RemoteOutputReceiver<?>> outputReceivers) {
@@ -133,7 +141,7 @@ public class SdkHarnessClient implements AutoCloseable {
           fnApiDataService.send(
               LogicalEndpoint.of(bundleId, remoteInput.getTarget()), remoteInput.getCoder());
 
-      return ActiveBundle.create(bundleId, specificResponse, dataReceiver, outputClients);
+      return new ActiveBundle(bundleId, specificResponse, dataReceiver, outputClients);
     }
 
     private <OutputT> InboundDataClient attachReceiver(
@@ -146,22 +154,92 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   /** An active bundle for a particular {@link BeamFnApi.ProcessBundleDescriptor}. */
-  @AutoValue
-  public abstract static class ActiveBundle<InputT> {
-    public abstract String getBundleId();
+  public static class ActiveBundle<InputT> implements AutoCloseable {
+    private final String bundleId;
+    private final CompletionStage<BeamFnApi.ProcessBundleResponse> response;
+    private final CloseableFnDataReceiver<WindowedValue<InputT>> inputReceiver;
+    private final Map<BeamFnApi.Target, InboundDataClient> outputClients;
 
-    public abstract CompletionStage<BeamFnApi.ProcessBundleResponse> getBundleResponse();
-
-    public abstract CloseableFnDataReceiver<WindowedValue<InputT>> getInputReceiver();
-    public abstract Map<BeamFnApi.Target, InboundDataClient> getOutputClients();
-
-    public static <InputT> ActiveBundle<InputT> create(
+    private ActiveBundle(
         String bundleId,
         CompletionStage<BeamFnApi.ProcessBundleResponse> response,
-        CloseableFnDataReceiver<WindowedValue<InputT>> dataReceiver,
+        CloseableFnDataReceiver<WindowedValue<InputT>> inputReceiver,
         Map<BeamFnApi.Target, InboundDataClient> outputClients) {
-      return new AutoValue_SdkHarnessClient_ActiveBundle<>(
-          bundleId, response, dataReceiver, outputClients);
+      this.bundleId = bundleId;
+      this.response = response;
+      this.inputReceiver = inputReceiver;
+      this.outputClients = outputClients;
+    }
+
+    /**
+     * Returns an id used to represent this bundle.
+     */
+    public String getBundleId() {
+      return bundleId;
+    }
+
+    /**
+     * Returns a {@link FnDataReceiver receiver} which consumes input elements forwarding them
+     * to the SDK. When
+     */
+    public FnDataReceiver<WindowedValue<InputT>> getInputReceiver() {
+      return inputReceiver;
+    }
+
+    /**
+     * Blocks till bundle processing is finished. This is comprised of:
+     * <ul>
+     *   <li>closing the {@link #getInputReceiver() input receiver}.</li>
+     *   <li>waiting for the SDK to say that processing the bundle is finished.</li>
+     *   <li>waiting for all inbound data clients to complete</li>
+     * </ul>
+     *
+     * <p>This method will throw an exception if bundle processing has failed.
+     * {@link Throwable#getSuppressed()} will return all the reasons as to why processing has
+     * failed.
+     */
+    @Override
+    public void close() throws Exception {
+      Exception exception = null;
+      try {
+        inputReceiver.close();
+      } catch (Exception e) {
+        exception = e;
+      }
+      try {
+        // We don't have to worry about the completion stage.
+        if (exception == null) {
+          MoreFutures.get(response);
+        } else {
+          // TODO: Handle aborting the bundle being processed.
+          throw new IllegalStateException("Processing bundle failed, TODO: abort bundle.");
+        }
+      } catch (Exception e) {
+        if (exception == null) {
+          exception = e;
+        } else {
+          exception.addSuppressed(e);
+        }
+      }
+      for (InboundDataClient outputClient : outputClients.values()) {
+        try {
+          // If we failed processing this bundle, we should cancel all inbound data.
+          if (exception == null) {
+            outputClient.awaitCompletion();
+          } else {
+            outputClient.cancel();
+          }
+        } catch (Exception e) {
+          if (exception == null) {
+            exception = e;
+          } else {
+            exception.addSuppressed(e);
+          }
+        }
+      }
+      if (exception != null) {
+        throw exception;
+      }
     }
   }
 
