@@ -362,8 +362,9 @@ class FlinkBatchTransformTranslators {
 
       CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT> combineFn;
       try {
-            combineFn = (CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT>) CombineTranslation
-                .getCombineFn(context.getCurrentTransform());
+        combineFn = (CombineFnBase.GlobalCombineFn<InputT, AccumT, OutputT>) CombineTranslation
+            .getCombineFn(context.getCurrentTransform())
+            .orElseThrow(() -> new IOException("CombineFn not found in node."));
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

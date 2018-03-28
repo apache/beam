@@ -94,7 +94,7 @@ public class CombineTranslationTest {
             }
           });
       checkState(combine.get() != null);
-      assertEquals(combineFn, CombineTranslation.getCombineFn(combine.get()));
+      assertEquals(combineFn, CombineTranslation.getCombineFn(combine.get()).orElse(null));
 
       SdkComponents sdkComponents = SdkComponents.create();
       CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
@@ -132,7 +132,7 @@ public class CombineTranslationTest {
             }
           });
       checkState(combine.get() != null);
-      assertEquals(combineFn, CombineTranslation.getCombineFn(combine.get()));
+      assertEquals(combineFn, CombineTranslation.getCombineFn(combine.get()).orElse(null));
 
       SdkComponents sdkComponents = SdkComponents.create();
       CombinePayload combineProto = CombineTranslation.toProto(combine.get(), sdkComponents);
