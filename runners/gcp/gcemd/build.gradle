@@ -45,7 +45,7 @@ golang {
 }
 
 docker {
-  name containerImageName("gcemd")
+  name containerImageName(name: "gcemd")
   files "./build/"
 }
 // Ensure that making the docker image builds any required artifacts
