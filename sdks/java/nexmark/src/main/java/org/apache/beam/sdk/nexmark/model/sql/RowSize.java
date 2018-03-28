@@ -45,7 +45,7 @@ import org.apache.beam.sdk.values.Row;
  * <p>Field sizes are sizes of Java types described in {@link RowSqlType}. Except strings,
  * which are assumed to be taking 1-byte per character plus 1 byte size.
  *
- * <p>TODO(reuvenlax): This needs to be coupled to Row, not a part of SQL.
+ * <p>TODO This needs to be coupled to Row, not a part of SQL.
  */
 public class RowSize implements KnownSize {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
@@ -72,8 +72,6 @@ public class RowSize implements KnownSize {
           .put(FieldType.DOUBLE, bytes(Double.SIZE))
           .put(FieldType.DECIMAL, 32)
           .put(FieldType.BOOLEAN, 1)
-          .put(FieldType.TIME, bytes(Long.SIZE))
-          .put(FieldType.DATE, bytes(Long.SIZE))
           .put(FieldType.DATETIME, bytes(Long.SIZE))
           .build();
 
@@ -97,7 +95,7 @@ public class RowSize implements KnownSize {
     for (int fieldIndex = 0; fieldIndex < schema.getFieldCount(); fieldIndex++) {
       FieldTypeDescriptor fieldTypeDescriptor = schema.getField(fieldIndex).getTypeDescriptor();
       if (FieldType.ARRAY.equals(fieldTypeDescriptor.getType())) {
-        // TODO(reuvenlax)
+        // TODO: Fill in
       } else if (fieldTypeDescriptor.getType().isCompositeType()) {
         size += sizeInBytes(row.getRow(fieldIndex));
       } else if (fieldTypeDescriptor.getType().isStringType()) {

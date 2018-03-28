@@ -49,7 +49,6 @@ import org.apache.beam.sdk.runners.PTransformOverrideFactory.PTransformReplaceme
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -330,13 +329,6 @@ public class Pipeline {
     return coderRegistry;
   }
 
-  public SchemaRegistry getSchemaRegistry() {
-    if (schemaRegistry == null) {
-      schemaRegistry = SchemaRegistry.createDefault();
-    }
-    return schemaRegistry;
-  }
-
   /////////////////////////////////////////////////////////////////////////////
   // Below here are operations that aren't normally called by users.
 
@@ -507,9 +499,6 @@ public class Pipeline {
 
   /** Lazily initialized; access via {@link #getCoderRegistry()}. */
   @Nullable private CoderRegistry coderRegistry;
-
-  /** Lazily initialized; access via {@link #getSchemaRegistry()}. */
-  @Nullable private SchemaRegistry schemaRegistry;
 
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
   private final PipelineOptions defaultOptions;
