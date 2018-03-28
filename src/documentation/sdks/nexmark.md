@@ -175,9 +175,9 @@ Available suites are:
     --workerMachineType=n1-highmem-8 \
     --stagingLocation=<a gs path for staging> \
     --runner=DataflowRunner \
-    --tempLocation=gs://talend-imejia/nexmark/temp/ \
-    --stagingLocation=gs://talend-imejia/nexmark/temp/staging/ \
-    --filesToStage=target/beam-sdks-java-nexmark-2.1.0-SNAPSHOT.jar
+    --tempLocation=gs://[your temp location] \
+    --stagingLocation=gs://[your staging location] \
+    --filesToStage=target/beam-sdks-java-nexmark-[version].jar
 
 ### Direct runner specific configuration
 
@@ -470,7 +470,7 @@ Submit to Google Dataflow service:
 
 
 ```
-java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-[version].jar \
   org.apache.beam.sdk.nexmark.Main \
   --runner=DataflowRunner
   --project=<your project> \
@@ -504,7 +504,7 @@ java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.
 ```
 
 ```
-java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-[version].jar \
   org.apache.beam.sdk.nexmark.Main \
   --runner=DataflowRunner
   --project=<your project> \
@@ -538,4 +538,4 @@ Building package:
 
 Submit to the cluster:
 
-    spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
+    spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-[version].jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
