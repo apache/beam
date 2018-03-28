@@ -21,13 +21,13 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-sdks-java-parent</artifactId>
+    <artifactId>beam-util-java-parent</artifactId>
     <version>2.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-sdks-java-fn-execution</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: Fn Execution</name>
+  <artifactId>beam-util-java-fn-execution</artifactId>
+  <name>Apache Beam :: Util :: Java :: Fn Execution</name>
   <description>Contains code shared across the Beam Java SDK Harness Java Runners to execute using
     the Beam Portability Framework
   </description>
@@ -45,8 +45,9 @@
       <artifactId>beam-model-fn-execution</artifactId>
     </dependency>
 
-      <!-- The Core SDK is used for utility code and concepts shared between runner and SDK. It
-      should not be used to refer to any user-defined functions. -->
+    <!-- The Core SDK is used for utility code and concepts shared between runner and SDK. It
+    should not be used to refer to any user-defined functions. -->
+    <!-- TODO: BEAM-3966: Move core SDK utilities into the util module. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
