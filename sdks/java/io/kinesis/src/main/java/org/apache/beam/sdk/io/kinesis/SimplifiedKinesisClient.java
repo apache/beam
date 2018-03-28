@@ -58,15 +58,18 @@ class SimplifiedKinesisClient {
   private static final String STREAM_NAME_DIMENSION = "StreamName";
   private final AmazonKinesis kinesis;
   private final AmazonCloudWatch cloudWatch;
+  private final Integer limit;
 
-  public SimplifiedKinesisClient(AmazonKinesis kinesis, AmazonCloudWatch cloudWatch) {
+  public SimplifiedKinesisClient(AmazonKinesis kinesis, AmazonCloudWatch cloudWatch,
+      Integer limit) {
     this.kinesis = checkNotNull(kinesis, "kinesis");
     this.cloudWatch = checkNotNull(cloudWatch, "cloudWatch");
+    this.limit = limit;
   }
 
-  public static SimplifiedKinesisClient from(AWSClientsProvider provider) {
+  public static SimplifiedKinesisClient from(AWSClientsProvider provider, Integer limit) {
     return new SimplifiedKinesisClient(provider.getKinesisClient(),
-        provider.getCloudWatchClient());
+        provider.getCloudWatchClient(), limit);
   }
 
   public String getShardIterator(final String streamName, final String shardId,
@@ -113,7 +116,7 @@ class SimplifiedKinesisClient {
    */
   public GetKinesisRecordsResult getRecords(String shardIterator, String streamName,
       String shardId) throws TransientKinesisException {
-    return getRecords(shardIterator, streamName, shardId, null);
+    return getRecords(shardIterator, streamName, shardId, limit);
   }
 
   /**
