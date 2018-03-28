@@ -61,13 +61,7 @@ golang {
 }
 
 docker {
-  String repositoryRoot
-  if (rootProject.hasProperty(["docker-repository-root"])) {
-    repositoryRoot = rootProject["docker-repository-root"]
-  } else {
-    repositoryRoot = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
-  }
-  name "${repositoryRoot}/java:latest"
+  name containerImageName(name: "java")
   files "./build/"
 }
 // Ensure that we build the required resources and copy and file dependencies from related projects

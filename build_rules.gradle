@@ -489,6 +489,41 @@ ext.applyDockerNature = {
   }
 }
 
+// A class defining the set of configurable properties accepted by containerImageName.
+class ContainerImageNameConfiguration {
+  String root = null // Sets the docker repository root (optional).
+  String name = null // Sets the short container image name, such as "go" (required).
+  String tag  = null // Sets the image tag (optional).
+}
+
+// containerImageName returns a configurable container image name, by default a
+// development image at bintray.io (see sdks/CONTAINERS.md):
+//
+//     $USER-docker-apache.bintray.io/beam/$NAME:latest
+//
+// Both the root and tag can be defined using properties or explicitly provided.
+ext.containerImageName = {
+  println "containerImageName with " + (it ? "$it" : "default configuration") + " for project $project.name"
+  // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
+  ContainerImageNameConfiguration configuration = it ? it as ContainerImageNameConfiguration : new ContainerImageNameConfiguration()
+
+  if (configuration.root == null) {
+    if (rootProject.hasProperty(["docker-repository-root"])) {
+      configuration.root = rootProject["docker-repository-root"]
+    } else {
+      configuration.root = "${System.properties["user.name"]}-docker-apache.bintray.io/beam"
+    }
+  }
+  if (configuration.tag == null) {
+    if (rootProject.hasProperty(["docker-tag"])) {
+      configuration.tag = rootProject["docker-tag"]
+    } else {
+      configuration.tag = 'latest'
+    }
+  }
+  return "${configuration.root}/${configuration.name}:${configuration.tag}"
+}
+
 /*************************************************************************************************/
 
 ext.applyGrpcNature = {

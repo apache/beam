@@ -18,6 +18,7 @@
 
 apply from: project(":").file("build_rules.gradle")
 applyGoNature()
+applyDockerNature()
 
 description = "Apache Beam :: Runners :: Google Cloud Platform :: GCE metadata provisioning"
 
@@ -42,3 +43,10 @@ golang {
     outputLocation = './build/target/${GOOS}_${GOARCH}/gcemd'
   }
 }
+
+docker {
+  name containerImageName(name: "gcemd")
+  files "./build/"
+}
+// Ensure that making the docker image builds any required artifacts
+dockerPrepare.dependsOn build
