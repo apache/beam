@@ -40,20 +40,22 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   private final String streamName;
   private final Duration upToDateThreshold;
   private CheckpointGenerator initialCheckpointGenerator;
+  private final Integer limit;
 
   KinesisSource(AWSClientsProvider awsClientsProvider, String streamName,
-      StartingPoint startingPoint, Duration upToDateThreshold) {
+      StartingPoint startingPoint, Duration upToDateThreshold, Integer limit) {
     this(awsClientsProvider, new DynamicCheckpointGenerator(streamName, startingPoint), streamName,
-        upToDateThreshold);
+        upToDateThreshold, limit);
   }
 
   private KinesisSource(AWSClientsProvider awsClientsProvider,
-      CheckpointGenerator initialCheckpoint, String streamName,
-      Duration upToDateThreshold) {
+      CheckpointGenerator initialCheckpoint, String streamName, Duration upToDateThreshold,
+      Integer limit) {
     this.awsClientsProvider = awsClientsProvider;
     this.initialCheckpointGenerator = initialCheckpoint;
     this.streamName = streamName;
     this.upToDateThreshold = upToDateThreshold;
+    this.limit = limit;
     validate();
   }
 
@@ -65,8 +67,8 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
   @Override
   public List<KinesisSource> split(int desiredNumSplits,
       PipelineOptions options) throws Exception {
-    KinesisReaderCheckpoint checkpoint =
-        initialCheckpointGenerator.generate(SimplifiedKinesisClient.from(awsClientsProvider));
+    KinesisReaderCheckpoint checkpoint = initialCheckpointGenerator
+        .generate(SimplifiedKinesisClient.from(awsClientsProvider, limit));
 
     List<KinesisSource> sources = newArrayList();
 
@@ -75,7 +77,8 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
           awsClientsProvider,
           new StaticCheckpointGenerator(partition),
           streamName,
-          upToDateThreshold));
+          upToDateThreshold,
+          limit));
     }
     return sources;
   }
@@ -98,7 +101,7 @@ class KinesisSource extends UnboundedSource<KinesisRecord, KinesisReaderCheckpoi
     LOG.info("Creating new reader using {}", checkpointGenerator);
 
     return new KinesisReader(
-        SimplifiedKinesisClient.from(awsClientsProvider),
+        SimplifiedKinesisClient.from(awsClientsProvider, limit),
         checkpointGenerator,
         this,
         upToDateThreshold);
