@@ -48,9 +48,64 @@ public class RowCoder extends CustomCoder<Row> {
       .put(FieldType.DATETIME, InstantCoder.of())
       .put(FieldType.BOOLEAN, BooleanCoder.of())
       .build();
+
+  private static final Map<FieldType, Integer> ESTIMATED_FIELD_SIZES =
+      ImmutableMap.<FieldType, Integer>builder()
+          .put(FieldType.BYTE, Byte.BYTES)
+          .put(FieldType.INT16, Short.BYTES)
+          .put(FieldType.INT32, Integer.BYTES)
+          .put(FieldType.INT64, Long.BYTES)
+          .put(FieldType.FLOAT, Float.BYTES)
+          .put(FieldType.DOUBLE, Double.BYTES)
+          .put(FieldType.DECIMAL, 32)
+          .put(FieldType.BOOLEAN, 1)
+          .put(FieldType.DATETIME, Long.BYTES)
+          .build();
+
   private static final BitSetCoder nullListCoder = BitSetCoder.of();
 
   private Schema schema;
+
+  /**
+   * Returns the coder used for a given primitive type.
+   */
+  public static <T> Coder<T> coderForPrimitiveType(FieldType fieldType) {
+    return (Coder<T>) CODER_MAP.get(fieldType);
+  }
+
+  /**
+   * Return the estimated serialized size of a give row object.
+   */
+  public static long estimatedSizeBytes(Row row) {
+    Schema schema = row.getSchema();
+    int fieldCount = schema.getFieldCount();
+    int bitmapSize = (((fieldCount - 1) >> 6) + 1) * 8;
+
+    int fieldsSize = 0;
+    for (int i = 0; i < schema.getFieldCount(); ++i) {
+      fieldsSize += estimatedSizeBytes(schema.getField(i).getTypeDescriptor(), row.getValue(i));
+    }
+    return bitmapSize + fieldsSize;
+  }
+
+  private static long estimatedSizeBytes(FieldTypeDescriptor typeDescriptor, Object value) {
+    switch (typeDescriptor.getType()) {
+      case ROW:
+        return estimatedSizeBytes((Row) value);
+      case ARRAY:
+        List list = (List) value;
+        long listSizeBytes = 0;
+        for (Object elem : list) {
+          listSizeBytes += estimatedSizeBytes(typeDescriptor.getComponentType(), elem);
+        }
+        return 4 + listSizeBytes;
+      case STRING:
+        // Not always accurate - String.getBytes().length() would be more accurate here, but slower.
+        return ((String) value).length();
+      default:
+        return ESTIMATED_FIELD_SIZES.get(typeDescriptor.getType());
+    }
+  }
 
   private RowCoder(Schema schema) {
     this.schema = schema;
@@ -62,10 +117,6 @@ public class RowCoder extends CustomCoder<Row> {
 
   public Schema getSchema() {
     return schema;
-  }
-
-  public static <T> Coder<T> coderForPrimitiveType(FieldType fieldType) {
-    return (Coder<T>) CODER_MAP.get(fieldType);
   }
 
   Coder getCoder(FieldTypeDescriptor fieldTypeDescriptor) {

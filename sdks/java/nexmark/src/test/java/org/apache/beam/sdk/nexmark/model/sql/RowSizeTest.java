@@ -58,7 +58,7 @@ public class RowSizeTest {
       .withVarcharField("f_varchar")
       .build();
 
-  private static final long ROW_SIZE = 91L;
+  private static final long ROW_SIZE = 96L;
 
   private static final Row ROW =
       Row

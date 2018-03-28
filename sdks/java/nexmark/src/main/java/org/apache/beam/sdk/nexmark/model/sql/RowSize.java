@@ -25,6 +25,7 @@ import java.io.OutputStream;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.extensions.sql.RowSqlType;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
@@ -42,10 +43,7 @@ import org.apache.beam.sdk.values.Row;
  *
  * <p>The {@link Row} size is calculated at creation time.
  *
- * <p>Field sizes are sizes of Java types described in {@link RowSqlType}. Except strings,
- * which are assumed to be taking 1-byte per character plus 1 byte size.
  *
- * <p>TODO This needs to be coupled to Row, not a part of SQL.
  */
 public class RowSize implements KnownSize {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
@@ -62,19 +60,6 @@ public class RowSize implements KnownSize {
     }
   };
 
-  private static final Map<FieldType, Integer> ESTIMATED_FIELD_SIZES =
-      ImmutableMap.<FieldType, Integer>builder()
-          .put(FieldType.BYTE, bytes(Byte.SIZE))
-          .put(FieldType.INT16, bytes(Short.SIZE))
-          .put(FieldType.INT64, bytes(Integer.SIZE))
-          .put(FieldType.INT64, bytes(Long.SIZE))
-          .put(FieldType.FLOAT, bytes(Float.SIZE))
-          .put(FieldType.DOUBLE, bytes(Double.SIZE))
-          .put(FieldType.DECIMAL, 32)
-          .put(FieldType.BOOLEAN, 1)
-          .put(FieldType.DATETIME, bytes(Long.SIZE))
-          .build();
-
   public static ParDo.SingleOutput<Row, RowSize> parDo() {
     return ParDo.of(new DoFn<Row, RowSize>() {
       @ProcessElement
@@ -89,27 +74,7 @@ public class RowSize implements KnownSize {
   }
 
   private static long sizeInBytes(Row row) {
-    Schema schema = row.getSchema();
-    long size = 1; // nulls bitset
-
-    for (int fieldIndex = 0; fieldIndex < schema.getFieldCount(); fieldIndex++) {
-      FieldTypeDescriptor fieldTypeDescriptor = schema.getField(fieldIndex).getTypeDescriptor();
-      if (FieldType.ARRAY.equals(fieldTypeDescriptor.getType())) {
-        // TODO: Fill in
-      } else if (fieldTypeDescriptor.getType().isCompositeType()) {
-        size += sizeInBytes(row.getRow(fieldIndex));
-      } else if (fieldTypeDescriptor.getType().isStringType()) {
-        size += row.getString(fieldIndex).length() + 1;
-      } else {
-        Integer estimatedSize = ESTIMATED_FIELD_SIZES.get(fieldTypeDescriptor.getType());
-        if (estimatedSize != null) {
-          size += estimatedSize;
-        } else {
-          throw new IllegalStateException("Unexpected field type " + fieldTypeDescriptor.getType());
-        }
-      }
-    }
-    return size;
+    return RowCoder.estimatedSizeBytes(row);
   }
 
   private long sizeInBytes;
@@ -121,10 +86,5 @@ public class RowSize implements KnownSize {
   @Override
   public long sizeInBytes() {
     return sizeInBytes;
-  }
-
-
-  private static Integer bytes(int size) {
-    return size / Byte.SIZE;
   }
 }
