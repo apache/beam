@@ -21,12 +21,11 @@ package org.apache.beam.sdk.schemas;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * {@link SchemaCoder} is used as the coder for types that have schemas registered.
@@ -34,6 +33,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Experimental
 public class SchemaCoder<T> extends CustomCoder<T> {
   private Schema schema;
+  private RowCoder rowCoder;
   private SerializableFunction<T, Row> toRowFunction;
   private SerializableFunction<Row, T> fromRowFunction;
 
@@ -43,34 +43,19 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     this.schema = schema;
     this.toRowFunction = toRowFunction;
     this.fromRowFunction = fromRowFunction;
+    this.rowCoder = RowCoder.of(schema);
   }
 
   /**
    * Returns a {@link SchemaCoder} for the specified class. If no schema is registered for this
    * class, then throws {@link NoSuchSchemaException}.
-   * TODO: In the future we might want to move schema lookup into coder inference, and have it
-   * passed into the coder instead.
    */
   public static <T> SchemaCoder<T> of(
-      Class<T> clazz,
       Schema schema,
       SerializableFunction<T, Row> toRowFunction,
       SerializableFunction<Row, T> fromRowFunction) {
     return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
   }
-
-  /**
-   * Returns a {@link SchemaCoder} for the specified type. If no schema is registered for this
-   * class, then throws {@link NoSuchSchemaException}.
-   */
-  public static <T> SchemaCoder<T> of(
-      TypeDescriptor<T> typeDescriptor,
-      Schema schema,
-      SerializableFunction<T, Row> toRowFunction,
-      SerializableFunction<Row, T> fromRowFunction) {
-    return new SchemaCoder<>(schema, toRowFunction, fromRowFunction);
-  }
-
 
   /**
    * Returns the schema associated with this type.
@@ -95,16 +80,16 @@ public class SchemaCoder<T> extends CustomCoder<T> {
 
   @Override
   public void encode(T value, OutputStream outStream) throws IOException {
-    throw new IOException();
+    rowCoder.encode(toRowFunction.apply(value), outStream);
   }
 
   @Override
   public T decode(InputStream inStream) throws IOException {
-    throw new IOException();
+    return fromRowFunction.apply(rowCoder.decode(inStream));
   }
 
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
-
+    rowCoder.verifyDeterministic();
   }
 }

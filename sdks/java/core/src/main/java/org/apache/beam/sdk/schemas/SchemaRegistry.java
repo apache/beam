@@ -34,13 +34,17 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 @Experimental
 public class SchemaRegistry {
 
+  public static SchemaRegistry createDefault() {
+    return new SchemaRegistry();
+  }
+
   /**
    * Register a schema for a specific {@link Class} type.
    */
   public <T> void registerSchemaForClass(Class<T> clazz,
-      Schema schema,
-      SerializableFunction<T, Row> toRow,
-      SerializableFunction<Row, T> fromRow) {
+                                         Schema schema,
+                                         SerializableFunction<T, Row> toRow,
+                                         SerializableFunction<Row, T> fromRow) {
 
   }
 
@@ -48,16 +52,16 @@ public class SchemaRegistry {
    * Register a schema for a specific {@link TypeDescriptor} type.
    */
   public <T> void registerSchemaForType(TypeDescriptor<T> type,
-      Schema schema,
-      SerializableFunction<T, Row> toRow,
-      SerializableFunction<Row, T> fromRow) {
+                                        Schema schema,
+                                        SerializableFunction<T, Row> toRow,
+                                        SerializableFunction<Row, T> fromRow) {
 
   }
 
   /**
    * Register a {@link SchemaProvider}.
    *
-   * <o>A {@link SchemaProvider} allows for deferred lookups of per-type schemas. This can be
+   * <p>A {@link SchemaProvider} allows for deferred lookups of per-type schemas. This can be
    * used when scheams are registered in an external service. The SchemaProvider will lookup the
    * type in the external service and return the correct {@link Schema}.
    */
