@@ -374,11 +374,10 @@ or may be published to Pub/Sub.</p>
 --project=&lt;your project&gt; \
 --zone=&lt;your zone&gt; \
 --workerMachineType=n1-highmem-8 \
---stagingLocation=&lt;a gs path for staging&gt; \
+--stagingLocation=gs://&lt;a gs path for staging&gt; \
 --runner=DataflowRunner \
---tempLocation=gs://talend-imejia/nexmark/temp/ \
---stagingLocation=gs://talend-imejia/nexmark/temp/staging/ \
---filesToStage=target/beam-sdks-java-nexmark-2.1.0-SNAPSHOT.jar
+--tempLocation=gs://&lt;a gs path for temporary files&gt; \
+--filesToStage=target/beam-sdks-java-nexmark-2.4.0.jar
 </code></pre>
 </div>
 
@@ -690,13 +689,13 @@ or may be published to Pub/Sub.</p>
 
 <p>Submit to Google Dataflow service:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+<div class="highlighter-rouge"><pre class="highlight"><code>java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.4.0.jar \
   org.apache.beam.sdk.nexmark.Main \
   --runner=DataflowRunner
   --project=&lt;your project&gt; \
   --zone=&lt;your zone&gt; \
   --workerMachineType=n1-highmem-8 \
-  --stagingLocation=&lt;a gs path for staging&gt; \
+  --stagingLocation=gs://&lt;a gs path for staging&gt; \
   --streaming=true \
   --sourceType=PUBSUB \
   --pubSubMode=PUBLISH_ONLY \
@@ -724,13 +723,13 @@ or may be published to Pub/Sub.</p>
 </code></pre>
 </div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+<div class="highlighter-rouge"><pre class="highlight"><code>java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.4.0.jar \
   org.apache.beam.sdk.nexmark.Main \
   --runner=DataflowRunner
   --project=&lt;your project&gt; \
   --zone=&lt;your zone&gt; \
   --workerMachineType=n1-highmem-8 \
-  --stagingLocation=&lt;a gs path for staging&gt; \
+  --stagingLocation=gs://&lt;a gs path for staging&gt; \
   --streaming=true \
   --sourceType=PUBSUB \
   --pubSubMode=SUBSCRIBE_ONLY \
@@ -742,7 +741,7 @@ or may be published to Pub/Sub.</p>
   --maxNumWorkers=64 \
   --suite=SMOKE \
   --usePubsubPublishTime=true \
-  --outputPath=&lt;a gs path under which log files will be written&gt; \
+  --outputPath=gs://&lt;a gs path under which log files will be written&gt; \
   --windowSizeSec=600 \
   --occasionalDelaySec=3600 \
   --maxLogEvents=10000 \
@@ -760,7 +759,7 @@ or may be published to Pub/Sub.</p>
 
 <p>Submit to the cluster:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
+<div class="highlighter-rouge"><pre class="highlight"><code>spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-2.4.0.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
 </code></pre>
 </div>
 
