@@ -26,16 +26,26 @@
 set -o errexit
 set -o pipefail
 
-MODULE=apache_beam
+DEFAULT_MODULE=apache_beam
 
-usage(){ echo "Usage: $0 [MODULE|--help]  # The default MODULE is $MODULE"; }
+usage(){ echo "Usage: $0 [MODULE|--help]
+# The default MODULE is $DEFAULT_MODULE"; }
 
-if test $# -gt 0; then
-  case "$@" in
+MODULES=${DEFAULT_MODULE}
+PY3K=false
+while [[ $# -gt 0 ]] ; do
+  key="$1"
+  case ${key} in
     --help) usage; exit 1;;
-	 *)      MODULE="$*";;
+    --py3k) PY3K=true; shift;;
+	*)
+	if [ ${MODULES} = ${DEFAULT_MODULE} ] ; then
+	  MODULES=()
+	fi
+	MODULES+=("$1")
+	shift;;
   esac
-fi
+done
 
 # Following generated files are excluded from lint checks.
 EXCLUDED_GENERATED_FILES=(
@@ -58,15 +68,22 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
 done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
-echo "Running pylint for module $MODULE:"
-pylint -j8 "$MODULE" --ignore-patterns="$FILES_TO_IGNORE"
-echo "Running pycodestyle for module $MODULE:"
-pycodestyle "$MODULE" --exclude="$FILES_TO_IGNORE"
-echo "Running flake8 for module $MODULE:"
-# TODO(BEAM-3959): Add F821 (undefined names) as soon as that test passes
-flake8 $MODULE --count --select=E9,F822,F823 --show-source --statistics
+echo "Running pylint for modules $( printf "%s " "${MODULES[@]}" ):"
+pylint -j8 $( printf "%s " "${MODULES[@]}" ) \
+  --ignore-patterns="$FILES_TO_IGNORE" \
+  $( [ "$PY3K" = true ] && printf %s '--py3k' ) \
+  || (echo "Please execute futurize stage 2 to remain python 3 compatible."
+  echo
+  exit 1)
 
-echo "Running isort for module $MODULE:"
+echo "Running pycodestyle for modules$( printf "%s " "${MODULES[@]}" ):"
+pycodestyle $( printf "%s " "${MODULES[@]}" ) --exclude="$FILES_TO_IGNORE"
+echo "Running flake8 for modules $( printf "%s " "${MODULES[@]}" ):"
+# TODO(BEAM-3959): Add F821 (undefined names) as soon as that test passes
+flake8 $( printf "%s " "${MODULES[@]}" ) --count --select=E9,F822,F823 \
+  --show-source --statistics
+
+echo "Running isort for modules $( printf "%s " "${MODULES[@]}" ):"
 # Skip files where isort is behaving weirdly
 ISORT_EXCLUDED=(
   "apiclient.py"
@@ -86,9 +103,13 @@ done
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
 done
-pushd "$MODULE"
-isort -p apache_beam --line-width 120 --check-only --order-by-type --combine-star --force-single-line-imports --diff ${SKIP_PARAM}
-popd
+
+for module in "$MODULES"; do
+    pushd "$module"
+    isort -p apache_beam --line-width 120 --check-only --order-by-type \
+      --combine-star --force-single-line-imports --diff ${SKIP_PARAM}
+    popd
+done
 
 FUTURIZE_EXCLUDED=(
   "typehints.py"
@@ -98,7 +119,8 @@ FUTURIZE_EXCLUDED=(
 FUTURIZE_GREP_PARAM=$( IFS='|'; echo "${ids[*]}" )
 echo "Checking for files requiring stage 1 refactoring from futurize"
 futurize_results=$(futurize -j 8 --stage1 apache_beam 2>&1 |grep Refactored)
-futurize_filtered=$(echo "$futurize_results" |grep -v "$FUTURIZE_GREP_PARAM" || echo "")
+futurize_filtered=$(echo "$futurize_results" |grep -v "$FUTURIZE_GREP_PARAM" \
+  || echo "")
 count=${#futurize_filtered}
 if [ "$count" != "0" ]; then
   echo "Some of the changes require futurize stage 1 changes."
@@ -109,13 +131,16 @@ if [ "$count" != "0" ]; then
 fi
 echo "No future changes needed"
 
-echo "Checking unittest.main for module ${MODULE}:"
-TESTS_MISSING_MAIN=$(find ${MODULE} | grep '\.py$' | xargs grep -l '^import unittest$' | xargs grep -L unittest.main)
-if [ -n "${TESTS_MISSING_MAIN}" ]; then
-  echo -e "\nThe following files are missing a call to unittest.main():"
-  for FILE in ${TESTS_MISSING_MAIN}; do
-    echo "  ${FILE}"
-  done
-  echo
-  exit 1
-fi
+echo "Checking unittest.main for modules $( printf "%s " "${MODULES[@]}" ):"
+for module in "$MODULES"; do
+  TESTS_MISSING_MAIN=$(find ${module} | grep '\.py$' | xargs grep -l \
+  '^import unittest$' | xargs grep -L unittest.main)
+  if [ -n "${TESTS_MISSING_MAIN}" ]; then
+    echo -e "\nThe following files are missing a call to unittest.main():"
+    for FILE in ${TESTS_MISSING_MAIN}; do
+      echo "  ${FILE}"
+    done
+    echo
+    exit 1
+  fi
+done
