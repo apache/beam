@@ -173,10 +173,9 @@ Available suites are:
     --project=<your project> \
     --zone=<your zone> \
     --workerMachineType=n1-highmem-8 \
-    --stagingLocation=<a gs path for staging> \
+    --stagingLocation=gs://<a gs path for staging> \
     --runner=DataflowRunner \
-    --tempLocation=gs://[your temp location] \
-    --stagingLocation=gs://[your staging location] \
+    --tempLocation=gs://<a gs path for temporary files> \
     --filesToStage=target/beam-sdks-java-nexmark-{{ site.release_latest }}.jar
 
 ### Direct runner specific configuration
@@ -476,7 +475,7 @@ java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-{{ site.release
   --project=<your project> \
   --zone=<your zone> \
   --workerMachineType=n1-highmem-8 \
-  --stagingLocation=<a gs path for staging> \
+  --stagingLocation=gs://<a gs path for staging> \
   --streaming=true \
   --sourceType=PUBSUB \
   --pubSubMode=PUBLISH_ONLY \
@@ -510,7 +509,7 @@ java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-{{ site.release
   --project=<your project> \
   --zone=<your zone> \
   --workerMachineType=n1-highmem-8 \
-  --stagingLocation=<a gs path for staging> \
+  --stagingLocation=gs://<a gs path for staging> \
   --streaming=true \
   --sourceType=PUBSUB \
   --pubSubMode=SUBSCRIBE_ONLY \
@@ -522,7 +521,7 @@ java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-{{ site.release
   --maxNumWorkers=64 \
   --suite=SMOKE \
   --usePubsubPublishTime=true \
-  --outputPath=<a gs path under which log files will be written> \
+  --outputPath=gs://<a gs path under which log files will be written> \
   --windowSizeSec=600 \
   --occasionalDelaySec=3600 \
   --maxLogEvents=10000 \
