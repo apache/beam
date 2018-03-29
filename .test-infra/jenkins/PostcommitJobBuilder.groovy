@@ -29,7 +29,7 @@ class PostcommitJobBuilder {
   private def jobDefinition;
   private def job;
 
-  private PostcommitJobBuilder(scope, jobDefinition = {}) {
+  PostcommitJobBuilder(scope, jobDefinition = {}) {
     this.scope = scope
     this.jobDefinition = jobDefinition
     this.job = null
@@ -45,7 +45,7 @@ class PostcommitJobBuilder {
     jb.defineGhprbTriggeredJob(nameBase + "_PR", triggerPhrase, githubUiHint, false)
   }
 
-  private void defineAutoPostCommitJob(name) {
+  void defineAutoPostCommitJob(name) {
     def autoBuilds = scope.job(name) {
       cjp.setAutoJob delegate
     }
