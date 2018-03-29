@@ -173,11 +173,10 @@ Available suites are:
     --project=<your project> \
     --zone=<your zone> \
     --workerMachineType=n1-highmem-8 \
-    --stagingLocation=<a gs path for staging> \
+    --stagingLocation=gs://<a gs path for staging> \
     --runner=DataflowRunner \
-    --tempLocation=gs://talend-imejia/nexmark/temp/ \
-    --stagingLocation=gs://talend-imejia/nexmark/temp/staging/ \
-    --filesToStage=target/beam-sdks-java-nexmark-2.1.0-SNAPSHOT.jar
+    --tempLocation=gs://<a gs path for temporary files> \
+    --filesToStage=target/beam-sdks-java-nexmark-{{ site.release_latest }}.jar
 
 ### Direct runner specific configuration
 
@@ -470,13 +469,13 @@ Submit to Google Dataflow service:
 
 
 ```
-java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-{{ site.release_latest }}.jar \
   org.apache.beam.sdk.nexmark.Main \
   --runner=DataflowRunner
   --project=<your project> \
   --zone=<your zone> \
   --workerMachineType=n1-highmem-8 \
-  --stagingLocation=<a gs path for staging> \
+  --stagingLocation=gs://<a gs path for staging> \
   --streaming=true \
   --sourceType=PUBSUB \
   --pubSubMode=PUBLISH_ONLY \
@@ -504,13 +503,13 @@ java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.
 ```
 
 ```
-java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-{{ site.release_latest }}.jar \
   org.apache.beam.sdk.nexmark.Main \
   --runner=DataflowRunner
   --project=<your project> \
   --zone=<your zone> \
   --workerMachineType=n1-highmem-8 \
-  --stagingLocation=<a gs path for staging> \
+  --stagingLocation=gs://<a gs path for staging> \
   --streaming=true \
   --sourceType=PUBSUB \
   --pubSubMode=SUBSCRIBE_ONLY \
@@ -522,7 +521,7 @@ java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.
   --maxNumWorkers=64 \
   --suite=SMOKE \
   --usePubsubPublishTime=true \
-  --outputPath=<a gs path under which log files will be written> \
+  --outputPath=gs://<a gs path under which log files will be written> \
   --windowSizeSec=600 \
   --occasionalDelaySec=3600 \
   --maxLogEvents=10000 \
@@ -538,4 +537,4 @@ Building package:
 
 Submit to the cluster:
 
-    spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
+    spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-{{ site.release_latest }}.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
