@@ -118,7 +118,7 @@ func (b *CoderUnmarshaller) Coder(id string) (*coder.Coder, error) {
 	return ret, nil
 }
 
-// Coder unmarshals a window with the given id.
+// Window unmarshals a window with the given id.
 func (b *CoderUnmarshaller) Window(id string) (*window.Window, error) {
 	if w, exists := b.windows[id]; exists {
 		return w, nil
