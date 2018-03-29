@@ -415,7 +415,7 @@ func unmarshalKeyedValues(m map[string]string) []string {
 	index := make(map[string]int)
 	complete := true
 
-	for key, _ := range m {
+	for key := range m {
 		if i, err := strconv.Atoi(strings.TrimPrefix(key, "i")); !strings.HasPrefix(key, "i") || err != nil {
 			complete = false
 			break
