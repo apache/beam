@@ -36,18 +36,6 @@ job('beam_PostCommit_Python_Verify') {
     'Python SDK PostCommit Tests',
     'Run Python PostCommit')
 
-  // Allow the test to only run on particular nodes
-  // TODO(BEAM-1817): Remove once the tests can run on all nodes
-  parameters {
-      nodeParam('TEST_HOST') {
-          description('select test host as either beam1, 2 or 3')
-          defaultNodes(['beam1', 'beam2', 'beam3'])
-          allowedNodes(['beam1', 'beam2', 'beam3'])
-          trigger('multiSelectionDisallowed')
-          eligibility('IgnoreOfflineNodeEligibility')
-      }
-  }
-
   // Execute shell command to test Python SDK.
   steps {
     shell('cd ' + common_job_properties.checkoutDir + ' && bash sdks/python/run_postcommit.sh')
