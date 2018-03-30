@@ -51,7 +51,8 @@ class SdkHarness(object):
       self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
     else:
       logging.info('Using provided channel.')
-      self._control_channel = control_channel
+      self._control_channel = grpc.intercept_channel(
+          control_channel, WorkerIdInterceptor())
       self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
           credentials)
     self.workers = queue.Queue()

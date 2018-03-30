@@ -318,6 +318,9 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
                 # is controlled in a layer above.
                 options=[("grpc.max_receive_message_length", -1),
                          ("grpc.max_send_message_length", -1)])
+            # Add workerId to the grpc channel
+            grpc_channel = grpc.intercept_channel(grpc_channel,
+                                                  WorkerIdInterceptor())
             self._data_channel_cache[url] = GrpcClientDataChannel(
                 beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
           else:
