@@ -34,6 +34,7 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
 class SdkHarness(object):
@@ -45,13 +46,14 @@ class SdkHarness(object):
     self._worker_index = 0
     if control_channel is None:
       logging.info('Creating insecure channel.')
-      self._control_channel = grpc.insecure_channel(control_address)
+      self._control_channel = grpc.intercept_channel(
+          grpc.insecure_channel(control_address), WorkerIdInterceptor())
+      self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
     else:
       logging.info('Using provided channel.')
       self._control_channel = control_channel
-
-    self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
-        credentials)
+      self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
+          credentials)
     self.workers = queue.Queue()
     # one thread is enough for getting the progress report.
     # Assumption:

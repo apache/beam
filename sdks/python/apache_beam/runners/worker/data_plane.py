@@ -34,6 +34,7 @@ import six
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -327,6 +328,9 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
                 # is controlled in a layer above.
                 options=[("grpc.max_receive_message_length", -1),
                          ("grpc.max_send_message_length", -1)])
+            # Add workerId to the grpc channel
+            grpc_channel = grpc.intercept_channel(grpc_channel,
+                                                  WorkerIdInterceptor())
             self._data_channel_cache[url] = GrpcClientDataChannel(
                 beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
 
