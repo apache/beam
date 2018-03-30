@@ -20,9 +20,12 @@
 Only those coders listed in __all__ are part of the public API of this module.
 """
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import base64
-import cPickle as pickle
+from builtins import object
+from builtins import str
 
 import google.protobuf
 from google.protobuf import wrappers_pb2
@@ -32,6 +35,11 @@ from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
+
+try:
+  import cPickle as pickle
+except ImportError:
+  import pickle
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -216,6 +224,9 @@ class Coder(object):
             and self._dict_without_impl() == other._dict_without_impl())
     # pylint: enable=protected-access
 
+  def __hash__(self):
+    return hash(type(self))
+
   _known_urns = {}
 
   @classmethod
@@ -309,11 +320,6 @@ class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   def encode(self, value):
-    try:               # Python 2
-      if isinstance(value, unicode):
-        return value.encode('utf-8')
-    except NameError:  # Python 3
-      pass
     return str(value)
 
   def decode(self, _):

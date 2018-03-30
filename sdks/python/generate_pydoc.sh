@@ -119,6 +119,9 @@ ignore_identifiers = [
   # Ignore broken built-in type references
   'tuple',
 
+  # Ignore future.builtin type references
+  'future.types.newobject.newobject',
+
   # Ignore private classes
   'apache_beam.coders.coders._PickleCoderBase',
   'apache_beam.coders.coders.FastCoder',
