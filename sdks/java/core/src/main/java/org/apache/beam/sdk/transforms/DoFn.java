@@ -576,6 +576,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public @interface ProcessElement {}
 
   /**
+   * Parameter annotation for the input element for a {@link ProcessElement} method.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface Element {}
+
+  /**
    * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
    * feature may change.</i></b>
    *

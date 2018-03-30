@@ -68,6 +68,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.OnTimerMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Cases;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.FinishBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OnTimerContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
@@ -88,6 +89,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String START_BUNDLE_CONTEXT_PARAMETER_METHOD = "startBundleContext";
   public static final String FINISH_BUNDLE_CONTEXT_PARAMETER_METHOD = "finishBundleContext";
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
+  public static final String ELEMENT_PARAMETER_METHOD = "element";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
   public static final String WINDOW_PARAMETER_METHOD = "window";
   public static final String PIPELINE_OPTIONS_PARAMETER_METHOD = "pipelineOptions";
@@ -583,6 +585,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         PROCESS_CONTEXT_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(ElementParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        ELEMENT_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override

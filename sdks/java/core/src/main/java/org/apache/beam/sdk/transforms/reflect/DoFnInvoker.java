@@ -121,6 +121,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
     /**
+     * Provide a link to the input element.
+     */
+    InputT element(DoFn<InputT, OutputT> doFn);
+
+    /**
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
      */
@@ -140,6 +145,14 @@ public interface DoFnInvoker<InputT, OutputT> {
   class FakeArgumentProvider<InputT, OutputT> implements ArgumentProvider<InputT, OutputT> {
     @Override
     public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",
