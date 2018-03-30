@@ -34,18 +34,24 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self, control_address, worker_count):
+  def __init__(self, control_address, worker_count,
+               control_channel=None, credentials=None):
     self._worker_count = worker_count
     self._worker_index = 0
-    self._control_channel = grpc.intercept_channel(
-        grpc.insecure_channel(control_address), WorkerIdInterceptor())
-    self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
+    if control_channel is None:
+      logging.info('Creating insecure channel.')
+      self._control_channel = grpc.insecure_channel(control_address)
+    else:
+      logging.info('Using provided channel.')
+      self._control_channel = control_channel
+
+    self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
+        credentials)
     self.workers = queue.Queue()
     # one thread is enough for getting the progress report.
     # Assumption:
@@ -59,7 +65,6 @@ class SdkHarness(object):
     self._fns = {}
     self._responses = queue.Queue()
     self._process_bundle_queue = queue.Queue()
-    self._unscheduled_process_bundle = set()
     logging.info('Initializing SDKHarness with %s workers.', self._worker_count)
 
   def run(self):
@@ -150,7 +155,6 @@ class SdkHarness(object):
       work = self._process_bundle_queue.get()
       # add the instuction_id vs worker map for progress reporting lookup
       self._instruction_id_vs_worker[work.instruction_id] = worker
-      self._unscheduled_process_bundle.discard(work.instruction_id)
       try:
         self._execute(lambda: worker.do_instruction(work), work)
       finally:
@@ -161,26 +165,14 @@ class SdkHarness(object):
 
     # Create a task for each process_bundle request and schedule it
     self._process_bundle_queue.put(request)
-    self._unscheduled_process_bundle.add(request.instruction_id)
     self._process_thread_pool.submit(task)
 
   def _request_process_bundle_progress(self, request):
 
     def task():
-      instruction_reference = getattr(
-          request, request.WhichOneof('request')).instruction_reference
-      if self._instruction_id_vs_worker.has_key(instruction_reference):
-        self._execute(
-            lambda: self._instruction_id_vs_worker[
-                instruction_reference
-            ].do_instruction(request), request)
-      else:
-        self._execute(lambda: beam_fn_api_pb2.InstructionResponse(
-            instruction_id=request.instruction_id, error=(
-                'Process bundle request not yet scheduled for instruction {}' if
-                instruction_reference in self._unscheduled_process_bundle else
-                'Unknown process bundle instruction {}').format(
-                    instruction_reference)), request)
+      self._execute(lambda: self._instruction_id_vs_worker[getattr(
+          request, request.WhichOneof('request')
+      ).instruction_reference].do_instruction(request), request)
 
     self._progress_thread_pool.submit(task)
 
