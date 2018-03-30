@@ -47,6 +47,7 @@ import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
@@ -110,7 +111,9 @@ public class RemoteExecutionTest implements Serializable {
     BlockingQueue<FnApiControlClient> clientPool = new SynchronousQueue<>();
     controlServer =
         GrpcFnServer.allocatePortAndCreateFor(
-            FnApiControlClientPoolService.offeringClientsToPool(clientPool), serverFactory);
+            FnApiControlClientPoolService.offeringClientsToPool(
+                clientPool, GrpcContextHeaderAccessorProvider.getHeaderAccessor()),
+            serverFactory);
 
     // Create the SDK harness, and wait until it connects
     sdkHarnessExecutor = Executors.newSingleThreadExecutor(threadFactory);
