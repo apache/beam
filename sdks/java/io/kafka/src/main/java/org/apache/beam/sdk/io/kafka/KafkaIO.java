@@ -505,7 +505,7 @@ public class KafkaIO {
      * 'now - max delay' when a partition is idle.
      *
      * @param maxDelay For any record in the Kafka partition, the timestamp of any subsequent
-     *                 record is expected to be >= {@code current record timestamp - maxDelay}.
+     *                 record is expected to be after {@code current record timestamp - maxDelay}.
      */
     public Read<K, V> withCreateTime(Duration maxDelay) {
       return withTimestampPolicyFactory(TimestampPolicyFactory.withCreateTime(maxDelay));

@@ -44,7 +44,7 @@ public class CustomTimestampPolicyWithLimitedDelay<K, V> extends TimestampPolicy
    * time is {@code Min(now(), max_event_timestamp) - maxDelay}.
    * @param timestampFunction A function to extract timestamp from the record
    * @param maxDelay For any record in the Kafka partition, the timestamp of any subsequent
-   *                 record is expected to be >= {@code current record timestamp - maxDelay}.
+   *                 record is expected to be after {@code current record timestamp - maxDelay}.
    * @param previousWatermark Latest check-pointed watermark, see
    *                {@link TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)}
    */

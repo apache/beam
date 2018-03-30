@@ -45,7 +45,6 @@ public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
    *           is resuming from a checkpoint. This is a good value to return by implementations
    *           of {@link TimestampPolicy#getWatermark(PartitionContext)} until a better watermark
    *           can be established as more records are read.
-   * @return
    */
   TimestampPolicy<KeyT, ValueT> createTimestampPolicy(
     TopicPartition tp, Optional<Instant> previousWatermark);
@@ -87,20 +86,6 @@ public interface TimestampPolicyFactory<KeyT, ValueT> extends Serializable {
     return (tp, previousWatermark) ->
       new CustomTimestampPolicyWithLimitedDelay<>(timestampFunction, maxDelay, previousWatermark);
   }
-
-  /*
-   * TODO
-   * Provide a another built in implementation where the watermark is based on all the timestamps
-   * seen in last 1 minute of wall clock time (this duration could be configurable). This is
-   * similar to watermark set by PubsubIO.
-   *
-   * public static <K, V> TimestampPolicyFactory<K, V> withCreateTime() {
-   *   return withCustomTypestamp(...);
-   * }
-   *
-   * public static <K, V> TimestampPolicyFactory<K, V> withCustomTimestamp() {
-   * }
-   */
 
   /**
    * Used by the Read transform to support old timestamp functions API.
