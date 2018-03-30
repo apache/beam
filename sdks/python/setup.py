@@ -114,8 +114,11 @@ REQUIRED_PACKAGES = [
     'futures>=3.1.1,<4.0.0',
     ]
 
+REQUIRED_SETUP_PACKAGES = [
+    'nose>=1.0',
+    ]
+
 REQUIRED_TEST_PACKAGES = [
-    'nose>=1.3.7',
     'pyhamcrest>=1.9,<2.0',
     ]
 
@@ -175,9 +178,6 @@ def generate_common_urns():
         + '\n')
 generate_common_urns()
 
-python_requires = '>=2.7'
-if os.environ.get('BEAM_EXPERIMENTAL_PY3') is None:
-  python_requires += ',<3.0'
 
 setuptools.setup(
     name=PACKAGE_NAME,
@@ -203,8 +203,9 @@ setuptools.setup(
         'apache_beam/utils/counters.py',
         'apache_beam/utils/windowed_value.py',
     ]),
+    setup_requires=REQUIRED_SETUP_PACKAGES,
     install_requires=REQUIRED_PACKAGES,
-    python_requires=python_requires,
+    python_requires='>=2.7,<3.0',
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,
     extras_require={
