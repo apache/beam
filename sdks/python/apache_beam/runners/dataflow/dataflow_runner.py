@@ -306,7 +306,8 @@ class DataflowRunner(PipelineRunner):
           'please install apache_beam[gcp]')
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    pipeline.visit(self.side_input_visitor())
+    if apiclient._use_fnapi(pipeline._options):
+      pipeline.visit(self.side_input_visitor())
 
     # Snapshot the pipeline in a portable proto before mutating it
     proto_pipeline, self.proto_context = pipeline.to_runner_api(
