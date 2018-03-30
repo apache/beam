@@ -111,8 +111,9 @@ import org.slf4j.LoggerFactory;
  *       // settings for ConsumerConfig. e.g :
  *       .updateConsumerProperties(ImmutableMap.of("group.id", "my_beam_app_1"))
  *
- *       // set event times and watermark based on LogAppendTime. To provide a custom
+ *       // set event times and watermark based on 'LogAppendTime'. To provide a custom
  *       // policy see withTimestampPolicyFactory(). withProcessingTime() is the default.
+ *       // Use withCreateTime() with topics that have 'CreateTime' timestamps.
  *       .withLogAppendTime()
  *
  *       // restrict reader to committed messages on Kafka (see method documentation).
@@ -487,12 +488,11 @@ public class KafkaIO {
       return withTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime());
     }
 
-
     /**
      * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy}.
      * This is the default timestamp policy. It assigns processing time to each record.
      * Specifically, this is the timestamp when the record becomes 'current' in the reader.
-     * The watermark aways advances to current time. If servicer side time (log append time) is
+     * The watermark aways advances to current time. If server side time (log append time) is
      * enabled in Kafka, {@link #withLogAppendTime()} is recommended over this.
      */
     public Read<K, V> withProcessingTime() {
@@ -500,10 +500,29 @@ public class KafkaIO {
     }
 
     /**
+     * Sets the timestamps policy based on {@link KafkaTimestampType#CREATE_TIME} timestamp of the
+     * records. It is an error if a record's timestamp type is not
+     * {@link KafkaTimestampType#CREATE_TIME}. The timestamps within a partition are expected to
+     * be roughly monotonically increasing with a cap on out of order delays (e.g. 'max delay' of
+     * 1 minute). The watermark at any time is
+     * '({@code Min(now(), Max(event timestamp so far)) - max delay})'. However, watermark is never
+     * set in future and capped to 'now - max delay'. In addition, watermark advanced to
+     * 'now - max delay' when a partition is idle.
+     *
+     * @param maxDelay For any record in the Kafka partition, the timestamp of any subsequent
+     *                 record is expected to be after {@code current record timestamp - maxDelay}.
+     */
+    public Read<K, V> withCreateTime(Duration maxDelay) {
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withCreateTime(maxDelay));
+    }
+
+    /**
      * Provide custom {@link TimestampPolicyFactory} to set event times and watermark for each
      * partition. {@link TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)}
      * is invoked for each partition when the reader starts.
-     * @see #withLogAppendTime() and {@link #withProcessingTime()}
+     * @see #withLogAppendTime()
+     * @see #withCreateTime(Duration)
+     * @see #withProcessingTime()
      */
     public Read<K, V> withTimestampPolicyFactory(
       TimestampPolicyFactory<K, V> timestampPolicyFactory) {
