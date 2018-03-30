@@ -272,7 +272,8 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._transform_evaluator_registry = transform_evaluator_registry
     self._evaluation_context = evaluation_context
     self._input_bundle = input_bundle
-    # For non-empty bundles, store the window of the max EOW
+    # For non-empty bundles, store the window of the max EOW.
+    # TODO(mariagh): Move to class _Bundle's inner _StackedWindowedValues
     if input_bundle._elements:
       self._latest_main_input_window = input_bundle._elements[0].windows[0]
       for elem in input_bundle.get_elements_iterable():
@@ -295,7 +296,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
     scoped_metrics_container = ScopedMetricsContainer(metrics_container)
 
     for side_input in self._applied_ptransform.side_inputs:
-      # Find the projection of main's window onto the side input's window
+      # Find the projection of main's window onto the side input's window.
       window_mapping_fn = side_input._view_options().get(
           'window_mapping_fn', sideinputs._global_window_mapping_fn)
       main_onto_side_window = window_mapping_fn(self._latest_main_input_window)

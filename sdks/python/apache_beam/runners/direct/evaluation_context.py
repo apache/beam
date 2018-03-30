@@ -96,7 +96,8 @@ class _SideInputsContainer(object):
       block_until: Timestamp after which the task gets unblocked.
 
     Returns:
-      The value of a view when 'its' task is unblocked (otherwise, None).
+      The (SideInputMap) value of a view when the tasks it blocks are unblocked
+      Otherwise, None.
     """
     with self._lock:
       view = self._views[side_input]
@@ -154,16 +155,15 @@ class _SideInputsContainer(object):
       view = self._views[side_input]
       view.watermark = watermark
 
-      # Unblock and finalize tasks
       view = self._views[side_input]
-      tasks_to_remove = []
+      tasks_just_unblocked = []
       for task, block_until in view.blocked_tasks:
-        if watermark.input_watermark >= block_until and view.elements:
+        if watermark.input_watermark >= block_until:
           view.value = self._pvalue_to_value(side_input, view.elements)
           unblocked_tasks.append(task)
-          tasks_to_remove.append((task, block_until))
+          tasks_just_unblocked.append((task, block_until))
           task.blocked = False
-      for task in tasks_to_remove:
+      for task in tasks_just_unblocked:
         view.blocked_tasks.remove(task)
       return unblocked_tasks
 
