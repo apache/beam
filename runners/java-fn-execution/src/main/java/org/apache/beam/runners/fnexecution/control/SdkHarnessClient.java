@@ -64,6 +64,35 @@ public class SdkHarnessClient implements AutoCloseable {
     }
   }
 
+  /**
+   * A {@link StateDelegator} that issues zero state requests to any provided
+   * {@link StateRequestHandler state handlers}.
+   */
+  private static class NoOpStateDelegator implements StateDelegator {
+    private static final NoOpStateDelegator INSTANCE = new NoOpStateDelegator();
+    @Override
+    public Registration registerForProcessBundleInstructionId(
+        String processBundleInstructionId,
+        StateRequestHandler handler) {
+      return Registration.INSTANCE;
+    }
+
+    /**
+     * The corresponding registration for a {@link NoOpStateDelegator} that does nothing.
+     */
+    private static class Registration implements StateDelegator.Registration {
+      private static final Registration INSTANCE = new Registration();
+
+      @Override
+      public void deregister() {
+      }
+
+      @Override
+      public void abort() {
+      }
+    }
+  }
+
   private final IdGenerator idGenerator;
   private final InstructionRequestHandler fnApiControlClient;
   private final FnDataService fnApiDataService;
@@ -119,33 +148,6 @@ public class SdkHarnessClient implements AutoCloseable {
     return getProcessor(descriptor, remoteInputDesination, NoOpStateDelegator.INSTANCE);
   }
 
-  /**
-   * A {@link StateDelegator} that issues zero state requests to any provided
-   * {@link StateRequestHandler state handlers}.
-   */
-  private static class NoOpStateDelegator implements StateDelegator {
-    private static final NoOpStateDelegator INSTANCE = new NoOpStateDelegator();
-    @Override
-    public Registration registerForProcessBundleInstructionId(String processBundleInstructionId,
-        StateRequestHandler handler) {
-      return Registration.INSTANCE;
-    }
-
-    /**
-     * The corresponding registration for a {@link NoOpStateDelegator} that does nothing.
-     */
-    private static class Registration implements StateDelegator.Registration {
-      private static final Registration INSTANCE = new Registration();
-
-      @Override
-      public void deregister() {
-      }
-
-      @Override
-      public void abort() {
-      }
-    }
-  }
 
   /**
    * Provides {@link BundleProcessor} that is capable of processing bundles containing
@@ -162,14 +164,14 @@ public class SdkHarnessClient implements AutoCloseable {
    */
   public <T> BundleProcessor<T> getProcessor(
       BeamFnApi.ProcessBundleDescriptor descriptor,
-      RemoteInputDestination<WindowedValue<T>> remoteInputDesination,
+      RemoteInputDestination<WindowedValue<T>> remoteInputDestination,
       StateDelegator stateDelegator) {
     BundleProcessor<T> bundleProcessor =
         clientProcessors.computeIfAbsent(
             descriptor.getId(),
             s -> create(
                 descriptor,
-                (RemoteInputDestination) remoteInputDesination,
+                (RemoteInputDestination) remoteInputDestination,
                 stateDelegator));
     checkArgument(bundleProcessor.getProcessBundleDescriptor().equals(descriptor),
         "The provided %s with id %s collides with an existing %s with the same id but "
