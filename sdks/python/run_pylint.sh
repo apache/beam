@@ -71,10 +71,7 @@ echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 echo "Running pylint for modules $( printf "%s " "${MODULES[@]}" ):"
 pylint -j8 $( printf "%s " "${MODULES[@]}" ) \
   --ignore-patterns="$FILES_TO_IGNORE" \
-  $( [ "$PY3K" = true ] && printf %s '--py3k' ) \
-  || (echo "Please execute futurize stage 2 to remain python 3 compatible."
-  echo
-  exit 1)
+  $( [ "$PY3K" = true ] && printf %s '--py3k' )
 
 echo "Running pycodestyle for modules$( printf "%s " "${MODULES[@]}" ):"
 pycodestyle $( printf "%s " "${MODULES[@]}" ) --exclude="$FILES_TO_IGNORE"
