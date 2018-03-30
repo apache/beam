@@ -1098,4 +1098,3 @@ def is_consistent_with(sub, base):
     # Nothing but object lives above any type constraints.
     return base == object
   return issubclass(sub, base)
-
