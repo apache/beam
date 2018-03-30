@@ -28,4 +28,5 @@ job('beam_PostRelease_Python_Candidate') {
     steps {
         shell('./gradlew :pythonPreCommit --info --continue')
     }
+
 }

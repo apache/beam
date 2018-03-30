@@ -110,14 +110,14 @@ function cleanup_pubsub() {
 
 
 # Python RC configurations
-VERSION=$(get_version)
+VERSION=2.4.0
 CANDIDATE_URL="https://dist.apache.org/repos/dist/dev/beam/$VERSION/"
 BEAM_PYTHON_SDK="apache-beam-$VERSION-python.zip"
 
 # Cloud Configurations
-PROJECT_ID='apache-beam-testing'
-BUCKET_NAME='temp-storage-for-release-validation-tests/nightly-snapshot-validation'
-TEMP_DIR='/tmp'
+PROJECT_ID='my-first-project-190318'
+BUCKET_NAME='my-first-project-190318'
+TEMP_DIR='/temp'
 DATASET='beam_postrelease_mobile_gaming'
 NUM_WORKERS=1
 

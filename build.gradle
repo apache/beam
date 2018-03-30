@@ -109,6 +109,10 @@ rat {
 
     // VCF test files
     "**/apache_beam/testing/data/vcf/*",
+
+    // Gcloud service account Json files
+    ".test-infra/jenkins/*.json",
+
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
