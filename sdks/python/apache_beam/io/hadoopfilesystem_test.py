@@ -28,7 +28,6 @@ from apache_beam.io import hadoopfilesystem as hdfs
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.options.pipeline_options import HadoopFileSystemOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.value_provider import RuntimeValueProvider
 
 
 class FakeFile(io.BytesIO):
@@ -68,9 +67,8 @@ class FakeFile(io.BytesIO):
   def get_file_status(self):
     """Returns a partial WebHDFS FileStatus object."""
     return {
-        hdfs._FILE_STATUS_NAME: self.stat['path'],
         hdfs._FILE_STATUS_PATH_SUFFIX: posixpath.basename(self.stat['path']),
-        hdfs._FILE_STATUS_SIZE: self.size,
+        hdfs._FILE_STATUS_LENGTH: self.size,
         hdfs._FILE_STATUS_TYPE: self.stat['type'],
     }
 
@@ -238,11 +236,6 @@ class HadoopFileSystemTest(unittest.TestCase):
   def test_mkdirs(self):
     url = self.fs.join(self.tmpdir, 't1/t2')
     self.fs.mkdirs(url)
-    match_results = self.fs.match([url])
-    self.assertEqual(1, len(match_results))
-    self.assertEqual(1, len(match_results[0].metadata_list))
-    metadata = match_results[0].metadata_list[0]
-    self.assertEqual(metadata.path, self.fs._parse_url(url))
     self.assertTrue(self.fs.exists(url))
 
   def test_mkdirs_failed(self):
@@ -253,17 +246,17 @@ class HadoopFileSystemTest(unittest.TestCase):
       self.fs.mkdirs(url)
 
   def test_match_file(self):
-    files = [self.fs.join(self.tmpdir, filename)
-             for filename in ['old_file1', 'old_file2']]
-    expected_files = [self.fs._parse_url(file) for file in files]
-    result = self.fs.match(files)
+    expected_files = [self.fs.join(self.tmpdir, filename)
+                      for filename in ['old_file1', 'old_file2']]
+    match_patterns = expected_files
+    result = self.fs.match(match_patterns)
     returned_files = [f.path
                       for match_result in result
                       for f in match_result.metadata_list]
     self.assertItemsEqual(expected_files, returned_files)
 
   def test_match_file_with_limits(self):
-    expected_files = [self.fs._parse_url(self.fs.join(self.tmpdir, filename))
+    expected_files = [self.fs.join(self.tmpdir, filename)
                       for filename in ['old_file1', 'old_file2']]
     result = self.fs.match([self.tmpdir], [1])[0]
     files = [f.path for f in result.metadata_list]
@@ -294,7 +287,7 @@ class HadoopFileSystemTest(unittest.TestCase):
       self.assertEqual(files, [self.fs._parse_url(url)])
 
   def test_match_directory(self):
-    expected_files = [self.fs._parse_url(self.fs.join(self.tmpdir, filename))
+    expected_files = [self.fs.join(self.tmpdir, filename)
                       for filename in ['old_file1', 'old_file2']]
 
     result = self.fs.match([self.tmpdir])[0]
@@ -302,7 +295,7 @@ class HadoopFileSystemTest(unittest.TestCase):
     self.assertItemsEqual(files, expected_files)
 
   def test_match_directory_trailing_slash(self):
-    expected_files = [self.fs._parse_url(self.fs.join(self.tmpdir, filename))
+    expected_files = [self.fs.join(self.tmpdir, filename)
                       for filename in ['old_file1', 'old_file2']]
 
     result = self.fs.match([self.tmpdir + '/'])[0]

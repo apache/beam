@@ -49,12 +49,11 @@ _FILE_CHECKSUM_ALGORITHM = 'algorithm'
 _FILE_CHECKSUM_BYTES = 'bytes'
 _FILE_CHECKSUM_LENGTH = 'length'
 # WebHDFS FileStatus property constants.
-_FILE_STATUS_NAME = 'name'
+_FILE_STATUS_LENGTH = 'length'
 _FILE_STATUS_PATH_SUFFIX = 'pathSuffix'
 _FILE_STATUS_TYPE = 'type'
 _FILE_STATUS_TYPE_DIRECTORY = 'DIRECTORY'
 _FILE_STATUS_TYPE_FILE = 'FILE'
-_FILE_STATUS_SIZE = 'size'
 
 
 class HdfsDownloader(filesystemio.Downloader):
@@ -62,7 +61,7 @@ class HdfsDownloader(filesystemio.Downloader):
   def __init__(self, hdfs_client, path):
     self._hdfs_client = hdfs_client
     self._path = path
-    self._size = self._hdfs_client.status(path)[_FILE_STATUS_SIZE]
+    self._size = self._hdfs_client.status(path)[_FILE_STATUS_LENGTH]
 
   @property
   def size(self):
@@ -195,13 +194,16 @@ class HadoopFileSystem(FileSystem):
       """Find all matching paths to the pattern provided."""
       fs = self._hdfs_client.status(path_pattern, strict=False)
       if fs and fs[_FILE_STATUS_TYPE] == _FILE_STATUS_TYPE_FILE:
-        file_statuses = [(fs[_FILE_STATUS_PATH_SUFFIX], fs)][:limit]
+        file_statuses = [(path_pattern, fs)][:limit]
       else:
-        file_statuses = self._hdfs_client.list(path_pattern,
-                                               status=True)[:limit]
-      metadata_list = [FileMetadata(file_status[1][_FILE_STATUS_NAME],
-                                    file_status[1][_FILE_STATUS_SIZE])
-                       for file_status in file_statuses]
+        file_statuses = [(self._join(path_pattern, fs[0]), fs[1])
+                         for fs in self._hdfs_client.list(path_pattern,
+                                                          status=True)[:limit]]
+      metadata_list = [
+          FileMetadata(
+              '%s:/%s' % (self.scheme(), file_status[0]),
+              file_status[1][_FILE_STATUS_LENGTH])
+          for file_status in file_statuses]
       return MatchResult(path_pattern, metadata_list)
 
     exceptions = {}
