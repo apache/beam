@@ -39,6 +39,7 @@ const (
 
 	// SDK constants
 
+	// URNJavaDoFn is the legacy constant for marking a DoFn.
 	// TODO: remove URNJavaDoFN when the Dataflow runner
 	// uses the model pipeline and no longer falls back to Java.
 	URNJavaDoFn = "urn:beam:dofn:javasdk:0.1"
