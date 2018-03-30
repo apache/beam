@@ -86,6 +86,8 @@ class FileSystems(object):
       if len(systems) == 0:
         raise ValueError('Unable to get the Filesystem for path %s' % path)
       elif len(systems) == 1:
+        # Pipeline options could come either from the Pipeline itself (using
+        # direct runner), or via RuntimeValueProvider (other runners).
         options = (FileSystems._pipeline_options or
                    RuntimeValueProvider.runtime_options)
         return systems[0](pipeline_options=options)

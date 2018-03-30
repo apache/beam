@@ -200,9 +200,8 @@ class HadoopFileSystem(FileSystem):
                          for fs in self._hdfs_client.list(path_pattern,
                                                           status=True)[:limit]]
       metadata_list = [
-          FileMetadata(
-              '%s:/%s' % (self.scheme(), file_status[0]),
-              file_status[1][_FILE_STATUS_LENGTH])
+          FileMetadata(_HDFS_PREFIX + file_status[0],
+                       file_status[1][_FILE_STATUS_LENGTH])
           for file_status in file_statuses]
       return MatchResult(path_pattern, metadata_list)
 
