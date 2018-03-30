@@ -302,7 +302,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
       block_until = main_onto_side_window.end
 
       if side_input not in self._side_input_values:
-        value = self._evaluation_context.get_value_or_schedule_after_output(
+        value = self._evaluation_context.get_value_or_block_until_ready(
             side_input, self, block_until)
         if not value:
           # Monitor task will reschedule this executor once the side input is

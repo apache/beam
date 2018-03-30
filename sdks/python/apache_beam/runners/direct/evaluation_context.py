@@ -51,7 +51,7 @@ class _SideInputView(object):
 
   def __init__(self, view):
     self._view = view
-    self.callable_queue = collections.deque()
+    self.blocked_tasks = collections.deque()
     self.elements = []
     self.value = None
     self.watermark = None
@@ -84,30 +84,71 @@ class _SideInputsContainer(object):
                     if self._views.values() else '[]')
     return '_SideInputsContainer(_views=%s)' % views_string
 
-  def get_value_or_schedule_after_output(self, side_input, task, block_until):
+  def get_value_or_block_until_ready(self, side_input, task, block_until):
+    """Returns the value of a view whose task is unblocked or blocks its task.
+
+    It returns the value of a view whose watermark has been updated and
+    surpasses a given value.
+
+    Args:
+      side_input: (_UnpickledSideInput) value.
+      task: (TransformExecutor) task waiting on a side input.
+      block_until: Timestamp after which the task gets unblocked.
+
+    Returns:
+      The value of a view when 'its' task is unblocked (otherwise, None).
+    """
     with self._lock:
       view = self._views[side_input]
-      if not view.watermark or view.watermark.input_watermark < block_until:
-        view.callable_queue.append((task, block_until))
-        task.blocked = True
-      else:
+      if view.watermark and view.watermark.input_watermark >= block_until:
         view.value = self._pvalue_to_value(side_input, view.elements)
         return view.value
+      else:
+        view.blocked_tasks.append((task, block_until))
+        task.blocked = True
 
   def add_values(self, side_input, values):
     with self._lock:
       view = self._views[side_input]
       view.elements.extend(values)
 
-  def update_watermarks_for_transform(self, ptransform, watermark):
-    # Collect tasks that get unblocked as the workflow progresses.
+  def update_watermarks_for_transform_and_unblock_tasks(self,
+                                                        ptransform,
+                                                        watermark):
+    """Updates _SideInputsContainer after a watermark update and unbloks tasks.
+
+    It traverses the list of side inputs per PTransform and calls
+    _update_watermarks_for_side_input_and_unblock_tasks to unblock tasks.
+
+    Args:
+      ptransform: Value of a PTransform.
+      watermark: Value of the watermark after an update for a PTransform.
+
+    Returns:
+      Tasks that get unblocked as a result of the watermark advancing.
+    """
     unblocked_tasks = []
     for side in self._transform_to_side_inputs[ptransform]:
       unblocked_tasks.extend(
-          self._update_watermarks_for_side_input(side, watermark))
+          self._update_watermarks_for_side_input_and_unblock_tasks(
+              side, watermark))
     return unblocked_tasks
 
-  def _update_watermarks_for_side_input(self, side_input, watermark):
+  def _update_watermarks_for_side_input_and_unblock_tasks(self,
+                                                          side_input,
+                                                          watermark):
+    """Helps update _SideInputsContainer after a watermark update.
+
+    For each view of the side input, it updates the value of the watermark
+    recorded when the watermark moved and unblocks tasks accordingly.
+
+    Args:
+      side_input: (_UnpickledSideInput) value.
+      watermark: Value of the watermark after an update for a PTransform.
+
+    Returns:
+      Tasks that get unblocked as a result of the watermark advancing.
+    """
     with self._lock:
       unblocked_tasks = []
       view = self._views[side_input]
@@ -116,14 +157,14 @@ class _SideInputsContainer(object):
       # Unblock and finalize tasks
       view = self._views[side_input]
       tasks_to_remove = []
-      for task, block_until in view.callable_queue:
+      for task, block_until in view.blocked_tasks:
         if watermark.input_watermark >= block_until and view.elements:
           view.value = self._pvalue_to_value(side_input, view.elements)
           unblocked_tasks.append(task)
           tasks_to_remove.append((task, block_until))
           task.blocked = False
       for task in tasks_to_remove:
-        view.callable_queue.remove(task)
+        view.blocked_tasks.remove(task)
       return unblocked_tasks
 
   def _pvalue_to_value(self, side_input, values):
@@ -324,9 +365,9 @@ class EvaluationContext(object):
     tw = self._watermark_manager.get_watermarks(transform)
     return tw.output_watermark == WatermarkManager.WATERMARK_POS_INF
 
-  def get_value_or_schedule_after_output(self, side_input, task, block_until):
+  def get_value_or_block_until_ready(self, side_input, task, block_until):
     assert isinstance(task, TransformExecutor)
-    return self._side_inputs_container.get_value_or_schedule_after_output(
+    return self._side_inputs_container.get_value_or_block_until_ready(
         side_input, task, block_until)
 
 
