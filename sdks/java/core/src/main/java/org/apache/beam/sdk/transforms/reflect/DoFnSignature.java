@@ -198,6 +198,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((PipelineOptionsParameter) this);
       } else if (this instanceof ElementParameter) {
         return cases.dispatch((ElementParameter) this);
+      } else if (this instanceof TimestampParameter) {
+        return cases.dispatch((TimestampParameter) this);
       } else {
         throw new IllegalStateException(
             String.format("Attempt to case match on unknown %s subclass %s",
@@ -213,6 +215,7 @@ public abstract class DoFnSignature {
       ResultT dispatch(FinishBundleContextParameter p);
       ResultT dispatch(ProcessContextParameter p);
       ResultT dispatch(ElementParameter p);
+      ResultT dispatch(TimestampParameter p);
       ResultT dispatch(OnTimerContextParameter p);
       ResultT dispatch(WindowParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
@@ -244,6 +247,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(ElementParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(TimestampParameter p) {
           return dispatchDefault(p);
         }
 
@@ -290,6 +298,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
     private static final ElementParameter ELEMENT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_ElementParameter();
+    private static final TimestampParameter TIMESTAMP_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_TimestampParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -298,6 +308,10 @@ public abstract class DoFnSignature {
 
     public static ElementParameter elementParameter() {
       return ELEMENT_PARAMETER;
+    }
+
+    public static TimestampParameter timestampParameter() {
+      return TIMESTAMP_PARAMETER;
     }
 
     /** Returns a {@link OnTimerContextParameter}. */
@@ -379,6 +393,16 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class ElementParameter extends Parameter {
       ElementParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.Timestamp}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class TimestampParameter extends Parameter {
+      TimestampParameter() {}
     }
 
     /**

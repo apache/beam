@@ -30,6 +30,7 @@ import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Instant;
 
 /**
  * Interface for invoking the {@code DoFn} processing methods.
@@ -126,6 +127,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     InputT element(DoFn<InputT, OutputT> doFn);
 
     /**
+     * Provide a link to the input element timestamp.
+     */
+    Instant timestamp(DoFn<InputT, OutputT> doFn);
+
+    /**
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
      */
@@ -153,6 +159,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",
