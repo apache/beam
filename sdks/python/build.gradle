@@ -74,7 +74,7 @@ check.dependsOn lint
 task testCython (dependsOn: ['setupTest', 'testPython', 'testGcp']) {
   doLast {
     exec {
-      commandLine 'tox', '-e', 'py27-cython2', '-c', 'tox.ini'
+      commandLine 'tox', '-e', 'py27-cython', '-c', 'tox.ini'
     }
   }
 }
