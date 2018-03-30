@@ -196,6 +196,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((TimerParameter) this);
       } else if (this instanceof PipelineOptionsParameter) {
         return cases.dispatch((PipelineOptionsParameter) this);
+      } else if (this instanceof ElementParameter) {
+        return cases.dispatch((ElementParameter) this);
       } else {
         throw new IllegalStateException(
             String.format("Attempt to case match on unknown %s subclass %s",
@@ -210,6 +212,7 @@ public abstract class DoFnSignature {
       ResultT dispatch(StartBundleContextParameter p);
       ResultT dispatch(FinishBundleContextParameter p);
       ResultT dispatch(ProcessContextParameter p);
+      ResultT dispatch(ElementParameter p);
       ResultT dispatch(OnTimerContextParameter p);
       ResultT dispatch(WindowParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
@@ -236,6 +239,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(ProcessContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(ElementParameter p) {
           return dispatchDefault(p);
         }
 
@@ -280,10 +288,16 @@ public abstract class DoFnSignature {
           new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final OnTimerContextParameter ON_TIMER_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
+    private static final ElementParameter ELEMENT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_ElementParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
       return PROCESS_CONTEXT_PARAMETER;
+    }
+
+    public static ElementParameter elementParameter() {
+      return ELEMENT_PARAMETER;
     }
 
     /** Returns a {@link OnTimerContextParameter}. */
@@ -355,6 +369,16 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class ProcessContextParameter extends Parameter {
       ProcessContextParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.Element}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class ElementParameter extends Parameter {
+      ElementParameter() {}
     }
 
     /**

@@ -266,6 +266,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public InputT element(DoFn<InputT, OutputT> doFn) {
+              return processContext.element();
+            }
+
+            @Override
             public OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException("DoFnTester doesn't support timers yet.");
             }

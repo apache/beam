@@ -79,6 +79,7 @@ public class DoFnSignatures {
       ALLOWED_NON_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
       ImmutableList.of(
           Parameter.ProcessContextParameter.class,
+          Parameter.ElementParameter.class,
           Parameter.WindowParameter.class,
           Parameter.PipelineOptionsParameter.class,
           Parameter.TimerParameter.class,
@@ -88,6 +89,7 @@ public class DoFnSignatures {
       ALLOWED_SPLITTABLE_PROCESS_ELEMENT_PARAMETERS =
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
+              Parameter.ElementParameter.class,
               Parameter.ProcessContextParameter.class,
               Parameter.RestrictionTrackerParameter.class);
 
@@ -801,7 +803,11 @@ public class DoFnSignatures {
 
     ErrorReporter paramErrors = methodErrors.forParameter(param);
 
-    if (rawType.equals(DoFn.ProcessContext.class)) {
+    if (hasElementAnnotation(param.getAnnotations())) {
+      methodErrors.checkArgument(paramT.equals(inputT),
+          "@Element argument must have type %s", inputT);
+      return Parameter.elementParameter();
+    } else if (rawType.equals(DoFn.ProcessContext.class)) {
       paramErrors.checkArgument(paramT.equals(expectedProcessContextT),
         "ProcessContext argument must have type %s",
         formatType(expectedProcessContextT));
@@ -935,6 +941,15 @@ public class DoFnSignatures {
       }
     }
     return null;
+  }
+
+  private static boolean hasElementAnnotation(List<Annotation> annotations) {
+    for (Annotation anno : annotations) {
+      if (anno.annotationType().equals(DoFn.Element.class)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Nullable
