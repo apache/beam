@@ -37,8 +37,28 @@ public abstract class MetricName implements Serializable {
   /** The namespace associated with this metric. */
   public abstract String getNamespace();
 
+  /**
+   * The namespace associated with this metric.
+   *
+   * @deprecated to be removed once Dataflow no longer requires this method.
+   */
+  @Deprecated
+  public String namespace() {
+    return getNamespace();
+  }
+
   /** The name of this metric. */
   public abstract String getName();
+
+  /**
+   * The name of this metric.
+   *
+   * @deprecated to be removed once Dataflow no longer requires this method.
+   */
+  @Deprecated
+  public String name() {
+    return getName();
+  }
 
   public static MetricName named(String namespace, String name) {
     checkArgument(!Strings.isNullOrEmpty(namespace), "Metric namespace must be non-empty");
