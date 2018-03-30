@@ -22,7 +22,7 @@
 // of precommit tests.
 job('beam_PreCommit_Python_GradleBuild') {
 //  description('Runs Python PreCommit tests for the current GitHub Pull Request.')
-//
+
 //  // Execute concurrent builds if necessary.
 //  concurrentBuild()
 //
@@ -41,6 +41,7 @@ job('beam_PreCommit_Python_GradleBuild') {
 //  def gradle_command_line = './gradlew ' + common_job_properties.gradle_switches.join(' ') + ' :pythonPreCommit'
   // Sets that this is a PreCommit job.
 //  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Python PreCommit')
+
 
   wrappers {
     buildInDocker {

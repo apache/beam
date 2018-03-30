@@ -16,4 +16,12 @@
 #    limitations under the License.
 #
 
-echo 'lalalallalalalallalalalalallallalallalalal'
+apk add --update openssl
+
+wget https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-189.0.0-linux-x86_64.tar.gz -O gcloud.tar.gz
+tar xf gcloud.tar.gz
+./google-cloud-sdk/install.sh --quiet
+. ./google-cloud-sdk/path.bash.inc
+gcloud components update --quiet || echo 'gcloud components update failed'
+gcloud -v
+exec "$@"
