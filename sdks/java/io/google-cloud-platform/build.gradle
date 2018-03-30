@@ -19,6 +19,12 @@
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(artifactId: "beam-sdks-java-io-google-cloud-platform", enableFindbugs: false)
 
+
+// gRPC and netty dependencies are overridden for google-cloud-platform subproject.
+def io_gcp_grpc_version = "1.9.1"
+def io_gcp_netty_version = "4.1.17.Final"
+def io_gcp_netty_tcnative_version = "2.0.7.Final"
+
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 
 /*
@@ -36,7 +42,7 @@ dependencies {
   shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":sdks:java:extensions:protobuf", configuration: "shadow")
   shadow library.java.jackson_databind
-  shadow library.java.grpc_core
+  shadow "io.grpc:grpc-core:$io_gcp_grpc_version"
   shadow library.java.google_api_services_bigquery
   shadow library.java.gax_grpc
   shadow library.java.google_cloud_core_grpc
@@ -46,10 +52,10 @@ dependencies {
   shadow library.java.bigdataoss_util
   shadow library.java.datastore_v1_proto_client
   shadow library.java.datastore_v1_protos
-  shadow library.java.grpc_auth
-  shadow library.java.grpc_netty
-  shadow library.java.netty_handler
-  shadow library.java.grpc_stub
+  shadow "io.grpc:grpc-auth:$io_gcp_grpc_version"
+  shadow "io.grpc:grpc-netty:$io_gcp_grpc_version"
+  shadow "io.netty:netty-handler:$io_gcp_netty_version"
+  shadow "io.grpc:grpc-stub:$io_gcp_grpc_version"
   shadow library.java.joda_time
   shadow library.java.google_cloud_core
   shadow library.java.google_cloud_spanner
@@ -66,8 +72,8 @@ dependencies {
   shadow library.java.avro
   shadow library.java.proto_google_cloud_spanner_admin_database_v1
   shadow library.java.proto_google_common_protos
-  shadow library.java.grpc_all
-  shadow library.java.netty_tcnative_boringssl_static
+  shadow "io.grpc:grpc-all:$io_gcp_grpc_version"
+  shadow "io.netty:netty-tcnative-boringssl-static:$io_gcp_netty_tcnative_version"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(":sdks:java:extensions:google-cloud-platform-core").sourceSets.test.output
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
