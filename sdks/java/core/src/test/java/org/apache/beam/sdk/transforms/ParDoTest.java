@@ -139,8 +139,11 @@ public class ParDoTest implements Serializable {
 
   private static class PrintingDoFn extends DoFn<String, String> {
     @ProcessElement
-    public void processElement(ProcessContext c, @Element String element, BoundedWindow window) {
-      c.output(element + ":" + c.timestamp().getMillis()
+    public void processElement(ProcessContext c,
+                               @Element String element,
+                               @Timestamp Instant timestamp,
+                               BoundedWindow window) {
+      c.output(element + ":" + timestamp.getMillis()
           + ":" + window.maxTimestamp().getMillis());
     }
   }
@@ -280,8 +283,7 @@ public class ParDoTest implements Serializable {
       return allowedTimestampSkew;
     }
     @ProcessElement
-    public void processElement(ProcessContext c, @Element T value) {
-      Instant timestamp = c.timestamp();
+    public void processElement(ProcessContext c, @Element T value, @Timestamp Instant timestamp) {
       checkNotNull(timestamp);
       c.outputWithTimestamp(value, timestamp.plus(durationToShift));
     }
@@ -289,9 +291,9 @@ public class ParDoTest implements Serializable {
 
   static class TestFormatTimestampDoFn<T extends Number> extends DoFn<T, String> {
     @ProcessElement
-    public void processElement(ProcessContext c, @Element T element) {
-      checkNotNull(c.timestamp());
-      c.output("processing: " + element + ", timestamp: " + c.timestamp().getMillis());
+    public void processElement(ProcessContext c, @Element T element, @Timestamp Instant timestamp) {
+      checkNotNull(timestamp);
+      c.output("processing: " + element + ", timestamp: " + timestamp.getMillis());
     }
   }
 
@@ -1477,10 +1479,12 @@ public class ParDoTest implements Serializable {
                 ParDo.of(
                     new DoFn<String, String>() {
                       @ProcessElement
-                      public void processElement(ProcessContext c, @Element String element) {
+                      public void processElement(ProcessContext c,
+                                                 @Element String element,
+                                                 @Timestamp Instant timestamp) {
                         c.output(element);
                         System.out.println(
-                            "Process: " + element + ":" + c.timestamp().getMillis());
+                            "Process: " + element + ":" + timestamp.getMillis());
                       }
 
                       @FinishBundle

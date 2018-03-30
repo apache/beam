@@ -65,6 +65,7 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.joda.time.Instant;
 
 /**
  * Utilities for working with {@link DoFnSignature}. See {@link #getSignature}.
@@ -80,6 +81,7 @@ public class DoFnSignatures {
       ImmutableList.of(
           Parameter.ProcessContextParameter.class,
           Parameter.ElementParameter.class,
+          Parameter.TimestampParameter.class,
           Parameter.WindowParameter.class,
           Parameter.PipelineOptionsParameter.class,
           Parameter.TimerParameter.class,
@@ -90,6 +92,7 @@ public class DoFnSignatures {
           ImmutableList.of(
               Parameter.PipelineOptionsParameter.class,
               Parameter.ElementParameter.class,
+              Parameter.TimestampParameter.class,
               Parameter.ProcessContextParameter.class,
               Parameter.RestrictionTrackerParameter.class);
 
@@ -807,6 +810,10 @@ public class DoFnSignatures {
       methodErrors.checkArgument(paramT.equals(inputT),
           "@Element argument must have type %s", inputT);
       return Parameter.elementParameter();
+    }  else if (hasTimestampAnnotation(param.getAnnotations())) {
+      methodErrors.checkArgument(rawType.equals(Instant.class),
+          "@Timestamp argument must have type Instant.");
+      return Parameter.timestampParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {
       paramErrors.checkArgument(paramT.equals(expectedProcessContextT),
         "ProcessContext argument must have type %s",
@@ -946,6 +953,15 @@ public class DoFnSignatures {
   private static boolean hasElementAnnotation(List<Annotation> annotations) {
     for (Annotation anno : annotations) {
       if (anno.annotationType().equals(DoFn.Element.class)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean hasTimestampAnnotation(List<Annotation> annotations) {
+    for (Annotation anno : annotations) {
+      if (anno.annotationType().equals(DoFn.Timestamp.class)) {
         return true;
       }
     }
