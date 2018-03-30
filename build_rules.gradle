@@ -114,6 +114,153 @@ offlineDependencies {
 }
 
 /*************************************************************************************************/
+// Define and export a map dependencies shared across multiple sub-projects.
+//
+// Example usage:
+// configuration {
+//   shadow library.java.avro
+//   shadowTest library.java.junit
+// }
+
+// These versions are defined here because they represent
+// a dependency version which should match across multiple
+// Maven artifacts.
+def google_cloud_bigdataoss_version = "1.4.5"
+def bigtable_version = "1.0.0"
+def bigtable_proto_version = "1.0.0-pre3"
+def google_clients_version = "1.22.0"
+def google_auth_version = "0.7.1"
+def grpc_version = "1.2.0"
+def protobuf_version = "3.2.0"
+def guava_version = "20.0"
+def netty_version = "4.1.8.Final"
+def grpc_google_common_protos = "0.1.9"
+def hamcrest_version = "1.3"
+def hadoop_version = "2.7.3"
+def jackson_version = "2.8.9"
+def spark_version = "2.2.1"
+def pubsub_grpc_version = "0.1.18"
+def apex_core_version = "3.6.0"
+def apex_malhar_version = "3.4.0"
+def postgres_version = "9.4.1212.jre7"
+def jaxb_api_version = "2.2.12"
+
+// A map of maps containing common libraries used per language. To use:
+// dependencies {
+//   shadow library.java.slf4j_api
+// }
+ext.library = [
+  java: [
+    activemq_amqp: "org.apache.activemq:activemq-amqp:5.13.1",
+    activemq_broker: "org.apache.activemq:activemq-broker:5.13.1",
+    activemq_client: "org.apache.activemq:activemq-client:5.13.1",
+    activemq_jaas: "org.apache.activemq:activemq-jaas:5.13.1",
+    activemq_junit: "org.apache.activemq.tooling:activemq-junit:5.13.1",
+    activemq_kahadb_store: "org.apache.activemq:activemq-kahadb-store:5.13.1",
+    activemq_mqtt: "org.apache.activemq:activemq-mqtt:5.13.1",
+    apex_common: "org.apache.apex:apex-common:$apex_core_version",
+    apex_engine: "org.apache.apex:apex-engine:$apex_core_version",
+    args4j: "args4j:args4j:2.33",
+    avro: "org.apache.avro:avro:1.8.2",
+    bigdataoss_gcsio: "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
+    bigdataoss_util: "com.google.cloud.bigdataoss:util:$google_cloud_bigdataoss_version",
+    bigtable_client_core: "com.google.cloud.bigtable:bigtable-client-core:$bigtable_version",
+    bigtable_protos: "com.google.cloud.bigtable:bigtable-protos:$bigtable_proto_version",
+    byte_buddy: "net.bytebuddy:byte-buddy:1.7.10",
+    commons_compress: "org.apache.commons:commons-compress:1.16.1",
+    commons_csv: "org.apache.commons:commons-csv:1.4",
+    commons_io_1x: "commons-io:commons-io:1.3.2",
+    commons_io_2x: "commons-io:commons-io:2.5",
+    commons_lang3: "org.apache.commons:commons-lang3:3.6",
+    datastore_v1_proto_client: "com.google.cloud.datastore:datastore-v1-proto-client:1.4.0",
+    datastore_v1_protos: "com.google.cloud.datastore:datastore-v1-protos:1.3.0",
+    error_prone_annotations: "com.google.errorprone:error_prone_annotations:2.0.15",
+    findbugs_annotations: "com.github.stephenc.findbugs:findbugs-annotations:1.3.9-1",
+    findbugs_jsr305: "com.google.code.findbugs:jsr305:3.0.1",
+    gax_grpc: "com.google.api:gax-grpc:0.20.0",
+    google_api_client: "com.google.api-client:google-api-client:$google_clients_version",
+    google_api_client_jackson2: "com.google.api-client:google-api-client-jackson2:$google_clients_version",
+    google_api_client_java6: "com.google.api-client:google-api-client-java6:$google_clients_version",
+    google_api_common: "com.google.api:api-common:1.0.0-rc2",
+    google_api_services_bigquery: "com.google.apis:google-api-services-bigquery:v2-rev374-$google_clients_version",
+    google_api_services_clouddebugger: "com.google.apis:google-api-services-clouddebugger:v2-rev8-$google_clients_version",
+    google_api_services_cloudresourcemanager: "com.google.apis:google-api-services-cloudresourcemanager:v1-rev6-$google_clients_version",
+    google_api_services_dataflow: "com.google.apis:google-api-services-dataflow:v1b3-rev221-$google_clients_version",
+    google_api_services_pubsub: "com.google.apis:google-api-services-pubsub:v1-rev10-$google_clients_version",
+    google_api_services_storage: "com.google.apis:google-api-services-storage:v1-rev71-$google_clients_version",
+    google_auth_library_credentials: "com.google.auth:google-auth-library-credentials:$google_auth_version",
+    google_auth_library_oauth2_http: "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
+    google_cloud_core: "com.google.cloud:google-cloud-core:1.0.2",
+    google_cloud_core_grpc: "com.google.cloud:google-cloud-core-grpc:$grpc_version",
+    google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
+    google_cloud_spanner: "com.google.cloud:google-cloud-spanner:0.20.0b-beta",
+    google_http_client: "com.google.http-client:google-http-client:$google_clients_version",
+    google_http_client_jackson: "com.google.http-client:google-http-client-jackson:$google_clients_version",
+    google_http_client_jackson2: "com.google.http-client:google-http-client-jackson2:$google_clients_version",
+    google_http_client_protobuf: "com.google.http-client:google-http-client-protobuf:$google_clients_version",
+    google_oauth_client: "com.google.oauth-client:google-oauth-client:$google_clients_version",
+    google_oauth_client_java6: "com.google.oauth-client:google-oauth-client-java6:$google_clients_version",
+    grpc_all: "io.grpc:grpc-all:$grpc_version",
+    grpc_auth: "io.grpc:grpc-auth:$grpc_version",
+    grpc_core: "io.grpc:grpc-core:$grpc_version",
+    grpc_google_cloud_pubsub_v1: "com.google.api.grpc:grpc-google-cloud-pubsub-v1:$pubsub_grpc_version",
+    grpc_protobuf: "io.grpc:grpc-protobuf:$grpc_version",
+    grpc_protobuf_lite: "io.grpc:grpc-protobuf-lite:$grpc_version",
+    grpc_netty: "io.grpc:grpc-netty:$grpc_version",
+    grpc_stub: "io.grpc:grpc-stub:$grpc_version",
+    guava: "com.google.guava:guava:$guava_version",
+    guava_testlib: "com.google.guava:guava-testlib:$guava_version",
+    hadoop_client: "org.apache.hadoop:hadoop-client:$hadoop_version",
+    hadoop_common: "org.apache.hadoop:hadoop-common:$hadoop_version",
+    hadoop_mapreduce_client_core: "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_version",
+    hadoop_minicluster: "org.apache.hadoop:hadoop-minicluster:$hadoop_version",
+    hadoop_hdfs: "org.apache.hadoop:hadoop-hdfs:$hadoop_version",
+    hadoop_hdfs_tests: "org.apache.hadoop:hadoop-hdfs:$hadoop_version:tests",
+    hamcrest_core: "org.hamcrest:hamcrest-core:$hamcrest_version",
+    hamcrest_library: "org.hamcrest:hamcrest-library:$hamcrest_version",
+    jackson_annotations: "com.fasterxml.jackson.core:jackson-annotations:$jackson_version",
+    jackson_core: "com.fasterxml.jackson.core:jackson-core:$jackson_version",
+    jackson_databind: "com.fasterxml.jackson.core:jackson-databind:$jackson_version",
+    jackson_dataformat_cbor: "com.fasterxml.jackson.dataformat:jackson-dataformat-cbor:$jackson_version",
+    jackson_dataformat_yaml: "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
+    jackson_module_scala: "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
+    jaxb_api: "javax.xml.bind:jaxb-api:$jaxb_api_version",
+    joda_time: "joda-time:joda-time:2.4",
+    junit: "junit:junit:4.12",
+    kafka_clients: "org.apache.kafka:kafka-clients:1.0.0",
+    malhar_library: "org.apache.apex:malhar-library:$apex_malhar_version",
+    mockito_core: "org.mockito:mockito-core:1.9.5",
+    netty_handler: "io.netty:netty-handler:$netty_version",
+    netty_tcnative_boringssl_static: "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26",
+    netty_transport_native_epoll: "io.netty:netty-transport-native-epoll:$netty_version",
+    postgres: "org.postgresql:postgresql:$postgres_version",
+    protobuf_java: "com.google.protobuf:protobuf-java:$protobuf_version",
+    protobuf_java_util: "com.google.protobuf:protobuf-java-util:$protobuf_version",
+    proto_google_cloud_pubsub_v1: "com.google.api.grpc:proto-google-cloud-pubsub-v1:$pubsub_grpc_version",
+    proto_google_cloud_spanner_admin_database_v1: "com.google.api.grpc:proto-google-cloud-spanner-admin-database-v1:$grpc_google_common_protos",
+    proto_google_common_protos: "com.google.api.grpc:proto-google-common-protos:$grpc_google_common_protos",
+    slf4j_api: "org.slf4j:slf4j-api:1.7.25",
+    slf4j_simple: "org.slf4j:slf4j-simple:1.7.25",
+    slf4j_jdk14: "org.slf4j:slf4j-jdk14:1.7.25",
+    slf4j_log4j12: "org.slf4j:slf4j-log4j12:1.7.25",
+    snappy_java: "org.xerial.snappy:snappy-java:1.1.4",
+    spark_core: "org.apache.spark:spark-core_2.11:$spark_version",
+    spark_network_common: "org.apache.spark:spark-network-common_2.11:$spark_version",
+    spark_streaming: "org.apache.spark:spark-streaming_2.11:$spark_version",
+    stax2_api: "org.codehaus.woodstox:stax2-api:3.1.4",
+    woodstox_core_asl: "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
+  ],
+  // For generating pom.xml from archetypes.
+  maven: [
+    maven_compiler_plugin: "maven-plugins:maven-compiler-plugin:3.7.0",
+    maven_exec_plugin: "maven-plugins:maven-exec-plugin:1.6.0",
+    maven_jar_plugin: "maven-plugins:maven-jar-plugin:3.0.2",
+    maven_shade_plugin: "maven-plugins:maven-shade-plugin:3.1.0",
+    maven_surefire_plugin: "maven-plugins:maven-surefire-plugin:2.21.0",
+  ],
+]
+
+/*************************************************************************************************/
 
 // Returns a string representing the relocated path to be used with the shadow plugin when
 // given a suffix such as "com.google.common".
