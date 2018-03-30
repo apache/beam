@@ -18,6 +18,7 @@
 """A PipelineRunner using the SDK harness.
 """
 import collections
+import contextlib
 import copy
 import logging
 import Queue as queue
@@ -903,7 +904,7 @@ class FnApiRunner(runner.PipelineRunner):
                 side_input_id=tag,
                 window=window,
                 key=key))
-        controller.state_handler.blocking_append(state_key, elements_data, None)
+        controller.state_handler.blocking_append(state_key, elements_data)
 
     def get_buffer(pcoll_id):
       if pcoll_id.startswith('materialize:'):
@@ -945,15 +946,19 @@ class FnApiRunner(runner.PipelineRunner):
       self._lock = threading.Lock()
       self._state = collections.defaultdict(list)
 
-    def blocking_get(self, state_key, instruction_reference=None):
+    @contextlib.contextmanager
+    def process_instruction_id(self, unused_instruction_id):
+      yield
+
+    def blocking_get(self, state_key):
       with self._lock:
         return ''.join(self._state[self._to_key(state_key)])
 
-    def blocking_append(self, state_key, data, instruction_reference=None):
+    def blocking_append(self, state_key, data):
       with self._lock:
         self._state[self._to_key(state_key)].append(data)
 
-    def blocking_clear(self, state_key, instruction_reference=None):
+    def blocking_clear(self, state_key):
       with self._lock:
         del self._state[self._to_key(state_key)]
 
