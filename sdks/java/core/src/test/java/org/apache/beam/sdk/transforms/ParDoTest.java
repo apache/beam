@@ -139,11 +139,11 @@ public class ParDoTest implements Serializable {
 
   private static class PrintingDoFn extends DoFn<String, String> {
     @ProcessElement
-    public void processElement(ProcessContext c,
-                               @Element String element,
+    public void processElement(@Element String element,
                                @Timestamp Instant timestamp,
-                               BoundedWindow window) {
-      c.output(element + ":" + timestamp.getMillis()
+                               BoundedWindow window,
+                               OutputReceiver<String> receiver) {
+      receiver.output(element + ":" + timestamp.getMillis()
           + ":" + window.maxTimestamp().getMillis());
     }
   }
@@ -263,8 +263,8 @@ public class ParDoTest implements Serializable {
 
   static class TestOutputTimestampDoFn<T extends Number> extends DoFn<T, T> {
     @ProcessElement
-    public void processElement(ProcessContext c, @Element T value) {
-      c.outputWithTimestamp(value, new Instant(value.longValue()));
+    public void processElement(@Element T value, OutputReceiver<T> r) {
+      r.outputWithTimestamp(value, new Instant(value.longValue()));
     }
   }
 
@@ -283,17 +283,19 @@ public class ParDoTest implements Serializable {
       return allowedTimestampSkew;
     }
     @ProcessElement
-    public void processElement(ProcessContext c, @Element T value, @Timestamp Instant timestamp) {
+    public void processElement(@Element T value, @Timestamp Instant timestamp,
+                               OutputReceiver<T> r) {
       checkNotNull(timestamp);
-      c.outputWithTimestamp(value, timestamp.plus(durationToShift));
+      r.outputWithTimestamp(value, timestamp.plus(durationToShift));
     }
   }
 
   static class TestFormatTimestampDoFn<T extends Number> extends DoFn<T, String> {
     @ProcessElement
-    public void processElement(ProcessContext c, @Element T element, @Timestamp Instant timestamp) {
+    public void processElement(@Element T element, @Timestamp Instant timestamp,
+                               OutputReceiver<String> r) {
       checkNotNull(timestamp);
-      c.output("processing: " + element + ", timestamp: " + timestamp.getMillis());
+      r.output("processing: " + element + ", timestamp: " + timestamp.getMillis());
     }
   }
 
@@ -318,9 +320,10 @@ public class ParDoTest implements Serializable {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c, @Element Integer element) throws Exception {
+      public void processElement(@Element Integer element,
+                                 OutputReceiver<Integer> r) throws Exception {
         if (element % divisor == 0) {
-          c.output(element);
+          r.output(element);
         }
       }
     }
@@ -515,8 +518,9 @@ public class ParDoTest implements Serializable {
         .apply(ParDo
             .of(new DoFn<Integer, Void>() {
                 @ProcessElement
-                public void processElement(ProcessContext c, @Element Integer element) {
-                  c.output(additionalOutputTag, element);
+                public void processElement(@Element Integer element,
+                                           MultiOutputReceiver r) {
+                  r.output(additionalOutputTag, element);
                 }})
             .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
@@ -830,7 +834,7 @@ public class ParDoTest implements Serializable {
   @Test
   public void testParDoMultiNameBasedDoFnWithTrimmerSuffix() {
     assertThat(
-        ParDo.of(new TaggedOutputDummyFn(null)).withOutputTags(null, null).getName(),
+        ParDo.of(new TaggedOutputDummyFn(null, null)).withOutputTags(null, null).getName(),
         containsString("ParMultiDo(TaggedOutputDummy)"));
   }
 
@@ -950,8 +954,8 @@ public class ParDoTest implements Serializable {
     // Declare an arbitrary function and make sure we can serialize it
     DoFn<Integer, Integer> doFn = new DoFn<Integer, Integer>() {
       @ProcessElement
-      public void processElement(ProcessContext c, @Element Integer element) {
-        c.output(element + 1);
+      public void processElement(@Element Integer element, OutputReceiver<Integer> r) {
+        r.output(element + 1);
       }
     };
 
@@ -1001,28 +1005,33 @@ public class ParDoTest implements Serializable {
   }
 
   private static class TaggedOutputDummyFn extends DoFn<Integer, Integer> {
+    private TupleTag<Integer> mainOutputTag;
     private TupleTag<TestDummy> dummyOutputTag;
-    public TaggedOutputDummyFn(TupleTag<TestDummy> dummyOutputTag) {
+    public TaggedOutputDummyFn(TupleTag<Integer> mainOutputTag,
+                               TupleTag<TestDummy> dummyOutputTag) {
+      this.mainOutputTag = mainOutputTag;
       this.dummyOutputTag = dummyOutputTag;
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(1);
-      c.output(dummyOutputTag, new TestDummy());
+    public void processElement(MultiOutputReceiver r) {
+      r.output(mainOutputTag, 1);
+      r.output(dummyOutputTag, new TestDummy());
      }
   }
 
   private static class MainOutputDummyFn extends DoFn<Integer, TestDummy> {
+    private TupleTag<TestDummy> mainOutputTag;
     private TupleTag<Integer> intOutputTag;
-    public MainOutputDummyFn(TupleTag<Integer> intOutputTag) {
+    public MainOutputDummyFn(TupleTag<TestDummy> mainOutputTag, TupleTag<Integer> intOutputTag) {
+      this.mainOutputTag = mainOutputTag;
       this.intOutputTag = intOutputTag;
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(new TestDummy());
-      c.output(intOutputTag, 1);
+    public void processElement(MultiOutputReceiver r) {
+      r.output(mainOutputTag, new TestDummy());
+      r.output(intOutputTag, 1);
      }
   }
 
@@ -1174,7 +1183,7 @@ public class ParDoTest implements Serializable {
 
     final TupleTag<Integer> mainOutputTag = new TupleTag<>("main");
     final TupleTag<TestDummy> additionalOutputTag = new TupleTag<>("unknownSide");
-    input.apply(ParDo.of(new TaggedOutputDummyFn(additionalOutputTag))
+    input.apply(ParDo.of(new TaggedOutputDummyFn(mainOutputTag, additionalOutputTag))
         .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     thrown.expect(IllegalStateException.class);
@@ -1192,7 +1201,7 @@ public class ParDoTest implements Serializable {
     final TupleTag<Integer> mainOutputTag = new TupleTag<>("main");
     final TupleTag<TestDummy> additionalOutputTag = new TupleTag<>("unregisteredSide");
     ParDo.MultiOutput<Integer, Integer> pardo =
-        ParDo.of(new TaggedOutputDummyFn(additionalOutputTag))
+        ParDo.of(new TaggedOutputDummyFn(mainOutputTag, additionalOutputTag))
             .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag));
     PCollectionTuple outputTuple = input.apply(pardo);
 
@@ -1219,7 +1228,7 @@ public class ParDoTest implements Serializable {
     final TupleTag<Integer> additionalOutputTag = new TupleTag<Integer>("additionalOutput") {};
     PCollectionTuple outputTuple =
         input.apply(
-            ParDo.of(new MainOutputDummyFn(additionalOutputTag))
+            ParDo.of(new MainOutputDummyFn(mainOutputTag, additionalOutputTag))
                 .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
     outputTuple.get(mainOutputTag).setCoder(new TestDummyCoder());
@@ -1305,8 +1314,9 @@ public class ParDoTest implements Serializable {
                 ParDo.of(
                         new DoFn<Integer, Integer>() {
                           @ProcessElement
-                          public void processElement(ProcessContext c, @Element Integer element) {
-                            c.outputWithTimestamp(
+                          public void processElement(@Element Integer element,
+                                                     MultiOutputReceiver r) {
+                            r.outputWithTimestamp(
                                 additionalOutputTag,
                                 element,
                                 new Instant(element.longValue()));
@@ -1479,10 +1489,10 @@ public class ParDoTest implements Serializable {
                 ParDo.of(
                     new DoFn<String, String>() {
                       @ProcessElement
-                      public void processElement(ProcessContext c,
-                                                 @Element String element,
-                                                 @Timestamp Instant timestamp) {
-                        c.output(element);
+                      public void processElement(@Element String element,
+                                                 @Timestamp Instant timestamp,
+                                                 OutputReceiver<String> r) {
+                        r.output(element);
                         System.out.println(
                             "Process: " + element + ":" + timestamp.getMillis());
                       }
@@ -1557,10 +1567,10 @@ public class ParDoTest implements Serializable {
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
-          public void processElement(
-              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+          public void processElement(@StateId(stateId) ValueState<Integer> state,
+                                     OutputReceiver<Integer> r) {
             Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
-            c.output(currentValue);
+            r.output(currentValue);
             state.write(currentValue + 1);
           }
         };
@@ -1587,14 +1597,14 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element KV<Integer, Integer> element,
-              @StateId(stateId) ValueState<Integer> seenState) {
+              @StateId(stateId) ValueState<Integer> seenState,
+              OutputReceiver<Integer> r) {
             Integer seen = MoreObjects.firstNonNull(seenState.read(), 0);
 
             if (seen == 0) {
               seenState.write(seen + 1);
-              c.output(element.getValue());
+              r.output(element.getValue());
             }
           }
         };
@@ -1741,9 +1751,10 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state,
+              OutputReceiver<MyInteger> r) {
             MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
-            c.output(currentValue);
+            r.output(currentValue);
             state.write(new MyInteger(currentValue.getValue() + 1));
           }
         };
@@ -1770,10 +1781,10 @@ public class ParDoTest implements Serializable {
               StateSpecs.value();
 
           @ProcessElement
-          public void processElement(
-              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+          public void processElement(@StateId(stateId) ValueState<MyInteger> state,
+                                     OutputReceiver<MyInteger> r) {
             MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
-            c.output(currentValue);
+            r.output(currentValue);
             state.write(new MyInteger(currentValue.getValue() + 1));
           }
         };
@@ -1801,10 +1812,10 @@ public class ParDoTest implements Serializable {
               StateSpecs.value();
 
           @ProcessElement
-          public void processElement(
-              ProcessContext c, @StateId(stateId) ValueState<MyInteger> state) {
+          public void processElement(@StateId(stateId) ValueState<MyInteger> state,
+                                     OutputReceiver<MyInteger> r) {
             MyInteger currentValue = MoreObjects.firstNonNull(state.read(), new MyInteger(0));
-            c.output(currentValue);
+            r.output(currentValue);
             state.write(new MyInteger(currentValue.getValue() + 1));
           }
         };
@@ -1834,15 +1845,15 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element KV<String, Integer> element,
-              @StateId(stateId) ValueState<List<MyInteger>> state) {
+              @StateId(stateId) ValueState<List<MyInteger>> state,
+              OutputReceiver<List<MyInteger>> r) {
             MyInteger myInteger = new MyInteger(element.getValue());
             List<MyInteger> currentValue = state.read();
             List<MyInteger> newValue = currentValue != null
                 ? ImmutableList.<MyInteger>builder().addAll(currentValue).add(myInteger).build()
                 : Collections.singletonList(myInteger);
-            c.output(newValue);
+            r.output(newValue);
             state.write(newValue);
           }
         };
@@ -1867,9 +1878,9 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+              @StateId(stateId) ValueState<Integer> state, OutputReceiver<Integer> r) {
             Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
-            c.output(currentValue);
+            r.output(currentValue);
             state.write(currentValue + 1);
           }
         };
@@ -1914,10 +1925,10 @@ public class ParDoTest implements Serializable {
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
-          public void processElement(
-              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+          public void processElement(@StateId(stateId) ValueState<Integer> state,
+                                     OutputReceiver<KV<String, Integer>> r) {
             Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
-            c.output(KV.of("sizzle", currentValue));
+            r.output(KV.of("sizzle", currentValue));
             state.write(currentValue + 1);
           }
         };
@@ -1930,10 +1941,10 @@ public class ParDoTest implements Serializable {
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
-          public void processElement(
-              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+          public void processElement( @StateId(stateId) ValueState<Integer> state,
+                                      OutputReceiver<Integer> r) {
             Integer currentValue = MoreObjects.firstNonNull(state.read(), 13);
-            c.output(currentValue);
+            r.output(currentValue);
             state.write(currentValue + 13);
           }
         };
@@ -1968,12 +1979,12 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c, @StateId(stateId) ValueState<Integer> state) {
+              @StateId(stateId) ValueState<Integer> state, MultiOutputReceiver r) {
             Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
             if (currentValue % 2 == 0) {
-              c.output(currentValue);
+              r.output(evenTag, currentValue);
             } else {
-              c.output(oddTag, currentValue);
+              r.output(oddTag, currentValue);
             }
             state.write(currentValue + 1);
           }
@@ -2015,9 +2026,9 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element KV<String, Integer> element,
-              @StateId(stateId) BagState<Integer> state) {
+              @StateId(stateId) BagState<Integer> state,
+              OutputReceiver<List<Integer>> r) {
             ReadableState<Boolean> isEmpty = state.isEmpty();
             state.add(element.getValue());
             assertFalse(isEmpty.read());
@@ -2030,7 +2041,7 @@ public class ParDoTest implements Serializable {
 
               List<Integer> sorted = Lists.newArrayList(currentValue);
               Collections.sort(sorted);
-              c.output(sorted);
+              r.output(sorted);
             }
           }
         };
@@ -2061,15 +2072,15 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               KV<String, Integer> element,
-              @StateId(stateId) BagState<MyInteger> state) {
+              @StateId(stateId) BagState<MyInteger> state,
+              OutputReceiver<List<MyInteger>> r) {
             state.add(new MyInteger(element.getValue()));
             Iterable<MyInteger> currentValue = state.read();
             if (Iterables.size(currentValue) >= 4) {
               List<MyInteger> sorted = Lists.newArrayList(currentValue);
               Collections.sort(sorted);
-              c.output(sorted);
+              r.output(sorted);
             }
           }
         };
@@ -2101,15 +2112,15 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element  KV<String, Integer> element,
-              @StateId(stateId) BagState<MyInteger> state) {
+              @StateId(stateId) BagState<MyInteger> state,
+              OutputReceiver<List<MyInteger>> r) {
             state.add(new MyInteger(element.getValue()));
             Iterable<MyInteger> currentValue = state.read();
             if (Iterables.size(currentValue) >= 4) {
               List<MyInteger> sorted = Lists.newArrayList(currentValue);
               Collections.sort(sorted);
-              c.output(sorted);
+              r.output(sorted);
             }
           }
         };
@@ -2144,11 +2155,10 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element KV<String, Integer> element,
               @StateId(stateId) SetState<Integer> state,
-              @StateId(countStateId) CombiningState<Integer, int[], Integer>
-                  count) {
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+              OutputReceiver<Set<Integer>> r) {
             ReadableState<Boolean> isEmpty = state.isEmpty();
             state.add(element.getValue());
             assertFalse(isEmpty.read());
@@ -2161,7 +2171,7 @@ public class ParDoTest implements Serializable {
               assertEquals(4, Iterables.size(state.read()));
 
               Set<Integer> set = Sets.newHashSet(ints);
-              c.output(set);
+              r.output(set);
             }
           }
         };
@@ -2197,15 +2207,15 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element KV<String, Integer> element,
               @StateId(stateId) SetState<MyInteger> state,
-              @StateId(countStateId) CombiningState<Integer, int[], Integer> count) {
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+              OutputReceiver<Set<MyInteger>> r) {
             state.add(new MyInteger(element.getValue()));
             count.add(1);
             if (count.read() >= 4) {
               Set<MyInteger> set = Sets.newHashSet(state.read());
-              c.output(set);
+              r.output(set);
             }
           }
         };
@@ -2241,15 +2251,15 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element KV<String, Integer> element,
               @StateId(stateId) SetState<MyInteger> state,
-              @StateId(countStateId) CombiningState<Integer, int[], Integer> count) {
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+              OutputReceiver<Set<MyInteger>> r) {
             state.add(new MyInteger(element.getValue()));
             count.add(1);
             if (count.read() >= 4) {
               Set<MyInteger> set = Sets.newHashSet(state.read());
-              c.output(set);
+              r.output(set);
             }
           }
         };
@@ -2287,8 +2297,8 @@ public class ParDoTest implements Serializable {
               ProcessContext c,
               @Element KV<String, KV<String, Integer>> element,
               @StateId(stateId) MapState<String, Integer> state,
-              @StateId(countStateId) CombiningState<Integer, int[], Integer>
-                  count) {
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+              OutputReceiver<KV<String, Integer>> r) {
             KV<String, Integer> value = element.getValue();
             ReadableState<Iterable<Entry<String, Integer>>> entriesView = state.entries();
             state.put(value.getKey(), value.getValue());
@@ -2303,7 +2313,7 @@ public class ParDoTest implements Serializable {
               assertEquals(4, Iterables.size(state.entries().read()));
 
               for (Map.Entry<String, Integer> entry : iterate) {
-                c.output(KV.of(entry.getKey(), entry.getValue()));
+                r.output(KV.of(entry.getKey(), entry.getValue()));
               }
             }
           }
@@ -2341,18 +2351,17 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element KV<String, KV<String, Integer>> element,
               @StateId(stateId) MapState<String, MyInteger> state,
-              @StateId(countStateId) CombiningState<Integer, int[], Integer>
-                  count) {
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+              OutputReceiver<KV<String, MyInteger>> r) {
             KV<String, Integer> value = element.getValue();
             state.put(value.getKey(), new MyInteger(value.getValue()));
             count.add(1);
             if (count.read() >= 4) {
               Iterable<Map.Entry<String, MyInteger>> iterate = state.entries().read();
               for (Map.Entry<String, MyInteger> entry : iterate) {
-                c.output(KV.of(entry.getKey(), entry.getValue()));
+                r.output(KV.of(entry.getKey(), entry.getValue()));
               }
             }
           }
@@ -2393,15 +2402,15 @@ public class ParDoTest implements Serializable {
               ProcessContext c,
               @Element KV<String, KV<String, Integer>> element,
               @StateId(stateId) MapState<String, MyInteger> state,
-              @StateId(countStateId) CombiningState<Integer, int[], Integer>
-                  count) {
+              @StateId(countStateId) CombiningState<Integer, int[], Integer> count,
+              OutputReceiver<KV<String, MyInteger>> r) {
             KV<String, Integer> value = element.getValue();
             state.put(value.getKey(), new MyInteger(value.getValue()));
             count.add(1);
             if (count.read() >= 4) {
               Iterable<Map.Entry<String, MyInteger>> iterate = state.entries().read();
               for (Map.Entry<String, MyInteger> entry : iterate) {
-                c.output(KV.of(entry.getKey(), entry.getValue()));
+                r.output(KV.of(entry.getKey(), entry.getValue()));
               }
             }
           }
@@ -2437,11 +2446,12 @@ public class ParDoTest implements Serializable {
           public void processElement(
               ProcessContext c,
               @Element KV<String, Double> element,
-              @StateId(stateId) CombiningState<Double, CountSum<Double>, Double> state) {
+              @StateId(stateId) CombiningState<Double, CountSum<Double>, Double> state,
+              OutputReceiver<String> r) {
             state.add(element.getValue());
             Double currentValue = state.read();
             if (Math.abs(currentValue - 0.5) < EPSILON) {
-              c.output("right on");
+              r.output("right on");
             }
           }
         };
@@ -2498,13 +2508,13 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element KV<String, Integer> element,
-              @StateId(stateId) CombiningState<Integer, MyInteger, Integer> state) {
+              @StateId(stateId) CombiningState<Integer, MyInteger, Integer> state,
+              OutputReceiver<String> r) {
             state.add(element.getValue());
             Integer currentValue = state.read();
             if (currentValue == EXPECTED_SUM) {
-              c.output("right on");
+              r.output("right on");
             }
           }
         };
@@ -2559,13 +2569,13 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              ProcessContext c,
               @Element KV<String, Integer> element,
-              @StateId(stateId) CombiningState<Integer, MyInteger, Integer> state) {
+              @StateId(stateId) CombiningState<Integer, MyInteger, Integer> state,
+              OutputReceiver<String> r) {
             state.add(element.getValue());
             Integer currentValue = state.read();
             if (currentValue == EXPECTED_SUM) {
-              c.output("right on");
+              r.output("right on");
             }
           }
         };
@@ -2594,13 +2604,14 @@ public class ParDoTest implements Serializable {
               StateSpecs.combining(Sum.ofIntegers());
 
           @ProcessElement
-          public void processElement(ProcessContext c,
+          public void processElement(
               @Element KV<Integer, Integer> element,
-              @StateId(stateId) GroupingState<Integer, Integer> state) {
+              @StateId(stateId) GroupingState<Integer, Integer> state,
+              OutputReceiver<String> r) {
             state.add(element.getValue());
             Integer currentValue = state.read();
             if (currentValue == EXPECTED_SUM) {
-              c.output("right on");
+              r.output("right on");
             }
           }
         };
@@ -2634,17 +2645,18 @@ public class ParDoTest implements Serializable {
           public void processElement(
               ProcessContext c,
               @Element KV<String, Integer>  element,
-              @StateId(stateId) BagState<Integer> state) {
+              @StateId(stateId) BagState<Integer> state,
+              OutputReceiver<List<Integer>> r) {
             state.add(element.getValue());
             Iterable<Integer> currentValue = state.read();
             if (Iterables.size(currentValue) >= 4) {
               List<Integer> sorted = Lists.newArrayList(currentValue);
               Collections.sort(sorted);
-              c.output(sorted);
+              r.output(sorted);
 
               List<Integer> sideSorted = Lists.newArrayList(c.sideInput(listView));
               Collections.sort(sideSorted);
-              c.output(sideSorted);
+              r.output(sideSorted);
             }
           }
         };
@@ -3336,8 +3348,8 @@ public class ParDoTest implements Serializable {
             ParDo.of(
                 new DoFn<Integer, String>() {
                   @ProcessElement
-                  public void process(ProcessContext c, PipelineOptions options) {
-                    c.output(options.as(MyOptions.class).getFakeOption());
+                  public void process(OutputReceiver<String> r, PipelineOptions options) {
+                    r.output(options.as(MyOptions.class).getFakeOption());
                   }
                 }));
 
@@ -3369,8 +3381,8 @@ public class ParDoTest implements Serializable {
                       }
 
                       @OnTimer(timerId)
-                      public void onTimer(OnTimerContext c, PipelineOptions options) {
-                        c.output(options.as(MyOptions.class).getFakeOption());
+                      public void onTimer(OutputReceiver<String> r, PipelineOptions options) {
+                        r.output(options.as(MyOptions.class).getFakeOption());
                       }
                     }));
 
@@ -3409,8 +3421,8 @@ public class ParDoTest implements Serializable {
     }
 
     @OnTimer("timer")
-    public void onTimer(OnTimerContext c, @TimerId("timer") Timer timer) {
-      c.output("It works");
+    public void onTimer(OutputReceiver<String> r, @TimerId("timer") Timer timer) {
+      r.output("It works");
     }
   }
 }

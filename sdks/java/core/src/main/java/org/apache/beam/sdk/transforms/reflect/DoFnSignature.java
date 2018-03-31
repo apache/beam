@@ -32,6 +32,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
@@ -200,6 +201,10 @@ public abstract class DoFnSignature {
         return cases.dispatch((ElementParameter) this);
       } else if (this instanceof TimestampParameter) {
         return cases.dispatch((TimestampParameter) this);
+      } else if (this instanceof OutputReceiverParameter) {
+        return cases.dispatch((OutputReceiverParameter) this);
+      } else if (this instanceof TaggedOutputReceiverParameter) {
+        return cases.dispatch((TaggedOutputReceiverParameter) this);
       } else {
         throw new IllegalStateException(
             String.format("Attempt to case match on unknown %s subclass %s",
@@ -216,6 +221,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(ProcessContextParameter p);
       ResultT dispatch(ElementParameter p);
       ResultT dispatch(TimestampParameter p);
+      ResultT dispatch(OutputReceiverParameter p);
+      ResultT dispatch(TaggedOutputReceiverParameter p);
       ResultT dispatch(OnTimerContextParameter p);
       ResultT dispatch(WindowParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
@@ -247,6 +254,16 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(ElementParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(TaggedOutputReceiverParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(OutputReceiverParameter p) {
           return dispatchDefault(p);
         }
 
@@ -300,6 +317,10 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_ElementParameter();
     private static final TimestampParameter TIMESTAMP_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimestampParameter();
+    private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
+    private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_TaggedOutputReceiverParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -312,6 +333,14 @@ public abstract class DoFnSignature {
 
     public static TimestampParameter timestampParameter() {
       return TIMESTAMP_PARAMETER;
+    }
+
+    public static OutputReceiverParameter outputReceiverParameter() {
+      return OUTPUT_RECEIVER_PARAMETER;
+    }
+
+    public static TaggedOutputReceiverParameter taggedOutputReceiverParameter() {
+      return TAGGED_OUTPUT_RECEIVER_PARAMETER;
     }
 
     /** Returns a {@link OnTimerContextParameter}. */
@@ -403,6 +432,27 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class TimestampParameter extends Parameter {
       TimestampParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.OutputReceiver}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class OutputReceiverParameter extends Parameter {
+      OutputReceiverParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link MultiOutputReceiver}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class TaggedOutputReceiverParameter extends Parameter {
+      TaggedOutputReceiverParameter() {
+      }
     }
 
     /**

@@ -49,7 +49,9 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
@@ -82,6 +84,8 @@ public class DoFnSignatures {
           Parameter.ProcessContextParameter.class,
           Parameter.ElementParameter.class,
           Parameter.TimestampParameter.class,
+          Parameter.OutputReceiverParameter.class,
+          Parameter.TaggedOutputReceiverParameter.class,
           Parameter.WindowParameter.class,
           Parameter.PipelineOptionsParameter.class,
           Parameter.TimerParameter.class,
@@ -93,6 +97,8 @@ public class DoFnSignatures {
               Parameter.PipelineOptionsParameter.class,
               Parameter.ElementParameter.class,
               Parameter.TimestampParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.TaggedOutputReceiverParameter.class,
               Parameter.ProcessContextParameter.class,
               Parameter.RestrictionTrackerParameter.class);
 
@@ -102,6 +108,8 @@ public class DoFnSignatures {
               Parameter.OnTimerContextParameter.class,
               Parameter.WindowParameter.class,
               Parameter.PipelineOptionsParameter.class,
+              Parameter.OutputReceiverParameter.class,
+              Parameter.TaggedOutputReceiverParameter.class,
               Parameter.TimerParameter.class,
               Parameter.StateParameter.class);
 
@@ -831,6 +839,14 @@ public class DoFnSignatures {
           "Multiple %s parameters",
           BoundedWindow.class.getSimpleName());
       return Parameter.boundedWindow((TypeDescriptor<? extends BoundedWindow>) paramT);
+    } else if (rawType.equals(OutputReceiver.class)) {
+      TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
+      paramErrors.checkArgument(
+          paramT.equals(expectedReceiverT),
+      "Incorrect OutputReceiver type.");
+      return Parameter.outputReceiverParameter();
+    }  else if (rawType.equals(MultiOutputReceiver.class)) {
+      return Parameter.taggedOutputReceiverParameter();
     } else if (PipelineOptions.class.equals(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasPipelineOptionsParamter(),
@@ -1059,9 +1075,9 @@ public class DoFnSignatures {
    * OutputT}.
    */
   private static <OutputT> TypeDescriptor<DoFn.OutputReceiver<OutputT>> outputReceiverTypeOf(
-      TypeDescriptor<OutputT> inputT) {
+      TypeDescriptor<OutputT> outputT) {
     return new TypeDescriptor<DoFn.OutputReceiver<OutputT>>() {}.where(
-        new TypeParameter<OutputT>() {}, inputT);
+        new TypeParameter<OutputT>() {}, outputT);
   }
 
   @VisibleForTesting
