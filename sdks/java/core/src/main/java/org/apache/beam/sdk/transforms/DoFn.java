@@ -369,7 +369,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   /** Receives values of the given type. */
   public interface OutputReceiver<T> {
     void output(T output);
+    void outputWithTimestamp(T output, Instant timestamp);
   }
+
+  public interface MultiOutputReceiver {
+    <T> void output(TupleTag<T> tag, T output);
+    <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
+  }
+
   /////////////////////////////////////////////////////////////////////////////
 
   /**

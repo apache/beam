@@ -32,6 +32,7 @@ import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -110,6 +111,24 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           public DoFn<InputT, OutputT>.ProcessContext processContext(
               DoFn<InputT, OutputT> doFn) {
             return processContext;
+          }
+
+          @Override
+          public InputT element(DoFn<InputT, OutputT> doFn) {
+            return processContext.element();
+          }
+
+          @Override
+          public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+            return processContext.timestamp();
+          }
+
+          /**
+           * Provide a {@link OutputReceiver <OutputT>} for outputing to the default output.
+           */
+          @Override
+          public OutputReceiver<OutputT> outputReceiver() {
+
           }
 
           @Override

@@ -49,6 +49,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
@@ -378,7 +379,18 @@ public class DoFnInvokersTest {
     assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault()));
     assertEquals(restriction, invoker.invokeGetInitialRestriction("blah"));
     final List<SomeRestriction> outputs = new ArrayList<>();
-    invoker.invokeSplitRestriction("blah", restriction, outputs::add);
+    invoker.invokeSplitRestriction("blah", restriction,
+        new OutputReceiver<SomeRestriction>() {
+          @Override
+          public void output(SomeRestriction output) {
+            outputs.add(output);
+          }
+
+          @Override
+          public void outputWithTimestamp(SomeRestriction output, Instant timestamp) {
+            outputs.add(output);
+          }
+        });
     assertEquals(Arrays.asList(part1, part2, part3), outputs);
     assertEquals(tracker, invoker.invokeNewTracker(restriction));
     assertEquals(
@@ -470,6 +482,13 @@ public class DoFnInvokersTest {
 
           @Override
           public void output(String output) {
+            assertFalse(invoked);
+            invoked = true;
+            assertEquals("foo", output);
+          }
+
+          @Override
+          public void outputWithTimestamp(String output, Instant instant) {
             assertFalse(invoked);
             invoked = true;
             assertEquals("foo", output);

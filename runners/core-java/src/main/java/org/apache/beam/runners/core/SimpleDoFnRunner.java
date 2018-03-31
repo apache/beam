@@ -36,6 +36,10 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextMultiOutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -273,6 +277,18 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access output receiver outside of @ProcessElement method.");
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access output receiver outside of @ProcessElement method.");
+    }
+
+    @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
@@ -354,6 +370,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
           "Cannot access timestamp outside of @ProcessElement method.");
     }
 
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access outputReceiver in @FinishBundle method.");
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access outputReceiver in @FinishBundle method.");
+    }
 
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
@@ -479,6 +506,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return elem.getTimestamp();
     }
 
+
     public Collection<? extends BoundedWindow> windows() {
       return elem.getWindows();
     }
@@ -535,6 +563,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return  timestamp();
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return new WindowedContextOutputReceiver<>(this);
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      return new WindowedContextMultiOutputReceiver(this);
     }
 
     @Override
@@ -658,6 +696,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timestamp outside of @ProcessElement method.");
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return new WindowedContextOutputReceiver<>(this);
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      return new WindowedContextMultiOutputReceiver(this);
     }
 
     @Override

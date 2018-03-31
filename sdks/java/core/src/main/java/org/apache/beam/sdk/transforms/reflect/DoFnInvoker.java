@@ -24,9 +24,11 @@ import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -132,6 +134,16 @@ public interface DoFnInvoker<InputT, OutputT> {
     Instant timestamp(DoFn<InputT, OutputT> doFn);
 
     /**
+     * Provide a {@link OutputReceiver<OutputT>} for outputing to the default output.
+     */
+    OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
+
+    /**
+     * Provide a {@link MultiOutputReceiver <OutputT>} for outputing to the default output.
+     */
+    MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
+
+    /**
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
      */
@@ -167,6 +179,22 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",
