@@ -87,16 +87,16 @@ class _SideInputsContainer(object):
   def get_value_or_block_until_ready(self, side_input, task, block_until):
     """Returns the value of a view whose task is unblocked or blocks its task.
 
-    It returns the value of a view whose watermark has been updated and
+    It gets the value of a view whose watermark has been updated and
     surpasses a given value.
 
     Args:
-      side_input: (_UnpickledSideInput) value.
-      task: (TransformExecutor) task waiting on a side input.
+      side_input: ``_UnpickledSideInput`` value.
+      task: ``TransformExecutor`` task waiting on a side input.
       block_until: Timestamp after which the task gets unblocked.
 
     Returns:
-      The (SideInputMap) value of a view when the tasks it blocks are unblocked
+      The ``SideInputMap`` value of a view when the tasks it blocks are unblocked
       Otherwise, None.
     """
     with self._lock:
@@ -144,7 +144,7 @@ class _SideInputsContainer(object):
     recorded when the watermark moved and unblocks tasks accordingly.
 
     Args:
-      side_input: (_UnpickledSideInput) value.
+      side_input: ``_UnpickledSideInput`` value.
       watermark: Value of the watermark after an update for a PTransform.
 
     Returns:
