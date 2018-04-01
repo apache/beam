@@ -50,6 +50,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Instant;
 
 /**
  * A utility transform that executes a <a
@@ -361,7 +362,18 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     public void processElement(final ProcessContext c) {
       final InputT element = c.element().getKey();
       invoker.invokeSplitRestriction(
-          element, c.element().getValue(), part -> c.output(KV.of(element, part)));
+          element, c.element().getValue(), new OutputReceiver<RestrictionT>() {
+            @Override
+            public void output(RestrictionT part) {
+              c.output(KV.of(element, part));
+            }
+
+            @Override
+            public void outputWithTimestamp(RestrictionT part, Instant timestamp) {
+              c.outputWithTimestamp(KV.of(element, part), timestamp);
+            }
+          }
+      );
     }
   }
 }

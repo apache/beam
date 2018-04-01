@@ -25,11 +25,11 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.DoFn.StartBundle;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
-import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -135,12 +135,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
     /**
-     * Provide a {@link OutputReceiver<OutputT>} for outputing to the default output.
+     * Provide a {@link OutputReceiver} for outputting to the default output.
      */
     OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn);
 
     /**
-     * Provide a {@link MultiOutputReceiver <OutputT>} for outputing to the default output.
+     * Provide a {@link MultiOutputReceiver} for outputing to the default output.
      */
     MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn);
 

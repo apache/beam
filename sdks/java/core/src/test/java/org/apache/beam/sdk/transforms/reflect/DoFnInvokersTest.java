@@ -41,6 +41,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
@@ -78,13 +80,27 @@ public class DoFnInvokersTest {
   @Mock private DoFn<String, String>.StartBundleContext mockStartBundleContext;
   @Mock private DoFn<String, String>.FinishBundleContext mockFinishBundleContext;
   @Mock private DoFn<String, String>.ProcessContext mockProcessContext;
+  private String mockElement;
+  private Instant mockTimestamp;
+  @Mock private OutputReceiver<String> mockOutputReceiver;
+  @Mock private MultiOutputReceiver mockMultiOutputReceiver;
   @Mock private IntervalWindow mockWindow;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
 
   @Before
   public void setUp() {
+    mockElement =  new String("element");
+    mockTimestamp = new Instant(0);
     MockitoAnnotations.initMocks(this);
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
+    //when(mockArgumentProvider.element(Matchers.<DoFn>any()))
+    //    .thenReturn(mockElement);
+    when(mockArgumentProvider.timestamp(Matchers.<DoFn>any()))
+        .thenReturn(mockTimestamp);
+    when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any()))
+        .thenReturn(mockOutputReceiver);
+    when(mockArgumentProvider.taggedOutputReceiver(Matchers.<DoFn>any()))
+        .thenReturn(mockMultiOutputReceiver);
     when(mockArgumentProvider.startBundleContext(Matchers.<DoFn>any()))
         .thenReturn(mockStartBundleContext);
     when(mockArgumentProvider.finishBundleContext(Matchers.<DoFn>any()))
@@ -186,6 +202,24 @@ public class DoFnInvokersTest {
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockProcessContext, mockWindow);
+  }
+
+  @Test
+  public void testDoFnWithAllParameters() throws Exception {
+    class MockFn extends DoFn<String, String> {
+      @DoFn.ProcessElement
+      public void processElement(ProcessContext c,
+                               //  @Element String element,
+                                 @Timestamp Instant timestamp,
+                                 IntervalWindow w,
+                                 OutputReceiver<String> receiver,
+                                 MultiOutputReceiver multiReceiver) throws Exception {}
+    }
+
+    MockFn fn = mock(MockFn.class);
+    assertEquals(stop(), invokeProcessElement(fn));
+    verify(fn).processElement(mockProcessContext, mockTimestamp, mockWindow,
+        mockOutputReceiver, mockMultiOutputReceiver);
   }
 
   /**

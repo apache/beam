@@ -29,11 +29,15 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextMultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers.WindowedContextOutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -123,12 +127,21 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
             return processContext.timestamp();
           }
 
-          /**
-           * Provide a {@link OutputReceiver <OutputT>} for outputing to the default output.
-           */
           @Override
-          public OutputReceiver<OutputT> outputReceiver() {
+          public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+            throw new UnsupportedOperationException(
+                "Access to time domain not supported in ProcessElement"
+            );
+          }
 
+          @Override
+          public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+            return new WindowedContextOutputReceiver<>(processContext);
+          }
+
+          @Override
+          public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+            return new WindowedContextMultiOutputReceiver(processContext);
           }
 
           @Override
