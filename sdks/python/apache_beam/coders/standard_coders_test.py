@@ -17,6 +17,8 @@
 
 """Unit tests for coders that must be consistent across all Beam SDKs.
 """
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import json
@@ -24,6 +26,7 @@ import logging
 import os.path
 import sys
 import unittest
+from builtins import map
 
 import yaml
 
@@ -74,7 +77,7 @@ class StandardCodersTest(unittest.TestCase):
           lambda x: IntervalWindow(
               start=Timestamp(micros=(x['end'] - x['span']) * 1000),
               end=Timestamp(micros=x['end'] * 1000)),
-      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x),
+      'urn:beam:coders:stream:0.1': lambda x, parser: list(map(parser, x)),
       'urn:beam:coders:global_window:0.1': lambda x: window.GlobalWindow(),
       'urn:beam:coders:windowed_value:0.1':
           lambda x, value_parser, window_parser: windowed_value.create(
