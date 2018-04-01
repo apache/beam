@@ -205,6 +205,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((OutputReceiverParameter) this);
       } else if (this instanceof TaggedOutputReceiverParameter) {
         return cases.dispatch((TaggedOutputReceiverParameter) this);
+      } else if (this instanceof TimeDomainParameter) {
+        return cases.dispatch((TimeDomainParameter) this);
       } else {
         throw new IllegalStateException(
             String.format("Attempt to case match on unknown %s subclass %s",
@@ -221,6 +223,7 @@ public abstract class DoFnSignature {
       ResultT dispatch(ProcessContextParameter p);
       ResultT dispatch(ElementParameter p);
       ResultT dispatch(TimestampParameter p);
+      ResultT dispatch(TimeDomainParameter p);
       ResultT dispatch(OutputReceiverParameter p);
       ResultT dispatch(TaggedOutputReceiverParameter p);
       ResultT dispatch(OnTimerContextParameter p);
@@ -273,6 +276,11 @@ public abstract class DoFnSignature {
         }
 
         @Override
+        public ResultT dispatch(TimeDomainParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
         public ResultT dispatch(OnTimerContextParameter p) {
           return dispatchDefault(p);
         }
@@ -317,6 +325,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_ElementParameter();
     private static final TimestampParameter TIMESTAMP_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimestampParameter();
+    private static final TimeDomainParameter TIME_DOMAIN_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OutputReceiverParameter();
     private static final TaggedOutputReceiverParameter TAGGED_OUTPUT_RECEIVER_PARAMETER =
@@ -333,6 +343,10 @@ public abstract class DoFnSignature {
 
     public static TimestampParameter timestampParameter() {
       return TIMESTAMP_PARAMETER;
+    }
+
+    public static TimeDomainParameter timeDomainParameter() {
+      return TIME_DOMAIN_PARAMETER;
     }
 
     public static OutputReceiverParameter outputReceiverParameter() {
@@ -432,6 +446,17 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class TimestampParameter extends Parameter {
       TimestampParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} representing the time domain of a timer.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class TimeDomainParameter extends Parameter {
+      TimeDomainParameter() {
+      }
     }
 
     /**

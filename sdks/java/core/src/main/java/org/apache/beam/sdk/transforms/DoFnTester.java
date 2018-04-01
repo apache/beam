@@ -33,6 +33,7 @@ import javax.annotation.CheckForNull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
@@ -278,6 +279,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             public Instant timestamp(DoFn<InputT, OutputT> doFn) {
               return processContext.timestamp();
             }
+
+            @Override
+            public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+              throw new UnsupportedOperationException(
+                  "Not expected to access TimeDomain from @ProcessElement");            }
 
             @Override
             public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {

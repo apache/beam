@@ -93,19 +93,19 @@ public class WordCount {
         ExtractWordsFn.class, "lineLenDistro");
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      lineLenDist.update(c.element().length());
-      if (c.element().trim().isEmpty()) {
+    public void processElement(@Element String element, OutputReceiver<String> receiver) {
+      lineLenDist.update(element.length());
+      if (element.trim().isEmpty()) {
         emptyLines.inc();
       }
 
       // Split the line into words.
-      String[] words = c.element().split(ExampleUtils.TOKENIZER_PATTERN);
+      String[] words = element.split(ExampleUtils.TOKENIZER_PATTERN);
 
       // Output each word encountered into the output PCollection.
       for (String word : words) {
         if (!word.isEmpty()) {
-          c.output(word);
+          receiver.output(word);
         }
       }
     }

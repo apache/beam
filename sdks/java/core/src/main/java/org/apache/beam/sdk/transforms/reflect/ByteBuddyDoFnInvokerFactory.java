@@ -77,6 +77,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Restrictio
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StartBundleContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
@@ -93,6 +94,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String PROCESS_CONTEXT_PARAMETER_METHOD = "processContext";
   public static final String ELEMENT_PARAMETER_METHOD = "element";
   public static final String TIMESTAMP_PARAMETER_METHOD = "timestamp";
+  public static final String TIME_DOMAIN_PARAMETER_METHOD = "timeDomain";
   public static final String OUTPUT_PARAMETER_METHOD = "outputReceiver";
   public static final String TAGGED_OUTPUT_PARAMETER_METHOD = "taggedOutputReceiver";
   public static final String ON_TIMER_CONTEXT_PARAMETER_METHOD = "onTimerContext";
@@ -608,6 +610,15 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         TIMESTAMP_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(TimeDomainParameter p) {
+            return new StackManipulation.Compound(
+                pushDelegate,
+                MethodInvocation.invoke(
+                    getExtraContextFactoryMethodDescription(
+                        TIME_DOMAIN_PARAMETER_METHOD, DoFn.class)));
           }
 
           @Override
