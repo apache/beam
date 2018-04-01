@@ -21,6 +21,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundle;
@@ -123,15 +124,15 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
-    /**
-     * Provide a link to the input element.
-     */
+    /** Provide a link to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
-    /**
-     * Provide a link to the input element timestamp.
-     */
+    /** Provide a link to the input element timestamp. */
     Instant timestamp(DoFn<InputT, OutputT> doFn);
+
+    /** Provide a link to the time domain for a timer firing.
+     */
+    TimeDomain timeDomain(DoFn<InputT, OutputT> doFn);
 
     /**
      * Provide a {@link OutputReceiver<OutputT>} for outputing to the default output.
@@ -179,6 +180,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

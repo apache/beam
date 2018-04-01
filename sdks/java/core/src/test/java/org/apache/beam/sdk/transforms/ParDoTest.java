@@ -2702,14 +2702,14 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @ProcessElement
-          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+          public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
             timer.offset(Duration.standardSeconds(1)).setRelative();
-            context.output(3);
+            r.output(3);
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output(42);
+          public void onTimer(OutputReceiver<Integer> r) {
+            r.output(42);
           }
         };
 
@@ -2735,14 +2735,14 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @ProcessElement
-          public void processElement(ProcessContext context, @TimerId(TIMER_ID) Timer timer) {
+          public void processElement(@TimerId(TIMER_ID) Timer timer, OutputReceiver<Integer> r) {
             timer.offset(Duration.standardSeconds(1)).setRelative();
-            context.output(3);
+            r.output(3);
           }
 
           @OnTimer(TIMER_ID)
-          public void onTimer(OnTimerContext context) {
-            context.output(42);
+          public void onTimer(OutputReceiver<Integer> r) {
+            r.output(42);
           }
         };
 
@@ -2767,14 +2767,17 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @ProcessElement
-          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+          public void processElement(@TimerId(timerId) Timer timer,
+                                     @Timestamp Instant timestamp,
+                                     OutputReceiver<KV<Integer, Instant>> r) {
             timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setRelative();
-            context.output(KV.of(3, context.timestamp()));
+            r.output(KV.of(3, timestamp));
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output(KV.of(42, context.timestamp()));
+          public void onTimer(@Timestamp Instant timestamp,
+                              OutputReceiver<KV<Integer, Instant>> r) {
+            r.output(KV.of(42, timestamp));
           }
         };
 
@@ -2797,13 +2800,13 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @ProcessElement
-          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+          public void processElement(@TimerId(timerId) Timer timer) {
             timer.offset(Duration.standardSeconds(1)).setRelative();
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context, BoundedWindow window) {
-            context.output(context.window());
+          public void onTimer(BoundedWindow window, OutputReceiver<BoundedWindow> r) {
+            r.output(window);
           }
 
           public TypeDescriptor<BoundedWindow> getOutputTypeDescriptor() {
@@ -2845,15 +2848,15 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @ProcessElement
-          public void processElement(
-              ProcessContext context, @TimerId(timerId) Timer timer, BoundedWindow window) {
+          public void processElement(@TimerId(timerId) Timer timer, BoundedWindow window,
+                                     OutputReceiver<Integer> r) {
             timer.set(window.maxTimestamp());
-            context.output(3);
+            r.output(3);
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output(42);
+          public void onTimer(OutputReceiver<Integer> r) {
+            r.output(42);
           }
         };
 
@@ -2889,12 +2892,12 @@ public class ParDoTest implements Serializable {
 
           @OnTimer(timerId)
           public void onLoopTimer(
-              OnTimerContext ctx,
               @StateId(stateId) ValueState<Integer> countState,
-              @TimerId(timerId) Timer loopTimer) {
+              @TimerId(timerId) Timer loopTimer,
+              OutputReceiver<Integer> r) {
             int count = MoreObjects.firstNonNull(countState.read(), 0);
             if (count < loopCount) {
-              ctx.output(count);
+              r.output(count);
               countState.write(count + 1);
               loopTimer.offset(Duration.millis(1)).setRelative();
             }
@@ -2943,8 +2946,9 @@ public class ParDoTest implements Serializable {
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context, @StateId(stateId) ValueState<String> state) {
-            context.output(KV.of(state.read(), timerOutput));
+          public void onTimer(@StateId(stateId) ValueState<String> state,
+                              OutputReceiver<KV<String, Integer>> r) {
+            r.output(KV.of(state.read(), timerOutput));
           }
         };
 
@@ -2987,12 +2991,12 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
           @ProcessElement
-          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+          public void processElement(@TimerId(timerId) Timer timer) {
             timer.set(new Instant(0));
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {}
+          public void onTimer() {}
         };
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
@@ -3022,7 +3026,7 @@ public class ParDoTest implements Serializable {
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {}
+          public void onTimer() {}
         };
 
     PCollection<Integer> output = pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
@@ -3046,14 +3050,14 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
           @ProcessElement
-          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+          public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
             timer.offset(Duration.standardSeconds(1)).setRelative();
-            context.output(3);
+            r.output(3);
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output(42);
+          public void onTimer(OutputReceiver<Integer> r) {
+            r.output(42);
           }
         };
 
@@ -3080,14 +3084,14 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @ProcessElement
-          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+          public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
             timer.offset(Duration.standardSeconds(1)).setRelative();
-            context.output(3);
+            r.output(3);
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output(42);
+          public void onTimer(OutputReceiver<Integer> r) {
+            r.output(42);
           }
         };
 
@@ -3115,14 +3119,17 @@ public class ParDoTest implements Serializable {
           private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
           @ProcessElement
-          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+          public void processElement(@TimerId(timerId) Timer timer,
+                                     @Timestamp Instant timestamp,
+                                     OutputReceiver<KV<Integer, Instant>> r) {
             timer.align(Duration.standardSeconds(1)).offset(Duration.millis(1)).setRelative();
-            context.output(KV.of(3, context.timestamp()));
+            r.output(KV.of(3, timestamp));
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output(KV.of(42, context.timestamp()));
+          public void onTimer(@Timestamp Instant timestamp,
+                              OutputReceiver<KV<Integer, Instant>> r) {
+            r.output(KV.of(42, timestamp));
           }
         };
 

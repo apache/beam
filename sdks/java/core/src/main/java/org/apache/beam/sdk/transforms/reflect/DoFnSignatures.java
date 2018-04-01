@@ -106,6 +106,8 @@ public class DoFnSignatures {
       ALLOWED_ON_TIMER_PARAMETERS =
           ImmutableList.of(
               Parameter.OnTimerContextParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.TimeDomainParameter.class,
               Parameter.WindowParameter.class,
               Parameter.PipelineOptionsParameter.class,
               Parameter.OutputReceiverParameter.class,
