@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
+/**
+ * Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes.
+ */
 public class DoFnOutputReceivers {
+  /**
+   * A {@link OutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
+   */
   public static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
     DoFn<?, T>.WindowedContext context;
     public WindowedContextOutputReceiver(DoFn<?, T>.WindowedContext context) {
@@ -40,6 +46,9 @@ public class DoFnOutputReceivers {
     }
   }
 
+  /**
+   * A {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
+   */
   public static class WindowedContextMultiOutputReceiver implements MultiOutputReceiver {
     DoFn<?, ?>.WindowedContext context;
     public WindowedContextMultiOutputReceiver(DoFn<?, ?>.WindowedContext context) {

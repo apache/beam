@@ -1941,8 +1941,8 @@ public class ParDoTest implements Serializable {
               StateSpecs.value(VarIntCoder.of());
 
           @ProcessElement
-          public void processElement( @StateId(stateId) ValueState<Integer> state,
-                                      OutputReceiver<Integer> r) {
+          public void processElement(@StateId(stateId) ValueState<Integer> state,
+                                     OutputReceiver<Integer> r) {
             Integer currentValue = MoreObjects.firstNonNull(state.read(), 13);
             r.output(currentValue);
             state.write(currentValue + 13);
@@ -2708,8 +2708,10 @@ public class ParDoTest implements Serializable {
           }
 
           @OnTimer(timerId)
-          public void onTimer(OutputReceiver<Integer> r) {
-            r.output(42);
+          public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+            if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
+              r.output(42);
+            }
           }
         };
 
@@ -2741,8 +2743,10 @@ public class ParDoTest implements Serializable {
           }
 
           @OnTimer(TIMER_ID)
-          public void onTimer(OutputReceiver<Integer> r) {
-            r.output(42);
+          public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+            if (timeDomain.equals(TimeDomain.EVENT_TIME)) {
+              r.output(42);
+            }
           }
         };
 
@@ -3056,8 +3060,10 @@ public class ParDoTest implements Serializable {
           }
 
           @OnTimer(timerId)
-          public void onTimer(OutputReceiver<Integer> r) {
-            r.output(42);
+          public void onTimer(TimeDomain timeDomain, OutputReceiver<Integer> r) {
+            if (timeDomain.equals(TimeDomain.PROCESSING_TIME)) {
+              r.output(42);
+            }
           }
         };
 
@@ -3165,8 +3171,9 @@ public class ParDoTest implements Serializable {
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output(KV.of(42, context.timestamp()));
+          public void onTimer(@Timestamp Instant timestamp,
+                              OutputReceiver<KV<Integer, Instant>> r) {
+            r.output(KV.of(42, timestamp));
           }
         };
 
@@ -3207,8 +3214,8 @@ public class ParDoTest implements Serializable {
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output("timer_output");
+          public void onTimer(OutputReceiver<String> r) {
+            r.output("timer_output");
           }
         };
 
@@ -3248,8 +3255,8 @@ public class ParDoTest implements Serializable {
           }
 
           @OnTimer(timerId)
-          public void onTimer(OnTimerContext context) {
-            context.output("timer_output");
+          public void onTimer(OutputReceiver<String> r) {
+            r.output("timer_output");
           }
         };
 

@@ -46,12 +46,13 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
-import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.RestrictionTrackerParameter;
@@ -822,8 +823,10 @@ public class DoFnSignatures {
       return Parameter.elementParameter();
     }  else if (hasTimestampAnnotation(param.getAnnotations())) {
       methodErrors.checkArgument(rawType.equals(Instant.class),
-          "@Timestamp argument must have type Instant.");
+          "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
+    } else if (rawType.equals(TimeDomain.class)) {
+      return Parameter.timeDomainParameter();
     } else if (rawType.equals(DoFn.ProcessContext.class)) {
       paramErrors.checkArgument(paramT.equals(expectedProcessContextT),
         "ProcessContext argument must have type %s",
@@ -845,7 +848,8 @@ public class DoFnSignatures {
       TypeDescriptor<?> expectedReceiverT = outputReceiverTypeOf(outputT);
       paramErrors.checkArgument(
           paramT.equals(expectedReceiverT),
-      "Incorrect OutputReceiver type.");
+      "OutputReceiver should be parameterized by %s",
+          outputT);
       return Parameter.outputReceiverParameter();
     }  else if (rawType.equals(MultiOutputReceiver.class)) {
       return Parameter.taggedOutputReceiverParameter();

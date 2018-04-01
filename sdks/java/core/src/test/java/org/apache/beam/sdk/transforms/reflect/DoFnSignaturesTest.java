@@ -44,9 +44,15 @@ import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomainParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -54,6 +60,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -67,7 +74,7 @@ public class DoFnSignaturesTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   @Test
-  public void testBasicDoFn() throws Exception {
+  public void testBasicDoFnProcessContext() throws Exception {
     DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
       @ProcessElement
       public void process(ProcessContext c) {}
@@ -76,6 +83,72 @@ public class DoFnSignaturesTest {
     assertThat(sig.processElement().extraParameters().size(), equalTo(1));
     assertThat(
         sig.processElement().extraParameters().get(0), instanceOf(ProcessContextParameter.class));
+  }
+
+  @Test
+  public void testBasicDoFnAllParameters() throws Exception {
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(@Element String element, @Timestamp Instant timestamp,
+                          BoundedWindow window, OutputReceiver<String> receiver,
+                          PipelineOptions options) {}
+    }.getClass());
+
+    assertThat(sig.processElement().extraParameters().size(), equalTo(5));
+    assertThat(
+        sig.processElement().extraParameters().get(0), instanceOf(ElementParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(1), instanceOf(TimestampParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(2), instanceOf(WindowParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(3), instanceOf(OutputReceiverParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(4), instanceOf(PipelineOptionsParameter.class));
+  }
+
+  @Test
+  public void testBasicDoFnMultiOutputReceiver() throws Exception {
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(MultiOutputReceiver receiver) {}
+    }.getClass());
+
+    assertThat(sig.processElement().extraParameters().size(), equalTo(1));
+    assertThat(
+        sig.processElement().extraParameters().get(0),
+        instanceOf(TaggedOutputReceiverParameter.class));
+  }
+
+
+  @Test
+  public void testWrongElementType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("@Element argument must have type java.lang.String");
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(@Element Integer element) {}
+    }.getClass());
+  }
+
+  @Test
+  public void testWrongTimestampType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("@Timestamp argument must have type org.joda.time.Instant");
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(@Timestamp String timestamp) {}
+    }.getClass());
+  }
+
+  @Test
+  public void testWrongOutputReceiverType() throws Exception {
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("OutputReceiver should be parameterized by java.lang.String");
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      public void process(OutputReceiver<Integer> receiver) {}
+    }.getClass());
   }
 
   @Test
@@ -341,6 +414,35 @@ public class DoFnSignaturesTest {
     assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(1));
     assertThat(
         sig.onTimerMethods().get(timerId).extraParameters().get(0),
+        instanceOf(WindowParameter.class));
+  }
+
+  @Test
+  public void testAllParamsOnTimer() throws Exception {
+    final String timerId = "some-timer-id";
+
+    DoFnSignature sig =
+        DoFnSignatures.getSignature(new DoFn<String, String>() {
+          @TimerId(timerId)
+          private final TimerSpec myfield1 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void process(ProcessContext c) {}
+
+          @OnTimer(timerId)
+          public void onTimer(@Timestamp Instant timestamp, TimeDomain timeDomain,
+                              BoundedWindow w) {}
+        }.getClass());
+
+    assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(3));
+    assertThat(
+        sig.onTimerMethods().get(timerId).extraParameters().get(0),
+        instanceOf(TimestampParameter.class));
+    assertThat(
+        sig.onTimerMethods().get(timerId).extraParameters().get(1),
+        instanceOf(TimeDomainParameter.class));
+    assertThat(
+        sig.onTimerMethods().get(timerId).extraParameters().get(2),
         instanceOf(WindowParameter.class));
   }
 
