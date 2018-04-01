@@ -96,12 +96,12 @@ class _SideInputsContainer(object):
       block_until: Timestamp after which the task gets unblocked.
 
     Returns:
-      The ``SideInputMap`` value of a view when the tasks it blocks are unblocked
-      Otherwise, None.
+      The ``SideInputMap`` value of a view when the tasks it blocks are
+      unblocked. Otherwise, None.
     """
     with self._lock:
       view = self._views[side_input]
-      if view.watermark and view.watermark.input_watermark >= block_until:
+      if view.watermark and view.watermark.output_watermark >= block_until:
         view.value = self._pvalue_to_value(side_input, view.elements)
         return view.value
       else:
@@ -158,7 +158,7 @@ class _SideInputsContainer(object):
       view = self._views[side_input]
       tasks_just_unblocked = []
       for task, block_until in view.blocked_tasks:
-        if watermark.input_watermark >= block_until:
+        if watermark.output_watermark >= block_until:
           view.value = self._pvalue_to_value(side_input, view.elements)
           unblocked_tasks.append(task)
           tasks_just_unblocked.append((task, block_until))
