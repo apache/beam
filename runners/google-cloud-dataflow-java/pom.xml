@@ -33,6 +33,7 @@
   <packaging>jar</packaging>
 
   <properties>
+    <!-- BEAM-3964: Metric method renaming breaks Dataflow. Reenable Dataflow Tests once updated -->
     <dataflow.container_version>beam-master-20180228</dataflow.container_version>
     <dataflow.fnapi_environment_major_version>1</dataflow.fnapi_environment_major_version>
     <dataflow.legacy_environment_major_version>7</dataflow.legacy_environment_major_version>
