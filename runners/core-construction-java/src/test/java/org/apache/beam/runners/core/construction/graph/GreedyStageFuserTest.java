@@ -672,6 +672,7 @@ public class GreedyStageFuserTest {
     PTransform parDoTransform =
         PTransform.newBuilder()
             .putInputs("input", "impulse.out")
+            .putOutputs("out", "parDo.out")
             .setSpec(
                 FunctionSpec.newBuilder()
                     .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
@@ -680,20 +681,20 @@ public class GreedyStageFuserTest {
                             .setDoFn(SdkFunctionSpec.newBuilder().setEnvironmentId("common"))
                             .build()
                             .toByteString()))
-            .putOutputs("out", "parDo.out")
             .build();
 
+    PCollection parDoOutput = PCollection.newBuilder().setUniqueName("parDo.out").build();
     QueryablePipeline p =
         QueryablePipeline.forPrimitivesIn(
             partialComponents
                 .toBuilder()
                 .putTransforms("parDo", parDoTransform)
-                .putPcollections(
-                    "parDo.out", PCollection.newBuilder().setUniqueName("parDo.out").build())
+                .putPcollections("parDo.out", parDoOutput)
                 .putTransforms(
                     "window",
                     PTransform.newBuilder()
                         .putInputs("input", "parDo.out")
+                        .putOutputs("output", "window.out")
                         .setSpec(
                             FunctionSpec.newBuilder()
                                 .setUrn(PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN)
@@ -704,6 +705,8 @@ public class GreedyStageFuserTest {
                                         .build()
                                         .toByteString()))
                         .build())
+                .putPcollections(
+                    "window.out", PCollection.newBuilder().setUniqueName("window.out").build())
                 .putEnvironments("rare", Environment.newBuilder().setUrl("rare").build())
                 .putEnvironments("common", env)
                 .build());
@@ -711,7 +714,9 @@ public class GreedyStageFuserTest {
     ExecutableStage subgraph =
         GreedyStageFuser.forGrpcPortRead(
             p, impulseOutputNode, p.getPerElementConsumers(impulseOutputNode));
-    assertThat(subgraph.getOutputPCollections(), emptyIterable());
+    assertThat(
+        subgraph.getOutputPCollections(),
+        contains(PipelineNode.pCollection("parDo.out", parDoOutput)));
     assertThat(subgraph.getInputPCollection(), equalTo(impulseOutputNode));
     assertThat(subgraph.getEnvironment(), equalTo(env));
     assertThat(
