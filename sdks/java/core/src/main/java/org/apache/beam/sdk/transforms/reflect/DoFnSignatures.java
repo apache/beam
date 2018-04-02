@@ -822,7 +822,7 @@ public class DoFnSignatures {
     if (hasElementAnnotation(param.getAnnotations())) {
       methodErrors.checkArgument(paramT.equals(inputT),
           "@Element argument must have type %s", inputT);
-      return Parameter.elementParameter();
+      return Parameter.elementParameter(paramT);
     }  else if (hasTimestampAnnotation(param.getAnnotations())) {
       methodErrors.checkArgument(rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
