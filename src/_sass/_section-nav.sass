@@ -2,12 +2,12 @@
   max-width: 250px
   position: fixed
   width: 100%
+  overflow-y: auto
+  background-color: #F7F7F7
 
   nav
-    background-color: #F7F7F7
     padding: 15px
     max-height: calc(100vh - 130px)
-    overflow-y: auto
 
     ul
       list-style: none
@@ -18,18 +18,19 @@
       &:last-child
         margin-bottom: 0
 
+    .section-nav-list
+      padding-left: 16px
+
     a
       font-size: 12px
-
-    > .section-nav-list
-      padding: 0
-
-      .section-nav-list
-        padding-left: 15px
 
     @media (max-width: $ak-breakpoint-lg)
       background-color: $color-white
       max-height: 100vh
+
+    .active
+      text-decoration: underline
+      color: #0f3556
 
   &-back
     display: none
@@ -41,8 +42,11 @@
   &-list-title
     display: block
     font-size: 12px
+    position: relative
     margin-bottom: 5px
-    padding-top: 5px
+
+    &--collapsible
+      cursor: pointer
 
   &-list-main-title
     display: block
@@ -50,6 +54,28 @@
     font-weight: bold
     margin-bottom: 15px
     text-transform: uppercase
+
+  &-item--collapsible
+    cursor: pointer
+
+    .section-nav-list
+      display: none
+
+    span:before
+      content: ""
+      position: absolute
+      top: 2px
+      left: -16px
+      border-style: solid
+      border-width: 5px 0 5px 8px
+      border-color: transparent transparent transparent #3371e3
+      transform: rotate(0deg)
+      transition: 0.3s
+
+  .expanded
+    > span:before
+      transform: rotate(90deg)
+
 
   @media (max-width: $ak-breakpoint-lg)
     background-color: $color-light-gray
@@ -71,3 +97,6 @@
 
     &.open
       transform: translateX(0)
+
+
+
