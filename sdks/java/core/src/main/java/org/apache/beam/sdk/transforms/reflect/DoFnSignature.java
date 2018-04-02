@@ -448,6 +448,7 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class ElementParameter extends Parameter {
       ElementParameter() {}
+
       public abstract TypeDescriptor<?> elementT();
     }
 
