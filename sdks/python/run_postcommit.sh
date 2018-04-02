@@ -32,16 +32,14 @@ set -v
 LOCAL_PATH=$HOME/.local/bin/
 
 # Remove any tox cache from previous workspace
+# TODO(udim): Remove this line and add '-r' to tox invocation instead.
 rm -rf sdks/python/target/.tox
 
-# INFRA does not install virtualenv
-pip install virtualenv --user
-
-# INFRA does not install tox
-pip install tox --user
+# INFRA does not install these packages
+pip install --user --upgrade virtualenv tox
 
 # Tox runs unit tests in a virtual environment
-${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini
+${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini -v -v
 
 # Virtualenv for the rest of the script to run setup & e2e tests
 ${LOCAL_PATH}/virtualenv sdks/python
