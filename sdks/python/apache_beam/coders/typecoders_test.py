@@ -46,11 +46,10 @@ class CustomClass(object):
 class CustomCoder(coders.Coder):
 
   def encode(self, value):
-    x = value.number
-    return int(x).to_bytes((x.bit_length() + 7) // 8, 'big', signed=True)
+    return str(value.number).encode('latin-1')
 
   def decode(self, encoded):
-    return CustomClass(int.from_bytes(encoded, 'big', signed=True) - 1)
+    return CustomClass(encoded.decode('latin-1'))
 
   def is_deterministic(self):
     # This coder is deterministic. Though we don't use need this coder to be

@@ -25,6 +25,7 @@ import math
 import unittest
 from builtins import int
 from builtins import range
+from builtins import str
 
 import dill
 
@@ -44,11 +45,10 @@ from . import observable
 class CustomCoder(coders.Coder):
 
   def encode(self, x):
-    x = x + 1
-    return int(x).to_bytes((x.bit_length() + 7) // 8, 'big', signed=True)
+    return str(x + 1).encode('latin-1')
 
   def decode(self, encoded):
-    return int.from_bytes(encoded, 'big', signed=True) - 1
+    return int(encoded.decode('latin-1')) - 1
 
 
 class CodersTest(unittest.TestCase):
