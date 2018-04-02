@@ -630,7 +630,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return new WindowedContextOutputReceiver<>(this);
+      return new WindowedContextOutputReceiver<>(this, null);
     }
 
     @Override

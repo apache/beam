@@ -136,7 +136,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
           @Override
           public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-            return new WindowedContextOutputReceiver<>(processContext);
+            return new WindowedContextOutputReceiver<>(processContext, null);
           }
 
           @Override

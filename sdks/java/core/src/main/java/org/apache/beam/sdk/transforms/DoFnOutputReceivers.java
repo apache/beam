@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.values.TupleTag;
@@ -30,19 +31,30 @@ public class DoFnOutputReceivers {
    * A {@link OutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
    */
   public static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
-    DoFn<?, T>.WindowedContext context;
-    public WindowedContextOutputReceiver(DoFn<?, T>.WindowedContext context) {
+    DoFn<?, ?>.WindowedContext context;
+    @Nullable TupleTag<T> outputTag;
+    public WindowedContextOutputReceiver(DoFn<?, ?>.WindowedContext context,
+                                         @Nullable TupleTag<T> outputTag) {
       this.context = context;
+      this.outputTag = outputTag;
     }
 
     @Override
     public void output(T output) {
-      context.output(output);
+      if (outputTag != null) {
+        context.output(outputTag, output);
+      } else {
+        ((DoFn<?, T>.WindowedContext) context).output(output);
+      }
     }
 
     @Override
     public void outputWithTimestamp(T output, Instant timestamp) {
-      context.outputWithTimestamp(output, timestamp);
+      if (outputTag != null) {
+        context.outputWithTimestamp(outputTag, output, timestamp);
+      } else {
+        ((DoFn<?, T>.WindowedContext) context).outputWithTimestamp(output, timestamp);
+      }
     }
   }
 
@@ -56,13 +68,8 @@ public class DoFnOutputReceivers {
     }
 
     @Override
-    public <T> void output(TupleTag<T> tag, T output) {
-      context.output(tag, output);
-    }
-
-    @Override
-    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      context.outputWithTimestamp(tag, output, timestamp);
+    public <T> OutputReceiver<T> get(TupleTag<T> tag) {
+      return new WindowedContextOutputReceiver<T>(context, tag);
     }
   }
 }

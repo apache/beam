@@ -520,7 +520,7 @@ public class ParDoTest implements Serializable {
                 @ProcessElement
                 public void processElement(@Element Integer element,
                                            MultiOutputReceiver r) {
-                  r.output(additionalOutputTag, element);
+                  r.get(additionalOutputTag).output(element);
                 }})
             .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)));
 
@@ -1015,8 +1015,8 @@ public class ParDoTest implements Serializable {
 
     @ProcessElement
     public void processElement(MultiOutputReceiver r) {
-      r.output(mainOutputTag, 1);
-      r.output(dummyOutputTag, new TestDummy());
+      r.get(mainOutputTag).output(1);
+      r.get(dummyOutputTag).output(new TestDummy());
      }
   }
 
@@ -1030,8 +1030,8 @@ public class ParDoTest implements Serializable {
 
     @ProcessElement
     public void processElement(MultiOutputReceiver r) {
-      r.output(mainOutputTag, new TestDummy());
-      r.output(intOutputTag, 1);
+      r.get(mainOutputTag).output(new TestDummy());
+      r.get(intOutputTag).output(1);
      }
   }
 
@@ -1316,8 +1316,8 @@ public class ParDoTest implements Serializable {
                           @ProcessElement
                           public void processElement(@Element Integer element,
                                                      MultiOutputReceiver r) {
-                            r.outputWithTimestamp(
-                                additionalOutputTag,
+                            r.get(additionalOutputTag)
+                                .outputWithTimestamp(
                                 element,
                                 new Instant(element.longValue()));
                           }
@@ -1982,9 +1982,9 @@ public class ParDoTest implements Serializable {
               @StateId(stateId) ValueState<Integer> state, MultiOutputReceiver r) {
             Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
             if (currentValue % 2 == 0) {
-              r.output(evenTag, currentValue);
+              r.get(evenTag).output(currentValue);
             } else {
-              r.output(oddTag, currentValue);
+              r.get(oddTag).output(currentValue);
             }
             state.write(currentValue + 1);
           }

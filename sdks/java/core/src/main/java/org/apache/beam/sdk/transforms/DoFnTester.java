@@ -292,7 +292,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
             @Override
             public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-              return new WindowedContextOutputReceiver<>(processContext);
+              return new WindowedContextOutputReceiver<>(processContext, null);
             }
 
             @Override
