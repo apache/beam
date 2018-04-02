@@ -158,6 +158,12 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
           }
 
           @Override
+          public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+            throw new UnsupportedOperationException(
+                "Access to pane of the element not supported in Splittable DoFn");
+          }
+
+          @Override
           public PipelineOptions pipelineOptions() {
             return pipelineOptions;
           }
