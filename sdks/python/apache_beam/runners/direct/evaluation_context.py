@@ -151,11 +151,10 @@ class _SideInputsContainer(object):
       Tasks that get unblocked as a result of the watermark advancing.
     """
     with self._lock:
-      unblocked_tasks = []
       view = self._views[side_input]
       view.watermark = watermark
 
-      view = self._views[side_input]
+      unblocked_tasks = []
       tasks_just_unblocked = []
       for task, block_until in view.blocked_tasks:
         if watermark.output_watermark >= block_until:
