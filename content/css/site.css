@@ -6551,28 +6551,29 @@ body {
 .section-nav {
   max-width: 250px;
   position: fixed;
-  width: 100%; }
+  width: 100%;
+  overflow-y: auto;
+  background-color: #F7F7F7; }
   .section-nav nav {
-    background-color: #F7F7F7;
     padding: 15px;
-    max-height: calc(100vh - 130px);
-    overflow-y: auto; }
+    max-height: calc(100vh - 130px); }
     .section-nav nav ul {
       list-style: none; }
     .section-nav nav li {
       margin-bottom: 5px; }
       .section-nav nav li:last-child {
         margin-bottom: 0; }
+    .section-nav nav .section-nav-list {
+      padding-left: 16px; }
     .section-nav nav a {
       font-size: 12px; }
-    .section-nav nav > .section-nav-list {
-      padding: 0; }
-      .section-nav nav > .section-nav-list .section-nav-list {
-        padding-left: 15px; }
     @media (max-width: 1024px) {
       .section-nav nav {
         background-color: #FFF;
         max-height: 100vh; } }
+    .section-nav nav .active {
+      text-decoration: underline;
+      color: #0f3556; }
   .section-nav-back {
     display: none;
     padding: 15px; }
@@ -6582,14 +6583,32 @@ body {
   .section-nav-list-title {
     display: block;
     font-size: 12px;
-    margin-bottom: 5px;
-    padding-top: 5px; }
+    position: relative;
+    margin-bottom: 5px; }
+    .section-nav-list-title--collapsible {
+      cursor: pointer; }
   .section-nav-list-main-title {
     display: block;
     font-size: 12px;
     font-weight: bold;
     margin-bottom: 15px;
     text-transform: uppercase; }
+  .section-nav-item--collapsible {
+    cursor: pointer; }
+    .section-nav-item--collapsible .section-nav-list {
+      display: none; }
+    .section-nav-item--collapsible span:before {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: -16px;
+      border-style: solid;
+      border-width: 5px 0 5px 8px;
+      border-color: transparent transparent transparent #3371e3;
+      transform: rotate(0deg);
+      transition: 0.3s; }
+  .section-nav .expanded > span:before {
+    transform: rotate(90deg); }
   @media (max-width: 1024px) {
     .section-nav {
       background-color: #F7F7F7;
