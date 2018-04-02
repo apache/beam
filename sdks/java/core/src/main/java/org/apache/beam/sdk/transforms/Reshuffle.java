@@ -94,10 +94,12 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
             ParDo.of(
                 new DoFn<KV<K, Iterable<TimestampedValue<V>>>, KV<K, TimestampedValue<V>>>() {
                   @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    K key = c.element().getKey();
-                    for (TimestampedValue<V> value : c.element().getValue()) {
-                      c.output(KV.of(key, value));
+                  public void processElement(
+                      @Element KV<K, Iterable<TimestampedValue<V>>> element,
+                      OutputReceiver<KV<K, TimestampedValue<V>>> r) {
+                    K key = element.getKey();
+                    for (TimestampedValue<V> value : element.getValue()) {
+                      r.output(KV.of(key, value));
                     }
                   }
                 }))
@@ -125,7 +127,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
       }
 
       @ProcessElement
-      public void processElement(ProcessContext context) {
+      public void processElement(@Element T element, OutputReceiver<KV<Integer, T>> r) {
         ++shard;
         // Smear the shard into something more random-looking, to avoid issues
         // with runners that don't properly hash the key being shuffled, but rely
@@ -135,7 +137,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         // spark.html
         // This hashing strategy is copied from com.google.common.collect.Hashing.smear().
         int hashOfShard = 0x1b873593 * Integer.rotateLeft(shard * 0xcc9e2d51, 15);
-        context.output(KV.of(hashOfShard, context.element()));
+        r.output(KV.of(hashOfShard, element));
       }
     }
   }

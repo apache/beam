@@ -33,6 +33,7 @@ import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.joda.time.Instant;
 
 /**
@@ -106,6 +107,12 @@ public interface DoFnInvoker<InputT, OutputT> {
      * @return {@link BoundedWindow} of the element currently being processed.
      */
     BoundedWindow window();
+
+    /**
+     * Provides a {@link PaneInfo}.
+     */
+    PaneInfo paneInfo(DoFn<InputT, OutputT> doFn);
+
 
     /** Provide {@link PipelineOptions}. */
     PipelineOptions pipelineOptions();
@@ -212,6 +219,14 @@ public interface DoFnInvoker<InputT, OutputT> {
 
     @Override
     public BoundedWindow window() {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
+    }
+
+    @Override
+    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format(
               "Should never call non-overridden methods of %s",

@@ -189,6 +189,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((OnTimerContextParameter) this);
       } else if (this instanceof WindowParameter) {
         return cases.dispatch((WindowParameter) this);
+      } else if (this instanceof PaneInfoParameter) {
+        return cases.dispatch((PaneInfoParameter) this);
       } else if (this instanceof RestrictionTrackerParameter) {
         return cases.dispatch((RestrictionTrackerParameter) this);
       } else if (this instanceof StateParameter) {
@@ -228,6 +230,7 @@ public abstract class DoFnSignature {
       ResultT dispatch(TaggedOutputReceiverParameter p);
       ResultT dispatch(OnTimerContextParameter p);
       ResultT dispatch(WindowParameter p);
+      ResultT dispatch(PaneInfoParameter p);
       ResultT dispatch(RestrictionTrackerParameter p);
       ResultT dispatch(StateParameter p);
       ResultT dispatch(TimerParameter p);
@@ -291,6 +294,11 @@ public abstract class DoFnSignature {
         }
 
         @Override
+        public ResultT dispatch(PaneInfoParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
         public ResultT dispatch(RestrictionTrackerParameter p) {
           return dispatchDefault(p);
         }
@@ -312,7 +320,7 @@ public abstract class DoFnSignature {
       }
     }
 
-    // These parameter descriptors are constant
+    // These parameter descriptors are constant.
     private static final StartBundleContextParameter START_BUNDLE_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_StartBundleContextParameter();
     private static final FinishBundleContextParameter FINISH_BUNDLE_CONTEXT_PARAMETER =
@@ -325,6 +333,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_ElementParameter();
     private static final TimestampParameter TIMESTAMP_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimestampParameter();
+    private static final PaneInfoParameter PANE_INFO_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_PaneInfoParameter();
     private static final TimeDomainParameter TIME_DOMAIN_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimeDomainParameter();
     private static final OutputReceiverParameter OUTPUT_RECEIVER_PARAMETER =
@@ -360,6 +370,10 @@ public abstract class DoFnSignature {
     /** Returns a {@link OnTimerContextParameter}. */
     public static OnTimerContextParameter onTimerContext() {
       return ON_TIMER_CONTEXT_PARAMETER;
+    }
+
+    public static PaneInfoParameter paneInfoParameter() {
+      return PANE_INFO_PARAMETER;
     }
 
     /** Returns a {@link WindowParameter}. */
@@ -500,6 +514,17 @@ public abstract class DoFnSignature {
       WindowParameter() {}
 
       public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type
+     * {@link org.apache.beam.sdk.transforms.windowing.PaneInfo}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class PaneInfoParameter extends Parameter {
+      PaneInfoParameter() {}
     }
 
     /**

@@ -131,11 +131,11 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
-      Instant timestamp = fn.apply(c.element());
+    public void processElement(@Element T element, OutputReceiver<T> r) {
+      Instant timestamp = fn.apply(element);
       checkNotNull(
           timestamp, "Timestamps for WithTimestamps cannot be null. Timestamp provided by %s.", fn);
-      c.outputWithTimestamp(c.element(), timestamp);
+      r.outputWithTimestamp(element, timestamp);
     }
 
     @Override

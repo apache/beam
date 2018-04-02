@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.OutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PaneInfoParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.PipelineOptionsParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
@@ -56,6 +57,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampP
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matcher;
@@ -90,11 +92,12 @@ public class DoFnSignaturesTest {
     DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
       @ProcessElement
       public void process(@Element String element, @Timestamp Instant timestamp,
-                          BoundedWindow window, OutputReceiver<String> receiver,
+                          BoundedWindow window, PaneInfo paneInfo,
+                          OutputReceiver<String> receiver,
                           PipelineOptions options) {}
     }.getClass());
 
-    assertThat(sig.processElement().extraParameters().size(), equalTo(5));
+    assertThat(sig.processElement().extraParameters().size(), equalTo(6));
     assertThat(
         sig.processElement().extraParameters().get(0), instanceOf(ElementParameter.class));
     assertThat(
@@ -102,9 +105,11 @@ public class DoFnSignaturesTest {
     assertThat(
         sig.processElement().extraParameters().get(2), instanceOf(WindowParameter.class));
     assertThat(
-        sig.processElement().extraParameters().get(3), instanceOf(OutputReceiverParameter.class));
+        sig.processElement().extraParameters().get(3), instanceOf(PaneInfoParameter.class));
     assertThat(
-        sig.processElement().extraParameters().get(4), instanceOf(PipelineOptionsParameter.class));
+        sig.processElement().extraParameters().get(4), instanceOf(OutputReceiverParameter.class));
+    assertThat(
+        sig.processElement().extraParameters().get(5), instanceOf(PipelineOptionsParameter.class));
   }
 
   @Test

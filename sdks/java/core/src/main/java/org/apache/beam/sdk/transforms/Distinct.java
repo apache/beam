@@ -22,6 +22,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -124,10 +125,11 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
         ParDo.of(
             new DoFn<KV<T, Void>, T>() {
               @ProcessElement
-              public void processElement(ProcessContext c) {
-                if (c.pane().isFirst()) {
+              public void processElement(@Element KV<T, Void> element, PaneInfo pane,
+                                         OutputReceiver<T> receiver) {
+                if (pane.isFirst()) {
                   // Only output the key if it's the first time it's been seen.
-                  c.output(c.element().getKey());
+                  receiver.output(element.getKey());
                 }
               }
             }));
@@ -187,10 +189,11 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
           ParDo.of(
               new DoFn<KV<IdT, T>, T>() {
                 @ProcessElement
-                public void processElement(ProcessContext c) {
+                public void processElement(@Element KV<IdT, T> element, PaneInfo pane,
+                                           OutputReceiver<T> receiver) {
                   // Only output the value if it's the first time it's been seen.
-                  if (c.pane().isFirst()) {
-                    c.output(c.element().getValue());
+                  if (pane.isFirst()) {
+                    receiver.output(element.getValue());
                   }
                 }
               }));
