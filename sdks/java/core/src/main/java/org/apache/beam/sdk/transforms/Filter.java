@@ -212,9 +212,9 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
             ParDo.of(
                 new DoFn<T, T>() {
                   @ProcessElement
-                  public void processElement(ProcessContext c) {
-                    if (predicate.apply(c.element())) {
-                      c.output(c.element());
+                  public void processElement(@Element T element, OutputReceiver<T> r) {
+                    if (predicate.apply(element)) {
+                      r.output(element);
                     }
                   }
                 }))

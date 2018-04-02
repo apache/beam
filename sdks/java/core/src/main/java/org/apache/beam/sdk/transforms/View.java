@@ -499,8 +499,8 @@ public class View {
 
     private static class VoidKeyToMultimapMaterializationDoFn<T> extends DoFn<T, KV<Void, T>> {
       @ProcessElement
-      public void processElement(ProcessContext ctxt) {
-        ctxt.output(KV.of((Void) null, ctxt.element()));
+      public void processElement(@Element T element, OutputReceiver<KV<Void, T>> r) {
+        r.output(KV.of((Void) null, element));
       }
     }
 

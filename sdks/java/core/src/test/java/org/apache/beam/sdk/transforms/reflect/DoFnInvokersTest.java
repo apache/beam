@@ -84,6 +84,7 @@ public class DoFnInvokersTest {
   @Mock private OutputReceiver<String> mockOutputReceiver;
   @Mock private MultiOutputReceiver mockMultiOutputReceiver;
   @Mock private IntervalWindow mockWindow;
+ // @Mock private PaneInfo mockPaneInfo;
   @Mock private DoFnInvoker.ArgumentProvider<String, String> mockArgumentProvider;
 
   @Before
@@ -92,6 +93,8 @@ public class DoFnInvokersTest {
     mockTimestamp = new Instant(0);
     MockitoAnnotations.initMocks(this);
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
+   // when(mockArgumentProvider.paneInfo(Matchers.<DoFn>any()))
+   //     .thenReturn(mockPaneInfo);
     //when(mockArgumentProvider.element(Matchers.<DoFn>any()))
     //    .thenReturn(mockElement);
     when(mockArgumentProvider.timestamp(Matchers.<DoFn>any()))
@@ -211,6 +214,7 @@ public class DoFnInvokersTest {
                                //  @Element String element,
                                  @Timestamp Instant timestamp,
                                  IntervalWindow w,
+                         //        PaneInfo p,
                                  OutputReceiver<String> receiver,
                                  MultiOutputReceiver multiReceiver) throws Exception {}
     }

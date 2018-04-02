@@ -247,6 +247,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+              return processContext.pane();
+            }
+
+            @Override
             public PipelineOptions pipelineOptions() {
               return getPipelineOptions();
             }

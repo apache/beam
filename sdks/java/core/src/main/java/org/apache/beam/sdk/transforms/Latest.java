@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.joda.time.Instant;
 
 /**
  * {@link PTransform} and {@link Combine.CombineFn} for computing the latest element
@@ -167,8 +168,9 @@ public class Latest {
               ParDo.of(
                   new DoFn<T, TimestampedValue<T>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      c.output(TimestampedValue.of(c.element(), c.timestamp()));
+                    public void processElement(@Element T element, @Timestamp Instant timestamp,
+                                               OutputReceiver<TimestampedValue<T>> r) {
+                      r.output(TimestampedValue.of(element, timestamp));
                     }
                   }))
           .setCoder(TimestampedValue.TimestampedValueCoder.of(inputCoder))
@@ -194,11 +196,13 @@ public class Latest {
               ParDo.of(
                   new DoFn<KV<K, V>, KV<K, TimestampedValue<V>>>() {
                     @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      c.output(
+                    public void processElement(@Element KV<K, V> element,
+                                               @Timestamp Instant timestamp,
+                                               OutputReceiver<KV<K, TimestampedValue<V>>> r) {
+                      r.output(
                           KV.of(
-                              c.element().getKey(),
-                              TimestampedValue.of(c.element().getValue(), c.timestamp())));
+                              element.getKey(),
+                              TimestampedValue.of(element.getValue(), timestamp)));
                     }
                   }))
           .setCoder(

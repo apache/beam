@@ -81,12 +81,12 @@ public class CombineFns {
    *     .apply(ParDo.of(
    *         new DoFn<CoCombineResult, T>() {
    *          {@literal @}ProcessElement
-   *           public void processElement(ProcessContext c) throws Exception {
-   *             CoCombineResult e = c.element();
+   *           public void processElement(
+   *             @Element CoCombineResult e, OutputReceiver<T> r) throws Exception {
    *             Integer maxLatency = e.get(maxLatencyTag);
    *             Double meanLatency = e.get(meanLatencyTag);
    *             .... Do Something ....
-   *             c.output(...some T...);
+   *             r.output(...some T...);
    *           }
    *         }));
    * }</pre>

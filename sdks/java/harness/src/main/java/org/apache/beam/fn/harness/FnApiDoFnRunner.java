@@ -496,6 +496,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     }
 
     @Override
+    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access paneInfo outside of @ProcessElement methods.");
+    }
+
+    @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
         DoFn<InputT, OutputT> doFn) {
       return this;
@@ -582,6 +588,11 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     @Override
     public BoundedWindow window() {
       return currentWindow;
+    }
+
+    @Override
+    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+      return pane();
     }
 
     @Override
@@ -764,6 +775,12 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     public BoundedWindow window() {
       throw new UnsupportedOperationException(
           "Cannot access window outside of @ProcessElement and @OnTimer methods.");
+    }
+
+    @Override
+    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access paneInfo outside of @ProcessElement methods.");
     }
 
     @Override

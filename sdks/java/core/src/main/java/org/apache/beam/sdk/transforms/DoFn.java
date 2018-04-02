@@ -74,7 +74,7 @@ import org.joda.time.Instant;
  * {@literal PCollection<String>} words =
  *     {@literal lines.apply(ParDo.of(new DoFn<String, String>())} {
  *         {@literal @ProcessElement}
- *          public void processElement(ProcessContext c, BoundedWindow window) {
+ *          public void processElement({@literal @}Element String element, BoundedWindow window) {
  *            ...
  *          }}));
  * </code></pre>
@@ -396,7 +396,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    *  {@literal @ProcessElement}
    *   public void processElement(
-   *       ProcessContext c,
+   *       {@literal @Element InputT element},
    *      {@literal @StateId("my-state-id") ValueState<MyState> myState}) {
    *     myState.read();
    *     myState.write(...);
@@ -435,7 +435,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    *   {@literal @ProcessElement}
    *    public void processElement(
-   *        ProcessContext c,
+   *       {@literal @Element InputT element},
    *       {@literal @TimerId("my-timer-id") Timer myTimer}) {
    *      myTimer.offset(Duration.standardSeconds(...)).setRelative();
    *    }
@@ -528,15 +528,28 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <p>The signature of this method must satisfy the following constraints:
    *
    * <ul>
-   * <li>Its first argument must be a {@link DoFn.ProcessContext}.
    * <li>If one of its arguments is a subtype of {@link RestrictionTracker}, then it is a <a
    *     href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn} subject to the
    *     separate requirements described below. Items below are assuming this is not a splittable
    *     {@link DoFn}.
-   * <li>If one of its arguments is a subtype of {@link BoundedWindow} then it will
+   *  <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
+   *      passed the current element being processed; the argument type must match the input type
+   *      of this DoFn.
+   *  <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
+   *      passed the timestamp of the current element being processed; the argument must be of type
+   *      {@link Instant}.
+   * <li>If one of its arguments is a subtype of {@link BoundedWindow}, then it will
    *     be passed the window of the current element. When applied by {@link ParDo} the subtype
    *     of {@link BoundedWindow} must match the type of windows on the input {@link PCollection}.
    *     If the window is not accessed a runner may perform additional optimizations.
+   *  <li>If one of its arguments is of type {@link PaneInfo}, then it will be passed information
+   *      about the current triggering pane.
+   *  <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
+   *      options for the current pipeline.
+   *  <li>If one of the parameters is of type {@link OutputReceiver}, then it will be passed an
+   *      output receiver for outputting elements to the default output.
+   *  <li>If one of the parameters is of type {@link MultiOutputReceiver}, then it will be passed
+   *      an output receiver for outputting to multiple tagged outputs.
    * <li>It must return {@code void}.
    * </ul>
    *
