@@ -82,7 +82,7 @@ public class CombineFns {
    *         new DoFn<CoCombineResult, T>() {
    *          {@literal @}ProcessElement
    *           public void processElement(
-   *             @Element CoCombineResult e, OutputReceiver<T> r) throws Exception {
+   *            {@literal @}Element CoCombineResult e, OutputReceiver<T> r) throws Exception {
    *             Integer maxLatency = e.get(maxLatencyTag);
    *             Double meanLatency = e.get(meanLatencyTag);
    *             .... Do Something ....
