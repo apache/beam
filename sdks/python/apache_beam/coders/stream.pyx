@@ -39,7 +39,7 @@ cdef class OutputStream(object):
     if self.data:
       libc.stdlib.free(self.data)
 
-  cpdef write(self, bytes b, bint nested=False):
+  cpdef write(self, b, bint nested=False):
     cdef size_t blen = len(b)
     if nested:
       self.write_var_int64(blen)
@@ -122,7 +122,7 @@ cdef class ByteCountingOutputStream(OutputStream):
   def __cinit__(self):
     self.count = 0
 
-  cpdef write(self, bytes b, bint nested=False):
+  cpdef write(self, b, bint nested=False):
     cdef size_t blen = len(b)
     if nested:
       self.write_var_int64(blen)
