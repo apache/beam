@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
-import java.net.URI;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
@@ -76,7 +75,7 @@ public class TextTableProviderTest {
     return Table.builder()
         .name(name)
         .comment(name + " table")
-        .location(URI.create("text://home/admin/" + name))
+        .location("/home/admin/" + name)
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")

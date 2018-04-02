@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.parser;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.base.Strings;
-import java.net.URI;
 import java.util.List;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -109,8 +108,8 @@ public class SqlCreateTable extends SqlCall {
     return tblName.toString();
   }
 
-  public URI location() {
-    return location == null ? null : URI.create(getString(location));
+  public String location() {
+    return location == null ? null : getString(location);
   }
 
   public String type() {

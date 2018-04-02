@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
-import java.net.URI;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
@@ -65,7 +64,7 @@ public class KafkaTableProviderTest {
     return Table.builder()
         .name(name)
         .comment(name + " table")
-        .location(URI.create("kafka://localhost:2181/brokers?topic=test"))
+        .location("kafka://localhost:2181/brokers?topic=test")
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")
