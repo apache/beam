@@ -28,9 +28,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.Field;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Rule;
@@ -50,11 +48,11 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32))
+                Schema.Field.of("f_int", TypeName.INT32.type())
                     .withNullable(true),
-                Schema.Field.of("f_str", FieldTypeDescriptor.of(FieldType.STRING))
+                Schema.Field.of("f_str", TypeName.STRING.type())
                     .withNullable(true),
-                Schema.Field.of("f_double", FieldTypeDescriptor.of(FieldType.DOUBLE))
+                Schema.Field.of("f_double", TypeName.DOUBLE.type())
                     .withNullable(true))
             .collect(toSchema());
 
@@ -67,7 +65,7 @@ public class RowTest {
 
   @Test
   public void testRejectsNullRecord() {
-    Schema type = Stream.of(Schema.Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32)))
+    Schema type = Stream.of(Schema.Field.of("f_int", TypeName.INT32.type()))
         .collect(toSchema());
     thrown.expect(IllegalArgumentException.class);
     Row.nullRow(type);
@@ -75,24 +73,24 @@ public class RowTest {
 
   @Test
   public void testCreatesRecord() {
-    Schema type = Schema.of(
-        Field.of("f_byte", FieldTypeDescriptor.of(FieldType.BYTE)),
-        Field.of("f_int16", FieldTypeDescriptor.of(FieldType.INT16)),
-        Field.of("f_int32", FieldTypeDescriptor.of(FieldType.INT32)),
-        Field.of("f_int64", FieldTypeDescriptor.of(FieldType.INT64)),
-        Field.of("f_decimal", FieldTypeDescriptor.of(FieldType.DECIMAL)),
-        Field.of("f_float", FieldTypeDescriptor.of(FieldType.FLOAT)),
-        Field.of("f_double", FieldTypeDescriptor.of(FieldType.DOUBLE)),
-        Field.of("f_string", FieldTypeDescriptor.of(FieldType.STRING)),
-        Field.of("f_datetime", FieldTypeDescriptor.of(FieldType.DATETIME)),
-        Field.of("f_boolean", FieldTypeDescriptor.of(FieldType.BOOLEAN)));
+    Schema schema = Schema.builder()
+        .addByteField("f_byte", false)
+        .addInt16Field("f_int16", false)
+        .addInt32Field("f_int32", false)
+        .addInt64Field("f_int64", false)
+        .addDecimalField("f_decimal", false)
+        .addFloatField("f_float", false)
+        .addDoubleField("f_double", false)
+        .addStringField("f_string", false)
+        .addDateTimeField("f_datetime", false)
+        .addBooleanField("f_boolean", false).build();
 
     DateTime dateTime = new DateTime().withDate(1979, 03, 14)
         .withTime(1, 2, 3, 4)
         .withZone(DateTimeZone.UTC);
     Row row =
         Row
-            .withSchema(type)
+            .withSchema(schema)
             .addValues((byte) 0, (short) 1, 2, 3L, new BigDecimal(2.3), 1.2f, 3.0d, "str",
                 dateTime, false)
             .build();
@@ -114,14 +112,14 @@ public class RowTest {
   @Test
   public void testCreatesNestedRow() {
     Schema nestedType = Stream.of(
-        Schema.Field.of("f1_str", FieldTypeDescriptor.of(FieldType.STRING)))
+        Schema.Field.of("f1_str", TypeName.STRING.type()))
         .collect(toSchema());
 
     Schema type =
         Stream
-            .of(Schema.Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32)),
+            .of(Schema.Field.of("f_int", TypeName.INT32.type()),
                 Schema.Field.of("nested",
-                    FieldTypeDescriptor.of(FieldType.ROW)
+                    TypeName.ROW.type()
                     .withRowSchema(nestedType)))
         .collect(toSchema());
     Row nestedRow = Row.withSchema(nestedType).addValues("foobar").build();
@@ -135,8 +133,8 @@ public class RowTest {
     List<Integer> data = Lists.newArrayList(2, 3, 5, 7);
     Schema type = Stream
         .of(Schema.Field.of("array",
-            FieldTypeDescriptor.of(FieldType.ARRAY)
-                .withComponentType(FieldTypeDescriptor.of(FieldType.INT32))))
+            TypeName.ARRAY.type()
+                .withComponentType(TypeName.INT32.type())))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
@@ -145,7 +143,7 @@ public class RowTest {
   @Test
   public void testCreatesRowArray() {
     Schema nestedType = Stream.of(
-        Schema.Field.of("f1_str", FieldTypeDescriptor.of(FieldType.STRING)))
+        Schema.Field.of("f1_str", TypeName.STRING.type()))
         .collect(toSchema());
     List<Row> data = Lists.newArrayList(
         Row.withSchema(nestedType).addValues("one").build(),
@@ -154,8 +152,8 @@ public class RowTest {
 
     Schema type = Stream
         .of(Schema.Field.of("array",
-            FieldTypeDescriptor.of(FieldType.ARRAY)
-                .withComponentType(FieldTypeDescriptor.of(FieldType.ROW)
+            TypeName.ARRAY.type()
+                .withComponentType(TypeName.ROW.type()
                     .withRowSchema(nestedType))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
@@ -168,9 +166,9 @@ public class RowTest {
         Lists.newArrayList(1, 2, 3, 4));
     Schema type = Stream
         .of(Schema.Field.of("array",
-            FieldTypeDescriptor.of(FieldType.ARRAY)
-                .withComponentType(FieldTypeDescriptor.of(FieldType.ARRAY)
-                    .withComponentType(FieldTypeDescriptor.of(FieldType.INT32)))))
+            TypeName.ARRAY.type()
+                .withComponentType(TypeName.ARRAY.type()
+                    .withComponentType(TypeName.INT32.type()))))
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
@@ -181,9 +179,9 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32)),
-                Schema.Field.of("f_str", FieldTypeDescriptor.of(FieldType.STRING)),
-                Schema.Field.of("f_double", FieldTypeDescriptor.of(FieldType.DOUBLE)))
+                Schema.Field.of("f_int", TypeName.INT32.type()),
+                Schema.Field.of("f_str", TypeName.STRING.type()),
+                Schema.Field.of("f_double", TypeName.DOUBLE.type()))
             .collect(toSchema());
 
     Row row =
@@ -201,9 +199,9 @@ public class RowTest {
     Schema type =
         Stream
             .of(
-                Schema.Field.of("f_int", FieldTypeDescriptor.of(FieldType.INT32)),
-                Schema.Field.of("f_str", FieldTypeDescriptor.of(FieldType.STRING)),
-                Schema.Field.of("f_double", FieldTypeDescriptor.of(FieldType.DOUBLE)))
+                Schema.Field.of("f_int", TypeName.INT32.type()),
+                Schema.Field.of("f_str", TypeName.STRING.type()),
+                Schema.Field.of("f_double", TypeName.DOUBLE.type()))
             .collect(toSchema());
 
     thrown.expect(IllegalArgumentException.class);

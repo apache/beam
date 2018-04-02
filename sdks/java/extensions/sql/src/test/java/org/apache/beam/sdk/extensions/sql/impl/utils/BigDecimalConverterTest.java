@@ -21,7 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.utils;
 import static org.junit.Assert.assertNotNull;
 
 import java.math.BigDecimal;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,7 +36,7 @@ public class BigDecimalConverterTest {
 
   @Test
   public void testReturnsConverterForNumericTypes() {
-    for (FieldType numericType : FieldType.NUMERIC_TYPES) {
+    for (TypeName numericType : TypeName.NUMERIC_TYPES) {
       SerializableFunction<BigDecimal, ? extends Number> converter =
           BigDecimalConverter.forSqlType(numericType);
 
@@ -48,6 +48,6 @@ public class BigDecimalConverterTest {
   @Test
   public void testThrowsForUnsupportedTypes() {
     thrown.expect(UnsupportedOperationException.class);
-    BigDecimalConverter.forSqlType(FieldType.STRING);
+    BigDecimalConverter.forSqlType(TypeName.STRING);
   }
 }

@@ -44,13 +44,13 @@ public class BeamSqlTimestampMinusTimestampExpressionTest {
 
   private static final DateTime DATE = new DateTime()
       .withDate(2017, 3, 4)
-  .withTime(3, 2, 1, 0);
-  private static final DateTime DATE_MINUS_2_SEC = new DateTime(DATE).minusSeconds(2);
-  private static final DateTime DATE_MINUS_3_MIN = new DateTime(DATE).minusMinutes(3);
-  private static final DateTime DATE_MINUS_4_HOURS = new DateTime(DATE).minusHours(4);
-  private static final DateTime DATE_MINUS_7_DAYS = new DateTime(DATE).minusDays(7);
-  private static final DateTime DATE_MINUS_2_MONTHS = new DateTime(DATE).minusMonths(2);
-  private static final DateTime DATE_MINUS_1_YEAR = new DateTime(DATE).minusYears(1);
+      .withTime(3, 2, 1, 0);
+  private static final DateTime DATE_MINUS_2_SEC = DATE.minusSeconds(2);
+  private static final DateTime DATE_MINUS_3_MIN = DATE.minusMinutes(3);
+  private static final DateTime DATE_MINUS_4_HOURS = DATE.minusHours(4);
+  private static final DateTime DATE_MINUS_7_DAYS = DATE.minusDays(7);
+  private static final DateTime DATE_MINUS_2_MONTHS = DATE.minusMonths(2);
+  private static final DateTime DATE_MINUS_1_YEAR = DATE.minusYears(1);
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 

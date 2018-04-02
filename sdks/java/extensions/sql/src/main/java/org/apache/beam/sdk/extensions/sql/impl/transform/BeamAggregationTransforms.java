@@ -46,7 +46,7 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.BigDecimalConverter;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -171,29 +171,27 @@ public class BeamAggregationTransforms implements Serializable{
           int refIndexKey = call.getArgList().get(0);
           int refIndexValue = call.getArgList().get(1);
 
-          FieldTypeDescriptor keyDescriptor =
-              sourceSchema.getField(refIndexKey).getTypeDescriptor();
+          FieldType keyDescriptor = sourceSchema.getField(refIndexKey).getType();
           BeamSqlInputRefExpression sourceExpKey = new BeamSqlInputRefExpression(
-              CalciteUtils.toSqlTypeName(keyDescriptor.getType(), keyDescriptor.getMetadata()),
+              CalciteUtils.toSqlTypeName(keyDescriptor),
               refIndexKey);
 
-          FieldTypeDescriptor valueDescriptor =
-              sourceSchema.getField(refIndexValue).getTypeDescriptor();
+          FieldType valueDescriptor = sourceSchema.getField(refIndexValue).getType();
           BeamSqlInputRefExpression sourceExpValue = new BeamSqlInputRefExpression(
-              CalciteUtils.toSqlTypeName(valueDescriptor.getType(), valueDescriptor.getMetadata()),
+              CalciteUtils.toSqlTypeName(valueDescriptor),
                   refIndexValue);
 
           sourceFieldExps.add(KV.of(sourceExpKey, sourceExpValue));
         } else {
           int refIndex = call.getArgList().size() > 0 ? call.getArgList().get(0) : 0;
-          FieldTypeDescriptor typeDescriptor = sourceSchema.getField(refIndex).getTypeDescriptor();
+          FieldType fieldType = sourceSchema.getField(refIndex).getType();
           BeamSqlInputRefExpression sourceExp = new BeamSqlInputRefExpression(
-              CalciteUtils.toSqlTypeName(typeDescriptor.getType(), typeDescriptor.getMetadata()),
+              CalciteUtils.toSqlTypeName(fieldType),
               refIndex);
           sourceFieldExps.add(sourceExp);
         }
 
-        FieldTypeDescriptor typeDescriptor = CalciteUtils.toFieldTypeDescriptor(call.type);
+        FieldType typeDescriptor = CalciteUtils.toFieldType(call.type);
         fields.add(Schema.Field.of(call.name, typeDescriptor));
 
         switch (call.getAggregation().getName()) {
@@ -214,20 +212,22 @@ public class BeamAggregationTransforms implements Serializable{
             break;
           case "VAR_POP":
             aggregators.add(
-                VarianceFn.newPopulation(BigDecimalConverter.forSqlType(typeDescriptor.getType())));
+                VarianceFn.newPopulation(BigDecimalConverter.forSqlType(
+                    typeDescriptor.getTypeName())));
             break;
           case "VAR_SAMP":
             aggregators.add(
-                VarianceFn.newSample(BigDecimalConverter.forSqlType(typeDescriptor.getType())));
+                VarianceFn.newSample(BigDecimalConverter.forSqlType(typeDescriptor.getTypeName())));
             break;
           case "COVAR_POP":
             aggregators.add(
                 CovarianceFn.newPopulation(
-                    BigDecimalConverter.forSqlType(typeDescriptor.getType())));
+                    BigDecimalConverter.forSqlType(typeDescriptor.getTypeName())));
             break;
           case "COVAR_SAMP":
             aggregators.add(
-                CovarianceFn.newSample(BigDecimalConverter.forSqlType(typeDescriptor.getType())));
+                CovarianceFn.newSample(BigDecimalConverter.forSqlType(
+                    typeDescriptor.getTypeName())));
             break;
           default:
             if (call.getAggregation() instanceof SqlUserDefinedAggFunction) {
@@ -325,7 +325,7 @@ public class BeamAggregationTransforms implements Serializable{
           BeamSqlInputRefExpression exp = (BeamSqlInputRefExpression) sourceFieldExps.get(idx);
           int srcFieldIndex = exp.getInputRef();
           Coder srcFieldCoder = RowCoder.coderForPrimitiveType(
-              sourceSchema.getField(srcFieldIndex).getTypeDescriptor().getType());
+              sourceSchema.getField(srcFieldIndex).getType().getTypeName());
           aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, srcFieldCoder));
         } else if (sourceFieldExps.get(idx) instanceof KV) {
           // extract coder of two expressions separately.
@@ -336,9 +336,9 @@ public class BeamAggregationTransforms implements Serializable{
           int srcFieldIndexValue = exp.getValue().getInputRef();
 
           Coder srcFieldCoderKey = RowCoder.coderForPrimitiveType(
-              sourceSchema.getField(srcFieldIndexKey).getTypeDescriptor().getType());
+              sourceSchema.getField(srcFieldIndexKey).getType().getTypeName());
           Coder srcFieldCoderValue = RowCoder.coderForPrimitiveType(
-              sourceSchema.getField(srcFieldIndexValue).getTypeDescriptor().getType());
+              sourceSchema.getField(srcFieldIndexValue).getType().getTypeName());
 
           aggAccuCoderList.add(aggregators.get(idx).getAccumulatorCoder(registry, KvCoder.of(
                   srcFieldCoderKey, srcFieldCoderValue))

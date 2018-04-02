@@ -39,7 +39,7 @@ public class BeamSqlDslNestedRowsTest {
   @Test
   public void testRowConstructorKeyword() {
     Schema nestedSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
@@ -47,7 +47,7 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema resultSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withIntegerField("f_int2")
@@ -56,7 +56,7 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema inputType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withRowField("f_row", nestedSchema)
@@ -97,7 +97,7 @@ public class BeamSqlDslNestedRowsTest {
   public void testRowConstructorBraces() {
 
     Schema nestedSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
@@ -105,7 +105,7 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema resultSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withIntegerField("f_int2")
@@ -114,7 +114,7 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema inputType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withRowField("f_row", nestedSchema)
@@ -155,7 +155,7 @@ public class BeamSqlDslNestedRowsTest {
   public void testNestedRowFieldAccess() {
 
     Schema nestedSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
@@ -163,13 +163,13 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema resultSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("f_nestedString")
             .build();
 
     Schema inputType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withRowField("f_nestedRow", nestedSchema)
@@ -221,13 +221,13 @@ public class BeamSqlDslNestedRowsTest {
   public void testNestedRowArrayFieldAccess() {
 
     Schema resultSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withArrayField("f_nestedArray", SqlTypeName.VARCHAR)
             .build();
 
     Schema nestedSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
@@ -236,7 +236,7 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema inputType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withRowField("f_nestedRow", nestedSchema)
@@ -288,13 +288,13 @@ public class BeamSqlDslNestedRowsTest {
   public void testNestedRowArrayElementAccess() {
 
     Schema resultSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("f_nestedArrayStringField")
             .build();
 
     Schema nestedSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_nestedInt")
             .withVarcharField("f_nestedString")
@@ -303,7 +303,7 @@ public class BeamSqlDslNestedRowsTest {
             .build();
 
     Schema inputType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withRowField("f_nestedRow", nestedSchema)

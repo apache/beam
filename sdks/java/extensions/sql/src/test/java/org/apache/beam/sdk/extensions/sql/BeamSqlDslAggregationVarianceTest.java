@@ -46,7 +46,7 @@ public class BeamSqlDslAggregationVarianceTest {
   @Before
   public void setUp() {
     Schema schema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withDoubleField("f_double")

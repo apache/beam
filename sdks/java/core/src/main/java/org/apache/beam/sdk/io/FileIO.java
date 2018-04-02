@@ -293,8 +293,8 @@ import org.slf4j.LoggerFactory;
  *
  * PCollection<BankTransaction> transactions = ...;
  * transactions.apply(FileIO.<TransactionType, Transaction>writeDynamic()
- *     .by(Transaction::getType)
- *     .via(tx -> tx.getType().toFields(tx),  // Convert the data to be written to CSVSink
+ *     .by(Transaction::getTypeName)
+ *     .via(tx -> tx.getTypeName().toFields(tx),  // Convert the data to be written to CSVSink
  *          type -> new CSVSink(type.getFieldNames()))
  *     .to(".../path/to/")
  *     .withNaming(type -> defaultNaming(type + "-transactions", ".csv"));

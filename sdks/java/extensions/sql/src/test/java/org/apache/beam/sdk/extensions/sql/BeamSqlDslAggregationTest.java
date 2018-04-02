@@ -59,7 +59,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   @Before
   public void setUp() {
     Schema schemaInTableB =
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withIntegerField("f_int")
             .withDoubleField("f_double")
             .withIntegerField("f_int2")
@@ -105,7 +105,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PCollection<Row> result =
         input.apply("testAggregationWithoutWindow", BeamSql.query(sql));
 
-    Schema resultType = RowSqlType.builder()
+    Schema resultType = RowSqlTypes.builder()
         .withIntegerField("f_int2")
         .withBigIntField("size")
         .build();
@@ -151,7 +151,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .apply("testAggregationFunctions", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int2")
             .withBigIntField("size")
@@ -264,7 +264,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         input.apply("testDistinct", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")
@@ -311,7 +311,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .apply("testTumbleWindow", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int2")
             .withBigIntField("size")
@@ -339,7 +339,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   @Category(UsesTestStream.class)
   public void testTriggeredTumble() throws Exception {
     Schema inputSchema =
-        RowSqlType.builder().withIntegerField("f_int").withTimestampField("f_timestamp").build();
+        RowSqlTypes.builder().withIntegerField("f_int").withTimestampField("f_timestamp").build();
 
     PCollection<Row> input =
         pipeline.apply(
@@ -365,7 +365,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         "SELECT SUM(f_int) AS f_int_sum FROM PCOLLECTION"
             + " GROUP BY TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
 
-    Schema outputSchema = RowSqlType.builder().withIntegerField("fn_int_sum").build();
+    Schema outputSchema = RowSqlTypes.builder().withIntegerField("fn_int_sum").build();
 
     PCollection<Row> result =
         input
@@ -415,7 +415,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         input.apply("testHopWindow", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int2")
             .withBigIntField("size")
@@ -463,7 +463,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
             .apply("testSessionWindow", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int2")
             .withBigIntField("size")
@@ -537,7 +537,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
 
     Schema type =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_intGroupingKey")
             .withIntegerField("f_intValue")
@@ -580,7 +580,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     DateTime startTime = new DateTime(2017, 1, 1, 0, 0, 0, 0);
 
     Schema type =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_intGroupingKey")
             .withIntegerField("f_intValue")
@@ -626,7 +626,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
   private List<Row> rowsWithSingleIntField(String fieldName, List<Integer> values) {
     return
         TestUtils
-            .rowsBuilderOf(RowSqlType.builder().withIntegerField(fieldName).build())
+            .rowsBuilderOf(RowSqlTypes.builder().withIntegerField(fieldName).build())
             .addRows(values)
             .getRows();
   }

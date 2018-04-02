@@ -23,7 +23,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Person;
@@ -39,7 +39,7 @@ public class ModelAdaptersMappingTest {
   private static final Person PERSON =
       new Person(3L, "name", "email", "cc", "city", "state", 329823L, "extra");
 
-  private static final Schema PERSON_ROW_TYPE = RowSqlType.builder()
+  private static final Schema PERSON_ROW_TYPE = RowSqlTypes.builder()
       .withBigIntField("id")
       .withVarcharField("name")
       .withVarcharField("emailAddress")
@@ -53,7 +53,7 @@ public class ModelAdaptersMappingTest {
   private static final Bid BID =
       new Bid(5L, 3L, 123123L, 43234234L, "extra2");
 
-  private static final Schema BID_ROW_TYPE = RowSqlType.builder()
+  private static final Schema BID_ROW_TYPE = RowSqlTypes.builder()
       .withBigIntField("auction")
       .withBigIntField("bidder")
       .withBigIntField("price")
@@ -64,7 +64,7 @@ public class ModelAdaptersMappingTest {
   private static final Auction AUCTION =
       new Auction(5L, "item", "desc", 342L, 321L, 3423342L, 2349234L, 3L, 1L, "extra3");
 
-  private static final Schema AUCTION_ROW_TYPE = RowSqlType.builder()
+  private static final Schema AUCTION_ROW_TYPE = RowSqlTypes.builder()
       .withBigIntField("id")
       .withVarcharField("itemName")
       .withVarcharField("description")

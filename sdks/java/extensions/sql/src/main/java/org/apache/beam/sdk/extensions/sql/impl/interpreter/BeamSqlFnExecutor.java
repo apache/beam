@@ -160,10 +160,10 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
         // Calcite actually treat Calendar as the java type of Date Literal
         return BeamSqlPrimitive.of(type, new DateTime(((Calendar) value).getTimeInMillis()));
       } else {
-        // node.getType().getSqlTypeName() and node.getSqlTypeName() can be different
+        // node.getTypeName().getSqlTypeName() and node.getSqlTypeName() can be different
         // e.g. sql: "select 1"
         // here the literal 1 will be parsed as a RexLiteral where:
-        //     node.getType().getSqlTypeName() = INTEGER (the display type)
+        //     node.getTypeName().getSqlTypeName() = INTEGER (the display type)
         //     node.getSqlTypeName() = DECIMAL (the actual internal storage format)
         // So we need to do a convert here.
         // check RexBuilder#makeLiteral for more information.

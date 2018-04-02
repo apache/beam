@@ -30,7 +30,7 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleF
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -60,35 +60,35 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
   public static void prepare() {
     BEAM_SQL_ENV.registerTable("ORDER_DETAILS", MockedUnboundedTable
         .of(
-            FieldType.INT32, "order_id",
-            FieldType.INT32, "site_id",
-            FieldType.INT32, "price",
-            FieldType.INT32, "order_time"
+            TypeName.INT32, "order_id",
+            TypeName.INT32, "site_id",
+            TypeName.INT32, "price",
+            TypeName.DATETIME, "order_time"
         )
         .timestampColumnIndex(3)
         .addRows(
             Duration.ZERO,
-            1, 1, 1, FIRST_DATE.getMillis(),
-            1, 2, 2, FIRST_DATE.getMillis()
+            1, 1, 1, FIRST_DATE,
+            1, 2, 2, FIRST_DATE
         )
         .addRows(
             WINDOW_SIZE.plus(Duration.standardSeconds(1)),
-            2, 2, 3, SECOND_DATE.getMillis(),
-            2, 3, 3, SECOND_DATE.getMillis(),
+            2, 2, 3, SECOND_DATE,
+            2, 3, 3, SECOND_DATE,
             // this late data is omitted
-            1, 2, 3, FIRST_DATE.getMillis()
+            1, 2, 3, FIRST_DATE
         )
         .addRows(
             WINDOW_SIZE.plus(WINDOW_SIZE).plus(Duration.standardSeconds(1)),
-            3, 3, 3, THIRD_DATE.getMillis(),
+            3, 3, 3, THIRD_DATE,
             // this late data is omitted
-            2, 2, 3, SECOND_DATE.getMillis()
+            2, 2, 3, SECOND_DATE
         )
     );
 
     BEAM_SQL_ENV.registerTable("ORDER_DETAILS1", MockedBoundedTable
-        .of(FieldType.INT32, "order_id",
-            FieldType.STRING, "buyer"
+        .of(TypeName.INT32, "order_id",
+            TypeName.STRING, "buyer"
         ).addRows(
             1, "james",
             2, "bond"
@@ -98,8 +98,8 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
         "SITE_LKP",
         new SiteLookupTable(
             TestUtils.buildBeamSqlRowType(
-                FieldType.INT32, "site_id",
-                FieldType.STRING, "site_name")));
+                TypeName.INT32, "site_id",
+                TypeName.STRING, "site_name")));
   }
 
   /**
@@ -148,9 +148,9 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                FieldType.INT32, "order_id",
-                FieldType.INT32, "sum_site_id",
-                FieldType.STRING, "buyer"
+                TypeName.INT32, "order_id",
+                TypeName.INT32, "sum_site_id",
+                TypeName.STRING, "buyer"
             ).addRows(
                 1, 3, "james",
                 2, 5, "bond"
@@ -174,9 +174,9 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                FieldType.INT32, "order_id",
-                FieldType.INT32, "sum_site_id",
-                FieldType.STRING, "buyer"
+                TypeName.INT32, "order_id",
+                TypeName.INT32, "sum_site_id",
+                TypeName.STRING, "buyer"
             ).addRows(
                 1, 3, "james",
                 2, 5, "bond"
@@ -201,9 +201,9 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                FieldType.INT32, "order_id",
-                FieldType.INT32, "sum_site_id",
-                FieldType.STRING, "buyer"
+                TypeName.INT32, "order_id",
+                TypeName.INT32, "sum_site_id",
+                TypeName.STRING, "buyer"
             ).addRows(
                 1, 3, "james",
                 2, 5, "bond",
@@ -242,9 +242,9 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                FieldType.INT32, "order_id",
-                FieldType.INT32, "sum_site_id",
-                FieldType.STRING, "buyer"
+                TypeName.INT32, "order_id",
+                TypeName.INT32, "sum_site_id",
+                TypeName.STRING, "buyer"
             ).addRows(
                 1, 3, "james",
                 2, 5, "bond",
@@ -298,8 +298,8 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
         .containsInAnyOrder(
             TestUtils.RowsBuilder.of(
-                FieldType.INT32, "order_id",
-                FieldType.STRING, "site_name"
+                TypeName.INT32, "order_id",
+                TypeName.STRING, "site_name"
             ).addRows(
                 1, "SITE1"
             ).getStringRows()

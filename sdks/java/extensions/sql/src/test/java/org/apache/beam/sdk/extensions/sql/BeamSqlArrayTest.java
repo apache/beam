@@ -36,7 +36,7 @@ import org.junit.rules.ExpectedException;
 public class BeamSqlArrayTest {
 
   private static final Schema INPUT_ROW_TYPE =
-      RowSqlType
+      RowSqlTypes
         .builder()
         .withIntegerField("f_int")
         .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
@@ -50,7 +50,7 @@ public class BeamSqlArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withArrayField("f_arr", SqlTypeName.VARCHAR)
@@ -82,7 +82,7 @@ public class BeamSqlArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withArrayField("f_stringArr", SqlTypeName.VARCHAR)
@@ -115,7 +115,7 @@ public class BeamSqlArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("f_arrElem")
             .build();
@@ -157,7 +157,7 @@ public class BeamSqlArrayTest {
                     .withCoder(INPUT_ROW_TYPE.getRowCoder()));
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("f_arrElem")
             .build();
@@ -183,7 +183,7 @@ public class BeamSqlArrayTest {
     PCollection<Row> input = pCollectionOf2Elements();
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_size")
             .build();
@@ -211,20 +211,20 @@ public class BeamSqlArrayTest {
   @Test
   public void testSelectRowsFromArrayOfRows() {
     Schema elementRowType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("f_rowString")
             .withIntegerField("f_rowInt")
             .build();
 
     Schema resultRowType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withArrayField("f_resultArray", elementRowType)
             .build();
 
     Schema inputType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withArrayField("f_arrayOfRows", elementRowType)
@@ -279,7 +279,7 @@ public class BeamSqlArrayTest {
   @Test
   public void testSelectSingleRowFromArrayOfRows() {
     Schema elementRowType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("f_rowString")
             .withIntegerField("f_rowInt")
@@ -288,7 +288,7 @@ public class BeamSqlArrayTest {
     Schema resultRowType = elementRowType;
 
     Schema inputType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withArrayField("f_arrayOfRows", elementRowType)
@@ -332,20 +332,20 @@ public class BeamSqlArrayTest {
   @Test
   public void testSelectRowFieldFromArrayOfRows() {
     Schema elementRowType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("f_rowString")
             .withIntegerField("f_rowInt")
             .build();
 
     Schema resultRowType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("f_stringField")
             .build();
 
     Schema inputType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withArrayField("f_arrayOfRows", elementRowType)

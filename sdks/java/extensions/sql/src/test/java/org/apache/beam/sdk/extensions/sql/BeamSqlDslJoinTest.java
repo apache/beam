@@ -55,7 +55,7 @@ public class BeamSqlDslJoinTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   private static final Schema SOURCE_ROW_TYPE =
-      RowSqlType.builder()
+      RowSqlTypes.builder()
           .withIntegerField("order_id")
           .withIntegerField("site_id")
           .withIntegerField("price")
@@ -64,7 +64,7 @@ public class BeamSqlDslJoinTest {
   private static final RowCoder SOURCE_CODER = SOURCE_ROW_TYPE.getRowCoder();
 
   private static final Schema RESULT_ROW_TYPE =
-      RowSqlType.builder()
+      RowSqlTypes.builder()
           .withIntegerField("order_id")
           .withIntegerField("site_id")
           .withIntegerField("price")
@@ -316,7 +316,7 @@ public class BeamSqlDslJoinTest {
     return
         TestUtils
             .rowsBuilderOf(
-                RowSqlType
+                RowSqlTypes
                     .builder()
                     .withIntegerField("order_id")
                     .withIntegerField("price")

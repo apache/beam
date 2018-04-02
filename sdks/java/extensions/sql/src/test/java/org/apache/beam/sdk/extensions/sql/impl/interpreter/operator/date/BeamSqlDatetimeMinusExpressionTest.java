@@ -42,7 +42,7 @@ public class BeamSqlDatetimeMinusExpressionTest {
   private static final BoundedWindow NULL_WINDOW = null;
 
   private static final DateTime DATE = new DateTime(329281L);
-  private static final DateTime DATE_MINUS_2_SEC = new DateTime(DATE).minusSeconds(2);
+  private static final DateTime DATE_MINUS_2_SEC = DATE.minusSeconds(2);
 
   private static final BeamSqlPrimitive TIMESTAMP = BeamSqlPrimitive.of(
       SqlTypeName.TIMESTAMP, DATE);

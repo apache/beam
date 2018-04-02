@@ -38,7 +38,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdaf() throws Exception {
-    Schema resultType = RowSqlType.builder()
+    Schema resultType = RowSqlTypes.builder()
         .withIntegerField("f_int2")
         .withIntegerField("squaresum")
         .build();
@@ -73,7 +73,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdafMultiLevelDescendent() {
-    Schema resultType = RowSqlType.builder()
+    Schema resultType = RowSqlTypes.builder()
         .withIntegerField("f_int2")
         .withIntegerField("squaresum")
         .build();
@@ -102,7 +102,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
     exceptions.expectMessage("CombineFn");
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    Schema resultType = RowSqlType.builder()
+    Schema resultType = RowSqlTypes.builder()
         .withIntegerField("f_int2")
         .withIntegerField("squaresum")
         .build();
@@ -122,7 +122,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
    */
   @Test
   public void testUdf() throws Exception{
-    Schema resultType = RowSqlType.builder()
+    Schema resultType = RowSqlTypes.builder()
         .withIntegerField("f_int")
         .withIntegerField("cubicvalue")
         .build();
@@ -147,7 +147,7 @@ public class BeamSqlDslUdfUdafTest extends BeamSqlDslBase {
             .apply("testUdf3",
                    BeamSql.query(sql3).registerUdf("substr", UdfFnWithDefault.class));
 
-    Schema subStrSchema = RowSqlType.builder()
+    Schema subStrSchema = RowSqlTypes.builder()
         .withIntegerField("f_int")
         .withVarcharField("sub_string")
         .build();

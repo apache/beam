@@ -25,11 +25,11 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
 import java.net.URI;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.commons.csv.CSVFormat;
 import org.junit.Test;
@@ -82,13 +82,12 @@ public class TextTableProviderTest {
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")
-                .typeDescriptor(FieldTypeDescriptor.of(FieldType.INT32))
+                .fieldType(TypeName.INT32.type())
                 .primaryKey(true)
                 .build(),
             Column.builder()
                 .name("name")
-                .typeDescriptor(FieldTypeDescriptor.of(FieldType.STRING)
-                    .withMetadata(CalciteUtils.typeToMetadata(SqlTypeName.VARCHAR)))
+                .fieldType(RowSqlTypes.VARCHAR)
             .primaryKey(false)
                 .build()))
         .type("text")
