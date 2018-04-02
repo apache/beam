@@ -2072,7 +2072,7 @@ public class ParDoTest implements Serializable {
 
           @ProcessElement
           public void processElement(
-              KV<String, Integer> element,
+              @Element KV<String, Integer> element,
               @StateId(stateId) BagState<MyInteger> state,
               OutputReceiver<List<MyInteger>> r) {
             state.add(new MyInteger(element.getValue()));
