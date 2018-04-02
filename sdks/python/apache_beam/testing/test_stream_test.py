@@ -247,7 +247,7 @@ class TestStreamTest(unittest.TestCase):
     # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
     self.assertEqual([('k', ['a'])], result)
 
-  def test_basic_execution_sideinputs_batch(self):
+  def test_basic_execution_batch_sideinputs(self):
 
     # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
     global result     # pylint: disable=global-variable-undefined
@@ -301,13 +301,14 @@ class TestStreamTest(unittest.TestCase):
     main_stream = (p
                    | 'main TestStream' >> TestStream()
                    .advance_watermark_to(10)
-                   .add_elements(['e'])
-                   .advance_processing_time(11))
+                   .add_elements(['e']))
     side_stream = (p
                    | 'side TestStream' >> TestStream()
                    .add_elements([window.TimestampedValue(2, 2)])
                    .add_elements([window.TimestampedValue(1, 1)])
-                   .add_elements([window.TimestampedValue(4, 4)]))
+                   .add_elements([window.TimestampedValue(7, 7)])
+                   .add_elements([window.TimestampedValue(4, 4)])
+                  )
 
     class RecordFn(beam.DoFn):
       def process(self,
@@ -323,7 +324,103 @@ class TestStreamTest(unittest.TestCase):
     p.run()
 
     # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
-    self.assertEqual([('e', Timestamp(10), [2, 1, 4])], result)
+    self.assertEqual([('e', Timestamp(10), [2, 1, 7, 4])], result)
+
+  def test_basic_execution_batch_sideinputs_fixed_windows(self):
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    global result     # pylint: disable=global-variable-undefined
+    result = []
+
+    def recorded_elements(elem):
+      result.append(elem)
+      return elem
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+
+    main_stream = (p
+                   | 'main TestStream' >> TestStream()
+                   .advance_watermark_to(2)
+                   .add_elements(['a'])
+                   .advance_watermark_to(4)
+                   .add_elements(['b'])
+                   | 'main window' >> beam.WindowInto(window.FixedWindows(1)))
+    side = (p
+            | beam.Create([2, 1, 4])
+            | beam.Map(lambda t: window.TimestampedValue(t, t))
+            | beam.WindowInto(window.FixedWindows(2)))
+
+    class RecordFn(beam.DoFn):
+      def process(self,
+                  elm=beam.DoFn.ElementParam,
+                  ts=beam.DoFn.TimestampParam,
+                  side=beam.DoFn.SideInputParam):
+        yield (elm, ts, side)
+
+    records = (main_stream     # pylint: disable=unused-variable
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side))
+               | beam.Map(recorded_elements))
+    p.run()
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    self.assertEqual([('a', Timestamp(2), [2]),
+                      ('b', Timestamp(4), [4])], result)
+
+  def test_basic_execution_sideinputs_fixed_windows(self):
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    global result     # pylint: disable=global-variable-undefined
+    result = []
+
+    def recorded_elements(elem):
+      result.append(elem)
+      return elem
+
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    p = TestPipeline(options=options)
+
+    main_stream = (p
+                   | 'main TestStream' >> TestStream()
+                   .advance_watermark_to(9)
+                   .add_elements(['a1', 'a2', 'a3', 'a4'])
+                   .add_elements(['b'])
+                   .advance_watermark_to(18)
+                   .add_elements('c')
+                   | 'main windowInto' >> beam.WindowInto(
+                       window.FixedWindows(1))
+                  )
+    side_stream = (p
+                   | 'side TestStream' >> TestStream()
+                   .advance_watermark_to(12)
+                   .add_elements([window.TimestampedValue('s1', 10)])
+                   .advance_watermark_to(20)
+                   .add_elements([window.TimestampedValue('s2', 20)])
+                   | 'side windowInto' >> beam.WindowInto(
+                       window.FixedWindows(3))
+                  )
+
+    class RecordFn(beam.DoFn):
+      def process(self,
+                  elm=beam.DoFn.ElementParam,
+                  ts=beam.DoFn.TimestampParam,
+                  side=beam.DoFn.SideInputParam):
+        yield (elm, ts, side)
+
+    records = (main_stream     # pylint: disable=unused-variable
+               | beam.ParDo(RecordFn(), beam.pvalue.AsList(side_stream))
+               | beam.Map(recorded_elements))
+    p.run()
+
+    # TODO(BEAM-3377): Remove after assert_that in streaming is fixed.
+    self.assertEqual([('a1', Timestamp(9), ['s1']),
+                      ('a2', Timestamp(9), ['s1']),
+                      ('a3', Timestamp(9), ['s1']),
+                      ('a4', Timestamp(9), ['s1']),
+                      ('b', Timestamp(9), ['s1']),
+                      ('c', Timestamp(18), ['s2'])], result)
 
 
 if __name__ == '__main__':
