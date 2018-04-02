@@ -690,6 +690,35 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public Void dispatch(DoFnSignature.Parameter.ElementParameter p) {
+              return null;
+            }
+
+            @Override
+            public Void dispatch(DoFnSignature.Parameter.TimestampParameter p) {
+              return null;
+            }
+
+            @Override
+            public Void dispatch(DoFnSignature.Parameter.TimeDomainParameter p) {
+              return null;
+            }
+
+            @Override
+            public Void dispatch(DoFnSignature.Parameter.OutputReceiverParameter p) {
+              return null;
+            }
+
+            @Override
+            public Void dispatch(DoFnSignature.Parameter.TaggedOutputReceiverParameter p) {
+              return null;
+            }
+
+            @Override
+            public Void dispatch(DoFnSignature.Parameter.PaneInfoParameter p) {
+              return null;
+            }
+            @Override
             protected Void dispatchDefault(DoFnSignature.Parameter p) {
               throw new UnsupportedOperationException(
                   "Parameter " + p + " not supported by DoFnTester");
