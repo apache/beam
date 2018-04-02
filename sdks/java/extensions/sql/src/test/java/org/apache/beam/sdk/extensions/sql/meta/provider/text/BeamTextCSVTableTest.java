@@ -30,7 +30,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -60,7 +60,7 @@ public class BeamTextCSVTableTest {
    * </p>
    */
   private static Schema schema =
-      RowSqlType
+      RowSqlTypes
           .builder()
           .withIntegerField("id")
           .withBigIntField("order_id")

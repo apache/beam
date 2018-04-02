@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.values;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Lists;
@@ -34,7 +33,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
@@ -96,7 +95,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#BYTE} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#BYTE} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public byte getByte(String fieldName) {
@@ -104,7 +103,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#INT16} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#INT16} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public short getInt16(String fieldName) {
@@ -112,7 +111,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#INT32} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#INT32} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public int getInt32(String fieldName) {
@@ -120,7 +119,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#INT64} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#INT64} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public long getInt64(String fieldName) {
@@ -128,7 +127,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#DECIMAL} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#DECIMAL} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public BigDecimal getDecimal(String fieldName) {
@@ -136,7 +135,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#FLOAT} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#FLOAT} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public float getFloat(String fieldName) {
@@ -144,7 +143,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#DOUBLE} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#DOUBLE} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public double getDouble(String fieldName) {
@@ -152,7 +151,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#STRING} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#STRING} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public String getString(String fieldName) {
@@ -160,7 +159,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#DATETIME} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#DATETIME} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public ReadableDateTime getDateTime(String fieldName) {
@@ -168,7 +167,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#BOOLEAN} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#BOOLEAN} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public boolean getBoolean(String fieldName) {
@@ -184,7 +183,7 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#ROW} value by field name, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#ROW} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public Row getRow(String fieldName) {
@@ -192,62 +191,50 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link FieldType#BYTE} value by field index, {@link ClassCastException} is thrown
+   * Get a {@link TypeName#BYTE} value by field index, {@link ClassCastException} is thrown
    * if schema doesn't match.
    */
   public Byte getByte(int idx) {
-    checkState(
-        FieldType.BYTE.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
   /**
-   * Get a {@link FieldType#INT16} value by field index, {@link ClassCastException} is thrown
+   * Get a {@link TypeName#INT16} value by field index, {@link ClassCastException} is thrown
    * if schema doesn't match.
    */
   public Short getInt16(int idx) {
-    checkState(
-        FieldType.INT16.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
   /**
-   * Get a {@link FieldType#INT32} value by field index, {@link ClassCastException} is thrown
+   * Get a {@link TypeName#INT32} value by field index, {@link ClassCastException} is thrown
    * if schema doesn't match.
    */
   public Integer getInt32(int idx) {
-    checkState(
-        FieldType.INT32.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
   /**
-   * Get a {@link FieldType#FLOAT} value by field index, {@link ClassCastException} is thrown
+   * Get a {@link TypeName#FLOAT} value by field index, {@link ClassCastException} is thrown
    * if schema doesn't match.
    */
   public Float getFloat(int idx) {
-    checkState(
-        FieldType.FLOAT.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
   /**
-   * Get a {@link FieldType#DOUBLE} value by field index, {@link ClassCastException} is thrown
+   * Get a {@link TypeName#DOUBLE} value by field index, {@link ClassCastException} is thrown
    * if schema doesn't match.
    */
   public Double getDouble(int idx) {
-    checkState(
-        FieldType.DOUBLE.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
   /**
-   * Get a {@link FieldType#INT64} value by field index, {@link ClassCastException} is thrown
+   * Get a {@link TypeName#INT64} value by field index, {@link ClassCastException} is thrown
    * if schema doesn't match.
    */
   public Long getInt64(int idx) {
-    checkState(
-        FieldType.INT64.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -256,13 +243,11 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public String getString(int idx) {
-    checkState(
-        FieldType.STRING.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
   /**
-   * Get a {@link FieldType#DATETIME} value by field index, {@link IllegalStateException} is thrown
+   * Get a {@link TypeName#DATETIME} value by field index, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
   public ReadableDateTime getDateTime(int idx) {
@@ -275,8 +260,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public BigDecimal getDecimal(int idx) {
-    checkState(
-        FieldType.DECIMAL.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -285,8 +268,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public boolean getBoolean(int idx) {
-    checkState(
-        FieldType.BOOLEAN.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -295,8 +276,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public <T> List<T> getArray(int idx) {
-    checkState(
-        FieldType.ARRAY.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -305,8 +284,6 @@ public abstract class Row implements Serializable {
    * if schema doesn't match.
    */
   public Row getRow(int idx) {
-    checkState(
-        FieldType.ROW.equals(getSchema().getField(idx).getTypeDescriptor().getType()));
     return getValue(idx);
   }
 
@@ -401,15 +378,15 @@ public abstract class Row implements Serializable {
           }
           verifiedValues.add(null);
         } else {
-          FieldTypeDescriptor typeDescriptor = field.getTypeDescriptor();
-          if (FieldType.ARRAY.equals(typeDescriptor.getType())) {
+          FieldType type = field.getType();
+          if (TypeName.ARRAY.equals(type.getTypeName())) {
             List<Object> arrayElements = verifyArray(
-                value, typeDescriptor.getComponentType(), field.getName());
+                value, type.getComponentType(), field.getName());
             verifiedValues.add(arrayElements);
-          } else if (FieldType.ROW.equals(typeDescriptor.getType())) {
+          } else if (TypeName.ROW.equals(type.getTypeName())) {
             verifiedValues.add(verifyRow(value, field.getName()));
           } else {
-            verifiedValues.add(verifyPrimitiveType(value, typeDescriptor.getType(),
+            verifiedValues.add(verifyPrimitiveType(value, type.getTypeName(),
                 field.getName()));
           }
         }
@@ -417,7 +394,7 @@ public abstract class Row implements Serializable {
       return verifiedValues;
     }
 
-    private List<Object> verifyArray(Object value, FieldTypeDescriptor componentType,
+    private List<Object> verifyArray(Object value, FieldType componentType,
                                      String fieldName) {
       if (!(value instanceof List)) {
         throw new IllegalArgumentException(
@@ -427,14 +404,14 @@ public abstract class Row implements Serializable {
       List<Object> valueList = (List<Object>) value;
       List<Object> verifiedList = Lists.newArrayListWithCapacity(valueList.size());
       for (Object listValue : valueList) {
-        if (FieldType.ARRAY.equals(componentType.getType())) {
+        if (TypeName.ARRAY.equals(componentType.getTypeName())) {
           verifiedList.add(verifyArray(listValue, componentType.getComponentType(),
               fieldName + "nested"));
-        } else if (FieldType.ROW.equals(componentType.getType())) {
+        } else if (TypeName.ROW.equals(componentType.getTypeName())) {
           verifiedList.add(verifyRow(listValue, fieldName));
         } else {
           verifiedList.add(verifyPrimitiveType(listValue,
-              componentType.getType(), fieldName));
+              componentType.getTypeName(), fieldName));
         }
       }
       return verifiedList;
@@ -451,7 +428,7 @@ public abstract class Row implements Serializable {
       return (Row) value;
     }
 
-    private Object verifyPrimitiveType(Object value, FieldType type, String fieldName) {
+    private Object verifyPrimitiveType(Object value, TypeName type, String fieldName) {
       if (type.isDateType()) {
         return verifyDateTime(value, fieldName);
       } else {

@@ -26,7 +26,7 @@ import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.util.NlsString;
 import org.apache.commons.csv.CSVFormat;
@@ -88,7 +88,7 @@ public final class BeamTableUtils {
       return null;
     }
 
-    FieldType type = field.getTypeDescriptor().getType();
+    TypeName type = field.getType().getTypeName();
     if (type.isStringType()) {
       if (rawObj instanceof NlsString) {
         return ((NlsString) rawObj).getValue();
@@ -97,7 +97,7 @@ public final class BeamTableUtils {
       }
     } else if (type.isNumericType()) {
       if ((rawObj instanceof String)
-          || (rawObj instanceof BigDecimal && type != FieldType.DECIMAL)) {
+          || (rawObj instanceof BigDecimal && type != TypeName.DECIMAL)) {
         String raw = rawObj.toString();
         switch (type) {
           case BYTE:

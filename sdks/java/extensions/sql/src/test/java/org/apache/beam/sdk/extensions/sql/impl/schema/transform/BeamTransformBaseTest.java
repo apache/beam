@@ -19,7 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.schema.transform;
 
 import java.text.ParseException;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
@@ -39,7 +39,7 @@ public class BeamTransformBaseTest {
   @BeforeClass
   public static void prepareInput() throws NumberFormatException, ParseException {
     inputSchema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")

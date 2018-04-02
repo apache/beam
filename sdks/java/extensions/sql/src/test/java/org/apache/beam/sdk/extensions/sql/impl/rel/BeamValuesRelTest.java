@@ -21,7 +21,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -43,14 +43,14 @@ public class BeamValuesRelTest extends BaseRelTest {
   public static void prepare() {
     sqlEnv.registerTable("string_table",
         MockedBoundedTable.of(
-            FieldType.STRING, "name",
-            FieldType.STRING, "description"
+            TypeName.STRING, "name",
+            TypeName.STRING, "description"
         )
     );
     sqlEnv.registerTable("int_table",
         MockedBoundedTable.of(
-            FieldType.INT32, "c0",
-            FieldType.INT32, "c1"
+            TypeName.INT32, "c0",
+            TypeName.INT32, "c1"
         )
     );
   }
@@ -62,8 +62,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            FieldType.STRING, "name",
-            FieldType.STRING, "description"
+            TypeName.STRING, "name",
+            TypeName.STRING, "description"
         ).addRows(
             "hello", "world",
             "james", "bond"
@@ -78,8 +78,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            FieldType.INT32, "c0",
-            FieldType.INT32, "c1"
+            TypeName.INT32, "c0",
+            TypeName.INT32, "c1"
         ).addRows(
             1, 2
         ).getRows()
@@ -93,8 +93,8 @@ public class BeamValuesRelTest extends BaseRelTest {
     PCollection<Row> rows = compilePipeline(sql, pipeline, sqlEnv);
     PAssert.that(rows).containsInAnyOrder(
         TestUtils.RowsBuilder.of(
-            FieldType.INT32, "EXPR$0",
-            FieldType.STRING, "EXPR$1"
+            TypeName.INT32, "EXPR$0",
+            TypeName.STRING, "EXPR$1"
         ).addRows(
             1, "1"
         ).getRows()

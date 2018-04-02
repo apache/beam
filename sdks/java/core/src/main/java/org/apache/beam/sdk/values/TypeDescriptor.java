@@ -329,7 +329,7 @@ public abstract class TypeDescriptor<T> implements Serializable {
 
   /**
    * Returns a new {@code TypeDescriptor} where the type variable represented by {@code
-   * typeParameter} are substituted by {@code typeDescriptor}. For example, it can be used to
+   * typeParameter} are substituted by {@code type}. For example, it can be used to
    * construct {@code Map<K, V>} for any {@code K} and {@code V} type:
    *
    * <pre>{@code

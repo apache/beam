@@ -50,7 +50,7 @@ public class BeamSqlApiSurfaceTest {
         .ofClass(BeamSql.class)
         .includingClass(BeamSqlCli.class)
         .includingClass(BeamSqlUdf.class)
-        .includingClass(RowSqlType.class)
+        .includingClass(RowSqlTypes.class)
         .includingClass(BeamSqlSeekableTable.class)
         .pruningPrefix("java")
         .pruningPattern("org[.]apache[.]beam[.]sdk[.]extensions[.]sql[.].*Test")

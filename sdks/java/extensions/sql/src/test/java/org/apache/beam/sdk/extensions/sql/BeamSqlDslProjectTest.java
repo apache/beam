@@ -83,7 +83,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
         PCollectionTuple.of(new TupleTag<>("TABLE_A"), input)
             .apply("testPartialFields", BeamSql.query(sql));
 
-    Schema resultType = RowSqlType.builder()
+    Schema resultType = RowSqlTypes.builder()
         .withIntegerField("f_int")
         .withBigIntField("f_long")
         .build();
@@ -119,7 +119,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
             .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")
@@ -171,7 +171,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
             .apply("testPartialFieldsInRows", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")
@@ -214,7 +214,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
             .apply("testLiteralField", BeamSql.query(sql));
 
     Schema resultType =
-        RowSqlType.builder().withIntegerField("literal_field").build();
+        RowSqlTypes.builder().withIntegerField("literal_field").build();
 
     Row row = Row.withSchema(resultType).addValues(1).build();
 

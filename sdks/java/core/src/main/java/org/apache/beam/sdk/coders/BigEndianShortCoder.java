@@ -94,7 +94,7 @@ public class BigEndianShortCoder extends AtomicCoder<Short> {
   /**
    * {@inheritDoc}
    *
-   * @return {@code 4}, the size in bytes of an short's big endian encoding.
+   * @return {@code 2}, the size in bytes of an short's big endian encoding.
    */
   @Override
   protected long getEncodedElementByteSize(Short value)

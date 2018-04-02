@@ -46,12 +46,12 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
   private static final BoundedWindow NULL_WINDOW = null;
   private static final DateTime DATE = str2DateTime("1984-04-19 01:02:03");
 
-  private static final DateTime DATE_PLUS_15_SECONDS = new DateTime(DATE).plusSeconds(15);
-  private static final DateTime DATE_PLUS_10_MINUTES = new DateTime(DATE).plusMinutes(10);
-  private static final DateTime DATE_PLUS_7_HOURS = new DateTime(DATE).plusHours(7);
-  private static final DateTime DATE_PLUS_3_DAYS = new DateTime(DATE).plusDays(3);
-  private static final DateTime DATE_PLUS_2_MONTHS = new DateTime(DATE).plusMonths(2);
-  private static final DateTime DATE_PLUS_11_YEARS = new DateTime(DATE).plusYears(11);
+  private static final DateTime DATE_PLUS_15_SECONDS = DATE.plusSeconds(15);
+  private static final DateTime DATE_PLUS_10_MINUTES = DATE.plusMinutes(10);
+  private static final DateTime DATE_PLUS_7_HOURS = DATE.plusHours(7);
+  private static final DateTime DATE_PLUS_3_DAYS = DATE.plusDays(3);
+  private static final DateTime DATE_PLUS_2_MONTHS = DATE.plusMonths(2);
+  private static final DateTime DATE_PLUS_11_YEARS = DATE.plusYears(11);
 
   private static final BeamSqlExpression SQL_INTERVAL_15_SECONDS =
       interval(SqlTypeName.INTERVAL_SECOND, 15);

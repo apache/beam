@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -55,7 +53,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
    * A builder function to create from Type and value directly.
    */
   public static <T> BeamSqlPrimitive<T> of(SqlTypeName outputType, T value) {
-    return new BeamSqlPrimitive<>(convertValue(value, outputType), outputType);
+    return new BeamSqlPrimitive<>(value, outputType);
   }
 
   public SqlTypeName getOutputType() {
@@ -154,15 +152,6 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
       throw new UnsupportedOperationException(
           "Unsupported Beam SQL type in expression: " + outputType.name());
     }
-  }
-
-  //
-  private static <T> T convertValue(T value, SqlTypeName typeName) {
-    // TODO: We should just convert Calcite to use either Joda or Java8 time.
-    if (SqlTypeName.DATETIME_TYPES.contains(typeName)) {
-      checkArgument(value instanceof ReadableInstant);
-    }
-    return (T) value;
   }
 
   @Override

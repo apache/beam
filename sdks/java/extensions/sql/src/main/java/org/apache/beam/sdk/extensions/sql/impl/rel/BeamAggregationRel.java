@@ -188,7 +188,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   }
 
   private Schema.Field newRowField(AggregateCall aggCall) {
-    return Schema.Field.of(aggCall.getName(), CalciteUtils.toFieldTypeDescriptor(aggCall.getType()))
+    return Schema.Field.of(aggCall.getName(), CalciteUtils.toFieldType(aggCall.getType()))
         .withNullable(aggCall.getType().isNullable());
   }
   }

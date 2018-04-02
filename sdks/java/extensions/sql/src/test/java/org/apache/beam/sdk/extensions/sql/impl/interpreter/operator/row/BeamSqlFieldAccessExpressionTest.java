@@ -21,7 +21,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -57,7 +57,7 @@ public class BeamSqlFieldAccessExpressionTest {
   @Test
   public void testAccessesFieldOfRow() {
     Schema schema =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("f_string1")
             .withVarcharField("f_string2")

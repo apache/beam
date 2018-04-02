@@ -29,14 +29,13 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.hamcrest.Matchers;
 import org.junit.Before;
@@ -95,7 +94,7 @@ public class InMemoryMetaStoreTest {
     BeamSqlTable actualSqlTable = store.buildBeamSqlTable("hello");
     assertNotNull(actualSqlTable);
     assertEquals(
-        RowSqlType.builder().withIntegerField("id").withVarcharField("name").build(),
+        RowSqlTypes.builder().withIntegerField("id").withVarcharField("name").build(),
         actualSqlTable.getSchema()
     );
   }
@@ -136,13 +135,12 @@ public class InMemoryMetaStoreTest {
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")
-                .typeDescriptor(FieldTypeDescriptor.of(FieldType.INT32))
+                .fieldType(TypeName.INT32.type())
                 .primaryKey(true)
                 .build(),
             Column.builder()
                 .name("name")
-                .typeDescriptor(FieldTypeDescriptor.of(FieldType.STRING)
-                    .withMetadata(CalciteUtils.typeToMetadata(SqlTypeName.VARCHAR)))
+                .fieldType(RowSqlTypes.VARCHAR)
                 .primaryKey(false)
                 .build()))
         .type(type)

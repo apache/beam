@@ -21,34 +21,34 @@ package org.apache.beam.sdk.extensions.sql.impl.utils;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.util.Map;
-import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
 /**
  * Provides converters from {@link BigDecimal} to other numeric types based on
- * the input {@link FieldType}.
+ * the input {@link TypeName}.
  */
 public class BigDecimalConverter {
 
-  private static final Map<FieldType, SerializableFunction<BigDecimal, ? extends Number>>
+  private static final Map<TypeName, SerializableFunction<BigDecimal, ? extends Number>>
       CONVERTER_MAP = ImmutableMap
-      .<FieldType, SerializableFunction<BigDecimal, ? extends Number>>builder()
-      .put(FieldType.INT32, BigDecimal::intValue)
-      .put(FieldType.INT16, BigDecimal::shortValue)
-      .put(FieldType.BYTE, BigDecimal::byteValue)
-      .put(FieldType.INT64, BigDecimal::longValue)
-      .put(FieldType.FLOAT, BigDecimal::floatValue)
-      .put(FieldType.DOUBLE, BigDecimal::doubleValue)
-      .put(FieldType.DECIMAL, v -> v)
+      .<TypeName, SerializableFunction<BigDecimal, ? extends Number>>builder()
+      .put(TypeName.INT32, BigDecimal::intValue)
+      .put(TypeName.INT16, BigDecimal::shortValue)
+      .put(TypeName.BYTE, BigDecimal::byteValue)
+      .put(TypeName.INT64, BigDecimal::longValue)
+      .put(TypeName.FLOAT, BigDecimal::floatValue)
+      .put(TypeName.DOUBLE, BigDecimal::doubleValue)
+      .put(TypeName.DECIMAL, v -> v)
       .build();
 
   public static SerializableFunction<BigDecimal, ? extends Number> forSqlType(
-      FieldType fieldType) {
-    if (!CONVERTER_MAP.containsKey(fieldType)) {
+      TypeName typeName) {
+    if (!CONVERTER_MAP.containsKey(typeName)) {
       throw new UnsupportedOperationException(
-          "Conversion from " + fieldType + " to BigDecimal is not supported");
+          "Conversion from " + typeName + " to BigDecimal is not supported");
     }
 
-    return CONVERTER_MAP.get(fieldType);
+    return CONVERTER_MAP.get(typeName);
   }
 }

@@ -67,7 +67,7 @@ public class BeamSqlDslBase {
   @BeforeClass
   public static void prepareClass() throws ParseException {
     schemaInTableA =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("f_long")

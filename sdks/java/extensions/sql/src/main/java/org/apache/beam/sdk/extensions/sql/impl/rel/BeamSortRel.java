@@ -26,7 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -203,10 +203,8 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
 
-        FieldTypeDescriptor fieldTypeDescriptor =
-            row1.getSchema().getField(fieldIndex).getTypeDescriptor();
-        SqlTypeName fieldType = CalciteUtils.toSqlTypeName(
-            fieldTypeDescriptor.getType(), fieldTypeDescriptor.getMetadata());
+        FieldType fieldType = row1.getSchema().getField(fieldIndex).getType();
+        SqlTypeName sqlTypeName = CalciteUtils.toSqlTypeName(fieldType);
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
         boolean isValue1Null = (row1.getValue(fieldIndex) == null);
@@ -218,7 +216,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         } else if (!isValue1Null && isValue2Null) {
           fieldRet = 1 * (nullsFirst.get(i) ? -1 : 1);
         } else {
-          switch (fieldType) {
+          switch (sqlTypeName) {
             case TINYINT:
             case SMALLINT:
             case INTEGER:
@@ -234,7 +232,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
               break;
             default:
               throw new UnsupportedOperationException(
-                  "Data type: " + fieldType + " not supported yet!");
+                  "Data type: " + sqlTypeName + " not supported yet!");
           }
         }
 

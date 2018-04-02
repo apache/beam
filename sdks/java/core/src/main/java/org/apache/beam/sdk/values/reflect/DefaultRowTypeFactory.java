@@ -26,7 +26,7 @@ import java.util.Map;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.FieldTypeDescriptor;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.joda.time.DateTime;
 
 /**
@@ -47,28 +47,28 @@ import org.joda.time.DateTime;
  *
  */
 public class DefaultRowTypeFactory implements RowTypeFactory {
-  private static final Map<Class, FieldType> SUPPORTED_TYPES =
-      ImmutableMap.<Class, FieldType>builder()
-          .put(Boolean.class, FieldType.BOOLEAN)
-          .put(Byte.class, FieldType.BYTE)
-          .put(Character.class, FieldType.BYTE)
-          .put(String.class, FieldType.STRING)
-          .put(Short.class, FieldType.INT16)
-          .put(Integer.class, FieldType.INT32)
-          .put(Long.class, FieldType.INT64)
-          .put(Float.class, FieldType.FLOAT)
-          .put(Double.class, FieldType.DOUBLE)
-          .put(BigDecimal.class, FieldType.DECIMAL)
-          .put(DateTime.class, FieldType.DATETIME)
+  private static final Map<Class, TypeName> SUPPORTED_TYPES =
+      ImmutableMap.<Class, TypeName>builder()
+          .put(Boolean.class, TypeName.BOOLEAN)
+          .put(Byte.class, TypeName.BYTE)
+          .put(Character.class, TypeName.BYTE)
+          .put(String.class, TypeName.STRING)
+          .put(Short.class, TypeName.INT16)
+          .put(Integer.class, TypeName.INT32)
+          .put(Long.class, TypeName.INT64)
+          .put(Float.class, TypeName.FLOAT)
+          .put(Double.class, TypeName.DOUBLE)
+          .put(BigDecimal.class, TypeName.DECIMAL)
+          .put(DateTime.class, TypeName.DATETIME)
           .build();
 
   // Does not support neested types.
-  private FieldTypeDescriptor getTypeDescriptor(Class clazz) {
-    FieldType fieldType = SUPPORTED_TYPES.get(clazz);
-    if (fieldType == null) {
+  private FieldType getTypeDescriptor(Class clazz) {
+    TypeName typeName = SUPPORTED_TYPES.get(clazz);
+    if (typeName == null) {
       throw new UnsupportedOperationException("Unsupported type");
     }
-    return FieldTypeDescriptor.of(fieldType);
+    return FieldType.of(typeName);
   }
 
   /**
@@ -81,7 +81,7 @@ public class DefaultRowTypeFactory implements RowTypeFactory {
     for (FieldValueGetter getter : fieldValueGetters) {
       fields.add(Schema.Field.of(getter.name(), getTypeDescriptor(getter.type())));
     }
-    return Schema.of(fields);
+    return Schema.builder().addFields(fields).build();
   }
 
 }

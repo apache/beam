@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.AuctionPrice;
@@ -50,7 +50,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Person> personAdapter() {
     return new ModelFieldsAdapter<Person>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("id")
             .withVarcharField("name")
             .withVarcharField("emailAddress")
@@ -90,7 +90,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Bid> bidAdapter() {
     return new ModelFieldsAdapter<Bid>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("auction")
             .withBigIntField("bidder")
             .withBigIntField("price")
@@ -121,7 +121,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Auction> auctionAdapter() {
     return new ModelFieldsAdapter<Auction>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("id")
             .withVarcharField("itemName")
             .withVarcharField("description")
@@ -167,7 +167,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<AuctionCount> auctionCountAdapter() {
     return new ModelFieldsAdapter<AuctionCount>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("auction")
             .withBigIntField("num")
             .build()) {
@@ -189,7 +189,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<AuctionPrice> auctionPriceAdapter() {
     return new ModelFieldsAdapter<AuctionPrice>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("auction")
             .withBigIntField("price")
             .build()) {
@@ -211,7 +211,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<NameCityStateId> nameCityStateIdAdapter() {
     return new ModelFieldsAdapter<NameCityStateId>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withVarcharField("name")
             .withVarcharField("city")
             .withVarcharField("state")

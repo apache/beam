@@ -155,7 +155,7 @@ public class BeamJoinTransforms {
         leftRow.getFieldCount() + rightRow.getFieldCount());
     fields.addAll(leftRow.getSchema().getFields());
     fields.addAll(rightRow.getSchema().getFields());
-    Schema type = Schema.of(fields);
+    Schema type = Schema.builder().addFields(fields).build();
 
     return Row
             .withSchema(type)
@@ -205,7 +205,7 @@ public class BeamJoinTransforms {
             "Operator " + call.getOperator().getName() + " is not supported in join condition");
       }
 
-      joinSubsetType = Schema.of(lkpJoinFields);
+      joinSubsetType = Schema.builder().addFields(lkpJoinFields).build();
     }
 
     @Override
