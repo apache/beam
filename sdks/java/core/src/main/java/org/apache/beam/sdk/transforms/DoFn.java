@@ -374,8 +374,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /** Receives tagged output for a multi-output function. */
   public interface MultiOutputReceiver {
-    <T> void output(TupleTag<T> tag, T output);
-    <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
+    <T> OutputReceiver<T> get(TupleTag<T> tag);
   }
 
   /////////////////////////////////////////////////////////////////////////////

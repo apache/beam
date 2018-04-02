@@ -1863,10 +1863,10 @@ public class Combine {
                                        MultiOutputReceiver receiver) {
               int spread = Math.max(1, hotKeyFanout.apply(kv.getKey()));
               if (spread <= 1) {
-                receiver.output(cold, kv);
+                receiver.get(cold).output(kv);
               } else {
                 int nonce = counter++ % spread;
-                receiver.output(hot, KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
+                receiver.get(hot).output(KV.of(KV.of(kv.getKey(), nonce), kv.getValue()));
               }
             }
           })
