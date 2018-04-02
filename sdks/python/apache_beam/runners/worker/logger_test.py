@@ -23,6 +23,7 @@ import sys
 import threading
 import unittest
 
+from apache_beam.runners import common
 from apache_beam.runners.worker import logger
 
 
@@ -92,6 +93,35 @@ class JsonLogFormatterTest(unittest.TestCase):
     formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
     record = self.create_log_record(**self.SAMPLE_RECORD)
     self.assertEqual(json.loads(formatter.format(record)), self.SAMPLE_OUTPUT)
+
+  def test_with_exec_context(self):
+    context = common.ExecutionContext.for_test()
+    formatter = logger.JsonLogFormatter(job_id='jobid',
+                                        worker_id='workerid',
+                                        execution_context=context)
+    with logger.PerThreadLoggingContext(
+        work_item_id='workitem', stage_name='stage', step_name='s1'):
+      record = self.create_log_record(**self.SAMPLE_RECORD)
+      log_output1 = json.loads(formatter.format(record))
+
+      with logger.PerThreadLoggingContext(step_name='s2'):
+        record = self.create_log_record(**self.SAMPLE_RECORD)
+        log_output2 = json.loads(formatter.format(record))
+
+      record = self.create_log_record(**self.SAMPLE_RECORD)
+      log_output3 = json.loads(formatter.format(record))
+
+    record = self.create_log_record(**self.SAMPLE_RECORD)
+    log_output4 = json.loads(formatter.format(record))
+
+    self.assertEqual(log_output1, dict(
+        self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='userStep1'))
+    self.assertEqual(log_output2, dict(
+        self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='userStep2'))
+    self.assertEqual(log_output3, dict(
+        self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='userStep1'))
+    self.assertEqual(log_output4, self.SAMPLE_OUTPUT)
+
 
   def execute_multiple_cases(self, test_cases):
     record = self.SAMPLE_RECORD
