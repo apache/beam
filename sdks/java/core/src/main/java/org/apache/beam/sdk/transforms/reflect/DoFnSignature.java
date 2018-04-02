@@ -329,8 +329,6 @@ public abstract class DoFnSignature {
           new AutoValue_DoFnSignature_Parameter_ProcessContextParameter();
     private static final OnTimerContextParameter ON_TIMER_CONTEXT_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_OnTimerContextParameter();
-    private static final ElementParameter ELEMENT_PARAMETER =
-        new AutoValue_DoFnSignature_Parameter_ElementParameter();
     private static final TimestampParameter TIMESTAMP_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_TimestampParameter();
     private static final PaneInfoParameter PANE_INFO_PARAMETER =
@@ -347,8 +345,8 @@ public abstract class DoFnSignature {
       return PROCESS_CONTEXT_PARAMETER;
     }
 
-    public static ElementParameter elementParameter() {
-      return ELEMENT_PARAMETER;
+    public static ElementParameter elementParameter(TypeDescriptor<?> elementT) {
+      return new AutoValue_DoFnSignature_Parameter_ElementParameter(elementT);
     }
 
     public static TimestampParameter timestampParameter() {
@@ -450,6 +448,7 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class ElementParameter extends Parameter {
       ElementParameter() {}
+      public abstract TypeDescriptor<?> elementT();
     }
 
     /**

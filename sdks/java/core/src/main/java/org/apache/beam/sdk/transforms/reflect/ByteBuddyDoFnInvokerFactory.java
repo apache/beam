@@ -602,7 +602,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 pushDelegate,
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
-                        ELEMENT_PARAMETER_METHOD, DoFn.class)));
+                        ELEMENT_PARAMETER_METHOD, DoFn.class)),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.elementT().getRawType())));
           }
 
           @Override

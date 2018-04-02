@@ -95,8 +95,8 @@ public class DoFnInvokersTest {
     when(mockArgumentProvider.window()).thenReturn(mockWindow);
    // when(mockArgumentProvider.paneInfo(Matchers.<DoFn>any()))
    //     .thenReturn(mockPaneInfo);
-    //when(mockArgumentProvider.element(Matchers.<DoFn>any()))
-    //    .thenReturn(mockElement);
+    when(mockArgumentProvider.element(Matchers.<DoFn>any()))
+       .thenReturn(mockElement);
     when(mockArgumentProvider.timestamp(Matchers.<DoFn>any()))
         .thenReturn(mockTimestamp);
     when(mockArgumentProvider.outputReceiver(Matchers.<DoFn>any()))
@@ -211,7 +211,7 @@ public class DoFnInvokersTest {
     class MockFn extends DoFn<String, String> {
       @DoFn.ProcessElement
       public void processElement(ProcessContext c,
-                               //  @Element String element,
+                                 @Element String element,
                                  @Timestamp Instant timestamp,
                                  IntervalWindow w,
                          //        PaneInfo p,
@@ -221,7 +221,7 @@ public class DoFnInvokersTest {
 
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
-    verify(fn).processElement(mockProcessContext, mockTimestamp, mockWindow,
+    verify(fn).processElement(mockProcessContext, mockElement, mockTimestamp, mockWindow,
         mockOutputReceiver, mockMultiOutputReceiver);
   }
 
