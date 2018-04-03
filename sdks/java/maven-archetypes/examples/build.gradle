@@ -55,6 +55,17 @@ task generateSources(type: Exec) {
   commandLine './generate-sources.sh'
 }
 
+// Add archetype testing/generation to existing GradleBuild PreCommit
+// https://issues.apache.org/jira/browse/BEAM-3256
+task generateAndBuildArchetypeTest(type: Exec) {
+  if (project.hasProperty("maven_home")) {
+    commandLine "${maven_home}/bin/mvn", 'clean', 'install'
+    environment "MAVEN_HOME", "${maven_home}"
+  } else {
+    commandLine 'mvn', 'clean', 'install'
+  }
+}
+
 sourceSets {
  main {
   output.dir('src', builtBy: 'generateSources')

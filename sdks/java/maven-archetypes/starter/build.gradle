@@ -21,6 +21,17 @@ applyJavaNature(artifactId: "beam-sdks-java-maven-archetypes-starter")
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
 
+// Add archetype testing/generation to existing GradleBuild PreCommit
+// https://issues.apache.org/jira/browse/BEAM-3256
+task generateAndBuildArchetypeTest(type: Exec) {
+  if (project.hasProperty("maven_home")) {
+    commandLine "${maven_home}/bin/mvn", 'clean', 'install'
+    environment "MAVEN_HOME", "${maven_home}"
+  } else {
+    commandLine 'mvn', 'clean', 'install'
+  }
+}
+
 dependencies {
   shadow project(path: ":runners:direct-java", configuration: "shadow")
   shadow project(path: ":sdks:java:core", configuration: "shadow")
