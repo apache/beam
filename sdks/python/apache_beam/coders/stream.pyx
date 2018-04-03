@@ -39,14 +39,15 @@ cdef class OutputStream(object):
     if self.data:
       libc.stdlib.free(self.data)
 
-  cpdef write(self, b, bint nested=False):
+  cpdef write(self, const unsigned char[:] b, bint nested=False):
     cdef size_t blen = len(b)
     if nested:
       self.write_var_int64(blen)
     if self.buffer_size < self.pos + blen:
       self.extend(blen)
-    libc.string.memcpy(self.data + self.pos, <char*>b, blen)
-    self.pos += blen
+    if blen > 0:
+      libc.string.memcpy(self.data + self.pos, <char*> &b[0], blen)
+      self.pos += blen
 
   cpdef write_byte(self, unsigned char val):
     if  self.buffer_size < self.pos + 1:
@@ -122,7 +123,7 @@ cdef class ByteCountingOutputStream(OutputStream):
   def __cinit__(self):
     self.count = 0
 
-  cpdef write(self, b, bint nested=False):
+  cpdef write(self, const unsigned char[:] b, bint nested=False):
     cdef size_t blen = len(b)
     if nested:
       self.write_var_int64(blen)
