@@ -20,6 +20,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import abc
 import contextlib
 import logging
 import Queue as queue
@@ -56,6 +57,7 @@ class SdkHarness(object):
         self._control_channel, WorkerIdInterceptor())
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
         credentials)
+    self._state_handler_factory = GrpcStateHandlerFactory()
     self.workers = queue.Queue()
     # one thread is enough for getting the progress report.
     # Assumption:
@@ -78,9 +80,6 @@ class SdkHarness(object):
 
     # Create workers
     for _ in range(self._worker_count):
-      state_handler = GrpcStateHandler(
-          beam_fn_api_pb2_grpc.BeamFnStateStub(self._control_channel))
-      state_handler.start()
       # SdkHarness manage function registration and share self._fns with all
       # the workers. This is needed because function registration (register)
       # and exceution(process_bundle) are send over different request and we
@@ -91,7 +90,7 @@ class SdkHarness(object):
       # centralized function list shared among all the workers.
       self.workers.put(
           SdkWorker(
-              state_handler=state_handler,
+              state_handler_factory=self._state_handler_factory,
               data_channel_factory=self._data_channel_factory,
               fns=self._fns))
 
@@ -118,10 +117,9 @@ class SdkHarness(object):
     # get_responses may be blocked on responses.get(), but we need to return
     # control to its caller.
     self._responses.put(no_more_work)
-    self._data_channel_factory.close()
     # Stop all the workers and clean all the associated resources
-    for worker in self.workers.queue:
-      worker.state_handler.done()
+    self._data_channel_factory.close()
+    self._state_handler_factory.close()
     logging.info('Done consuming work.')
 
   def _execute(self, task, request):
@@ -196,9 +194,9 @@ class SdkHarness(object):
 
 class SdkWorker(object):
 
-  def __init__(self, state_handler, data_channel_factory, fns):
+  def __init__(self, state_handler_factory, data_channel_factory, fns):
     self.fns = fns
-    self.state_handler = state_handler
+    self.state_handler_factory = state_handler_factory
     self.data_channel_factory = data_channel_factory
     self.bundle_processors = {}
 
@@ -219,12 +217,16 @@ class SdkWorker(object):
         register=beam_fn_api_pb2.RegisterResponse())
 
   def process_bundle(self, request, instruction_id):
+    process_bundle_desc = self.fns[request.process_bundle_descriptor_reference]
+    state_handler = self.state_handler_factory.create_state_handler(
+        process_bundle_desc.state_api_service_descriptor)
     self.bundle_processors[
         instruction_id] = processor = bundle_processor.BundleProcessor(
-            self.fns[request.process_bundle_descriptor_reference],
-            self.state_handler, self.data_channel_factory)
+            process_bundle_desc,
+            state_handler,
+            self.data_channel_factory)
     try:
-      with self.state_handler.process_instruction_id(instruction_id):
+      with state_handler.process_instruction_id(instruction_id):
         processor.process_bundle(instruction_id)
     finally:
       del self.bundle_processors[instruction_id]
@@ -243,6 +245,84 @@ class SdkWorker(object):
             metrics=processor.metrics() if processor else None))
 
 
+class StateHandlerFactory(object):
+  """An abstract factory for creating ``DataChannel``."""
+
+  __metaclass__ = abc.ABCMeta
+
+  @abc.abstractmethod
+  def create_state_handler(self, api_service_descriptor):
+    """Returns a ``StateHandler`` from the given ApiServiceDescriptor."""
+    raise NotImplementedError(type(self))
+
+  @abc.abstractmethod
+  def close(self):
+    """Close all channels that this factory owns."""
+    raise NotImplementedError(type(self))
+
+
+class GrpcStateHandlerFactory(StateHandlerFactory):
+  """A factory for ``GrpcStateHandler``.
+
+  Caches the created channels by ``state descriptor url``.
+  """
+
+  def __init__(self):
+    self._state_handler_cache = {}
+    self._lock = threading.Lock()
+    self._throwing_state_handler = ThrowingStateHandler()
+
+  def create_state_handler(self, api_service_descriptor):
+    if not api_service_descriptor:
+      return self._throwing_state_handler
+    url = api_service_descriptor.url
+    if url not in self._state_handler_cache:
+      with self._lock:
+        if url not in self._state_handler_cache:
+          logging.info('Creating channel for %s', url)
+          grpc_channel = grpc.insecure_channel(
+              url,
+              # Options to have no limits (-1) on the size of the messages
+              # received or sent over the data plane. The actual buffer size is
+              # controlled in a layer above.
+              options=[("grpc.max_receive_message_length", -1),
+                       ("grpc.max_send_message_length", -1)])
+          # Add workerId to the grpc channel
+          grpc_channel = grpc.intercept_channel(grpc_channel,
+                                                WorkerIdInterceptor())
+          self._state_handler_cache[url] = GrpcStateHandler(
+              beam_fn_api_pb2_grpc.BeamFnStateStub(grpc_channel))
+    return self._state_handler_cache[url]
+
+  def close(self):
+    logging.info('Closing all cached gRPC state handlers.')
+    for _, state_handler in self._state_handler_cache.items():
+      state_handler.done()
+    self._state_handler_cache.clear()
+
+
+class ThrowingStateHandler(object):
+  """A state handler that errors on any requests."""
+
+  def blocking_get(self, state_key, instruction_reference):
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor without '
+        'out state ApiServiceDescriptor for instruction %s and state key %s.'
+        % (state_key, instruction_reference))
+
+  def blocking_append(self, state_key, data, instruction_reference):
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor without '
+        'out state ApiServiceDescriptor for instruction %s and state key %s.'
+        % (state_key, instruction_reference))
+
+  def blocking_clear(self, state_key, instruction_reference):
+    raise RuntimeError(
+        'Unable to handle state requests for ProcessBundleDescriptor without '
+        'out state ApiServiceDescriptor for instruction %s and state key %s.'
+        % (state_key, instruction_reference))
+
+
 class GrpcStateHandler(object):
 
   _DONE = object()
@@ -255,6 +335,7 @@ class GrpcStateHandler(object):
     self._last_id = 0
     self._exc_info = None
     self._context = threading.local()
+    self.start()
 
   @contextlib.contextmanager
   def process_instruction_id(self, bundle_id):
