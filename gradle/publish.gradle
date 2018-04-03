@@ -1,0 +1,149 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+subprojects {
+  apply plugin: 'com.bmuschko.nexus'
+  
+  extraArchive {
+    sources = true
+    javadoc = true
+    tests = false
+  }
+  
+  nexus {
+    sign = Boolean.parseBoolean(nexusSignArchives)
+    repositoryUrl = 'https://repository.apache.org/service/local/staging/deploy/maven2'
+    snapshotRepositoryUrl = 'https://repository.apache.org/content/repositories/snapshots'
+  }
+
+  
+  modifyPom {
+    withXml {
+      def elem = asElement()
+      def hdr = elem.getOwnerDocument().createComment(
+  '''
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  ''')
+
+      elem.insertBefore(hdr, elem.getFirstChild())
+
+  
+      //This black magic checks to see if a dependency has the flag ext.optional=true
+      //set on it, and if so marks the dependency as optional in the maven pom
+      def depMap = project.configurations.compile.dependencies.collectEntries { [it.name, it] }
+      def runtimeDeps = project.configurations.runtime.dependencies.collectEntries { [it.name, it] }
+      depMap.putAll(runtimeDeps)
+      asNode().dependencies.dependency.findAll {
+        def dep = depMap.get(it.artifactId.text())
+        return dep?.hasProperty('optional') && dep.optional
+      }.each {
+        if (it.optional) {
+            it.optional.value = 'true'
+        } else {
+            it.appendNode('optional', 'true')
+        }
+      }
+    }
+
+    project {
+      name 'Apache Beam'
+      url 'http://beam.apache.org'
+  
+      scm {
+        url 'https://github.com/apache/beam'
+        connection 'scm:git:https://github.com:apache/beam.git'
+        developerConnection 'scm:git:https://github.com:apache/beam.git'
+      }
+  
+      licenses {
+        license {
+          name 'The Apache Software License, Version 2.0'
+          url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+        }
+      }
+  
+    }
+  }
+  
+  // The nexus plugin reads authentication from ~/.gradle/gradle.properties but the
+  // jenkins server stores publishing credentials in ~/.m2/settings.xml (maven).
+  // We match on the expected snapshot repository id.
+  afterEvaluate {
+    if (!isReleaseVersion && System.env.USER == 'jenkins') {
+      def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
+      if (settingsXml.exists()) {
+        def snapshotCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server ->
+          server.id.text() == 'apache.snapshots.https'
+        }
+
+        if (snapshotCreds != null) {
+          tasks.uploadArchives.doFirst {
+            repositories.withType(MavenDeployer).each { repo ->
+              repo.snapshotRepository.authentication.userName = snapshotCreds.username.text()
+              repo.snapshotRepository.authentication.password = snapshotCreds.password.text()
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+//Prompt the user for a password to sign archives or upload artifacts, if requested
+gradle.taskGraph.whenReady { taskGraph ->
+  if (project.hasProperty('askpass')) {
+    if(taskGraph.allTasks.any {it instanceof Sign}) {
+      if(!project.hasProperty('signing.keyId') || !project.hasProperty('signing.secretKeyRingFile')) {
+        println "You must configure your signing.keyId and signing.secretKeyRingFile"
+        println "in ~/.gradle/gradle.properties in order to sign jars\n"
+        throw new GradleException("Signing key/keyring is missing")
+      }
+
+      if(!project.hasProperty('signing.password')) {
+        def password = PasswordDialog.askPassword("Please enter your password to unlock your gpg keyring for signing artifacts")
+        
+        subprojects { ext."signing.password" = password }
+      }
+    }
+
+    if(taskGraph.allTasks.any {it.name == 'uploadArchives'}) {
+      if(!project.hasProperty('nexusUsername')) {
+        println "You must configure your nexusUsername in ~/.gradle/gradle.properties in order to uploadArchives\n"
+        throw new GradleException("nexusUsername is missing")
+      }
+
+      if(!project.hasProperty('nexusPassword')) {
+        def password = PasswordDialog.askPassword("Please enter your apache password to uploadArchives to nexus")
+        
+        subprojects { ext."nexusPassword" = password }
+      }
+    }
+  }
+}
