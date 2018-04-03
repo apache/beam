@@ -30,7 +30,7 @@ import sys
 import time
 
 from apache_beam.tools import utils
-from apache_beam.transforms.cy_combiners import DistributionAccumulator
+from apache_beam.transforms.distribution_counter import DistributionAccumulator
 
 
 def generate_input_values(num_input, lower_bound, upper_bound):
