@@ -146,8 +146,6 @@ class GcsIOError(IOError, retry.PermanentException):
 class GcsIO(object):
   """Google Cloud Storage I/O client."""
 
-  local_state = threading.local()
-
   def __new__(cls, storage_client=None):
     if storage_client:
       # This path is only used for testing.
@@ -157,7 +155,7 @@ class GcsIO(object):
       # creating more than one storage client for each thread, since each
       # initialization requires the relatively expensive step of initializing
       # credentaials.
-      local_state = GcsIO.local_state
+      local_state = threading.local()
       if getattr(local_state, 'gcsio_instance', None) is None:
         credentials = auth.get_service_credentials()
         storage_client = storage.StorageV1(
