@@ -30,16 +30,28 @@ Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manag
 pip --version
 ```
 
+If you do not have `pip` version 7.0.0 or newer, run the following command to
+install it. This command might require administrative privileges.
+
+```
+pip install --upgrade pip
+```
+
+
 ### Install Python virtual environment
 
 It is recommended that you install a [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/)
-for initial experiments. If you do not have `virtualenv` version 13.1.0 or newer, install it by running:
+for initial experiments. If you do not have `virtualenv` version 13.1.0 or
+newer, run the following command to install it. This command might require
+administrative privileges.
 
 ```
 pip install --upgrade virtualenv
 ```
 
-If you do not want to use a Python virtual environment (not recommended), ensure `setuptools` is installed on your machine. If you do not have `setuptools` version 17.1 or newer, install it by running:
+If you do not want to use a Python virtual environment (not recommended), ensure
+`setuptools` is installed on your machine. If you do not have `setuptools`
+version 17.1 or newer, run the following command to install it.
 
 ```
 pip install --upgrade setuptools
@@ -77,9 +89,9 @@ Install the latest Python SDK from PyPI:
 pip install apache-beam
 ```
 
-#### Extra Requirements
+#### Extra requirements
 
-The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multitple extra requirements using something like `pip install apache-beam[feature1, feature2]`.
+The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multitple extra requirements using something like `pip install apache-beam[feature1,feature2]`.
 
 - **Google Cloud Platform**
   - Installation Command: `pip install apache-beam[gcp]`
@@ -95,20 +107,41 @@ The above installation will not install all the extra dependencies for using fea
   - Installation Command: `pip install apache-beam[docs]`
   - Generating API documentation using Sphinx
 
-## Execute a pipeline locally
+## Execute a pipeline
 
 The Apache Beam [examples](https://github.com/apache/beam/tree/master/sdks/python/apache_beam/examples) directory has many examples. All examples can be run locally by passing the required arguments described in the example script.
 
-For example, to run `wordcount.py`, run:
+For example, run `wordcount.py` with the following command:
 
 {:.runner-direct}
 ```
-python -m apache_beam.examples.wordcount --input <PATH_TO_INPUT_FILE> --output counts
+python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
+```
+
+{:.runner-apex}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-cluster}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-spark}
+```
+This runner is not yet available for the Python SDK.
 ```
 
 {:.runner-dataflow}
 ```
-# As part of the initial setup, install Google Cloud Platform specific extra components.
+# As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
+# complete the setup steps at https://beam.apache.org/documentation/runners/dataflow/#setup
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                                          --output gs://<your-gcs-bucket>/counts \
@@ -116,6 +149,11 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --project your-gcp-project \
                                          --temp_location gs://<your-gcs-bucket>/tmp/
 ```
+
+After the pipeline completes, you can view the output files at your specified
+output path. For example, if you specify `/dir1/counts` for the `--output`
+parameter, the pipeline writes the files to `/dir1/` and names the files
+sequentially in the format `counts-0000-of-0001`.
 
 ## Next Steps
 
