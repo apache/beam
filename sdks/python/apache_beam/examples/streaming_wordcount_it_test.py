@@ -15,17 +15,9 @@
 # limitations under the License.
 #
 
-"""End-to-end test for the streaming wordcount example.
+"""End-to-end test for the streaming wordcount example."""
 
-Important: End-to-end test infrastructure for streaming pipeine in Python SDK
-is in development and is not yet available for use.
-
-Currently, this test blocks until the job is manually terminated.
-"""
-
-import datetime
 import logging
-import random
 import unittest
 import uuid
 
@@ -67,11 +59,6 @@ class StreamingWordCountIT(unittest.TestCase):
     test_utils.wait_for_topics_created([self.input_topic, self.output_topic])
     self.input_sub.create()
     self.output_sub.create()
-
-  def _generate_identifier(self):
-    seed = random.randint(0, 999)
-    current_time = datetime.datetime.now().strftime('%m%d%H%M%S')
-    return '%s%d' % (current_time, seed)
 
   def _inject_numbers(self, topic, num_messages):
     """Inject numbers as test data to PubSub."""

@@ -72,7 +72,7 @@ class PubSubMessageMatcher(BaseMatcher):
     self.messages = None
 
   def _matches(self, _):
-    if not self.messages:
+    if self.messages is None:
       subscription = (pubsub
                       .Client(project=self.project)
                       .subscription(self.sub_name))
