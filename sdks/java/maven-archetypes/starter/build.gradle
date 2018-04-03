@@ -21,6 +21,15 @@ applyJavaNature(artifactId: "beam-sdks-java-maven-archetypes-starter")
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
 
+task starterTest(type: Exec) {
+  if (project.hasProperty("maven_home")) {
+    commandLine "${maven_home}/bin/mvn", 'clean', 'install'
+    environment "MAVEN_HOME", "${maven_home}"
+  } else {
+    commandLine 'mvn', 'clean', 'install'
+  }
+}
+
 dependencies {
   shadow project(path: ":runners:direct-java", configuration: "shadow")
   shadow project(path: ":sdks:java:core", configuration: "shadow")
