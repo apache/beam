@@ -40,62 +40,31 @@ continue on to learn more concepts in the other examples.
 
 ## MinimalWordCount example
 
-MinimalWordCount demonstrates a simple pipeline that can read from a text file,
-apply transforms to tokenize and count the words, and write the data to an
-output text file. This example hard-codes the locations for its input and output
-files and doesn't perform any error checking; it is intended to only show you
-the "bare bones" of creating a Beam pipeline. This lack of parameterization
-makes this particular pipeline less portable across different runners than
-standard Beam pipelines. In later examples, we will parameterize the pipeline's
-input and output sources and show other best practices.
+MinimalWordCount demonstrates a simple pipeline that uses the Direct Runner to
+read from a text file, apply transforms to tokenize and count the words, and
+write the data to an output text file.
 
-**To run this example in Java:**
+{:.language-java}
+This example hard-codes the locations for its input and output files and doesn't
+perform any error checking; it is intended to only show you the "bare bones" of
+creating a Beam pipeline. This lack of parameterization makes this particular
+pipeline less portable across different runners than standard Beam pipelines. In
+later examples, we will parameterize the pipeline's input and output sources and
+show other best practices.
 
-```
+```java
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount
 ```
 
+```py
+python -m apache_beam.examples.wordcount_minimal --input YOUR_INPUT_FILE --output counts
+```
+
+{:.language-java}
 To view the full code in Java, see
 **[MinimalWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java).**
 
-**To run this example in Python:**
-
-{:.runner-direct}
-```
-python -m apache_beam.examples.wordcount_minimal --input README.md --output counts
-```
-
-{:.runner-apex}
-```
-This runner is not yet available for the Python SDK.
-```
-
-{:.runner-flink-local}
-```
-This runner is not yet available for the Python SDK.
-```
-
-{:.runner-flink-cluster}
-```
-This runner is not yet available for the Python SDK.
-```
-
-{:.runner-spark}
-```
-This runner is not yet available for the Python SDK.
-```
-
-{:.runner-dataflow}
-```
-# As part of the initial setup, install Google Cloud Platform specific extra components.
-pip install apache-beam[gcp]
-python -m apache_beam.examples.wordcount_minimal --input gs://dataflow-samples/shakespeare/kinglear.txt \
-                                                 --output gs://<your-gcs-bucket>/counts \
-                                                 --runner DataflowRunner \
-                                                 --project your-gcp-project \
-                                                 --temp_location gs://<your-gcs-bucket>/tmp/
-```
-
+{:.language-py}
 To view the full code in Python, see
 **[wordcount_minimal.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_minimal.py).**
 
@@ -131,19 +100,6 @@ sections, we will specify the pipeline's runner.
  // will run with the DirectRunner by default, based on the class path configured
  // in its dependencies.
  PipelineOptions options = PipelineOptionsFactory.create();
-
-    // In order to run your pipeline, you need to make following runner specific changes:
-    //
-    // CHANGE 1/3: Select a Beam runner, such as DataflowRunner or FlinkRunner.
-    // CHANGE 2/3: Specify runner-required options.
-    // For DataflowRunner, set project and temp location as follows:
-    //   DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
-    //   dataflowOptions.setRunner(DataflowRunner.class);
-    //   dataflowOptions.setProject("SET_YOUR_PROJECT_ID_HERE");
-    //   dataflowOptions.setTempLocation("gs://SET_YOUR_BUCKET_NAME_HERE/AND_TEMP_DIRECTORY");
-    // For FlinkRunner, set the runner as follows. See {@code FlinkPipelineOptions}
-    // for more details.
-    //   options.setRunner(FlinkRunner.class);
 ```
 
 ```py
@@ -194,9 +150,9 @@ The MinimalWordCount pipeline contains five transforms:
     {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:examples_wordcount_minimal_read
     %}```
 
-2.  This transform splits the lines in PCollection<String>, where each element
+2.  This transform splits the lines in `PCollection<String>`, where each element
     is an individual word in Shakespeare's collected texts.
-    As an alternative, it would have been possible to use a 
+    As an alternative, it would have been possible to use a
     [ParDo]({{ site.baseurl }}/documentation/programming-guide/#pardo)
     transform that invokes a `DoFn` (defined in-line as an anonymous class) on
     each element that tokenizes the text lines into individual words. The input
@@ -335,8 +291,8 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 {:.runner-dataflow}
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
-                  --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
+     -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
+                  --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
      -Pdataflow-runner
 ```
 
@@ -347,7 +303,7 @@ To view the full code in Java, see
 
 {:.runner-direct}
 ```
-python -m apache_beam.examples.wordcount --input README.md --output counts
+python -m apache_beam.examples.wordcount --input YOUR_INPUT_FILE --output counts
 ```
 
 {:.runner-apex}
@@ -375,10 +331,10 @@ This runner is not yet available for the Python SDK.
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
-                                         --output gs://<your-gcs-bucket>/counts \
+                                         --output gs://YOUR_GCS_BUCKET/counts \
                                          --runner DataflowRunner \
-                                         --project your-gcp-project \
-                                         --temp_location gs://<your-gcs-bucket>/tmp/
+                                         --project YOUR_GCP_PROJECT \
+                                         --temp_location gs://YOUR_GCS_BUCKET/tmp/
 ```
 
 To view the full code in Python, see
@@ -554,7 +510,7 @@ To view the full code in Java, see
 
 {:.runner-direct}
 ```
-python -m apache_beam.examples.wordcount_debugging --input README.md --output counts
+python -m apache_beam.examples.wordcount_debugging --input YOUR_INPUT_FILE --output counts
 ```
 
 {:.runner-apex}
@@ -582,10 +538,10 @@ This runner is not yet available for the Python SDK.
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples/shakespeare/kinglear.txt \
-                                         --output gs://<your-gcs-bucket>/counts \
+                                         --output gs://YOUR_GCS_BUCKET/counts \
                                          --runner DataflowRunner \
-                                         --project your-gcp-project \
-                                         --temp_location gs://<your-gcs-bucket>/tmp/
+                                         --project YOUR_GCP_PROJECT \
+                                         --temp_location gs://YOUR_GCS_BUCKET/tmp/
 ```
 
 To view the full code in Python, see
@@ -677,18 +633,23 @@ or DEBUG significantly increases the amount of logs output.
 > **Note:** This section is yet to be added. There is an open issue for this
 > ([BEAM-2285](https://issues.apache.org/jira/browse/BEAM-2285)).
 
-### Testing your pipeline via PAssert
+### Testing your pipeline with asserts
 
-`PAssert` is a set of convenient PTransforms in the style of Hamcrest's
-collection matchers that can be used when writing Pipeline level tests to
-validate the contents of PCollections. `PAssert` is best used in unit tests with
-small data sets, but is demonstrated here as a teaching tool.
+<span class="language-java">`PAssert`</span><span class="language-py">`assert_that`</span>
+is a set of convenient PTransforms in the style of Hamcrest's collection
+matchers that can be used when writing pipeline level tests to validate the
+contents of PCollections. Asserts are best used in unit tests with small data
+sets.
 
-Below, we verify that the set of filtered words matches our expected counts.
-Note that `PAssert` does not produce any output, and the pipeline only succeeds
-if all of the expectations are met. See
-[DebuggingWordCountTest](https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java)
-for an example unit test.
+{:.language-java}
+The following example verifies that the set of filtered words matches our
+expected counts. The assert does not produce any output, and the pipeline only
+succeeds if all of the expectations are met.
+
+{:.language-py}
+The following example verifies that two collections contain the same values. The
+assert does not produce any output, and the pipeline only succeeds if all of the
+expectations are met.
 
 ```java
 public static void main(String[] args) {
@@ -702,8 +663,17 @@ public static void main(String[] args) {
 ```
 
 ```py
-# This feature is not yet available in the Beam SDK for Python.
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
+
+with TestPipeline() as p:
+  assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
 ```
+
+{:.language-java}
+See [DebuggingWordCountTest](https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java)
+for an example unit test.
+
 
 ## WindowedWordCount example
 
@@ -758,15 +728,58 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCo
 {:.runner-dataflow}
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
-                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
+   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
+                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
      -Pdataflow-runner
 ```
 
 To view the full code in Java, see
 **[WindowedWordCount](https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java).**
 
-> **Note:** WindowedWordCount is not yet available for the Python SDK.
+**To run this example in Python:**
+
+This pipeline writes its results to a BigQuery table `--output_table`
+parameter. using the format `PROJECT:DATASET.TABLE` or
+`DATASET.TABLE`.
+
+{:.runner-direct}
+```
+python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE --output_table PROJECT:DATASET.TABLE
+```
+
+{:.runner-apex}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-cluster}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-spark}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-dataflow}
+```
+# As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
+                                         --output_table PROJECT:DATASET.TABLE \
+                                         --runner DataflowRunner \
+                                         --project YOUR_GCP_PROJECT \
+                                         --temp_location gs://YOUR_GCS_BUCKET/tmp/
+```
+
+To view the full code in Python, see
+**[windowed_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/windowed_wordcount.py).**
 
 ### Unbounded and bounded pipeline input modes
 
@@ -890,24 +903,104 @@ PCollection<KV<String, Long>> wordCounts = windowedWords.apply(new WordCount.Cou
 # This feature is not yet available in the Beam SDK for Python.
 ```
 
-### Writing results to an unbounded sink
+## StreamingWordCount example
 
-When our input is unbounded, the same is true of our output `PCollection`. We
-need to make sure that we choose an appropriate, unbounded sink. Some output
-sinks support only bounded output, while others support both bounded and
-unbounded outputs. By using a `FilenamePolicy`, we can use `TextIO` to files
-that are partitioned by windows. We use a composite `PTransform` that uses such
-a policy internally to write a single sharded file per window.
+The StreamingWordCount example is a streaming pipeline that reads Pub/Sub
+messages from a Pub/Sub subscription or topic, and performs a frequency count on
+the words in each message. Similar to WindowedWordCount, this example applies
+fixed-time windowing, wherein each window represents a fixed time interval. The
+fixed window size for this example is 15 seconds. The pipeline outputs the
+frequency count of the words seen in each 15 second window.
 
-In this example, we stream the results to Google BigQuery. The code formats the
-results and writes them to a BigQuery table using `BigQueryIO.Write`.
+**New Concepts:**
+
+* Reading an unbounded data set
+* Writing unbounded results
+
+**To run this example in Java:**
+
+> **Note:** StreamingWordCount is not yet available for the Java SDK.
+
+**To run this example in Python:**
+
+{:.runner-direct}
+```
+python -m apache_beam.examples.streaming_wordcount \
+  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
+  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
+  --streaming
+```
+
+{:.runner-apex}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-local}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-flink-cluster}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-spark}
+```
+This runner is not yet available for the Python SDK.
+```
+
+{:.runner-dataflow}
+```
+# As part of the initial setup, install Google Cloud Platform specific extra components.
+pip install apache-beam[gcp]
+python -m apache_beam.examples.streaming_wordcount \
+  --runner DataflowRunner \
+  --project YOUR_GCP_PROJECT \
+  --temp_location gs://YOUR_GCS_BUCKET/tmp/ \
+  --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
+  --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
+  --streaming
+```
+
+To view the full code in Python, see
+**[streaming_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/streaming_wordcount.py).**
+
+
+### Reading an unbounded data set
+
+This example uses an unbounded data set as input. The code reads Pub/Sub
+messages from a Pub/Sub subscription or topic using
+[`beam.io.ReadStringsFromPubSub`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub).
 
 ```java
-  wordCounts
-      .apply(MapElements.via(new WordCount.FormatAsTextFn()))
-      .apply(new WriteOneFilePerWindow(output, options.getNumShards()));
+  // This example is not currently available for the Beam SDK for Java.
+```
+```py
+  # Read from Pub/Sub into a PCollection.
+  if known_args.input_subscription:
+    lines = p | beam.io.ReadStringsFromPubSub(
+        subscription=known_args.input_subscription)
+  else:
+    lines = p | beam.io.ReadStringsFromPubSub(topic=known_args.input_topic)
+```
+### Writing unbounded results
+
+When the input is unbounded, the same is true of the output `PCollection`. As
+such, you must make sure to choose an appropriate I/O for the results. Some I/Os
+support only bounded output, while others support both bounded and unbounded
+outputs.
+
+This example uses an unbounded `PCollection` and streams the results to
+Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
+using [`beam.io.WriteStringsToPubSub`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub).
+
+```java
+  // This example is not currently available for the Beam SDK for Java.
+```
+```py
+  # Write to Pub/Sub
+  output | beam.io.WriteStringsToPubSub(known_args.output_topic)
 ```
 
-```py
-# This feature is not yet available in the Beam SDK for Python.
-```
