@@ -16,18 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.fn;
-
-import java.util.function.BiConsumer;
+package org.apache.beam.sdk.fn.function;
 
 /**
- * A {@link BiConsumer} which can throw {@link Exception}s.
+ * A {@link Runnable} which can throw {@link Exception}s.
  *
  * <p>Used to expand the allowed set of method references to be used by Java 8
  * functional interfaces.
  */
 @FunctionalInterface
-public interface ThrowingBiConsumer<T1, T2> {
-  void accept(T1 t1, T2 t2) throws Exception;
+public interface ThrowingRunnable {
+  void run() throws Exception;
 }
-
