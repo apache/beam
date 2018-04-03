@@ -168,10 +168,13 @@ func inferCoders(list []FullType) ([]*coder.Coder, error) {
 // form that doesn't require LengthPrefix'ing to cut up the bytestream from
 // the FnHarness.
 
+// ProtoEnc marshals the supplied proto.Message.
 func ProtoEnc(in typex.T) ([]byte, error) {
 	return proto.Marshal(in.(proto.Message))
 }
 
+// ProtoDec unmarshals the supplied bytes into an instance of the supplied
+// proto.Message type.
 func ProtoDec(t reflect.Type, in []byte) (typex.T, error) {
 	val := reflect.New(t.Elem()).Interface().(proto.Message)
 	if err := proto.Unmarshal(in, val); err != nil {
