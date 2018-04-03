@@ -171,9 +171,11 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>Users can optionally specify a query priority using {@link TypedRead#withQueryPriority(
- * TypedRead.QueryPriority)} and a geographic location where the query will be executed using
- * {@link TypedRead#withQueryLocation(String)}. Query location must be specified for jobs that are
- * not executed in US or EU.</p>
+ * TypedRead.QueryPriority)} and a geographic location where the query will be executed using {@link
+ * TypedRead#withQueryLocation(String)}. Query location must be specified for jobs that are not
+ * executed in US or EU. See <a
+ * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
+ * query</a>.
  *
  * <h3>Writing</h3>
  *
@@ -696,7 +698,8 @@ public class BigQueryIO {
                 new JobConfigurationQuery()
                     .setQuery(getQuery().get())
                     .setFlattenResults(getFlattenResults())
-                    .setUseLegacySql(getUseLegacySql()), getQueryLocation());
+                    .setUseLegacySql(getUseLegacySql()),
+                getQueryLocation());
           } catch (Exception e) {
             throw new IllegalArgumentException(
                 String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
@@ -949,11 +952,12 @@ public class BigQueryIO {
     }
 
     /**
-     * BigQuery geographic location where the query
-     * <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs">job</a> will be
-     * executed. If not specified, Beam tries to determine the location by examining
-     * the tables referenced by the query. Location must be specified for queries not executed in
-     * US or EU.
+     * BigQuery geographic location where the query <a
+     * href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs">job</a> will be
+     * executed. If not specified, Beam tries to determine the location by examining the tables
+     * referenced by the query. Location must be specified for queries not executed in US or EU. See
+     * <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query">BigQuery Jobs:
+     * query</a>.
      */
     public TypedRead<T> withQueryLocation(String location) {
       return toBuilder().setQueryLocation(location).build();

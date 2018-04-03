@@ -62,7 +62,14 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       QueryPriority priority,
       String location) {
     return new BigQueryQuerySource<>(
-        stepUuid, query, flattenResults, useLegacySql, bqServices, coder, parseFn, priority,
+        stepUuid,
+        query,
+        flattenResults,
+        useLegacySql,
+        bqServices,
+        coder,
+        parseFn,
+        priority,
         location);
   }
 
@@ -108,7 +115,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       // If location was not provided we try to determine it from the tables referenced by the
       // Query. This will only work for BQ locations US and EU.
       List<TableReference> referencedTables =
-              dryRunQueryIfNeeded(bqOptions).getQuery().getReferencedTables();
+          dryRunQueryIfNeeded(bqOptions).getQuery().getReferencedTables();
       if (referencedTables != null && !referencedTables.isEmpty()) {
         TableReference queryTable = referencedTables.get(0);
         location = tableService.getTable(queryTable).getLocation();
@@ -161,8 +168,10 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
       throws InterruptedException, IOException {
     if (dryRunJobStats.get() == null) {
-      JobStatistics jobStats = bqServices.getJobService(bqOptions).dryRunQuery(
-          bqOptions.getProject(), createBasicQueryConfig(), this.location);
+      JobStatistics jobStats =
+          bqServices
+              .getJobService(bqOptions)
+              .dryRunQuery(bqOptions.getProject(), createBasicQueryConfig(), this.location);
       dryRunJobStats.compareAndSet(null, jobStats);
     }
     return dryRunJobStats.get();
@@ -185,10 +194,11 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         destinationTable,
         queryJobId);
 
-    JobReference jobRef = new JobReference()
-        .setProjectId(executingProject)
-        .setLocation(bqLocation)
-        .setJobId(queryJobId);
+    JobReference jobRef =
+        new JobReference()
+            .setProjectId(executingProject)
+            .setLocation(bqLocation)
+            .setJobId(queryJobId);
 
     JobConfigurationQuery queryConfig = createBasicQueryConfig()
         .setAllowLargeResults(true)

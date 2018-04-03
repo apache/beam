@@ -210,7 +210,7 @@ public class BigQueryHelpers {
   }
 
   static String getDatasetLocation(
-          DatasetService datasetService, String projectId, String datasetId) {
+      DatasetService datasetService, String projectId, String datasetId) {
     Dataset dataset;
     try {
       dataset = datasetService.getDataset(projectId, datasetId);
@@ -219,8 +219,9 @@ public class BigQueryHelpers {
         Thread.currentThread().interrupt();
       }
       throw new RuntimeException(
-              String.format("unable to obtain dataset for dataset %s in project %s",
-                  datasetId, projectId), e);
+          String.format(
+              "unable to obtain dataset for dataset %s in project %s", datasetId, projectId),
+          e);
     }
     return dataset.getLocation();
   }

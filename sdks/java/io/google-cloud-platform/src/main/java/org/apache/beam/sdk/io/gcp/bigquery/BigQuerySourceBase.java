@@ -113,9 +113,9 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     JobService jobService = bqServices.getJobService(bqOptions);
     String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
     final String extractDestinationDir =
-            resolveTempLocation(bqOptions.getTempLocation(),
-                    "BigQueryExtractTemp", stepUuid);
-    String bqLocation = BigQueryHelpers.getDatasetLocation(
+        resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+    String bqLocation =
+        BigQueryHelpers.getDatasetLocation(
             datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
     List<ResourceId> tempFiles =
         executeExtract(
@@ -168,10 +168,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
       String extractDestinationDir, String bqLocation)
           throws InterruptedException, IOException {
 
-    JobReference jobRef = new JobReference()
-        .setProjectId(executingProject)
-        .setLocation(bqLocation)
-        .setJobId(jobId);
+    JobReference jobRef =
+        new JobReference().setProjectId(executingProject).setLocation(bqLocation).setJobId(jobId);
 
     String destinationUri = BigQueryIO.getExtractDestinationUri(extractDestinationDir);
     JobConfigurationExtract extract = new JobConfigurationExtract()
