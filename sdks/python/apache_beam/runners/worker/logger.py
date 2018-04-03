@@ -81,7 +81,8 @@ class JsonLogFormatter(logging.Formatter):
     # TODO(pabloem) - Clean up after transition is complete.
     if execution_context:
       self.get_step_user_name = (
-        lambda step: self._execution_context.step_registry.get(step).user_name)
+          lambda step: self._execution_context.step_registry.get(
+              step).user_name)
     else:
       self.get_step_user_name = lambda step: step
 

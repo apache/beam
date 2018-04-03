@@ -122,7 +122,6 @@ class JsonLogFormatterTest(unittest.TestCase):
         self.SAMPLE_OUTPUT, work='workitem', stage='stage', step='userStep1'))
     self.assertEqual(log_output4, self.SAMPLE_OUTPUT)
 
-
   def execute_multiple_cases(self, test_cases):
     record = self.SAMPLE_RECORD
     output = self.SAMPLE_OUTPUT
