@@ -25,32 +25,23 @@ The Cloud Dataflow Runner and service are suitable for large scale, continuous j
 
 The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the supported capabilities of the Cloud Dataflow Runner.
 
-## Cloud Dataflow Runner prerequisites and setup
-To use the Cloud Dataflow Runner, you must complete the following setup:
+## Cloud Dataflow Runner prerequisites and setup {#setup}
+
+To use the Cloud Dataflow Runner, you must complete the setup in the *Before you
+begin* section of the [Cloud Dataflow quickstart](https://cloud.google.com/dataflow/docs/quickstarts)
+for your chosen language.
 
 1. Select or create a Google Cloud Platform Console project.
-
 2. Enable billing for your project.
-
 3. Enable the required Google Cloud APIs: Cloud Dataflow, Compute Engine,
    Stackdriver Logging, Cloud Storage, Cloud Storage JSON, and Cloud Resource
    Manager. You may need to enable additional APIs (such as BigQuery, Cloud
    Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.
+4. Authenticate with Google Cloud Platform.
+5. Install the Google Cloud SDK.
+6. Create a Cloud Storage bucket.
 
-4. Install the Google Cloud SDK.
-
-5. Create a Cloud Storage bucket.
-    * In the Google Cloud Platform Console, go to the Cloud Storage browser.
-    * Click **Create bucket**.
-    * In the **Create bucket** dialog, specify the following attributes:
-      * _Name_: A unique bucket name. Do not include sensitive information in the bucket name, as the bucket namespace is global and publicly visible.
-      * _Storage class_: Multi-Regional
-      * _Location_:  Choose your desired location
-    * Click **Create**.
-
-For more information, see the *Before you begin* section of the [Cloud Dataflow quickstarts](https://cloud.google.com/dataflow/docs/quickstarts).
-
-### Specify your dependency
+### Specify your dependency {#dependency}
 
 <span class="language-java">When using Java, you must specify your dependency on the Cloud Dataflow Runner in your `pom.xml`.</span>
 ```java
@@ -64,7 +55,7 @@ For more information, see the *Before you begin* section of the [Cloud Dataflow 
 
 <span class="language-py">This section is not applicable to the Beam SDK for Python.</span>
 
-### Self executing JAR
+### Self executing JAR {#self-executing-jar}
 
 {:.language-py}
 This section is not applicable to the Beam SDK for Python.
@@ -118,15 +109,7 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
   --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/
 ```
 
-### Authentication
-
-Before running your pipeline, you must authenticate with the Google Cloud Platform. Run the following command to get [Application Default Credentials](https://developers.google.com/identity/protocols/application-default-credentials).
-
-```
-gcloud auth application-default login
-```
-
-## Pipeline options for the Cloud Dataflow Runner
+## Pipeline options for the Cloud Dataflow Runner {#pipeline-options}
 
 <span class="language-java">When executing your pipeline with the Cloud Dataflow Runner (Java), consider these common pipeline options.</span>
 <span class="language-py">When executing your pipeline with the Cloud Dataflow Runner (Python), consider these common pipeline options.</span>
@@ -150,8 +133,7 @@ gcloud auth application-default login
   <td>If not set, defaults to the default project in the current environment. The default project is set via <code>gcloud</code>.</td>
 </tr>
 
-<!-- Only show for Java -->
-<tr class="language-java">
+<tr>
   <td><code>streaming</code></td>
   <td>Whether streaming mode is enabled or disabled; <code>true</code> if enabled. Set to <code>true</code> if running pipelines with unbounded <code>PCollection</code>s.</td>
   <td><code>false</code></td>
@@ -212,17 +194,34 @@ See the reference documentation for the
 <span class="language-py">[`PipelineOptions`]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions)</span>
 interface (and any subinterfaces) for additional pipeline configuration options.
 
-## Additional information and caveats
+## Additional information and caveats {#additional-info}
 
-### Monitoring your job
+### Monitoring your job {#monitoring}
 
 While your pipeline executes, you can monitor the job's progress, view details on execution, and receive updates on the pipeline's results by using the [Dataflow Monitoring Interface](https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf) or the [Dataflow Command-line Interface](https://cloud.google.com/dataflow/pipelines/dataflow-command-line-intf).
 
-### Blocking Execution
+### Blocking Execution {#blocking-execution}
 
 To block until your job completes, call <span class="language-java"><code>waitToFinish</code></span><span class="language-py"><code>wait_until_finish</code></span> on the `PipelineResult` returned from `pipeline.run()`. The Cloud Dataflow Runner prints job status updates and console messages while it waits. While the result is connected to the active job, note that pressing **Ctrl+C** from the command line does not cancel your job. To cancel the job, you can use the [Dataflow Monitoring Interface](https://cloud.google.com/dataflow/pipelines/dataflow-monitoring-intf) or the [Dataflow Command-line Interface](https://cloud.google.com/dataflow/pipelines/dataflow-command-line-intf).
 
-### Streaming Execution
+### Streaming Execution {#streaming-execution}
 
-<span class="language-java">If your pipeline uses an unbounded data source or sink, you must set the `streaming` option to `true`.</span>
-<span class="language-py">The Beam SDK for Python does not currently support streaming pipelines.</span>
+If your pipeline uses an unbounded data source or sink, you must set the `streaming` option to `true`.
+
+When using streaming execution, keep the following considerations in mind.
+
+1. Streaming pipelines do not terminate unless explicitly cancelled by the user.
+   You can cancel your streaming job from the [Dataflow Monitoring Interface](https://cloud.google.com/dataflow/pipelines/stopping-a-pipeline)
+   or with the [Dataflow Command-line Interface](https://cloud.google.com/dataflow/pipelines/dataflow-command-line-intf)
+   ([gcloud dataflow jobs cancel](https://cloud.google.com/sdk/gcloud/reference/dataflow/jobs/cancel)
+   command).
+
+2. Streaming jobs use a Google Compute Engine [machine type](https://cloud.google.com/compute/docs/machine-types)
+   of `n1-standard-2` or higher by default. You must not override this, as
+   `n1-standard-2` is the minimum required machine type for running streaming
+   jobs.
+
+3. Streaming execution [pricing](https://cloud.google.com/dataflow/pricing)
+   differs from batch execution.
+
+

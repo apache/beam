@@ -104,6 +104,8 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 {:.runner-dataflow}
 ```
+Make sure you complete the setup steps at https://beam.apache.org/documentation/runners/dataflow/#setup
+
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=DataflowRunner --project=<your-gcp-project> \
                   --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
@@ -140,7 +142,6 @@ $ ls /tmp/counts*
 ```
 $ ls counts*
 ```
-
 
 {:.runner-dataflow}
 ```
