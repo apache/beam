@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.sdk.util.MoreFutures;
@@ -52,7 +53,8 @@ public class FnApiControlClientPoolServiceTest {
   // for matching incoming connections and server threads is likely.
   private final BlockingQueue<FnApiControlClient> pool = new LinkedBlockingQueue<>();
   private final FnApiControlClientPoolService controlService =
-      FnApiControlClientPoolService.offeringClientsToPool(pool);
+      FnApiControlClientPoolService.offeringClientsToPool(
+          pool, GrpcContextHeaderAccessorProvider.getHeaderAccessor());
   private GrpcFnServer<FnApiControlClientPoolService> server;
   private BeamFnControlGrpc.BeamFnControlStub stub;
 
