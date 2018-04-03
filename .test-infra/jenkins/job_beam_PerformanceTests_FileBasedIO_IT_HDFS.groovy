@@ -54,6 +54,8 @@ def testsConfigurations = [
                         numberOfRecords: '1000000'
                 ]
         ],
+// TODO(BEAM-3945) TFRecord performance test is failing only when running on hdfs.
+// We need to fix this before enabling this job on jenkins.
 //        [
 //                jobName           : 'beam_PerformanceTests_TFRecordIOIT_HDFS',
 //                jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_TFRecordIOIT on HDFS',
