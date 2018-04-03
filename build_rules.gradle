@@ -745,6 +745,10 @@ class JavaQuickstartConfiguration {
 
   // gcsBucket sets the gcsProject argument when executing the quickstart.
   String gcsBucket
+
+  // additional arguments useful for the specific quickstart, as a map of option name, value
+  // pairs
+  Map<String,String> additionalArgs
 }
 
 // Creates a task to run the quickstart for a runner.
@@ -757,6 +761,9 @@ ext.createJavaQuickstartValidationTask = {
   def releaseVersion = project.findProperty('ver') ?: version
   def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
   def argsNeeded = ["--ver=${releaseVersion}", "--repourl=${releaseRepo}"]
+  if (config.additionalArgs) {
+    argsNeeded.add("--additionalArgs=${config.additionalArgs}")
+  }
   if (config.gcpProject) {
     argsNeeded.add("--gcpProject=${config.gcpProject}")
   }
