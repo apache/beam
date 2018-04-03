@@ -312,8 +312,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
           # Options to have no limits (-1) on the size of the messages
           # received or sent over the data plane. The actual buffer size
           # is controlled in a layer above.
-          channel_options=[("grpc.max_receive_message_length", -1),
-                           ("grpc.max_send_message_length", -1)]
+          channel_options = [("grpc.max_receive_message_length", -1),
+                             ("grpc.max_send_message_length", -1)]
           grpc_channel = None
           if self._credentials is not None:
             grpc_channel = grpc.secure_channel(
