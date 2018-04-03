@@ -207,6 +207,7 @@
     <module>model</module>
     <module>sdks</module>
     <module>runners</module>
+    <module>util</module>
     <module>examples</module>
     <!-- sdks/java/javadoc builds project-wide Javadoc. It has to run last. -->
     <module>sdks/java/javadoc</module>
@@ -551,12 +552,6 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-fn-execution</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-harness</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -806,6 +801,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-gearpump</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-util-java-fn-execution</artifactId>
         <version>${project.version}</version>
       </dependency>
 

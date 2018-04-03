@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.util.fn.data.FnDataReceiver;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

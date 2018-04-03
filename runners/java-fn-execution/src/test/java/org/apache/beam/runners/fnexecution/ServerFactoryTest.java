@@ -42,8 +42,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
-import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.util.fn.channel.ManagedChannelFactory;
+import org.apache.beam.util.fn.test.TestStreams;
 import org.junit.Test;
 
 /**

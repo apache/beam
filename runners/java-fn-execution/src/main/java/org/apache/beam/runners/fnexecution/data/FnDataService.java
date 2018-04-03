@@ -19,11 +19,11 @@
 package org.apache.beam.runners.fnexecution.data;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.util.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.util.fn.data.FnDataReceiver;
+import org.apache.beam.util.fn.data.InboundDataClient;
+import org.apache.beam.util.fn.data.LogicalEndpoint;
 
 /**
  * The {@link FnDataService} is able to forward inbound elements to a consumer and is also a

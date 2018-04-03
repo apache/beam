@@ -42,12 +42,12 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
-import org.apache.beam.sdk.fn.data.InboundDataClient;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.util.fn.data.FnDataReceiver;
+import org.apache.beam.util.fn.data.InboundDataClient;
+import org.apache.beam.util.fn.data.LogicalEndpoint;
+import org.apache.beam.util.fn.data.RemoteGrpcPortRead;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
