@@ -25,16 +25,28 @@ This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
 
 For internal use only; no backwards-compatibility guarantees.
+
+isort:skip_file
 """
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+native_int = int
+
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+from builtins import bytes
 from builtins import chr
+from builtins import dict
 from builtins import int
 from builtins import object
 from builtins import range
 from builtins import str
+
+from past.builtins import dict as old_dict
+from past.builtins import str as old_str
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
@@ -42,7 +54,6 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from .stream import InputStream as create_InputStream
   from .stream import OutputStream as create_OutputStream
@@ -277,32 +288,32 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     return out.get_count(), []
 
   def encode_to_stream(self, value, stream, nested):
-    if value is None:
+    t = type(value)
+    if t is type(None):
       stream.write_byte(NONE_TYPE)
-    elif isinstance(value, bool):
+    elif t is bool:
       stream.write_byte(BOOL_TYPE)
       stream.write_byte(value)
-    elif isinstance(value, int):
+    elif t is int or t is native_int or t is long:
       stream.write_byte(INT_TYPE)
       stream.write_var_int64(value)
-    elif isinstance(value, float):
+    elif t is float:
       stream.write_byte(FLOAT_TYPE)
       stream.write_bigendian_double(value)
-    elif isinstance(value, bytes):
+    elif t is bytes or t is old_str:
       stream.write_byte(STR_TYPE)
       stream.write(value, nested)
-    elif isinstance(value, str):
+    elif t is str or t is unicode:
       unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
       stream.write(unicode_value.encode('utf-8'), nested)
-    elif isinstance(value, (list, tuple, set)):
+    elif t is list or t is tuple or t is set:
       stream.write_byte(
-          LIST_TYPE if isinstance(value, list) else TUPLE_TYPE if
-          isinstance(value, tuple) else SET_TYPE)
+          LIST_TYPE if t is list else TUPLE_TYPE if t is tuple else SET_TYPE)
       stream.write_var_int64(len(value))
       for e in value:
         self.encode_to_stream(e, stream, True)
-    elif isinstance(value, dict):
+    elif t is dict or t is old_dict:
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
       stream.write_var_int64(len(dict_value))
