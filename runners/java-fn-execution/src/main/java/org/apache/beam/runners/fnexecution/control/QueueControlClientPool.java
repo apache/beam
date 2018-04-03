@@ -20,6 +20,8 @@ package org.apache.beam.runners.fnexecution.control;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
+import org.apache.beam.sdk.fn.function.ThrowingConsumer;
+import org.apache.beam.sdk.util.ThrowingSupplier;
 
 /** Control client pool backed by a blocking queue. */
 public class QueueControlClientPool<T extends InstructionRequestHandler>
@@ -42,12 +44,12 @@ public class QueueControlClientPool<T extends InstructionRequestHandler>
   }
 
   @Override
-  public ClientSource<T> getSource() {
+  public ThrowingSupplier<T> getSource() {
     return queue::take;
   }
 
   @Override
-  public ClientSink<T> getSink() {
+  public ThrowingConsumer<T> getSink() {
       return queue::put;
   }
 

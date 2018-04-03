@@ -56,7 +56,7 @@ public class SdkHarnessClientControlService implements FnService {
   public SdkHarnessClient getClient() {
     try {
       // Block until a client is available.
-      FnApiControlClient getClient = pendingClients.getSource().take();
+      FnApiControlClient getClient = pendingClients.getSource().get();
       return SdkHarnessClient.usingFnApiClient(getClient, dataService.get());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();

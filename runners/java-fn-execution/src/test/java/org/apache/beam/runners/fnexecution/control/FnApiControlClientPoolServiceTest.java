@@ -75,7 +75,7 @@ public class FnApiControlClientPoolServiceTest {
     StreamObserver<BeamFnApi.InstructionResponse> responseObserver =
         controlService.control(requestObserver);
 
-    FnApiControlClient client = pool.getSource().take();
+    FnApiControlClient client = pool.getSource().get();
 
     // Check that the client is wired up to the request channel
     String id = "fakeInstruction";
@@ -113,7 +113,7 @@ public class FnApiControlClientPoolServiceTest {
           }
         });
 
-    pool.getSource().take();
+    pool.getSource().get();
     server.close();
 
     latch.await();

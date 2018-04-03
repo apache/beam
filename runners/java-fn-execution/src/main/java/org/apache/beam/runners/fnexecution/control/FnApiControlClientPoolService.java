@@ -25,6 +25,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
+import org.apache.beam.sdk.fn.function.ThrowingConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,13 +34,13 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
     implements FnService {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
-  private final ControlClientPool.ClientSink<? super FnApiControlClient> clientPool;
+  private final ThrowingConsumer<? super FnApiControlClient> clientPool;
   private final Collection<FnApiControlClient> vendedClients = new CopyOnWriteArrayList<>();
   private final HeaderAccessor headerAccessor;
   private AtomicBoolean closed = new AtomicBoolean();
 
   private FnApiControlClientPoolService(
-      ControlClientPool.ClientSink<? super FnApiControlClient> clientPool,
+      ThrowingConsumer<? super FnApiControlClient> clientPool,
       HeaderAccessor headerAccessor) {
     this.clientPool = clientPool;
     this.headerAccessor = headerAccessor;
@@ -53,7 +54,7 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
    * That consumer is responsible for closing the clients when they are no longer needed.
    */
   public static FnApiControlClientPoolService offeringClientsToPool(
-      ControlClientPool.ClientSink<? super FnApiControlClient> clientPool,
+      ThrowingConsumer<? super FnApiControlClient> clientPool,
       HeaderAccessor headerAccessor) {
     return new FnApiControlClientPoolService(clientPool, headerAccessor);
   }
@@ -78,7 +79,7 @@ public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnContr
       // discarded, which should be performed by a call to #shutdownNow. The remote caller must be
       // able to handle an unexpectedly terminated connection.
       vendedClients.add(newClient);
-      clientPool.put(newClient);
+      clientPool.accept(newClient);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);

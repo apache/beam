@@ -17,24 +17,16 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import org.apache.beam.sdk.fn.function.ThrowingConsumer;
+import org.apache.beam.sdk.util.ThrowingSupplier;
+
 /** Control client pool that exposes a source and sink of control clients. */
 public interface ControlClientPool<T extends InstructionRequestHandler> {
 
   /** Source of control clients. */
-  ClientSource<T> getSource();
+  ThrowingSupplier<T> getSource();
 
   /** Sink for control clients. */
-  ClientSink<T> getSink();
+  ThrowingConsumer<T> getSink();
 
-  /** A source of control clients. */
-  @FunctionalInterface
-  interface ClientSource<T> {
-      T take() throws Exception;
-  }
-
-  /** A sink for control clients. */
-  @FunctionalInterface
-  interface ClientSink<T> {
-      void put(T controlClient) throws Exception;
-  }
 }

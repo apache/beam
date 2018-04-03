@@ -98,7 +98,7 @@ public class InProcessSdkHarness extends ExternalResource implements TestRule {
           return null;
         });
 
-    client = SdkHarnessClient.usingFnApiClient(clientPool.getSource().take(),
+    client = SdkHarnessClient.usingFnApiClient(clientPool.getSource().get(),
         dataServer.getService());
   }
 
