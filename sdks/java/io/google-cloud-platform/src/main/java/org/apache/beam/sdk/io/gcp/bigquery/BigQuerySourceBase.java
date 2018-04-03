@@ -101,7 +101,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected ExtractResult extractFiles(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     TableReference tableToExtract = getTableToExtract(bqOptions);
-    Table table = bqServices.getDatasetService(bqOptions).getTable(tableToExtract);
+    BigQueryServices.DatasetService datasetService = bqServices.getDatasetService(bqOptions);
+    Table table = datasetService.getTable(tableToExtract);
     if (table == null) {
       throw new IOException(String.format(
               "Cannot start an export job since table %s does not exist",
@@ -112,14 +113,18 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     JobService jobService = bqServices.getJobService(bqOptions);
     String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
     final String extractDestinationDir =
-        resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+            resolveTempLocation(bqOptions.getTempLocation(),
+                    "BigQueryExtractTemp", stepUuid);
+    String bqLocation = BigQueryHelpers.getDatasetLocation(
+            datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
     List<ResourceId> tempFiles =
         executeExtract(
             extractJobId,
             tableToExtract,
             jobService,
             bqOptions.getProject(),
-            extractDestinationDir);
+            extractDestinationDir,
+            bqLocation);
     return new ExtractResult(schema, tempFiles);
   }
 
@@ -160,10 +165,12 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
   private List<ResourceId> executeExtract(
       String jobId, TableReference table, JobService jobService, String executingProject,
-      String extractDestinationDir)
+      String extractDestinationDir, String bqLocation)
           throws InterruptedException, IOException {
+
     JobReference jobRef = new JobReference()
         .setProjectId(executingProject)
+        .setLocation(bqLocation)
         .setJobId(jobId);
 
     String destinationUri = BigQueryIO.getExtractDestinationUri(extractDestinationDir);
