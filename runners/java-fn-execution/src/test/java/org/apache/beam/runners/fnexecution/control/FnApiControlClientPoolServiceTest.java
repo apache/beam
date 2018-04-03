@@ -49,7 +49,8 @@ public class FnApiControlClientPoolServiceTest {
 
   // For ease of straight-line testing, we use a LinkedBlockingQueue; in practice a SynchronousQueue
   // for matching incoming connections and server threads is likely.
-  private final ControlClientPool<FnApiControlClient> pool = QueueControlClientPool.createLinked();
+  private final ControlClientPool<FnApiControlClient> pool =
+      QueueControlClientPool.createBuffering();
   private final FnApiControlClientPoolService controlService =
       FnApiControlClientPoolService.offeringClientsToPool(
           pool.getSink(), GrpcContextHeaderAccessorProvider.getHeaderAccessor());

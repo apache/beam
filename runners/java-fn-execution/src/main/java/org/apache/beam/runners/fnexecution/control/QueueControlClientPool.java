@@ -29,13 +29,19 @@ public class QueueControlClientPool<T extends InstructionRequestHandler>
 
   private final BlockingQueue<T> queue;
 
-  /** Creates a client pool backed by a {@link SynchronousQueue}. */
+  /**
+   * Creates a client pool backed by a {@link SynchronousQueue}. Client submission blocks until
+   * there is a receiving thread waiting on the source.
+   */
   public static QueueControlClientPool createSynchronous() {
       return new QueueControlClientPool<>(new SynchronousQueue<>(true));
   }
 
-  /** Creates a client pool backed by an unbounded {@link LinkedBlockingQueue}. */
-  public static QueueControlClientPool createLinked() {
+  /**
+   * Creates a client pool backed by an unbounded {@link LinkedBlockingQueue}. Clients are buffered
+   * until consumed.
+   */
+  public static QueueControlClientPool createBuffering() {
       return new QueueControlClientPool<>(new LinkedBlockingQueue<>());
   }
 
