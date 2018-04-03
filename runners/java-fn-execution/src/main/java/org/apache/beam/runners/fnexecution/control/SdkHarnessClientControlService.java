@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.function.Supplier;
 import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.runners.fnexecution.HeaderAccessor;
 import org.apache.beam.runners.fnexecution.data.FnDataService;
 
 /**
@@ -39,15 +40,18 @@ public class SdkHarnessClientControlService implements FnService {
 
   private final Collection<SdkHarnessClient> activeClients;
 
-  public static SdkHarnessClientControlService create(Supplier<FnDataService> dataService) {
-    return new SdkHarnessClientControlService(dataService);
+  public static SdkHarnessClientControlService create(
+      Supplier<FnDataService> dataService, HeaderAccessor headerAccessor) {
+    return new SdkHarnessClientControlService(dataService, headerAccessor);
   }
 
-  private SdkHarnessClientControlService(Supplier<FnDataService> dataService) {
+  private SdkHarnessClientControlService(
+      Supplier<FnDataService> dataService, HeaderAccessor headerAccessor) {
     this.dataService = dataService;
     activeClients = new ConcurrentLinkedQueue<>();
     pendingClients = new SynchronousQueue<>();
-    clientPoolService = FnApiControlClientPoolService.offeringClientsToPool(pendingClients);
+    clientPoolService =
+        FnApiControlClientPoolService.offeringClientsToPool(pendingClients, headerAccessor);
   }
 
   public SdkHarnessClient getClient() {
