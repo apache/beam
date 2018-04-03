@@ -100,6 +100,7 @@ rat {
     "**/dist/**/*",
     "**/distribute-*/**/*",
     "**/env/**/*",
+    "sdks/python/.coverage",
     "sdks/python/**/*.c",
     "sdks/python/**/*.so",
     "sdks/python/**/*.egg",
@@ -107,6 +108,7 @@ rat {
     "sdks/python/NOTICE",
     "sdks/python/README.md",
     "sdks/python/apache_beam/portability/api/*pb2*.*",
+    "sdks/python/apache_beam/portability/common_urns.py",
 
     // .gitignore: Ignore IntelliJ files.
     "**/.idea/**/*",
@@ -174,4 +176,12 @@ task javaPreCommit() {
 task goPreCommit() {
   dependsOn ":rat"
   dependsOn ":sdks:go:test"
+}
+
+task pythonPreCommit() {
+  dependsOn ":rat"
+  dependsOn ":sdks:python:build"
+  dependsOn ":sdks:python:sdist"
+  dependsOn ":sdks:python:check"
+  dependsOn ":sdks:python:test"
 }
