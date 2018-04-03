@@ -34,37 +34,37 @@ task setupVirtualenv {
     }
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && pip install --upgrade tox"
+      args '-c', ". ${envdir}/bin/activate && pip install --upgrade tox"
     }
   }
-  outputs.files("$buildDir/.gradleenv/bin/tox")
+  outputs.files("${envdir}/bin/tox")
 }
 
-task sdist (dependsOn: 'setupVirtualenv') {
+task sdist(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
+      args '-c', ". ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
     }
   }
 }
 
-task cleanPython (dependsOn: 'setupVirtualenv') {
+task cleanPython(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && python setup.py clean"
+      args '-c', ". ${envdir}/bin/activate && python setup.py clean"
     }
   }
 }
 clean.dependsOn cleanPython
 
-task buildPython (dependsOn: 'setupVirtualenv') {
+task buildPython(dependsOn: 'setupVirtualenv') {
   doLast {
     println 'Building Python Dependencies'
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
+      args '-c', ". ${envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
     }
   }
 }
@@ -73,51 +73,51 @@ build.dependsOn buildPython
 task lint {}
 check.dependsOn lint
 
-task lintPy27 (dependsOn: 'setupVirtualenv') {
+task lintPy27(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && tox -e py27-lint -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox -e py27-lint -c tox.ini"
     }
   }
 }
 lint.dependsOn lintPy27
 
-task lintPy3 (dependsOn: 'setupVirtualenv') {
+task lintPy3(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && tox -e py3-lint -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox -e py3-lint -c tox.ini"
     }
   }
 }
 lint.dependsOn lintPy3
 
-task testGcp (dependsOn: 'setupVirtualenv') {
+task testGcp(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && tox -e py27-gcp -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox -e py27-gcp -c tox.ini"
     }
   }
 }
 test.dependsOn testGcp
 
-task testPython (dependsOn: 'setupVirtualenv') {
+task testPython(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && tox -e py27 -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox -e py27 -c tox.ini"
     }
   }
 }
 test.dependsOn testPython
 
-task testCython (dependsOn: 'setupVirtualenv') {
+task testCython(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && tox -e py27-cython2 -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox -e py27-cython2 -c tox.ini"
     }
   }
 }
@@ -127,21 +127,21 @@ test.dependsOn testCython
 // project.
 testCython.mustRunAfter testPython, testGcp
 
-task docs (dependsOn: 'setupVirtualenv') {
+task docs(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && tox -e docs -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox -e docs -c tox.ini"
     }
   }
 }
 assemble.dependsOn docs
 
-task cover (dependsOn: 'setupVirtualenv') {
+task cover(dependsOn: 'setupVirtualenv') {
   doLast {
     exec {
       executable 'sh'
-      args '-c', "source ${envdir}/bin/activate && tox -e cover -c tox.ini"
+      args '-c', ". ${envdir}/bin/activate && tox -e cover -c tox.ini"
     }
   }
 }
