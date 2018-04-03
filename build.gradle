@@ -67,12 +67,9 @@ apply plugin: "base"
 
 // Apply one top level rat plugin to perform any required license enforcement analysis
 apply plugin: "org.nosphere.apache.rat"
-rat {
-  plainOutput = true
-  xmlOutput = false
-  htmlOutput = false
-  failOnError = true
-  excludes = [
+
+def findIgnoresForRat = {
+  def exclusions = [
     // Ignore any offline repositories the user may have created.
     "**/${offlineRepositoryRoot}/**/*",
 
@@ -107,7 +104,6 @@ rat {
     "sdks/python/NOTICE",
     "sdks/python/README.md",
     "sdks/python/apache_beam/portability/api/*pb2*.*",
-
     // .gitignore: Ignore IntelliJ files.
     "**/.idea/**/*",
     "**/*.iml",
@@ -146,7 +142,6 @@ rat {
     "**/test/**/.placeholder",
 
     // Default eclipse excludes neglect subprojects
-
     // Proto/grpc generated wrappers
     "**/apache_beam/portability/api/*_pb2*.py",
     "**/go/pkg/beam/**/*.pb.go",
@@ -157,6 +152,24 @@ rat {
     // VCF test files
     "**/apache_beam/testing/data/vcf/*",
   ]
+
+  // merge with .gitignore as maven plugin does but gradle/ant one doesn't
+  def gitIgnore = new File(project.rootDir, '.gitignore')
+  if (gitIgnore.exists()) {
+    def gitIgnoreExcludes = gitIgnore.readLines().findAll { !it.isEmpty() && !it.startsWith('#') }
+    logger.info('Adding {} gitignores exclusions to rat', gitIgnoreExcludes.size())
+    exclusions.addAll(gitIgnoreExcludes)
+  }
+
+  exclusions
+}
+
+rat {
+  plainOutput = true
+  xmlOutput = false
+  htmlOutput = false
+  failOnError = true
+  excludes = findIgnoresForRat()
 }
 check.dependsOn rat
 
