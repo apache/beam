@@ -35,6 +35,7 @@ from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.filesystem import MatchResult
 from apache_beam.options.pipeline_options import HadoopFileSystemOptions
+from apache_beam.options.pipeline_options import PipelineOptions
 
 __all__ = ['HadoopFileSystem']
 
@@ -48,12 +49,11 @@ _FILE_CHECKSUM_ALGORITHM = 'algorithm'
 _FILE_CHECKSUM_BYTES = 'bytes'
 _FILE_CHECKSUM_LENGTH = 'length'
 # WebHDFS FileStatus property constants.
-_FILE_STATUS_NAME = 'name'
+_FILE_STATUS_LENGTH = 'length'
 _FILE_STATUS_PATH_SUFFIX = 'pathSuffix'
 _FILE_STATUS_TYPE = 'type'
 _FILE_STATUS_TYPE_DIRECTORY = 'DIRECTORY'
 _FILE_STATUS_TYPE_FILE = 'FILE'
-_FILE_STATUS_SIZE = 'size'
 
 
 class HdfsDownloader(filesystemio.Downloader):
@@ -61,7 +61,7 @@ class HdfsDownloader(filesystemio.Downloader):
   def __init__(self, hdfs_client, path):
     self._hdfs_client = hdfs_client
     self._path = path
-    self._size = self._hdfs_client.status(path)[_FILE_STATUS_SIZE]
+    self._size = self._hdfs_client.status(path)[_FILE_STATUS_LENGTH]
 
   @property
   def size(self):
@@ -106,20 +106,26 @@ class HadoopFileSystem(FileSystem):
     """
     super(HadoopFileSystem, self).__init__(pipeline_options)
     logging.getLogger('hdfs.client').setLevel(logging.WARN)
-
     if pipeline_options is None:
       raise ValueError('pipeline_options is not set')
-    hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
-    if hdfs_options.hdfs_host is None:
+    if isinstance(pipeline_options, PipelineOptions):
+      hdfs_options = pipeline_options.view_as(HadoopFileSystemOptions)
+      hdfs_host = hdfs_options.hdfs_host
+      hdfs_port = hdfs_options.hdfs_port
+      hdfs_user = hdfs_options.hdfs_user
+    else:
+      hdfs_host = pipeline_options.get('hdfs_host')
+      hdfs_port = pipeline_options.get('hdfs_port')
+      hdfs_user = pipeline_options.get('hdfs_user')
+
+    if hdfs_host is None:
       raise ValueError('hdfs_host is not set')
-    if hdfs_options.hdfs_port is None:
+    if hdfs_port is None:
       raise ValueError('hdfs_port is not set')
-    if hdfs_options.hdfs_user is None:
+    if hdfs_user is None:
       raise ValueError('hdfs_user is not set')
     self._hdfs_client = hdfs.InsecureClient(
-        'http://%s:%s' % (
-            hdfs_options.hdfs_host, str(hdfs_options.hdfs_port)),
-        user=hdfs_options.hdfs_user)
+        'http://%s:%s' % (hdfs_host, str(hdfs_port)), user=hdfs_user)
 
   @classmethod
   def scheme(cls):
@@ -188,13 +194,15 @@ class HadoopFileSystem(FileSystem):
       """Find all matching paths to the pattern provided."""
       fs = self._hdfs_client.status(path_pattern, strict=False)
       if fs and fs[_FILE_STATUS_TYPE] == _FILE_STATUS_TYPE_FILE:
-        file_statuses = [(fs[_FILE_STATUS_PATH_SUFFIX], fs)][:limit]
+        file_statuses = [(path_pattern, fs)][:limit]
       else:
-        file_statuses = self._hdfs_client.list(path_pattern,
-                                               status=True)[:limit]
-      metadata_list = [FileMetadata(file_status[1][_FILE_STATUS_NAME],
-                                    file_status[1][_FILE_STATUS_SIZE])
-                       for file_status in file_statuses]
+        file_statuses = [(self._join(path_pattern, fs[0]), fs[1])
+                         for fs in self._hdfs_client.list(path_pattern,
+                                                          status=True)[:limit]]
+      metadata_list = [
+          FileMetadata(_HDFS_PREFIX + file_status[0],
+                       file_status[1][_FILE_STATUS_LENGTH])
+          for file_status in file_statuses]
       return MatchResult(path_pattern, metadata_list)
 
     exceptions = {}
