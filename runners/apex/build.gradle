@@ -28,12 +28,12 @@ description = "Apache Beam :: Runners :: Apex"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":model:fn-execution")
+evaluationDependsOn(":beam-model-fn-execution")
 evaluationDependsOn(":runners:core-java")
 
 dependencies {
   shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":runners:core-construction-java", configuration: "shadow")
   shadow project(path: ":runners:core-java", configuration: "shadow")
   shadow library.java.apex_common
@@ -42,7 +42,7 @@ dependencies {
   shadow library.java.commons_lang3
   shadow library.java.findbugs_jsr305
   shadow library.java.apex_engine
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // ApexStateInternalsTest extends abstract StateInternalsTest
   testCompile project(":runners:core-java").sourceSets.test.output
   testCompile library.java.hamcrest_core

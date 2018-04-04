@@ -33,15 +33,15 @@ dependencies {
   compile library.java.guava
   compileOnly library.java.findbugs_annotations
   shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":model:fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":runners:core-construction-java", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.joda_time
   shadow library.java.slf4j_api
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.mockito_core
   shadowTest library.java.junit

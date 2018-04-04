@@ -32,7 +32,7 @@ evaluationDependsOn(":sdks:java:extensions:google-cloud-platform-core")
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":sdks:java:extensions:protobuf", configuration: "shadow")
   shadow library.java.jackson_databind
@@ -68,7 +68,7 @@ dependencies {
   shadow library.java.proto_google_common_protos
   shadow library.java.grpc_all
   shadow library.java.netty_tcnative_boringssl_static
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(":sdks:java:extensions:google-cloud-platform-core").sourceSets.test.output
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core

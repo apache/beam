@@ -45,7 +45,7 @@ configurations.testRuntimeClasspath {
 }
 
 dependencies {
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   compile library.java.guava
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
@@ -53,7 +53,7 @@ dependencies {
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
   testCompile project(":sdks:java:io:common").sourceSets.test.output
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"

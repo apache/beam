@@ -31,7 +31,7 @@ description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
 evaluationDependsOn(":sdks:java:io:common")
 
 dependencies {
-  shadowTest project(":sdks:java:core")
+  shadowTest project(":beam-sdks-java-core")
   shadowTest project(":runners:direct-java").sourceSets.test.output
   shadowTest project(":sdks:java:io:common")
   shadowTest project(":sdks:java:io:common").sourceSets.test.output

@@ -32,7 +32,7 @@ test {
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305

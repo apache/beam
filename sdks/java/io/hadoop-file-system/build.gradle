@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_core
   shadow library.java.jackson_databind
   shadow library.java.slf4j_api
@@ -32,7 +32,7 @@ dependencies {
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core

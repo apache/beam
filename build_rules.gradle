@@ -39,10 +39,7 @@ def isRelease() {
   return project.hasProperty('release')
 }
 
-// Gradle determines project uniqueness based upon the project group and its name.
-// We use the project.path as the group name to make this mapping unique since
-// we have a few projects with the same name.
-group = project.path
+group = 'org.apache.beam'
 
 // Automatically use the official release version if we are performing a release
 // otherwise append '-SNAPSHOT'
