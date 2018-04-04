@@ -20,7 +20,24 @@ package stats
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
 )
+
+func init() {
+	beam.RegisterFunction(sumIntFn)
+	beam.RegisterFunction(sumInt8Fn)
+	beam.RegisterFunction(sumInt16Fn)
+	beam.RegisterFunction(sumInt32Fn)
+	beam.RegisterFunction(sumInt64Fn)
+	beam.RegisterFunction(sumUintFn)
+	beam.RegisterFunction(sumUint8Fn)
+	beam.RegisterFunction(sumUint16Fn)
+	beam.RegisterFunction(sumUint32Fn)
+	beam.RegisterFunction(sumUint64Fn)
+	beam.RegisterFunction(sumFloat32Fn)
+	beam.RegisterFunction(sumFloat64Fn)
+}
 
 func findSumFn(t reflect.Type) interface{} {
 	switch t.String() {
