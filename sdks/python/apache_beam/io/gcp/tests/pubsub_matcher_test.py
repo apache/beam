@@ -44,10 +44,11 @@ class PubSubMatcherTest(unittest.TestCase):
                                                ['mock_expected_msg'])
 
   @mock.patch('time.sleep', return_value=None)
-  @mock.patch('google.cloud.pubsub.Client.subscription')
-  def test_message_matcher_success(self, mock_sub_cls, unsued_mock):
+  @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
+              'PubSubMessageMatcher._get_subscription')
+  def test_message_matcher_success(self, mock_get_sub, unsued_mock):
     self.pubsub_matcher.expected_msg = ['a', 'b']
-    mock_sub = mock_sub_cls.return_value
+    mock_sub = mock_get_sub.return_value
     mock_sub.pull.side_effect = [
         [(1, pubsub.message.Message(b'a', 'unused_id'))],
         [(2, pubsub.message.Message(b'b', 'unused_id'))],
@@ -56,10 +57,11 @@ class PubSubMatcherTest(unittest.TestCase):
     self.assertEqual(mock_sub.pull.call_count, 2)
 
   @mock.patch('time.sleep', return_value=None)
-  @mock.patch('google.cloud.pubsub.Client.subscription')
-  def test_message_matcher_mismatch(self, mock_sub_cls, unused_mock):
+  @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
+              'PubSubMessageMatcher._get_subscription')
+  def test_message_matcher_mismatch(self, mock_get_sub, unused_mock):
     self.pubsub_matcher.expected_msg = ['a']
-    mock_sub = mock_sub_cls.return_value
+    mock_sub = mock_get_sub.return_value
     mock_sub.pull.return_value = [
         (1, pubsub.message.Message(b'c', 'unused_id')),
         (1, pubsub.message.Message(b'd', 'unused_id')),
@@ -73,9 +75,10 @@ class PubSubMatcherTest(unittest.TestCase):
         in str(error.exception.args[0]))
 
   @mock.patch('time.sleep', return_value=None)
-  @mock.patch('google.cloud.pubsub.Client.subscription')
-  def test_message_metcher_timeout(self, mock_sub_cls, unused_mock):
-    mock_sub = mock_sub_cls.return_value
+  @mock.patch('apache_beam.io.gcp.tests.pubsub_matcher.'
+              'PubSubMessageMatcher._get_subscription')
+  def test_message_metcher_timeout(self, mock_get_sub, unused_mock):
+    mock_sub = mock_get_sub.return_value
     mock_sub.return_value.full_name.return_value = 'mock_sub'
     self.pubsub_matcher.timeout = 0.1
     with self.assertRaises(AssertionError) as error:
