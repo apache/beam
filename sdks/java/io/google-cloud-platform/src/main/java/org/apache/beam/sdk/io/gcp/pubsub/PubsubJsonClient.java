@@ -185,6 +185,9 @@ public class PubsubJsonClient extends PubsubClient {
 
       // Payload.
       byte[] elementBytes = pubsubMessage.decodeData();
+      if (elementBytes == null) {
+        elementBytes = new byte[0];
+      }
 
       // Timestamp.
       long timestampMsSinceEpoch =
