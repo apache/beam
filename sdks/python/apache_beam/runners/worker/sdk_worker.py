@@ -50,6 +50,7 @@ class SdkHarness(object):
       logging.info('Creating secure channel.')
       self._control_channel = grpc.secure_channel(control_address, credentials)
       grpc.channel_ready_future(self._control_channel).result()
+      logging.info('Secure channel established.')
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor())
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
