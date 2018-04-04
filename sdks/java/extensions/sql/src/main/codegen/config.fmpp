@@ -16,31 +16,31 @@
 data: {
     parser: {
       # Generated parser implementation class package and name
-      package: "org.apache.calcite.sql.parser.ddl",
-      class: "SqlDdlParserImpl",
+      package: "org.apache.beam.sdk.extensions.sql.impl.parser.impl",
+      class: "BeamSqlParserImpl",
 
       # List of import statements.
       imports: [
         "org.apache.calcite.schema.ColumnStrategy"
         "org.apache.calcite.sql.SqlCreate"
         "org.apache.calcite.sql.SqlDrop"
-        "org.apache.calcite.sql.ddl.SqlDdlNodes"
+        "org.apache.beam.sdk.extensions.sql.impl.parser.SqlDdlNodes"
       ]
 
       # List of keywords.
       keywords: [
+        "COMMENT"
         "IF"
-        "MATERIALIZED"
-        "STORED"
-        "VIRTUAL"
+	"LOCATION"
+	"TBLPROPERTIES"
       ]
 
       # List of keywords from "keywords" section that are not reserved.
       nonReservedKeywords: [
+        "COMMENT"
         "IF"
-        "MATERIALIZED"
-        "STORED"
-        "VIRTUAL"
+	"LOCATION"
+	"TBLPROPERTIES"
       ]
 
       # List of methods for parsing custom SQL statements.
@@ -64,20 +64,13 @@ data: {
       # List of methods for parsing extensions to "CREATE [OR REPLACE]" calls.
       # Each must accept arguments "(SqlParserPos pos, boolean replace)".
       createStatementParserMethods: [
-        "SqlCreateForeignSchema"
-        "SqlCreateMaterializedView"
-        "SqlCreateSchema"
         "SqlCreateTable"
-        "SqlCreateView"
       ]
 
       # List of methods for parsing extensions to "DROP" calls.
       # Each must accept arguments "(SqlParserPos pos)".
       dropStatementParserMethods: [
-        "SqlDropMaterializedView"
-        "SqlDropSchema"
         "SqlDropTable"
-        "SqlDropView"
       ]
 
       # List of files in @includes directory that have parser method
