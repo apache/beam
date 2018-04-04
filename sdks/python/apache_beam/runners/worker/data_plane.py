@@ -315,11 +315,11 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
           channel_options = [("grpc.max_receive_message_length", -1),
                              ("grpc.max_send_message_length", -1)]
           grpc_channel = None
-          if self._credentials is not None:
+          if self._credentials is None:
+            grpc_channel = grpc.insecure_channel(url, options=channel_options)
+          else:
             grpc_channel = grpc.secure_channel(
                 url, self._credentials, options=channel_options)
-          else:
-            grpc_channel = grpc.insecure_channel(url, options=channel_options)
           # Add workerId to the grpc channel
           grpc_channel = grpc.intercept_channel(grpc_channel,
                                                 WorkerIdInterceptor())
