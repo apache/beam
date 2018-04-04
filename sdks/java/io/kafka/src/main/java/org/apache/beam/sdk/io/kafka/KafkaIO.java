@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkState;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.InputStream;
@@ -277,8 +278,8 @@ public class KafkaIO {
   public abstract static class Read<K, V>
       extends PTransform<PBegin, PCollection<KafkaRecord<K, V>>> {
     abstract Map<String, Object> getConsumerConfig();
-    abstract List<String> getTopics();
-    abstract List<TopicPartition> getTopicPartitions();
+    abstract ValueProvider<List<String>> getTopics();
+    abstract ValueProvider<List<TopicPartition>> getTopicPartitions();
     @Nullable abstract Coder<K> getKeyCoder();
     @Nullable abstract Coder<V> getValueCoder();
     @Nullable abstract Class<? extends Deserializer<K>> getKeyDeserializer();
@@ -300,8 +301,8 @@ public class KafkaIO {
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setConsumerConfig(Map<String, Object> config);
-      abstract Builder<K, V> setTopics(List<String> topics);
-      abstract Builder<K, V> setTopicPartitions(List<TopicPartition> topicPartitions);
+      abstract Builder<K, V> setTopics(ValueProvider<List<String>> topics);
+      abstract Builder<K, V> setTopicPartitions(ValueProvider<List<TopicPartition>> topicPartitions);
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
       abstract Builder<K, V> setKeyDeserializer(Class<? extends Deserializer<K>> keyDeserializer);
@@ -324,8 +325,11 @@ public class KafkaIO {
      * Sets the bootstrap servers for the Kafka consumer.
      */
     public Read<K, V> withBootstrapServers(String bootstrapServers) {
-      return updateConsumerProperties(
-          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+      return withBootstrapServers(ValueProvider.StaticValueProvider.of(bootstrapServers));
+    }
+
+    public Read<K, V> withBootstrapServers(ValueProvider<String> bootstrapServers) {
+      return updateConsumerProperties(ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers.get()));
     }
 
     /**
@@ -335,7 +339,15 @@ public class KafkaIO {
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopic(String topic) {
-      return withTopics(ImmutableList.of(topic));
+      return withTopic(ValueProvider.StaticValueProvider.of(topic));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider}.
+     */
+
+    public Read<K, V> withTopic(ValueProvider<String> topic) {
+      return withTopics(topic);
     }
 
     /**
@@ -347,10 +359,18 @@ public class KafkaIO {
      */
     public Read<K, V> withTopics(List<String> topics) {
       checkState(
-          getTopicPartitions().isEmpty(), "Only topics or topicPartitions can be set, not both");
-      return toBuilder().setTopics(ImmutableList.copyOf(topics)).build();
+          getTopicPartitions() == null, "Only topics or topicPartitions can be set, not both");
+      return toBuilder().setTopics(ValueProvider.StaticValueProvider.of(topics)).build();
     }
 
+    /**
+     * Like above but with a {@link ValueProvider}.
+     */
+    public Read<K, V> withTopics(ValueProvider<String> topics) {
+      checkState(
+              getTopicPartitions() == null,"Only topics or topicPartitions can be set, not both");
+      return toBuilder().setTopics(ValueProvider.NestedValueProvider.of(topics, new TopicTranslator())).build();
+    }
     /**
      * Sets a list of partitions to read from. This allows reading only a subset
      * of partitions for one or more topics when (if ever) needed.
@@ -359,9 +379,44 @@ public class KafkaIO {
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
-      checkState(getTopics().isEmpty(), "Only topics or topicPartitions can be set, not both");
-      return toBuilder().setTopicPartitions(ImmutableList.copyOf(topicPartitions)).build();
+      checkState(getTopics() == null, "Only topics or topicPartitions can be set, not both");
+      return toBuilder().setTopicPartitions(ValueProvider.StaticValueProvider.of(topicPartitions)).build();
     }
+
+    /**
+     * Like above but with a {@link ValueProvider}.
+     */
+    public Read<K, V> withTopicPartitions(ValueProvider<String> topicPartitions) {
+      checkState(getTopics() == null, "Only topics or topicPartitions can be set, not both");
+      return toBuilder().setTopicPartitions(ValueProvider.NestedValueProvider.of(topicPartitions, new TopicPartitionTranslator())).build();
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link List<String>}.
+     */
+    private static class TopicTranslator implements SerializableFunction<String, List<String>> {
+      @Override
+      public List<String> apply(String topics) {
+        return ImmutableList.copyOf(Splitter.on(',').trimResults().omitEmptyStrings().splitToList(topics));
+      }
+
+    }
+
+    /**
+     * Used to build a {@link ValueProvider} for {@link List<TopicPartition>}.
+     */
+    private static class TopicPartitionTranslator implements SerializableFunction<String, List<TopicPartition>> {
+      @Override
+      public List<TopicPartition> apply(String topicPartitions) {
+        List<TopicPartition> topicPartitionList = new ArrayList<>();
+        for (String topicPartition: Splitter.on(',').trimResults().omitEmptyStrings().splitToList(topicPartitions))
+          topicPartitionList.add(new TopicPartition(Splitter.on('-').splitToList(topicPartition).get(0),
+                  Integer.parseInt(Splitter.on('-').splitToList(topicPartition).get(1))));
+      return ImmutableList.copyOf(topicPartitionList);
+      }
+    }
+
+
 
     /**
      * Sets a Kafka {@link Deserializer} to interpret key bytes read from Kafka.
@@ -595,7 +650,7 @@ public class KafkaIO {
       checkArgument(
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      checkArgument(getTopics().size() > 0 || getTopicPartitions().size() > 0,
+      checkArgument(getTopics().get().size() > 0 || getTopicPartitions().get().size() > 0,
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
       checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
@@ -721,8 +776,8 @@ public class KafkaIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      List<String> topics = getTopics();
-      List<TopicPartition> topicPartitions = getTopicPartitions();
+      List<String> topics = getTopics().get();
+      List<TopicPartition> topicPartitions = getTopicPartitions().get();
       if (topics.size() > 0) {
         builder.add(DisplayData.item("topics", Joiner.on(",").join(topics)).withLabel("Topic/s"));
       } else if (topicPartitions.size() > 0) {
@@ -810,7 +865,7 @@ public class KafkaIO {
    */
   @AutoValue
   public abstract static class Write<K, V> extends PTransform<PCollection<KV<K, V>>, PDone> {
-    @Nullable abstract String getTopic();
+    @Nullable abstract ValueProvider<String> getTopic();
     abstract Map<String, Object> getProducerConfig();
     @Nullable
     abstract SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
@@ -831,7 +886,7 @@ public class KafkaIO {
 
     @AutoValue.Builder
     abstract static class Builder<K, V> {
-      abstract Builder<K, V> setTopic(String topic);
+      abstract Builder<K, V> setTopic(ValueProvider<String> topic);
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
       abstract Builder<K, V> setProducerFactoryFn(
           SerializableFunction<Map<String, Object>, Producer<K, V>> fn);
@@ -852,14 +907,28 @@ public class KafkaIO {
      * {@code bootstrapServers}.
      */
     public Write<K, V> withBootstrapServers(String bootstrapServers) {
+      return withBootstrapServers(ValueProvider.StaticValueProvider.of(bootstrapServers));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider}.
+     */
+    public Write<K, V> withBootstrapServers(ValueProvider<String> bootstrapServers) {
       return updateProducerProperties(
-          ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
+              ImmutableMap.of(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers));
     }
 
     /**
      * Sets the Kafka topic to write to.
      */
     public Write<K, V> withTopic(String topic) {
+      return withTopic(ValueProvider.StaticValueProvider.of(topic));
+    }
+
+    /**
+     * Like above but with a {@link ValueProvider}.
+     */
+    public Write<K, V> withTopic(ValueProvider<String> topic) {
       return toBuilder().setTopic(topic).build();
     }
 
@@ -999,7 +1068,7 @@ public class KafkaIO {
       checkArgument(
         getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
         "withBootstrapServers() is required");
-      checkArgument(getTopic() != null, "withTopic() is required");
+      checkArgument(getTopic().get() != null, "withTopic() is required");
       checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
       checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
 
@@ -1050,7 +1119,7 @@ public class KafkaIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.addIfNotNull(DisplayData.item("topic", getTopic()).withLabel("Topic"));
+      builder.addIfNotNull(DisplayData.item("topic", getTopic().get()).withLabel("Topic"));
       Set<String> ignoredProducerPropertiesKeys = IGNORED_PRODUCER_PROPERTIES.keySet();
       for (Map.Entry<String, Object> conf : getProducerConfig().entrySet()) {
         String key = conf.getKey();

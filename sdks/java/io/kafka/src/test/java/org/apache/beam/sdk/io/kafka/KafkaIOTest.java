@@ -373,10 +373,11 @@ public class KafkaIOTest {
     thrown.expectMessage("Reader-0: Timeout while initializing partition 'test-0'");
 
     int numElements = 1000;
+    String bootStrapServers = "8.8.8.8:9092"; // Google public DNS ip.
     PCollection<Long> input =
         p.apply(
                 KafkaIO.<Integer, Long>read()
-                    .withBootstrapServers("8.8.8.8:9092") // Google public DNS ip.
+                    .withBootstrapServers(bootStrapServers)
                     .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
                     .withKeyDeserializer(IntegerDeserializer.class)
                     .withValueDeserializer(LongDeserializer.class)
@@ -403,7 +404,7 @@ public class KafkaIOTest {
 
     KafkaIO.Read<Integer, Long> reader = KafkaIO.<Integer, Long>read()
         .withBootstrapServers("none")
-        .withTopic("my_topic")
+        .withTopic(topic)
         .withConsumerFactoryFn(new ConsumerFactoryFn(
             ImmutableList.of(topic), 10, numElements, OffsetResetStrategy.EARLIEST))
         .withMaxNumRecords(numElements)

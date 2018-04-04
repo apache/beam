@@ -149,9 +149,9 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
     int numShards = spec.getNumShards();
     if (numShards <= 0) {
       try (Consumer<?, ?> consumer = openConsumer(spec)) {
-        numShards = consumer.partitionsFor(spec.getTopic()).size();
+        numShards = consumer.partitionsFor(spec.getTopic().get()).size();
         LOG.info("Using {} shards for exactly-once writer, matching number of partitions "
-                   + "for topic '{}'", numShards, spec.getTopic());
+                   + "for topic '{}'", numShards, spec.getTopic().get());
       }
     }
     checkState(numShards > 0, "Could not set number of shards");
@@ -168,7 +168,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
       .apply("Assign sequential ids", ParDo.of(new Sequencer<>()))
       .apply("Persist ids", GroupByKey.create())
       .apply(
-        String.format("Write to Kafka topic '%s'", spec.getTopic()),
+        String.format("Write to Kafka topic '%s'", spec.getTopic().get()),
         ParDo.of(new ExactlyOnceWriter<>(spec, input.getCoder())));
   }
 
@@ -442,7 +442,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
 
           producer.send(
               new ProducerRecord<>(
-                  spec.getTopic(), null, timestampMillis,
+                  spec.getTopic().get(), null, timestampMillis,
                   record.getValue().getKey(), record.getValue().getValue()));
           sendCounter.inc();
         } catch (KafkaException e) {
@@ -459,7 +459,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
           // this TTL can be adjusted (asked about it on Kafka users list).
           ProducerSpEL.sendOffsetsToTransaction(
             producer,
-            ImmutableMap.of(new TopicPartition(spec.getTopic(), shard),
+            ImmutableMap.of(new TopicPartition(spec.getTopic().get(), shard),
                             new OffsetAndMetadata(0L,
                                                   JSON_MAPPER.writeValueAsString(
                                                     new ShardMetadata(lastRecordId, writerId)))),
@@ -492,7 +492,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
         OffsetAndMetadata committed;
 
         try (Consumer<?, ?> consumer = openConsumer(spec)) {
-          committed = consumer.committed(new TopicPartition(spec.getTopic(), shard));
+          committed = consumer.committed(new TopicPartition(spec.getTopic().get(), shard));
         }
 
         long committedSeqId = -1;
@@ -501,7 +501,7 @@ class KafkaExactlyOnceSink<K, V> extends PTransform<PCollection<KV<K, V>>, PColl
           checkState(nextId == 0 && writerId == null,
                      "State exists for shard %s (nextId %s, writerId '%s'), but there is no state "
                        + "stored with Kafka topic '%s' group id '%s'",
-                     shard, nextId, writerId, spec.getTopic(), spec.getSinkGroupId());
+                     shard, nextId, writerId, spec.getTopic().get(), spec.getSinkGroupId());
 
           writerId = String.format("%X - %s",
                                    new Random().nextInt(Integer.MAX_VALUE),
