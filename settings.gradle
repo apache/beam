@@ -93,7 +93,7 @@ include "beam-sdks-java-maven-archetypes-starter"
 project(":beam-sdks-java-maven-archetypes-starter").dir = file("sdks/java/maven-archetypes/starter")
 include "beam-sdks-java-nexmark"
 project(":beam-sdks-java-nexmark").dir = file("sdks/java/nexmark")
-include ":beam-sdks-python"
+include "beam-sdks-python"
 project(":beam-sdks-python").dir = file("sdks/python")
-include ":beam-sdks-python-container"
+include "beam-sdks-python-container"
 project(":beam-sdks-python-container").dir = file("sdks/python/container")
