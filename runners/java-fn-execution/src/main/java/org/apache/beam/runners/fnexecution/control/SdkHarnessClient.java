@@ -171,7 +171,7 @@ public class SdkHarnessClient implements AutoCloseable {
           fnApiDataService.send(
               LogicalEndpoint.of(bundleId, remoteInput.getTarget()), remoteInput.getCoder());
 
-      return new ActiveBundle(
+      return new ActiveBundle<>(
           bundleId,
           specificResponse,
           dataReceiver,
@@ -300,6 +300,8 @@ public class SdkHarnessClient implements AutoCloseable {
   private final InstructionRequestHandler fnApiControlClient;
   private final FnDataService fnApiDataService;
 
+  @SuppressWarnings("unchecked") /* SdkHarnessClient does not need to know the type information of
+  BundleProcessor. */
   private final ConcurrentHashMap<String, BundleProcessor> clientProcessors;
 
   private SdkHarnessClient(
@@ -352,6 +354,40 @@ public class SdkHarnessClient implements AutoCloseable {
   }
 
   /**
+   * Provides {@link BundleProcessor} that is capable of processing bundles containing
+   * state accesses such as:
+   * <ul>
+   *   <li>Side inputs</li>
+   *   <li>User state</li>
+   *   <li>Remote references</li>
+   * </ul>
+   *
+   * <p>Note that bundle processors are cached based upon the the
+   * {@link ProcessBundleDescriptor#getId() process bundle descriptor id}.
+   * A previously created instance may be returned.
+   */
+  @SuppressWarnings("unchecked")
+  public <T> BundleProcessor<T> getProcessor(
+      BeamFnApi.ProcessBundleDescriptor descriptor,
+      RemoteInputDestination<WindowedValue<T>> remoteInputDesination,
+      StateDelegator stateDelegator) {
+    BundleProcessor<T> bundleProcessor =
+        clientProcessors.computeIfAbsent(
+            descriptor.getId(),
+            s -> create(
+                descriptor,
+                remoteInputDesination,
+                stateDelegator));
+    checkArgument(bundleProcessor.processBundleDescriptor.equals(descriptor),
+        "The provided %s with id %s collides with an existing %s with the same id but "
+            + "containing different contents.",
+        BeamFnApi.ProcessBundleDescriptor.class.getSimpleName(),
+        descriptor.getId(),
+        BeamFnApi.ProcessBundleDescriptor.class.getSimpleName());
+    return bundleProcessor;
+  }
+
+  /**
    * A {@link StateDelegator} that issues zero state requests to any provided
    * {@link StateRequestHandler state handlers}.
    */
@@ -377,39 +413,6 @@ public class SdkHarnessClient implements AutoCloseable {
       public void abort() {
       }
     }
-  }
-
-  /**
-   * Provides {@link BundleProcessor} that is capable of processing bundles containing
-   * state accesses such as:
-   * <ul>
-   *   <li>Side inputs</li>
-   *   <li>User state</li>
-   *   <li>Remote references</li>
-   * </ul>
-   *
-   * <p>Note that bundle processors are cached based upon the the
-   * {@link ProcessBundleDescriptor#getId() process bundle descriptor id}.
-   * A previously created instance may be returned.
-   */
-  public <T> BundleProcessor<T> getProcessor(
-      BeamFnApi.ProcessBundleDescriptor descriptor,
-      RemoteInputDestination<WindowedValue<T>> remoteInputDesination,
-      StateDelegator stateDelegator) {
-    BundleProcessor<T> bundleProcessor =
-        clientProcessors.computeIfAbsent(
-            descriptor.getId(),
-            s -> create(
-                descriptor,
-                (RemoteInputDestination) remoteInputDesination,
-                stateDelegator));
-    checkArgument(bundleProcessor.processBundleDescriptor.equals(descriptor),
-        "The provided %s with id %s collides with an existing %s with the same id but "
-            + "containing different contents.",
-        BeamFnApi.ProcessBundleDescriptor.class.getSimpleName(),
-        descriptor.getId(),
-        BeamFnApi.ProcessBundleDescriptor.class.getSimpleName());
-    return bundleProcessor;
   }
 
   /**
