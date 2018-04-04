@@ -340,45 +340,8 @@ ext.applyJavaNature = {
   // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
   JavaNatureConfiguration configuration = it ? it as JavaNatureConfiguration : new JavaNatureConfiguration()
   apply plugin: "maven-publish"
+  apply plugin: "signing"
   apply plugin: "java"
-
-
-  publishing {
-    repositories {
-      maven {
-        url (isRelease() ? 'https://repository.apache.org/service/local/staging/deploy/maven2' : 'https://repository.apache.org/content/repositories/snapshots')
-
-        // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
-        // has configured with the Apache release and snapshot staging credentials.
-        // <settings>
-        //   <servers>
-        //     <server>
-        //       <id>apache.releases.https</id>
-        //       <username>USER_TOKEN</username>
-        //       <password>PASS_TOKEN</password>
-        //     </server>
-        //     <server>
-        //       <id>apache.snapshots.https</id>
-        //       <username>USER_TOKEN</username>
-        //       <password>PASS_TOKEN</password>
-        //     </server>
-        //   </servers>
-        // </settings>
-        def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
-        if (settingsXml.exists()) {
-          def serverId = isRelease() ? 'apache.releases.https' : 'apache.snapshots.https'
-          def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
-          if (m2SettingCreds) {
-            credentials {
-              username m2SettingCreds.username.text()
-              password m2SettingCreds.password.text()
-            }
-          }
-        }
-      }
-    }
-  }
-
 
   // Configure the Java compiler source language and target compatibility levels. Also ensure that
   // we configure the Java compiler to use UTF-8.
@@ -515,30 +478,98 @@ ext.applyJavaNature = {
         extendsFrom shadow
       }
       testCompile.extendsFrom shadowTest
+      archives
     }
 
     // Ensure that shaded classes are part of the artifact set.
     artifacts.archives shadowJar
 
+    // TODO: Support publishing artifacts that aren't the shaded jar.
     if (configuration.artifactId) {
       task sourcesJar(type: Jar) {
         from sourceSets.main.allSource
         classifier = 'sources'
       }
+      artifacts.archives sourcesJar
+
       task testSourcesJar(type: Jar) {
         from sourceSets.test.allSource
         classifier = 'test-sources'
       }
+      artifacts.archives testSourcesJar
+
       task javadocJar(type: Jar, dependsOn: javadoc) {
         classifier = 'javadoc'
         from javadoc.destinationDir
       }
+      artifacts.archives javadocJar
+
+      signing {
+        useGpgCmd()
+        required { isRelease() }
+        sign configurations.archives
+      }
+
+      uploadArchives {
+        repositories {
+          mavenDeployer {
+            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+          }
+        }
+      }
+
+      model {
+        tasks.generatePomFileForMavenJavaPublication {
+          destination = file("$buildDir/generated-pom.xml")
+        }
+        tasks.publishMavenJavaPublicationToMavenLocal {
+          dependsOn project.tasks.signArchives
+        }
+        tasks.publishMavenJavaPublicationToMavenRepository {
+          dependsOn project.tasks.signArchives
+        }
+      }
 
       // If a publication artifact id is supplied, publish the shadow jar.
       publishing {
+        repositories {
+          maven {
+            url (isRelease() ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
+                    : 'https://repository.apache.org/content/repositories/snapshots')
+
+            // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
+            // has configured with the Apache release and snapshot staging credentials.
+            // <settings>
+            //   <servers>
+            //     <server>
+            //       <id>apache.releases.https</id>
+            //       <username>USER_TOKEN</username>
+            //       <password>PASS_TOKEN</password>
+            //     </server>
+            //     <server>
+            //       <id>apache.snapshots.https</id>
+            //       <username>USER_TOKEN</username>
+            //       <password>PASS_TOKEN</password>
+            //     </server>
+            //   </servers>
+            // </settings>
+            def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
+            if (settingsXml.exists()) {
+              def serverId = (isRelease() ? 'apache.releases.https' : 'apache.snapshots.https')
+              def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
+              if (m2SettingCreds) {
+                credentials {
+                  username m2SettingCreds.username.text()
+                  password m2SettingCreds.password.text()
+                }
+              }
+            }
+          }
+        }
+
         publications {
           mavenJava(MavenPublication) {
-            artifact(shadowJar) {
+            artifact shadowJar {
               groupId 'org.apache.beam'
               artifactId configuration.artifactId
               // Strip the "shaded" classifier.
@@ -560,6 +591,41 @@ ext.applyJavaNature = {
             }
             artifact javadocJar {
               classifier "javadoc"
+            }
+
+            pom.withXml {
+              def dependenciesNode = asNode().appendNode('dependencies')
+
+              // Iterate over the dependencies that would exist post shading,
+              // adding a <dependency> node for each
+              configurations.shadow.allDependencies.each {
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', it.group)
+                dependencyNode.appendNode('artifactId', it.name)
+                dependencyNode.appendNode('version', it.version)
+              }
+
+              // create the sign pom artifact
+              def pomFile = file("${project.buildDir}/generated-pom.xml")
+              writeTo(pomFile)
+              def pomAscFile = signing.sign(pomFile).signatureFiles[0]
+              artifact(pomAscFile) {
+                classifier = null
+                extension = 'pom.asc'
+              }
+            }
+
+            // create the signed artifacts
+            project.tasks.signArchives.signatureFiles.each {
+              artifact(it) {
+                def matcher = it.file =~ /-(tests|sources|test-sources|javadoc)\.jar\.asc$/
+                if (matcher.find()) {
+                  classifier = matcher.group(1)
+                } else {
+                  classifier = null
+                }
+                extension = 'jar.asc'
+              }
             }
           }
         }
