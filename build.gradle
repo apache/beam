@@ -117,6 +117,8 @@ task javaPreCommit() {
   dependsOn ":rat"
   dependsOn ":sdks:java:core:buildNeeded"
   dependsOn ":sdks:java:core:buildDependents"
+  dependsOn ":sdks:java:maven-archetypes:examples:archetypesTest"
+  dependsOn ":sdks:java:maven-archetypes:starter:starterTest"
   dependsOn ":examples:java:preCommit"
 }
 
