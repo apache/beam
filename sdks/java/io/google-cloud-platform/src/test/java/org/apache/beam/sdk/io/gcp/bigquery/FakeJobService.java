@@ -228,7 +228,7 @@ class FakeJobService implements JobService, Serializable {
   }
 
   @Override
-  public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query)
+  public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query, String location)
       throws InterruptedException, IOException {
     synchronized (dryRunQueryResults) {
       JobStatistics result = dryRunQueryResults.get(projectId, query.getQuery());

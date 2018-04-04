@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableReference;
@@ -203,10 +204,26 @@ public class BigQueryHelpers {
       } else {
         throw new RuntimeException(
             String.format(
-                UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset", toTableSpec(table)),
-            e);
+                UNABLE_TO_CONFIRM_PRESENCE_OF_RESOURCE_ERROR, "dataset", toTableSpec(table)), e);
       }
     }
+  }
+
+  static String getDatasetLocation(
+      DatasetService datasetService, String projectId, String datasetId) {
+    Dataset dataset;
+    try {
+      dataset = datasetService.getDataset(projectId, datasetId);
+    } catch (Exception e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      throw new RuntimeException(
+          String.format(
+              "unable to obtain dataset for dataset %s in project %s", datasetId, projectId),
+          e);
+    }
+    return dataset.getLocation();
   }
 
   static void verifyTablePresence(DatasetService datasetService, TableReference table) {
