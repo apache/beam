@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Solr"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.commons_compress
   shadow "org.apache.solr:solr-solrj:5.5.4"

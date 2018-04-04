@@ -34,5 +34,5 @@ task generateAndBuildArchetypeTest(type: Exec) {
 
 dependencies {
   shadow project(path: ":runners:direct-java", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
 }

@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":sdks:java:extensions:sql", configuration: "shadow")

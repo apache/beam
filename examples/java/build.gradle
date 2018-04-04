@@ -47,7 +47,7 @@ configurations.sparkRunnerPreCommit {
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
   shadow library.java.google_api_client
@@ -73,8 +73,8 @@ dependencies {
   // Add dependencies for the PreCommit configurations
   // For each runner a project level dependency on the examples project.
   for (String runner : preCommitRunners) {
-    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "shadow"))
-    delegate.add(runner + "PreCommit", project(path: ":examples:java", configuration: "shadowTest"))
+    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadow"))
+    delegate.add(runner + "PreCommit", project(path: ":beam-examples-java", configuration: "shadowTest"))
   }
   // https://issues.apache.org/jira/browse/BEAM-3583
   // apexRunnerPreCommit project(path: ":runners:apex", configuration: "shadow")

@@ -37,7 +37,7 @@ def elastic_search_version = "2.4.1"
 
 dependencies {
   testCompile project(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common").sourceSets.test.output
-  testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
   testCompile project(path: ":sdks:java:io:elasticsearch", configuration: "shadow")
   testCompile project(":sdks:java:io:common").sourceSets.test.output
   testCompile project(path: ":runners:direct-java", configuration: "shadow")

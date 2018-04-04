@@ -25,8 +25,8 @@ dependencies {
   compile library.java.guava
   compile library.java.findbugs_jsr305
   shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":model:fn-execution", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.grpc_core

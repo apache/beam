@@ -29,13 +29,13 @@ description = "Apache Beam :: SDKs :: Java :: Harness"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":sdks:java:fn-execution")
+evaluationDependsOn(":beam-sdks-java-fn-execution")
 
 dependencies {
   compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":sdks:java:fn-execution", configuration: "shadow")
+  compile project(path: ":beam-model-fn-execution", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-core", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
   compile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
   compile project(path: ":runners:core-java", configuration: "shadow")
   compile project(path: ":runners:core-construction-java", configuration: "shadow")

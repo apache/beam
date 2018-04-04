@@ -29,7 +29,7 @@ description = "Apache Beam :: SDKs :: Java :: Core"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":model:fn-execution")
+evaluationDependsOn(":beam-model-fn-execution")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -70,7 +70,7 @@ dependencies {
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
-  shadowTest project(path: ":model:fn-execution", configuration: "shadow")
+  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
 }
 
 // Shade dependencies.

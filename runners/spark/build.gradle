@@ -28,7 +28,7 @@ description = "Apache Beam :: Runners :: Spark"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":model:fn-execution")
+evaluationDependsOn(":beam-model-fn-execution")
 evaluationDependsOn(":runners:core-java")
 
 test {
@@ -50,7 +50,7 @@ test {
 
 dependencies {
   shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":runners:core-construction-java", configuration: "shadow")
   shadow project(path: ":runners:core-java", configuration: "shadow")
   shadow library.java.findbugs_jsr305
@@ -73,7 +73,7 @@ dependencies {
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
   testCompile project(path: ":sdks:java:io:kafka", configuration: "shadow")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
   testCompile project(":runners:core-java").sourceSets.test.output
   testCompile library.java.avro

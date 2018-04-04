@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.findbugs_jsr305
   shadow "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"

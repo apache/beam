@@ -25,7 +25,7 @@ dependencies {
   compile library.java.guava
   shadow project(path: ":model:job-management", configuration: "shadow")
   shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":runners:java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-runners-java-fn-execution", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.grpc_core
   shadow library.java.grpc_stub

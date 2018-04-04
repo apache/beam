@@ -30,9 +30,9 @@ description = "Apache Beam :: Runners :: Flink"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":model:fn-execution")
+evaluationDependsOn(":beam-model-fn-execution")
 evaluationDependsOn(":runners:core-java")
-evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":beam-sdks-java-core")
 
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
@@ -50,7 +50,7 @@ def flink_version = "1.4.0"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":runners:core-java", configuration: "shadow")
   shadow project(path: ":runners:core-construction-java", configuration: "shadow")
   shadow library.java.jackson_annotations
@@ -64,7 +64,7 @@ dependencies {
   shadow "org.apache.flink:flink-java:$flink_version"
   shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
   shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   shadowTest project(":runners:core-java").sourceSets.test.output
   shadowTest library.java.commons_lang3
@@ -78,7 +78,7 @@ dependencies {
   shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
   shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
-  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
@@ -96,7 +96,7 @@ def createValidatesRunnerTask(Map m) {
     def pipelineOptions = JsonOutput.toJson(["--runner=TestFlinkRunner", "--streaming=${config.streaming}"])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+    testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
     maxParallelForks 4
     if (config.streaming) {
       useJUnit {

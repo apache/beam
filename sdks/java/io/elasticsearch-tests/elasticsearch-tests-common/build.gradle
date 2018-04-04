@@ -40,7 +40,7 @@ dependencies {
   testCompile "org.apache.httpcomponents:httpcore:4.4.5"
   testCompile "org.apache.httpcomponents:httpclient:4.5.2"
 
-  testCompile project(path: ":sdks:java:core", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadow")
   testCompile project(path: ":sdks:java:io:elasticsearch", configuration: "shadow")
   testCompile project(":sdks:java:io:common").sourceSets.test.output
   testCompile project(path: ":runners:direct-java", configuration: "shadow")

@@ -28,10 +28,10 @@ description = "Apache Beam :: Runners :: Direct Java"
  * the following projects are evaluated before we evaluate this project. This is because
  * we are attempting to reference the "sourceSets.test.output" directly.
  */
-evaluationDependsOn(":model:fn-execution")
+evaluationDependsOn(":beam-model-fn-execution")
 evaluationDependsOn(":runners:core-construction-java")
 evaluationDependsOn(":runners:core-java")
-evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":beam-sdks-java-core")
 
 configurations {
   needsRunner
@@ -43,13 +43,13 @@ dependencies {
   compile project(path: ":runners:core-construction-java", configuration: "shadow")
   compile project(path: ":runners:core-java", configuration: "shadow")
   compile project(path: ":runners:local-java", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow library.java.hamcrest_core
   shadow library.java.junit
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   shadowTest project(path: ":runners:core-java", configuration: "shadowTest")
   shadowTest library.java.guava_testlib
   shadowTest library.java.slf4j_jdk14
@@ -60,7 +60,7 @@ dependencies {
   shadowTest library.java.jackson_dataformat_yaml
   needsRunner project(path: ":runners:core-construction-java", configuration: "shadowTest")
   needsRunner project(path: ":runners:core-java", configuration: "shadowTest")
-  needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  needsRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   needsRunner project(path: project.path, configuration: "shadow")
   needsRunner project(path: project.path, configuration: "shadowTest")
 }
@@ -77,7 +77,7 @@ task needsRunnerTests(type: Test) {
   // tests (i.e., those from this subproject) get scanned.
   testClassesDirs += files(project(":runners:core-construction-java").sourceSets.test.output.classesDirs)
   testClassesDirs += files(project(":runners:core-java").sourceSets.test.output.classesDirs)
-  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs += files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"

@@ -33,12 +33,12 @@ def hbase_version = "1.2.6"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
   shadow "org.apache.hbase:hbase-shaded-client:$hbase_version"
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.commons_lang3
   testCompile library.java.junit
