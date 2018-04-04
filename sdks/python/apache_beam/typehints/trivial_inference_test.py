@@ -148,6 +148,9 @@ class TrivialInferenceTest(unittest.TestCase):
     f = lambda x, *args: x
     self.assertReturnType(
         typehints.Tuple[int, float], lambda: (f(1), f(2.0, 3)))
+    # We could do better here, but this is at least correct.
+    self.assertReturnType(
+        typehints.Tuple[int, typehints.Any], lambda: (1, f(x=1.0)))
 
   def testClosure(self):
     x = 1
