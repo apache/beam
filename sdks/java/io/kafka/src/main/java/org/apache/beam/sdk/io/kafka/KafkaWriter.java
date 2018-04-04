@@ -59,7 +59,7 @@ class KafkaWriter<K, V> extends DoFn<KV<K, V>, Void> {
       : null;
 
     producer.send(new ProducerRecord<>(
-        spec.getTopic(), null, timestampMillis, kv.getKey(), kv.getValue()), new SendCallback());
+        spec.getTopic().get(), null, timestampMillis, kv.getKey(), kv.getValue()), new SendCallback());
 
     elementsWritten.inc();
   }
