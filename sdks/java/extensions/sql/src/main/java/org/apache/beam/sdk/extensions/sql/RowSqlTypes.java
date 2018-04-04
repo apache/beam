@@ -41,21 +41,19 @@ import org.apache.calcite.sql.type.SqlTypeName;
 @Experimental
 public class RowSqlTypes {
   // The list of field type names used in SQL as Beam field types.
-  public static FieldType TINY_INT = CalciteUtils.toFieldType(SqlTypeName.TINYINT);
-  public static FieldType SMALL_INT = CalciteUtils.toFieldType(SqlTypeName.SMALLINT);
-  public static FieldType INTEGER = CalciteUtils.toFieldType(SqlTypeName.INTEGER);
-  public static FieldType BIG_INT = CalciteUtils.toFieldType(SqlTypeName.BIGINT);
-  public static FieldType FLOAT = CalciteUtils.toFieldType(SqlTypeName.FLOAT);
-  public static FieldType DOUBLE = CalciteUtils.toFieldType(SqlTypeName.DOUBLE);
-  public static FieldType DECIMAL = CalciteUtils.toFieldType(SqlTypeName.DECIMAL);
-  public static FieldType BOOLEAN = CalciteUtils.toFieldType(SqlTypeName.BOOLEAN);
-  public static FieldType CHAR = CalciteUtils.toFieldType(SqlTypeName.CHAR);
-  public static FieldType VARCHAR = CalciteUtils.toFieldType(SqlTypeName.VARCHAR);
-  public static FieldType TIME = CalciteUtils.toFieldType(SqlTypeName.TIME);
-  public static FieldType DATE = CalciteUtils.toFieldType(SqlTypeName.DATE);
-  public static FieldType TIMESTAMP = CalciteUtils.toFieldType(SqlTypeName.TIMESTAMP);
-
-
+  public static final FieldType TINY_INT = CalciteUtils.toFieldType(SqlTypeName.TINYINT);
+  public static final FieldType SMALL_INT = CalciteUtils.toFieldType(SqlTypeName.SMALLINT);
+  public static final FieldType INTEGER = CalciteUtils.toFieldType(SqlTypeName.INTEGER);
+  public static final FieldType BIG_INT = CalciteUtils.toFieldType(SqlTypeName.BIGINT);
+  public static final FieldType FLOAT = CalciteUtils.toFieldType(SqlTypeName.FLOAT);
+  public static final FieldType DOUBLE = CalciteUtils.toFieldType(SqlTypeName.DOUBLE);
+  public static final FieldType DECIMAL = CalciteUtils.toFieldType(SqlTypeName.DECIMAL);
+  public static final FieldType BOOLEAN = CalciteUtils.toFieldType(SqlTypeName.BOOLEAN);
+  public static final FieldType CHAR = CalciteUtils.toFieldType(SqlTypeName.CHAR);
+  public static final FieldType VARCHAR = CalciteUtils.toFieldType(SqlTypeName.VARCHAR);
+  public static final FieldType TIME = CalciteUtils.toFieldType(SqlTypeName.TIME);
+  public static final FieldType DATE = CalciteUtils.toFieldType(SqlTypeName.DATE);
+  public static final FieldType TIMESTAMP = CalciteUtils.toFieldType(SqlTypeName.TIMESTAMP);
 
   public static Builder builder() {
     return new Builder();
