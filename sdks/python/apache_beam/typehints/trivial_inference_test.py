@@ -54,6 +54,8 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.Tuple[int, str], reverse, [typehints.Tuple[str, float, int]])
     self.assertReturnType(
         typehints.Tuple[int, int], reverse, [typehints.List[int]])
+    self.assertReturnType(
+        typehints.List[int], lambda v: v[::-1], [typehints.List[int]])
 
   def testUnpack(self):
     def reverse(a_b):
