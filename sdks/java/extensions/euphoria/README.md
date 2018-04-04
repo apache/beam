@@ -52,7 +52,7 @@ Dataset<String> lines = flow.createInput(dataSource);
 
 Dataset<String> words = FlatMap.named("TOKENIZER")
     .of(lines)
-    .using((String line, Context<String> context) -> {
+    .using((String line, Collector<String> context) -> {
       for (String word : line.split("\\s+")) {
         context.collect(word);
       }
