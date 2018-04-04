@@ -50,7 +50,7 @@ job('beam_PreCommit_Java_GradleBuild') {
 
   def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' :javaPreCommit'
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Java Gradle PreCommit')
+  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Java PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
