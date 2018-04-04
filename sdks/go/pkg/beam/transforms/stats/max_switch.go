@@ -20,7 +20,24 @@ package stats
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
 )
+
+func init() {
+	beam.RegisterFunction(maxIntFn)
+	beam.RegisterFunction(maxInt8Fn)
+	beam.RegisterFunction(maxInt16Fn)
+	beam.RegisterFunction(maxInt32Fn)
+	beam.RegisterFunction(maxInt64Fn)
+	beam.RegisterFunction(maxUintFn)
+	beam.RegisterFunction(maxUint8Fn)
+	beam.RegisterFunction(maxUint16Fn)
+	beam.RegisterFunction(maxUint32Fn)
+	beam.RegisterFunction(maxUint64Fn)
+	beam.RegisterFunction(maxFloat32Fn)
+	beam.RegisterFunction(maxFloat64Fn)
+}
 
 func findMaxFn(t reflect.Type) interface{} {
 	switch t.String() {
