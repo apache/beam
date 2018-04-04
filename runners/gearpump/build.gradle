@@ -16,12 +16,20 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(artifactId: "beam-runners-gearpump")
 
 description = "Apache Beam :: Runners :: Gearpump"
 
+evaluationDependsOn(":sdks:java:core")
+
 def gearpump_version = "0.8.4"
+
+configurations {
+  validatesRunner
+}
 
 dependencies {
   compile library.java.guava
@@ -35,10 +43,40 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.jackson_annotations
   shadow library.java.findbugs_jsr305
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.jackson_databind
-  testCompile library.java.jackson_dataformat_yaml
-  testCompile library.java.mockito_core
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.jackson_databind
+  shadowTest library.java.jackson_dataformat_yaml
+  shadowTest library.java.mockito_core
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
+}
+
+task validatesRunnerStreaming (type: Test) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestGearpumpRunner",
+          "--streaming=true",
+  ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+  }
+}
+
+task validatesRunner {
+  group = "Verification"
+  description "Validates Gearpump runner"
+  dependsOn validatesRunnerStreaming
 }

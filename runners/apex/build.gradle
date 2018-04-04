@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(artifactId: "beam-runners-apex")
 
@@ -30,6 +32,11 @@ description = "Apache Beam :: Runners :: Apex"
  */
 evaluationDependsOn(":model:fn-execution")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":sdks:java:core")
+
+configurations {
+  validatesRunner
+}
 
 dependencies {
   shadow project(path: ":model:pipeline", configuration: "shadow")
@@ -42,13 +49,15 @@ dependencies {
   shadow library.java.commons_lang3
   shadow library.java.findbugs_jsr305
   shadow library.java.apex_engine
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   // ApexStateInternalsTest extends abstract StateInternalsTest
-  testCompile project(":runners:core-java").sourceSets.test.output
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.jackson_dataformat_yaml
+  shadowTest project(":runners:core-java").sourceSets.test.output
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+  shadowTest library.java.jackson_dataformat_yaml
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
 }
 
 // TODO: Update this so that the generated file is added to the explicitly added instead of
@@ -72,6 +81,32 @@ task buildDependencyTree(type: DependencyReportTask) {
   }
 }
 compileJava.dependsOn buildDependencyTree
+
+task validatesRunnerBatch (type: Test) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestApexRunner",
+  ])
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
+  }
+}
+
+task validatesRunner {
+  group = "Verification"
+  description "Validates Apex runner"
+  dependsOn validatesRunnerBatch
+}
 
 // Generates :runners:apex:runQuickstartJavaApex
 createJavaQuickstartValidationTask(name: 'Apex')

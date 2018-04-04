@@ -124,7 +124,7 @@ createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true)
 
 task validatesRunner {
   group = "Verification"
-  description "Validates batch and streaming runners"
+  description "Validates Flink runner"
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
 }
