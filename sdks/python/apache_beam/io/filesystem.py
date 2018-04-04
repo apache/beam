@@ -437,7 +437,8 @@ class FileSystem(BeamPlugin):
   def __init__(self, pipeline_options):
     """
     Args:
-      pipeline_options: Instance of ``PipelineOptions``.
+      pipeline_options: Instance of ``PipelineOptions`` or dict of options and
+        values (like ``RuntimeValueProvider.runtime_options``).
     """
 
   @staticmethod
