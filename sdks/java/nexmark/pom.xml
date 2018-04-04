@@ -192,8 +192,21 @@
           <argLine>-da</argLine> <!-- disable assert in Calcite converter validation -->
         </configuration>
       </plugin>
+
+        <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+                <source>1.8</source>
+                <target>1.8</target>
+            </configuration>
+        </plugin>
     </plugins>
   </build>
+
+  <properties>
+    <kafka.clients.version>0.10.1.0</kafka.clients.version>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -274,13 +287,13 @@
       <artifactId>hamcrest-core</artifactId>
       <scope>compile</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
       <scope>compile</scope>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
@@ -303,5 +316,23 @@
       <artifactId>commons-lang3</artifactId>
       <scope>runtime</scope>
     </dependency>
+
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-kafka</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>${kafka.clients.version}</version>
+    </dependency>
+
   </dependencies>
 </project>
