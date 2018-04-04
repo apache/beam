@@ -161,6 +161,8 @@ def binary_subscr(state, unused_arg):
       out = base.tuple_types[const_index]
     else:
       out = element_type(base)
+  elif index == slice:
+    out = typehints.List[element_type(base)]
   else:
     out = element_type(base)
   state.stack.append(out)
@@ -368,7 +370,7 @@ def make_closure(state, arg):
 
 
 def build_slice(state, arg):
-  state.stack[-arg:] = [Any]  # a slice object
+  state.stack[-arg:] = [slice]  # a slice object
 
 
 def call_function_var(state, arg):
