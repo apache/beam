@@ -40,16 +40,16 @@ from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self, control_address, worker_count,
-               control_channel=None, credentials=None):
+  def __init__(self, control_address, worker_count, credentials=None):
     self._worker_count = worker_count
     self._worker_index = 0
-    if control_channel is None:
+    if credentials is None:
       logging.info('Creating insecure channel.')
       self._control_channel = grpc.insecure_channel(control_address)
     else:
-      logging.info('Using provided channel.')
-      self._control_channel = control_channel
+      logging.info('Creating secure channel.')
+      self._control_channel = grpc.secure_channel(control_address, credentials)
+      grpc.channel_ready_future(self._control_channel).result()
     self._control_channel = grpc.intercept_channel(
         self._control_channel, WorkerIdInterceptor())
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory(
