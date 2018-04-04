@@ -122,8 +122,7 @@ class SdkHarness(object):
       logging.error(
           'Error processing instruction %s. Original traceback is\n%s\n',
           request.instruction_id,
-          traceback.format_exc(e),
-          exc_info=True)
+          traceback.format_exc(e))
       response = beam_fn_api_pb2.InstructionResponse(
           instruction_id=request.instruction_id, error=str(e))
     self._responses.put(response)
