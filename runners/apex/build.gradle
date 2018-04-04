@@ -82,7 +82,7 @@ task buildDependencyTree(type: DependencyReportTask) {
 }
 compileJava.dependsOn buildDependencyTree
 
-task validatesRunnerBatch (type: Test) {
+task validatesRunnerBatch(type: Test) {
   group = "Verification"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestApexRunner",

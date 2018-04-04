@@ -53,7 +53,7 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
-task validatesRunnerStreaming (type: Test) {
+task validatesRunnerStreaming(type: Test) {
   group = "Verification"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestGearpumpRunner",

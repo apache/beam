@@ -21,4 +21,4 @@ package org.apache.beam.sdk.testing;
 /**
  * Category tag for the ParDoLifecycleTest for exclusion (BEAM-3241).
  */
-public class UsesParDoLifecycle {}
+public interface UsesParDoLifecycle {}
