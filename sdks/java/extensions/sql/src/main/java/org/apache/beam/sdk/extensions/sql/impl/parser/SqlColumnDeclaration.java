@@ -14,9 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.calcite.sql.ddl;
+package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import org.apache.calcite.schema.ColumnStrategy;
+import com.google.common.collect.ImmutableList;
+import java.util.List;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlDataTypeSpec;
 import org.apache.calcite.sql.SqlIdentifier;
@@ -27,14 +28,8 @@ import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
-import com.google.common.collect.ImmutableList;
-
-import java.util.List;
-
 /**
- * Parse tree for {@code UNIQUE}, {@code PRIMARY KEY} constraints.
- *
- * <p>And {@code FOREIGN KEY}, when we support it.
+ * Parse tree for column.
  */
 public class SqlColumnDeclaration extends SqlCall {
   private static final SqlSpecialOperator OPERATOR =
@@ -42,18 +37,15 @@ public class SqlColumnDeclaration extends SqlCall {
 
   final SqlIdentifier name;
   final SqlDataTypeSpec dataType;
-  final SqlNode expression;
-  final ColumnStrategy strategy;
+  final SqlNode comment;
 
   /** Creates a SqlColumnDeclaration; use {@link SqlDdlNodes#column}. */
   SqlColumnDeclaration(SqlParserPos pos, SqlIdentifier name,
-      SqlDataTypeSpec dataType, SqlNode expression,
-      ColumnStrategy strategy) {
+      SqlDataTypeSpec dataType, SqlNode comment) {
     super(pos);
     this.name = name;
     this.dataType = dataType;
-    this.expression = expression;
-    this.strategy = strategy;
+    this.comment = comment;
   }
 
   @Override public SqlOperator getOperator() {
@@ -70,31 +62,9 @@ public class SqlColumnDeclaration extends SqlCall {
     if (dataType.getNullable() != null && !dataType.getNullable()) {
       writer.keyword("NOT NULL");
     }
-    if (expression != null) {
-      switch (strategy) {
-      case VIRTUAL:
-      case STORED:
-        writer.keyword("AS");
-        exp(writer);
-        writer.keyword(strategy.name());
-        break;
-      case DEFAULT:
-        writer.keyword("DEFAULT");
-        exp(writer);
-        break;
-      default:
-        throw new AssertionError("unexpected: " + strategy);
-      }
-    }
-  }
-
-  private void exp(SqlWriter writer) {
-    if (writer.isAlwaysUseParentheses()) {
-      expression.unparse(writer, 0, 0);
-    } else {
-      writer.sep("(");
-      expression.unparse(writer, 0, 0);
-      writer.sep(")");
+    if (comment != null) {
+      writer.keyword("COMMENT");
+      comment.unparse(writer, 0, 0);
     }
   }
 }
