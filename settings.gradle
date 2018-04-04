@@ -81,11 +81,19 @@ include ":sdks:java:io:kinesis"
 include ":sdks:java:io:mongodb"
 include ":sdks:java:io:mqtt"
 include ":sdks:java:io:redis"
-include ":sdks:java:io:solr"
-include ":sdks:java:io:tika"
-include ":sdks:java:io:xml"
-include ":sdks:java:maven-archetypes:examples"
-include ":sdks:java:maven-archetypes:starter"
-include ":sdks:java:nexmark"
-include ":sdks:python"
-include ":sdks:python:container"
+include "beam-sdks-java-io-solr"
+project(":beam-sdks-java-io-solr").dir = file("sdks/java/io/solr")
+include "beam-sdks-java-io-tika"
+project(":beam-sdks-java-io-tika").dir = file("sdks/java/io/tika")
+include "beam-sdks-java-io-xml"
+project(":beam-sdks-java-io-xml").dir = file("sdks/java/io/xml")
+include "beam-sdks-java-maven-archetypes-examples"
+project(":beam-sdks-java-maven-archetypes-examples").dir = file("sdks/java/maven-archetypes/examples")
+include "beam-sdks-java-maven-archetypes-starter"
+project(":beam-sdks-java-maven-archetypes-starter").dir = file("sdks/java/maven-archetypes/starter")
+include "beam-sdks-java-nexmark"
+project(":beam-sdks-java-nexmark").dir = file("sdks/java/nexmark")
+include ":beam-sdks-python"
+project(":beam-sdks-python").dir = file("sdks/python")
+include ":beam-sdks-python-container"
+project(":beam-sdks-python-container").dir = file("sdks/python/container")
