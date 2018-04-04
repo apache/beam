@@ -75,7 +75,7 @@
       <id>spark-runner</id>
       <properties>
         <!-- Spark uses a different netty version than Beam's. -->
-        <netty.version>4.0.43.Final</netty.version>
+        <netty.version>4.1.17.Final</netty.version>
       </properties>
       <dependencies>
         <dependency>
