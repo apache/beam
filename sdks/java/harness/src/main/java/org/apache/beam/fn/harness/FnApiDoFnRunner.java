@@ -443,6 +443,11 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
     stateKeyObjectCache.clear();
   }
 
+  @Override
+  public DoFn<InputT, OutputT> getFn() {
+    return doFnInvoker.getFn();
+  }
+
   /**
    * Outputs the given element to the specified set of consumers wrapping any exceptions.
    */
