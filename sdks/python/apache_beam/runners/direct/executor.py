@@ -274,6 +274,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._input_bundle = input_bundle
     # For non-empty bundles, store the window of the max EOW.
     # TODO(mariagh): Move to class _Bundle's inner _StackedWindowedValues
+    self._latest_main_input_window = None
     if input_bundle.has_elements():
       self._latest_main_input_window = input_bundle._elements[0].windows[0]
       for elem in input_bundle.get_elements_iterable():
