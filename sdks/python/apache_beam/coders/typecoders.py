@@ -67,6 +67,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from builtins import bytes
+from builtins import int
 from builtins import object
 from builtins import str
 
@@ -108,11 +110,21 @@ class CoderRegistry(object):
     self._register_coder_internal(typehint_type, typehint_coder_class)
 
   def get_coder(self, typehint):
-    coder = self._coders.get(
-        typehint.__class__ if isinstance(typehint, typehints.TypeConstraint)
-        else typehint, None)
-    if isinstance(typehint, typehints.TypeConstraint) and coder is not None:
-      return coder.from_type_hint(typehint, self)
+    if isinstance(typehint, typehints.TypeConstraint):
+      coder = self._coders.get(typehint.__class__)
+      if coder is not None:
+        return coder.from_type_hint(typehint, self)
+    else:
+      try:
+        t = typehint()
+        coder = self._coders.get(
+            str if isinstance(t, str)
+            else bytes if isinstance(t, bytes)
+            else int if isinstance(t, int) and not isinstance(t, bool)
+            else typehint, None)
+      except TypeError:
+        # typehint cannot be instantiated (without arguments)
+        coder = self._coders.get(typehint, None)
     if coder is None:
       # We use the fallback coder when there is no coder registered for a
       # typehint. For example a user defined class with no coder specified.
