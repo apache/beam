@@ -568,7 +568,7 @@ ext.applyJavaNature = {
               classifier null
               // Set readable name to project description.
               pom.withXml {
-                asNode().appendNode('name', description)
+                asNode().appendNode('name', project.description)
               }
             }
             // TODO: Use the shadow test jar here instead of the test jar.
@@ -607,7 +607,8 @@ ext.applyJavaNature = {
               elem.insertBefore(hdr, elem.getFirstChild())
 
 
-              def dependenciesNode = asNode().appendNode('dependencies')
+	      def root = asNode()
+              def dependenciesNode = root.appendNode('dependencies')
               // Iterate over the dependencies that would exist post shading,
               // adding a <dependency> node for each
               configurations.shadow.allDependencies.each {
