@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
@@ -94,13 +95,17 @@ class EvaluationContext {
 
   private final Set<PValue> keyedPValues;
 
+  private final ExecutorService executorService;
+
   public static EvaluationContext create(
-      DirectOptions options,
-      Clock clock,
-      BundleFactory bundleFactory,
-      DirectGraph graph,
-      Set<PValue> keyedPValues) {
-    return new EvaluationContext(options, clock, bundleFactory, graph, keyedPValues);
+        DirectOptions options,
+        Clock clock,
+        BundleFactory bundleFactory,
+        DirectGraph graph,
+        Set<PValue> keyedPValues,
+        ExecutorService executorService) {
+    return new EvaluationContext(
+      options, clock, bundleFactory, graph, keyedPValues, executorService);
   }
 
   private EvaluationContext(
@@ -108,18 +113,20 @@ class EvaluationContext {
       Clock clock,
       BundleFactory bundleFactory,
       DirectGraph graph,
-      Set<PValue> keyedPValues) {
+      Set<PValue> keyedPValues,
+      ExecutorService executorService) {
     this.options = checkNotNull(options);
     this.clock = clock;
     this.bundleFactory = checkNotNull(bundleFactory);
     this.graph = checkNotNull(graph);
     this.keyedPValues = keyedPValues;
+    this.executorService = executorService;
 
     this.watermarkManager = WatermarkManager.create(clock, graph);
     this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
-    this.metrics = new DirectMetrics();
+    this.metrics = new DirectMetrics(executorService);
 
     this.callbackExecutor = WatermarkCallbackExecutor.create(MoreExecutors.directExecutor());
   }
