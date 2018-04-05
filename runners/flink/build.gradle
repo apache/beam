@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-flink_2.11")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Flink"
 
@@ -31,7 +31,7 @@ description = "Apache Beam :: Runners :: Flink"
  * the test outputs directly.
  */
 evaluationDependsOn(":beam-model-fn-execution")
-evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":beam-runners-core-java")
 evaluationDependsOn(":beam-sdks-java-core")
 
 test {
@@ -51,8 +51,8 @@ def flink_version = "1.4.0"
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":runners:core-java", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow library.java.jackson_annotations
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
@@ -66,13 +66,13 @@ dependencies {
   shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(":runners:core-java").sourceSets.test.output
+  shadowTest project(":beam-runners-core-java").sourceSets.test.output
   shadowTest library.java.commons_lang3
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.google_api_services_bigquery
-  shadowTest project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest "org.apache.flink:flink-core:$flink_version:tests"
   shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
@@ -129,5 +129,5 @@ task validatesRunner {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :runners:flink:runQuickstartJavaFlinkLocal
+// Generates :beam-runners-flink_2.11:runQuickstartJavaFlinkLocal
 createJavaQuickstartValidationTask(name: 'FlinkLocal')

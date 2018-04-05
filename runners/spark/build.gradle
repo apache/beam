@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-spark")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Spark"
 
@@ -29,7 +29,7 @@ description = "Apache Beam :: Runners :: Spark"
  * the test outputs directly.
  */
 evaluationDependsOn(":beam-model-fn-execution")
-evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":beam-runners-core-java")
 
 test {
   systemProperty "beam.spark.test.reuseSparkContext", "true"
@@ -49,10 +49,10 @@ test {
 }
 
 dependencies {
-  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow project(path: ":runners:core-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.guava
   shadow library.java.jackson_annotations
@@ -72,10 +72,10 @@ dependencies {
   provided "org.apache.zookeeper:zookeeper:3.4.6"
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
-  testCompile project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
-  testCompile project(":runners:core-java").sourceSets.test.output
+  testCompile project(":beam-runners-core-java").sourceSets.test.output
   testCompile library.java.avro
   testCompile library.java.kafka_clients
   testCompile library.java.junit
@@ -89,5 +89,5 @@ configurations.testRuntimeClasspath {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
-// Generates :runners:spark:runQuickstartJavaSpark
+// Generates :beam-runners-spark:runQuickstartJavaSpark
 createJavaQuickstartValidationTask(name: 'Spark')

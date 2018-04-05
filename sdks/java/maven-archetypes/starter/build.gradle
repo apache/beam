@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-maven-archetypes-starter")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
 
@@ -33,6 +33,6 @@ task generateAndBuildArchetypeTest(type: Exec) {
 }
 
 dependencies {
-  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
 }

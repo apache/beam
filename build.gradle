@@ -124,5 +124,5 @@ task javaPreCommit() {
 
 task goPreCommit() {
   dependsOn ":rat"
-  dependsOn ":sdks:go:test"
+  dependsOn ":beam-sdks-go:test"
 }

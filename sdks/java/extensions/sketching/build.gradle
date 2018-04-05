@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-extensions-sketching")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sketching"
 
@@ -33,7 +33,7 @@ dependencies {
   shadowTest library.java.avro
   shadowTest library.java.commons_lang3
   shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  shadowTest project(path: ":runners:direct-java", configuration: "shadow")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
 }
