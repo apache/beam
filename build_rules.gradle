@@ -498,16 +498,18 @@ ext.applyJavaNature = {
     artifacts.archives javadocJar
 
     if (isRelease() || project.hasProperty('publishing')) {
-      signing {
-        useGpgCmd()
-        required { isRelease() }
-        sign configurations.archives
+      if (isRelease()) {
+        signing {
+          useGpgCmd()
+          required { isRelease() }
+          sign configurations.archives
+        }
       }
 
       uploadArchives {
         repositories {
           mavenDeployer {
-            beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+            beforeDeployment { MavenDeployment deployment -> isRelease() && signing.signPom(deployment) }
           }
         }
       }
@@ -517,10 +519,14 @@ ext.applyJavaNature = {
           destination = file("$buildDir/generated-pom.xml")
         }
         tasks.publishMavenJavaPublicationToMavenLocal {
-          dependsOn project.tasks.signArchives
+          if (isRelease()) {
+            dependsOn project.tasks.signArchives
+          }
         }
         tasks.publishMavenJavaPublicationToMavenRepository {
-          dependsOn project.tasks.signArchives
+          if (isRelease()) {
+            dependsOn project.tasks.signArchives
+          }
         }
       }
 
@@ -528,7 +534,7 @@ ext.applyJavaNature = {
       publishing {
         repositories {
           maven {
-            url (isRelease() ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
+            url (project.properties["distMgmtSnapshotsUrl"] ?: isRelease() ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
                     : 'https://repository.apache.org/content/repositories/snapshots')
 
             // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
@@ -620,23 +626,27 @@ ext.applyJavaNature = {
               // create the sign pom artifact
               def pomFile = file("${project.buildDir}/generated-pom.xml")
               writeTo(pomFile)
-              def pomAscFile = signing.sign(pomFile).signatureFiles[0]
-              artifact(pomAscFile) {
-                classifier = null
-                extension = 'pom.asc'
+              if (isRelease()) {
+                def pomAscFile = signing.sign(pomFile).signatureFiles[0]
+                artifact(pomAscFile) {
+                  classifier = null
+                  extension = 'pom.asc'
+                }
               }
             }
 
             // create the signed artifacts
-            project.tasks.signArchives.signatureFiles.each {
-              artifact(it) {
-                def matcher = it.file =~ /-(tests|sources|test-sources|javadoc)\.jar\.asc$/
-                if (matcher.find()) {
-                  classifier = matcher.group(1)
-                } else {
-                  classifier = null
+            if (isRelease()) {
+              project.tasks.signArchives.signatureFiles.each {
+                artifact(it) {
+                  def matcher = it.file =~ /-(tests|sources|test-sources|javadoc)\.jar\.asc$/
+                  if (matcher.find()) {
+                    classifier = matcher.group(1)
+                  } else {
+                    classifier = null
+                  }
+                  extension = 'jar.asc'
                 }
-                extension = 'jar.asc'
               }
             }
           }
