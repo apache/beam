@@ -335,8 +335,6 @@ ext.applyJavaNature = {
   println "applyJavaNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
   JavaNatureConfiguration configuration = it ? it as JavaNatureConfiguration : new JavaNatureConfiguration()
-  apply plugin: "maven-publish"
-  apply plugin: "signing"
   apply plugin: "java"
 
   // Configure the Java compiler source language and target compatibility levels. Also ensure that
@@ -498,6 +496,9 @@ ext.applyJavaNature = {
     artifacts.archives javadocJar
 
     if (isRelease() || project.hasProperty('publishing')) {
+      apply plugin: "maven-publish"
+      apply plugin: "signing"
+
       signing {
         useGpgCmd()
         required { isRelease() }
@@ -665,8 +666,9 @@ ext.applyJavaNature = {
                 // Start with any exclusions that were added via configuration exclude rules.
                 // Then add all the exclusions that are specific to the dependency (if any
                 // were declared). Finally build the node that represents all exclusions.
-                def exclusions = configurations.shadow.excludeRules
-                if (it?.excludeRules) {
+                def exclusions = []
+                exclusions += configurations.shadow.excludeRules
+                if (it.hasProperty('excludeRules')) {
                   exclusions += it.excludeRules
                 }
                 if (!exclusions.empty) {
