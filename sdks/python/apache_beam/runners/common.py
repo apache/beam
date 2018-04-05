@@ -698,3 +698,43 @@ class DoFnContext(object):
       raise AttributeError('windows not accessible in this context')
     else:
       return self.windowed_value.windows
+
+
+class ExecutionContext(object):
+  def __init__(self):
+    self.step_registry = _StepMetadataRegistry()
+
+  @staticmethod
+  def for_test():
+    ctx = ExecutionContext()
+    ctx.step_registry.register_step('s1',
+                                    stage_name='stageA',
+                                    user_name='userStep1',
+                                    system_name='systemStep1')
+    ctx.step_registry.register_step('s2',
+                                    stage_name='stageB',
+                                    user_name='userStep2',
+                                    system_name='systemStep2')
+    return ctx
+
+
+class _StepMetadataRegistry(object):
+  def __init__(self):
+    self._steps = {}
+
+  def register_step(self, step_name, **kwargs):
+    self._steps[step_name] = _StepMetadata(kwargs)
+
+  def get(self, step_id):
+    return self._steps[step_id]
+
+
+class _StepMetadata(object):
+  def __init__(self, metadata):
+    self._metadata = metadata
+
+  def __getattr__(self, item):
+    if item not in self._metadata:
+      raise AttributeError('this object has no attribute %s' % item)
+    else:
+      return self._metadata[item]

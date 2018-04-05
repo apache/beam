@@ -72,10 +72,19 @@ class PerThreadLoggingContext(LoggingContext):
 class JsonLogFormatter(logging.Formatter):
   """A JSON formatter class as expected by the logging standard module."""
 
-  def __init__(self, job_id, worker_id):
+  def __init__(self, job_id, worker_id, execution_context=None):
     super(JsonLogFormatter, self).__init__()
     self.job_id = job_id
     self.worker_id = worker_id
+    self._execution_context = execution_context
+
+    # TODO(pabloem) - Clean up after transition is complete.
+    if execution_context:
+      self.get_step_user_name = (
+          lambda step: self._execution_context.step_registry.get(
+              step).user_name)
+    else:
+      self.get_step_user_name = lambda step: step
 
   def format(self, record):
     """Returns a JSON string based on a LogRecord instance.
@@ -149,7 +158,7 @@ class JsonLogFormatter(logging.Formatter):
     if 'stage_name' in data:
       output['stage'] = data['stage_name']
     if 'step_name' in data:
-      output['step'] = data['step_name']
+      output['step'] = self.get_step_user_name(data['step_name'])
     # All logging happens using the root logger. We will add the basename of the
     # file and the function name where the logging happened to make it easier
     # to identify who generated the record.
@@ -163,11 +172,14 @@ class JsonLogFormatter(logging.Formatter):
     return json.dumps(output)
 
 
-def initialize(job_id, worker_id, log_path):
+def initialize(job_id, worker_id, log_path, execution_context=None):
   """Initialize root logger so that we log JSON to a file and text to stdout."""
 
   file_handler = logging.FileHandler(log_path)
-  file_handler.setFormatter(JsonLogFormatter(job_id, worker_id))
+  file_handler.setFormatter(
+      JsonLogFormatter(job_id,
+                       worker_id,
+                       execution_context=execution_context))
   logging.getLogger().addHandler(file_handler)
 
   # Set default level to INFO to avoid logging various DEBUG level log calls
