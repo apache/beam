@@ -101,10 +101,8 @@ public class RowCoderTest {
     Schema nestedSchema = Schema.builder()
         .addInt32Field("f1_int", false)
         .addStringField("f1_str", false).build();
-    FieldType arrayType = TypeName.ARRAY.type()
-        .withComponentType(TypeName.ROW.type()
-            .withRowSchema(nestedSchema));
-    Schema schema = Schema.builder().addArrayField("f_array", arrayType).build();
+    FieldType componentType = TypeName.ROW.type().withRowSchema(nestedSchema);
+    Schema schema = Schema.builder().addArrayField("f_array", componentType).build();
     Row row = Row.withSchema(schema).addArray(
         Row.withSchema(nestedSchema).addValues(1, "one").build(),
         Row.withSchema(nestedSchema).addValues(2, "two").build(),
