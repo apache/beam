@@ -21,15 +21,13 @@ import static java.util.Arrays.asList;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
@@ -52,15 +50,6 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
  */
 class DirectMetrics extends MetricResults {
 
-  // TODO: (BEAM-723) Create a shared ExecutorService for maintenance tasks in the DirectRunner.
-  private static final ExecutorService COUNTER_COMMITTER =
-      Executors.newCachedThreadPool(
-          new ThreadFactoryBuilder()
-              .setThreadFactory(MoreExecutors.platformThreadFactory())
-              .setDaemon(true)
-              .setNameFormat("direct-metrics-counter-committer")
-              .build());
-
   private interface MetricAggregation<UpdateT, ResultT> {
     UpdateT zero();
     UpdateT combine(Iterable<UpdateT> updates);
@@ -76,6 +65,8 @@ class DirectMetrics extends MetricResults {
   private static class DirectMetric<UpdateT, ResultT> {
     private final MetricAggregation<UpdateT, ResultT> aggregation;
 
+    private final Executor executor;
+
     private final AtomicReference<UpdateT> finishedCommitted;
 
     private final Object attemptedLock = new Object();
@@ -85,8 +76,10 @@ class DirectMetrics extends MetricResults {
     private final ConcurrentMap<CommittedBundle<?>, UpdateT> inflightAttempted =
         new ConcurrentHashMap<>();
 
-    public DirectMetric(MetricAggregation<UpdateT, ResultT> aggregation) {
+    public DirectMetric(MetricAggregation<UpdateT, ResultT> aggregation,
+                        Executor executor) {
       this.aggregation = aggregation;
+      this.executor = executor;
       finishedCommitted = new AtomicReference<>(aggregation.zero());
       finishedAttempted = aggregation.zero();
     }
@@ -115,7 +108,7 @@ class DirectMetrics extends MetricResults {
       // 2. We submit a runnable that will commit the update and remove the tentative value in
       //    a synchronized block.
       inflightAttempted.put(bundle, finalCumulative);
-      COUNTER_COMMITTER.submit(
+      executor.execute(
           () -> {
             synchronized (attemptedLock) {
               finishedAttempted = aggregation.combine(asList(finishedAttempted, finalCumulative));
@@ -223,13 +216,12 @@ class DirectMetrics extends MetricResults {
       };
 
   /** The current values of counters in memory. */
-  private MetricsMap<MetricKey, DirectMetric<Long, Long>> counters =
-      new MetricsMap<>(unusedKey -> new DirectMetric<>(COUNTER));
+  private final MetricsMap<MetricKey, DirectMetric<Long, Long>> counters;
 
-  private MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>> distributions =
-      new MetricsMap<>(unusedKey -> new DirectMetric<>(DISTRIBUTION));
-  private MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges =
-      new MetricsMap<>(unusedKey -> new DirectMetric<>(GAUGE));
+  private final MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>>
+    distributions;
+
+  private final MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges;
 
   @AutoValue
   abstract static class DirectMetricQueryResults implements MetricQueryResults {
@@ -254,6 +246,13 @@ class DirectMetrics extends MetricResults {
         T committed, T attempted) {
       return new AutoValue_DirectMetrics_DirectMetricResult<>(name, scope, committed, attempted);
     }
+  }
+
+  DirectMetrics(ExecutorService executorService) {
+    this.counters = new MetricsMap<>(unusedKey -> new DirectMetric<>(COUNTER, executorService));
+    this.distributions =
+      new MetricsMap<>(unusedKey -> new DirectMetric<>(DISTRIBUTION, executorService));
+    this.gauges = new MetricsMap<>(unusedKey -> new DirectMetric<>(GAUGE, executorService));
   }
 
   @Override
