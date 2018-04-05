@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-hadoop-common")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Common"
 

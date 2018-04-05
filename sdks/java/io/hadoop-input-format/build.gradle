@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-hadoop-input-format")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format"
 
@@ -28,7 +28,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Input Format"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":sdks:java:io:common")
+evaluationDependsOn(":beam-sdks-java-io-common")
 
 def log4j_version = "2.6.2"
 def elastic_search_version = "5.0.0"
@@ -49,13 +49,13 @@ dependencies {
   compile library.java.guava
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
-  shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
-  testCompile project(":sdks:java:io:common").sourceSets.test.output
+  testCompile project(path: ":beam-sdks-java-io-common", configuration: "shadow")
+  testCompile project(":beam-sdks-java-io-common").sourceSets.test.output
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
   testCompile "org.elasticsearch.client:transport:$elastic_search_version"
   testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
@@ -75,7 +75,7 @@ dependencies {
   testCompile "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver"
   testCompile "org.apache.cassandra:cassandra-all:3.9"
   testCompile "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver"
-  testCompile project(path: ":sdks:java:io:jdbc", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-io-jdbc", configuration: "shadow")
   testCompile library.java.postgres
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit

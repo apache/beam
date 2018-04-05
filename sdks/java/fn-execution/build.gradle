@@ -17,14 +17,14 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-fn-execution")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Fn Execution"
 
 dependencies {
   compile library.java.guava
   compile library.java.findbugs_jsr305
-  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
