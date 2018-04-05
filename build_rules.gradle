@@ -641,6 +641,14 @@ ext.applyJavaNature = {
               commitListNode.appendNode('post', POM_COMMIT_LIST_POST)
               commitListNode.appendNode('archive', POM_COMMIT_LIST_ARCHIVE)
 
+	      def developerNode = root.appendNode('developers').appendNode('developer')
+	      developerNode.appendNode('name', POM_DEVELOPER_NAME)
+	      developerNode.appendNode('email', POM_DEVELOPER_EMAIL)
+	      developerNode.appendNode('url', POM_DEVELOPER_URL)
+	      developerNode.appendNode('organization', POM_DEVELOPER_ORG)
+	      developerNode.appendNode('organizationUrl', POM_DEVELOPER_ORG_URL)
+
+
               def dependenciesNode = root.appendNode('dependencies')
               // Iterate over the dependencies that would exist post shading,
               // adding a <dependency> node for each
