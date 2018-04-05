@@ -25,14 +25,14 @@ description = "Apache Beam :: SDKs :: Go :: Container"
 // Figure out why the golang plugin does not add a build dependency between projects.
 // Without the line below, we get spurious errors about not being able to resolve
 // "./github.com/apache/beam/sdks/go"
-resolveBuildDependencies.dependsOn ":sdks:go:build"
+resolveBuildDependencies.dependsOn ":beam-sdks-go:build"
 
 dependencies {
   golang {
     // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
     // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-    build name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
-    test name: './github.com/apache/beam/sdks/go', dir: project(':sdks:go').projectDir
+    build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
+    test name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-go').projectDir
   }
 }
 

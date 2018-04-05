@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-amqp")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: AMQP"
 
@@ -27,7 +27,7 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow "org.apache.qpid:proton-j:0.13.1"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit

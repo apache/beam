@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-google-cloud-platform", enableFindbugs: false)
+applyJavaNature(enableFindbugs: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 
@@ -28,13 +28,13 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":sdks:java:extensions:google-cloud-platform-core")
+evaluationDependsOn(":beam-sdks-java-extensions-google-cloud-platform-core")
 
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:protobuf", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-protobuf", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.grpc_core
   shadow library.java.google_api_services_bigquery
@@ -69,8 +69,8 @@ dependencies {
   shadow library.java.grpc_all
   shadow library.java.netty_tcnative_boringssl_static
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(":sdks:java:extensions:google-cloud-platform-core").sourceSets.test.output
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(":beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
   testCompile library.java.junit

@@ -117,12 +117,12 @@ task javaPreCommit() {
   dependsOn ":rat"
   dependsOn ":beam-sdks-java-core:buildNeeded"
   dependsOn ":beam-sdks-java-core:buildDependents"
-  dependsOn ":sdks:java:maven-archetypes:examples:generateAndBuildArchetypeTest"
-  dependsOn ":sdks:java:maven-archetypes:starter:generateAndBuildArchetypeTest"
+  dependsOn ":beam-sdks-java-maven-archetypes-examples:generateAndBuildArchetypeTest"
+  dependsOn ":beam-sdks-java-maven-archetypes-starter:generateAndBuildArchetypeTest"
   dependsOn ":beam-examples-java:preCommit"
 }
 
 task goPreCommit() {
   dependsOn ":rat"
-  dependsOn ":sdks:go:test"
+  dependsOn ":beam-sdks-go:test"
 }

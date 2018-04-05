@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-mqtt")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: MQTT"
 
@@ -29,7 +29,7 @@ dependencies {
   shadow library.java.findbugs_jsr305
   shadow "org.fusesource.mqtt-client:mqtt-client:1.14"
   shadow "org.fusesource.hawtbuf:hawtbuf:1.11"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.activemq_broker
   testCompile library.java.activemq_mqtt
   testCompile library.java.activemq_kahadb_store
