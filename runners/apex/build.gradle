@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-apex")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Apex"
 
@@ -29,13 +29,13 @@ description = "Apache Beam :: Runners :: Apex"
  * the test outputs directly.
  */
 evaluationDependsOn(":beam-model-fn-execution")
-evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":beam-runners-core-java")
 
 dependencies {
-  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow project(path: ":runners:core-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow library.java.apex_common
   shadow library.java.malhar_library
   shadow library.java.apex_engine
@@ -44,7 +44,7 @@ dependencies {
   shadow library.java.apex_engine
   testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // ApexStateInternalsTest extends abstract StateInternalsTest
-  testCompile project(":runners:core-java").sourceSets.test.output
+  testCompile project(":beam-runners-core-java").sourceSets.test.output
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core
@@ -73,5 +73,5 @@ task buildDependencyTree(type: DependencyReportTask) {
 }
 compileJava.dependsOn buildDependencyTree
 
-// Generates :runners:apex:runQuickstartJavaApex
+// Generates :beam-runners-apex:runQuickstartJavaApex
 createJavaQuickstartValidationTask(name: 'Apex')

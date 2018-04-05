@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-kinesis")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kinesis"
 
@@ -41,7 +41,7 @@ dependencies {
   shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
   shadow "com.amazonaws:amazon-kinesis-producer:0.12.8"
   shadow "commons-lang:commons-lang:2.6"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib

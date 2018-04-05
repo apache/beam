@@ -47,7 +47,7 @@ job('beam_PostCommit_Java_ValidatesRunner_Flink') {
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':runners:flink:validatesRunner')
+      tasks(':beam-runners-flink_2.11:validatesRunner')
       for (String gradle_switch : gradle_switches) {
         switches(gradle_switch)
       }

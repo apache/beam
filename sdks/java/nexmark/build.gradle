@@ -17,16 +17,16 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-nexmark")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:sql", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-sql", configuration: "shadow")
   shadow library.java.google_api_services_bigquery
   shadow library.java.jackson_core
   shadow library.java.jackson_annotations
@@ -38,7 +38,7 @@ dependencies {
   shadow library.java.junit
   shadow library.java.hamcrest_core
   shadow library.java.commons_lang3
-  shadow project(path: ":runners:direct-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
 }

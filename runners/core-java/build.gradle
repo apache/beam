@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-core-java")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Core Java"
 
@@ -32,10 +32,10 @@ test {
 dependencies {
   compile library.java.guava
   compileOnly library.java.findbugs_annotations
-  shadow project(path: ":model:pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
