@@ -606,12 +606,16 @@ ext.applyJavaNature = {
   ''')
               elem.insertBefore(hdr, elem.getFirstChild())
 
-
               def root = asNode()
               def licenseNode = root.appendNode('licenses').appendNode('license')
-              licenseNode.appendNode('name', 'Apache License, Version 2.0')
-              licenseNode.appendNode('url', 'http://www.apache.org/licenses/LICENSE-2.0.txt')
-              licenseNode.appendNode('distribution', 'repo')
+              licenseNode.appendNode('name', POM_LICENSE_NAME)
+              licenseNode.appendNode('url', POM_LICENSE_URL)
+              licenseNode.appendNode('distribution', POM_LICENSE_DIST)
+
+              def scmNode = root.appendNode('scm')
+              scmNode.appendNode('connection', POM_SCM_CONNECTION)
+              scmNode.appendNode('developerConnection', POM_SCM_DEV_CONNECTION)
+              scmNode.appendNode('url', POM_SCM_URL)
 
               def dependenciesNode = root.appendNode('dependencies')
               // Iterate over the dependencies that would exist post shading,
