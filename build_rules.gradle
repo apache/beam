@@ -566,10 +566,6 @@ ext.applyJavaNature = {
             artifact shadowJar {
               // Strip the "shaded" classifier.
               classifier null
-              // Set readable name to project description.
-              pom.withXml {
-                asNode().appendNode('name', project.description)
-              }
             }
             // TODO: Use the shadow test jar here instead of the test jar.
             artifact packageTests {
@@ -607,6 +603,11 @@ ext.applyJavaNature = {
               elem.insertBefore(hdr, elem.getFirstChild())
 
               def root = asNode()
+              root.appendNode('name', project.description)
+              root.appendNode('description', project.description)
+              root.appendNode('url', POM_URL)
+              root.appendNode('inceptionYear', POM_INCEPTION_YEAR)
+
               def licenseNode = root.appendNode('licenses').appendNode('license')
               licenseNode.appendNode('name', POM_LICENSE_NAME)
               licenseNode.appendNode('url', POM_LICENSE_URL)
