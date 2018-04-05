@@ -617,6 +617,10 @@ ext.applyJavaNature = {
               scmNode.appendNode('developerConnection', POM_SCM_DEV_CONNECTION)
               scmNode.appendNode('url', POM_SCM_URL)
 
+              def issueMgmtNode = root.appendNode('issueManagement')
+              issueMgmtNode.appendNode('system', POM_ISSUE_MGMT_SYSTEM)
+              issueMgmtNode.appendNode('url', POM_ISSUE_MGMT_URL)
+
               def dependenciesNode = root.appendNode('dependencies')
               // Iterate over the dependencies that would exist post shading,
               // adding a <dependency> node for each
