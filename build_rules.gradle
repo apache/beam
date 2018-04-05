@@ -566,10 +566,6 @@ ext.applyJavaNature = {
             artifact shadowJar {
               // Strip the "shaded" classifier.
               classifier null
-              // Set readable name to project description.
-              pom.withXml {
-                asNode().appendNode('name', description)
-              }
             }
             // TODO: Use the shadow test jar here instead of the test jar.
             artifact packageTests {
@@ -606,8 +602,55 @@ ext.applyJavaNature = {
   ''')
               elem.insertBefore(hdr, elem.getFirstChild())
 
+              def root = asNode()
+              root.appendNode('name', project.description)
+              root.appendNode('description', project.description)
+              root.appendNode('url', POM_URL)
+              root.appendNode('inceptionYear', POM_INCEPTION_YEAR)
 
-              def dependenciesNode = asNode().appendNode('dependencies')
+              def licenseNode = root.appendNode('licenses').appendNode('license')
+              licenseNode.appendNode('name', POM_LICENSE_NAME)
+              licenseNode.appendNode('url', POM_LICENSE_URL)
+              licenseNode.appendNode('distribution', POM_LICENSE_DIST)
+
+              def scmNode = root.appendNode('scm')
+              scmNode.appendNode('connection', POM_SCM_CONNECTION)
+              scmNode.appendNode('developerConnection', POM_SCM_DEV_CONNECTION)
+              scmNode.appendNode('url', POM_SCM_URL)
+
+              def issueMgmtNode = root.appendNode('issueManagement')
+              issueMgmtNode.appendNode('system', POM_ISSUE_MGMT_SYSTEM)
+              issueMgmtNode.appendNode('url', POM_ISSUE_MGMT_URL)
+
+              def mailingListsNode = root.appendNode('mailingLists')
+              def devListNode = mailingListsNode.appendNode('mailingList')
+              devListNode.appendNode('name', POM_DEV_LIST_NAME)
+              devListNode.appendNode('subscribe', POM_DEV_LIST_SUB)
+              devListNode.appendNode('unsubscribe', POM_DEV_LIST_UNSUB)
+              devListNode.appendNode('post', POM_DEV_LIST_POST)
+              devListNode.appendNode('archive', POM_DEV_LIST_ARCHIVE)
+              def userListNode = mailingListsNode.appendNode('mailingList')
+              userListNode.appendNode('name', POM_USER_LIST_NAME)
+              userListNode.appendNode('subscribe', POM_USER_LIST_SUB)
+              userListNode.appendNode('unsubscribe', POM_USER_LIST_UNSUB)
+              userListNode.appendNode('post', POM_USER_LIST_POST)
+              userListNode.appendNode('archive', POM_USER_LIST_ARCHIVE)
+              def commitListNode = mailingListsNode.appendNode('mailingList')
+              commitListNode.appendNode('name', POM_COMMIT_LIST_NAME)
+              commitListNode.appendNode('subscribe', POM_COMMIT_LIST_SUB)
+              commitListNode.appendNode('unsubscribe', POM_COMMIT_LIST_UNSUB)
+              commitListNode.appendNode('post', POM_COMMIT_LIST_POST)
+              commitListNode.appendNode('archive', POM_COMMIT_LIST_ARCHIVE)
+
+	      def developerNode = root.appendNode('developers').appendNode('developer')
+	      developerNode.appendNode('name', POM_DEVELOPER_NAME)
+	      developerNode.appendNode('email', POM_DEVELOPER_EMAIL)
+	      developerNode.appendNode('url', POM_DEVELOPER_URL)
+	      developerNode.appendNode('organization', POM_DEVELOPER_ORG)
+	      developerNode.appendNode('organizationUrl', POM_DEVELOPER_ORG_URL)
+
+
+              def dependenciesNode = root.appendNode('dependencies')
               // Iterate over the dependencies that would exist post shading,
               // adding a <dependency> node for each
               configurations.shadow.allDependencies.each {
