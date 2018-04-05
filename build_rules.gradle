@@ -273,10 +273,10 @@ ext.library = [
 // Returns a string representing the relocated path to be used with the shadow plugin when
 // given a suffix such as "com.google.common".
 ext.getJavaRelocatedPath = { String suffix ->
-  return "org.apache.beam"
-    + (project.path + ":" + project.name).replace(":", ".").replace("-", "_")
-    + ".repackaged."
-    + suffix;
+  return ("org.apache.beam.repackaged."
+          + project.name.replace("-", "_")
+          + "."
+          + suffix)
 }
 
 // A class defining the set of configurable properties accepted by applyJavaNature
