@@ -662,7 +662,7 @@ ext.applyJavaNature = {
               }
 
               // NB: This must come after asNode() logic, as it seems asNode()
-	      // removes XML comments.
+              // removes XML comments.
               // TODO: Load this from file?
               def elem = asElement()
               def hdr = elem.getOwnerDocument().createComment(
