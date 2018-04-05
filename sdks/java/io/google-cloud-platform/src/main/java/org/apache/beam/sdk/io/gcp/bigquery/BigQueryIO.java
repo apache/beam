@@ -1365,7 +1365,7 @@ public class BigQueryIO {
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
-    /** Specfies a policy for handling failed inserts.
+    /** Specfies a policy for handling fPailed inserts.
      *
      * <p>Currently this only is allowed when writing an unbounded collection to BigQuery. Bounded
      * collections are written using batch load jobs, so we don't get per-element failures.
