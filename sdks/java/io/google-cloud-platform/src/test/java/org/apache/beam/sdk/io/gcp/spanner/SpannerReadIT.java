@@ -115,10 +115,7 @@ public class SpannerReadIT {
 
   @Test
   public void testRead() throws Exception {
-    DatabaseClient databaseClient =
-        spanner.getDatabaseClient(
-            DatabaseId.of(
-                project, options.getInstanceId(), databaseName));
+    DatabaseClient databaseClient = getDatabaseClient();
 
     List<Mutation> mutations = new ArrayList<>();
     for (int i = 0; i < 5L; i++) {
@@ -133,10 +130,7 @@ public class SpannerReadIT {
 
     databaseClient.writeAtLeastOnce(mutations);
 
-    SpannerConfig spannerConfig = SpannerConfig.create()
-        .withProjectId(project)
-        .withInstanceId(options.getInstanceId())
-        .withDatabaseId(databaseName);
+    SpannerConfig spannerConfig = createSpannerConfig();
 
     PCollectionView<Transaction> tx =
         p.apply(
@@ -157,10 +151,7 @@ public class SpannerReadIT {
 
   @Test
   public void testQuery() throws Exception {
-    DatabaseClient databaseClient =
-        spanner.getDatabaseClient(
-            DatabaseId.of(
-                project, options.getInstanceId(), databaseName));
+    DatabaseClient databaseClient = getDatabaseClient();
 
     List<Mutation> mutations = new ArrayList<>();
     for (int i = 0; i < 5L; i++) {
@@ -175,10 +166,7 @@ public class SpannerReadIT {
 
     databaseClient.writeAtLeastOnce(mutations);
 
-    SpannerConfig spannerConfig = SpannerConfig.create()
-        .withProjectId(project)
-        .withInstanceId(options.getInstanceId())
-        .withDatabaseId(databaseName);
+    SpannerConfig spannerConfig = createSpannerConfig();
 
     PCollectionView<Transaction> tx =
         p.apply(
@@ -196,12 +184,16 @@ public class SpannerReadIT {
     p.run();
   }
 
+  private SpannerConfig createSpannerConfig() {
+    return SpannerConfig.create()
+        .withProjectId(project)
+        .withInstanceId(options.getInstanceId())
+        .withDatabaseId(databaseName);
+  }
+
   @Test
-  public void testReadAll() throws Exception {
-    DatabaseClient databaseClient =
-        spanner.getDatabaseClient(
-            DatabaseId.of(
-                project, options.getInstanceId(), databaseName));
+  public void testReadAllRecordsInDb() throws Exception {
+    DatabaseClient databaseClient = getDatabaseClient();
 
     List<Mutation> mutations = new ArrayList<>();
     for (int i = 0; i < 5L; i++) {
@@ -216,10 +208,7 @@ public class SpannerReadIT {
 
     databaseClient.writeAtLeastOnce(mutations);
 
-    SpannerConfig spannerConfig = SpannerConfig.create()
-        .withProjectId(project)
-        .withInstanceId(options.getInstanceId())
-        .withDatabaseId(databaseName);
+    SpannerConfig spannerConfig = createSpannerConfig();
 
     PCollectionView<Transaction> tx =
         p.apply(
@@ -240,6 +229,12 @@ public class SpannerReadIT {
 
     PAssert.thatSingleton(allRecords.apply("Count rows", Count.globally())).isEqualTo(5L);
     p.run();
+  }
+
+  private DatabaseClient getDatabaseClient() {
+    return spanner.getDatabaseClient(
+        DatabaseId.of(
+            project, options.getInstanceId(), databaseName));
   }
 
   @After
