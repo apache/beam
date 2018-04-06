@@ -614,7 +614,8 @@ public class BigQueryIOReadTest implements Serializable {
         fakeBqServices,
         TableRowJsonCoder.of(),
         BigQueryIO.TableRowParser.INSTANCE,
-        QueryPriority.BATCH);
+        QueryPriority.BATCH,
+        null);
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 
     TableReference queryTable = new TableReference()
@@ -693,7 +694,8 @@ public class BigQueryIOReadTest implements Serializable {
         fakeBqServices,
         TableRowJsonCoder.of(),
         BigQueryIO.TableRowParser.INSTANCE,
-        QueryPriority.BATCH);
+        QueryPriority.BATCH,
+        null);
 
     options.setTempLocation(testFolder.getRoot().getAbsolutePath());
 

@@ -169,6 +169,14 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     }
   }
 
+  public PushbackSideInputDoFnRunner<InputT, ?> getFnRunner() {
+    return fnRunner;
+  }
+
+  public DirectStepContext getStepContext() {
+    return stepContext;
+  }
+
   public BundleOutputManager getOutputManager() {
     return outputManager;
   }

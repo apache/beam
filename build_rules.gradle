@@ -152,6 +152,7 @@ def apex_core_version = "3.6.0"
 def apex_malhar_version = "3.4.0"
 def postgres_version = "9.4.1212.jre7"
 def jaxb_api_version = "2.2.12"
+def kafka_version = "1.0.0"
 
 // A map of maps containing common libraries used per language. To use:
 // dependencies {
@@ -235,7 +236,8 @@ ext.library = [
     jaxb_api: "javax.xml.bind:jaxb-api:$jaxb_api_version",
     joda_time: "joda-time:joda-time:2.4",
     junit: "junit:junit:4.12",
-    kafka_clients: "org.apache.kafka:kafka-clients:1.0.0",
+    kafka_2_11: "org.apache.kafka:kafka_2.11:$kafka_version",
+    kafka_clients: "org.apache.kafka:kafka-clients:$kafka_version",
     malhar_library: "org.apache.apex:malhar-library:$apex_malhar_version",
     mockito_core: "org.mockito:mockito-core:1.9.5",
     netty_handler: "io.netty:netty-handler:$netty_version",

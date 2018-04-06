@@ -278,7 +278,7 @@ class DataflowMetrics extends MetricResults {
       // actual metrics counters.
       for (com.google.api.services.dataflow.model.MetricUpdate update : metricUpdates) {
         if (update.getName().getOrigin() != null
-            && (!update.getName().getOrigin().toLowerCase().equals("user")
+            && (!"user".equals(update.getName().getOrigin().toLowerCase())
             || !update.getName().getContext().containsKey("namespace"))) {
           // Skip non-user metrics, which should have both a "user" origin and a namespace.
           continue;

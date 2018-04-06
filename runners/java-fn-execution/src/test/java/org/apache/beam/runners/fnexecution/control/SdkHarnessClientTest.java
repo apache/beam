@@ -570,9 +570,9 @@ public class SdkHarnessClientTest {
   private static class TestFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext context) {
-      if (context.element().equals("foo")) {
+      if ("foo".equals(context.element())) {
         context.output("spam");
-      } else if (context.element().equals("bar")) {
+      } else if ("bar".equals(context.element())) {
         context.output("ham");
       } else {
         context.output("eggs");

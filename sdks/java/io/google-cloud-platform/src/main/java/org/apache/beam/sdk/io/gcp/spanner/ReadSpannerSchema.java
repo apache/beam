@@ -69,7 +69,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         String columnName = resultSet.getString(1);
         String ordering = resultSet.getString(2);
 
-        builder.addKeyPart(tableName, columnName, ordering.toUpperCase().equals("DESC"));
+        builder.addKeyPart(tableName, columnName, "DESC".equals(ordering.toUpperCase()));
       }
     }
     c.output(builder.build());

@@ -119,13 +119,13 @@ public class TfIdf {
     }
 
     Set<URI> uris = new HashSet<>();
-    if (absoluteUri.getScheme().equals("file")) {
+    if ("file".equals(absoluteUri.getScheme())) {
       File directory = new File(absoluteUri);
       for (String entry : Optional.fromNullable(directory.list()).or(new String[] {})) {
         File path = new File(directory, entry);
         uris.add(path.toURI());
       }
-    } else if (absoluteUri.getScheme().equals("gs")) {
+    } else if ("gs".equals(absoluteUri.getScheme())) {
       GcsUtil gcsUtil = options.as(GcsOptions.class).getGcsUtil();
       URI gcsUriGlob = new URI(
           absoluteUri.getScheme(),
@@ -167,7 +167,7 @@ public class TfIdf {
       //  - gs: URIs on the service
       for (final URI uri : uris) {
         String uriString;
-        if (uri.getScheme().equals("file")) {
+        if ("file".equals(uri.getScheme())) {
           uriString = new File(uri).getPath();
         } else {
           uriString = uri.toString();
@@ -221,7 +221,7 @@ public class TfIdf {
                   String line = c.element().getValue();
                   for (String word : line.split("\\W+")) {
                     // Log INFO messages when the word “love” is found.
-                    if (word.toLowerCase().equals("love")) {
+                    if ("love".equals(word.toLowerCase())) {
                       LOG.info("Found {}", word.toLowerCase());
                     }
 

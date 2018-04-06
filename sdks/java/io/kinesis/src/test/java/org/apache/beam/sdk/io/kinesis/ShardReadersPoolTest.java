@@ -141,7 +141,7 @@ public class ShardReadersPoolTest {
       if (nextRecord.isPresent()) {
         recordsFound++;
         KinesisRecord kinesisRecord = nextRecord.get();
-        if (kinesisRecord.getShardId().equals("shard1")) {
+        if ("shard1".equals(kinesisRecord.getShardId())) {
           verify(firstIterator).ackRecord(kinesisRecord);
         } else {
           verify(secondIterator).ackRecord(kinesisRecord);

@@ -22,7 +22,9 @@
 
 FROM python:2
 WORKDIR /app
-RUN pip install --no-cache-dir holdup
+ENV HDFSCLI_CONFIG /app/sdks/python/apache_beam/io/hdfs_integration_test/hdfscli.cfg
+RUN pip install --no-cache-dir holdup gsutil
+RUN gsutil cp gs://dataflow-samples/shakespeare/kinglear.txt .
 
 # Install Beam and dependencies.
 ADD sdks/python /app/sdks/python
@@ -32,7 +34,11 @@ RUN cd sdks/python && \
     pip install --no-cache-dir $(ls dist/apache-beam-*.tar.gz | tail -n1)[gcp]
 
 # Run wordcount, and write results to HDFS.
-CMD holdup -t 45 http://namenode:50070 && \
+CMD holdup -t 45 http://namenode:50070 http://datanode:50075 && \
+    echo "Waiting for safe mode to end." && \
+    sleep 45 && \
+    hdfscli -v -v -v upload -f kinglear.txt / && \
     python -m apache_beam.examples.wordcount \
-        --output hdfs://tmp/py-wordcount-direct \
+        --input hdfs://kinglear.txt \
+        --output hdfs://py-wordcount-integration \
         --hdfs_host namenode --hdfs_port 50070 --hdfs_user root
