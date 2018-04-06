@@ -59,9 +59,18 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
-      QueryPriority priority) {
+      QueryPriority priority,
+      String location) {
     return new BigQueryQuerySource<>(
-        stepUuid, query, flattenResults, useLegacySql, bqServices, coder, parseFn, priority);
+        stepUuid,
+        query,
+        flattenResults,
+        useLegacySql,
+        bqServices,
+        coder,
+        parseFn,
+        priority,
+        location);
   }
 
   private final ValueProvider<String> query;
@@ -69,6 +78,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   private final Boolean useLegacySql;
   private transient AtomicReference<JobStatistics> dryRunJobStats;
   private final QueryPriority priority;
+  private final String location;
 
   private BigQueryQuerySource(
       String stepUuid,
@@ -78,13 +88,15 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       BigQueryServices bqServices,
       Coder<T> coder,
       SerializableFunction<SchemaAndRecord, T> parseFn,
-      QueryPriority priority) {
+      QueryPriority priority,
+      String location) {
     super(stepUuid, bqServices, coder, parseFn);
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
     this.dryRunJobStats = new AtomicReference<>();
     this.priority = priority;
+    this.location = location;
   }
 
   @Override
@@ -97,13 +109,17 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   protected TableReference getTableToExtract(BigQueryOptions bqOptions)
       throws IOException, InterruptedException {
     // 1. Find the location of the query.
-    String location = null;
-    List<TableReference> referencedTables =
-        dryRunQueryIfNeeded(bqOptions).getQuery().getReferencedTables();
+    String location = this.location;
     DatasetService tableService = bqServices.getDatasetService(bqOptions);
-    if (referencedTables != null && !referencedTables.isEmpty()) {
-      TableReference queryTable = referencedTables.get(0);
-      location = tableService.getTable(queryTable).getLocation();
+    if (location == null) {
+      // If location was not provided we try to determine it from the tables referenced by the
+      // Query. This will only work for BQ locations US and EU.
+      List<TableReference> referencedTables =
+          dryRunQueryIfNeeded(bqOptions).getQuery().getReferencedTables();
+      if (referencedTables != null && !referencedTables.isEmpty()) {
+        TableReference queryTable = referencedTables.get(0);
+        location = tableService.getTable(queryTable).getLocation();
+      }
     }
 
     String jobIdToken = createJobIdToken(bqOptions.getJobName(), stepUuid);
@@ -125,7 +141,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
 
     // 3. Execute the query.
     executeQuery(
-        jobIdToken, bqOptions.getProject(), tableToExtract, bqServices.getJobService(bqOptions));
+        jobIdToken, bqOptions.getProject(), tableToExtract, bqServices.getJobService(bqOptions),
+        location);
 
     return tableToExtract;
   }
@@ -151,8 +168,10 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   private synchronized JobStatistics dryRunQueryIfNeeded(BigQueryOptions bqOptions)
       throws InterruptedException, IOException {
     if (dryRunJobStats.get() == null) {
-      JobStatistics jobStats = bqServices.getJobService(bqOptions).dryRunQuery(
-          bqOptions.getProject(), createBasicQueryConfig());
+      JobStatistics jobStats =
+          bqServices
+              .getJobService(bqOptions)
+              .dryRunQuery(bqOptions.getProject(), createBasicQueryConfig(), this.location);
       dryRunJobStats.compareAndSet(null, jobStats);
     }
     return dryRunJobStats.get();
@@ -162,7 +181,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       String jobIdToken,
       String executingProject,
       TableReference destinationTable,
-      JobService jobService) throws IOException, InterruptedException {
+      JobService jobService,
+      String bqLocation) throws IOException, InterruptedException {
     // Generate a transient (random) query job ID, because this code may be retried after the
     // temporary dataset and table have already been deleted by a previous attempt -
     // in that case we want to re-generate the temporary dataset and table, and we'll need
@@ -174,9 +194,11 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         destinationTable,
         queryJobId);
 
-    JobReference jobRef = new JobReference()
-        .setProjectId(executingProject)
-        .setJobId(queryJobId);
+    JobReference jobRef =
+        new JobReference()
+            .setProjectId(executingProject)
+            .setLocation(bqLocation)
+            .setJobId(queryJobId);
 
     JobConfigurationQuery queryConfig = createBasicQueryConfig()
         .setAllowLargeResults(true)

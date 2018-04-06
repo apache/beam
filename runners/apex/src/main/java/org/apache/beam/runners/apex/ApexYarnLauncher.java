@@ -262,7 +262,7 @@ public class ApexYarnLauncher {
             if (!relativePath.endsWith("/")) {
               relativePath += "/";
             }
-            if (!relativePath.equals("META-INF/")) {
+            if (!"META-INF/".equals(relativePath)) {
               final Path dstDir = zipfs.getPath(relativePath);
               Files.createDirectory(dstDir);
             }
