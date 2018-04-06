@@ -39,6 +39,11 @@ job('beam_PostCommit_Java_ValidatesRunner_Gearpump_Gradle') {
     '--rerun-tasks',
   ]
 
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
   // Sets that this is a PostCommit job.
   // 0 5 31 2 * will run on Feb 31 (i.e. never) according to job properties.
   // In post-commit this job triggers only on SCM changes.
