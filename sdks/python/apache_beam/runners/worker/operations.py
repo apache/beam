@@ -125,6 +125,7 @@ class Operation(object):
 
     #TODO(pabloem) - Remove from operations. Rely on name context.
     self.operation_name = self.name_context.step_name
+    self.step_name = self.name_context.logging_name()
 
     self.spec = spec
     self.counter_factory = counter_factory
@@ -152,9 +153,12 @@ class Operation(object):
         logging.DEBUG)
     # Everything except WorkerSideInputSource, which is not a
     # top-level operation, should have output_coders
+    #TODO(pabloem): Define better what step name is used here.
     if getattr(self.spec, 'output_coders', None):
-      self.receivers = [ConsumerSet(self.counter_factory, self.step_name,
-                                    i, self.consumers[i], coder)
+      self.receivers = [ConsumerSet(self.counter_factory,
+                                    self.name_context.logging_name(),
+                                    i,
+                                    self.consumers[i], coder)
                         for i, coder in enumerate(self.spec.output_coders)]
 
   def finish(self):
@@ -215,7 +219,7 @@ class Operation(object):
     """
     printable_name = self.__class__.__name__
     if hasattr(self, 'step_name'):
-      printable_name += ' %s' % self.step_name
+      printable_name += ' %s' % self.name_context.logging_name()
       if is_recursive:
         # If we have a step name, stop here, no more detail needed.
         return '<%s>' % printable_name
@@ -355,13 +359,13 @@ class DoOperation(Operation):
           pickler.loads(self.spec.serialized_fn))
 
       state = common.DoFnState(self.counter_factory)
-      state.step_name = self.step_name
+      state.step_name = self.name_context.logging_name()
 
       # Tag to output index map used to dispatch the side output values emitted
       # by the DoFn function to the appropriate receivers. The main output is
       # tagged with None and is associated with its corresponding index.
       self.tagged_receivers = _TaggedReceivers(
-          self.counter_factory, self.step_name)
+          self.counter_factory, self.name_context.logging_name())
 
       output_tag_prefix = PropertyNames.OUT + '_'
       for index, tag in enumerate(self.spec.output_tags):
@@ -382,9 +386,9 @@ class DoOperation(Operation):
       self.dofn_runner = common.DoFnRunner(
           fn, args, kwargs, self.side_input_maps, window_fn,
           tagged_receivers=self.tagged_receivers,
-          step_name=self.step_name,
+          step_name=self.name_context.logging_name(),
           logging_context=logger.PerThreadLoggingContext(
-              step_name=self.step_name),
+              step_name=self.name_context.logging_name()),
           state=state,
           scoped_metrics_container=self.scoped_metrics_container)
       self.dofn_receiver = (self.dofn_runner
@@ -661,7 +665,9 @@ class SimpleMapTaskExecutor(object):
     """Initializes SimpleMapTaskExecutor.
 
     Args:
-      map_task: The map task we are to run.
+      map_task: The map task we are to run. The maptask contains a list of
+        operations, and aligned lists for step_names, original_names,
+        system_names of pipeline steps.
       counter_factory: The CounterFactory instance for the work item.
       state_sampler: The StateSampler tracking the execution step.
       test_shuffle_source: Used during tests for dependency injection into
