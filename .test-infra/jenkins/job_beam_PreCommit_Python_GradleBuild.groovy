@@ -41,6 +41,12 @@ job('beam_PreCommit_Python_GradleBuild') {
     '--rerun-tasks',
   ]
 
+  // Publish all test results to Jenkins. Note that Nose documentation
+  // specifically mentions that it produces JUnit compatible test results.
+  publishers {
+    archiveJunit('**/nosetests.xml')
+  }
+
   def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' :pythonPreCommit'
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Python Gradle PreCommit')
