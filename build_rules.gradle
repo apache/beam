@@ -505,35 +505,35 @@ ext.applyJavaNature = {
   }
   artifacts.archives javadocJar
 
-  // Only sign artifacts if we are performing a release
-  if (isRelease()) {
-    apply plugin: "signing"
-    signing {
-      useGpgCmd()
-      // Drop the unshaded jar because we don't want to publish it.
-      // Otherwise the unshaded one is the only one published since they
-      // both have no classifier and the names conflict.
-      def unshaded = configurations.archives.getArtifacts().matching({
-        artifact -> artifact.classifier == "" })
-      configurations.archives.getArtifacts().removeAll(unshaded)
-      sign configurations.archives
-    }
-
-    model {
-      tasks.generatePomFileForMavenJavaPublication {
-        destination = file("$buildDir/generated-pom.xml")
-      }
-      tasks.publishMavenJavaPublicationToMavenLocal {
-        dependsOn project.tasks.signArchives
-      }
-      tasks.publishMavenJavaPublicationToMavenRepository {
-        dependsOn project.tasks.signArchives
-      }
-    }
-  }
-
   if (isRelease() || project.hasProperty('publishing')) {
     apply plugin: "maven-publish"
+
+    // Only sign artifacts if we are performing a release
+    if (isRelease()) {
+      apply plugin: "signing"
+      signing {
+        useGpgCmd()
+        // Drop the unshaded jar because we don't want to publish it.
+        // Otherwise the unshaded one is the only one published since they
+        // both have no classifier and the names conflict.
+        def unshaded = configurations.archives.getArtifacts().matching({
+          artifact -> artifact.classifier == "" })
+        configurations.archives.getArtifacts().removeAll(unshaded)
+        sign configurations.archives
+      }
+
+      model {
+        tasks.generatePomFileForMavenJavaPublication {
+          destination = file("$buildDir/generated-pom.xml")
+        }
+        tasks.publishMavenJavaPublicationToMavenLocal {
+          dependsOn project.tasks.signArchives
+        }
+        tasks.publishMavenJavaPublicationToMavenRepository {
+          dependsOn project.tasks.signArchives
+        }
+      }
+    }
 
     uploadArchives {
       repositories {
