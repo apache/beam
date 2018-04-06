@@ -27,6 +27,7 @@ import datetime
 import re
 
 import pytz
+from six import integer_types
 
 
 class Timestamp(object):
@@ -41,10 +42,10 @@ class Timestamp(object):
   """
 
   def __init__(self, seconds=0, micros=0):
-    if not isinstance(seconds, (int, float, long)):
+    if not isinstance(seconds, integer_types + (float,)):
       raise TypeError('Cannot interpret %s %s as seconds.' % (
           seconds, type(seconds)))
-    if not isinstance(micros, (int, float, long)):
+    if not isinstance(micros, integer_types + (float,)):
       raise TypeError('Cannot interpret %s %s as micros.' % (
           micros, type(micros)))
     self.micros = int(seconds * 1000000) + int(micros)
@@ -56,13 +57,13 @@ class Timestamp(object):
     If the input is already a Timestamp, the input itself will be returned.
 
     Args:
-      seconds: Number of seconds as int, float or Timestamp.
+      seconds: Number of seconds as int, float, long, or Timestamp.
 
     Returns:
       Corresponding Timestamp object.
     """
 
-    if not isinstance(seconds, (int, float, Timestamp)):
+    if not isinstance(seconds, integer_types + (float, Timestamp)):
       raise TypeError('Cannot interpret %s %s as Timestamp.' % (
           seconds, type(seconds)))
     if isinstance(seconds, Timestamp):
