@@ -820,18 +820,17 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   private PCollection<Event> sourceEventsFromKafka(Pipeline p) {
     NexmarkUtils.console("Reading events from Kafka Topic %s", options.getKafkaSourceTopic());
 
-    if (Strings.isNullOrEmpty(options.getBootstrapServers())) {
-      throw new RuntimeException("Missing --bootstrapServers");
-    }
+    checkArgument(!Strings.isNullOrEmpty(options.getBootstrapServers()),
+        "Missing --bootstrapServers");
 
-    KafkaIO.Read<Long, byte[]> io = KafkaIO.<Long, byte[]>read()
+    KafkaIO.Read<Long, byte[]> read = KafkaIO.<Long, byte[]>read()
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaSourceTopic())
             .withKeyDeserializer(LongDeserializer.class)
             .withValueDeserializer(ByteArrayDeserializer.class);
 
     return p
-      .apply(queryName + ".ReadKafkaEvents", io.withoutMetadata())
+      .apply(queryName + ".ReadKafkaEvents", read.withoutMetadata())
       .apply(queryName + ".KafkaToEvents", ParDo.of(BYTEARRAY_TO_EVENT));
   }
 
