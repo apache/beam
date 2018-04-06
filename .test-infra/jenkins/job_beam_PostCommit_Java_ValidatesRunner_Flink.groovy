@@ -34,6 +34,11 @@ job('beam_PostCommit_Java_ValidatesRunner_Flink_Gradle') {
     '--rerun-tasks',
   ]
 
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
 
