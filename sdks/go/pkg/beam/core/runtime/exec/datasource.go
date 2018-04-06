@@ -171,7 +171,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 }
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
-	log.Infof(context.Background(), "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
+	log.Infof(ctx, "DataSource: %d elements in %d ns", atomic.LoadInt64(&n.count), time.Now().Sub(n.start))
 	n.sid = StreamID{}
 	n.source = nil
 	return n.Out.FinishBundle(ctx)

@@ -107,6 +107,13 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 				return nil, err
 			}
 			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+		case reflectx.Float32, reflectx.Float64:
+			c, err := coderx.NewFloat(t.Type())
+			if err != nil {
+				return nil, err
+			}
+			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+
 		case reflectx.String, reflectx.ByteSlice:
 			// TODO(BEAM-3580): we should stop encoding string using the bytecoder. It forces
 			// conversions at runtime in inconvenient places.

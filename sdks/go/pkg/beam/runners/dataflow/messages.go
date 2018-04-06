@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"google.golang.org/api/googleapi"
 )
@@ -34,8 +35,9 @@ func newMsg(msg interface{}) googleapi.RawMessage {
 
 // pipelineOptions models Job/Environment/SdkPipelineOptions
 type pipelineOptions struct {
-	DisplayData []*displayData `json:"display_data,omitempty"`
-	Options     interface{}    `json:"options,omitempty"`
+	DisplayData []*displayData     `json:"display_data,omitempty"`
+	Options     interface{}        `json:"options,omitempty"`
+	GoOptions   runtime.RawOptions `json:"beam:option:go_options:v1,omitempty"`
 }
 
 // NOTE(herohde) 2/9/2017: most of the v1b3 messages are weakly-typed json
