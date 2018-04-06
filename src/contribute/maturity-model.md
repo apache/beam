@@ -42,7 +42,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>CD30</p></td>
       <td><p>The code can be built in a reproducible way using widely available standard tools.</p></td>
-      <td><p><b>YES.</b> The project uses Apache Maven and can be built via <a href="https://github.com/apache/beam/blob/master/README.md">the standard &ldquo;mvn install&rdquo; on any platform</a>.</p></td>
+      <td><p><b>YES.</b> The project uses Gradle and can be built via <a href="https://github.com/apache/beam/blob/master/README.md">the standard &ldquo;gradle build&rdquo; on any platform</a>.</p></td>
     </tr>
     <tr>
       <td><p>CD40</p></td>
