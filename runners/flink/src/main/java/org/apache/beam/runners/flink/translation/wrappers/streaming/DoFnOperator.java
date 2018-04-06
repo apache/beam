@@ -408,7 +408,7 @@ public class DoFnOperator<InputT, OutputT>
             nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
         Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-        if (pushedBackContents != null && !Iterables.isEmpty(pushedBackContents)) {
+        if (!Iterables.isEmpty(pushedBackContents)) {
           String pushedBackString = Joiner.on(",").join(pushedBackContents);
           throw new RuntimeException(
               "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
@@ -498,17 +498,15 @@ public class DoFnOperator<InputT, OutputT>
     List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
 
     Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-    if (pushedBackContents != null) {
-      for (WindowedValue<InputT> elem : pushedBackContents) {
+    for (WindowedValue<InputT> elem : pushedBackContents) {
 
-        // we need to set the correct key in case the operator is
-        // a (keyed) window operator
-        setKeyContextElement1(new StreamRecord<>(elem));
+      // we need to set the correct key in case the operator is
+      // a (keyed) window operator
+      setKeyContextElement1(new StreamRecord<>(elem));
 
-        Iterable<WindowedValue<InputT>> justPushedBack =
-            pushbackDoFnRunner.processElementInReadyWindows(elem);
-        Iterables.addAll(newPushedBack, justPushedBack);
-      }
+      Iterable<WindowedValue<InputT>> justPushedBack =
+          pushbackDoFnRunner.processElementInReadyWindows(elem);
+      Iterables.addAll(newPushedBack, justPushedBack);
     }
 
     pushedBack.clear();
@@ -617,15 +615,13 @@ public class DoFnOperator<InputT, OutputT>
         nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
     Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-    if (pushedBackContents != null) {
-      for (WindowedValue<InputT> elem : pushedBackContents) {
+    for (WindowedValue<InputT> elem : pushedBackContents) {
 
-        // we need to set the correct key in case the operator is
-        // a (keyed) window operator
-        setKeyContextElement1(new StreamRecord<>(elem));
+      // we need to set the correct key in case the operator is
+      // a (keyed) window operator
+      setKeyContextElement1(new StreamRecord<>(elem));
 
-        doFnRunner.processElement(elem);
-      }
+      doFnRunner.processElement(elem);
     }
 
     pushedBack.clear();
