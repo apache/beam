@@ -176,9 +176,9 @@ changes.
 
 You are now ready to start developing!
 
-#### [Python SDK Only] Set up a virtual environemt
+#### [Python SDK Only] Set up a virtual environment
 
-We recommend setting up a virtual envioment for developing Python SDK. Please
+We recommend setting up a virtual environment for developing Python SDK. Please
 see instructions available in [Quickstart (Python)]({{ site.baseurl
 }}/get-started/quickstart-py/) for setting up a virtual environment.
 
@@ -218,64 +218,68 @@ push. You'll run:
 
 	$ git push <GitHub_user> <my-branch> --force
 
-### Building
-
-#### Python SDK
-
-Before testing SDK code changes remotely, you must build the Beam tarball. From
-the root of the git repository, run:
-
-```
-cd sdks/python/
-python setup.py sdist
-```
-
-Pass the `--sdk_location` flag to use the newly built version. For example:
-
-```
-python setup.py sdist > /dev/null && \
-    python -m apache_beam.examples.wordcount ... \
-        --sdk_location dist/apache-beam-2.5.0.dev0.tar.gz
-```
-
 ### Testing
 
 All code should have appropriate unit testing coverage. New code should have
 new tests in the same contribution. Bug fixes should include a regression test
 to prevent the issue from reoccurring.
 
-#### Java SDK
+The entire set of tests can be run with this command at the root of the git
+repository.
 
-For contributions to the Java code, run checks locally via Gradle.
+    $ ./gradlew check --rerun-tasks
 
-    $ ./gradlew :beam-sdks-java-core:check --rerun-tasks
+You can also limit tests to certain language SDKs.
+
+    $ ./gradlew beam-sdks-java-core:check --rerun-tasks
+    $ ./gradlew beam-sdks-python:check --rerun-tasks
+    $ ./gradlew beam-sdks-go:check --rerun-tasks
 
 #### Python SDK
 
-For contributions to the Python code, you can use command given below to run
-unit tests locally. If you update any of the [cythonized](http://cython.org)
-files in Python SDK, you must install "cython" package before running following
+For contributions to the Python code, you can use the commands below to run unit
+tests locally. The above Gradle commands should also work, but these commands
+may run faster for you.
+
+If you update any of the [cythonized](http://cython.org)
+files in Python SDK, you must install the `cython` package before running following
 command to properly test your code. We recommend setting up a virtual
 environment before testing your code.
 
-    $ python setup.py test
+The following commands should be run in the `sdks/python` directory.
+This command runs all Python tests.
+
+    $ python setup.py nosetests
 
 You can use following command to run a single test method.
 
-    $ python setup.py test -s <module>.<test class>.<test method>
+    $ python setup.py nosetests --tests <module>:<test class>.<test method>
 
-To Check for lint errors locally, install "tox" package and run following
-command.
+    Example:
+    $ python setup.py nosetests --tests apache_beam.io.textio_test:TextSourceTest.test_progress
 
-    $ pip install tox
-    $ tox -e py27-lint,py3-lint
+To check just for lint errors, run the following command.
 
+    $ ../../gradlew lint
 
-Beam supports running Python SDK tests using Gradle. For this, navigate to root
-directory of your Apache Beam clone and execute following command. Currently
-this cannot be run from a virtual environment.
+##### Remote testing
 
-    $ ./gradlew :beam-sdks-python:check --rerun-tasks
+This step is only required for testing SDK code changes remotely (not using
+directrunner). In order to do this you must build the Beam tarball. From the
+root of the git repository, run:
+
+```
+$ cd sdks/python/
+$ python setup.py sdist
+```
+
+Pass the `--sdk_location` flag to use the newly built version. For example:
+
+```
+$ python setup.py sdist > /dev/null && \
+    python -m apache_beam.examples.wordcount ... \
+        --sdk_location dist/apache-beam-2.5.0.dev0.tar.gz
+```
 
 ## Review
 
@@ -307,7 +311,7 @@ following format:
 
 	[BEAM-<JIRA-issue-#>] <Title of the pull request>
 
-Please include a descriptive pull request message to help make the comitter’s
+Please include a descriptive pull request message to help make the committer’s
 job easier when reviewing. It’s fine to refer to existing design docs or the
 contents of the associated JIRA as appropriate.
 
