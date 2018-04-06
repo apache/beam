@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Solr"
+ext.summary = "IO to read and write from/to Solr."
 
 dependencies {
   compile library.java.guava

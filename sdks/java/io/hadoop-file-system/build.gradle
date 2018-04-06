@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
+ext.summary = "Library to read and write Hadoop/HDFS file formats from Beam."
 
 dependencies {
   compile library.java.guava
