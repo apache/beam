@@ -648,9 +648,9 @@ ext.applyJavaNature = {
                 dependencyNode.appendNode('artifactId', it.name)
                 dependencyNode.appendNode('version', it.version)
 
-                // We use the runtime scope which forces all our consumers to declare what they
-                // consume. TODO: Is this a good idea?
-                dependencyNode.appendNode('scope', 'runtime')
+                // TODO: Should we use the runtime scope which forces all our
+                // consumers to declare what they consume?
+                dependencyNode.appendNode('scope', 'compile')
 
                 // Start with any exclusions that were added via configuration exclude rules.
                 // Then add all the exclusions that are specific to the dependency (if any
