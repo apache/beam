@@ -347,6 +347,10 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 		return &v1.Type{Kind: v1.Type_UINT32}, nil
 	case reflect.Uint64:
 		return &v1.Type{Kind: v1.Type_UINT64}, nil
+	case reflect.Float32:
+		return &v1.Type{Kind: v1.Type_FLOAT32}, nil
+	case reflect.Float64:
+		return &v1.Type{Kind: v1.Type_FLOAT64}, nil
 	case reflect.String:
 		return &v1.Type{Kind: v1.Type_STRING}, nil
 
@@ -485,6 +489,10 @@ func decodeType(t *v1.Type) (reflect.Type, error) {
 		return reflectx.Uint32, nil
 	case v1.Type_UINT64:
 		return reflectx.Uint64, nil
+	case v1.Type_FLOAT32:
+		return reflectx.Float32, nil
+	case v1.Type_FLOAT64:
+		return reflectx.Float64, nil
 	case v1.Type_STRING:
 		return reflectx.String, nil
 

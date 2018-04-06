@@ -46,6 +46,8 @@ message Type {
         UINT32 = 10;
         UINT64 = 11;
         STRING = 12;
+        FLOAT32 = 13;
+        FLOAT64 = 14;
 
         // Non-primitive types.
         SLICE = 20;
