@@ -204,10 +204,6 @@
     </plugins>
   </build>
 
-  <properties>
-    <kafka.clients.version>0.10.1.0</kafka.clients.version>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
