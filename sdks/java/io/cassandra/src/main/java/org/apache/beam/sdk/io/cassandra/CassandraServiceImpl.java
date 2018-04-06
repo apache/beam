@@ -321,8 +321,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
    */
   @VisibleForTesting
   protected static boolean isMurmur3Partitioner(Cluster cluster) {
-    return cluster.getMetadata().getPartitioner()
-        .equals("org.apache.cassandra.dht.Murmur3Partitioner");
+    return "org.apache.cassandra.dht.Murmur3Partitioner".equals(
+        cluster.getMetadata().getPartitioner());
   }
 
   /**

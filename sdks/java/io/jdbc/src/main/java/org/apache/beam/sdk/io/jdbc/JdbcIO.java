@@ -195,7 +195,7 @@ public class JdbcIO {
   public static class DefaultRetryStrategy implements RetryStrategy {
     @Override
     public boolean apply(SQLException e) {
-      return (e.getSQLState().equals("40001"));
+      return "40001".equals(e.getSQLState());
     }
   }
 

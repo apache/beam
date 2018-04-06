@@ -271,11 +271,11 @@ class BigQueryAvroUtils {
       elementSchema = Schema.create(avroType);
     }
     Schema fieldSchema;
-    if (bigQueryField.getMode() == null || bigQueryField.getMode().equals("NULLABLE")) {
+    if (bigQueryField.getMode() == null || "NULLABLE".equals(bigQueryField.getMode())) {
       fieldSchema = Schema.createUnion(Schema.create(Type.NULL), elementSchema);
-    } else if (bigQueryField.getMode().equals("REQUIRED")) {
+    } else if ("REQUIRED".equals(bigQueryField.getMode())) {
       fieldSchema = elementSchema;
-    } else if (bigQueryField.getMode().equals("REPEATED")) {
+    } else if ("REPEATED".equals(bigQueryField.getMode())) {
       fieldSchema = Schema.createArray(elementSchema);
     } else {
       throw new IllegalArgumentException(
