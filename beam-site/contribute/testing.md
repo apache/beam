@@ -161,7 +161,7 @@ details on those testing types.
    </td>
    <td>Correctness
    </td>
-   <td>E2E Test, <a href="https://github.com/apache/beam/blob/master/runners/pom.xml#L47">@ValidatesRunner</a>
+   <td>E2E Test, @ValidatesRunner
    </td>
    <td><a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L78">WordCountIT</a>, <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java">ParDoTest</a>
    </td>
@@ -319,33 +319,27 @@ desired configurations.
 
 #### How to run Java NeedsRunner tests
 
-NeedsRunner is a category of tests that require a Beam runner. A subset of these
-tests cannot be executed while building their corresponding modules because all
-runners depend on these modules (e.g. `sdks/java/core`) to be built. To break
-the circular dependency, these tests are executed after the Direct Runner is
-built.
-
-To run this subset of the NeedsRunner tests (requires Maven 3.3.1+):
+NeedsRunner is a category of tests that require a Beam runner. To run
+NeedsRunner tests:
 
 ```
-$ mvn -pl runners/direct-java -am install -DskipTests
-$ mvn -pl runners/direct-java surefire:test@validates-runner-tests
+$ ./gradlew :runners:direct-java:needsRunnerTests
 ```
 
 To run a single NeedsRunner test use the `test` property, e.g.
 
 ```
-$ mvn -pl runners/direct-java surefire:test@validates-runner-tests -Dtest=MapElementsTest#testMapBasic
+$ ./gradlew :runners:direct-java:needsRunnerTests --tests org.apache.beam.sdk.transforms.MapElementsTest.testMapBasic
 ```
 
 will run the `MapElementsTest.testMapBasic()` test.
 
-
 NeedsRunner tests in modules that are not required to build runners (e.g.
-`sdks/java/io/jdbc`) can be executed with the `mvn test` command:
+`sdks/java/io/google-cloud-platform`) can be executed with the `gradle test`
+command:
 
 ```
-mvn -pl sdks/java/io/jdbc test -Dgroups=org.apache.beam.sdk.testing.NeedsRunner
+$ ./gradlew sdks:java:io:google-cloud-platform:test --tests org.apache.beam.sdk.io.gcp.spanner.SpannerIOWriteTest
 ```
 
 ### ValidatesRunner
@@ -380,14 +374,13 @@ from the Beam examples, or custom-built pipelines, the framework will provide
 hooks during several pipeline lifecycle events, e.g., pipeline creation,
 pipeline success, and pipeline failure, to allow verification of pipeline state.
 
-The E2E testing framework is currently built to hook into the [Maven Failsafe
-Integration Test
-plugin](http://maven.apache.org/surefire/maven-failsafe-plugin/), which means it
-is tightly integrated with the overall build process. Once it is determined how
-Python and other future languages will integrate into the overall build/test
-system (via Maven or otherwise) we will adjust this. The framework provides a
-wrapper around actual Beam pipelines, enabling those pipelines to be run in an
-environment which facilitates verification of pipeline results and details.
+The E2E testing framework is currently built to execute the tests in [PerfKit
+Benchmarker](https://github.com/GoogleCloudPlatform/PerfKitBenchmarker),
+invoked via Gradle tasks. Once it is determined how Python and other future
+languages will integrate into the overall build/test system (via Gradle or
+otherwise) we will adjust this. The framework provides a wrapper around actual
+Beam pipelines, enabling those pipelines to be run in an environment which
+facilitates verification of pipeline results and details.
 
 Verifiers include:
 
