@@ -37,7 +37,7 @@ import org.apache.beam.sdk.schemas.Schema;
  *
  * <pre>{@code
  * CREATE TABLE ORDERS(
- *   ID INT PRIMARY KEY COMMENT 'this is the primary key',
+ *   ID INT COMMENT 'this is the primary key',
  *   NAME VARCHAR(127) COMMENT 'this is the name'
  * )
  * COMMENT 'this is the table orders'

@@ -35,7 +35,7 @@ import org.apache.commons.csv.CSVFormat;
  * <p>A sample of text table is:
  * <pre>{@code
  * CREATE TABLE ORDERS(
- *   ID INT PRIMARY KEY COMMENT 'this is the primary key',
+ *   ID INT COMMENT 'this is the primary key',
  *   NAME VARCHAR(127) COMMENT 'this is the name'
  * )
  * TYPE 'text'

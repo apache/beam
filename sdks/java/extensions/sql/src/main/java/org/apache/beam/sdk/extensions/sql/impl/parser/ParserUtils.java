@@ -42,7 +42,6 @@ public class ParserUtils {
           .fieldType(CalciteUtils.toFieldType(
               columnDef.type().deriveType(BeamQueryPlanner.TYPE_FACTORY)))
           .comment(columnDef.comment())
-          .primaryKey(columnDef.constraint() instanceof ColumnConstraint.PrimaryKey)
           .build();
       columns.add(column);
     }

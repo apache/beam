@@ -69,12 +69,10 @@ public class KafkaTableProviderTest {
             Column.builder()
                 .name("id")
                 .fieldType(TypeName.INT32.type())
-                .primaryKey(true)
             .build(),
             Column.builder()
                 .name("name")
                 .fieldType(RowSqlTypes.VARCHAR)
-                .primaryKey(false)
                 .build()))
         .type("kafka")
         .properties(properties)
