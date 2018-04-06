@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: AMQP"
+ext.summary = "IO to read and write using AMQP 1.0 protocol (http://www.amqp.org)."
 
 dependencies {
   compile library.java.guava

@@ -20,6 +20,8 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Google Cloud Platform Core"
+ext.summary = """Common components used to support multiple
+Google Cloud Platform specific maven modules."""
 
 // Exclude tests that need a runner
 test {

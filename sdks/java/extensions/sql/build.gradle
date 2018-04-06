@@ -21,6 +21,7 @@ applyJavaNature()
 apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
+ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
 
 test {
   jvmArgs "-da"

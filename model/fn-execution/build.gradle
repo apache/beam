@@ -21,6 +21,7 @@ applyJavaNature(enableFindbugs: false)
 applyGrpcNature()
 
 description = "Apache Beam :: Model :: Fn Execution"
+ext.summary = "Portable definitions for execution user-defined functions<"
 
 dependencies {
   compile library.java.guava

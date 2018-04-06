@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 2.x"
+ext.summary = "Tests of ElasticsearchIO on Elasticsearch 2.x"
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that

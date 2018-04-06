@@ -605,7 +605,9 @@ ext.applyJavaNature = {
           pom.withXml {
             def root = asNode()
             root.appendNode('name', project.description)
-            root.appendNode('description', project.description)
+            if (project.hasProperty("summary")) {
+                root.appendNode('description', project.summary)
+            }
             root.appendNode('url', POM_URL)
             root.appendNode('inceptionYear', POM_INCEPTION_YEAR)
 

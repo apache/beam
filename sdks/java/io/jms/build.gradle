@@ -20,6 +20,8 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: JMS"
+ext.summary = """IO to read and write to JMS (Java Messaging Service)
+destinations (queues and topics)."""
 
 dependencies {
   compile library.java.guava

@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: MQTT"
+ext.summary = "IO to read and write to a MQTT broker."
 
 dependencies {
   compile library.java.guava

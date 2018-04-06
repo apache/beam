@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
+ext.summary = "IO to read and write on JDBC datasource."
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that

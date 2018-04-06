@@ -20,6 +20,9 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Fn Execution"
+ext.summary = """Contains code shared across the Beam Java SDK Harness Java Runners to execute using
+the Beam Portability Framework"""
+
 
 dependencies {
   compile library.java.guava
