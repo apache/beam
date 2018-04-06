@@ -112,13 +112,19 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	// (1) Upload Go binary and model to GCS.
 
-	worker, err := runnerlib.BuildTempWorkerBinary(ctx)
-	if err != nil {
-		return err
-	}
-	defer os.Remove(worker)
+	if *jobopts.WorkerBinary == "" {
+		worker, err := runnerlib.BuildTempWorkerBinary(ctx)
+		if err != nil {
+			return err
+		}
+		defer os.Remove(worker)
 
-	binary, err := stageWorker(ctx, project, *stagingLocation, worker)
+		*jobopts.WorkerBinary = worker
+	} else {
+		log.Infof(ctx, "Using specified worker binary: '%v'", *jobopts.WorkerBinary)
+	}
+
+	binary, err := stageWorker(ctx, project, *stagingLocation, *jobopts.WorkerBinary)
 	if err != nil {
 		return err
 	}
