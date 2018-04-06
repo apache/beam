@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Core Java"
+ext.summary = "Beam Runners Core provides utilities to aid runner authors."
 
 // Exclude tests that need a runner
 test {

@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HBase"
+ext.summary = "Library to read and write from/to HBase"
 
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"

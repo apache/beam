@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
+ext.summary = "IO to read and write for HCatalog source."
 
 def hive_version = "2.1.0"
 

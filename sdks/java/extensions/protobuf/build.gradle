@@ -21,6 +21,7 @@ applyJavaNature()
 applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
+ext.summary = "Add support to Apache Beam for Google Protobuf."
 
 dependencies {
   compile library.java.guava

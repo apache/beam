@@ -20,6 +20,10 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Java Local Artifact Service"
+ext.summary = """The Beam Artifact Service exposes APIs to stage and retrieve
+artifacts in a manner independent of the underlying storage system, for use
+by the Beam portability framework. The local implementation uses the local
+File System as the underlying storage system."""
 
 dependencies {
   compile library.java.guava

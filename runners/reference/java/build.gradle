@@ -20,6 +20,9 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: Runners :: Reference :: Java"
+ext.summary = """A Java implementation of the Beam Model which utilizes the portability
+framework to execute user-definied functions."""
+
 
 dependencies {
   shadow project(path: ":beam-model-pipeline", configuration: "shadow")

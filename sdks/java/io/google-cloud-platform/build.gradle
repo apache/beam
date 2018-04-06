@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature(enableFindbugs: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
+ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that

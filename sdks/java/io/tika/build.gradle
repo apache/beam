@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
+ext.summary = "Tika Input to parse files."
 
 def tika_version = "1.16"
 

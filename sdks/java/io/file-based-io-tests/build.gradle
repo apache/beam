@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
+ext.summary = "Integration tests for reading/writing using file-based sources/sinks."
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that

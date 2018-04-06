@@ -22,6 +22,9 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: Examples :: Java"
+ext.summary = """Apache Beam SDK provides a simple, Java-based
+interface for processing virtually any size data. This
+artifact includes all Apache Beam Java SDK examples."""
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
