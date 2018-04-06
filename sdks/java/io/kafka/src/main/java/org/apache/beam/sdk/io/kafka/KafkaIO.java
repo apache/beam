@@ -1041,7 +1041,7 @@ public class KafkaIO {
     public void validate(PipelineOptions options) {
       if (isEOS()) {
         String runner = options.getRunner().getName();
-        if (runner.equals("org.apache.beam.runners.direct.DirectRunner")
+        if ("org.apache.beam.runners.direct.DirectRunner".equals(runner)
           || runner.startsWith("org.apache.beam.runners.dataflow.")
           || runner.startsWith("org.apache.beam.runners.spark.")) {
           return;

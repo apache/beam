@@ -394,7 +394,7 @@ public class TriggerExample {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       String[] laneInfo = c.element().split(",");
-      if (laneInfo[0].equals("timestamp")) {
+      if ("timestamp".equals(laneInfo[0])) {
         // Header row
         return;
       }
