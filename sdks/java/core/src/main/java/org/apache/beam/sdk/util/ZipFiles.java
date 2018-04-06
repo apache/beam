@@ -165,7 +165,7 @@ public final class ZipFiles {
       // name like "foo..bar" or even "foo..", which should be fine.
       File file = new File(name);
       while (file != null) {
-        if (file.getName().equals("..")) {
+        if ("..".equals(file.getName())) {
           throw new IOException("Cannot unzip file containing an entry with "
               + "\"..\" in the name: " + name);
         }
