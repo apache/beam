@@ -701,7 +701,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
     String version = dataflowRunnerInfo.getVersion();
     checkState(
-        !version.equals("${pom.version}"),
+        !"${pom.version}".equals(version),
         "Unable to submit a job to the Dataflow service with unset version ${pom.version}");
     System.out.println("Dataflow SDK version: " + version);
 

@@ -939,9 +939,9 @@ public class DoFnOperatorTest {
 
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
-      if (c.element().equals("one")) {
+      if ("one".equals(c.element())) {
         c.output(additionalOutput1, "extra: one");
-      } else if (c.element().equals("two")) {
+      } else if ("two".equals(c.element())) {
         c.output(additionalOutput2, "extra: two");
       } else {
         c.output("got: " + c.element());
