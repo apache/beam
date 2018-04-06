@@ -500,6 +500,13 @@ ext.applyJavaNature = {
       signing {
         useGpgCmd()
         required { isRelease() }
+
+        // Drop the unshaded jar because we don't want to publish it.
+        // Otherwise the unshaded one is the only one published since they
+        // both have no classifier and the names conflict.
+        def unshaded = configurations.archives.getArtifacts().matching({
+          artifact -> artifact.classifier == "" })
+        configurations.archives.getArtifacts().removeAll(unshaded)
         sign configurations.archives
       }
 
