@@ -23,6 +23,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -90,5 +91,10 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
 
     // update metrics
     container.updateMetrics();
+  }
+
+  @Override
+  public DoFn<InputT, OutputT> getFn() {
+    return delegate.getFn();
   }
 }

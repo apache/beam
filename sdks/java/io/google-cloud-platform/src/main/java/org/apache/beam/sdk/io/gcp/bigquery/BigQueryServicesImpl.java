@@ -254,9 +254,11 @@ class BigQueryServicesImpl implements BigQueryServices {
         BackOff backoff) throws InterruptedException {
       do {
         try {
-          Job job = client.jobs().get(jobRef.getProjectId(), jobRef.getJobId()).execute();
+          Job job = client.jobs().get(
+                  jobRef.getProjectId(), jobRef.getJobId()).setLocation(
+                          jobRef.getLocation()).execute();
           JobStatus status = job.getStatus();
-          if (status != null && status.getState() != null && status.getState().equals("DONE")) {
+          if (status != null && "DONE".equals(status.getState())) {
             LOG.info("BigQuery job {} completed in state DONE", jobRef);
             return job;
           }
@@ -281,9 +283,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig)
+    public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig,
+                                     String location)
         throws InterruptedException, IOException {
-      Job job = new Job()
+      JobReference jobRef = new JobReference().setLocation(location).setProjectId(projectId);
+      Job job = new Job().setJobReference(jobRef)
           .setConfiguration(new JobConfiguration()
               .setQuery(queryConfig)
               .setDryRun(true));

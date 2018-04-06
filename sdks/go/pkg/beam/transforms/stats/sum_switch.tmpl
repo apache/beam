@@ -18,7 +18,15 @@ package stats
 import (
     "fmt"
     "reflect"
+
+   	"github.com/apache/beam/sdks/go/pkg/beam"
 )
+
+func init() {
+{{- range .X}}
+	beam.RegisterFunction(sum{{.Name}}Fn)
+{{- end}}
+}
 
 func findSumFn(t reflect.Type) interface{} {
     switch t.String() {

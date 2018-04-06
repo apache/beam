@@ -18,12 +18,19 @@
 
 import common_job_properties
 
-// This job runs the suite of ValidatesRunner tests against the Flink runner.
-job('beam_PostCommit_Java_ValidatesRunner_Flink_Gradle') {
-  description('Runs the ValidatesRunner suite on the Flink runner.')
+// This is the Python precommit which runs a Gradle build, and the current set
+// of precommit tests.
+job('beam_PreCommit_Python_GradleBuild') {
+  description('Runs Python PreCommit tests for the current GitHub Pull Request.')
+
+  // Execute concurrent builds if necessary.
+  concurrentBuild()
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(
+    delegate,
+    'master',
+    90)
 
   def gradle_switches = [
     // Gradle log verbosity enough to diagnose basic build issues
@@ -34,20 +41,13 @@ job('beam_PostCommit_Java_ValidatesRunner_Flink_Gradle') {
     '--rerun-tasks',
   ]
 
-  // Sets that this is a PostCommit job.
-  common_job_properties.setPostCommit(delegate)
-
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Apache Flink Runner ValidatesRunner Tests',
-    'Run Flink ValidatesRunner')
-
-  // Gradle goals for this job.
+  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' :pythonPreCommit'
+  // Sets that this is a PreCommit job.
+  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Python Gradle PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':beam-runners-flink_2.11:validatesRunner')
+      tasks(':pythonPreCommit')
       for (String gradle_switch : gradle_switches) {
         switches(gradle_switch)
       }

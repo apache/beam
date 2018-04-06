@@ -85,7 +85,7 @@ interface BigQueryServices extends Serializable {
     /**
      * Dry runs the query in the given project.
      */
-    JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig)
+    JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig, String location)
         throws InterruptedException, IOException;
 
     /**

@@ -145,7 +145,7 @@ class FakeJobService implements JobService, Serializable {
   @Override
   public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
       throws InterruptedException, IOException {
-    checkArgument(extractConfig.getDestinationFormat().equals("AVRO"),
+    checkArgument("AVRO".equals(extractConfig.getDestinationFormat()),
         "Only extract to AVRO is supported");
     synchronized (allJobs) {
       verifyUniqueJobId(jobRef.getJobId());
@@ -209,8 +209,8 @@ class FakeJobService implements JobService, Serializable {
         Job job = getJob(jobRef);
         if (job != null) {
           JobStatus status = job.getStatus();
-          if (status != null && status.getState() != null
-              && (status.getState().equals("DONE") || status.getState().equals("FAILED"))) {
+          if (status != null
+              && ("DONE".equals(status.getState()) || "FAILED".equals(status.getState()))) {
             return job;
           }
         }
@@ -228,7 +228,7 @@ class FakeJobService implements JobService, Serializable {
   }
 
   @Override
-  public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query)
+  public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query, String location)
       throws InterruptedException, IOException {
     synchronized (dryRunQueryResults) {
       JobStatistics result = dryRunQueryResults.get(projectId, query.getQuery());
@@ -312,7 +312,7 @@ class FakeJobService implements JobService, Serializable {
     List<ResourceId> sourceFiles = filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
     WriteDisposition writeDisposition = WriteDisposition.valueOf(load.getWriteDisposition());
     CreateDisposition createDisposition = CreateDisposition.valueOf(load.getCreateDisposition());
-    checkArgument(load.getSourceFormat().equals("NEWLINE_DELIMITED_JSON"));
+    checkArgument("NEWLINE_DELIMITED_JSON".equals(load.getSourceFormat()));
     Table existingTable = datasetService.getTable(destination);
     if (!validateDispositions(existingTable, createDisposition, writeDisposition)) {
       return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
