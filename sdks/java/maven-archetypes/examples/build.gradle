@@ -20,6 +20,8 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
+ext.summary = """A Maven Archetype to create a project containing all the
+example pipelines from the Apache Beam Java SDK."""
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [

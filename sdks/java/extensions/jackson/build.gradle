@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Jackson"
+ext.summary = "Jackson extension provides PTransforms for deserializing and generating JSON strings."
 
 dependencies {
   compile library.java.guava

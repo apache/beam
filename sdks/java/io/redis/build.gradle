@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Redis"
+ext.summary ="IO to read and write on a Redis keystore."
 
 dependencies {
   compile library.java.guava

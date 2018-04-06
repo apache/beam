@@ -21,6 +21,7 @@ applyJavaNature(enableFindbugs: false)
 applyGrpcNature()
 
 description = "Apache Beam :: Model :: Job Management"
+ext.summary = "Portable definitions for submitting pipelines."
 
 dependencies {
   compile library.java.guava

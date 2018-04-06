@@ -21,6 +21,7 @@ applyJavaNature(enableShadow: false /* Disable shadow because of custom configur
 apply plugin: "com.github.johnrengelman.shadow"
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
+ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that

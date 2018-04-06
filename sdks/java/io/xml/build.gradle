@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: XML"
+ext.summary = "IO to read and write XML files."
 
 dependencies {
   compile library.java.guava

@@ -20,6 +20,7 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Common"
+ext.summary = "Code used by all Beam IOs"
 
 dependencies {
   compile library.java.guava

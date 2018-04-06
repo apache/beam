@@ -20,6 +20,8 @@ apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
+ext.summary = """A Maven archetype to create a simple starter pipeline to
+get started using the Apache Beam Java SDK."""
 
 // Add archetype testing/generation to existing GradleBuild PreCommit
 // https://issues.apache.org/jira/browse/BEAM-3256
