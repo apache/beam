@@ -129,6 +129,6 @@ task goPreCommit() {
 
 task pythonPreCommit() {
   dependsOn ":rat"
-  dependsOn ":sdks:python:check"
+  dependsOn ":beam-sdks-python:check"
 }
 
