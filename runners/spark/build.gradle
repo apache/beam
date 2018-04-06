@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(artifactId: "beam-runners-spark")
 
@@ -30,6 +32,11 @@ description = "Apache Beam :: Runners :: Spark"
  */
 evaluationDependsOn(":model:fn-execution")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":sdks:java:core")
+
+configurations {
+  validatesRunner
+}
 
 test {
   systemProperty "beam.spark.test.reuseSparkContext", "true"
@@ -72,21 +79,79 @@ dependencies {
   provided "org.apache.zookeeper:zookeeper:3.4.6"
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
-  testCompile project(path: ":sdks:java:io:kafka", configuration: "shadow")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
-  testCompile project(":runners:core-java").sourceSets.test.output
-  testCompile library.java.avro
-  testCompile library.java.kafka_clients
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.jackson_dataformat_yaml
-  testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
+  shadowTest project(":runners:core-java").sourceSets.test.output
+  shadowTest library.java.avro
+  shadowTest library.java.kafka_clients
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+  shadowTest library.java.jackson_dataformat_yaml
+  shadowTest library.java.kafka_2_11
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
+  validatesRunner project(path: project.path, configuration: "provided")
+  validatesRunner project.sourceSets.test.output
 }
 
 configurations.testRuntimeClasspath {
   // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
   exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+configurations.validatesRunner {
+  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+task validatesRunnerBatch(type: Test) {
+  group = "Verification"
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+          "--streaming=false",
+          "--enableSparkMetricSinks=false",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
+  forkEvery 1
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+  }
+}
+
+task validatesRunnerStreaming(type: Test) {
+  group = "Verification"
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+          "--forceStreaming=true",
+          "--enableSparkMetricSinks=true",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+
+  forkEvery 1
+  useJUnit {
+    includeCategories 'org.apache.beam.runners.spark.StreamingTest'
+  }
+}
+
+task validatesRunner {
+  group = "Verification"
+  description "Validates Spark runner"
+  dependsOn validatesRunnerBatch
+  dependsOn validatesRunnerStreaming
 }
 
 // Generates :runners:spark:runQuickstartJavaSpark

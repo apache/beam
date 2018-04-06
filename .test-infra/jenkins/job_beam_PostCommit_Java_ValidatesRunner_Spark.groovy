@@ -19,16 +19,22 @@
 import common_job_properties
 
 // This job runs the suite of ValidatesRunner tests against the Spark runner.
-mavenJob('beam_PostCommit_Java_ValidatesRunner_Spark') {
+job('beam_PostCommit_Java_ValidatesRunner_Spark_Gradle') {
   description('Runs the ValidatesRunner suite on the Spark runner.')
-
+  previousNames('beam_PostCommit_Java_ValidatesRunner_Spark')
   previousNames('beam_PostCommit_Java_RunnableOnService_Spark')
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
-  // Set maven parameters.
-  common_job_properties.setMavenConfig(delegate)
+  def gradle_switches = [
+    // Gradle log verbosity enough to diagnose basic build issues
+    "--info",
+    // Continue the build even if there is a failure to show as many potential failures as possible.
+    '--continue',
+    // Until we verify the build cache is working appropriately, force rerunning all tasks
+    '--rerun-tasks',
+  ]
 
   // Sets that this is a PostCommit job.
   common_job_properties.setPostCommit(delegate)
@@ -39,6 +45,14 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Spark') {
     'Apache Spark Runner ValidatesRunner Tests',
     'Run Spark ValidatesRunner')
 
-  // Maven goals for this job.
-  goals('-B -e clean verify -am -pl runners/spark -Plocal-validates-runner-tests -Dspark.ui.enabled=false')
+  // Gradle goals for this job.
+  steps {
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks(':runners:spark:validatesRunner')
+      for (String gradle_switch : gradle_switches) {
+        switches(gradle_switch)
+      }
+    }
+  }
 }
