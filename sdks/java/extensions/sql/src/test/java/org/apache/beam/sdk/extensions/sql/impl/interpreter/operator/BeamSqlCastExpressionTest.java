@@ -23,6 +23,8 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.ReadableInstant;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -107,8 +109,11 @@ public class BeamSqlCastExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test
   public void testDateTimeFormatWithTimezone() {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "2017-05-21 23:59:59.89079 PST"));
-    Assert.assertEquals(new DateTime().withDate(2017, 05, 22)
-            .withTime(0, 0, 0, 0),
+    ReadableInstant expected = new DateTime()
+        .withZone(DateTimeZone.forID("US/Pacific"))
+        .withDate(2017, 05, 22)
+        .withTime(0, 0, 0, 0);
+    Assert.assertEquals(expected,
         new BeamSqlCastExpression(operands, SqlTypeName.TIMESTAMP)
           .evaluate(row, null).getValue());
   }
