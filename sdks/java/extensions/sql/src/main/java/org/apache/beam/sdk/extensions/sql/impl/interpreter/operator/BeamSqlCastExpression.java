@@ -32,7 +32,7 @@ import org.joda.time.format.DateTimeParser;
 /**
  * Base class to support 'CAST' operations for all {@link SqlTypeName}.
  */
-public class BeamSqlCastExpression extends BeamSqlExpression {
+public class  BeamSqlCastExpression extends BeamSqlExpression {
 
   private static final int index = 0;
   /**
