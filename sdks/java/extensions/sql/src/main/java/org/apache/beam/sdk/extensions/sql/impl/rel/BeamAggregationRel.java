@@ -190,7 +190,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
   private RowType.Field newRowField(AggregateCall aggCall) {
     return
         RowType
-            .newField(aggCall.name, CalciteUtils.toCoder(aggCall.type.getSqlTypeName()));
+            .newField(aggCall.name, CalciteUtils.toPrimitiveCoder(aggCall.type.getSqlTypeName()));
   }
   }
 

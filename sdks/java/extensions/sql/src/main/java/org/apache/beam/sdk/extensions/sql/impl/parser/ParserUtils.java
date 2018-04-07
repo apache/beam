@@ -40,7 +40,7 @@ public class ParserUtils {
       Column column = Column.builder()
           .name(columnDef.name().toLowerCase())
           .coder(
-              CalciteUtils.toCoder(
+              CalciteUtils.toPrimitiveCoder(
                   columnDef.type().deriveType(BeamQueryPlanner.TYPE_FACTORY).getSqlTypeName()
               )
           )

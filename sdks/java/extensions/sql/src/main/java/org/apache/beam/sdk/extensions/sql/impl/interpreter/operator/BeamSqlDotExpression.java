@@ -62,6 +62,6 @@ public class BeamSqlDotExpression extends BeamSqlExpression {
     }
 
     SqlTypeCoder fieldCoder = (SqlTypeCoder) row.getRowType().getFieldCoder(fieldIndex);
-    return CalciteUtils.toCalciteType(fieldCoder);
+    return CalciteUtils.toCalciteTypeName(fieldCoder);
   }
 }
