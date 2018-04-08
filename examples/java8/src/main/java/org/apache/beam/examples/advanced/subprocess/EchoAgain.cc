@@ -15,30 +15,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-syntax = "proto3";
+// 'Hello World!' program, just echos what was sent to it.
 
-package org.apache.beam.examples.advanced.subprocess;
+#include <iostream>
+#include <fstream>
 
-message DataList{
-
-	string key = 2;
-	repeated Data dataList=1;
-}
-
-message Data{
-
-	string key = 12;
-
-	double d1wRate=1;
-	double d1mRate=2;
-	double d3mRate=3;
-	double d6mRate=4;
-	double d9mRate=5;
-	double d1yRate=6;
-	double s2yRate=7;
-	double s3yRate=8;
-	double s5yRate=9;
-	double s10yRate=10;
-	double s15yRate=11;
-
+int main(int argc, char* argv[])
+{
+    if(argc < 3){
+        std::cerr << "No parameter sent, must send the return file location and a statement to echo" << '\n';
+        return 1;
+    }
+    std::string retFile = argv[1];
+    std::string word = argv[2];
+    std::ofstream myfile;
+    myfile.open (retFile);
+    myfile << "You again? Well ok, here is your word again." << word ;
+    myfile.close();
+    return 0;
 }

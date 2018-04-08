@@ -80,8 +80,8 @@ public interface SubProcessPipelineOptions extends PipelineOptions {
       if (subProcessPipelineOptions.getSourcePath() == null) {
         throw new IllegalStateException("Source path must be set");
       }
-      if (subProcessPipelineOptions.getConcurrency() == null ||
-          subProcessPipelineOptions.getConcurrency() == 0) {
+      if (subProcessPipelineOptions.getConcurrency() == null
+          || subProcessPipelineOptions.getConcurrency() == 0) {
         throw new IllegalStateException("Concurrency must be set and be > 0");
       }
       configuration.setSourcePath(subProcessPipelineOptions.getSourcePath());

@@ -19,7 +19,10 @@ package org.apache.beam.examples.advanced.subprocess.utils;
 
 import com.google.common.collect.Sets;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
 import org.apache.beam.examples.advanced.subprocess.configuration.SubProcessConfiguration;
@@ -43,50 +46,50 @@ public class CallingSubProcessUtils {
   private static final Set<String> downloadedFiles = Sets.<String>newConcurrentHashSet();
 
   // Limit the number of threads able to do work
-  private static Semaphore semaphore;
+  private static Map<String, Semaphore> semaphores = new ConcurrentHashMap<String, Semaphore>();
 
   public static void setUp(SubProcessConfiguration configuration, String binaryName)
       throws Exception {
 
-      if (semaphore == null) {
-        initSemaphore(configuration.getConcurrency());
-      }
+    if (!semaphores.containsKey(binaryName)) {
+      initSemaphore(configuration.getConcurrency(), binaryName);
+    }
 
-      synchronized (downloadedFiles) {
-        if (!downloadedFiles.contains(binaryName)) {
-          // Create Directories if needed
-          FileUtils.createDirectoriesOnWorker(configuration);
-          LOG.info("Calling filesetup to move Executables to worker.");
-          ExecutableFile executableFile = new ExecutableFile(configuration, binaryName);
-          FileUtils.copyFileFromGCSToWorker(executableFile);
-          downloadedFiles.add(binaryName);
-        }
+    synchronized (downloadedFiles) {
+      if (!downloadedFiles.contains(binaryName)) {
+        // Create Directories if needed
+        FileUtils.createDirectoriesOnWorker(configuration);
+        LOG.info("Calling filesetup to move Executables to worker.");
+        ExecutableFile executableFile = new ExecutableFile(configuration, binaryName);
+        FileUtils.copyFileFromGCSToWorker(executableFile);
+        downloadedFiles.add(binaryName);
       }
-  }
-
-  // If you have two ExternalLibraryDoFns in your graph with different concurrency values, this will
-  // break.
-  // If that is something that is of concern you can make use of a map from DoFn name -> semaphore
-  // instead
-  public static synchronized void initSemaphore(Integer permits) {
-    if (semaphore == null) {
-      semaphore = new Semaphore(permits);
     }
   }
 
-  private static void aquireSemaphore() throws IllegalStateException {
-    if (semaphore == null) {
+  public static synchronized void initSemaphore(Integer permits, String binaryName) {
+    if (!semaphores.containsKey(binaryName)) {
+      LOG.info(String.format(String.format("Initialized Semaphore for binary %s ",  binaryName)));
+      semaphores.put(binaryName, new Semaphore(permits));
+    }
+  }
+
+  private static void aquireSemaphore(String binaryName) throws IllegalStateException {
+    if  (!semaphores.containsKey(binaryName)) {
       throw new IllegalStateException("Semaphore is NULL, check init logic in @Setup.");
     }
     try {
-      semaphore.acquire();
+      semaphores.get(binaryName).acquire();
     } catch (InterruptedException ex) {
       LOG.error("Interupted during aquire", ex);
     }
   }
 
-  private static void releaseSemaphore() throws IllegalStateException {
-    semaphore.release();
+  private static void releaseSemaphore(String binaryName) throws IllegalStateException {
+    if  (!semaphores.containsKey(binaryName)) {
+      throw new IllegalStateException("Semaphore is NULL, check init logic in @Setup.");
+    }
+    semaphores.get(binaryName).release();
   }
 
   /**
@@ -94,13 +97,16 @@ public class CallingSubProcessUtils {
    */
   public static class Permit implements AutoCloseable {
 
-    public Permit() {
-      CallingSubProcessUtils.aquireSemaphore();
+    private String binaryName;
+
+    public Permit(String binaryName){
+      this.binaryName = binaryName;
+      CallingSubProcessUtils.aquireSemaphore(binaryName);
     }
 
     @Override
     public void close() {
-      CallingSubProcessUtils.releaseSemaphore();
+      CallingSubProcessUtils.releaseSemaphore(binaryName);
     }
 
   }

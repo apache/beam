@@ -59,7 +59,7 @@ public class SubProcessKernel {
   }
 
   public List<String> exec(SubProcessCommandLineArgs commands) throws Exception {
-    try (Permit permit = new Permit()) {
+    try (Permit permit = new Permit(processBuilder.command().get(0))) {
 
       List<String> results = null;
 
@@ -86,7 +86,7 @@ public class SubProcessKernel {
 
     // Check we are not over the max size of command line parameters
     if (getTotalCommandBytes(commands) > MAX_SIZE_COMMAND_LINE_ARGS) {
-      throw new IllegalStateException("Command is over 2MB in size");
+      throw new IllegalStateException("Command is larger than MAX_SIZE_COMMAND_LINE_ARGS");
     }
 
     appendExecutablePath(builder);
