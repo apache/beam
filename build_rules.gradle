@@ -337,6 +337,11 @@ ext.applyJavaNature = {
     repositories {
       maven {
         url project.properties["distMgmtSnapshotsUrl"] ?: "https://repository.apache.org/content/repositories/snapshots"
+        println "!!! asfNexusUsername=${asfNexusUsername}"
+        credentials {
+          username=asfNexusUsername
+          password=asfNexusPassword
+        }
       }
     }
   }

@@ -44,6 +44,11 @@ mavenJob('beam_Release_NightlySnapshot') {
       false,
       'dev@beam.apache.org')
 
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'mvn clean deploy',
+      'Run Maven Publish')
+
   // Maven goals for this job.
   goals('''\
       clean deploy \
