@@ -358,9 +358,7 @@ public class KafkaIO {
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopics(List<String> topics) {
-      checkState(
-          getTopicPartitions() == null, "Only topics or topicPartitions can be set, not both");
-      return toBuilder().setTopics(ValueProvider.StaticValueProvider.of(topics)).build();
+      return withTopics(ValueProvider.StaticValueProvider.of(Joiner.on(',').join(topics)));
     }
 
     /**
@@ -379,8 +377,19 @@ public class KafkaIO {
      * of how the partitions are distributed among the splits.
      */
     public Read<K, V> withTopicPartitions(List<TopicPartition> topicPartitions) {
-      checkState(getTopics() == null, "Only topics or topicPartitions can be set, not both");
-      return toBuilder().setTopicPartitions(ValueProvider.StaticValueProvider.of(topicPartitions)).build();
+      return withTopicPartitions(ValueProvider.StaticValueProvider.of(Joiner.on(',').join(topicPartitions)));
+    }
+
+    /**
+     * Sets a list of partitions to read from. Partitions are provided as a comma separated list of
+     * Strings in the format: topic1-partition1,topic1-partition2...
+     * This allows reading only a subset of partitions for one or more topics when (if ever) needed.
+     *
+     * <p>See {@link KafkaUnboundedSource#split(int, PipelineOptions)} for description
+     * of how the partitions are distributed among the splits.
+     */
+    public Read<K, V> withTopicPartitions(String topicPartitions) {
+      return withTopicPartitions(ValueProvider.StaticValueProvider.of(topicPartitions));
     }
 
     /**
@@ -388,7 +397,8 @@ public class KafkaIO {
      */
     public Read<K, V> withTopicPartitions(ValueProvider<String> topicPartitions) {
       checkState(getTopics() == null, "Only topics or topicPartitions can be set, not both");
-      return toBuilder().setTopicPartitions(ValueProvider.NestedValueProvider.of(topicPartitions, new TopicPartitionTranslator())).build();
+      return toBuilder().setTopicPartitions(ValueProvider
+              .NestedValueProvider.of(topicPartitions, new TopicPartitionTranslator())).build();
     }
 
     /**
