@@ -23,7 +23,7 @@ import static org.apache.beam.sdk.values.reflect.ReflectionUtils.getPublicGetter
 import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Method;
 import java.util.List;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * Factory to wrap calls to pojo getters into instances of {@link FieldValueGetter}
@@ -34,7 +34,7 @@ import org.apache.beam.sdk.values.RowType;
  * from {@link FieldValueGetter#get(Object)}.
  *
  * <p>Caching is not handled at this level, {@link RowFactory} should cache getters
- * for each {@link RowType}.
+ * for each {@link Schema}.
  */
 class ReflectionGetterFactory implements GetterFactory {
 

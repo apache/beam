@@ -39,11 +39,8 @@ public class ParserUtils {
     for (ColumnDefinition columnDef : stmt.fieldList()) {
       Column column = Column.builder()
           .name(columnDef.name().toLowerCase())
-          .coder(
-              CalciteUtils.toCoder(
-                  columnDef.type().deriveType(BeamQueryPlanner.TYPE_FACTORY).getSqlTypeName()
-              )
-          )
+          .fieldType(CalciteUtils.toFieldType(
+              columnDef.type().deriveType(BeamQueryPlanner.TYPE_FACTORY)))
           .comment(columnDef.comment())
           .primaryKey(columnDef.constraint() instanceof ColumnConstraint.PrimaryKey)
           .build();

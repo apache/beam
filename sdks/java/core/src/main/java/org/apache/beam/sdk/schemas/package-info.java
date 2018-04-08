@@ -15,29 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package org.apache.beam.sdk.values.reflect;
-
-import static java.util.Collections.emptyList;
-import static org.junit.Assert.assertSame;
-
-import java.util.List;
-import org.apache.beam.sdk.values.RowType;
-import org.junit.Test;
-
 /**
- * Unit tests for {@link RowTypeGetters}.
+ * Defines {@link org.apache.beam.sdk.schemas.Schema} and other classes for
+ * representing schema'd data in a {@link org.apache.beam.sdk.Pipeline}.
+ *
+ * <p>For further details, see the documentation for each class in this package.
  */
-public class RowTypeGettersTest {
+@DefaultAnnotation(NonNull.class)
+package org.apache.beam.sdk.schemas;
 
-  @Test
-  public void testGetters() {
-    RowType rowType = RowType.fromNamesAndCoders(emptyList(), emptyList());
-    List<FieldValueGetter> fieldValueGetters = emptyList();
-
-    RowTypeGetters getters = new RowTypeGetters(rowType, fieldValueGetters);
-
-    assertSame(rowType, getters.rowType());
-    assertSame(fieldValueGetters, getters.valueGetters());
-  }
-}
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

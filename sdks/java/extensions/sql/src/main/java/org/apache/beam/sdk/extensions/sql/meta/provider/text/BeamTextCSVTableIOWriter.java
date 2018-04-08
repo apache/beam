@@ -22,13 +22,13 @@ import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beam
 
 import java.io.Serializable;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.apache.commons.csv.CSVFormat;
 
 /**
@@ -37,14 +37,14 @@ import org.apache.commons.csv.CSVFormat;
 public class BeamTextCSVTableIOWriter extends PTransform<PCollection<Row>, PDone>
     implements Serializable {
   private String filePattern;
-  protected RowType rowType;
+  protected Schema schema;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOWriter(RowType rowType,
+  public BeamTextCSVTableIOWriter(Schema schema,
                                   String filePattern,
                                   CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.rowType = rowType;
+    this.schema = schema;
     this.csvFormat = csvFormat;
   }
 

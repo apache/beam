@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.parser;
 
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.INTEGER;
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.VARCHAR;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -27,8 +25,10 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.ImmutableList;
 import java.net.URI;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.calcite.sql.SqlNode;
 import org.junit.Test;
 
@@ -163,13 +163,13 @@ public class BeamSqlParserTest {
         .columns(ImmutableList.of(
             Column.builder()
                 .name("id")
-                .coder(INTEGER)
+                .fieldType(TypeName.INT32.type())
                 .primaryKey(false)
                 .comment("id")
                 .build(),
             Column.builder()
                 .name("name")
-                .coder(VARCHAR)
+                .fieldType(RowSqlTypes.VARCHAR)
                 .primaryKey(false)
                 .comment("name")
                 .build()

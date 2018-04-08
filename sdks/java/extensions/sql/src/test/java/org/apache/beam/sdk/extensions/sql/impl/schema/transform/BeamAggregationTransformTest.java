@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.schema.transform;
 
+import com.google.common.collect.Lists;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,8 +27,9 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamAggregationTransforms;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
@@ -38,7 +40,6 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.SqlKind;
@@ -62,9 +63,9 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
   private List<AggregateCall> aggCalls;
 
-  private RowType keyType;
-  private RowType aggPartType;
-  private RowType outputType;
+  private Schema keyType;
+  private Schema aggPartType;
+  private Schema outputType;
 
   private RowCoder inRecordCoder;
   private RowCoder keyCoder;
@@ -101,6 +102,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
 
     PCollection<Row> input = p.apply(Create.of(inputRows));
 
+    Schema keySchema = Schema.builder()
+        .addFields(Lists.newArrayList(inputSchema.getField(0))).build();
     // 1. extract fields in group-by key part
     PCollection<KV<Row, Row>> exGroupByStream =
         input
@@ -108,7 +111,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
                 "exGroupBy",
                 WithKeys.of(
                     new BeamAggregationTransforms.AggregationGroupByKeyFn(
-                        -1, ImmutableBitSet.of(0))))
+                        keySchema, -1, ImmutableBitSet.of(0))))
             .setCoder(KvCoder.of(keyCoder, inRecordCoder));
 
     // 2. apply a GroupByKey.
@@ -123,7 +126,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             .apply(
                 "aggregation",
                 Combine.groupedValues(
-                    new BeamAggregationTransforms.AggregationAdaptor(aggCalls, inputRowType)))
+                    new BeamAggregationTransforms.AggregationAdaptor(aggCalls, inputSchema)))
             .setCoder(KvCoder.of(keyCoder, aggCoder));
 
     //4. flat KV to a single record
@@ -358,17 +361,17 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
    * Coders used in aggregation steps.
    */
   private void prepareTypeAndCoder() {
-    inRecordCoder = inputRowType.getRowCoder();
+    inRecordCoder = inputSchema.getRowCoder();
 
     keyType =
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .build();
 
     keyCoder = keyType.getRowCoder();
 
-    aggPartType = RowSqlType
+    aggPartType = RowSqlTypes
         .builder()
         .withBigIntField("count")
 
@@ -422,8 +425,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             .range(0, 4)
             .mapToObj(i -> KV.of(
                 Row
-                    .withRowType(keyType)
-                    .addValues(inputRows.get(i).getInteger(0))
+                    .withSchema(keyType)
+                    .addValues(inputRows.get(i).getInt32(0))
                     .build(),
                 inputRows.get(i)
             )).collect(Collectors.toList());
@@ -437,11 +440,11 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
     return Arrays.asList(
         KV.of(
             Row
-                .withRowType(keyType)
-                .addValues(inputRows.get(0).getInteger(0))
+                .withSchema(keyType)
+                .addValues(inputRows.get(0).getInt32(0))
                 .build(),
             Row
-                .withRowType(aggPartType)
+                .withSchema(aggPartType)
                 .addValues(
                     4L,
                     10000L,
@@ -464,8 +467,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
                     2.5,
                     4.0,
                     1.0,
-                    format.parse("2017-01-01 02:04:03"),
-                    format.parse("2017-01-01 01:01:03"),
+                    FORMAT.parseDateTime("2017-01-01 02:04:03"),
+                    FORMAT.parseDateTime("2017-01-01 01:01:03"),
                     10,
                     2,
                     4,
@@ -477,9 +480,9 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
   /**
    * Row type of final output row.
    */
-  private RowType prepareFinalRowType() {
+  private Schema prepareFinalRowType() {
     return
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withIntegerField("f_int")
             .withBigIntField("count")
@@ -525,7 +528,7 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
    */
   private Row prepareResultOfMergeAggregationRow() throws ParseException {
     return Row
-        .withRowType(outputType)
+        .withSchema(outputType)
         .addValues(
             1,
             4L,
@@ -549,8 +552,8 @@ public class BeamAggregationTransformTest extends BeamTransformBaseTest {
             2.5,
             4.0,
             1.0,
-            format.parse("2017-01-01 02:04:03"),
-            format.parse("2017-01-01 01:01:03"),
+            FORMAT.parseDateTime("2017-01-01 02:04:03"),
+            FORMAT.parseDateTime("2017-01-01 01:01:03"),
             10,
             2,
             4,

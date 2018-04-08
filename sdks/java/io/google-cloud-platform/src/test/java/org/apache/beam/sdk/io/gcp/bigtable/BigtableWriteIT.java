@@ -40,7 +40,6 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.hamcrest.Matchers;
+import org.joda.time.DateTime;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,7 +72,7 @@ public class BigtableWriteIT implements Serializable {
   private static BigtableSession session;
   private static BigtableTableAdminClient tableAdminClient;
   private final String tableId =
-      String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
+      String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", DateTime.now());
   private String project;
 
   @Before

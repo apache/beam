@@ -20,7 +20,6 @@ package org.apache.beam.sdk.extensions.sql.impl.transform;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.util.Date;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
@@ -34,12 +33,17 @@ import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.ReadableInstant;
 
 /**
  * Built-in aggregations functions for COUNT/MAX/MIN/SUM/AVG/VAR_POP/VAR_SAMP.
+ *
+ * <p>TODO: Consider making the interface in terms of (1-column) rows. reuvenlax
  */
 class BeamBuiltinAggregations {
   private static MathContext mc = new MathContext(10, RoundingMode.HALF_UP);
+
+
 
   /**
    * {@link CombineFn} for MAX based on {@link Max} and {@link Combine.BinaryCombineFn}.
@@ -59,7 +63,7 @@ class BeamBuiltinAggregations {
       case DOUBLE:
         return Max.ofDoubles();
       case TIMESTAMP:
-        return new CustMax<Date>();
+        return new CustMax<ReadableInstant>();
       case DECIMAL:
         return new CustMax<BigDecimal>();
       default:
@@ -86,7 +90,7 @@ class BeamBuiltinAggregations {
       case DOUBLE:
         return Min.ofDoubles();
       case TIMESTAMP:
-        return new CustMin<Date>();
+        return new CustMin<ReadableInstant>();
       case DECIMAL:
         return new CustMin<BigDecimal>();
       default:

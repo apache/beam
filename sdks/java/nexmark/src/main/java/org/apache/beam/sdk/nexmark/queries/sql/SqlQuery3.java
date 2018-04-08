@@ -21,7 +21,7 @@ import static org.apache.beam.sdk.nexmark.model.sql.adapter.ModelAdaptersMapping
 
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -141,12 +141,12 @@ public class SqlQuery3 extends PTransform<PCollection<Event>, PCollection<NameCi
   }
 
   private RowCoder getRecordCoder(Class modelClass) {
-    return ADAPTERS.get(modelClass).getRowType().getRowCoder();
+    return ADAPTERS.get(modelClass).getSchema().getRowCoder();
   }
 
   private static RowCoder createRecordCoder() {
     return
-        RowSqlType
+        RowSqlTypes
             .builder()
             .withVarcharField("name")
             .withVarcharField("city")

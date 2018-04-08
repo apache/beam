@@ -18,34 +18,17 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 
 /**
  * Base class for all date related expression test.
  */
 public class BeamSqlDateExpressionTestBase extends BeamSqlFnExecutorTestBase {
-  static long str2LongTime(String dateStr) {
-    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    try {
-      Date date = format.parse(dateStr);
-      return date.getTime();
-    } catch (ParseException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  static Date str2DateTime(String dateStr) {
-    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    try {
-      format.setTimeZone(TimeZone.getTimeZone("GMT"));
-      Date date = format.parse(dateStr);
-      return date;
-    } catch (ParseException e) {
-      throw new RuntimeException(e);
-    }
+  static DateTime str2DateTime(String dateStr) {
+    DateTimeFormatter format = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss").withZoneUTC();
+    return format.parseDateTime(dateStr);
   }
 }

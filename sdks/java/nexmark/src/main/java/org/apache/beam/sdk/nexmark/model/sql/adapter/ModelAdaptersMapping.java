@@ -21,10 +21,9 @@ package org.apache.beam.sdk.nexmark.model.sql.adapter;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.AuctionCount;
 import org.apache.beam.sdk.nexmark.model.AuctionPrice;
@@ -32,6 +31,7 @@ import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.values.Row;
+import org.joda.time.DateTime;
 
 /**
  * Maps Java model classes to Beam SQL record types.
@@ -50,7 +50,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Person> personAdapter() {
     return new ModelFieldsAdapter<Person>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("id")
             .withVarcharField("name")
             .withVarcharField("emailAddress")
@@ -70,19 +70,19 @@ public class ModelAdaptersMapping {
                 p.creditCard,
                 p.city,
                 p.state,
-                new Date(p.dateTime),
+                new DateTime(p.dateTime),
                 p.extra));
       }
       @Override
       public Person getRowModel(Row row) {
         return new Person(
-           row.getLong("id"),
+           row.getInt64("id"),
            row.getString("name"),
            row.getString("emailAddress"),
            row.getString("creditCard"),
            row.getString("city"),
            row.getString("state"),
-           row.getDate("dateTime").getTime(),
+           row.getDateTime("dateTime").getMillis(),
            row.getString("extra"));
       }
     };
@@ -90,7 +90,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Bid> bidAdapter() {
     return new ModelFieldsAdapter<Bid>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("auction")
             .withBigIntField("bidder")
             .withBigIntField("price")
@@ -104,16 +104,16 @@ public class ModelAdaptersMapping {
                 b.auction,
                 b.bidder,
                 b.price,
-                new Date(b.dateTime),
+                new DateTime(b.dateTime),
                 b.extra));
       }
       @Override
       public Bid getRowModel(Row row) {
         return new Bid(
-            row.getLong("auction"),
-            row.getLong("bidder"),
-            row.getLong("price"),
-            row.getDate("dateTime").getTime(),
+            row.getInt64("auction"),
+            row.getInt64("bidder"),
+            row.getInt64("price"),
+            row.getDateTime("dateTime").getMillis(),
             row.getString("extra"));
       }
     };
@@ -121,7 +121,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<Auction> auctionAdapter() {
     return new ModelFieldsAdapter<Auction>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("id")
             .withVarcharField("itemName")
             .withVarcharField("description")
@@ -142,8 +142,8 @@ public class ModelAdaptersMapping {
                 a.description,
                 a.initialBid,
                 a.reserve,
-                new Date(a.dateTime),
-                new Date(a.expires),
+                new DateTime(a.dateTime),
+                new DateTime(a.expires),
                 a.seller,
                 a.category,
                 a.extra));
@@ -151,15 +151,15 @@ public class ModelAdaptersMapping {
       @Override
       public Auction getRowModel(Row row) {
         return new Auction(
-            row.getLong("id"),
+            row.getInt64("id"),
             row.getString("itemName"),
             row.getString("description"),
-            row.getLong("initialBid"),
-            row.getLong("reserve"),
-            row.getDate("dateTime").getTime(),
-            row.getDate("expires").getTime(),
-            row.getLong("seller"),
-            row.getLong("category"),
+            row.getInt64("initialBid"),
+            row.getInt64("reserve"),
+            row.getDateTime("dateTime").getMillis(),
+            row.getDateTime("expires").getMillis(),
+            row.getInt64("seller"),
+            row.getInt64("category"),
             row.getString("extra"));
       }
     };
@@ -167,7 +167,7 @@ public class ModelAdaptersMapping {
 
   private static ModelFieldsAdapter<AuctionCount> auctionCountAdapter() {
     return new ModelFieldsAdapter<AuctionCount>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("auction")
             .withBigIntField("num")
             .build()) {
@@ -181,15 +181,15 @@ public class ModelAdaptersMapping {
       @Override
       public AuctionCount getRowModel(Row row) {
         return new AuctionCount(
-            row.getLong("auction"),
-            row.getLong("num"));
+            row.getInt64("auction"),
+            row.getInt64("num"));
       }
     };
   }
 
   private static ModelFieldsAdapter<AuctionPrice> auctionPriceAdapter() {
     return new ModelFieldsAdapter<AuctionPrice>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withBigIntField("auction")
             .withBigIntField("price")
             .build()) {
@@ -203,15 +203,15 @@ public class ModelAdaptersMapping {
       @Override
       public AuctionPrice getRowModel(Row row) {
         return new AuctionPrice(
-            row.getLong("auction"),
-            row.getLong("price"));
+            row.getInt64("auction"),
+            row.getInt64("price"));
       }
     };
   }
 
   private static ModelFieldsAdapter<NameCityStateId> nameCityStateIdAdapter() {
     return new ModelFieldsAdapter<NameCityStateId>(
-        RowSqlType.builder()
+        RowSqlTypes.builder()
             .withVarcharField("name")
             .withVarcharField("city")
             .withVarcharField("state")
@@ -232,7 +232,7 @@ public class ModelAdaptersMapping {
             row.getString("name"),
             row.getString("city"),
             row.getString("state"),
-            row.getLong("id"));
+            row.getInt64("id"));
       }
     };
   }

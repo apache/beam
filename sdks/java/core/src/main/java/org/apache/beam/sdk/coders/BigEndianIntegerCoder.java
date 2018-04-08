@@ -43,8 +43,7 @@ public class BigEndianIntegerCoder extends AtomicCoder<Integer> {
   private BigEndianIntegerCoder() {}
 
   @Override
-  public void encode(Integer value, OutputStream outStream)
-      throws IOException, CoderException {
+  public void encode(Integer value, OutputStream outStream) throws IOException {
     if (value == null) {
       throw new CoderException("cannot encode a null Integer");
     }

@@ -18,23 +18,17 @@
 
 package org.apache.beam.sdk.nexmark.model.sql;
 
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoder;
-import org.apache.beam.sdk.extensions.sql.SqlTypeCoders;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 
 /**
  * {@link KnownSize} implementation to estimate the size of a {@link Row},
@@ -43,39 +37,22 @@ import org.apache.beam.sdk.values.RowType;
  *
  * <p>The {@link Row} size is calculated at creation time.
  *
- * <p>Field sizes are sizes of Java types described in {@link RowSqlType}. Except strings,
- * which are assumed to be taking 1-byte per character plus 1 byte size.
+ *
  */
 public class RowSize implements KnownSize {
   private static final Coder<Long> LONG_CODER = VarLongCoder.of();
   public static final Coder<RowSize> CODER = new CustomCoder<RowSize>() {
     @Override
-    public void encode(RowSize rowSize, OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(RowSize rowSize, OutputStream outStream) throws IOException {
 
       LONG_CODER.encode(rowSize.sizeInBytes(), outStream);
     }
 
     @Override
-    public RowSize decode(InputStream inStream) throws CoderException, IOException {
+    public RowSize decode(InputStream inStream) throws IOException {
       return new RowSize(LONG_CODER.decode(inStream));
     }
   };
-
-  private static final Map<SqlTypeCoder, Integer> ESTIMATED_FIELD_SIZES =
-      ImmutableMap.<SqlTypeCoder, Integer>builder()
-          .put(SqlTypeCoders.TINYINT, bytes(Byte.SIZE))
-          .put(SqlTypeCoders.SMALLINT, bytes(Short.SIZE))
-          .put(SqlTypeCoders.INTEGER, bytes(Integer.SIZE))
-          .put(SqlTypeCoders.BIGINT, bytes(Long.SIZE))
-          .put(SqlTypeCoders.FLOAT, bytes(Float.SIZE))
-          .put(SqlTypeCoders.DOUBLE, bytes(Double.SIZE))
-          .put(SqlTypeCoders.DECIMAL, 32)
-          .put(SqlTypeCoders.BOOLEAN, 1)
-          .put(SqlTypeCoders.TIME, bytes(Long.SIZE))
-          .put(SqlTypeCoders.DATE, bytes(Long.SIZE))
-          .put(SqlTypeCoders.TIMESTAMP, bytes(Long.SIZE))
-          .build();
 
   public static ParDo.SingleOutput<Row, RowSize> parDo() {
     return ParDo.of(new DoFn<Row, RowSize>() {
@@ -91,28 +68,7 @@ public class RowSize implements KnownSize {
   }
 
   private static long sizeInBytes(Row row) {
-    RowType rowType = row.getRowType();
-    long size = 1; // nulls bitset
-
-    for (int fieldIndex = 0; fieldIndex < rowType.getFieldCount(); fieldIndex++) {
-      Coder fieldType = rowType.getFieldCoder(fieldIndex);
-
-      Integer estimatedSize = ESTIMATED_FIELD_SIZES.get(fieldType);
-
-      if (estimatedSize != null) {
-        size += estimatedSize;
-        continue;
-      }
-
-      if (isString(fieldType)) {
-        size += row.getString(fieldIndex).length() + 1;
-        continue;
-      }
-
-      throw new IllegalStateException("Unexpected field type " + fieldType);
-    }
-
-    return size;
+    return RowCoder.estimatedSizeBytes(row);
   }
 
   private long sizeInBytes;
@@ -124,14 +80,5 @@ public class RowSize implements KnownSize {
   @Override
   public long sizeInBytes() {
     return sizeInBytes;
-  }
-
-  private static boolean isString(Coder fieldType) {
-    return SqlTypeCoders.CHAR.equals(fieldType)
-        || SqlTypeCoders.VARCHAR.equals(fieldType);
-  }
-
-  private static Integer bytes(int size) {
-    return size / Byte.SIZE;
   }
 }
