@@ -20,13 +20,13 @@ package org.apache.beam.sdk.extensions.sql;
 import static org.apache.beam.sdk.extensions.sql.utils.RowAsserts.matchesScalar;
 
 import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,7 +45,7 @@ public class BeamSqlDslAggregationCovarianceTest {
 
     @Before
     public void setUp() {
-        RowType rowType = RowSqlType.builder()
+        Schema schema = RowSqlTypes.builder()
                 .withDoubleField("f_double1")
                 .withDoubleField("f_double2")
                 .withDoubleField("f_double3")
@@ -56,7 +56,7 @@ public class BeamSqlDslAggregationCovarianceTest {
 
         List<Row> rowsInTableB =
                 TestUtils.RowsBuilder
-                        .of(rowType)
+                        .of(schema)
                         .addRows(
                                 3.0, 1.0, 1.0, 3, 1, 0,
                                 4.0, 2.0, 2.0, 4, 2, 0,
@@ -67,7 +67,7 @@ public class BeamSqlDslAggregationCovarianceTest {
 
         boundedInput = PBegin
                 .in(pipeline)
-                .apply(Create.of(rowsInTableB).withCoder(rowType.getRowCoder()));
+                .apply(Create.of(rowsInTableB).withCoder(schema.getRowCoder()));
     }
 
     @Test

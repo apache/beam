@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.store;
 
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.INTEGER;
-import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.VARCHAR;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -30,11 +29,12 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
-import org.apache.beam.sdk.extensions.sql.RowSqlType;
+import org.apache.beam.sdk.extensions.sql.RowSqlTypes;
 import org.apache.beam.sdk.extensions.sql.meta.Column;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.text.TextTableProvider;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.Test;
@@ -92,8 +92,8 @@ public class InMemoryMetaStoreTest {
     BeamSqlTable actualSqlTable = store.buildBeamSqlTable("hello");
     assertNotNull(actualSqlTable);
     assertEquals(
-        RowSqlType.builder().withIntegerField("id").withVarcharField("name").build(),
-        actualSqlTable.getRowType()
+        RowSqlTypes.builder().withIntegerField("id").withVarcharField("name").build(),
+        actualSqlTable.getSchema()
     );
   }
 
@@ -131,9 +131,16 @@ public class InMemoryMetaStoreTest {
         .comment(name + " table")
         .location(URI.create("text://home/admin/" + name))
         .columns(ImmutableList.of(
-            Column.builder().name("id").coder(INTEGER).primaryKey(true).build(),
-            Column.builder().name("name").coder(VARCHAR).primaryKey(false).build()
-        ))
+            Column.builder()
+                .name("id")
+                .fieldType(TypeName.INT32.type())
+                .primaryKey(true)
+                .build(),
+            Column.builder()
+                .name("name")
+                .fieldType(RowSqlTypes.VARCHAR)
+                .primaryKey(false)
+                .build()))
         .type(type)
         .properties(new JSONObject())
         .build();

@@ -18,13 +18,12 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.math.BigDecimal;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.util.NlsString;
+import org.joda.time.ReadableInstant;
 
 /**
  * {@link BeamSqlPrimitive} is a special, self-reference {@link BeamSqlExpression}.
@@ -37,6 +36,15 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
   private BeamSqlPrimitive() {
   }
 
+  private  BeamSqlPrimitive(T value, SqlTypeName typeName) {
+    this.outputType = typeName;
+    this.value = value;
+    if (!accept()) {
+      throw new IllegalArgumentException(
+          String.format("value [%s] doesn't match type [%s].", value, outputType));
+    }
+  }
+
   private BeamSqlPrimitive(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
@@ -45,14 +53,7 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
    * A builder function to create from Type and value directly.
    */
   public static <T> BeamSqlPrimitive<T> of(SqlTypeName outputType, T value) {
-    BeamSqlPrimitive<T> exp = new BeamSqlPrimitive<>();
-    exp.outputType = outputType;
-    exp.value = value;
-    if (!exp.accept()) {
-      throw new IllegalArgumentException(
-          String.format("value [%s] doesn't match type [%s].", value, outputType));
-    }
-    return exp;
+    return new BeamSqlPrimitive<>(value, outputType);
   }
 
   public SqlTypeName getOutputType() {
@@ -94,8 +95,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     return (String) getValue();
   }
 
-  public Date getDate() {
-    return (Date) getValue();
+  public ReadableInstant getDate() {
+    return (ReadableInstant) getValue();
   }
 
   public BigDecimal getDecimal() {
@@ -129,10 +130,10 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     case VARCHAR:
       return value instanceof String || value instanceof NlsString;
     case TIME:
-      return value instanceof GregorianCalendar;
+      return value instanceof ReadableInstant;
     case TIMESTAMP:
     case DATE:
-      return value instanceof Date;
+      return value instanceof ReadableInstant;
     case INTERVAL_SECOND:
     case INTERVAL_MINUTE:
     case INTERVAL_HOUR:

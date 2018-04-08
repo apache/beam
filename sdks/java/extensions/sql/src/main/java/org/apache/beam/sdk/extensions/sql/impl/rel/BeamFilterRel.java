@@ -67,7 +67,7 @@ public class BeamFilterRel extends Filter implements BeamRelNode {
 
       PCollection<Row> filterStream =
           upstream.apply(stageName, ParDo.of(new BeamSqlFilterFn(getRelTypeName(), executor)));
-      filterStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
+      filterStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
 
       return filterStream;
     }

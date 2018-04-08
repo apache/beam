@@ -24,19 +24,19 @@ import com.google.common.collect.ImmutableList;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.values.reflect.DefaultRowTypeFactory;
 import org.apache.beam.sdk.values.reflect.FieldValueGetter;
+import org.apache.beam.sdk.values.reflect.RowTypeFactory;
+import org.joda.time.DateTime;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Unit tests for {@link SqlRowTypeFactory}.
  */
-public class SqlRowTypeFactoryTest {
+public class SqlSchemaFactoryTest {
 
   private static final List<FieldValueGetter> GETTERS_FOR_KNOWN_TYPES = ImmutableList
       .<FieldValueGetter>builder()
@@ -49,8 +49,8 @@ public class SqlRowTypeFactoryTest {
       .add(getter("bigDecimalGetter", BigDecimal.class))
       .add(getter("booleanGetter", Boolean.class))
       .add(getter("stringGetter", String.class))
-      .add(getter("timeGetter", GregorianCalendar.class))
-      .add(getter("dateGetter", Date.class))
+      .add(getter("timeGetter", DateTime.class))
+      .add(getter("dateGetter", DateTime.class))
       .build();
 
   @Rule
@@ -58,11 +58,11 @@ public class SqlRowTypeFactoryTest {
 
   @Test
   public void testContainsCorrectFields() throws Exception {
-    SqlRowTypeFactory factory = new SqlRowTypeFactory();
+    RowTypeFactory factory = new DefaultRowTypeFactory();
 
-    RowType rowType = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
+    Schema schema = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
 
-    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), rowType.getFieldCount());
+    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), schema.getFieldCount());
     assertEquals(
         Arrays.asList(
             "byteGetter",
@@ -76,37 +76,14 @@ public class SqlRowTypeFactoryTest {
             "stringGetter",
             "timeGetter",
             "dateGetter"),
-        rowType.getFieldNames());
-  }
-
-  @Test
-  public void testContainsCorrectCoders() throws Exception {
-    SqlRowTypeFactory factory = new SqlRowTypeFactory();
-
-    RowType rowType = factory.createRowType(GETTERS_FOR_KNOWN_TYPES);
-
-    assertEquals(GETTERS_FOR_KNOWN_TYPES.size(), rowType.getFieldCount());
-    assertEquals(
-        Arrays.asList(
-            SqlTypeCoders.TINYINT,
-            SqlTypeCoders.SMALLINT,
-            SqlTypeCoders.INTEGER,
-            SqlTypeCoders.BIGINT,
-            SqlTypeCoders.FLOAT,
-            SqlTypeCoders.DOUBLE,
-            SqlTypeCoders.DECIMAL,
-            SqlTypeCoders.BOOLEAN,
-            SqlTypeCoders.VARCHAR,
-            SqlTypeCoders.TIME,
-            SqlTypeCoders.TIMESTAMP),
-        rowType.getRowCoder().getCoders());
+        schema.getFieldNames());
   }
 
   @Test
   public void testThrowsForUnsupportedTypes() throws Exception {
     thrown.expect(UnsupportedOperationException.class);
 
-    SqlRowTypeFactory factory = new SqlRowTypeFactory();
+    RowTypeFactory factory = new DefaultRowTypeFactory();
 
     factory.createRowType(
         Arrays.<FieldValueGetter>asList(getter("arrayListGetter", ArrayList.class)));

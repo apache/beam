@@ -20,8 +20,8 @@ package org.apache.beam.sdk.extensions.sql;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.stream.Collectors.toList;
+import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.apache.beam.sdk.values.Row.toRow;
-import static org.apache.beam.sdk.values.RowType.toRowType;
 
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
@@ -29,14 +29,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.sdk.values.RowType;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Instant;
 
@@ -66,7 +67,7 @@ public class TestUtils {
     return strs;
   }
 
-  public static RowsBuilder rowsBuilderOf(RowType type) {
+  public static RowsBuilder rowsBuilderOf(Schema type) {
     return RowsBuilder.of(type);
   }
 
@@ -88,7 +89,7 @@ public class TestUtils {
    * {@code}
    */
   public static class RowsBuilder {
-    private RowType type;
+    private Schema type;
     private List<Row> rows = new ArrayList<>();
 
     /**
@@ -105,9 +106,9 @@ public class TestUtils {
      * @args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
-      RowType beamSQLRowType = buildBeamSqlRowType(args);
+      Schema beamSQLSchema = buildBeamSqlRowType(args);
       RowsBuilder builder = new RowsBuilder();
-      builder.type = beamSQLRowType;
+      builder.type = beamSQLSchema;
 
       return builder;
     }
@@ -118,14 +119,14 @@ public class TestUtils {
      * <p>For example:
      * <pre>{@code
      * TestUtils.RowsBuilder.of(
-     *   rowType
+     *   schema
      * )}</pre>
      *
      * @beamSQLRowType the row type.
      */
-    public static RowsBuilder of(final RowType rowType) {
+    public static RowsBuilder of(final Schema schema) {
       RowsBuilder builder = new RowsBuilder();
-      builder.type = rowType;
+      builder.type = schema;
 
       return builder;
     }
@@ -171,12 +172,12 @@ public class TestUtils {
   }
 
   static class PCollectionBuilder {
-    private RowType type;
+    private Schema type;
     private List<Row> rows;
     private String timestampField;
     private Pipeline pipeline;
 
-    public PCollectionBuilder withRowType(RowType type) {
+    public PCollectionBuilder withRowType(Schema type) {
       this.type = type;
       return this;
     }
@@ -211,14 +212,14 @@ public class TestUtils {
       checkArgument(rows.size() > 0);
 
       if (type == null) {
-        type = rows.get(0).getRowType();
+        type = rows.get(0).getSchema();
       }
 
       TestStream.Builder<Row> values = TestStream.create(type.getRowCoder());
 
       for (Row row : rows) {
         if (timestampField != null) {
-          values = values.advanceWatermarkTo(new Instant(row.getDate(timestampField)));
+          values = values.advanceWatermarkTo(new Instant(row.getDateTime(timestampField)));
         }
 
         values = values.addElements(row);
@@ -244,17 +245,21 @@ public class TestUtils {
    *   )
    * }</pre>
    */
-  public static RowType buildBeamSqlRowType(Object... args) {
+  public static Schema buildBeamSqlRowType(Object... args) {
     return
         Stream
             .iterate(0, i -> i + 2)
             .limit(args.length / 2)
             .map(i -> toRecordField(args, i))
-            .collect(toRowType());
+            .collect(toSchema());
   }
 
-  private static RowType.Field toRecordField(Object[] args, int i) {
-    return RowType.newField((String) args[i + 1], (Coder) args[i]);
+  // TODO: support nested.
+  // TODO: support nullable.
+  private static Schema.Field toRecordField(Object[] args, int i) {
+    return Schema.Field.of((String) args[i + 1],
+        FieldType.of((TypeName) args[i]))
+        .withNullable(true);
   }
 
   /**
@@ -264,14 +269,14 @@ public class TestUtils {
    *
    * <pre>{@code
    *   buildRows(
-   *       rowType,
+   *       schema,
    *       1, 1, 1, // the first row
    *       2, 2, 2, // the second row
    *       ...
    *   )
    * }</pre>
    */
-  public static List<Row> buildRows(RowType type, List<?> rowsValues) {
+  public static List<Row> buildRows(Schema type, List<?> rowsValues) {
     return
         Lists
             .partition(rowsValues, type.getFieldCount())

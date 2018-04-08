@@ -19,7 +19,7 @@
 package org.apache.beam.sdk.values.reflect;
 
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.values.RowType;
+import org.apache.beam.sdk.schemas.Schema;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
@@ -30,14 +30,14 @@ import org.apache.beam.sdk.values.RowType;
  * For example Beam SQL uses custom mapping via java.sql.Types.
  *
  * <p>Default implementation is {@link DefaultRowTypeFactory}.
- * It returns instances of {@link RowType}, mapping {@link FieldValueGetter#type()}
+ * It returns instances of {@link Schema}, mapping {@link FieldValueGetter#type()}
  * to known coders.
  */
 @Internal
 public interface RowTypeFactory {
 
   /**
-   * Create a {@link RowType} for the list of the pojo field getters.
+   * Create a {@link Schema} for the list of the pojo field getters.
    */
-  RowType createRowType(Iterable<FieldValueGetter> getters);
+  Schema createRowType(Iterable<FieldValueGetter> getters);
 }

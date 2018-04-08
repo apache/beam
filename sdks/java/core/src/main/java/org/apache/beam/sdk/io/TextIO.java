@@ -162,7 +162,7 @@ import org.joda.time.Duration;
  * <pre>{@code
  *   PCollection<Event> events = ...;
  *   events.apply(FileIO.<EventType, Event>writeDynamic()
- *         .by(Event::getType)
+ *         .by(Event::getTypeName)
  *         .via(TextIO.sink(), Event::toString)
  *         .to(type -> nameFilesUsingWindowPaneAndShard(".../events/" + type + "/data", ".txt")));
  * }</pre>

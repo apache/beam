@@ -80,8 +80,8 @@ public class BeamProjectRel extends Project implements BeamRelNode {
               stageName,
               ParDo.of(
                   new BeamSqlProjectFn(
-                      getRelTypeName(), executor, CalciteUtils.toBeamRowType(rowType))));
-      projectStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRowCoder());
+                      getRelTypeName(), executor, CalciteUtils.toBeamSchema(rowType))));
+      projectStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
 
       return projectStream;
     }

@@ -30,16 +30,16 @@ public class BeamSqlInputRefExpressionTest extends BeamSqlFnExecutorTestBase {
   @Test
   public void testRefInRange() {
     BeamSqlInputRefExpression ref0 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0);
-    Assert.assertEquals(row.getLong(0), ref0.evaluate(row, null).getValue());
+    Assert.assertEquals(row.getInt64(0), ref0.evaluate(row, null).getValue());
 
     BeamSqlInputRefExpression ref1 = new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1);
-    Assert.assertEquals(row.getInteger(1), ref1.evaluate(row, null).getValue());
+    Assert.assertEquals(row.getInt32(1), ref1.evaluate(row, null).getValue());
 
     BeamSqlInputRefExpression ref2 = new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2);
     Assert.assertEquals(row.getDouble(2), ref2.evaluate(row, null).getValue());
 
     BeamSqlInputRefExpression ref3 = new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3);
-    Assert.assertEquals(row.getLong(3), ref3.evaluate(row, null).getValue());
+    Assert.assertEquals(row.getInt64(3), ref3.evaluate(row, null).getValue());
   }
 
 
