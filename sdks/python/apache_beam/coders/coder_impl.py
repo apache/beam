@@ -25,12 +25,26 @@ This module may be optionally compiled with Cython, using the corresponding
 coder_impl.pxd file for type hints.
 
 For internal use only; no backwards-compatibility guarantees.
+
+isort:skip_file
 """
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-from types import NoneType
+native_int = int
 
-import six
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+from builtins import bytes
+from builtins import chr
+from builtins import int
+from builtins import object
+from builtins import range
+from builtins import str
+
+from past.builtins import str as old_str
+from past.builtins import long
+from past.builtins import unicode
 
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
@@ -38,7 +52,6 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from .stream import InputStream as create_InputStream
   from .stream import OutputStream as create_OutputStream
@@ -53,11 +66,6 @@ except ImportError:
   from .slow_stream import ByteCountingOutputStream
   from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
-
-try:
-  long        # Python 2
-except NameError:
-  long = int  # Python 3
 
 
 class CoderImpl(object):
@@ -199,7 +207,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     self._step_label = step_label
 
   def _check_safe(self, value):
-    if isinstance(value, (str, six.text_type, long, int, float)):
+    if isinstance(value, (str, bytes, int, float)):
       pass
     elif value is None:
       pass
@@ -279,18 +287,21 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
-    if t is NoneType:
+    if value is None:
       stream.write_byte(NONE_TYPE)
-    elif t is int:
+    elif t is bool:
+      stream.write_byte(BOOL_TYPE)
+      stream.write_byte(value)
+    elif t is int or t is native_int or t is long:
       stream.write_byte(INT_TYPE)
       stream.write_var_int64(value)
     elif t is float:
       stream.write_byte(FLOAT_TYPE)
       stream.write_bigendian_double(value)
-    elif t is str:
+    elif t is bytes or t is old_str:
       stream.write_byte(STR_TYPE)
       stream.write(value, nested)
-    elif t is six.text_type:
+    elif t is str or t is unicode:
       unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
       stream.write(unicode_value.encode('utf-8'), nested)
@@ -304,12 +315,9 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       dict_value = value  # for typing
       stream.write_byte(DICT_TYPE)
       stream.write_var_int64(len(dict_value))
-      for k, v in dict_value.iteritems():
+      for k, v in dict_value.items():
         self.encode_to_stream(k, stream, True)
         self.encode_to_stream(v, stream, True)
-    elif t is bool:
-      stream.write_byte(BOOL_TYPE)
-      stream.write_byte(value)
     else:
       stream.write_byte(UNKNOWN_TYPE)
       self.fallback_coder_impl.encode_to_stream(value, stream, nested)
@@ -318,6 +326,8 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     t = stream.read_byte()
     if t == NONE_TYPE:
       return None
+    elif t == BOOL_TYPE:
+      return not not stream.read_byte()
     elif t == INT_TYPE:
       return stream.read_var_int64()
     elif t == FLOAT_TYPE:
@@ -341,8 +351,6 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
         k = self.decode_from_stream(stream, True)
         v[k] = self.decode_from_stream(stream, True)
       return v
-    elif t == BOOL_TYPE:
-      return not not stream.read_byte()
 
     return self.fallback_coder_impl.decode_from_stream(stream, nested)
 
@@ -394,8 +402,9 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     span_micros = value.end.micros - value.start.micros
-    out.write_bigendian_uint64(self._from_normal_time(value.end.micros / 1000))
-    out.write_var_int64(span_micros / 1000)
+    out.write_bigendian_uint64(
+        self._from_normal_time(value.end.micros // 1000))
+    out.write_var_int64(span_micros // 1000)
 
   def decode_from_stream(self, in_, nested):
     end_millis = self._to_normal_time(in_.read_bigendian_uint64())
@@ -409,7 +418,7 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
     # An IntervalWindow is context-insensitive, with a timestamp (8 bytes)
     # and a varint timespam.
     span = value.end.micros - value.start.micros
-    return 8 + get_varint_size(span / 1000)
+    return 8 + get_varint_size(span // 1000)
 
 
 class TimestampCoderImpl(StreamCoderImpl):
@@ -427,7 +436,7 @@ class TimestampCoderImpl(StreamCoderImpl):
     return 8
 
 
-small_ints = [chr(_) for _ in range(128)]
+small_ints = [chr(_).encode('latin-1') for _ in range(128)]
 
 
 class VarIntCoderImpl(StreamCoderImpl):
@@ -783,7 +792,7 @@ class WindowedValueCoderImpl(StreamCoderImpl):
         # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
         # precision of timestamps.
         self._from_normal_time(
-            restore_sign * (abs(wv.timestamp_micros) / 1000)))
+            restore_sign * (abs(wv.timestamp_micros) // 1000)))
     self._windows_coder.encode_to_stream(wv.windows, out, True)
     # Default PaneInfo encoded byte representing NO_FIRING.
     self._pane_info_coder.encode_to_stream(wv.pane_info, out, True)
@@ -797,9 +806,9 @@ class WindowedValueCoderImpl(StreamCoderImpl):
     # were indeed MIN/MAX timestamps.
     # TODO(BEAM-1524): Clean this up once we have a BEAM wide consensus on
     # precision of timestamps.
-    if timestamp == -(abs(MIN_TIMESTAMP.micros) / 1000):
+    if timestamp == -(abs(MIN_TIMESTAMP.micros) // 1000):
       timestamp = MIN_TIMESTAMP.micros
-    elif timestamp == (MAX_TIMESTAMP.micros / 1000):
+    elif timestamp == (MAX_TIMESTAMP.micros // 1000):
       timestamp = MAX_TIMESTAMP.micros
     else:
       timestamp *= 1000

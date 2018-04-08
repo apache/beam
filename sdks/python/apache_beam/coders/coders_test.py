@@ -14,11 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import base64
 import logging
 import unittest
+from builtins import object
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
@@ -98,6 +101,9 @@ class DummyClass(object):
     if isinstance(other, self.__class__):
       return True
     return False
+
+  def __hash__(self):
+    return hash(type(self))
 
 
 class FallbackCoderTest(unittest.TestCase):

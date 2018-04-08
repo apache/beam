@@ -16,8 +16,14 @@
 #
 
 """Unit tests for the typecoders module."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import unittest
+from builtins import int
+from builtins import object
+from builtins import str
 
 from apache_beam.coders import coders
 from apache_beam.coders import typecoders
@@ -33,14 +39,17 @@ class CustomClass(object):
   def __eq__(self, other):
     return self.number == other.number
 
+  def __hash__(self):
+    return self.number
+
 
 class CustomCoder(coders.Coder):
 
   def encode(self, value):
-    return str(value.number)
+    return str(value.number).encode('latin-1')
 
   def decode(self, encoded):
-    return CustomClass(int(encoded))
+    return CustomClass(encoded.decode('latin-1'))
 
   def is_deterministic(self):
     # This coder is deterministic. Though we don't use need this coder to be

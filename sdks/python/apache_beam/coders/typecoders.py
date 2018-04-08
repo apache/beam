@@ -63,8 +63,14 @@ example, the above function can be decorated::
 
 See apache_beam.typehints.decorators module for more details.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-import six
+from builtins import bytes
+from builtins import int
+from builtins import object
+from builtins import str
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
@@ -84,9 +90,8 @@ class CoderRegistry(object):
     """Register coders for all basic and composite types."""
     self._register_coder_internal(int, coders.VarIntCoder)
     self._register_coder_internal(float, coders.FloatCoder)
-    self._register_coder_internal(str, coders.BytesCoder)
     self._register_coder_internal(bytes, coders.BytesCoder)
-    self._register_coder_internal(six.text_type, coders.StrUtf8Coder)
+    self._register_coder_internal(str, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
@@ -105,11 +110,21 @@ class CoderRegistry(object):
     self._register_coder_internal(typehint_type, typehint_coder_class)
 
   def get_coder(self, typehint):
-    coder = self._coders.get(
-        typehint.__class__ if isinstance(typehint, typehints.TypeConstraint)
-        else typehint, None)
-    if isinstance(typehint, typehints.TypeConstraint) and coder is not None:
-      return coder.from_type_hint(typehint, self)
+    if isinstance(typehint, typehints.TypeConstraint):
+      coder = self._coders.get(typehint.__class__)
+      if coder is not None:
+        return coder.from_type_hint(typehint, self)
+    else:
+      try:
+        t = typehint()
+        coder = self._coders.get(
+            str if isinstance(t, str)
+            else bytes if isinstance(t, bytes)
+            else int if isinstance(t, int) and not isinstance(t, bool)
+            else typehint, None)
+      except TypeError:
+        # typehint cannot be instantiated (without arguments)
+        coder = self._coders.get(typehint, None)
     if coder is None:
       # We use the fallback coder when there is no coder registered for a
       # typehint. For example a user defined class with no coder specified.
