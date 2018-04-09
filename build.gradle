@@ -109,7 +109,7 @@ rat {
 }
 check.dependsOn rat
 
-// Define root PreCommit tasks simplifying what is needed
+// Define root pre/post commit tasks simplifying what is needed
 // to be specified on the commandline when executing locally.
 // This indirection also makes Jenkins use the branch of the PR
 // for the test definitions.
@@ -120,6 +120,11 @@ task javaPreCommit() {
   dependsOn ":beam-sdks-java-maven-archetypes-examples:generateAndBuildArchetypeTest"
   dependsOn ":beam-sdks-java-maven-archetypes-starter:generateAndBuildArchetypeTest"
   dependsOn ":beam-examples-java:preCommit"
+}
+
+task javaPostCommit() {
+  dependsOn ":javaPreCommit"
+  dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
 }
 
 task goPreCommit() {

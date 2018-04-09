@@ -51,6 +51,8 @@ test {
 
 configurations {
   validatesRunner
+  examplesJavaIntegrationTest
+  googleCloudPlatformIntegrationTest
 }
 
 dependencies {
@@ -89,6 +91,10 @@ dependencies {
   shadowTest library.java.jackson_dataformat_yaml
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
+  examplesJavaIntegrationTest project(path: project.path, configuration: "shadow")
+  examplesJavaIntegrationTest project(path: ":beam-examples-java", configuration: "shadowTest")
+  googleCloudPlatformIntegrationTest project(path: project.path, configuration: "shadow")
+  googleCloudPlatformIntegrationTest project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadowTest")
 }
 
 test {
@@ -120,7 +126,6 @@ task validatesRunnerTest(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
-
   }
 }
 
@@ -134,3 +139,48 @@ task validatesRunner {
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
 createJavaQuickstartValidationTask(name: 'Dataflow', gcpProject: gcpProject, gcsBucket: gcsBucket)
+
+task googleCloudPlatformIntegrationTest(type: Test) {
+  group = "Verification"
+  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowTempRoot}",
+  ])
+
+  include '**/*IT.class'
+  maxParallelForks 4
+  classpath = configurations.googleCloudPlatformIntegrationTest
+  testClassesDirs = files(project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+task examplesJavaIntegrationTest(type: Test) {
+  group = "Verification"
+  def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+  def dataflowTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=TestDataflowRunner",
+          "--project=${dataflowProject}",
+          "--tempRoot=${dataflowTempRoot}",
+  ])
+
+  // The examples/java preCommit task already covers running WordCountIT/WindowedWordCountIT so
+  // this postCommit integration test excludes them.
+  include '**/*IT.class'
+  exclude '**/WordCountIT.class'
+  exclude '**/WindowedWordCountIT.class'
+  maxParallelForks 4
+  classpath = configurations.googleCloudPlatformIntegrationTest
+  testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
+  useJUnit { }
+}
+
+task postCommit {
+  group = "Verfication"
+  description = "Various integration tests using the Dataflow runner."
+  dependsOn googleCloudPlatformIntegrationTest
+  dependsOn examplesJavaIntegrationTest
+}
