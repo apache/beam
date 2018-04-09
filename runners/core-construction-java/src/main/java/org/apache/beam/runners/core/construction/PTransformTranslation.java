@@ -196,10 +196,13 @@ public class PTransformTranslation {
         transformBuilder.setSpec(spec);
       }
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
-      transformBuilder.setSpec(
+      FunctionSpec spec =
           KNOWN_PAYLOAD_TRANSLATORS
               .get(transform.getClass())
-              .translate(appliedPTransform, components));
+              .translate(appliedPTransform, components);
+      if (spec != null) {
+        transformBuilder.setSpec(spec);
+      }
     }
 
     return transformBuilder.build();
@@ -284,6 +287,7 @@ public class PTransformTranslation {
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
     String getUrn(T transform);
 
+    @Nullable
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
         throws IOException;
 
