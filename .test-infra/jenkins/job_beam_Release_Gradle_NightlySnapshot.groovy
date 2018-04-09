@@ -40,7 +40,8 @@ job('beam_Release_Gradle_NightlySnapshot') {
   def gradle_switches = [
     // Publish a snapshot build.
     "-Ppublishing",
-    // Don't run tasks in parallel, to improve reliability.
+    // Don't run tasks in parallel, currently the maven-publish/signing plugins
+    // cause build failures when run in parallel with messages like 'error snapshotting'
     '--no-parallel',
   ]
   def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' publish'
