@@ -174,7 +174,7 @@ task examplesJavaIntegrationTest(type: Test) {
   exclude '**/WordCountIT.class'
   exclude '**/WindowedWordCountIT.class'
   maxParallelForks 4
-  classpath = configurations.googleCloudPlatformIntegrationTest
+  classpath = configurations.examplesJavaIntegrationTest
   testClassesDirs = files(project(":beam-examples-java").sourceSets.test.output.classesDirs)
   useJUnit { }
 }
