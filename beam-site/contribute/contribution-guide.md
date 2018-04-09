@@ -246,9 +246,9 @@ to prevent the issue from reoccurring.
 
 #### Java SDK
 
-For contributions to the Java code, run unit tests locally via Gradle.
+For contributions to the Java code, run checks locally via Gradle.
 
-    $ ./gradlew clean && ./gradlew :sdks:java:check
+    $ ./gradlew clean && ./gradlew :beam-sdks-java-core:check
 
 #### Python SDK
 
@@ -275,7 +275,7 @@ Beam supports running Python SDK tests using Gradle. For this, navigate to root
 directory of your Apache Beam clone and execute following command. Currently
 this cannot be run from a virtual environment.
 
-    $ ./gradlew clean && ./gradlew :sdks:python:check
+    $ ./gradlew clean && ./gradlew :beam-sdks-python:check
 
 ## Review
 
