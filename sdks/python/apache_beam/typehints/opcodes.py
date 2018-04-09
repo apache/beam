@@ -161,6 +161,8 @@ def binary_subscr(state, unused_arg):
       out = base.tuple_types[const_index]
     else:
       out = element_type(base)
+  elif index == slice:
+    out = typehints.List[element_type(base)]
   else:
     out = element_type(base)
   state.stack.append(out)
@@ -344,7 +346,7 @@ def load_deref(state, arg):
 def call_function(state, arg, has_var=False, has_kw=False):
   # TODO(robertwb): Recognize builtins and dataflow objects
   # (especially special return values).
-  pop_count = (arg & 0xF) + (arg & 0xF0) // 8 + 1 + has_var + has_kw
+  pop_count = (arg & 0xFF) + 2 * (arg >> 8) + 1 + has_var + has_kw
   state.stack[-pop_count:] = [Any]
 
 
@@ -368,7 +370,7 @@ def make_closure(state, arg):
 
 
 def build_slice(state, arg):
-  state.stack[-arg:] = [Any]  # a slice object
+  state.stack[-arg:] = [slice]  # a slice object
 
 
 def call_function_var(state, arg):
