@@ -357,15 +357,6 @@ message CombinePayload {
 
   // (Required) A reference to the Coder to use for accumulators of the CombineFn
   string accumulator_coder_id = 2;
-
-  // (Required) Additional pieces of context the DoFn may require that
-  // are not otherwise represented in the payload.
-  // (may force runners to execute the ParDo differently)
-  repeated Parameter parameters = 3;
-
-  // (Optional) A mapping of local input names to side inputs, describing
-  // the expected access pattern.
-  map<string, SideInput> side_inputs = 4;
 }
 
 // The payload for the test-only primitive TestStream
