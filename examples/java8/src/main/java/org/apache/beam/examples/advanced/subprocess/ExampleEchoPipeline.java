@@ -37,9 +37,15 @@ import org.slf4j.LoggerFactory;
 /**
  * In this example batch pipeline we will invoke a simple Echo C++ library within a DoFn The sample
  * makes use of a ExternalLibraryDoFn class which abstracts the setup and processing of the
- * executable, logs and results. For this example we are using commands passed to the library based
+ * executable, logs and results.
+ *
+ * For this example we are using commands passed to the library based
  * on ordinal position but for a production system you should use a mechanism like ProtoBuffers with
  * Base64 encoding to pass the parameters to the library
+ *
+ * To test this example you will need to build the Echo.cc and EchoAgain.cc in a linux env to match
+ * the runner that you are using. Once built copy them to the SourcePath defined in
+ * {@link SubProcessPipelineOptions}
  *
  */
 public class ExampleEchoPipeline {
@@ -65,8 +71,10 @@ public class ExampleEchoPipeline {
 
     // Define the pipeline which is two transforms echoing the inputs out to Logs
     p.apply(Create.of(sampleData))
-        .apply("Echo inputs round 1", ParDo.of(new EchoInputDoFn(configuration, "hello-linux")))
-        .apply("Echo inputs round 2", ParDo.of(new EchoInputDoFn(configuration, "hello-linux")));
+        .apply("Echo inputs round 1", ParDo.of(
+            new EchoInputDoFn(configuration, "Echo")))
+        .apply("Echo inputs round 2", ParDo.of(
+            new EchoInputDoFn(configuration, "EchoAgain")));
 
     p.run();
   }
@@ -116,4 +124,13 @@ public class ExampleEchoPipeline {
       }
     }
   }
+  private static String getTestShellEcho(){
+    return "#!/bin/sh\n" + "filename=$1;\n" + "echo $2 >> $filename;";
+  }
+
+  private static String getTestShellEchoAgain(){
+    return "#!/bin/sh\n" + "filename=$1;\n"
+        + "echo \"You again? Well ok, here is your word again.\" >> $2 >> $filename;";
+  }
+
 }

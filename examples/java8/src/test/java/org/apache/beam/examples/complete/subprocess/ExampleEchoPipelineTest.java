@@ -37,6 +37,7 @@ import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessKernel;
 import org.apache.beam.examples.advanced.subprocess.utils.CallingSubProcessUtils;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -67,7 +69,7 @@ public class ExampleEchoPipelineTest {
 
   @Test public void testExampleEchoPipeline() throws Exception {
 
-    // Place example files into /tmp
+    // Create two Bash files as tests for the binary files
 
     Path fileA = Files.createTempFile("test-Echo", ".sh");
     Path fileB = Files.createTempFile("test-EchoAgain", ".sh");
@@ -102,6 +104,7 @@ public class ExampleEchoPipelineTest {
 
     // Create some sample data to be fed to our c++ Echo library
     List<KV<String, String>> sampleData = new ArrayList<>();
+
     for (int i = 0; i < 100; i++) {
       String str = String.valueOf(i);
       sampleData.add(KV.of(str, str));
@@ -110,12 +113,17 @@ public class ExampleEchoPipelineTest {
     // Define the pipeline which is two transforms echoing the inputs out to Logs
     // For this use case we will make use of two shell files instead of the binary to make
     // testing easier
-    p.apply(Create.of(sampleData))
+    PCollection<KV<String, String>> output = p.apply(Create.of(sampleData))
         .apply("Echo inputs round 1",
             ParDo.of(new EchoInputDoFn(configuration, fileA.getFileName().toString())))
         .apply("Echo inputs round 2",
             ParDo.of(new EchoInputDoFn(configuration, fileB.getFileName().toString())));
+
+    PAssert.that(output).containsInAnyOrder(sampleData);
+
     p.run();
+
+
   }
 
   /**
@@ -167,9 +175,9 @@ public class ExampleEchoPipelineTest {
   }
 
   private static String getTestShellEchoAgain(){
-    return "#!/bin/sh\n" + "filename=$1;\n"
-        + "echo \"You again? Well ok, here is your word again.\" >> $2 >> $filename;";
+    return "#!/bin/sh\n" + "filename=$1;\n" + "echo $2 >> $filename;";
   }
+
   private GcsUtil buildMockGcsUtil() throws IOException {
     GcsUtil mockGcsUtil = Mockito.mock(GcsUtil.class);
 
