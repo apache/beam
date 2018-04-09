@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-extensions-sketching")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sketching"
 
@@ -26,14 +26,14 @@ def tdigest_version = "3.2"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow "com.clearspring.analytics:stream:$streamlib_version"
   shadow "com.tdunning:t-digest:$tdigest_version"
   shadow library.java.slf4j_api
   shadowTest library.java.avro
   shadowTest library.java.commons_lang3
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest project(path: ":runners:direct-java", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
 }

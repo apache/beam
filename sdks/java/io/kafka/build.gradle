@@ -17,13 +17,14 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-kafka", enableFindbugs: false)
+applyJavaNature(enableFindbugs: false)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
+ext.summary = "Library to read Kafka topics."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.kafka_clients
   shadow library.java.slf4j_api
   shadow library.java.joda_time
@@ -31,8 +32,8 @@ dependencies {
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
   shadow "org.springframework:spring-expression:4.3.5.RELEASE"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14

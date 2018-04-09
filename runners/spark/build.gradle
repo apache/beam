@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-spark")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Spark"
 
@@ -30,9 +30,9 @@ description = "Apache Beam :: Runners :: Spark"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":model:fn-execution")
-evaluationDependsOn(":runners:core-java")
-evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":beam-model-fn-execution")
+evaluationDependsOn(":beam-runners-core-java")
+evaluationDependsOn(":beam-sdks-java-core")
 
 configurations {
   validatesRunner
@@ -56,10 +56,10 @@ test {
 }
 
 dependencies {
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow project(path: ":runners:core-java", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.guava
   shadow library.java.jackson_annotations
@@ -79,17 +79,17 @@ dependencies {
   provided "org.apache.zookeeper:zookeeper:3.4.6"
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
-  shadowTest project(path: ":sdks:java:io:kafka", configuration: "shadow")
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(":runners:core-java").sourceSets.test.output
+  shadowTest project(":beam-runners-core-java").sourceSets.test.output
   shadowTest library.java.avro
   shadowTest library.java.kafka_clients
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_dataformat_yaml
-  shadowTest library.java.kafka_2_11
-  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest "org.apache.kafka:kafka_2.11:0.11.0.1"
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "provided")
@@ -119,7 +119,7 @@ task validatesRunnerBatch(type: Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
 
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
   forkEvery 1
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
@@ -154,5 +154,5 @@ task validatesRunner {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :runners:spark:runQuickstartJavaSpark
+// Generates :beam-runners-spark:runQuickstartJavaSpark
 createJavaQuickstartValidationTask(name: 'Spark')

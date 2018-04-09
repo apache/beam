@@ -115,20 +115,20 @@ check.dependsOn rat
 // for the test definitions.
 task javaPreCommit() {
   dependsOn ":rat"
-  dependsOn ":sdks:java:core:buildNeeded"
-  dependsOn ":sdks:java:core:buildDependents"
-  dependsOn ":sdks:java:maven-archetypes:examples:generateAndBuildArchetypeTest"
-  dependsOn ":sdks:java:maven-archetypes:starter:generateAndBuildArchetypeTest"
-  dependsOn ":examples:java:preCommit"
+  dependsOn ":beam-sdks-java-core:buildNeeded"
+  dependsOn ":beam-sdks-java-core:buildDependents"
+  dependsOn ":beam-sdks-java-maven-archetypes-examples:generateAndBuildArchetypeTest"
+  dependsOn ":beam-sdks-java-maven-archetypes-starter:generateAndBuildArchetypeTest"
+  dependsOn ":beam-examples-java:preCommit"
 }
 
 task goPreCommit() {
   dependsOn ":rat"
-  dependsOn ":sdks:go:test"
+  dependsOn ":beam-sdks-go:test"
 }
 
 task pythonPreCommit() {
   dependsOn ":rat"
-  dependsOn ":sdks:python:check"
+  dependsOn ":beam-sdks-python:check"
 }
 

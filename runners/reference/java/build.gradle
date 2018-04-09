@@ -17,13 +17,16 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-reference-java")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Reference :: Java"
+ext.summary = """A Java implementation of the Beam Model which utilizes the portability
+framework to execute user-definied functions."""
+
 
 dependencies {
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow library.java.slf4j_api
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

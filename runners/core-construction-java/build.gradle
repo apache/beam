@@ -17,9 +17,12 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-core-construction-java")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Core Construction Java"
+ext.summary = """Beam Runners Core provides utilities to aid runner authors interact with a Pipeline
+prior to execution."""
+
 
 // Exclude tests that need a runner
 test {
@@ -32,9 +35,9 @@ test {
 dependencies {
   compile library.java.guava
   compileOnly library.java.findbugs_annotations
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-job-management", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
   shadow library.java.jackson_core

@@ -17,9 +17,10 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-file-based-io-tests")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
+ext.summary = "Integration tests for reading/writing using file-based sources/sinks."
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
@@ -28,14 +29,14 @@ description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":sdks:java:io:common")
+evaluationDependsOn(":beam-sdks-java-io-common")
 
 dependencies {
-  shadowTest project(":sdks:java:core")
-  shadowTest project(":runners:direct-java").sourceSets.test.output
-  shadowTest project(":sdks:java:io:common")
-  shadowTest project(":sdks:java:io:common").sourceSets.test.output
-  shadowTest project(":sdks:java:io:xml")
+  shadowTest project(":beam-sdks-java-core")
+  shadowTest project(":beam-runners-direct-java").sourceSets.test.output
+  shadowTest project(":beam-sdks-java-io-common")
+  shadowTest project(":beam-sdks-java-io-common").sourceSets.test.output
+  shadowTest project(":beam-sdks-java-io-xml")
   shadowTest library.java.guava
   shadowTest library.java.junit
   shadowTest library.java.hamcrest_core
