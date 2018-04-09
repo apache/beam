@@ -404,7 +404,7 @@ class OrderedCode {
   }
 
   private byte[] readBytes(boolean invert) {
-    if ((encodedArrays == null) || encodedArrays.isEmpty() || (
+    if (encodedArrays.isEmpty() || (
         (encodedArrays.get(0)).length - firstArrayPosition <= 0)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -492,7 +492,7 @@ class OrderedCode {
    * @see #writeNumIncreasing(long)
    */
   public long readNumIncreasing() {
-    if ((encodedArrays == null) || encodedArrays.isEmpty() || (
+    if (encodedArrays.isEmpty() || (
         (encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -529,7 +529,7 @@ class OrderedCode {
    * @see #writeNumDecreasing(long)
    */
   public long readNumDecreasing() {
-    if ((encodedArrays == null) || encodedArrays.isEmpty()
+    if (encodedArrays.isEmpty()
         || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -566,7 +566,7 @@ class OrderedCode {
    * @see #writeSignedNumIncreasing(long)
    */
   public long readSignedNumIncreasing() {
-    if ((encodedArrays == null) || encodedArrays.isEmpty() || (
+    if (encodedArrays.isEmpty() || (
         (encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -659,7 +659,7 @@ class OrderedCode {
   }
 
   private boolean readInfinityInternal(byte[] codes) {
-    if ((encodedArrays == null) || encodedArrays.isEmpty()
+    if (encodedArrays.isEmpty()
         || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -689,7 +689,7 @@ class OrderedCode {
    */
   public byte[] readTrailingBytes() {
     // one item is contained within one byte array
-    if ((encodedArrays == null) || (encodedArrays.size() != 1)) {
+    if (encodedArrays.size() != 1) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 
@@ -758,6 +758,6 @@ class OrderedCode {
    */
   public boolean hasRemainingEncodedBytes() {
     // We delete an array after fully consuming it.
-    return encodedArrays != null && encodedArrays.size() != 0;
+    return encodedArrays.size() != 0;
   }
 }

@@ -356,13 +356,14 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     opname = dis.opname[op]
     jmp = jmp_state = None
     if opname.startswith('CALL_FUNCTION'):
-      standard_args = (arg & 0xF) + (arg & 0xF0) // 8
+      # Each keyword takes up two arguments on the stack (name and value).
+      standard_args = (arg & 0xFF) + 2 * (arg >> 8)
       var_args = 'VAR' in opname
       kw_args = 'KW' in opname
       pop_count = standard_args + var_args + kw_args + 1
       if depth <= 0:
         return_type = Any
-      elif arg & 0xF0:
+      elif arg >> 8:
         # TODO(robertwb): Handle this case.
         return_type = Any
       elif isinstance(state.stack[-pop_count], Const):

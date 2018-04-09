@@ -351,10 +351,8 @@ class Injector {
     } catch (Exception e) {
       e.printStackTrace();
     } finally {
-      if (out != null) {
-        out.flush();
-        out.close();
-      }
+      out.flush();
+      out.close();
     }
   }
 
