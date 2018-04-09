@@ -19,17 +19,22 @@ section_menu: section-menu/contribute.html
 
 1. Create an empty IntelliJ project outside of the Beam source tree.
 2. Under Project Structure > Project, select a Project SDK.
-3. Under Project Structure > Modules, click the + sign to add a module and select "Import Module".
+3. Under Project Structure > Modules, click the + sign to add a module and
+   select "Import Module".
     1. Select the directory containing the Beam source tree.
-    2. Tick the "Import module from external model" button and select Gradle from the list.
+    2. Tick the "Import module from external model" button and select Gradle
+       from the list.
     3. Tick the following boxes.
        * Use auto-import
        * Create separate module per source set
        * Store generated project files externally
        * Use default gradle wrapper
+4. Delegate build actions to Gradle by going to Settings > Build, Execution,
+   Deployment > Build Tools > Gradle and checking "Delegate IDE build/run
+   actions to gradle".
 
-This should result in a working Gradle project. Build the project by executing the "build" task in
-the root Gradle module.
+This should result in a working Gradle project. Build the project by executing
+the "build" task in the root Gradle module.
 
 ## Enable Annotation Processing
 
