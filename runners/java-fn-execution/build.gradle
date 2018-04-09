@@ -16,7 +16,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-java-fn-execution")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Java Fn Execution"
 
@@ -27,21 +27,21 @@ description = "Apache Beam :: Runners :: Java Fn Execution"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":sdks:java:fn-execution")
+evaluationDependsOn(":beam-sdks-java-fn-execution")
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":model:fn-execution", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:fn-execution", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.grpc_netty
   shadow library.java.slf4j_api
-  testCompile project(":sdks:java:harness")
-  testCompile project(path: ":runners:core-construction-java", configuration: "shadow")
+  testCompile project(":beam-sdks-java-harness")
+  testCompile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

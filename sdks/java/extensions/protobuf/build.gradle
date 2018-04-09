@@ -17,16 +17,17 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-extensions-protobuf")
+applyJavaNature()
 applyGrpcNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
+ext.summary = "Add support to Apache Beam for Google Protobuf."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.protobuf_java
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
   testCompile library.java.junit

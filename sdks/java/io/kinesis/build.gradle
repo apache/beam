@@ -17,9 +17,10 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-kinesis")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Kinesis"
+ext.summary = "Library to read Kinesis streams."
 
 test {
   // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.
@@ -30,7 +31,7 @@ def aws_version = "1.11.255"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
@@ -41,7 +42,7 @@ dependencies {
   shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
   shadow "com.amazonaws:amazon-kinesis-producer:0.12.8"
   shadow "commons-lang:commons-lang:2.6"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib

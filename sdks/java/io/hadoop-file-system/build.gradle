@@ -17,13 +17,14 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-hadoop-file-system")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
+ext.summary = "Library to read and write Hadoop/HDFS file formats from Beam."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.jackson_core
   shadow library.java.jackson_databind
   shadow library.java.slf4j_api
@@ -31,8 +32,8 @@ dependencies {
   provided library.java.hadoop_client
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
