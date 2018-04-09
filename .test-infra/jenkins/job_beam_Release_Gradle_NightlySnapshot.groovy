@@ -18,24 +18,16 @@
 
 import common_job_properties
 
-// This is the nightly snapshot build -- we use this to deploy a daily snapshot
-// to https://repository.apache.org/content/groups/snapshots/org/apache/beam.
-// Runs the postsubmit suite before deploying.
-mavenJob('beam_Release_NightlySnapshot') {
-  description('Runs a mvn clean deploy of the nightly snapshot.')
+// This creates the nightly snapshot build.
+// Into https://repository.apache.org/content/groups/snapshots/org/apache/beam.
+job('beam_Release_Gradle_NightlySnapshot') {
+  description('Publish a nightly snapshot.')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()
 
-  // Set common parameters. Huge timeout because we really do need to
-  // run all the ITs and release the artifacts.
-  common_job_properties.setTopLevelMainJobProperties(
-      delegate,
-      'master',
-      240)
-
-  // Set maven paramaters.
-  common_job_properties.setMavenConfig(delegate)
+  // Set common parameters.
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
   // This is a post-commit job that runs once per day, not for every push.
   common_job_properties.setPostCommit(
@@ -44,18 +36,29 @@ mavenJob('beam_Release_NightlySnapshot') {
       false,
       'dev@beam.apache.org')
 
-  // Maven goals for this job.
-  goals('''\
-      clean deploy \
-      --batch-mode \
-      --errors \
-      --fail-at-end \
-      -P release,dataflow-runner \
-      -D skipITs=false \
-      -D integrationTestPipelineOptions=\'[ \
-        "--project=apache-beam-testing", \
-        "--tempRoot=gs://temp-storage-for-end-to-end-tests", \
-        "--runner=TestDataflowRunner" \
-      ]\'\
-  ''')
+
+  def gradle_switches = [
+    // Publish a snapshot build.
+    "-Ppublishing",
+    // Don't run tasks in parallel, to improve reliability.
+    '--no-parallel',
+  ]
+  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' publish'
+
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      gradle_command_line,
+      'Run Gradle Publish')
+
+  steps {
+    gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
+      tasks('publish')
+      for (String gradle_switch : gradle_switches) {
+        switches(gradle_switch)
+      }
+    }
+  }
 }
+
