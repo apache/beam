@@ -84,9 +84,9 @@ code. Some images, notably python, take a while to build, so building just
 the specific images needed can be a lot faster:
 
 ```
-$ ./gradlew :sdks:java:container:docker
-$ ./gradlew :sdks:python:container:docker
-$ ./gradlew :sdks:go:containers:docker
+$ ./gradlew -p sdks/java/container docker
+$ ./gradlew -p sdks/python/container docker
+$ ./gradlew -p sdks/go/container docker
 ```
 
 **(Optional)** When built, you can see, inspect and run them locally:
