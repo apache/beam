@@ -29,7 +29,7 @@ job('beam_PostCommit_Java_ValidatesRunner_Spark_Gradle') {
 
   def gradle_switches = [
     // Gradle log verbosity enough to diagnose basic build issues
-    "--debug",
+    "--info",
     // Continue the build even if there is a failure to show as many potential failures as possible.
     '--continue',
     // Until we verify the build cache is working appropriately, force rerunning all tasks
