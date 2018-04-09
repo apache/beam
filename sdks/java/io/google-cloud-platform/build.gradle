@@ -69,11 +69,33 @@ dependencies {
   shadow library.java.proto_google_common_protos
   shadow library.java.grpc_all
   shadow library.java.netty_tcnative_boringssl_static
-  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(":beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
-  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
-  testCompile library.java.hamcrest_core
-  testCompile library.java.mockito_core
-  testCompile library.java.junit
-  testCompile library.java.slf4j_jdk14
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(":beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.mockito_core
+  shadowTest library.java.junit
+  shadowTest library.java.slf4j_jdk14
+}
+
+// Create a shaded test jar.
+task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+  classifier = "shaded-tests"
+  from sourceSets.test.output
+  configurations = [project.configurations.testRuntime]
+  dependencies {
+    exclude(".*")
+    include(dependency(library.java.guava))
+  }
+  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
+    // com.google.common is too generic, need to exclude guava-testlib
+    exclude "com.google.common.collect.testing.**"
+    exclude "com.google.common.escape.testing.**"
+    exclude "com.google.common.testing.**"
+    exclude "com.google.common.util.concurrent.testing.**"
+  }
+}
+
+artifacts {
+  shadowTest shadowTestJar
 }

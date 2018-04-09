@@ -44,7 +44,7 @@ job('beam_PreCommit_Java_GradleBuild') {
     '--continue',
     // Until we verify the build cache is working appropriately, force rerunning all tasks
     '--rerun-tasks',
-    // Specify maven home on Jenkins
+    // Specify maven home on Jenkins, needed by Maven archetype integration tests.
     '-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2'
   ]
 
