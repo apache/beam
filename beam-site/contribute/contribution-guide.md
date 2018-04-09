@@ -248,7 +248,7 @@ to prevent the issue from reoccurring.
 
 For contributions to the Java code, run checks locally via Gradle.
 
-    $ ./gradlew clean && ./gradlew :beam-sdks-java-core:check
+    $ ./gradlew :beam-sdks-java-core:check --rerun-tasks
 
 #### Python SDK
 
@@ -275,7 +275,7 @@ Beam supports running Python SDK tests using Gradle. For this, navigate to root
 directory of your Apache Beam clone and execute following command. Currently
 this cannot be run from a virtual environment.
 
-    $ ./gradlew clean && ./gradlew :beam-sdks-python:check
+    $ ./gradlew :beam-sdks-python:check --rerun-tasks
 
 ## Review
 
