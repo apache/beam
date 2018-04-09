@@ -128,8 +128,12 @@ func SerializeHooksToOptions() {
 
 // DeserializeHooksFromOptions extracts the hook configuration information from the options and configures
 // the hooks with the supplied options.
-func DeserializeHooksFromOptions() {
+func DeserializeHooksFromOptions(ctx context.Context) {
 	cfg := runtime.GlobalOptions.Get("hooks")
+	if cfg == "" {
+		log.Warn(ctx, "SerializeHooksToOptions was never called. No hooks enabled")
+		return
+	}
 	if err := json.Unmarshal([]byte(cfg), &enabledHooks); err != nil {
 		// Shouldn't happen, since all the data is strings.
 		panic(fmt.Sprintf("DeserializeHooks failed on input %q: %v", cfg, err))
