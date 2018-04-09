@@ -49,6 +49,7 @@ test {
                   ]"""
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
+  maxParallelForks 4
   useJUnit {
     excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
     excludeCategories "org.apache.beam.runners.spark.StreamingTest"
@@ -120,7 +121,9 @@ task validatesRunnerBatch(type: Test) {
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
+  maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
@@ -143,7 +146,9 @@ task validatesRunnerStreaming(type: Test) {
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(project.sourceSets.test.output.classesDirs)
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
+  maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.runners.spark.StreamingTest'
   }
