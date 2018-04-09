@@ -38,7 +38,7 @@ import (
 // "pipeline-construction time" -- on each worker. It is a FnAPI client and
 // ultimately responsible for correctly executing user code.
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
-	hooks.DeserializeHooksFromOptions()
+	hooks.DeserializeHooksFromOptions(ctx)
 
 	hooks.RunInitHooks(ctx)
 	setupRemoteLogging(ctx, loggingEndpoint)
