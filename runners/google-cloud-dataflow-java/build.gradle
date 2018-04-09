@@ -34,6 +34,7 @@ evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
 evaluationDependsOn(":beam-sdks-java-extensions-google-cloud-platform-core")
 evaluationDependsOn(":beam-model-fn-execution")
 evaluationDependsOn(":beam-sdks-java-core")
+evaluationDependsOn(":beam-examples-java")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
