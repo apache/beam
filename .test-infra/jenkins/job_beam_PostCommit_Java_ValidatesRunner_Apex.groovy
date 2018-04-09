@@ -54,7 +54,7 @@ job('beam_PostCommit_Java_ValidatesRunner_Apex_Gradle') {
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':runners:apex:validatesRunner')
+      tasks(':beam-runners-apex:validatesRunner')
       for (String gradle_switch : gradle_switches) {
         switches(gradle_switch)
       }
