@@ -88,6 +88,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.net.URLClassLoader;
+import java.net.URL;
 
 /**
  * Tests DStream recovery from checkpoint.
@@ -106,14 +110,22 @@ public class ResumeFromCheckpointStreamingTest implements Serializable {
   private static final String TOPIC = "kafka_beam_test_topic";
 
   private transient TemporaryFolder temporaryFolder;
+  private static final Logger LOG = LoggerFactory.getLogger(ResumeFromCheckpointStreamingTest.class);
 
   @Rule
   public final transient ReuseSparkContextRule noContextReuse = ReuseSparkContextRule.no();
 
   @BeforeClass
   public static void setup() throws IOException {
+    LOG.error("!!! setup");
+      ClassLoader cl = ClassLoader.getSystemClassLoader();
+      URL[] urls = ((URLClassLoader)cl).getURLs();
+      for(URL url : urls) {
+        LOG.error("!!! " + url.getFile());
+      }
     EMBEDDED_ZOOKEEPER.startup();
     EMBEDDED_KAFKA_CLUSTER.startup();
+    LOG.error("Fail");
   }
 
   @Before
