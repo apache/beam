@@ -26,8 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.apache.beam.examples.advanced.subprocess.configuration.SubProcessConfiguration;
-import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessCommandLineArgs.Command;
-import org.apache.beam.examples.advanced.subprocess.utils.CallingSubProcessUtils.Permit;
+import org.apache.beam.examples.advanced.subprocess.utils.CallingSubProcessUtils;
 import org.apache.beam.examples.advanced.subprocess.utils.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +58,7 @@ public class SubProcessKernel {
   }
 
   public List<String> exec(SubProcessCommandLineArgs commands) throws Exception {
-    try (Permit permit = new Permit(processBuilder.command().get(0))) {
+    try (CallingSubProcessUtils.Permit permit = new CallingSubProcessUtils.Permit(processBuilder.command().get(0))) {
 
       List<String> results = null;
 
@@ -81,12 +80,34 @@ public class SubProcessKernel {
     }
   }
 
+  public byte[] execBinaryResult(SubProcessCommandLineArgs commands) throws Exception {
+    try (CallingSubProcessUtils.Permit permit = new CallingSubProcessUtils.Permit(processBuilder.command().get(0))) {
+
+
+      try (SubProcessIOFiles outputFiles = new SubProcessIOFiles(configuration.getWorkerPath())) {
+
+        try {
+          Process process = execBinary(processBuilder, commands, outputFiles);
+          return collectProcessResultsBytes(process, processBuilder, outputFiles);
+        } catch (Exception ex) {
+          LOG.error("Error running executable ", ex);
+          throw (ex);
+        }
+      } catch (IOException ex) {
+        LOG.error(
+            "Unable to delete the outputfiles. This can lead to performance issues and failure",
+            ex);
+      }
+      return new byte[0];
+    }
+  }
+
   private ProcessBuilder prepareBuilder(ProcessBuilder builder, SubProcessCommandLineArgs commands,
       SubProcessIOFiles outPutFiles) throws IllegalStateException {
 
     // Check we are not over the max size of command line parameters
     if (getTotalCommandBytes(commands) > MAX_SIZE_COMMAND_LINE_ARGS) {
-      throw new IllegalStateException("Command is larger than MAX_SIZE_COMMAND_LINE_ARGS");
+      throw new IllegalStateException("Command is over 2MB in size");
     }
 
     appendExecutablePath(builder);
@@ -96,7 +117,7 @@ public class SubProcessKernel {
 
     // Shift commands by 2 ordinal positions and load into the builder
     if (commands != null) {
-      for (Command s : commands.getParameters()) {
+      for (SubProcessCommandLineArgs.Command s : commands.getParameters()) {
         builder.command().add(s.ordinalPosition + 2, s.value);
       }
     }
@@ -114,7 +135,7 @@ public class SubProcessKernel {
    */
   private int getTotalCommandBytes(SubProcessCommandLineArgs commands) {
     int size = 0;
-    for (Command c : commands.getParameters()) {
+    for (SubProcessCommandLineArgs.Command c : commands.getParameters()) {
       size += c.value.length();
     }
     return size;
@@ -132,7 +153,7 @@ public class SubProcessKernel {
       if (timeout) {
         String log = String.format(
             "Timeout waiting to run process with parameters % . "
-            + "Check to see if your timeout is long enough. Currently set at %s.",
+                + "Check to see if your timeout is long enough. Currently set at %s.",
             createLogEntryFromInputs(builder.command()), configuration.getWaitTime());
         throw new Exception(log);
       }
@@ -147,6 +168,14 @@ public class SubProcessKernel {
     }
   }
 
+  /**
+   * TODO clean up duplicate with byte[] version collectBinaryProcessResults
+   * @param process
+   * @param builder
+   * @param outPutFiles
+   * @return
+   * @throws Exception
+   */
   private List<String> collectProcessResults(Process process, ProcessBuilder builder,
       SubProcessIOFiles outPutFiles) throws Exception {
 
@@ -178,6 +207,48 @@ public class SubProcessKernel {
         }
       }
       return results;
+    } catch (Exception ex) {
+      String log = String.format("Unexpected error runnng process. %s error message was %s",
+          createLogEntryFromInputs(builder.command()), ex.getMessage());
+      throw new Exception(log);
+    }
+  }
+
+  /**
+   * Used when the reault file contains binary data
+   * @param process
+   * @param builder
+   * @param outPutFiles
+   * @return
+   * @throws Exception
+   */
+  private byte[] collectProcessResultsBytes(Process process, ProcessBuilder builder,
+      SubProcessIOFiles outPutFiles) throws Exception {
+
+    Byte[] results;
+
+    try {
+
+      LOG.debug(String.format("Executing process %s", createLogEntryFromInputs(builder.command())));
+
+      // If process exit value is not 0 then subprocess failed, record logs
+      if (process.exitValue() != 0) {
+        outPutFiles.copyOutPutFilesToBucket(configuration, FileUtils.toStringParams(builder));
+        String log = createLogEntryForProcessFailure(process, builder.command(), outPutFiles);
+        throw new Exception(log);
+      }
+
+      // If no return file then either something went wrong or the binary is setup incorrectly for
+      // the ret file either way throw error
+      if (!Files.exists(outPutFiles.resultFile)) {
+        String log = createLogEntryForProcessFailure(process, builder.command(), outPutFiles);
+        outPutFiles.copyOutPutFilesToBucket(configuration, FileUtils.toStringParams(builder));
+        throw new Exception(log);
+      }
+
+      // Everything looks healthy return bytes
+      return Files.readAllBytes(outPutFiles.resultFile);
+
     } catch (Exception ex) {
       String log = String.format("Unexpected error runnng process. %s error message was %s",
           createLogEntryFromInputs(builder.command()), ex.getMessage());
