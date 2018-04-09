@@ -123,7 +123,7 @@ class Operation(object):
       logging.info('Creating namecontext within operation')
       self.name_context = common.NameContext(name_context)
 
-    #TODO(pabloem) - Remove from operations. Rely on name context.
+    #TODO(pabloem): Remove following two lines. Rely on name context.
     self.operation_name = self.name_context.step_name
     self.step_name = self.name_context.logging_name()
 
