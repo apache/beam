@@ -34,6 +34,7 @@ class TestScripts {
      static String ver
      static String gcpProject
      static String gcsBucket
+     static Map<String,String> additionalArgs
    }
 
    def TestScripts(String[] args) {
@@ -42,7 +43,10 @@ class TestScripts {
      cli.repourl(args:1, 'Repository URL')
      cli.gcpProject(args:1, 'Google Cloud Project')
      cli.gcsBucket(args:1, 'Google Cloud Storage Bucket')
+     cli.additionalArgs(args:1, 'Additional Pipeline Arguments')
+     println "args: ${args}"
      def options = cli.parse(args)
+     println "options: ${options}"
      var.repoUrl = options.repourl
      var.ver = options.ver
      println "Repository URL: ${var.repoUrl}"
@@ -54,6 +58,19 @@ class TestScripts {
      if (options.gcsBucket) {
        var.gcsBucket = options.gcsBucket
        println "GCS Storage bucket: ${var.gcsBucket}"
+     }
+
+     var.additionalArgs = new HashMap()
+     if (options.additionalArgs) {
+       // Assumes that this is created from the string of a groovy Map<String,String>
+       // ie is in the format "[key0:value0,key1:value1,...]"
+       def mapStr = options.additionalArgs.substring(1, options.additionalArgs.size() - 1)
+       mapStr.split(",").each {
+         arg -> var.additionalArgs[arg.trim().split(":")[0].trim()] = arg.trim().split(":")[1].trim()
+       }
+       println "Additional Arguments: ${var.additionalArgs}"
+     } else {
+       println "No Additional Arguments"
      }
    }
 
@@ -67,6 +84,11 @@ class TestScripts {
 
    def gcsBucket() {
      return var.gcsBucket
+   }
+
+   def formatArgs(Map<String,String> args) {
+       // Add the explicit args to the additional args, with preference to the explicit ones
+     return (var.additionalArgs.plus(args).collect { k, v -> "--${k}=${v}" }).join(" \\\n")
    }
 
    // Both documents the overal scenario and creates a clean temp directory
