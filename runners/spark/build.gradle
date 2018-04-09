@@ -49,7 +49,6 @@ test {
                   ]"""
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
-  maxParallelForks 4
   useJUnit {
     excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
     excludeCategories "org.apache.beam.runners.spark.StreamingTest"
@@ -77,6 +76,7 @@ dependencies {
   provided library.java.commons_lang3
   provided library.java.commons_io_2x
   provided library.java.hamcrest_core
+  provided "org.apache.zookeeper:zookeeper:3.4.6"
   provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
   shadowTest project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
@@ -89,7 +89,6 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest "org.apache.kafka:kafka_2.11:0.11.0.1"
-  shadowTest "org.apache.zookeeper:zookeeper:3.4.10"
   validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
@@ -121,12 +120,10 @@ task validatesRunnerBatch(type: Test) {
 
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
-  // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
-  maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
+    excludeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
@@ -144,11 +141,7 @@ task validatesRunnerStreaming(type: Test) {
   ])
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
-  classpath = configurations.validatesRunner
-  testClassesDirs = files(project.sourceSets.test.output.classesDirs)
-  // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
-  maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.runners.spark.StreamingTest'
   }
