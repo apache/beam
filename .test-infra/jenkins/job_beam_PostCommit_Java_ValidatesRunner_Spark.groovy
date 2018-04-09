@@ -54,7 +54,7 @@ job('beam_PostCommit_Java_ValidatesRunner_Spark_Gradle') {
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':runners:spark:validatesRunner')
+      tasks(':beam-runners-spark:validatesRunner')
       for (String gradle_switch : gradle_switches) {
         switches(gradle_switch)
       }

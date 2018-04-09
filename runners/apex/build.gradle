@@ -19,7 +19,7 @@
 import groovy.json.JsonOutput
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-runners-apex")
+applyJavaNature()
 
 description = "Apache Beam :: Runners :: Apex"
 
@@ -30,33 +30,33 @@ description = "Apache Beam :: Runners :: Apex"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":model:fn-execution")
-evaluationDependsOn(":runners:core-java")
-evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":beam-model-fn-execution")
+evaluationDependsOn(":beam-runners-core-java")
+evaluationDependsOn(":beam-sdks-java-core")
 
 configurations {
   validatesRunner
 }
 
 dependencies {
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
-  shadow project(path: ":runners:core-java", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
   shadow library.java.apex_common
   shadow library.java.malhar_library
   shadow library.java.apex_engine
   shadow library.java.commons_lang3
   shadow library.java.findbugs_jsr305
   shadow library.java.apex_engine
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   // ApexStateInternalsTest extends abstract StateInternalsTest
-  shadowTest project(":runners:core-java").sourceSets.test.output
+  shadowTest project(":beam-runners-core-java").sourceSets.test.output
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
   shadowTest library.java.mockito_core
   shadowTest library.java.jackson_dataformat_yaml
-  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
@@ -89,7 +89,7 @@ task validatesRunnerBatch(type: Test) {
   ])
 
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
@@ -108,5 +108,5 @@ task validatesRunner {
   dependsOn validatesRunnerBatch
 }
 
-// Generates :runners:apex:runQuickstartJavaApex
+// Generates :beam-runners-apex:runQuickstartJavaApex
 createJavaQuickstartValidationTask(name: 'Apex')

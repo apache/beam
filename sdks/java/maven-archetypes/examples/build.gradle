@@ -17,9 +17,11 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-maven-archetypes-examples")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
+ext.summary = """A Maven Archetype to create a project containing all the
+example pipelines from the Apache Beam Java SDK."""
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -44,14 +46,14 @@ processResources {
   ]
 }
 
-// The :examples:java main/test sourceSets are used in generation.
-evaluationDependsOn(':examples:java')
+// The :beam-examples-java main/test sourceSets are used in generation.
+evaluationDependsOn(':beam-examples-java')
 
 task generateSources(type: Exec) {
   println "Generating sources for archetype"
   inputs.file './generate-sources.sh'
-  inputs.dir project(':examples:java').sourceSets.main.allSource
-  inputs.dir project(':examples:java').sourceSets.test.allSource
+  inputs.dir project(':beam-examples-java').sourceSets.main.allSource
+  inputs.dir project(':beam-examples-java').sourceSets.test.allSource
   commandLine './generate-sources.sh'
 }
 
@@ -73,5 +75,5 @@ sourceSets {
 }
 
 dependencies {
-  shadow project(path: ":examples:java", configuration: "shadow")
+  shadow project(path: ":beam-examples-java", configuration: "shadow")
 }

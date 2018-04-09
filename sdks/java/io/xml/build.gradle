@@ -17,19 +17,20 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-xml")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: XML"
+ext.summary = "IO to read and write XML files."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.stax2_api
   shadow library.java.findbugs_jsr305
   shadow library.java.woodstox_core_asl
   shadowTest library.java.jaxb_api
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core

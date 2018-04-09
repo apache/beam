@@ -17,10 +17,11 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-harness", enableShadow: false /* Disable shadow because of custom configuration below. */)
+applyJavaNature(enableShadow: false /* Disable shadow because of custom configuration below. */)
 apply plugin: "com.github.johnrengelman.shadow"
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
+ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
@@ -29,16 +30,16 @@ description = "Apache Beam :: SDKs :: Java :: Harness"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":sdks:java:fn-execution")
+evaluationDependsOn(":beam-sdks-java-fn-execution")
 
 dependencies {
-  compile project(path: ":model:pipeline", configuration: "shadow")
-  compile project(path: ":model:fn-execution", configuration: "shadow")
-  compile project(path: ":sdks:java:core", configuration: "shadow")
-  compile project(path: ":sdks:java:fn-execution", configuration: "shadow")
-  compile project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
-  compile project(path: ":runners:core-java", configuration: "shadow")
-  compile project(path: ":runners:core-construction-java", configuration: "shadow")
+  compile project(path: ":beam-model-pipeline", configuration: "shadow")
+  compile project(path: ":beam-model-fn-execution", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-core", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  compile project(path: ":beam-runners-core-java", configuration: "shadow")
+  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   compile library.java.jackson_databind
   compile library.java.findbugs_jsr305
   compile library.java.guava

@@ -59,7 +59,7 @@ job('beam_PostCommit_Java_ValidatesRunner_Gearpump_Gradle') {
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':runners:gearpump:validatesRunner')
+      tasks(':beam-runners-gearpump:validatesRunner')
       for (String gradle_switch : gradle_switches) {
         switches(gradle_switch)
       }

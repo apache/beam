@@ -17,16 +17,17 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-io-redis")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Redis"
+ext.summary ="IO to read and write on a Redis keystore."
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow "redis.clients:jedis:2.9.0"
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core

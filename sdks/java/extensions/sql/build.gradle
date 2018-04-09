@@ -17,10 +17,11 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-extensions-sql")
+applyJavaNature()
 apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
+ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
 
 test {
   jvmArgs "-da"
@@ -57,13 +58,13 @@ dependencies {
   compile "com.alibaba:fastjson:1.2.12"
   compileOnly library.java.findbugs_jsr305
   compileOnly library.java.findbugs_annotations
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:join-library", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.commons_csv
   shadow library.java.joda_time
-  shadow project(path: ":runners:direct-java", configuration: "shadow")
-  provided project(path: ":sdks:java:io:kafka", configuration: "shadow")
+  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
+  provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
   provided library.java.kafka_clients
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit

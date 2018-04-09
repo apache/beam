@@ -19,8 +19,7 @@
 import groovy.json.JsonOutput
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false /* BEAM-925 */,
-    artifactId: "beam-runners-google-cloud-dataflow-java")
+applyJavaNature(enableFindbugs: false /* BEAM-925 */)
 
 description = "Apache Beam :: Runners :: Google Cloud Dataflow"
 
@@ -31,10 +30,10 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":sdks:java:io:google-cloud-platform")
-evaluationDependsOn(":sdks:java:extensions:google-cloud-platform-core")
-evaluationDependsOn(":model:fn-execution")
-evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":beam-sdks-java-io-google-cloud-platform")
+evaluationDependsOn(":beam-sdks-java-extensions-google-cloud-platform-core")
+evaluationDependsOn(":beam-model-fn-execution")
+evaluationDependsOn(":beam-sdks-java-core")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
@@ -56,11 +55,11 @@ configurations {
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":model:pipeline", configuration: "shadow")
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  shadow project(path: ":sdks:java:extensions:google-cloud-platform-core", configuration: "shadow")
-  shadow project(path: ":sdks:java:io:google-cloud-platform", configuration: "shadow")
-  shadow project(path: ":runners:core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
   shadow library.java.google_api_client
   shadow library.java.google_http_client
   shadow library.java.google_http_client_jackson2
@@ -79,16 +78,16 @@ dependencies {
   shadow library.java.slf4j_api
   shadowTest library.java.hamcrest_core
   shadowTest library.java.junit
-  shadowTest project(":sdks:java:io:google-cloud-platform").sourceSets.test.output
-  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
-  shadowTest project(":sdks:java:extensions:google-cloud-platform-core").sourceSets.test.output
+  shadowTest project(":beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(":beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
   shadowTest library.java.guava_testlib
   shadowTest library.java.slf4j_jdk14
   shadowTest library.java.mockito_core
   shadowTest library.java.google_cloud_dataflow_java_proto_library_all
   shadowTest library.java.datastore_v1_protos
   shadowTest library.java.jackson_dataformat_yaml
-  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
 }
 
@@ -108,7 +107,7 @@ task validatesRunnerTest(type: Test) {
 
   maxParallelForks 4
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above10MB'
@@ -131,7 +130,7 @@ task validatesRunner {
   dependsOn validatesRunnerTest
 }
 
-// Generates :runners:google-cloud-dataflow-java:runQuickstartJavaDataflow
+// Generates :beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/quickstart'
 createJavaQuickstartValidationTask(name: 'Dataflow', gcpProject: gcpProject, gcsBucket: gcsBucket)

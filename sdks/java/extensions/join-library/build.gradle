@@ -17,14 +17,14 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(artifactId: "beam-sdks-java-extensions-join-library")
+applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Join library"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":sdks:java:core", configuration: "shadow")
-  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
 }
