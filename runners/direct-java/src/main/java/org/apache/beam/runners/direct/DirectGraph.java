@@ -87,6 +87,10 @@ class DirectGraph {
     return viewWriters.get(view);
   }
 
+  Collection<PValue> getOutputs(AppliedPTransform<?, ?, ?> toRefresh) {
+    return toRefresh.getOutputs().values();
+  }
+
   List<AppliedPTransform<?, ?, ?>> getPerElementConsumers(PValue consumed) {
     return perElementConsumers.get(consumed);
   }
