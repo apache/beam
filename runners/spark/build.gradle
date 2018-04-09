@@ -141,6 +141,8 @@ task validatesRunnerStreaming(type: Test) {
   ])
   systemProperty "beamTestPipelineOptions", pipelineOptions
 
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project.sourceSets.test.output.classesDirs)
   forkEvery 1
   useJUnit {
     includeCategories 'org.apache.beam.runners.spark.StreamingTest'
