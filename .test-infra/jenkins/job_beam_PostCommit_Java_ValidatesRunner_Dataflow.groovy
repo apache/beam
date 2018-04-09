@@ -55,7 +55,7 @@ job('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle') {
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      tasks(':runners:google-cloud-dataflow-java:validatesRunner')
+      tasks(':beam-runners-google-cloud-dataflow-java:validatesRunner')
       for (String gradle_switch : gradle_switches) {
         switches(gradle_switch)
       }
