@@ -206,11 +206,11 @@ cdef class ScopedState(object):
     self.old_state_index = self.sampler.current_state_index
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.state_index
-    pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
+    pythread.PyThread_release_lock(self.sampler.lock)
 
   cpdef __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
     pythread.PyThread_acquire_lock(self.sampler.lock, pythread.WAIT_LOCK)
     self.sampler.current_state_index = self.old_state_index
-    pythread.PyThread_release_lock(self.sampler.lock)
     self.sampler.state_transition_count += 1
+    pythread.PyThread_release_lock(self.sampler.lock)
