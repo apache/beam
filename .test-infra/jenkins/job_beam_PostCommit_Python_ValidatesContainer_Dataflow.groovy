@@ -39,9 +39,8 @@ job('beam_PostCommit_Python_ValidatesContainer_Dataflow') {
   // TODO(BEAM-1817): Remove once the tests can run on all nodes
   parameters {
     nodeParam('TEST_HOST') {
-      description('select test host as either beam1, 2 or 3')
-      defaultNodes(['beam1', 'beam2', 'beam3'])
-      allowedNodes(['beam1', 'beam2', 'beam3'])
+      // Testing only
+      defaultNodes(['beam8'])
       trigger('multiSelectionDisallowed')
       eligibility('IgnoreOfflineNodeEligibility')
     }
