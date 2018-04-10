@@ -129,6 +129,15 @@ task validatesRunnerBatch(type: Test) {
   }
 }
 
+task validatesRunnerBatch.doFirst {
+  println "Test classpath size " + configurations.validatesRunner.getFiles().size()
+  configurations.validatesRunner.getFiles().each { file ->
+    if (file.toString().contains("zoo")) {
+       println "file: \"" + file + "\""
+    }
+  }
+}
+
 task validatesRunnerStreaming(type: Test) {
   group = "Verification"
   def pipelineOptions = JsonOutput.toJson([
