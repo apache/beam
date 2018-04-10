@@ -30,6 +30,7 @@ __all__ = [
     'TypeOptions',
     'DirectOptions',
     'GoogleCloudOptions',
+    'HadoopFileSystemOptions',
     'WorkerOptions',
     'DebugOptions',
     'ProfilingOptions',
@@ -50,7 +51,7 @@ def _static_value_provider_of(value_type):
 
   """
   def _f(value):
-    _f.func_name = value_type.__name__
+    _f.__name__ = value_type.__name__
     return StaticValueProvider(value_type, value)
   return _f
 
@@ -313,13 +314,6 @@ class DirectOptions(PipelineOptions):
         help='DirectRunner uses stacked WindowedValues within a Bundle for '
         'memory optimization. Set --no_direct_runner_use_stacked_bundle to '
         'avoid it.')
-    parser.add_argument(
-        '--direct_runner_bundle_retry',
-        action='store_true',
-        default=False,
-        help=
-        ('Whether to allow bundle retries. If True the maximum'
-         'number of attempts to process a bundle is 4. '))
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -396,6 +390,33 @@ class GoogleCloudOptions(PipelineOptions):
         errors.append('--dataflow_job_file and --template_location '
                       'are mutually exclusive.')
 
+    return errors
+
+
+class HadoopFileSystemOptions(PipelineOptions):
+  """``HadoopFileSystem`` connection options."""
+
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--hdfs_host',
+        default=None,
+        help=
+        ('Hostname or address of the HDFS namenode.'))
+    parser.add_argument(
+        '--hdfs_port',
+        default=None,
+        help=
+        ('Port of the HDFS namenode.'))
+    parser.add_argument(
+        '--hdfs_user',
+        default=None,
+        help=
+        ('HDFS username to use.'))
+
+  def validate(self, validator):
+    errors = []
+    errors.extend(validator.validate_optional_argument_positive(self, 'port'))
     return errors
 
 
@@ -602,11 +623,12 @@ class SetupOptions(PipelineOptions):
         default=None,
         help=
         ('Local path to a Python package file. The file is expected to be (1) '
-         'a package tarball (".tar") or (2) a compressed package tarball '
-         '(".tar.gz") which can be installed using the "pip install" command '
-         'of the standard pip package. Multiple --extra_package options can '
-         'be specified if more than one package is needed. During job '
-         'submission, the files will be staged in the staging area '
+         'a package tarball (".tar"), (2) a compressed package tarball '
+         '(".tar.gz"), (3) a Wheel file (".whl") or (4) a compressed package '
+         'zip file (".zip") which can be installed using the "pip install" '
+         'command  of the standard pip package. Multiple --extra_package '
+         'options can be specified if more than one package is needed. During '
+         'job submission, the files will be staged in the staging area '
          '(--staging_location option) and the workers will install them in '
          'same order they were specified on the command line.'))
 

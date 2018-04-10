@@ -21,6 +21,10 @@ import logging
 import time
 import unittest
 
+import mock
+
+from apache_beam.coders import observable
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.worker import sideinputs
 
 
@@ -30,22 +34,28 @@ def strip_windows(iterator):
 
 class FakeSource(object):
 
-  def __init__(self, items):
+  def __init__(self, items, notify_observers=False):
     self.items = items
+    self._should_notify_observers = notify_observers
 
   def reader(self):
-    return FakeSourceReader(self.items)
+    return FakeSourceReader(self.items, self._should_notify_observers)
 
 
-class FakeSourceReader(object):
+class FakeSourceReader(observable.ObservableMixin):
 
-  def __init__(self, items):
+  def __init__(self, items, notify_observers=False):
+    super(FakeSourceReader, self).__init__()
     self.items = items
     self.entered = False
     self.exited = False
+    self._should_notify_observers = notify_observers
 
   def __iter__(self):
-    return iter(self.items)
+    if self._should_notify_observers:
+      self.notify_observers(len(self.items), is_record_size=True)
+    for item in self.items:
+      yield item
 
   def __enter__(self):
     self.entered = True
@@ -68,6 +78,33 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=2)
     assert list(strip_windows(iterator_fn())) == range(6)
+
+  def test_bytes_read_behind_experiment(self):
+    mock_read_counter = mock.MagicMock()
+    source_records = ['a', 'b', 'c', 'd']
+    sources = [
+        FakeSource(source_records, notify_observers=True),
+    ]
+    iterator_fn = sideinputs.get_iterator_fn_for_sources(
+        sources, max_reader_threads=3, read_counter=mock_read_counter)
+    assert list(strip_windows(iterator_fn())) == source_records
+    mock_read_counter.add_bytes_read.assert_not_called()
+
+  def test_bytes_read_are_reported(self):
+    RuntimeValueProvider.set_runtime_options(
+        {'experiments': ['sideinput_io_metrics', 'other']})
+    mock_read_counter = mock.MagicMock()
+    source_records = ['a', 'b', 'c', 'd']
+    sources = [
+        FakeSource(source_records, notify_observers=True),
+    ]
+    iterator_fn = sideinputs.get_iterator_fn_for_sources(
+        sources, max_reader_threads=3, read_counter=mock_read_counter)
+    assert list(strip_windows(iterator_fn())) == source_records
+    mock_read_counter.add_bytes_read.assert_called_with(4)
+
+    # Remove runtime options from the runtime value provider.
+    RuntimeValueProvider.set_runtime_options({})
 
   def test_multiple_sources_iterator_fn(self):
     sources = [

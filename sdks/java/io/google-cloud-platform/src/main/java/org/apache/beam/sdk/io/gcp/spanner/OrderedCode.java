@@ -23,7 +23,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.math.LongMath;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedInteger;
-
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -142,7 +141,7 @@ class OrderedCode {
   // have more than one item (eg when used for decoding). While encoding,
   // one array will have exactly one item. While returning the encoded array
   // we will merge all the arrays in this list.
-  private final ArrayList<byte[]> encodedArrays = new ArrayList<byte[]>();
+  private final ArrayList<byte[]> encodedArrays = new ArrayList<>();
 
   // This is the current position on the first array. Will be non-zero
   // only if the ordered code was created using encoded byte array.
@@ -151,7 +150,7 @@ class OrderedCode {
   /**
    * Creates OrderedCode from scratch. Typically used at encoding time.
    */
-  public OrderedCode(){
+  public OrderedCode() {
   }
 
   /**
@@ -405,7 +404,7 @@ class OrderedCode {
   }
 
   private byte[] readBytes(boolean invert) {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0) || (
+    if (encodedArrays.isEmpty() || (
         (encodedArrays.get(0)).length - firstArrayPosition <= 0)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -493,7 +492,7 @@ class OrderedCode {
    * @see #writeNumIncreasing(long)
    */
   public long readNumIncreasing() {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0) || (
+    if (encodedArrays.isEmpty() || (
         (encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -530,7 +529,7 @@ class OrderedCode {
    * @see #writeNumDecreasing(long)
    */
   public long readNumDecreasing() {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0)
+    if (encodedArrays.isEmpty()
         || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -567,7 +566,7 @@ class OrderedCode {
    * @see #writeSignedNumIncreasing(long)
    */
   public long readSignedNumIncreasing() {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0) || (
+    if (encodedArrays.isEmpty() || (
         (encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -660,7 +659,7 @@ class OrderedCode {
   }
 
   private boolean readInfinityInternal(byte[] codes) {
-    if ((encodedArrays == null) || (encodedArrays.size() == 0)
+    if (encodedArrays.isEmpty()
         || ((encodedArrays.get(0)).length - firstArrayPosition < 1)) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
@@ -690,13 +689,13 @@ class OrderedCode {
    */
   public byte[] readTrailingBytes() {
     // one item is contained within one byte array
-    if ((encodedArrays == null) || (encodedArrays.size() != 1)) {
+    if (encodedArrays.size() != 1) {
       throw new IllegalArgumentException("Invalid encoded byte array");
     }
 
     byte[] store = encodedArrays.get(0);
     encodedArrays.remove(0);
-    assert encodedArrays.size() == 0;
+    assert encodedArrays.isEmpty();
     return Arrays.copyOfRange(store, firstArrayPosition, store.length);
   }
 
@@ -709,7 +708,7 @@ class OrderedCode {
    * modified.</b>
    */
   public byte[] getEncodedBytes() {
-    if (encodedArrays.size() == 0) {
+    if (encodedArrays.isEmpty()) {
       return new byte[0];
     }
     if ((encodedArrays.size() == 1) && (firstArrayPosition == 0)) {
@@ -759,6 +758,6 @@ class OrderedCode {
    */
   public boolean hasRemainingEncodedBytes() {
     // We delete an array after fully consuming it.
-    return encodedArrays != null && encodedArrays.size() != 0;
+    return encodedArrays.size() != 0;
   }
 }

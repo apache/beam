@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.math;
 
-import java.math.BigDecimal;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
@@ -60,7 +59,7 @@ public class BeamSqlAbsExpression extends BeamSqlMathUnaryExpression {
         break;
       case DECIMAL:
         result = BeamSqlPrimitive
-            .of(SqlTypeName.DECIMAL, SqlFunctions.abs(new BigDecimal(op.getValue().toString())));
+            .of(SqlTypeName.DECIMAL, SqlFunctions.abs(op.getDecimal()));
         break;
       case DOUBLE:
         result = BeamSqlPrimitive

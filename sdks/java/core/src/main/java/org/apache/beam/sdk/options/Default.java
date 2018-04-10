@@ -46,7 +46,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface String {
+  @interface String {
     java.lang.String value();
   }
 
@@ -56,7 +56,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Boolean {
+  @interface Boolean {
     boolean value();
   }
 
@@ -66,7 +66,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Character {
+  @interface Character {
     char value();
   }
 
@@ -76,7 +76,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Byte {
+  @interface Byte {
     byte value();
   }
   /**
@@ -85,7 +85,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Short {
+  @interface Short {
     short value();
   }
   /**
@@ -94,7 +94,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Integer {
+  @interface Integer {
     int value();
   }
 
@@ -104,7 +104,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Long {
+  @interface Long {
     long value();
   }
 
@@ -114,7 +114,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Float {
+  @interface Float {
     float value();
   }
 
@@ -124,7 +124,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Double {
+  @interface Double {
     double value();
   }
 
@@ -135,7 +135,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Enum {
+  @interface Enum {
     java.lang.String value();
   }
 
@@ -148,7 +148,7 @@ public @interface Default {
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface InstanceFactory {
+  @interface InstanceFactory {
     java.lang.Class<? extends DefaultValueFactory<?>> value();
   }
 }

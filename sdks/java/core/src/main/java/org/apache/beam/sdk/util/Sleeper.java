@@ -39,10 +39,5 @@ public interface Sleeper {
   void sleep(long millis) throws InterruptedException;
 
   /** Provides the default implementation based on {@link Thread#sleep(long)}. */
-  Sleeper DEFAULT = new Sleeper() {
-
-    public void sleep(long millis) throws InterruptedException {
-      Thread.sleep(millis);
-    }
-  };
+  Sleeper DEFAULT = Thread::sleep;
 }

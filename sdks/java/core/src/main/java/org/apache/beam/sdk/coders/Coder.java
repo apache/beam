@@ -59,9 +59,9 @@ public abstract class Coder<T> implements Serializable {
   /**
    * The context in which encoding or decoding is being done.
    *
-   * @deprecated to implement a coder, do not use any `Context`. Just implement only those abstract
-   * methods which do not accept a `Context` and leave the default implementations for methods
-   * accepting a `Context`.
+   * @deprecated To implement a coder, do not use any {@link Context}. Just implement only those
+   * abstract methods which do not accept a {@link Context} and leave the default implementations
+   * for methods accepting a {@link Context}.
    */
   @Deprecated
   @Experimental(Kind.CODER_CONTEXT)
@@ -241,7 +241,7 @@ public abstract class Coder<T> implements Serializable {
    * the argument.
    *
    * <p>For any two values {@code x} and {@code y} of type {@code T}, if their encoded bytes are the
-   * same, then it must be the case that {@code structuralValue(x).equals(@code structuralValue(y)}.
+   * same, then it must be the case that {@code structuralValue(x).equals(structuralValue(y))}.
    *
    * <p>Most notably:
    *
@@ -325,7 +325,7 @@ public abstract class Coder<T> implements Serializable {
    * Returns the {@link TypeDescriptor} for the type encoded.
    */
   @Experimental(Kind.CODER_TYPE_ENCODING)
-  public TypeDescriptor<T> getEncodedTypeDescriptor(){
+  public TypeDescriptor<T> getEncodedTypeDescriptor() {
     return (TypeDescriptor<T>)
         TypeDescriptor.of(getClass()).resolveType(new TypeDescriptor<T>() {}.getType());
   }

@@ -64,7 +64,7 @@ public class Mean {
    * @param <NumT> the type of the {@code Number}s being combined
    */
   public static <NumT extends Number> Combine.Globally<NumT, Double> globally() {
-    return Combine.<NumT, Double>globally(Mean.<NumT>of());
+    return Combine.globally(Mean.of());
   }
 
   /**
@@ -81,7 +81,7 @@ public class Mean {
    * @param <NumT> the type of the {@code Number}s being combined
    */
   public static <K, NumT extends Number> Combine.PerKey<K, NumT, Double> perKey() {
-    return Combine.<K, NumT, Double>perKey(Mean.<NumT>of());
+    return Combine.perKey(Mean.of());
   }
 
   /**
@@ -156,6 +156,10 @@ public class Mean {
     }
 
     @Override
+    @edu.umd.cs.findbugs.annotations.SuppressWarnings(
+        value = "FE_FLOATING_POINT_EQUALITY",
+        justification = "Comparing doubles directly since equals method is only used in coder test."
+    )
     public boolean equals(Object other) {
       if (!(other instanceof CountSum)) {
         return false;

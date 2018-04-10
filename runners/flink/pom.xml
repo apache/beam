@@ -22,16 +22,16 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-runners-flink_2.10</artifactId>
+  <artifactId>beam-runners-flink_2.11</artifactId>
   <name>Apache Beam :: Runners :: Flink</name>
   <packaging>jar</packaging>
 
   <properties>
-    <flink.version>1.3.0</flink.version>
+    <flink.version>1.4.0</flink.version>
   </properties>
 
   <profiles>
@@ -43,6 +43,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
+            <version>${maven-surefire-plugin.version}</version>
             <executions>
 
               <!-- This configures the inherited validates-runner-tests
@@ -93,7 +94,6 @@
                     org.apache.beam.sdk.testing.LargeKeys$Above100MB,
                     org.apache.beam.sdk.testing.UsesCommittedMetrics,
                     org.apache.beam.sdk.testing.UsesTestStream,
-                    org.apache.beam.sdk.testing.UsesSplittableParDo
                   </excludedGroups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
@@ -165,7 +165,7 @@
     <!-- Flink dependencies -->
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-clients_2.10</artifactId>
+      <artifactId>flink-clients_2.11</artifactId>
       <version>${flink.version}</version>
     </dependency>
 
@@ -189,13 +189,13 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-runtime_2.10</artifactId>
+      <artifactId>flink-runtime_2.11</artifactId>
       <version>${flink.version}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-streaming-java_2.10</artifactId>
+      <artifactId>flink-streaming-java_2.11</artifactId>
       <version>${flink.version}</version>
     </dependency>
 
@@ -210,18 +210,13 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-runtime_2.10</artifactId>
+      <artifactId>flink-runtime_2.11</artifactId>
       <version>${flink.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
     <!-- Beam -->
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-model-pipeline</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
@@ -253,6 +248,11 @@
           <artifactId>slf4j-jdk14</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-pipeline</artifactId>
     </dependency>
 
     <dependency>
@@ -298,10 +298,16 @@
 
     <dependency>
       <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <artifactId>hamcrest-core</artifactId>
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
+      <scope>test</scope>
+    </dependency>
+    
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
@@ -310,7 +316,7 @@
 
     <dependency>
       <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
+      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -335,8 +341,14 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-streaming-java_2.10</artifactId>
+      <artifactId>flink-streaming-java_2.11</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
@@ -344,7 +356,7 @@
 
     <dependency>
       <groupId>org.apache.flink</groupId>
-      <artifactId>flink-test-utils_2.10</artifactId>
+      <artifactId>flink-test-utils_2.11</artifactId>
       <version>${flink.version}</version>
       <scope>test</scope>
       <exclusions>
@@ -372,10 +384,10 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-model-fn-execution</artifactId>
-      <type>test-jar</type>
       <scope>test</scope>
     </dependency>
 
+    <!-- FlinkStateInternalsTest extends abstract StateInternalsTest -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-java</artifactId>

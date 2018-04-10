@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.Contextful.fn;
+import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -30,10 +33,13 @@ import java.util.Set;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -77,6 +83,30 @@ public class FlatMapElementsTest implements Serializable {
   }
 
   /**
+   * Basic test of {@link FlatMapElements} with a {@link Fn} and a side input.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapBasicWithSideInput() throws Exception {
+    final PCollectionView<Integer> view =
+        pipeline.apply("Create base", Create.of(40)).apply(View.asSingleton());
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(0, 1, 2))
+            .apply(
+                FlatMapElements.into(integers())
+                    .via(
+                        fn(
+                            (input, c) ->
+                                ImmutableList.of(
+                                    c.sideInput(view) - input, c.sideInput(view) + input),
+                            requiresSideInputs(view))));
+
+    PAssert.that(output).containsInAnyOrder(38, 39, 40, 40, 41, 42);
+    pipeline.run();
+  }
+
+  /**
    * Tests that when built with a concrete subclass of {@link SimpleFunction}, the type descriptor
    * of the output reflects its static type.
    */
@@ -108,7 +138,7 @@ public class FlatMapElementsTest implements Serializable {
   private static class PolymorphicSimpleFunction<T> extends SimpleFunction<T, Iterable<T>> {
     @Override
     public Iterable<T> apply(T input) {
-      return Collections.<T>emptyList();
+      return Collections.emptyList();
     }
   }
 
@@ -119,19 +149,23 @@ public class FlatMapElementsTest implements Serializable {
   public void testPolymorphicSimpleFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
 
-        // This is the function that needs to propagate the input T to output T
-        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<Integer>()))
+            // This is the function that needs to propagate the input T to output T
+            .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<>()))
 
-        // This is a consumer to ensure that all coder inference logic is executed.
-        .apply("Test Consumer", MapElements.via(new SimpleFunction<Iterable<Integer>, Integer>() {
-          @Override
-          public Integer apply(Iterable<Integer> input) {
-            return 42;
-          }
-        }));
+            // This is a consumer to ensure that all coder inference logic is executed.
+            .apply(
+                "Test Consumer",
+                MapElements.via(
+                    new SimpleFunction<Iterable<Integer>, Integer>() {
+                      @Override
+                      public Integer apply(Iterable<Integer> input) {
+                        return 42;
+                      }
+                    }));
   }
 
   @Test
@@ -144,7 +178,7 @@ public class FlatMapElementsTest implements Serializable {
     };
 
     FlatMapElements<?, ?> simpleMap = FlatMapElements.via(simpleFn);
-    assertThat(DisplayData.from(simpleMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
   }
 
   @Test
@@ -162,7 +196,7 @@ public class FlatMapElementsTest implements Serializable {
     };
 
     FlatMapElements<?, ?> simpleFlatMap = FlatMapElements.via(simpleFn);
-    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("class", simpleFn.getClass()));
     assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("foo", "baz"));
   }
 
@@ -171,7 +205,7 @@ public class FlatMapElementsTest implements Serializable {
   public void testVoidValues() throws Exception {
     pipeline
         .apply(Create.of("hello"))
-        .apply(WithKeys.<String, String>of("k"))
+        .apply(WithKeys.of("k"))
         .apply(new VoidValues<String, String>() {});
     // Make sure the pipeline runs
     pipeline.run();
@@ -189,6 +223,48 @@ public class FlatMapElementsTest implements Serializable {
               return Collections.singletonList(KV.<K, Void>of(input.getKey(), null));
             }
           }));
+    }
+  }
+
+  /**
+   * Basic test of {@link FlatMapElements} with a lambda (which is instantiated as a
+   * {@link SerializableFunction}).
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapBasicWithLambda() throws Exception {
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(FlatMapElements
+            // Note that the input type annotation is required.
+            .into(TypeDescriptors.integers())
+            .via((Integer i) -> ImmutableList.of(i, -i)));
+
+    PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
+    pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link FlatMapElements} with a method reference.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapMethodReference() throws Exception {
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(FlatMapElements
+            // Note that the input type annotation is required.
+            .into(TypeDescriptors.integers())
+            .via(new Negater()::numAndNegation));
+
+    PAssert.that(output).containsInAnyOrder(1, 3, -1, -3, 2, -2);
+    pipeline.run();
+  }
+
+  private static class Negater implements Serializable {
+    public List<Integer> numAndNegation(int input) {
+      return ImmutableList.of(input, -input);
     }
   }
 }

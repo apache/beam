@@ -18,15 +18,16 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import java.util.Date;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.avatica.util.DateTimeUtils;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
+import org.joda.time.ReadableInstant;
 
 /**
  * {@code BeamSqlExpression} for FLOOR(date).
@@ -37,19 +38,20 @@ public class BeamSqlDateFloorExpression extends BeamSqlExpression {
   public BeamSqlDateFloorExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.DATE);
   }
+
   @Override public boolean accept() {
     return operands.size() == 2
         && opType(1) == SqlTypeName.SYMBOL;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    Date date = opValueEvaluated(0, inputRow, window);
-    long time = date.getTime();
+  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+    ReadableInstant date = opValueEvaluated(0, inputRow, window);
+    long time = date.getMillis();
     TimeUnitRange unit = ((BeamSqlPrimitive<TimeUnitRange>) op(1)).getValue();
 
     long newTime = DateTimeUtils.unixTimestampFloor(unit, time);
-    Date newDate = new Date(newTime);
 
+    DateTime newDate = new DateTime(newTime, date.getZone());
     return BeamSqlPrimitive.of(outputType, newDate);
   }
 }

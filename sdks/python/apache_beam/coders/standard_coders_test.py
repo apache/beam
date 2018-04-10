@@ -17,6 +17,7 @@
 
 """Unit tests for coders that must be consistent across all Beam SDKs.
 """
+from __future__ import print_function
 
 import json
 import logging
@@ -125,14 +126,14 @@ class StandardCodersTest(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     if cls.fix and cls.to_fix:
-      print "FIXING", len(cls.to_fix), "TESTS"
+      print("FIXING", len(cls.to_fix), "TESTS")
       doc_sep = '\n---\n'
       docs = open(STANDARD_CODERS_YAML).read().split(doc_sep)
 
       def quote(s):
         return json.dumps(s.decode('latin1')).replace(r'\u0000', r'\0')
       for (doc_ix, expected_encoded), actual_encoded in cls.to_fix.items():
-        print quote(expected_encoded), "->", quote(actual_encoded)
+        print(quote(expected_encoded), "->", quote(actual_encoded))
         docs[doc_ix] = docs[doc_ix].replace(
             quote(expected_encoded) + ':', quote(actual_encoded) + ':')
       open(STANDARD_CODERS_YAML, 'w').write(doc_sep.join(docs))

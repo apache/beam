@@ -22,7 +22,7 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <requiredProperties>
     <requiredProperty key="targetPlatform">
-      <defaultValue>1.7</defaultValue>
+      <defaultValue>1.8</defaultValue>
     </requiredProperty>
   </requiredProperties>
 

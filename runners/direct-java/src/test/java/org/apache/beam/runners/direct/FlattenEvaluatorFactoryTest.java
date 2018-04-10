@@ -41,15 +41,12 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for {@link FlattenEvaluatorFactory}.
- */
+/** Tests for {@link FlattenEvaluatorFactory}. */
 @RunWith(JUnit4.class)
 public class FlattenEvaluatorFactoryTest {
   private BundleFactory bundleFactory = ImmutableListBundleFactory.create();
 
-  @Rule
-  public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
+  @Rule public TestPipeline p = TestPipeline.create().enableAbandonedNodeEnforcement(false);
 
   @Test
   public void testFlattenInMemoryEvaluator() throws Exception {
@@ -57,12 +54,10 @@ public class FlattenEvaluatorFactoryTest {
     PCollection<Integer> right = p.apply("right", Create.of(-1, 2, -4));
     PCollectionList<Integer> list = PCollectionList.of(left).and(right);
 
-    PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
+    PCollection<Integer> flattened = list.apply(Flatten.pCollections());
 
-    CommittedBundle<Integer> leftBundle =
-        bundleFactory.createBundle(left).commit(Instant.now());
-    CommittedBundle<Integer> rightBundle =
-        bundleFactory.createBundle(right).commit(Instant.now());
+    CommittedBundle<Integer> leftBundle = bundleFactory.createBundle(left).commit(Instant.now());
+    CommittedBundle<Integer> rightBundle = bundleFactory.createBundle(right).commit(Instant.now());
 
     EvaluationContext context = mock(EvaluationContext.class);
 
@@ -82,24 +77,20 @@ public class FlattenEvaluatorFactoryTest {
     rightSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(-1));
     leftSideEvaluator.processElement(
         WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1024)));
-    leftSideEvaluator.processElement(WindowedValue.valueInEmptyWindows(4, PaneInfo.NO_FIRING));
+    leftSideEvaluator.processElement(WindowedValue.valueInGlobalWindow(4, PaneInfo.NO_FIRING));
     rightSideEvaluator.processElement(
-        WindowedValue.valueInEmptyWindows(2, PaneInfo.ON_TIME_AND_ONLY_FIRING));
+        WindowedValue.valueInGlobalWindow(2, PaneInfo.ON_TIME_AND_ONLY_FIRING));
     rightSideEvaluator.processElement(
         WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)));
 
     TransformResult<Integer> rightSideResult = rightSideEvaluator.finishBundle();
     TransformResult<Integer> leftSideResult = leftSideEvaluator.finishBundle();
 
-    assertThat(
-        rightSideResult.getOutputBundles(),
-        Matchers.<UncommittedBundle<?>>contains(flattenedRightBundle));
+    assertThat(rightSideResult.getOutputBundles(), Matchers.contains(flattenedRightBundle));
     assertThat(
         rightSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattenedProducer));
-    assertThat(
-        leftSideResult.getOutputBundles(),
-        Matchers.<UncommittedBundle<?>>contains(flattenedLeftBundle));
+    assertThat(leftSideResult.getOutputBundles(), Matchers.contains(flattenedLeftBundle));
     assertThat(
         leftSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattenedProducer));
@@ -108,12 +99,12 @@ public class FlattenEvaluatorFactoryTest {
         flattenedLeftBundle.commit(Instant.now()).getElements(),
         containsInAnyOrder(
             WindowedValue.timestampedValueInGlobalWindow(2, new Instant(1024)),
-            WindowedValue.valueInEmptyWindows(4, PaneInfo.NO_FIRING),
+            WindowedValue.valueInGlobalWindow(4, PaneInfo.NO_FIRING),
             WindowedValue.valueInGlobalWindow(1)));
     assertThat(
         flattenedRightBundle.commit(Instant.now()).getElements(),
         containsInAnyOrder(
-            WindowedValue.valueInEmptyWindows(2, PaneInfo.ON_TIME_AND_ONLY_FIRING),
+            WindowedValue.valueInGlobalWindow(2, PaneInfo.ON_TIME_AND_ONLY_FIRING),
             WindowedValue.timestampedValueInGlobalWindow(-4, new Instant(-4096)),
             WindowedValue.valueInGlobalWindow(-1)));
   }
@@ -122,7 +113,7 @@ public class FlattenEvaluatorFactoryTest {
   public void testFlattenInMemoryEvaluatorWithEmptyPCollectionList() throws Exception {
     PCollectionList<Integer> list = PCollectionList.empty(p);
 
-    PCollection<Integer> flattened = list.apply(Flatten.<Integer>pCollections());
+    PCollection<Integer> flattened = list.apply(Flatten.pCollections());
     flattened.setCoder(VarIntCoder.of());
 
     EvaluationContext evaluationContext = mock(EvaluationContext.class);
@@ -145,5 +136,4 @@ public class FlattenEvaluatorFactoryTest {
         leftSideResult.getTransform(),
         Matchers.<AppliedPTransform<?, ?, ?>>equalTo(flattendProducer));
   }
-
 }

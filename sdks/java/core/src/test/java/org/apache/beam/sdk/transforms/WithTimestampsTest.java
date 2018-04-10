@@ -52,13 +52,7 @@ public class WithTimestampsTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void withTimestampsShouldApplyTimestamps() {
 
-    SerializableFunction<String, Instant> timestampFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input));
-          }
-        };
+    SerializableFunction<String, Instant> timestampFn = input -> new Instant(Long.valueOf(input));
 
     String yearTwoThousand = "946684800000";
     PCollection<String> timestamped =
@@ -90,21 +84,9 @@ public class WithTimestampsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void withTimestampsBackwardsInTimeShouldThrow() {
 
-    SerializableFunction<String, Instant> timestampFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input));
-          }
-        };
+    SerializableFunction<String, Instant> timestampFn = input -> new Instant(Long.valueOf(input));
     SerializableFunction<String, Instant> backInTimeFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input)).minus(Duration.millis(1000L));
-          }
-        };
-
+        input -> new Instant(Long.valueOf(input)).minus(Duration.millis(1000L));
 
     String yearTwoThousand = "946684800000";
 
@@ -123,22 +105,11 @@ public class WithTimestampsTest implements Serializable {
   @Category(ValidatesRunner.class)
   public void withTimestampsBackwardsInTimeAndWithAllowedTimestampSkewShouldSucceed() {
 
-    SerializableFunction<String, Instant> timestampFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input));
-          }
-        };
+    SerializableFunction<String, Instant> timestampFn = input -> new Instant(Long.valueOf(input));
 
     final Duration skew = Duration.millis(1000L);
     SerializableFunction<String, Instant> backInTimeFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return new Instant(Long.valueOf(input)).minus(skew);
-          }
-        };
+        input -> new Instant(Long.valueOf(input)).minus(skew);
 
     String yearTwoThousand = "946684800000";
     PCollection<String> timestampedWithSkew =
@@ -174,13 +145,7 @@ public class WithTimestampsTest implements Serializable {
   @Test
   @Category(NeedsRunner.class)
   public void withTimestampsWithNullTimestampShouldThrow() {
-    SerializableFunction<String, Instant> timestampFn =
-        new SerializableFunction<String, Instant>() {
-          @Override
-          public Instant apply(String input) {
-            return null;
-          }
-        };
+    SerializableFunction<String, Instant> timestampFn = input -> null;
 
     String yearTwoThousand = "946684800000";
     p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
@@ -205,6 +170,36 @@ public class WithTimestampsTest implements Serializable {
 
     p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE)))
      .apply(WithTimestamps.of(timestampFn));
+
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void withTimestampsLambdaShouldApplyTimestamps() {
+
+    final String yearTwoThousand = "946684800000";
+    PCollection<String> timestamped =
+        p.apply(Create.of("1234", "0", Integer.toString(Integer.MAX_VALUE), yearTwoThousand))
+            .apply(WithTimestamps.of((String input) -> new Instant(Long.valueOf(input))));
+
+    PCollection<KV<String, Instant>> timestampedVals =
+        timestamped.apply(ParDo.of(new DoFn<String, KV<String, Instant>>() {
+          @ProcessElement
+          public void processElement(ProcessContext c)
+              throws Exception {
+            c.output(KV.of(c.element(), c.timestamp()));
+          }
+        }));
+
+    PAssert.that(timestamped)
+        .containsInAnyOrder(yearTwoThousand, "0", "1234", Integer.toString(Integer.MAX_VALUE));
+    PAssert.that(timestampedVals)
+        .containsInAnyOrder(
+            KV.of("0", new Instant(0)),
+            KV.of("1234", new Instant(Long.valueOf("1234"))),
+            KV.of(Integer.toString(Integer.MAX_VALUE), new Instant(Integer.MAX_VALUE)),
+            KV.of(yearTwoThousand, new Instant(Long.valueOf(yearTwoThousand))));
 
     p.run();
   }

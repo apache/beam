@@ -68,7 +68,7 @@ class StreamingViewOverrides {
         return input
             .apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults())
             .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))
-            .apply(CreateDataflowView.<ElemT, ViewT>of(view));
+            .apply(CreateDataflowView.forStreaming(view));
       }
     }
   }

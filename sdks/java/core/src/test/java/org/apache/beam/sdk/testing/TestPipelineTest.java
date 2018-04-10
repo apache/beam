@@ -18,7 +18,6 @@
 
 package org.apache.beam.sdk.testing;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -27,7 +26,6 @@ import static org.junit.Assert.assertThat;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -37,11 +35,9 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
@@ -117,18 +113,6 @@ public class TestPipelineTest implements Serializable {
       assertEquals(
           "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToString",
           pipeline.toString());
-    }
-
-    @Test
-    public void testConvertToArgs() {
-      String[] args = new String[] {"--tempLocation=Test_Location"};
-      PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
-      String[] arr = TestPipeline.convertToArgs(options);
-      List<String> lst = Arrays.asList(arr);
-      assertEquals(lst.size(), 2);
-      assertThat(
-          lst,
-          containsInAnyOrder("--tempLocation=Test_Location", "--appName=TestPipelineCreationTest"));
     }
 
     @Test
@@ -352,14 +336,7 @@ public class TestPipelineTest implements Serializable {
     public void testNewProvider() {
       ValueProvider<String> foo = pipeline.newProvider("foo");
       ValueProvider<String> foobar =
-          ValueProvider.NestedValueProvider.of(
-              foo,
-              new SerializableFunction<String, String>() {
-                @Override
-                public String apply(String input) {
-                  return input + "bar";
-                }
-              });
+          ValueProvider.NestedValueProvider.of(foo, input -> input + "bar");
 
       assertFalse(foo.isAccessible());
       assertFalse(foobar.isAccessible());

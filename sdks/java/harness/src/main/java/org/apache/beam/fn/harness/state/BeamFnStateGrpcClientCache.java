@@ -33,6 +33,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,10 +48,10 @@ public class BeamFnStateGrpcClientCache {
 
   private final ConcurrentMap<ApiServiceDescriptor, BeamFnStateClient> cache;
   private final Function<ApiServiceDescriptor, ManagedChannel> channelFactory;
-  private final BiFunction<Function<StreamObserver<StateResponse>,
-      StreamObserver<StateRequest>>,
-      StreamObserver<StateResponse>,
-      StreamObserver<StateRequest>> streamObserverFactory;
+  private final BiFunction<
+          StreamObserverClientFactory<StateResponse, StateRequest>, StreamObserver<StateResponse>,
+          StreamObserver<StateRequest>>
+      streamObserverFactory;
   private final PipelineOptions options;
   private final Supplier<String> idGenerator;
 
@@ -58,7 +59,7 @@ public class BeamFnStateGrpcClientCache {
       PipelineOptions options,
       Supplier<String> idGenerator,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
-      BiFunction<Function<StreamObserver<StateResponse>, StreamObserver<StateRequest>>,
+      BiFunction<StreamObserverClientFactory<StateResponse, StateRequest>,
           StreamObserver<StateResponse>,
           StreamObserver<StateRequest>> streamObserverFactory) {
     this.options = options;

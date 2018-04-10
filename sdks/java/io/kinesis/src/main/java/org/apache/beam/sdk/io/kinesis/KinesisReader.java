@@ -18,15 +18,11 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.Lists.newArrayList;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.NoSuchElementException;
-
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.transforms.Min;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.MovingFunction;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -51,6 +47,11 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private static final Duration SAMPLE_UPDATE = Duration.standardSeconds(5);
 
   /**
+   * Constant representing the maximum Kinesis stream retention period.
+   */
+  static final Duration MAX_KINESIS_STREAM_RETENTION_PERIOD = Duration.standardDays(7);
+
+  /**
    * Minimum number of unread messages required before considering updating watermark.
    */
   static final int MIN_WATERMARK_MESSAGES = 10;
@@ -64,14 +65,14 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final SimplifiedKinesisClient kinesis;
   private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
-  private RoundRobin<ShardRecordsIterator> shardIterators;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private MovingFunction minReadTimestampMsSinceEpoch;
-  private Instant lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  private Instant lastWatermark = Instant.now().minus(MAX_KINESIS_STREAM_RETENTION_PERIOD);
   private long lastBacklogBytes;
   private Instant backlogBytesLastCheckTime = new Instant(0L);
   private Duration upToDateThreshold;
   private Duration backlogBytesCheckThreshold;
+  private ShardReadersPool shardReadersPool;
 
   KinesisReader(SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
@@ -107,13 +108,8 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     LOG.info("Starting reader using {}", initialCheckpointGenerator);
 
     try {
-      KinesisReaderCheckpoint initialCheckpoint =
-          initialCheckpointGenerator.generate(kinesis);
-      List<ShardRecordsIterator> iterators = newArrayList();
-      for (ShardCheckpoint checkpoint : initialCheckpoint) {
-        iterators.add(checkpoint.getShardRecordsIterator(kinesis));
-      }
-      shardIterators = new RoundRobin<>(iterators);
+      shardReadersPool = createShardReadersPool();
+      shardReadersPool.start();
     } catch (TransientKinesisException e) {
       throw new IOException(e);
     }
@@ -122,27 +118,16 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   /**
-   * Moves to the next record in one of the shards.
-   * If current shard iterator can be move forward (i.e. there's a record present) then we do it.
-   * If not, we iterate over shards in a round-robin manner.
+   * Retrieves next record from internal buffer.
    */
   @Override
   public boolean advance() throws IOException {
-    try {
-      for (int i = 0; i < shardIterators.size(); ++i) {
-        currentRecord = shardIterators.getCurrent().next();
-        if (currentRecord.isPresent()) {
-          Instant approximateArrivalTimestamp = currentRecord.get()
-              .getApproximateArrivalTimestamp();
-          minReadTimestampMsSinceEpoch.add(Instant.now().getMillis(),
-              approximateArrivalTimestamp.getMillis());
-          return true;
-        } else {
-          shardIterators.moveForward();
-        }
-      }
-    } catch (TransientKinesisException e) {
-      LOG.warn("Transient exception occurred", e);
+    currentRecord = shardReadersPool.nextRecord();
+    if (currentRecord.isPresent()) {
+      Instant approximateArrivalTimestamp = currentRecord.get().getApproximateArrivalTimestamp();
+      minReadTimestampMsSinceEpoch.add(Instant.now().getMillis(),
+          approximateArrivalTimestamp.getMillis());
+      return true;
     }
     return false;
   }
@@ -170,13 +155,14 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public void close() throws IOException {
+    shardReadersPool.stop();
   }
 
   @Override
   public Instant getWatermark() {
     Instant now = Instant.now();
     long readMin = minReadTimestampMsSinceEpoch.get(now.getMillis());
-    if (readMin == Long.MAX_VALUE) {
+    if (readMin == Long.MAX_VALUE && shardReadersPool.allShardsUpToDate()) {
       lastWatermark = now;
     } else if (minReadTimestampMsSinceEpoch.isSignificant()) {
       Instant minReadTime = new Instant(readMin);
@@ -189,7 +175,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-    return KinesisReaderCheckpoint.asCurrentStateOf(shardIterators);
+    return shardReadersPool.getCheckpointMark();
   }
 
   @Override
@@ -220,5 +206,9 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     LOG.info("Total backlog bytes for {} stream with {} watermark: {}", source.getStreamName(),
         watermark, lastBacklogBytes);
     return lastBacklogBytes;
+  }
+
+  ShardReadersPool createShardReadersPool() throws TransientKinesisException {
+    return new ShardReadersPool(kinesis, initialCheckpointGenerator.generate(kinesis));
   }
 }

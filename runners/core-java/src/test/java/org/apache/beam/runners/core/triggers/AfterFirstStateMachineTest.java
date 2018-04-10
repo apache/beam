@@ -45,7 +45,7 @@ public class AfterFirstStateMachineTest {
   @Mock private TriggerStateMachine mockTrigger2;
   private SimpleTriggerStateMachineTester<IntervalWindow> tester;
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
-    return Mockito.<TriggerStateMachine.TriggerContext>any();
+    return Mockito.any();
   }
 
   @Before

@@ -21,7 +21,7 @@ package org.apache.beam.runners.spark.translation;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.Iterator;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-
 
 /**
  * Spark runner process context processes Spark partitions using Beam's {@link DoFnRunner}.
@@ -61,17 +60,13 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   Iterable<OutputT> processPartition(
       Iterator<WindowedValue<FnInputT>> partition) throws Exception {
 
-    // setup DoFn.
-    DoFnInvokers.invokerFor(doFn).invokeSetup();
-
     // skip if partition is empty.
     if (!partition.hasNext()) {
-      DoFnInvokers.invokerFor(doFn).invokeTeardown();
-      return Lists.newArrayList();
+      return new ArrayList<>();
     }
 
-    // call startBundle() before beginning to process the partition.
-    doFnRunner.startBundle();
+    // setup DoFn.
+    DoFnInvokers.invokerFor(doFn).invokeSetup();
     // process the partition; finishBundle() is called from within the output iterator.
     return this.getOutputIterable(partition, doFnRunner);
   }
@@ -87,13 +82,7 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
   private Iterable<OutputT> getOutputIterable(
       final Iterator<WindowedValue<FnInputT>> iter,
       final DoFnRunner<FnInputT, FnOutputT> doFnRunner) {
-
-    return new Iterable<OutputT>() {
-      @Override
-      public Iterator<OutputT> iterator() {
-        return new ProcCtxtIterator(iter, doFnRunner);
-      }
-    };
+    return () -> new ProcCtxtIterator(iter, doFnRunner);
   }
 
   interface SparkOutputManager<T> extends OutputManager, Iterable<T> {
@@ -106,12 +95,12 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
 
     @Override
     public StateInternals stateInternals() {
-      return null;
+      throw new UnsupportedOperationException("stateInternals not supported");
     }
 
     @Override
     public TimerInternals timerInternals() {
-      return null;
+      throw new UnsupportedOperationException("timerInternals not supported");
     }
   }
 
@@ -120,7 +109,8 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
     private final Iterator<WindowedValue<FnInputT>> inputIterator;
     private final DoFnRunner<FnInputT, FnOutputT> doFnRunner;
     private Iterator<OutputT> outputIterator;
-    private boolean calledFinish;
+    private boolean isBundleStarted;
+    private boolean isBundleFinished;
 
     ProcCtxtIterator(
         Iterator<WindowedValue<FnInputT>> iterator,
@@ -137,31 +127,41 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
       // collection (and iterator) is reset between each call to processElement, so the
       // collection only holds the output values for each call to processElement, rather
       // than for the whole partition (which would use too much memory).
-      while (true) {
-        if (outputIterator.hasNext()) {
-          return outputIterator.next();
-        } else if (inputIterator.hasNext()) {
-          clearOutput();
-          // grab the next element and process it.
-          doFnRunner.processElement(inputIterator.next());
-          outputIterator = getOutputIterator();
-        } else if (timerDataIterator.hasNext()) {
-          clearOutput();
-          fireTimer(timerDataIterator.next());
-          outputIterator = getOutputIterator();
-        } else {
-          // no more input to consume, but finishBundle can produce more output
-          if (!calledFinish) {
-            clearOutput();
-            calledFinish = true;
-            doFnRunner.finishBundle();
-            // teardown DoFn.
-            DoFnInvokers.invokerFor(doFn).invokeTeardown();
-            outputIterator = getOutputIterator();
-            continue; // try to consume outputIterator from start of loop
+      if (!isBundleStarted) {
+        isBundleStarted = true;
+        // call startBundle() before beginning to process the partition.
+        doFnRunner.startBundle();
+      }
+
+      try {
+        while (true) {
+          if (outputIterator.hasNext()) {
+            return outputIterator.next();
           }
-          return endOfData();
+
+          clearOutput();
+          if (inputIterator.hasNext()) {
+            // grab the next element and process it.
+            doFnRunner.processElement(inputIterator.next());
+            outputIterator = getOutputIterator();
+          } else if (timerDataIterator.hasNext()) {
+            fireTimer(timerDataIterator.next());
+            outputIterator = getOutputIterator();
+          } else {
+            // no more input to consume, but finishBundle can produce more output
+            if (!isBundleFinished) {
+              isBundleFinished = true;
+              doFnRunner.finishBundle();
+              outputIterator = getOutputIterator();
+              continue; // try to consume outputIterator from start of loop
+            }
+            DoFnInvokers.invokerFor(doFn).invokeTeardown();
+            return endOfData();
+          }
         }
+      } catch (final RuntimeException re) {
+        DoFnInvokers.invokerFor(doFn).invokeTeardown();
+        throw re;
       }
     }
 

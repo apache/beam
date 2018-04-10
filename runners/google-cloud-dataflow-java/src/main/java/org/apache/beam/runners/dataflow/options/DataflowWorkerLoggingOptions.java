@@ -29,8 +29,14 @@ import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Options that are used to control logging configuration on the Dataflow worker.
+ *
+ * @deprecated This interface will no longer be the source of truth for worker logging configuration
+ * once jobs are executed using a dedicated SDK harness instead of user code being co-located
+ * alongside Dataflow worker code. Please set the option below and also the corresponding option
+ * within {@link org.apache.beam.sdk.options.SdkHarnessOptions} to ensure forward compatibility.
  */
 @Description("Options that are used to control logging configuration on the Dataflow worker.")
+@Deprecated
 public interface DataflowWorkerLoggingOptions extends PipelineOptions {
   /**
    * The set of log levels that can be used on the Dataflow worker.

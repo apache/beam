@@ -20,13 +20,9 @@ package org.apache.beam.sdk.io.redis;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
-
 import java.io.Serializable;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.transforms.display.DisplayData;
-
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Protocol;
 

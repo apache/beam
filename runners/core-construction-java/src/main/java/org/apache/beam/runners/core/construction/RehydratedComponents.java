@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollection;
@@ -59,8 +60,15 @@ public class RehydratedComponents {
               new CacheLoader<String, WindowingStrategy<?, ?>>() {
                 @Override
                 public WindowingStrategy<?, ?> load(String id) throws Exception {
+                  @Nullable
+                  RunnerApi.WindowingStrategy windowingStrategyProto =
+                      components.getWindowingStrategiesOrDefault(id, null);
+                  checkState(
+                      windowingStrategyProto != null,
+                      "No WindowingStrategy with id '%s' in serialized components",
+                      id);
                   return WindowingStrategyTranslation.fromProto(
-                      components.getWindowingStrategiesOrThrow(id), RehydratedComponents.this);
+                      windowingStrategyProto, RehydratedComponents.this);
                 }
               });
 
@@ -71,8 +79,9 @@ public class RehydratedComponents {
               new CacheLoader<String, Coder<?>>() {
                 @Override
                 public Coder<?> load(String id) throws Exception {
-                  return CoderTranslation.fromProto(
-                      components.getCodersOrThrow(id), RehydratedComponents.this);
+                  @Nullable RunnerApi.Coder coder = components.getCodersOrDefault(id, null);
+                  checkState(coder != null, "No coder with id '%s' in serialized components", id);
+                  return CoderTranslation.fromProto(coder, RehydratedComponents.this);
                 }
               });
 
@@ -155,5 +164,12 @@ public class RehydratedComponents {
     } catch (ExecutionException exc) {
       throw new RuntimeException(exc);
     }
+  }
+
+  /**
+   * Returns the {@link Environment} associated with the given ID.
+   */
+  public Environment getEnvironment(String environmentId) {
+    return components.getEnvironmentsOrThrow(environmentId);
   }
 }

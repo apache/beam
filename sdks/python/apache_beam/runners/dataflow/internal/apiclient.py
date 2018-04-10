@@ -31,6 +31,7 @@ from StringIO import StringIO
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
+import six
 
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
@@ -41,6 +42,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.dataflow.internal import dependency
+from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -51,7 +53,7 @@ from apache_beam.utils import retry
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
 # are expected by the workers.
-_LEGACY_ENVIRONMENT_MAJOR_VERSION = '6'
+_LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
 _FNAPI_ENVIRONMENT_MAJOR_VERSION = '1'
 
 
@@ -118,11 +120,12 @@ class Step(object):
 class Environment(object):
   """Wrapper for a dataflow Environment protobuf."""
 
-  def __init__(self, packages, options, environment_version):
+  def __init__(self, packages, options, environment_version, pipeline_url):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
     self.debug_options = options.view_as(DebugOptions)
+    self.pipeline_url = pipeline_url
     self.proto = dataflow.Environment()
     self.proto.clusterManagerApiService = GoogleCloudOptions.COMPUTE_API_SERVICE
     self.proto.dataset = '{}/cloud_dataflow'.format(
@@ -166,10 +169,17 @@ class Environment(object):
     if job_type.startswith('FNAPI_'):
       runner_harness_override = (
           dependency.get_runner_harness_container_image())
+      self.debug_options.experiments = self.debug_options.experiments or []
       if runner_harness_override:
-        self.debug_options.experiments = self.debug_options.experiments or []
         self.debug_options.experiments.append(
             'runner_harness_container_image=' + runner_harness_override)
+      # Add use_multiple_sdk_containers flag if its not already present. Do not
+      # add the flag if 'no_use_multiple_sdk_containers' is present.
+      # TODO: Cleanup use_multiple_sdk_containers once we deprecate Python SDK
+      # till version 2.4.
+      if ('use_multiple_sdk_containers' not in self.proto.experiments and
+          'no_use_multiple_sdk_containers' not in self.proto.experiments):
+        self.debug_options.experiments.append('use_multiple_sdk_containers')
     # Experiments
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:
@@ -192,6 +202,7 @@ class Environment(object):
             parallelWorkerSettings=dataflow.WorkerSettings(
                 baseUrl=GoogleCloudOptions.DATAFLOW_ENDPOINT,
                 servicePath=self.google_cloud_options.dataflow_endpoint)))
+
     pool.autoscalingSettings = dataflow.AutoscalingSettings()
     # Set worker pool options received through command line.
     if self.worker_options.num_workers:
@@ -250,6 +261,7 @@ class Environment(object):
       options_dict = {k: v
                       for k, v in sdk_pipeline_options.iteritems()
                       if v is not None}
+      options_dict["pipelineUrl"] = pipeline_url
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))
@@ -283,7 +295,7 @@ class Job(object):
     def decode_shortstrings(input_buffer, errors='strict'):
       """Decoder (to Unicode) that suppresses long base64 strings."""
       shortened, length = encode_shortstrings(input_buffer, errors)
-      return unicode(shortened), length
+      return six.text_type(shortened), length
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':
@@ -323,8 +335,9 @@ class Job(object):
       job_name = Job._build_default_job_name(getpass.getuser())
     return job_name
 
-  def __init__(self, options):
+  def __init__(self, options, proto_pipeline):
     self.options = options
+    self.proto_pipeline = proto_pipeline
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     if not self.google_cloud_options.job_name:
       self.google_cloud_options.job_name = self.default_job_name(
@@ -475,9 +488,19 @@ class DataflowApplicationClient(object):
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
+
+    # Stage the pipeline for the runner harness
+    self.stage_file(job.google_cloud_options.staging_location,
+                    names.STAGED_PIPELINE_FILENAME,
+                    StringIO(job.proto_pipeline.SerializeToString()))
+
+    # Stage other resources for the SDK harness
     resources = dependency.stage_job_resources(
         job.options, file_copy=self._gcs_file_copy)
+
     job.proto.environment = Environment(
+        pipeline_url=FileSystems.join(job.google_cloud_options.staging_location,
+                                      names.STAGED_PIPELINE_FILENAME),
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
     logging.debug('JOB: %s', job)
@@ -554,7 +577,7 @@ class DataflowApplicationClient(object):
     request.location = self.google_cloud_options.region
     request.job = dataflow.Job(requestedState=new_state)
 
-    self._client.projects_jobs.Update(request)
+    self._client.projects_locations_jobs.Update(request)
     return True
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py

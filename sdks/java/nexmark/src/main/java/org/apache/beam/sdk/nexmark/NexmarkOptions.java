@@ -400,4 +400,10 @@ public interface NexmarkOptions
   Long getWatermarkValidationDelaySeconds();
 
   void setWatermarkValidationDelaySeconds(Long value);
+
+  @Description("Specify 'sql' to use Beam SQL queries. Otherwise Java transforms will be used")
+  @Nullable
+  String getQueryLanguage();
+
+  void setQueryLanguage(String value);
 }

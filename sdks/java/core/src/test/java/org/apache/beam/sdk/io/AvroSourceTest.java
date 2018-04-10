@@ -59,7 +59,6 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.SourceTestUtils;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.hamcrest.Matchers;
@@ -100,9 +99,10 @@ public class AvroSourceTest {
     String path = tmpFile.toString();
 
     FileOutputStream os = new FileOutputStream(tmpFile);
-    DatumWriter<T> datumWriter = coder.getType().equals(GenericRecord.class)
-        ? new GenericDatumWriter<T>(coder.getSchema())
-        : new ReflectDatumWriter<T>(coder.getSchema());
+    DatumWriter<T> datumWriter =
+        coder.getType().equals(GenericRecord.class)
+            ? new GenericDatumWriter<>(coder.getSchema())
+            : new ReflectDatumWriter<>(coder.getSchema());
     try (DataFileWriter<T> writer = new DataFileWriter<>(datumWriter)) {
       writer.setCodec(CodecFactory.fromString(codec));
       writer.create(coder.getSchema(), os);
@@ -454,16 +454,12 @@ public class AvroSourceTest {
     AvroSource<Bird> source =
         AvroSource.from(filename)
             .withParseFn(
-                new SerializableFunction<GenericRecord, Bird>() {
-                  @Override
-                  public Bird apply(GenericRecord input) {
-                    return new Bird(
+                input ->
+                    new Bird(
                         (long) input.get("number"),
                         input.get("species").toString(),
                         input.get("quality").toString(),
-                        (long) input.get("quantity"));
-                  }
-                },
+                        (long) input.get("quantity")),
                 AvroCoder.of(Bird.class));
     List<Bird> actual = SourceTestUtils.readFromSource(source, null);
     assertThat(actual, containsInAnyOrder(expected.toArray()));

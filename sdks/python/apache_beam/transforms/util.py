@@ -22,6 +22,7 @@ from __future__ import absolute_import
 
 import collections
 import contextlib
+import random
 import time
 
 from apache_beam import typehints
@@ -29,12 +30,19 @@ from apache_beam.metrics import Metrics
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
+from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
+from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.window import NonMergingWindowFn
+from apache_beam.transforms.window import TimestampCombiner
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import windowed_value
 
 __all__ = [
@@ -43,10 +51,12 @@ __all__ = [
     'Keys',
     'KvSwap',
     'RemoveDuplicates',
+    'Reshuffle',
     'Values',
     ]
 
-
+K = typehints.TypeVariable('K')
+V = typehints.TypeVariable('V')
 T = typehints.TypeVariable('T')
 
 
@@ -112,14 +122,16 @@ class CoGroupByKey(PTransform):
   def expand(self, pcolls):
     """Performs CoGroupByKey on argument pcolls; see class docstring."""
     # For associating values in K-V pairs with the PCollections they came from.
-    def _pair_tag_with_value((key, value), tag):
+    def _pair_tag_with_value(key_value, tag):
+      (key, value) = key_value
       return (key, (tag, value))
 
     # Creates the key, value pairs for the output PCollection. Values are either
     # lists or dicts (per the class docstring), initialized by the result of
     # result_ctor(result_ctor_arg).
-    def _merge_tagged_vals_under_key((key, grouped), result_ctor,
+    def _merge_tagged_vals_under_key(key_grouped, result_ctor,
                                      result_ctor_arg):
+      (key, grouped) = key_grouped
       result_value = result_ctor(result_ctor_arg)
       for tag, value in grouped:
         result_value[tag].append(value)
@@ -137,7 +149,7 @@ class CoGroupByKey(PTransform):
       # pairs. The result value constructor makes tuples with len(pcolls) slots.
       pcolls = list(enumerate(pcolls))
       result_ctor_arg = len(pcolls)
-      result_ctor = lambda size: tuple([] for _ in xrange(size))
+      result_ctor = lambda size: tuple([] for _ in range(size))
 
     # Check input PCollections for PCollection-ness, and that they all belong
     # to the same pipeline.
@@ -155,17 +167,17 @@ class CoGroupByKey(PTransform):
 
 def Keys(label='Keys'):  # pylint: disable=invalid-name
   """Produces a PCollection of first elements of 2-tuples in a PCollection."""
-  return label >> Map(lambda (k, v): k)
+  return label >> Map(lambda k_v: k_v[0])
 
 
 def Values(label='Values'):  # pylint: disable=invalid-name
   """Produces a PCollection of second elements of 2-tuples in a PCollection."""
-  return label >> Map(lambda (k, v): v)
+  return label >> Map(lambda k_v1: k_v1[1])
 
 
 def KvSwap(label='KvSwap'):  # pylint: disable=invalid-name
   """Produces a PCollection reversing 2-tuples in a PCollection."""
-  return label >> Map(lambda (k, v): (v, k))
+  return label >> Map(lambda k_v2: (k_v2[1], k_v2[0]))
 
 
 @ptransform_fn
@@ -247,8 +259,13 @@ class _BatchSizeEstimator(object):
     sorted_data = sorted(self._data)
     odd_one_out = [sorted_data[-1]] if len(sorted_data) % 2 == 1 else []
     # Sort the pairs by how different they are.
+
+    def div_keys(kv1_kv2):
+      (x1, _), (x2, _) = kv1_kv2
+      return x2 / x1
+
     pairs = sorted(zip(sorted_data[::2], sorted_data[1::2]),
-                   key=lambda ((x1, _1), (x2, _2)): x2 / x1)
+                   key=div_keys)
     # Keep the top 1/3 most different pairs, average the top 2/3 most similar.
     threshold = 2 * len(pairs) / 3
     self._data = (
@@ -398,9 +415,10 @@ class BatchElements(PTransform):
     clock: (optional) an alternative to time.time for measuring the cost of
         donwstream operations (mostly for testing)
   """
+
   def __init__(self,
                min_batch_size=1,
-               max_batch_size=1000,
+               max_batch_size=10000,
                target_batch_overhead=.05,
                target_batch_duration_secs=1,
                clock=time.time):
@@ -421,3 +439,124 @@ class BatchElements(PTransform):
           self._batch_size_estimator))
     else:
       return pcoll | ParDo(_WindowAwareBatchingDoFn(self._batch_size_estimator))
+
+
+class _IdentityWindowFn(NonMergingWindowFn):
+  """Windowing function that preserves existing windows.
+
+  To be used internally with the Reshuffle transform.
+  Will raise an exception when used after DoFns that return TimestampedValue
+  elements.
+  """
+
+  def __init__(self, window_coder):
+    """Create a new WindowFn with compatible coder.
+    To be applied to PCollections with windows that are compatible with the
+    given coder.
+
+    Arguments:
+      window_coder: coders.Coder object to be used on windows.
+    """
+    super(_IdentityWindowFn, self).__init__()
+    if window_coder is None:
+      raise ValueError('window_coder should not be None')
+    self._window_coder = window_coder
+
+  def assign(self, assign_context):
+    if assign_context.window is None:
+      raise ValueError(
+          'assign_context.window should not be None. '
+          'This might be due to a DoFn returning a TimestampedValue.')
+    return [assign_context.window]
+
+  def get_window_coder(self):
+    return self._window_coder
+
+
+@typehints.with_input_types(typehints.KV[K, V])
+@typehints.with_output_types(typehints.KV[K, V])
+class ReshufflePerKey(PTransform):
+  """PTransform that returns a PCollection equivalent to its input,
+  but operationally provides some of the side effects of a GroupByKey,
+  in particular preventing fusion of the surrounding transforms,
+  checkpointing, and deduplication by id.
+
+  ReshufflePerKey is experimental. No backwards compatibility guarantees.
+  """
+
+  def expand(self, pcoll):
+    windowing_saved = pcoll.windowing
+    if windowing_saved.is_default():
+      # In this (common) case we can use a trivial trigger driver
+      # and avoid the (expensive) window param.
+      globally_windowed = window.GlobalWindows.windowed_value(None)
+      window_fn = window.GlobalWindows()
+      MIN_TIMESTAMP = window.MIN_TIMESTAMP
+
+      def reify_timestamps(element, timestamp=DoFn.TimestampParam):
+        key, value = element
+        if timestamp == MIN_TIMESTAMP:
+          timestamp = None
+        return key, (value, timestamp)
+
+      def restore_timestamps(element):
+        key, values = element
+        return [
+            globally_windowed.with_value((key, value))
+            if timestamp is None
+            else window.GlobalWindows.windowed_value((key, value), timestamp)
+            for (value, timestamp) in values]
+
+    else:
+      # The linter is confused.
+      # hash(1) is used to force "runtime" selection of _IdentityWindowFn
+      # pylint: disable=abstract-class-instantiated
+      cls = hash(1) and _IdentityWindowFn
+      window_fn = cls(
+          windowing_saved.windowfn.get_window_coder())
+
+      def reify_timestamps(element, timestamp=DoFn.TimestampParam):
+        key, value = element
+        return key, TimestampedValue(value, timestamp)
+
+      def restore_timestamps(element, window=DoFn.WindowParam):
+        # Pass the current window since _IdentityWindowFn wouldn't know how
+        # to generate it.
+        key, values = element
+        return [
+            windowed_value.WindowedValue(
+                (key, value.value), value.timestamp, [window])
+            for value in values]
+
+    ungrouped = pcoll | Map(reify_timestamps)
+    ungrouped._windowing = Windowing(
+        window_fn,
+        triggerfn=AfterCount(1),
+        accumulation_mode=AccumulationMode.DISCARDING,
+        timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
+    result = (ungrouped
+              | GroupByKey()
+              | FlatMap(restore_timestamps))
+    result._windowing = windowing_saved
+    return result
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class Reshuffle(PTransform):
+  """PTransform that returns a PCollection equivalent to its input,
+  but operationally provides some of the side effects of a GroupByKey,
+  in particular preventing fusion of the surrounding transforms,
+  checkpointing, and deduplication by id.
+
+  Reshuffle adds a temporary random key to each element, performs a
+  ReshufflePerKey, and finally removes the temporary key.
+
+  Reshuffle is experimental. No backwards compatibility guarantees.
+  """
+
+  def expand(self, pcoll):
+    return (pcoll
+            | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
+            | ReshufflePerKey()
+            | 'RemoveRandomKeys' >> Map(lambda t: t[1]))

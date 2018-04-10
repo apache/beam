@@ -22,7 +22,7 @@ import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -34,7 +34,7 @@ public class BeamSqlIsNotNullExpression extends BeamSqlExpression {
     super(operands, outputType);
   }
 
-  public BeamSqlIsNotNullExpression(BeamSqlExpression operand){
+  public BeamSqlIsNotNullExpression(BeamSqlExpression operand) {
     this(Arrays.asList(operand), SqlTypeName.BOOLEAN);
   }
 
@@ -47,7 +47,7 @@ public class BeamSqlIsNotNullExpression extends BeamSqlExpression {
   }
 
   @Override
-  public BeamSqlPrimitive<Boolean> evaluate(BeamRecord inputRow, BoundedWindow window) {
+  public BeamSqlPrimitive<Boolean> evaluate(Row inputRow, BoundedWindow window) {
     Object leftValue = operands.get(0).evaluate(inputRow, window).getValue();
     return BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, leftValue != null);
   }

@@ -51,13 +51,13 @@ import org.joda.time.format.PeriodFormatter;
 @Experimental(Experimental.Kind.TRIGGER)
 public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStateMachine {
 
-  protected static final List<SerializableFunction<Instant, Instant>> IDENTITY =
-      ImmutableList.<SerializableFunction<Instant, Instant>>of();
+  protected static final List<SerializableFunction<Instant, Instant>> IDENTITY = ImmutableList.of();
 
-  protected static final StateTag<CombiningState<Instant,
-                                                Holder<Instant>, Instant>> DELAYED_UNTIL_TAG =
-      StateTags.makeSystemTagInternal(StateTags.combiningValueFromInputInternal(
-          "delayed", InstantCoder.of(), Min.<Instant>naturalOrder()));
+  protected static final StateTag<CombiningState<Instant, Holder<Instant>, Instant>>
+      DELAYED_UNTIL_TAG =
+          StateTags.makeSystemTagInternal(
+              StateTags.combiningValueFromInputInternal(
+                  "delayed", InstantCoder.of(), Min.naturalOrder()));
 
   private static final PeriodFormatter PERIOD_FORMATTER = PeriodFormat.wordBased(Locale.ENGLISH);
 

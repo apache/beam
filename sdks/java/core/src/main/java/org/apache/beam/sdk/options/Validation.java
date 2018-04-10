@@ -36,7 +36,7 @@ public @interface Validation {
   @Target(value = ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
   @Documented
-  public @interface Required {
+  @interface Required {
     /**
      * The groups that the annotated attribute is a member of. A member can be in 0 or more groups.
      * Members not in any groups are considered to be in a group consisting exclusively of

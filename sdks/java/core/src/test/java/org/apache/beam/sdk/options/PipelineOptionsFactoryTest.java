@@ -17,13 +17,17 @@
  */
 package org.apache.beam.sdk.options;
 
+import static java.util.Locale.ROOT;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -36,6 +40,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -57,7 +62,9 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -96,7 +103,7 @@ public class PipelineOptionsFactoryTest {
         REGISTERED_RUNNER.getSimpleName()
             .substring(0, REGISTERED_RUNNER.getSimpleName().length() - "Runner".length()));
     Map<String, Class<? extends PipelineRunner<?>>> registered =
-        PipelineOptionsFactory.getRegisteredRunners();
+        PipelineOptionsFactory.CACHE.get().getSupportedPipelineRunners();
     assertEquals(REGISTERED_RUNNER,
         registered.get(REGISTERED_RUNNER.getSimpleName()
             .toLowerCase()
@@ -120,6 +127,19 @@ public class PipelineOptionsFactoryTest {
     TestPipelineOptions options = PipelineOptionsFactory.as(TestPipelineOptions.class);
     assertEquals(PipelineOptionsFactoryTest.class.getSimpleName(),
         options.as(ApplicationNameOptions.class).getAppName());
+  }
+
+  @Test
+  public void testOptionsIdIsSet() throws Exception {
+    ObjectMapper mapper = new ObjectMapper().registerModules(
+        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+    PipelineOptions options = PipelineOptionsFactory.create();
+    // We purposely serialize/deserialize to get another instance. This allows to test if the
+    // default has been set or not.
+    PipelineOptions clone =
+        mapper.readValue(mapper.writeValueAsString(options), PipelineOptions.class);
+    // It is important that we don't call getOptionsId() before we have created the clone.
+    assertEquals(options.getOptionsId(), clone.getOptionsId());
   }
 
   @Test
@@ -833,8 +853,8 @@ public class PipelineOptionsFactoryTest {
     assertEquals(Short.valueOf((short) 300), options.getShort());
     assertEquals(Integer.valueOf(100000), options.getInt());
     assertEquals(Long.valueOf(123890123890L), options.getLong());
-    assertEquals(Float.valueOf(55.5f), options.getFloat(), 0.0f);
-    assertEquals(Double.valueOf(12.3), options.getDouble(), 0.0);
+    assertEquals(55.5f, options.getFloat(), 0.0f);
+    assertEquals(12.3, options.getDouble(), 0.0);
     assertEquals("stringValue", options.getString());
     assertTrue(options.getEmptyString().isEmpty());
     assertEquals(PipelineOptionsFactoryTest.class, options.getClassValue());
@@ -1350,7 +1370,9 @@ public class PipelineOptionsFactoryTest {
         "Unknown 'runner' specified 'UnknownRunner', supported " + "pipeline runners");
     Set<String> registeredRunners = PipelineOptionsFactory.getRegisteredRunners().keySet();
     assertThat(registeredRunners, hasItem(REGISTERED_RUNNER.getSimpleName().toLowerCase()));
-    expectedException.expectMessage(PipelineOptionsFactory.getSupportedRunners().toString());
+
+    expectedException.expectMessage(PipelineOptionsFactory.CACHE.get()
+      .getSupportedRunners().toString());
 
     PipelineOptionsFactory.fromArgs(args).create();
   }
@@ -1698,7 +1720,7 @@ public class PipelineOptionsFactoryTest {
   public static class RegisteredTestRunnerRegistrar implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(RegisteredTestRunner.class);
+      return ImmutableList.of(RegisteredTestRunner.class);
     }
   }
 
@@ -1714,7 +1736,7 @@ public class PipelineOptionsFactoryTest {
   public static class RegisteredTestOptionsRegistrar implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(RegisteredTestOptions.class);
+      return ImmutableList.of(RegisteredTestOptions.class);
     }
   }
 
@@ -1775,4 +1797,82 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
+  /** Used to test that the thread context class loader is used when creating proxies. */
+  public interface ClassLoaderTestOptions extends PipelineOptions {
+    @Default.Boolean(true)
+    @Description("A test option.")
+    boolean isOption();
+    void setOption(boolean b);
+  }
+
+  @Test
+  public void testPipelineOptionsFactoryUsesTccl() throws Exception {
+    final Thread thread = Thread.currentThread();
+    final ClassLoader testClassLoader = thread.getContextClassLoader();
+    final ClassLoader caseLoader = new InterceptingUrlClassLoader(
+      testClassLoader,
+      name -> name.toLowerCase(ROOT).contains("test"));
+    thread.setContextClassLoader(caseLoader);
+    PipelineOptionsFactory.resetCache();
+    try {
+      final PipelineOptions pipelineOptions = PipelineOptionsFactory.create();
+      final Class optionType = caseLoader.loadClass(
+              "org.apache.beam.sdk.options.PipelineOptionsFactoryTest$ClassLoaderTestOptions");
+      final Object options = pipelineOptions.as(optionType);
+      assertSame(caseLoader, options.getClass().getClassLoader());
+      assertSame(optionType.getClassLoader(), options.getClass().getClassLoader());
+      assertSame(testClassLoader, optionType.getInterfaces()[0].getClassLoader());
+      assertTrue(Boolean.class.cast(optionType.getMethod("isOption").invoke(options)));
+    } finally {
+      thread.setContextClassLoader(testClassLoader);
+      PipelineOptionsFactory.resetCache();
+    }
+  }
+
+  @Test
+  public void testDefaultMethodIgnoresDefaultImplementation() {
+    OptionsWithDefaultMethod optsWithDefault =
+        PipelineOptionsFactory.as(OptionsWithDefaultMethod.class);
+    assertThat(optsWithDefault.getValue(), nullValue());
+
+    optsWithDefault.setValue(12.25);
+    assertThat(optsWithDefault.getValue(), equalTo(12.25));
+  }
+
+  private interface ExtendedOptionsWithDefault extends OptionsWithDefaultMethod {}
+
+  @Test
+  public void testDefaultMethodInExtendedClassIgnoresDefaultImplementation() {
+    OptionsWithDefaultMethod extendedOptsWithDefault =
+        PipelineOptionsFactory.as(ExtendedOptionsWithDefault.class);
+    assertThat(extendedOptsWithDefault.getValue(), nullValue());
+
+    extendedOptsWithDefault.setValue(Double.NEGATIVE_INFINITY);
+    assertThat(extendedOptsWithDefault.getValue(), equalTo(Double.NEGATIVE_INFINITY));
+  }
+
+  private interface OptionsWithDefaultMethod extends PipelineOptions {
+    default Number getValue() {
+      return 1024;
+    }
+
+    void setValue(Number value);
+  }
+
+  @Test
+  public void testStaticMethodsAreAllowed() {
+    assertEquals("value",
+        OptionsWithStaticMethod.myStaticMethod(
+            PipelineOptionsFactory.fromArgs("--myMethod=value")
+                .as(OptionsWithStaticMethod.class)));
+  }
+
+  private interface OptionsWithStaticMethod extends PipelineOptions {
+    String getMyMethod();
+    void setMyMethod(String value);
+
+    static String myStaticMethod(OptionsWithStaticMethod o) {
+      return o.getMyMethod();
+    }
+  }
 }

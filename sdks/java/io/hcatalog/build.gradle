@@ -1,0 +1,62 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+
+description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
+ext.summary = "IO to read and write for HCatalog source."
+
+def hive_version = "2.1.0"
+
+test {
+  // TODO: Get tests to run. Known issues:
+  //  * calcite-avatica bundles w/o repackaging Jackson (CALCITE-1110)
+  //  * hive-exec bundles w/o repackaging Guava (HIVE-13690)
+  ignoreFailures true
+}
+
+dependencies {
+  compile library.java.guava
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-io-hadoop-common", configuration: "shadow")
+  shadow library.java.slf4j_api
+  shadow library.java.findbugs_jsr305
+  // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
+  // on the compile/test/runtime classpath before Hive.
+  provided library.java.jackson_annotations
+  provided library.java.jackson_core
+  provided library.java.jackson_databind
+  // Calcite (a dependency of Hive) bundles without repackaging Guava which is why we redeclare it
+  // here so that it appears on the compile/test/runtime classpath before Calcite.
+  provided library.java.guava
+  provided library.java.hadoop_common
+  provided "org.apache.hive:hive-exec:$hive_version"
+  provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version: hive_version) {
+    exclude group: "org.apache.hive", module: "hive-exec"
+    exclude group: "com.google.protobuf", module: "protobuf-java"
+  }
+  testCompile project(path: ":beam-runners-direct-java", configuration: "shadow")
+  testCompile library.java.commons_io_2x
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile "org.apache.hive.hcatalog:hive-hcatalog-core:$hive_version:tests"
+  testCompile "org.apache.hive:hive-exec:$hive_version"
+  testCompile "org.apache.hive:hive-common:$hive_version"
+  testCompile "org.apache.hive:hive-cli:$hive_version"
+}

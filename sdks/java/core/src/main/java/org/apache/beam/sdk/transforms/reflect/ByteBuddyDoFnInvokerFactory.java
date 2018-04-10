@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -326,7 +327,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         (Class<? extends DoFnInvoker<?, ?>>)
             unloaded
                 .load(
-                    ByteBuddyDoFnInvokerFactory.class.getClassLoader(),
+                    findClassLoader(fnClass.getClassLoader()),
                     ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded();
     return res;
@@ -394,7 +395,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     /** Whether the target method returns non-void. */
     private final boolean targetHasReturn;
 
-    protected FieldDescription delegateField;
+    /** Starts {@code null}, initialized by {@link #prepare(InstrumentedType)}. */
+    @Nullable protected FieldDescription delegateField;
 
     private final TypeDescription doFnType;
 
@@ -848,31 +850,25 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
 
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
-      return new ByteCodeAppender() {
-        @Override
-        public Size apply(
-            MethodVisitor methodVisitor,
-            Context implementationContext,
-            MethodDescription instrumentedMethod) {
-          StackManipulation.Size size =
-              new StackManipulation.Compound(
-                      // Load the this reference
-                      MethodVariableAccess.REFERENCE.loadFrom(0),
-                      // Load the delegate argument
-                      MethodVariableAccess.REFERENCE.loadFrom(1),
-                      // Invoke the super constructor (default constructor of Object)
-                      MethodInvocation.invoke(
-                          new TypeDescription.ForLoadedType(DoFnInvokerBase.class)
-                              .getDeclaredMethods()
-                              .filter(
-                                  ElementMatchers.isConstructor()
-                                      .and(ElementMatchers.takesArguments(DoFn.class)))
-                              .getOnly()),
-                      // Return void.
-                      MethodReturn.VOID)
-                  .apply(methodVisitor, implementationContext);
-          return new Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
-        }
+      return (methodVisitor, implementationContext, instrumentedMethod) -> {
+        StackManipulation.Size size =
+            new StackManipulation.Compound(
+                    // Load the this reference
+                    MethodVariableAccess.REFERENCE.loadFrom(0),
+                    // Load the delegate argument
+                    MethodVariableAccess.REFERENCE.loadFrom(1),
+                    // Invoke the super constructor (default constructor of Object)
+                    MethodInvocation.invoke(
+                        new TypeDescription.ForLoadedType(DoFnInvokerBase.class)
+                            .getDeclaredMethods()
+                            .filter(
+                                ElementMatchers.isConstructor()
+                                    .and(ElementMatchers.takesArguments(DoFn.class)))
+                            .getOnly()),
+                    // Return void.
+                    MethodReturn.VOID)
+                .apply(methodVisitor, implementationContext);
+        return new ByteCodeAppender.Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
       };
     }
   }

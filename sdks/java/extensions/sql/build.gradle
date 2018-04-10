@@ -1,0 +1,143 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+apply plugin: 'ca.coglinc.javacc'
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
+ext.summary = "Beam SQL provides a new interface to generate a Beam pipeline from SQL statement"
+
+test {
+  jvmArgs "-da"
+
+  // charset that calcite will use for the tables in the tests
+  // need to setup as system property prior to running any tests
+  // or some of the tests may fail as calcite will init itself
+  // with it's default of ISO-8859-1
+  systemProperty 'saffron.default.charset', 'UTF-16LE'
+  systemProperty 'saffron.default.nationalcharset', 'UTF-16LE'
+  systemProperty 'saffron.default.collation.name', 'UTF-16LE$en_US'
+}
+
+configurations {
+  // Create an fmppTask configuration representing the dependencies
+  // required to define and execute the Ant FMPP task.
+  // TODO: Migrate to a FMPP plugin once one exists
+  fmppTask
+  fmppTemplates
+}
+
+
+def calcite_version = "1.16.0"
+def avatica_version = "1.11.0"
+
+dependencies {
+  fmppTask "net.sourceforge.fmpp:fmpp:0.9.15"
+  fmppTask "org.freemarker:freemarker:2.3.25-incubating"
+  fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
+  compile library.java.guava
+  compile "org.apache.calcite:calcite-core:$calcite_version"
+  compile "org.apache.calcite:calcite-linq4j:$calcite_version"
+  compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
+  compile "com.alibaba:fastjson:1.2.12"
+  compileOnly library.java.findbugs_jsr305
+  compileOnly library.java.findbugs_annotations
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-join-library", configuration: "shadow")
+  shadow library.java.slf4j_api
+  shadow library.java.commons_csv
+  shadow library.java.joda_time
+  shadow project(path: ":beam-runners-direct-java", configuration: "shadow")
+  provided project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
+  provided library.java.kafka_clients
+  testCompile library.java.slf4j_jdk14
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.mockito_core
+}
+
+// Copy Caclcite templates and our own template into the build directory
+// so we have one location for the FMPP task to parse.
+task copyFmppTemplatesFromSrc(type: Copy) {
+  from "src/main/codegen"
+  into "${project.buildDir}/templates-fmpp/codegen"
+}
+task copyFmppTemplatesFromCalciteCore(type: Copy) {
+  dependsOn configurations.fmppTemplates
+  File calciteCoreJar = files(configurations.fmppTemplates.files).filter {
+    it.name.startsWith("calcite-core")
+  }.singleFile
+  from zipTree(calciteCoreJar)
+  include "**/Parser.jj"
+  into "${project.buildDir}/templates-fmpp"
+}
+
+// Generate the FMPP sources from the FMPP templates.
+def generateFmppOutputDir = "${project.buildDir}/generated/fmpp"
+task generateFmppSources {
+  dependsOn configurations.fmppTask
+  dependsOn copyFmppTemplatesFromSrc
+  dependsOn copyFmppTemplatesFromCalciteCore
+  doLast {
+    ant.taskdef(name: "fmpp", classname: "fmpp.tools.AntTask", classpath: configurations.fmppTask.asPath)
+    ant.fmpp(configuration: "src/main/codegen/config.fmpp", sourceRoot: "${project.buildDir}/templates-fmpp/codegen/templates", outputRoot: generateFmppOutputDir)
+  }
+}
+
+// Match the output directory for generated code with the package, to be more tool-friendly
+def generateFmppJavaccRoot = "${generateFmppOutputDir}/javacc"
+def generatedJavaccSourceDir = "${project.buildDir}/generated/javacc"
+def generatedJavaccPackageDir = "${generatedJavaccSourceDir}/org/apache/beam/sdk/extensions/sql/impl/parser/impl"
+compileJavacc {
+  dependsOn generateFmppSources
+  inputDirectory = file(generateFmppJavaccRoot)
+  outputDirectory = file(generatedJavaccPackageDir)
+  arguments = [grammar_encoding: "UTF-8", static: "false", lookahead: "2"]
+}
+
+shadowJar {
+  dependencies {
+    include(dependency("org.apache.calcite:.*"))
+    include(dependency("org.apache.calcite.avatica:.*"))
+    include(dependency("org.codehaus.janino:.*"))
+    include(dependency(library.java.protobuf_java))
+    include(dependency(library.java.protobuf_java_util))
+  }
+  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+  relocate "org.apache.calcite", getJavaRelocatedPath("org.apache.calcite")
+
+  // Looking up the compiler factory in Calcite depends on having a properties
+  // file in the right location. We package one that is shading compatible
+  // in src/main/resources. Note that if this shaded path changes, that
+  // files name and contents need to be updated as well. TODO, swap to use
+  // getJavaRelocatedPath once the Maven build is no longer also shading this
+  // module.
+  relocate "org.codehaus", "org.apache.beam.sdks.java.extensions.sql.repackaged.org.codehaus"
+}
+
+// Help IntelliJ find the fmpp bits
+idea {
+  module {
+    sourceDirs += file(generateFmppOutputDir)
+    generatedSourceDirs += file(generateFmppOutputDir)
+
+    sourceDirs += file(generatedJavaccSourceDir)
+    generatedSourceDirs += file(generatedJavaccSourceDir)
+  }
+}

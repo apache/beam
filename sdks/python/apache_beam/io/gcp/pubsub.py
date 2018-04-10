@@ -20,11 +20,21 @@ Cloud Pub/Sub sources and sinks are currently supported only in streaming
 pipelines, during remote execution.
 
 This API is currently under development and is subject to change.
+
+Description of common arguments used in this module:
+  topic: Cloud Pub/Sub topic in the form "projects/<project>/topics/<topic>".
+    If provided, subscription must be None.
+  subscription: Existing Cloud Pub/Sub subscription to use in the
+    form "projects/<project>/subscriptions/<subscription>". If not specified,
+    a temporary subscription will be created from the specified topic. If
+    provided, topic must be None.
 """
 
 from __future__ import absolute_import
 
 import re
+
+from six import text_type
 
 from apache_beam import coders
 from apache_beam.io.iobase import Read
@@ -32,48 +42,138 @@ from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import Map
 from apache_beam.transforms import PTransform
-from apache_beam.transforms import core
-from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 
-__all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub']
+try:
+  from google.cloud.proto.pubsub.v1 import pubsub_pb2
+except ImportError:
+  pubsub_pb2 = None
 
 
-class ReadStringsFromPubSub(PTransform):
-  """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub."""
+__all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
+           'WriteStringsToPubSub']
 
-  def __init__(self, topic=None, subscription=None, id_label=None):
-    """Initializes ``ReadStringsFromPubSub``.
 
-    Attributes:
-      topic: Cloud Pub/Sub topic in the form "projects/<project>/topics/
-        <topic>". If provided, subscription must be None.
-      subscription: Existing Cloud Pub/Sub subscription to use in the
-        form "projects/<project>/subscriptions/<subscription>". If not
-        specified, a temporary subscription will be created from the specified
-        topic. If provided, topic must be None.
+class PubsubMessage(object):
+  """Represents a message from Cloud Pub/Sub.
+
+  This interface is experimental. No backwards compatibility guarantees.
+
+  Attributes:
+    payload: (str) Message payload, as a byte string.
+    attributes: (dict) Map of string to string.
+  """
+
+  def __init__(self, payload, attributes):
+    """Constructs a message.
+
+    Beam users should not directly construct ``PubsubMessages``.
+    """
+    self.payload = payload
+    self.attributes = attributes
+
+  def __eq__(self, other):
+    return isinstance(other, PubsubMessage) and (
+        self.payload == other.payload and
+        self.attributes == other.attributes)
+
+  def __repr__(self):
+    return 'PubsubMessage(%s, %s)' % (self.payload, self.attributes)
+
+  @staticmethod
+  def _from_proto(proto_msg):
+    """Construct from serialized form of ``PubsubMessage``.
+
+    https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.PubsubMessage
+    """
+    msg = pubsub_pb2.PubsubMessage()
+    msg.ParseFromString(proto_msg)
+    # Convert ScalarMapContainer to dict.
+    attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
+    return PubsubMessage(msg.data, attributes)
+
+  @staticmethod
+  def _from_message(msg):
+    """Construct from ``google.cloud.pubsub.message.Message``.
+
+    https://google-cloud-python.readthedocs.io/en/latest/pubsub/subscriber/api/message.html
+    """
+    # Convert ScalarMapContainer to dict.
+    attributes = dict((key, msg.attributes[key]) for key in msg.attributes)
+    return PubsubMessage(msg.data, attributes)
+
+
+class ReadFromPubSub(PTransform):
+  """A ``PTransform`` for reading from Cloud Pub/Sub."""
+  # Implementation note: This ``PTransform`` is overridden by Directrunner.
+
+  def __init__(self, topic=None, subscription=None, id_label=None,
+               with_attributes=False, timestamp_attribute=None):
+    """Initializes ``ReadFromPubSub``.
+
+    Args:
       id_label: The attribute on incoming Pub/Sub messages to use as a unique
-        record identifier.  When specified, the value of this attribute (which
+        record identifier. When specified, the value of this attribute (which
         can be any string that uniquely identifies the record) will be used for
-        deduplication of messages.  If not provided, we cannot guarantee
+        deduplication of messages. If not provided, we cannot guarantee
         that no duplicate data will be delivered on the Pub/Sub stream. In this
         case, deduplication of the stream will be strictly best effort.
-    """
-    super(ReadStringsFromPubSub, self).__init__()
-    self._source = _PubSubPayloadSource(
-        topic,
-        subscription=subscription,
-        id_label=id_label)
+      with_attributes:
+        True - output elements will be :class:`~PubsubMessage` objects.
+        False - output elements will be of type ``str`` (message payload only).
+      timestamp_attribute: Message value to use as element timestamp. If None,
+        uses message publishing time as the timestamp.
+        Note that this argument doesn't require with_attributes=True.
 
-  def get_windowing(self, unused_inputs):
-    return core.Windowing(window.GlobalWindows())
+        Timestamp values should be in one of two formats:
+
+        - A numerical value representing the number of milliseconds since the
+          Unix epoch.
+        - A string in RFC 3339 format, UTC timezone. Example:
+          ``2015-10-29T23:41:41.123Z``. The sub-second component of the
+          timestamp is optional, and digits beyond the first three (i.e., time
+          units smaller than milliseconds) may be ignored.
+    """
+    super(ReadFromPubSub, self).__init__()
+    self.with_attributes = with_attributes
+    self._source = _PubSubSource(
+        topic=topic,
+        subscription=subscription,
+        id_label=id_label,
+        with_attributes=with_attributes,
+        timestamp_attribute=timestamp_attribute)
 
   def expand(self, pvalue):
     pcoll = pvalue.pipeline | Read(self._source)
-    pcoll.element_type = bytes
-    pcoll = pcoll | 'DecodeString' >> Map(lambda b: b.decode('utf-8'))
-    pcoll.element_type = unicode
+    if self.with_attributes:
+      pcoll = pcoll | Map(PubsubMessage._from_proto)
+      pcoll.element_type = PubsubMessage
+    else:
+      pcoll.element_type = bytes
     return pcoll
+
+
+class ReadStringsFromPubSub(PTransform):
+  """A ``PTransform`` for reading utf-8 string payloads from Cloud Pub/Sub.
+
+  Outputs elements of type ``unicode``, decoded from UTF-8.
+
+  This class is deprecated.
+  """
+
+  def __init__(self, topic=None, subscription=None, id_label=None):
+    super(ReadStringsFromPubSub, self).__init__()
+    self.topic = topic
+    self.subscription = subscription
+    self.id_label = id_label
+
+  def expand(self, pvalue):
+    p = (pvalue.pipeline
+         | ReadFromPubSub(self.topic, self.subscription, self.id_label,
+                          with_attributes=False)
+         | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
+    p.element_type = text_type
+    return p
 
 
 class WriteStringsToPubSub(PTransform):
@@ -123,25 +223,18 @@ def parse_subscription(full_subscription):
   return project, subscription_name
 
 
-class _PubSubPayloadSource(dataflow_io.NativeSource):
+class _PubSubSource(dataflow_io.NativeSource):
   """Source for the payload of a message as bytes from a Cloud Pub/Sub topic.
 
+  This ``NativeSource`` is overridden by a native Pubsub implementation.
+
   Attributes:
-    topic: Cloud Pub/Sub topic in the form "projects/<project>/topics/<topic>".
-      If provided, subscription must be None.
-    subscription: Existing Cloud Pub/Sub subscription to use in the
-      form "projects/<project>/subscriptions/<subscription>". If not specified,
-      a temporary subscription will be created from the specified topic. If
-      provided, topic must be None.
-    id_label: The attribute on incoming Pub/Sub messages to use as a unique
-      record identifier.  When specified, the value of this attribute (which can
-      be any string that uniquely identifies the record) will be used for
-      deduplication of messages.  If not provided, Dataflow cannot guarantee
-      that no duplicate data will be delivered on the Pub/Sub stream. In this
-      case, deduplication of the stream will be strictly best effort.
+    with_attributes: If False, will fetch just message payload. Otherwise,
+      fetches ``PubsubMessage`` protobufs.
   """
 
-  def __init__(self, topic=None, subscription=None, id_label=None):
+  def __init__(self, topic=None, subscription=None, id_label=None,
+               with_attributes=False, timestamp_attribute=None):
     # We are using this coder explicitly for portability reasons of PubsubIO
     # across implementations in languages.
     self.coder = coders.BytesCoder()
@@ -150,6 +243,8 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
     self.topic_name = None
     self.subscription_name = None
     self.id_label = id_label
+    self.with_attributes = with_attributes
+    self.timestamp_attribute = timestamp_attribute
 
     # Perform some validation on the topic and subscription.
     if not (topic or subscription):
@@ -179,8 +274,7 @@ class _PubSubPayloadSource(dataflow_io.NativeSource):
                             label='Pubsub Subscription').drop_if_none()}
 
   def reader(self):
-    raise NotImplementedError(
-        'PubSubPayloadSource is not supported in local execution.')
+    raise NotImplementedError
 
   def is_bounded(self):
     return False

@@ -23,6 +23,8 @@ from __future__ import absolute_import
 import logging
 from functools import partial
 
+from six import integer_types
+
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsink
 from apache_beam.io import filebasedsource
@@ -72,11 +74,15 @@ class _TextSource(filebasedsource.FileBasedSource):
 
     @position.setter
     def position(self, value):
-      assert isinstance(value, (int, long))
+      assert isinstance(value, integer_types)
       if value > len(self._data):
         raise ValueError('Cannot set position to %d since it\'s larger than '
                          'size of data %d.', value, len(self._data))
       self._position = value
+
+    def reset(self):
+      self.data = ''
+      self.position = 0
 
   def __init__(self,
                file_pattern,
@@ -86,7 +92,26 @@ class _TextSource(filebasedsource.FileBasedSource):
                coder,
                buffer_size=DEFAULT_READ_BUFFER_SIZE,
                validate=True,
-               skip_header_lines=0):
+               skip_header_lines=0,
+               header_processor_fns=(None, None)):
+    """Initialize a _TextSource
+
+    Args:
+      header_processor_fns (tuple): a tuple of a `header_matcher` function
+        and a `header_processor` function. The `header_matcher` should
+        return `True` for all lines at the start of the file that are part
+        of the file header and `False` otherwise. These header lines will
+        not be yielded when reading records and instead passed into
+        `header_processor` to be handled. If `skip_header_lines` and a
+        `header_matcher` are both provided, the value of `skip_header_lines`
+        lines will be skipped and the header will be processed from
+        there.
+    Raises:
+      ValueError: if skip_lines is negative.
+
+    Please refer to documentation in class `ReadFromText` for the rest
+    of the arguments.
+    """
     super(_TextSource, self).__init__(file_pattern, min_bundle_size,
                                       compression_type=compression_type,
                                       validate=validate)
@@ -103,6 +128,7 @@ class _TextSource(filebasedsource.FileBasedSource):
           'Skipping %d header lines. Skipping large number of header '
           'lines might significantly slow down processing.')
     self._skip_header_lines = skip_header_lines
+    self._header_matcher, self._header_processor = header_processor_fns
 
   def display_data(self):
     parent_dd = super(_TextSource, self).display_data()
@@ -130,18 +156,17 @@ class _TextSource(filebasedsource.FileBasedSource):
     range_tracker.set_split_points_unclaimed_callback(split_points_unclaimed)
 
     with self.open_file(file_name) as file_to_read:
-      position_after_skipping_header_lines = self._skip_lines(
-          file_to_read, read_buffer,
-          self._skip_header_lines) if self._skip_header_lines else 0
-      start_offset = max(start_offset, position_after_skipping_header_lines)
-      if start_offset > position_after_skipping_header_lines:
+      position_after_processing_header_lines = (
+          self._process_header(file_to_read, read_buffer))
+      start_offset = max(start_offset, position_after_processing_header_lines)
+      if start_offset > position_after_processing_header_lines:
         # Seeking to one position before the start index and ignoring the
         # current line. If start_position is at beginning if the line, that line
         # belongs to the current bundle, hence ignoring that is incorrect.
         # Seeking to one byte before prevents that.
 
         file_to_read.seek(start_offset - 1)
-        read_buffer = _TextSource.ReadBuffer('', 0)
+        read_buffer.reset()
         sep_bounds = self._find_separator_bounds(file_to_read, read_buffer)
         if not sep_bounds:
           # Could not find a separator after (start_offset - 1). This means that
@@ -152,7 +177,7 @@ class _TextSource(filebasedsource.FileBasedSource):
         read_buffer.data = read_buffer.data[sep_end:]
         next_record_start_position = start_offset - 1 + sep_end
       else:
-        next_record_start_position = position_after_skipping_header_lines
+        next_record_start_position = position_after_processing_header_lines
 
       while range_tracker.try_claim(next_record_start_position):
         record, num_bytes_to_next_record = self._read_record(file_to_read,
@@ -174,6 +199,34 @@ class _TextSource(filebasedsource.FileBasedSource):
         yield self._coder.decode(record)
         if num_bytes_to_next_record < 0:
           break
+
+  def _process_header(self, file_to_read, read_buffer):
+    # Returns a tuple containing the position in file after processing header
+    # records and a list of decoded header lines that match
+    # 'header_matcher'.
+    header_lines = []
+    position = self._skip_lines(
+        file_to_read, read_buffer,
+        self._skip_header_lines) if self._skip_header_lines else 0
+    if self._header_matcher:
+      while True:
+        record, num_bytes_to_next_record = self._read_record(file_to_read,
+                                                             read_buffer)
+        decoded_line = self._coder.decode(record)
+        if not self._header_matcher(decoded_line):
+          # We've read past the header section at this point, so go back a line.
+          file_to_read.seek(position)
+          read_buffer.reset()
+          break
+        header_lines.append(decoded_line)
+        if num_bytes_to_next_record < 0:
+          break
+        position += num_bytes_to_next_record
+
+      if self._header_processor:
+        self._header_processor(header_lines)
+
+    return position
 
   def _find_separator_bounds(self, file_to_read, read_buffer):
     # Determines the start and end positions within 'read_buffer.data' of the

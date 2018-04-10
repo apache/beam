@@ -33,8 +33,10 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,18 +65,20 @@ public class BeamFnControlClient {
   private final EnumMap<BeamFnApi.InstructionRequest.RequestCase,
                         ThrowingFunction<BeamFnApi.InstructionRequest,
                                          BeamFnApi.InstructionResponse.Builder>> handlers;
-  private final CompletableFuture<Void> onFinish;
+  private final CompletableFuture<Object> onFinish;
 
   public BeamFnControlClient(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
-      BiFunction<Function<StreamObserver<BeamFnApi.InstructionRequest>,
-                          StreamObserver<BeamFnApi.InstructionResponse>>,
-                 StreamObserver<BeamFnApi.InstructionRequest>,
-                 StreamObserver<BeamFnApi.InstructionResponse>> streamObserverFactory,
-      EnumMap<BeamFnApi.InstructionRequest.RequestCase,
-              ThrowingFunction<BeamFnApi.InstructionRequest,
-                               BeamFnApi.InstructionResponse.Builder>> handlers) {
+      BiFunction<
+              StreamObserverClientFactory<InstructionRequest, BeamFnApi.InstructionResponse>,
+              StreamObserver<BeamFnApi.InstructionRequest>,
+              StreamObserver<BeamFnApi.InstructionResponse>>
+          streamObserverFactory,
+      EnumMap<
+              BeamFnApi.InstructionRequest.RequestCase,
+              ThrowingFunction<BeamFnApi.InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
+          handlers) {
     this.bufferedInstructions = new LinkedBlockingDeque<>();
     this.outboundObserver = streamObserverFactory.apply(
         BeamFnControlGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::control,
@@ -83,11 +87,14 @@ public class BeamFnControlClient {
     this.onFinish = new CompletableFuture<>();
   }
 
+  private static final Object COMPLETED = new Object();
+
   /**
    * A {@link StreamObserver} for the inbound stream that completes the future on stream
    * termination.
    */
   private class InboundObserver implements StreamObserver<BeamFnApi.InstructionRequest> {
+
     @Override
     public void onNext(BeamFnApi.InstructionRequest value) {
       LOG.debug("Received InstructionRequest {}", value);
@@ -103,7 +110,7 @@ public class BeamFnControlClient {
     @Override
     public void onCompleted() {
       placePoisonPillIntoQueue();
-      onFinish.complete(null);
+      onFinish.complete(COMPLETED);
     }
 
     /**

@@ -69,7 +69,7 @@ final class TransformExecutorServices {
     }
 
     @Override
-    public void schedule(TransformExecutor<?> work) {
+    public void schedule(TransformExecutor work) {
       if (active.get()) {
         try {
           executor.submit(work);
@@ -92,7 +92,7 @@ final class TransformExecutorServices {
     }
 
     @Override
-    public void complete(TransformExecutor<?> completed) {
+    public void complete(TransformExecutor completed) {
     }
 
     @Override
@@ -112,8 +112,8 @@ final class TransformExecutorServices {
   private static class SerialTransformExecutor implements TransformExecutorService {
     private final ExecutorService executor;
 
-    private AtomicReference<TransformExecutor<?>> currentlyEvaluating;
-    private final Queue<TransformExecutor<?>> workQueue;
+    private AtomicReference<TransformExecutor> currentlyEvaluating;
+    private final Queue<TransformExecutor> workQueue;
     private boolean active = true;
 
     private SerialTransformExecutor(ExecutorService executor) {
@@ -127,13 +127,13 @@ final class TransformExecutorServices {
      * evaluated and scheduling it immediately otherwise.
      */
     @Override
-    public void schedule(TransformExecutor<?> work) {
+    public void schedule(TransformExecutor work) {
       workQueue.offer(work);
       updateCurrentlyEvaluating();
     }
 
     @Override
-    public void complete(TransformExecutor<?> completed) {
+    public void complete(TransformExecutor completed) {
       if (!currentlyEvaluating.compareAndSet(completed, null)) {
         throw new IllegalStateException(
             "Finished work "
@@ -156,7 +156,7 @@ final class TransformExecutorServices {
       if (currentlyEvaluating.get() == null) {
         // Only synchronize if we need to update what's currently evaluating
         synchronized (this) {
-          TransformExecutor<?> newWork = workQueue.poll();
+          TransformExecutor newWork = workQueue.poll();
           if (active && newWork != null) {
             if (currentlyEvaluating.compareAndSet(null, newWork)) {
               executor.submit(newWork);

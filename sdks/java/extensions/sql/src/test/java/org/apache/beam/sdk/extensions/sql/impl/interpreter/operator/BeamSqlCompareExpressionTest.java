@@ -40,76 +40,76 @@ public class BeamSqlCompareExpressionTest extends BeamSqlFnExecutorTestBase {
     BeamSqlEqualsExpression exp1 = new BeamSqlEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 100L)));
-    Assert.assertEquals(false, exp1.evaluate(record, null).getValue());
+    Assert.assertEquals(false, exp1.evaluate(row, null).getValue());
 
     BeamSqlEqualsExpression exp2 = new BeamSqlEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(true, exp2.evaluate(record, null).getValue());
+    Assert.assertEquals(true, exp2.evaluate(row, null).getValue());
   }
 
   @Test
-  public void testLargerThan(){
+  public void testLargerThan() {
     BeamSqlGreaterThanExpression exp1 = new BeamSqlGreaterThanExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(false, exp1.evaluate(record, null).getValue());
+    Assert.assertEquals(false, exp1.evaluate(row, null).getValue());
 
     BeamSqlGreaterThanExpression exp2 = new BeamSqlGreaterThanExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234566L)));
-    Assert.assertEquals(true, exp2.evaluate(record, null).getValue());
+    Assert.assertEquals(true, exp2.evaluate(row, null).getValue());
   }
 
   @Test
-  public void testLargerThanEqual(){
+  public void testLargerThanEqual() {
     BeamSqlGreaterThanOrEqualsExpression exp1 = new BeamSqlGreaterThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(true, exp1.evaluate(record, null).getValue());
+    Assert.assertEquals(true, exp1.evaluate(row, null).getValue());
 
     BeamSqlGreaterThanOrEqualsExpression exp2 = new BeamSqlGreaterThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 0),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234568L)));
-    Assert.assertEquals(false, exp2.evaluate(record, null).getValue());
+    Assert.assertEquals(false, exp2.evaluate(row, null).getValue());
   }
 
   @Test
-  public void testLessThan(){
+  public void testLessThan() {
     BeamSqlLessThanExpression exp1 = new BeamSqlLessThanExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1),
             BeamSqlPrimitive.of(SqlTypeName.INTEGER, 1)));
-    Assert.assertEquals(true, exp1.evaluate(record, null).getValue());
+    Assert.assertEquals(true, exp1.evaluate(row, null).getValue());
 
     BeamSqlLessThanExpression exp2 = new BeamSqlLessThanExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.INTEGER, 1),
             BeamSqlPrimitive.of(SqlTypeName.INTEGER, -1)));
-    Assert.assertEquals(false, exp2.evaluate(record, null).getValue());
+    Assert.assertEquals(false, exp2.evaluate(row, null).getValue());
   }
 
   @Test
-  public void testLessThanEqual(){
+  public void testLessThanEqual() {
     BeamSqlLessThanOrEqualsExpression exp1 = new BeamSqlLessThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2),
             BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 8.9)));
-    Assert.assertEquals(true, exp1.evaluate(record, null).getValue());
+    Assert.assertEquals(true, exp1.evaluate(row, null).getValue());
 
     BeamSqlLessThanOrEqualsExpression exp2 = new BeamSqlLessThanOrEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.DOUBLE, 2),
             BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 8.0)));
-    Assert.assertEquals(false, exp2.evaluate(record, null).getValue());
+    Assert.assertEquals(false, exp2.evaluate(row, null).getValue());
   }
 
   @Test
-  public void testNotEqual(){
+  public void testNotEqual() {
     BeamSqlNotEqualsExpression exp1 = new BeamSqlNotEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 1234567L)));
-    Assert.assertEquals(false, exp1.evaluate(record, null).getValue());
+    Assert.assertEquals(false, exp1.evaluate(row, null).getValue());
 
     BeamSqlNotEqualsExpression exp2 = new BeamSqlNotEqualsExpression(
         Arrays.asList(new BeamSqlInputRefExpression(SqlTypeName.BIGINT, 3),
             BeamSqlPrimitive.of(SqlTypeName.BIGINT, 0L)));
-    Assert.assertEquals(true, exp2.evaluate(record, null).getValue());
+    Assert.assertEquals(true, exp2.evaluate(row, null).getValue());
   }
 }

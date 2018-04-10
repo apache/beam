@@ -19,13 +19,10 @@
 package org.apache.beam.runners.gearpump;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import java.util.Map;
-
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
-
 import org.apache.gearpump.cluster.client.ClientContext;
 import org.apache.gearpump.cluster.embedded.EmbeddedCluster;
 

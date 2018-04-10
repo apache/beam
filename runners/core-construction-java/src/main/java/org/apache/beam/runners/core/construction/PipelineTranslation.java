@@ -20,11 +20,8 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.auto.value.AutoValue;
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -33,12 +30,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -48,16 +43,18 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /** Utilities for going to/from Runner API pipelines. */
 public class PipelineTranslation {
 
-  public static RunnerApi.Pipeline toProto(final Pipeline pipeline) {
-    final SdkComponents components = SdkComponents.create();
+  public static RunnerApi.Pipeline toProto(Pipeline pipeline) {
+    return toProto(pipeline, SdkComponents.create());
+  }
+
+  public static RunnerApi.Pipeline toProto(
+      final Pipeline pipeline, final SdkComponents components) {
     final Collection<String> rootIds = new HashSet<>();
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
@@ -88,8 +85,7 @@ public class PipelineTranslation {
             children.put(node.getEnclosingNode(), node.toAppliedPTransform(pipeline));
             try {
               components.registerPTransform(
-                  node.toAppliedPTransform(pipeline),
-                  Collections.<AppliedPTransform<?, ?, ?>>emptyList());
+                  node.toAppliedPTransform(pipeline), Collections.emptyList());
             } catch (IOException e) {
               throw new IllegalStateException(e);
             }
@@ -105,8 +101,7 @@ public class PipelineTranslation {
     return DisplayData.from(component);
   }
 
-  public static Pipeline fromProto(final RunnerApi.Pipeline pipelineProto)
-      throws IOException {
+  public static Pipeline fromProto(final RunnerApi.Pipeline pipelineProto) throws IOException {
     TransformHierarchy transforms = new TransformHierarchy();
     Pipeline pipeline = Pipeline.forTransformHierarchy(transforms, PipelineOptionsFactory.create());
 
@@ -149,46 +144,8 @@ public class PipelineTranslation {
           rehydratedComponents.getPCollection(outputEntry.getValue()));
     }
 
-    RunnerApi.FunctionSpec transformSpec = transformProto.getSpec();
-
-    // By default, no "additional" inputs, since that is an SDK-specific thing.
-    // Only ParDo and WriteFiles really separate main from side inputs
-    Map<TupleTag<?>, PValue> additionalInputs = Collections.emptyMap();
-
-    // TODO: ParDoTranslation should own it - https://issues.apache.org/jira/browse/BEAM-2674
-    if (transformSpec.getUrn().equals(PTransformTranslation.PAR_DO_TRANSFORM_URN)) {
-      RunnerApi.ParDoPayload payload = RunnerApi.ParDoPayload.parseFrom(transformSpec.getPayload());
-      additionalInputs =
-          sideInputMapToAdditionalInputs(
-              transformProto, rehydratedComponents, rehydratedInputs, payload.getSideInputsMap());
-    }
-
-    // TODO: WriteFilesTranslation should own it - https://issues.apache.org/jira/browse/BEAM-2674
-    if (transformSpec.getUrn().equals(PTransformTranslation.WRITE_FILES_TRANSFORM_URN)) {
-      RunnerApi.WriteFilesPayload payload =
-          RunnerApi.WriteFilesPayload.parseFrom(transformSpec.getPayload());
-      additionalInputs =
-          sideInputMapToAdditionalInputs(
-              transformProto, rehydratedComponents, rehydratedInputs, payload.getSideInputsMap());
-    }
-
-    // TODO: CombineTranslator should own it - https://issues.apache.org/jira/browse/BEAM-2674
-    List<Coder<?>> additionalCoders = Collections.emptyList();
-    if (transformSpec.getUrn().equals(PTransformTranslation.COMBINE_TRANSFORM_URN)) {
-      RunnerApi.CombinePayload payload =
-          RunnerApi.CombinePayload.parseFrom(transformSpec.getPayload());
-      additionalCoders =
-          (List)
-              Collections.singletonList(
-                  rehydratedComponents.getCoder(payload.getAccumulatorCoderId()));
-    }
-
-    RehydratedPTransform transform =
-        RehydratedPTransform.of(
-            transformSpec.getUrn(),
-            transformSpec.getPayload(),
-            additionalInputs,
-            additionalCoders);
+    RawPTransform<?, ?> transform =
+        PTransformTranslation.rehydrate(transformProto, rehydratedComponents);
 
     if (isPrimitive(transformProto)) {
       transforms.addFinalizedPrimitiveNode(
@@ -223,7 +180,7 @@ public class PipelineTranslation {
       PCollection<?> pCollection =
           (PCollection<?>) checkNotNull(rehydratedInputs.get(new TupleTag<>(localName)));
       views.add(
-          ParDoTranslation.viewFromProto(
+          PCollectionViewTranslation.viewFromProto(
               sideInput, localName, pCollection, transformProto, rehydratedComponents));
     }
     return PCollectionViews.toAdditionalInputs(views);
@@ -234,60 +191,8 @@ public class PipelineTranslation {
   private static boolean isPrimitive(RunnerApi.PTransform transformProto) {
     return transformProto.getSubtransformsCount() == 0
         && !transformProto
-        .getInputsMap()
-        .values()
-        .containsAll(transformProto.getOutputsMap().values());
-  }
-
-  @AutoValue
-  abstract static class RehydratedPTransform extends RawPTransform<PInput, POutput> {
-
-    @Nullable
-    public abstract String getUrn();
-
-    @Nullable
-    public abstract ByteString getPayload();
-
-    @Override
-    public abstract Map<TupleTag<?>, PValue> getAdditionalInputs();
-
-    public abstract List<Coder<?>> getCoders();
-
-    public static RehydratedPTransform of(
-        String urn,
-        ByteString payload,
-        Map<TupleTag<?>, PValue> additionalInputs,
-        List<Coder<?>> additionalCoders) {
-      return new AutoValue_PipelineTranslation_RehydratedPTransform(
-          urn, payload, additionalInputs, additionalCoders);
-    }
-
-    @Override
-    public POutput expand(PInput input) {
-      throw new IllegalStateException(
-          String.format(
-              "%s should never be asked to expand;"
-                  + " it is the result of deserializing an already-constructed Pipeline",
-              getClass().getSimpleName()));
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("urn", getUrn())
-          .add("payload", getPayload())
-          .toString();
-    }
-
-    @Override
-    public void registerComponents(SdkComponents components) {
-      for (Coder<?> coder : getCoders()) {
-        try {
-          components.registerCoder(coder);
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-      }
-    }
+            .getInputsMap()
+            .values()
+            .containsAll(transformProto.getOutputsMap().values());
   }
 }

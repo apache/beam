@@ -32,14 +32,12 @@ import com.datastax.driver.core.querybuilder.Select;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.MappingManager;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import org.apache.beam.sdk.io.BoundedSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,7 +171,7 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
             + "the read");
         String splitQuery = QueryBuilder.select().from(spec.keyspace(), spec.table()).toString();
         List<BoundedSource<T>> sources = new ArrayList<>();
-        sources.add(new CassandraIO.CassandraSource<T>(spec, splitQuery));
+        sources.add(new CassandraIO.CassandraSource<>(spec, splitQuery));
         return sources;
       }
     }
@@ -209,12 +207,12 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
     if (numSplits == 1) {
       // we have an unique split
       splitQuery = QueryBuilder.select().from(spec.keyspace(), spec.table()).toString();
-      sourceList.add(new CassandraIO.CassandraSource<T>(spec, splitQuery));
+      sourceList.add(new CassandraIO.CassandraSource<>(spec, splitQuery));
     } else {
       // we have more than one split
       for (int i = 0; i < numSplits; i++) {
         startToken = endToken;
-        endToken = (i == numSplits) ? endRange : (startToken + incrementValue);
+        endToken = startToken + incrementValue;
         Select.Where builder = QueryBuilder.select().from(spec.keyspace(), spec.table()).where();
         if (i > 0) {
           builder = builder.and(QueryBuilder.gte("token($pk)", startToken));
@@ -323,8 +321,8 @@ public class CassandraServiceImpl<T> implements CassandraService<T> {
    */
   @VisibleForTesting
   protected static boolean isMurmur3Partitioner(Cluster cluster) {
-    return cluster.getMetadata().getPartitioner()
-        .equals("org.apache.cassandra.dht.Murmur3Partitioner");
+    return "org.apache.cassandra.dht.Murmur3Partitioner".equals(
+        cluster.getMetadata().getPartitioner());
   }
 
   /**

@@ -1,0 +1,120 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+applyAvroNature()
+
+description = "Apache Beam :: SDKs :: Java :: Core"
+ext.summary = """Beam SDK Java All provides a simple, Java-based
+interface for processing virtually any size data. This
+artifact includes entire Apache Beam Java SDK."""
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ * TODO: Swap to generating test artifacts which we can then rely on instead of
+ * the test outputs directly.
+ */
+evaluationDependsOn(":beam-model-fn-execution")
+
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+    'pom.version': version,
+    'timestamp': new Date().format("yyyy-MM-dd HH:mm")
+  ]
+}
+
+// Exclude tests that need a runner
+test {
+  systemProperty "beamUseDummyRunner", "true"
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+  }
+}
+
+dependencies {
+  compile library.java.guava
+  compile library.java.protobuf_java
+  compile library.java.findbugs_jsr305
+  compile library.java.byte_buddy
+  compile library.java.commons_compress
+  compile library.java.commons_lang3
+  compile library.java.guava_testlib
+  compileOnly library.java.findbugs_annotations
+  shadow library.java.jackson_core
+  shadow library.java.jackson_annotations
+  shadow library.java.jackson_databind
+  shadow library.java.slf4j_api
+  shadow library.java.avro
+  shadow library.java.snappy_java
+  shadow library.java.joda_time
+  shadow library.java.hamcrest_core
+  shadow library.java.hamcrest_library
+  shadow library.java.junit
+  shadow "org.tukaani:xz:1.5"
+  shadowTest library.java.jackson_dataformat_yaml
+  shadowTest library.java.slf4j_jdk14
+  shadowTest library.java.mockito_core
+  shadowTest "com.esotericsoftware.kryo:kryo:2.21"
+  shadowTest project(path: ":beam-model-fn-execution", configuration: "shadow")
+}
+
+// Shade dependencies.
+shadowJar {
+  dependencies {
+    include(dependency(library.java.protobuf_java))
+    include(dependency(library.java.byte_buddy))
+    include(dependency("org.apache.commons:.*"))
+  }
+  relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
+  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+  relocate "net.bytebuddy", getJavaRelocatedPath("net.bytebuddy")
+  relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
+}
+
+// Create a shaded test jar.
+task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+  classifier = "shaded-tests"
+  from sourceSets.test.output
+  configurations = [project.configurations.testRuntime]
+  dependencies {
+    exclude(".*")
+    include(dependency(library.java.guava))
+    include(dependency(library.java.protobuf_java))
+    include(dependency(library.java.protobuf_java_util))
+    include(dependency(library.java.byte_buddy))
+    include(dependency("org.apache.commons:.*"))
+  }
+  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
+    // com.google.common is too generic, need to exclude guava-testlib
+    exclude "com.google.common.collect.testing.**"
+    exclude "com.google.common.escape.testing.**"
+    exclude "com.google.common.testing.**"
+    exclude "com.google.common.util.concurrent.testing.**"
+  }
+  relocate "com.google.thirdparty", getJavaRelocatedPath("com.google.thirdparty")
+  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+  relocate "net.bytebuddy", getJavaRelocatedPath("net.bytebuddy")
+  relocate "org.apache.commons", getJavaRelocatedPath("org.apache.commons")
+}
+
+artifacts {
+  shadowTest shadowTestJar
+}

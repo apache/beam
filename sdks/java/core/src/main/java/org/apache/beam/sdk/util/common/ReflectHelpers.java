@@ -33,7 +33,9 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.lang.reflect.WildcardType;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Queue;
 import java.util.ServiceLoader;
@@ -72,37 +74,20 @@ public class ReflectHelpers {
   };
 
   /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_NAME =
-      new Function<Class<?>, String>() {
-    @Override
-    public String apply(@Nonnull Class<?> input) {
-      return input.getName();
-    }
-  };
+  public static final Function<Class<?>, String> CLASS_NAME = Class::getName;
 
   /** A {@link Function} with returns the classes name. */
-  public static final Function<Class<?>, String> CLASS_SIMPLE_NAME =
-      new Function<Class<?>, String>() {
-    @Override
-    public String apply(@Nonnull Class<?> input) {
-      return input.getSimpleName();
-    }
-  };
+  public static final Function<Class<?>, String> CLASS_SIMPLE_NAME = Class::getSimpleName;
 
-  /**
-   * A {@link Function} that returns a concise string for a {@link Annotation}.
-   */
+  /** A {@link Function} that returns a concise string for a {@link Annotation}. */
   public static final Function<Annotation, String> ANNOTATION_FORMATTER =
-      new Function<Annotation, String>() {
-        @Override
-        public String apply(@Nonnull Annotation annotation) {
-          String annotationName = annotation.annotationType().getName();
-          String annotationNameWithoutPackage =
-              annotationName.substring(annotationName.lastIndexOf('.') + 1).replace('$', '.');
-          String annotationToString = annotation.toString();
-          String values = annotationToString.substring(annotationToString.indexOf('('));
-          return String.format("%s%s", annotationNameWithoutPackage, values);
-        }
+      annotation -> {
+        String annotationName = annotation.annotationType().getName();
+        String annotationNameWithoutPackage =
+            annotationName.substring(annotationName.lastIndexOf('.') + 1).replace('$', '.');
+        String annotationToString = annotation.toString();
+        String values = annotationToString.substring(annotationToString.indexOf('('));
+        return String.format("%s%s", annotationNameWithoutPackage, values);
       };
 
   /** A {@link Function} that formats types. */
@@ -192,13 +177,8 @@ public class ReflectHelpers {
    */
   public static Iterable<Method> getClosureOfMethodsOnInterfaces(
       Iterable<? extends Class<?>> interfaces) {
-    return FluentIterable.from(interfaces).transformAndConcat(
-        new Function<Class<?>, Iterable<Method>>() {
-          @Override
-          public Iterable<Method> apply(@Nonnull Class<?> input) {
-            return getClosureOfMethodsOnInterface(input);
-          }
-    });
+    return FluentIterable.from(interfaces)
+        .transformAndConcat(ReflectHelpers::getClosureOfMethodsOnInterface);
   }
 
   /**
@@ -223,12 +203,12 @@ public class ReflectHelpers {
 
   /**
    * Finds the appropriate {@code ClassLoader} to be used by the
-   * {@link ServiceLoader#load} call, which by default would use the context
+   * {@link ServiceLoader#load} call, which by default would use the proposed
    * {@code ClassLoader}, which can be null. The fallback is as follows: context
    * ClassLoader, class ClassLoader and finaly the system ClassLoader.
    */
-  public static ClassLoader findClassLoader() {
-    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+  public static ClassLoader findClassLoader(final ClassLoader proposed) {
+    ClassLoader classLoader = proposed;
     if (classLoader == null) {
       classLoader = ReflectHelpers.class.getClassLoader();
     }
@@ -236,5 +216,61 @@ public class ReflectHelpers {
       classLoader = ClassLoader.getSystemClassLoader();
     }
     return classLoader;
+  }
+
+  /**
+   * Find the common classloader of all these classes.
+   */
+  public static ClassLoader findClassLoader(final Class<?>... classes) {
+    if (classes == null || classes.length == 0) {
+      throw new IllegalArgumentException("set of classes can't be null");
+    }
+    ClassLoader current = null;
+    for (final Class<?> clazz : classes) {
+      final ClassLoader proposed = clazz.getClassLoader();
+      if (proposed == null) {
+        continue;
+      }
+      if (current == null) {
+        current = proposed;
+      } else if (proposed != current) {
+        if (isParent(current, proposed)) {
+          current = proposed;
+        }
+      }
+    }
+    return current == null ? ClassLoader.getSystemClassLoader() : current;
+  }
+
+  /**
+   * Finds the appropriate {@code ClassLoader} to be used by the
+   * {@link ServiceLoader#load} call, which by default would use the context
+   * {@code ClassLoader}, which can be null. The fallback is as follows: context
+   * ClassLoader, class ClassLoader and finaly the system ClassLoader.
+   */
+  public static ClassLoader findClassLoader() {
+    return findClassLoader(Thread.currentThread().getContextClassLoader());
+  }
+
+  /**
+   * Checks if current is a parent of proposed.
+   * @param current the potential parent.
+   * @param proposed the potential child.
+   * @return true if current is in proposed hierarchy.
+   */
+  private static boolean isParent(final ClassLoader current, final ClassLoader proposed) {
+    final Collection<ClassLoader> visited = new ArrayList<>();
+    ClassLoader it = proposed.getParent();
+    while (it != null) {
+      if (it == current) {
+        return true;
+      }
+      if (visited.contains(it)) { // avoid loops
+        return false;
+      }
+      visited.add(it);
+      it = it.getParent();
+    }
+    return false;
   }
 }

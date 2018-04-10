@@ -199,7 +199,6 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
   @Description("Files to stage on GCS and make available to workers. "
       + "Files are placed on the worker's classpath. "
       + "The default value is all files from the classpath.")
-  @JsonIgnore
   List<String> getFilesToStage();
   void setFilesToStage(List<String> value);
 

@@ -1,0 +1,65 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature(enableShadow: false /* Disable shadow because of custom configuration below. */)
+apply plugin: "com.github.johnrengelman.shadow"
+
+description = "Apache Beam :: SDKs :: Java :: Harness"
+ext.summary = "This contains the SDK Fn Harness for Beam Java"
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ * TODO: Swap to generating test artifacts which we can then rely on instead of
+ * the test outputs directly.
+ */
+evaluationDependsOn(":beam-sdks-java-fn-execution")
+
+dependencies {
+  compile project(path: ":beam-model-pipeline", configuration: "shadow")
+  compile project(path: ":beam-model-fn-execution", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-core", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-fn-execution", configuration: "shadow")
+  compile project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  compile project(path: ":beam-runners-core-java", configuration: "shadow")
+  compile project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  compile library.java.jackson_databind
+  compile library.java.findbugs_jsr305
+  compile library.java.guava
+  compile library.java.protobuf_java
+  compile library.java.grpc_core
+  compile library.java.grpc_netty
+  compile library.java.grpc_stub
+  compile library.java.netty_transport_native_epoll
+  compile library.java.joda_time
+  compile library.java.slf4j_api
+  provided library.java.error_prone_annotations
+  testCompile library.java.hamcrest_core
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.slf4j_jdk14
+}
+
+// Create an uber jar without repackaging for the SDK harness
+// Note, this jar should never be published because it bundles
+// dependencies without repackaging.
+shadowJar {
+  mergeServiceFiles()
+}

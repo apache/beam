@@ -19,11 +19,9 @@
 package org.apache.beam.runners.gearpump.translators.io;
 
 import com.google.common.collect.Lists;
-
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
-
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.coders.StringUtf8Coder;

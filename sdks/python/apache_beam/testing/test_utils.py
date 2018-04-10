@@ -22,6 +22,11 @@ For internal use only; no backwards-compatibility guarantees.
 
 import hashlib
 import imp
+import logging
+import os
+import shutil
+import tempfile
+import time
 
 from mock import Mock
 from mock import patch
@@ -30,6 +35,42 @@ from apache_beam.io.filesystems import FileSystems
 from apache_beam.utils import retry
 
 DEFAULT_HASHING_ALG = 'sha1'
+
+
+class TempDir(object):
+  """Context Manager to create and clean-up a temporary directory."""
+
+  def __init__(self):
+    self._tempdir = tempfile.mkdtemp()
+
+  def __enter__(self):
+    return self
+
+  def __exit__(self, *args):
+    if os.path.exists(self._tempdir):
+      shutil.rmtree(self._tempdir)
+
+  def get_path(self):
+    """Returns the path to the temporary directory."""
+    return self._tempdir
+
+  def create_temp_file(self, suffix='', lines=None):
+    """Creates a temporary file in the temporary directory.
+
+    Args:
+      suffix (str): The filename suffix of the temporary file (e.g. '.txt')
+      lines (List[str]): A list of lines that will be written to the temporary
+        file.
+    Returns:
+      The name of the temporary file created.
+    """
+    with tempfile.NamedTemporaryFile(
+        delete=False, dir=self._tempdir, suffix=suffix) as f:
+      if lines:
+        for line in lines:
+          f.write(line)
+
+      return f.name
 
 
 def compute_hash(content, hashing_alg=DEFAULT_HASHING_ALG):
@@ -90,3 +131,48 @@ def delete_files(file_paths):
     raise RuntimeError('Clean up failed. Invalid file path: %s.' %
                        file_paths)
   FileSystems.delete(file_paths)
+
+
+def wait_for_subscriptions_created(subs, timeout=60):
+  """Wait for all PubSub subscriptions are created."""
+  return _wait_until_all_exist(subs, timeout)
+
+
+def wait_for_topics_created(topics, timeout=60):
+  """Wait for all PubSub topics are created."""
+  return _wait_until_all_exist(topics, timeout)
+
+
+def _wait_until_all_exist(components, timeout):
+  unchecked_components = set(components)
+  start_time = time.time()
+  while time.time() - start_time <= timeout:
+    unchecked_components = set(
+        [c for c in unchecked_components if not c.exists()])
+    if len(unchecked_components) == 0:
+      return True
+    time.sleep(2)
+
+  raise RuntimeError(
+      'Timeout after %d seconds. %d of %d topics/subscriptions not exist. '
+      'They are %s.' % (timeout, len(unchecked_components),
+                        len(components), list(unchecked_components)))
+
+
+def cleanup_subscriptions(subs):
+  """Cleanup PubSub subscriptions if exist."""
+  _cleanup_pubsub(subs)
+
+
+def cleanup_topics(topics):
+  """Cleanup PubSub topics if exist."""
+  _cleanup_pubsub(topics)
+
+
+def _cleanup_pubsub(components):
+  for c in components:
+    if c.exists():
+      c.delete()
+    else:
+      logging.debug('Cannot delete topic/subscription. %s does not exist.',
+                    c.full_name)

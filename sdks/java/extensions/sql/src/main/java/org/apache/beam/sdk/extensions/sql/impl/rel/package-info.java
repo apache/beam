@@ -20,4 +20,8 @@
  * BeamSQL specified nodes, to replace {@link org.apache.calcite.rel.RelNode}.
  *
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.sql.impl.rel;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

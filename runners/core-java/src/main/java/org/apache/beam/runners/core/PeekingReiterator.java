@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.common.Reiterator;
 
 /**
@@ -29,7 +30,7 @@ import org.apache.beam.sdk.util.common.Reiterator;
  * @param <T> the type of elements returned by this iterator
  */
 public final class PeekingReiterator<T> implements Reiterator<T> {
-  private T nextElement;
+  private @Nullable T nextElement;
   private boolean nextElementComputed;
   private final Reiterator<T> iterator;
 

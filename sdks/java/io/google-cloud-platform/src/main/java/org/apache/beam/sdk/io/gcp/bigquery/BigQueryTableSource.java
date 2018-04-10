@@ -21,6 +21,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -102,8 +103,13 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       TableReference table = setDefaultProjectIfAbsent(options.as(BigQueryOptions.class),
           BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(), TableReference.class));
 
-      Long numBytes = bqServices.getDatasetService(options.as(BigQueryOptions.class))
-          .getTable(table).getNumBytes();
+      Table tableRef = bqServices.getDatasetService(options.as(BigQueryOptions.class))
+              .getTable(table);
+      Long numBytes = tableRef.getNumBytes();
+      if (tableRef.getStreamingBuffer() != null) {
+        numBytes += tableRef.getStreamingBuffer().getEstimatedBytes().longValue();
+      }
+
       tableSizeBytes.compareAndSet(null, numBytes);
     }
     return tableSizeBytes.get();

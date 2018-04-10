@@ -17,19 +17,15 @@
  */
 package org.apache.beam.runners.flink.streaming;
 
+import static org.apache.beam.runners.flink.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertThat;
 
-import com.google.common.base.Function;
-import com.google.common.base.Predicate;
-import com.google.common.collect.FluentIterable;
 import java.nio.ByteBuffer;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.DedupingOperator;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorStateHandles;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
@@ -66,7 +62,7 @@ public class DedupingOperatorTest {
         WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key1, key1.getBytes()))));
 
     assertThat(
-        this.<String>stripStreamRecordFromWindowedValue(harness.getOutput()),
+        stripStreamRecordFromWindowedValue(harness.getOutput()),
         contains(WindowedValue.valueInGlobalWindow(key1),
             WindowedValue.valueInGlobalWindow(key2)));
 
@@ -88,7 +84,7 @@ public class DedupingOperatorTest {
         WindowedValue.valueInGlobalWindow(new ValueWithRecordId<>(key3, key3.getBytes()))));
 
     assertThat(
-        this.<String>stripStreamRecordFromWindowedValue(harness.getOutput()),
+        stripStreamRecordFromWindowedValue(harness.getOutput()),
         contains(WindowedValue.valueInGlobalWindow(key3)));
 
     harness.close();
@@ -99,33 +95,9 @@ public class DedupingOperatorTest {
       WindowedValue<String>> getDebupingHarness() throws Exception {
     DedupingOperator<String> operator = new DedupingOperator<>();
 
-    return new KeyedOneInputStreamOperatorTestHarness<>(operator,
-        new KeySelector<WindowedValue<ValueWithRecordId<String>>, ByteBuffer>() {
-      @Override
-      public ByteBuffer getKey(WindowedValue<ValueWithRecordId<String>> value) throws Exception {
-        return ByteBuffer.wrap(value.getValue().getId());
-      }
-    }, TypeInformation.of(ByteBuffer.class));
-  }
-
-  private <T> Iterable<WindowedValue<T>> stripStreamRecordFromWindowedValue(
-      Iterable<Object> input) {
-
-    return FluentIterable.from(input).filter(new Predicate<Object>() {
-      @Override
-      public boolean apply(@Nullable Object o) {
-        return o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue;
-      }
-    }).transform(new Function<Object, WindowedValue<T>>() {
-      @Nullable
-      @Override
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      public WindowedValue<T> apply(@Nullable Object o) {
-        if (o instanceof StreamRecord && ((StreamRecord) o).getValue() instanceof WindowedValue) {
-          return (WindowedValue) ((StreamRecord) o).getValue();
-        }
-        throw new RuntimeException("unreachable");
-      }
-    });
+    return new KeyedOneInputStreamOperatorTestHarness<>(
+        operator,
+        value -> ByteBuffer.wrap(value.getValue().getId()),
+        TypeInformation.of(ByteBuffer.class));
   }
 }

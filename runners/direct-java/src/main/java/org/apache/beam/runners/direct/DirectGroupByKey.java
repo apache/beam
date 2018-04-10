@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -63,17 +62,16 @@ class DirectGroupByKey<K, V>
 
     // By default, implement GroupByKey via a series of lower-level operations.
     return input
-        .apply(new DirectGroupByKeyOnly<K, V>())
+        .apply(new DirectGroupByKeyOnly<>())
 
         // Group each key's values by window, merging windows as needed.
         .apply(
             "GroupAlsoByWindow",
-            new DirectGroupAlsoByWindow<K, V>(inputWindowingStrategy, outputWindowingStrategy));
+            new DirectGroupAlsoByWindow<>(inputWindowingStrategy, outputWindowingStrategy));
   }
 
   static final class DirectGroupByKeyOnly<K, V>
-      extends PTransformTranslation.RawPTransform<
-          PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>> {
+      extends PTransform<PCollection<KV<K, V>>, PCollection<KeyedWorkItem<K, V>>> {
     @Override
     public PCollection<KeyedWorkItem<K, V>> expand(PCollection<KV<K, V>> input) {
       return PCollection.createPrimitiveOutputInternal(
@@ -87,15 +85,10 @@ class DirectGroupByKey<K, V>
     }
 
     DirectGroupByKeyOnly() {}
-
-    @Override
-    public String getUrn() {
-      return DIRECT_GBKO_URN;
-    }
   }
 
   static final class DirectGroupAlsoByWindow<K, V>
-      extends PTransformTranslation.RawPTransform<
+      extends PTransform<
           PCollection<KeyedWorkItem<K, V>>, PCollection<KV<K, Iterable<V>>>> {
 
     private final WindowingStrategy<?, ?> inputWindowingStrategy;
@@ -135,11 +128,6 @@ class DirectGroupByKey<K, V>
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(), outputWindowingStrategy, input.isBounded(),
           KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getElementCoder())));
-    }
-
-    @Override
-    public String getUrn() {
-      return DIRECT_GABW_URN;
     }
   }
 }

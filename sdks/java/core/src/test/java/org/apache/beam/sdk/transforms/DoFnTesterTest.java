@@ -37,9 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -290,16 +288,15 @@ public class DoFnTesterTest {
               TimestampedValue.of("2", new Instant(2000L))));
       assertThat(
           tester.peekOutputElementsInWindow(new IntervalWindow(new Instant(0L), new Instant(10L))),
-          Matchers.<TimestampedValue<String>>emptyIterable());
+          Matchers.emptyIterable());
     }
   }
 
   @Test
   public void fnWithSideInputDefault() throws Exception {
     PCollection<Integer> pCollection = p.apply(Create.empty(VarIntCoder.of()));
-    final PCollectionView<Integer> value =
-        PCollectionViews.singletonView(
-            pCollection, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+    final PCollectionView<Integer> value = pCollection.apply(
+        View.<Integer>asSingleton().withDefaultValue(0));
 
     try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
       tester.processElement(1);
@@ -313,9 +310,8 @@ public class DoFnTesterTest {
   @Test
   public void fnWithSideInputExplicit() throws Exception {
     PCollection<Integer> pCollection = p.apply(Create.of(-2));
-    final PCollectionView<Integer> value =
-        PCollectionViews.singletonView(
-            pCollection, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+    final PCollectionView<Integer> value = pCollection.apply(
+        View.<Integer>asSingleton().withDefaultValue(0));
 
     try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
       tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
@@ -420,6 +416,7 @@ public class DoFnTesterTest {
       INSIDE_BUNDLE,
       TORN_DOWN
     }
+
     private LifecycleState state = LifecycleState.UNINITIALIZED;
 
     @Setup

@@ -31,18 +31,18 @@ import org.joda.time.Instant;
  * DoFn}, in particular, allowing the runner to access the {@link RestrictionTracker}.
  */
 public abstract class SplittableProcessElementInvoker<
-    InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> {
+    InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> {
   /** Specifies how to resume a splittable {@link DoFn.ProcessElement} call. */
   public class Result {
     @Nullable
     private final RestrictionT residualRestriction;
     private final DoFn.ProcessContinuation continuation;
-    private final Instant futureOutputWatermark;
+    private final @Nullable Instant futureOutputWatermark;
 
     public Result(
         @Nullable RestrictionT residualRestriction,
         DoFn.ProcessContinuation continuation,
-        Instant futureOutputWatermark) {
+        @Nullable Instant futureOutputWatermark) {
       this.continuation = checkNotNull(continuation);
       if (continuation.shouldResume()) {
         checkNotNull(residualRestriction);
@@ -65,7 +65,7 @@ public abstract class SplittableProcessElementInvoker<
       return continuation;
     }
 
-    public Instant getFutureOutputWatermark() {
+    public @Nullable Instant getFutureOutputWatermark() {
       return futureOutputWatermark;
     }
   }

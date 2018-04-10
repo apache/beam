@@ -38,12 +38,13 @@ import java.util.concurrent.ScheduledFuture;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
-import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.NullSideInputReader;
+import org.apache.beam.runners.core.ProcessFnRunner;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -99,7 +100,6 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
 import org.joda.time.Instant;
@@ -219,6 +219,39 @@ public class DoFnOperator<InputT, OutputT>
     return doFn;
   }
 
+  // allow overriding this, for example SplittableDoFnOperator will not create a
+  // stateful DoFn runner because ProcessFn, which is used for executing a Splittable DoFn
+  // doesn't play by the normal DoFn rules and WindowDoFnOperator uses LateDataDroppingDoFnRunner
+  protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
+      DoFnRunner<InputT, OutputT> wrappedRunner) {
+
+    if (keyCoder != null) {
+      StatefulDoFnRunner.CleanupTimer cleanupTimer =
+          new StatefulDoFnRunner.TimeInternalsCleanupTimer(
+              timerInternals, windowingStrategy);
+
+      // we don't know the window type
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      StatefulDoFnRunner.StateCleaner<?> stateCleaner =
+          new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+              doFn, keyedStateInternals, windowCoder);
+
+
+      return DoFnRunners.defaultStatefulDoFnRunner(
+          doFn,
+          wrappedRunner,
+          windowingStrategy,
+          cleanupTimer,
+          stateCleaner);
+
+    } else {
+      return doFnRunner;
+    }
+  }
+
   @Override
   public void setup(
       StreamTask<?, ?> containingTask,
@@ -277,8 +310,10 @@ public class DoFnOperator<InputT, OutputT>
       keyedStateInternals = new FlinkStateInternals<>((KeyedStateBackend) getKeyedStateBackend(),
           keyCoder);
 
-      timerService = (HeapInternalTimerService<?, TimerInternals.TimerData>)
-          getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
+      if (timerService == null) {
+        timerService = (HeapInternalTimerService<?, TimerInternals.TimerData>)
+            getInternalTimerService("beam-timer", new CoderTypeSerializer<>(timerCoder), this);
+      }
 
       timerInternals = new FlinkTimerInternals();
 
@@ -303,41 +338,7 @@ public class DoFnOperator<InputT, OutputT>
         stepContext,
         windowingStrategy);
 
-    if (doFn instanceof GroupAlsoByWindowViaWindowSetNewDoFn) {
-      // When the doFn is this, we know it came from WindowDoFnOperator and
-      //   InputT = KeyedWorkItem<K, V>
-      //   OutputT = KV<K, V>
-      //
-      // for some K, V
-
-
-      doFnRunner = DoFnRunners.lateDataDroppingRunner(
-          (DoFnRunner) doFnRunner,
-          stepContext,
-          windowingStrategy);
-    } else if (keyCoder != null) {
-      // It is a stateful DoFn
-
-      StatefulDoFnRunner.CleanupTimer cleanupTimer =
-          new StatefulDoFnRunner.TimeInternalsCleanupTimer(
-              stepContext.timerInternals(), windowingStrategy);
-
-      // we don't know the window type
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
-
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      StatefulDoFnRunner.StateCleaner<?> stateCleaner =
-          new StatefulDoFnRunner.StateInternalsStateCleaner<>(
-              doFn, stepContext.stateInternals(), windowCoder);
-
-      doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
-          doFn,
-          doFnRunner,
-          windowingStrategy,
-          cleanupTimer,
-          stateCleaner);
-    }
+    doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (options.getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
@@ -348,30 +349,65 @@ public class DoFnOperator<InputT, OutputT>
 
     // Schedule timer to check timeout of finish bundle.
     long bundleCheckPeriod = (maxBundleTimeMills + 1) / 2;
-    checkFinishBundleTimer = getProcessingTimeService().scheduleAtFixedRate(
-        new ProcessingTimeCallback() {
-          @Override
-          public void onProcessingTime(long timestamp) throws Exception {
-            checkInvokeFinishBundleByTime();
-          }
-        },
-        bundleCheckPeriod, bundleCheckPeriod);
+    checkFinishBundleTimer =
+        getProcessingTimeService()
+            .scheduleAtFixedRate(
+                timestamp -> checkInvokeFinishBundleByTime(), bundleCheckPeriod, bundleCheckPeriod);
 
-    pushbackDoFnRunner =
-        SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+    if (doFn instanceof SplittableParDoViaKeyedWorkItems.ProcessFn) {
+      pushbackDoFnRunner =
+          new ProcessFnRunner<>((DoFnRunner) doFnRunner, sideInputs, sideInputHandler);
+    } else {
+      pushbackDoFnRunner =
+          SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
+    }
+  }
+
+  @Override
+  public void dispose() throws Exception {
+    try {
+      super.dispose();
+      checkFinishBundleTimer.cancel(true);
+    } finally {
+      if (bundleStarted) {
+        invokeFinishBundle();
+      }
+      doFnInvoker.invokeTeardown();
+    }
   }
 
   @Override
   public void close() throws Exception {
-    super.close();
+    try {
 
-    // sanity check: these should have been flushed out by +Inf watermarks
-    if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
-      BagState<WindowedValue<InputT>> pushedBack =
-          nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
+      // This is our last change to block shutdown of this operator while
+      // there are still remaining processing-time timers. Flink will ignore pending
+      // processing-time timers when upstream operators have shut down and will also
+      // shut down this operator with pending processing-time timers.
+      while (this.numProcessingTimeTimers() > 0) {
+        getContainingTask().getCheckpointLock().wait(100);
+      }
+      if (this.numProcessingTimeTimers() > 0) {
+        throw new RuntimeException(
+            "There are still processing-time timers left, this indicates a bug");
+      }
 
-      Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-      if (pushedBackContents != null) {
+      // make sure we send a +Inf watermark downstream. It can happen that we receive +Inf
+      // in processWatermark*() but have holds, so we have to re-evaluate here.
+      processWatermark(new Watermark(Long.MAX_VALUE));
+      if (currentOutputWatermark < Long.MAX_VALUE) {
+        throw new RuntimeException("There are still watermark holds. Watermark held at "
+            + keyedStateInternals.watermarkHold().getMillis() + ".");
+      }
+    } finally {
+      super.close();
+
+      // sanity check: these should have been flushed out by +Inf watermarks
+      if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
+        BagState<WindowedValue<InputT>> pushedBack =
+            nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
+
+        Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
         if (!Iterables.isEmpty(pushedBackContents)) {
           String pushedBackString = Joiner.on(",").join(pushedBackContents);
           throw new RuntimeException(
@@ -379,8 +415,6 @@ public class DoFnOperator<InputT, OutputT>
         }
       }
     }
-    checkFinishBundleTimer.cancel(true);
-    doFnInvoker.invokeTeardown();
   }
 
   private long getPushbackWatermarkHold() {
@@ -464,17 +498,15 @@ public class DoFnOperator<InputT, OutputT>
     List<WindowedValue<InputT>> newPushedBack = new ArrayList<>();
 
     Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-    if (pushedBackContents != null) {
-      for (WindowedValue<InputT> elem : pushedBackContents) {
+    for (WindowedValue<InputT> elem : pushedBackContents) {
 
-        // we need to set the correct key in case the operator is
-        // a (keyed) window operator
-        setKeyContextElement1(new StreamRecord<>(elem));
+      // we need to set the correct key in case the operator is
+      // a (keyed) window operator
+      setKeyContextElement1(new StreamRecord<>(elem));
 
-        Iterable<WindowedValue<InputT>> justPushedBack =
-            pushbackDoFnRunner.processElementInReadyWindows(elem);
-        Iterables.addAll(newPushedBack, justPushedBack);
-      }
+      Iterable<WindowedValue<InputT>> justPushedBack =
+          pushbackDoFnRunner.processElementInReadyWindows(elem);
+      Iterables.addAll(newPushedBack, justPushedBack);
     }
 
     pushedBack.clear();
@@ -583,15 +615,13 @@ public class DoFnOperator<InputT, OutputT>
         nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
 
     Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-    if (pushedBackContents != null) {
-      for (WindowedValue<InputT> elem : pushedBackContents) {
+    for (WindowedValue<InputT> elem : pushedBackContents) {
 
-        // we need to set the correct key in case the operator is
-        // a (keyed) window operator
-        setKeyContextElement1(new StreamRecord<>(elem));
+      // we need to set the correct key in case the operator is
+      // a (keyed) window operator
+      setKeyContextElement1(new StreamRecord<>(elem));
 
-        doFnRunner.processElement(elem);
-      }
+      doFnRunner.processElement(elem);
     }
 
     pushedBack.clear();
@@ -727,11 +757,15 @@ public class DoFnOperator<InputT, OutputT>
         // We just initialize our timerService
         if (keyCoder != null) {
           if (timerService == null) {
-            timerService = new HeapInternalTimerService<>(
-                totalKeyGroups,
-                localKeyGroupRange,
-                this,
-                getRuntimeContext().getProcessingTimeService());
+            final HeapInternalTimerService<Object, TimerData> localService =
+                new HeapInternalTimerService<>(
+                    totalKeyGroups,
+                    localKeyGroupRange,
+                    this,
+                    getRuntimeContext().getProcessingTimeService());
+            localService.startTimerService(getKeyedStateBackend().getKeySerializer(),
+                new CoderTypeSerializer<>(timerCoder), this);
+            timerService = localService;
           }
           timerService.restoreTimersForKeyGroup(div, keyGroupIdx, getUserCodeClassloader());
         }
@@ -855,7 +889,7 @@ public class DoFnOperator<InputT, OutputT>
       if (!openBuffer) {
         emit(tag, value);
       } else {
-        bufferState.add(KV.<Integer, WindowedValue<?>>of(tagsToIds.get(tag), value));
+        bufferState.add(KV.of(tagsToIds.get(tag), value));
       }
     }
 
@@ -910,7 +944,7 @@ public class DoFnOperator<InputT, OutputT>
       Integer id = VarIntCoder.of().decode(in);
       Coder<WindowedValue<?>> coder = idsToCoders.get(id);
       WindowedValue<?> value = coder.decode(in);
-      return KV.<Integer, WindowedValue<?>>of(id, value);
+      return KV.of(id, value);
     }
 
     @Override
@@ -943,12 +977,13 @@ public class DoFnOperator<InputT, OutputT>
     @SuppressWarnings("unchecked")
     public MultiOutputOutputManagerFactory(
         TupleTag<OutputT> mainTag, Coder<WindowedValue<OutputT>> mainCoder) {
-      this(mainTag,
-          new HashMap<TupleTag<?>, OutputTag<WindowedValue<?>>>(),
+      this(
+          mainTag,
+          new HashMap<>(),
           ImmutableMap.<TupleTag<?>, Coder<WindowedValue<?>>>builder()
-              .put(mainTag, (Coder) mainCoder).build(),
-          ImmutableMap.<TupleTag<?>, Integer>builder()
-              .put(mainTag, 0).build());
+              .put(mainTag, (Coder) mainCoder)
+              .build(),
+          ImmutableMap.<TupleTag<?>, Integer>builder().put(mainTag, 0).build());
     }
 
     public MultiOutputOutputManagerFactory(

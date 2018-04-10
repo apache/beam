@@ -78,6 +78,16 @@ When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
+**Time partitioned tables**
+
+BigQuery sink currently does not fully support writing to BigQuery
+time partitioned tables. But writing to a *single* partition may work if
+that does not involve creating a new table (for example, when writing to an
+existing table with `create_disposition=CREATE_NEVER` and
+`write_disposition=WRITE_APPEND`).
+BigQuery source supports reading from a single time partition with the partition
+decorator specified as a part of the table identifier.
+
 *** Short introduction to BigQuery concepts ***
 Tables have rows (TableRow) and each row has cells (TableCell).
 A table has a schema (TableSchema), which in turn describes the schema of each
@@ -109,6 +119,8 @@ import logging
 import re
 import time
 import uuid
+
+from six import string_types
 
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
@@ -512,7 +524,7 @@ bigquery_v2_messages.TableSchema` object.
 
     self.table_reference = _parse_table_reference(table, dataset, project)
     # Transform the table schema into a bigquery.TableSchema instance.
-    if isinstance(schema, basestring):
+    if isinstance(schema, string_types):
       # TODO(silviuc): Should add a regex-based validation of the format.
       table_schema = bigquery.TableSchema()
       schema_list = [s.strip(' ') for s in schema.split(',')]
@@ -1403,7 +1415,7 @@ bigquery_v2_messages.TableSchema):
       return schema
     elif schema is None:
       return schema
-    elif isinstance(schema, basestring):
+    elif isinstance(schema, string_types):
       table_schema = WriteToBigQuery.get_table_schema_from_string(schema)
       return WriteToBigQuery.table_schema_to_dict(table_schema)
     elif isinstance(schema, bigquery.TableSchema):

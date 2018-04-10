@@ -117,9 +117,9 @@ public class TriggerExampleTest {
         .apply(Create.timestamped(TIME_STAMPED_INPUT))
         .apply(ParDo.of(new ExtractFlowInfo()));
 
-    PCollection<TableRow> totalFlow = flow
-        .apply(Window.<KV<String, Integer>>into(FixedWindows.of(Duration.standardMinutes(1))))
-        .apply(new TotalFlow("default"));
+    PCollection<TableRow> totalFlow =
+        flow.apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))))
+            .apply(new TotalFlow("default"));
 
     PCollection<String> results =  totalFlow.apply(ParDo.of(new FormatResults()));
 

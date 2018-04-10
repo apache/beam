@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -38,12 +39,12 @@ import org.apache.beam.sdk.transforms.SerializableComparator;
  */
 public class KV<K, V> implements Serializable {
   /** Returns a {@link KV} with the given key and value. */
-  public static <K, V> KV<K, V> of(K key, V value) {
+  public static <K, V> KV<K, V> of(@Nullable K key, @Nullable V value) {
     return new KV<>(key, value);
   }
 
   /** Returns the key of this {@link KV}. */
-  public K getKey() {
+  public @Nullable K getKey() {
     return key;
   }
 
@@ -55,10 +56,10 @@ public class KV<K, V> implements Serializable {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  final K key;
-  final V value;
+  final @Nullable K key;
+  final @Nullable V value;
 
-  private KV(K key, V value) {
+  private KV(@Nullable K key, @Nullable V value) {
     this.key = key;
     this.value = value;
   }

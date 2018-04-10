@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
@@ -81,7 +83,7 @@ class WriteTables<DestinationT>
 
   private final boolean singlePartition;
   private final BigQueryServices bqServices;
-  private final PCollectionView<String> jobIdToken;
+  private final PCollectionView<String> loadJobIdPrefixView;
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
@@ -106,29 +108,43 @@ class WriteTables<DestinationT>
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationT destination = c.element().getKey().getKey();
       TableSchema tableSchema;
-      String jsonSchema = jsonSchemas.get(destination);
-      if (jsonSchema != null) {
-        tableSchema = BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
+      if (firstPaneCreateDisposition == CreateDisposition.CREATE_NEVER) {
+        tableSchema = null;
+      } else if (jsonSchemas.containsKey(destination)) {
+        tableSchema =
+            BigQueryHelpers.fromJsonString(jsonSchemas.get(destination), TableSchema.class);
       } else {
         tableSchema = dynamicDestinations.getSchema(destination);
-        if (tableSchema != null) {
-          jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
-        }
+        checkArgument(
+            tableSchema != null,
+            "Unless create disposition is %s, a schema must be specified, i.e. "
+                + "DynamicDestinations.getSchema() may not return null. "
+                + "However, create disposition is %s, and %s returned null for destination %s",
+            CreateDisposition.CREATE_NEVER,
+            firstPaneCreateDisposition,
+            dynamicDestinations,
+            destination);
+        jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
       }
 
       TableDestination tableDestination = dynamicDestinations.getTable(destination);
+      checkArgument(
+          tableDestination != null,
+          "DynamicDestinations.getTable() may not return null, "
+              + "but %s returned null for destination %s",
+          dynamicDestinations,
+          destination);
       TableReference tableReference = tableDestination.getTableReference();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(
             c.getPipelineOptions().as(BigQueryOptions.class).getProject());
-        tableDestination = new TableDestination(
-            tableReference, tableDestination.getTableDescription());
+        tableDestination = tableDestination.withTableReference(tableReference);
       }
 
       Integer partition = c.element().getKey().getShardNumber();
       List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
       String jobIdPrefix = BigQueryHelpers.createJobId(
-          c.sideInput(jobIdToken), tableDestination, partition, c.pane().getIndex());
+          c.sideInput(loadJobIdPrefixView), tableDestination, partition, c.pane().getIndex());
 
       if (!singlePartition) {
         tableReference.setTableId(jobIdPrefix);
@@ -167,14 +183,14 @@ class WriteTables<DestinationT>
   public WriteTables(
       boolean singlePartition,
       BigQueryServices bqServices,
-      PCollectionView<String> jobIdToken,
+      PCollectionView<String> loadJobIdPrefixView,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
       DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
-    this.jobIdToken = jobIdToken;
+    this.loadJobIdPrefixView = loadJobIdPrefixView;
     this.firstPaneWriteDisposition = writeDisposition;
     this.firstPaneCreateDisposition = createDisposition;
     this.sideInputs = sideInputs;
@@ -199,19 +215,18 @@ class WriteTables<DestinationT>
     writeTablesOutputs
         .get(temporaryFilesTag)
         .setCoder(StringUtf8Coder.of())
-        .apply(WithKeys.<Void, String>of((Void) null))
+        .apply(WithKeys.of((Void) null))
         .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
-        .apply(Window.<KV<Void, String>>into(new GlobalWindows())
-            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-            .discardingFiredPanes())
-        .apply(GroupByKey.<Void, String>create())
-        .apply(Values.<Iterable<String>>create())
+        .apply(
+            Window.<KV<Void, String>>into(new GlobalWindows())
+                .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                .discardingFiredPanes())
+        .apply(GroupByKey.create())
+        .apply(Values.create())
         .apply(ParDo.of(new GarbageCollectTemporaryFiles()));
 
     return writeTablesOutputs.get(mainOutputTag);
   }
-
-
 
   private void load(
       JobService jobService,
@@ -238,31 +253,51 @@ class WriteTables<DestinationT>
     }
     String projectId = ref.getProjectId();
     Job lastFailedLoadJob = null;
+    String bqLocation =
+        BigQueryHelpers.getDatasetLocation(datasetService, ref.getProjectId(), ref.getDatasetId());
     for (int i = 0; i < BatchLoads.MAX_RETRY_JOBS; ++i) {
       String jobId = jobIdPrefix + "-" + i;
-      JobReference jobRef = new JobReference().setProjectId(projectId).setJobId(jobId);
+
+      JobReference jobRef =
+          new JobReference().setProjectId(projectId).setJobId(jobId).setLocation(bqLocation);
+
+      LOG.info("Loading {} files into {} using job {}, attempt {}", gcsUris.size(), ref, jobRef, i);
       jobService.startLoadJob(jobRef, loadConfig);
+      LOG.info("Load job {} started", jobRef);
+
       Job loadJob = jobService.pollJob(jobRef, BatchLoads.LOAD_JOB_POLL_MAX_RETRIES);
+
       Status jobStatus = BigQueryHelpers.parseStatus(loadJob);
       switch (jobStatus) {
         case SUCCEEDED:
+          LOG.info(
+              "Load job {} succeeded. Statistics: {}", jobRef, loadJob.getStatistics());
           if (tableDescription != null) {
-            datasetService.patchTableDescription(ref, tableDescription);
+            datasetService.patchTableDescription(
+                ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
+                tableDescription);
           }
           return;
         case UNKNOWN:
+          LOG.info(
+              "Load job {} finished in unknown state: {}", jobRef, loadJob.getStatus());
           throw new RuntimeException(
               String.format(
                   "UNKNOWN status of load job [%s]: %s.",
                   jobId, BigQueryHelpers.jobToPrettyString(loadJob)));
         case FAILED:
+          LOG.info(
+              "Load job {} failed, {}: {}",
+              jobRef,
+              (i < BatchLoads.MAX_RETRY_JOBS - 1) ? "will retry" : "will not retry",
+              loadJob.getStatus());
           lastFailedLoadJob = loadJob;
           continue;
         default:
           throw new IllegalStateException(
               String.format(
                   "Unexpected status [%s] of load job: %s.",
-                  jobStatus, BigQueryHelpers.jobToPrettyString(loadJob)));
+                  loadJob.getStatus(), BigQueryHelpers.jobToPrettyString(loadJob)));
       }
     }
     throw new RuntimeException(

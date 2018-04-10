@@ -19,9 +19,7 @@ package org.apache.beam.runners.dataflow.options;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.api.services.dataflow.Dataflow;
-import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.dataflow.util.DataflowTransport;
 import org.apache.beam.runners.dataflow.util.GcsStager;
 import org.apache.beam.runners.dataflow.util.Stager;
@@ -29,6 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.Hidden;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.InstanceBuilder;
@@ -40,23 +39,7 @@ import org.apache.beam.sdk.util.InstanceBuilder;
 @Description("[Internal] Options used to control execution of the Dataflow SDK for "
     + "debugging and testing purposes.")
 @Hidden
-public interface DataflowPipelineDebugOptions extends PipelineOptions {
-
-  /**
-   * The list of backend experiments to enable.
-   *
-   * <p>Dataflow provides a number of experimental features that can be enabled
-   * with this flag.
-   *
-   * <p>Please sync with the Dataflow team before enabling any experiments.
-   */
-  @Description("[Experimental] Dataflow provides a number of experimental features that can "
-      + "be enabled with this flag. Please sync with the Dataflow team before enabling any "
-      + "experiments.")
-  @Experimental
-  @Nullable
-  List<String> getExperiments();
-  void setExperiments(@Nullable List<String> value);
+public interface DataflowPipelineDebugOptions extends ExperimentalOptions, PipelineOptions {
 
   /**
    * The root URL for the Dataflow API. {@code dataflowEndpoint} can override this value
@@ -195,6 +178,19 @@ public interface DataflowPipelineDebugOptions extends PipelineOptions {
       + "which is GC thrashing or out of memory.")
   boolean getDumpHeapOnOOM();
   void setDumpHeapOnOOM(boolean dumpHeapBeforeExit);
+
+  /**
+   * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap
+   * dumps can of comparable size to the default boot disk. Consider increasing the boot disk size
+   * before setting this flag to true.
+   */
+  @Description(
+      "[EXPERIMENTAL] Set to a GCS bucket (directory) to upload heap dumps to the given location.\n"
+      + "Enabling this implies that heap dumps should be generated on OOM (--dumpHeapOnOOM=true)\n"
+      + "Uploads will continue until the pipeline is stopped or updated without this option.\n")
+  @Experimental
+  String getSaveHeapDumpsToGcsPath();
+  void setSaveHeapDumpsToGcsPath(String gcsPath);
 
   /**
    * Creates a {@link Stager} object using the class specified in

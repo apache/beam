@@ -21,7 +21,7 @@ package org.apache.beam.fn.harness;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.TextFormat;
 import java.util.EnumMap;
-import org.apache.beam.fn.harness.channel.ManagedChannelFactory;
+import java.util.List;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.control.RegisterHandler;
@@ -29,10 +29,15 @@ import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
-import org.apache.beam.fn.harness.stream.StreamObserverFactory;
+import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builder;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.sdk.fn.stream.StreamObserverFactory;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.slf4j.Logger;
@@ -90,8 +95,29 @@ public class FnHarness {
   public static void main(PipelineOptions options,
       Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor) throws Exception {
-    ManagedChannelFactory channelFactory = ManagedChannelFactory.from(options);
-    StreamObserverFactory streamObserverFactory = StreamObserverFactory.fromOptions(options);
+    ManagedChannelFactory channelFactory;
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
+    if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
+      channelFactory = ManagedChannelFactory.createEpoll();
+    } else {
+      channelFactory = ManagedChannelFactory.createDefault();
+    }
+    StreamObserverFactory streamObserverFactory =
+        HarnessStreamObserverFactories.fromOptions(options);
+    main(
+        options,
+        loggingApiServiceDescriptor,
+        controlApiServiceDescriptor,
+        channelFactory,
+        streamObserverFactory);
+  }
+
+  public static void main(
+      PipelineOptions options,
+      Endpoints.ApiServiceDescriptor loggingApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor controlApiServiceDescriptor,
+      ManagedChannelFactory channelFactory,
+      StreamObserverFactory streamObserverFactory) {
     try (BeamFnLoggingClient logging = new BeamFnLoggingClient(
         options,
         loggingApiServiceDescriptor,
@@ -99,9 +125,8 @@ public class FnHarness {
 
       LOG.info("Fn Harness started");
       EnumMap<BeamFnApi.InstructionRequest.RequestCase,
-              ThrowingFunction<BeamFnApi.InstructionRequest,
-                               BeamFnApi.InstructionResponse.Builder>> handlers =
-          new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
+              ThrowingFunction<InstructionRequest, Builder>>
+          handlers = new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
 
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer = new BeamFnDataGrpcClient(

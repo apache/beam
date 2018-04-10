@@ -191,12 +191,9 @@ public class StateSpecFunctions {
           @SuppressWarnings("unchecked")
           final CheckpointMarkT finishedReadCheckpointMark =
               (CheckpointMarkT) microbatchReader.getCheckpointMark();
-          byte[] codedCheckpoint = new byte[0];
-          if (finishedReadCheckpointMark != null) {
-            codedCheckpoint = CoderHelpers.toByteArray(finishedReadCheckpointMark, checkpointCoder);
-          } else {
-            LOG.info("Skipping checkpoint marking because the reader failed to supply one.");
-          }
+          byte[] codedCheckpoint = CoderHelpers.toByteArray(
+              finishedReadCheckpointMark, checkpointCoder);
+
           // persist the end-of-read (high) watermark for following read, where it will become
           // the next low watermark.
           state.update(new Tuple2<>(codedCheckpoint, highWatermark));

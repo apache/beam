@@ -19,6 +19,7 @@ package org.apache.beam.runners.apex;
 
 import com.datatorrent.api.DAG;
 import java.io.IOException;
+import javax.annotation.Nullable;
 import org.apache.apex.api.Launcher.AppHandle;
 import org.apache.apex.api.Launcher.ShutdownMode;
 import org.apache.beam.sdk.Pipeline;
@@ -52,7 +53,8 @@ public class ApexRunnerResult implements PipelineResult {
   }
 
   @Override
-  public State waitUntilFinish(Duration duration) {
+  @Nullable
+  public State waitUntilFinish(@Nullable Duration duration) {
     long timeout = (duration == null || duration.getMillis() < 1) ? Long.MAX_VALUE
         : System.currentTimeMillis() + duration.getMillis();
     try {

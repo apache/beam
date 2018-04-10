@@ -27,7 +27,6 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SplittableParDo;
@@ -159,7 +158,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       PCollection<KeyedWorkItem<K, KV<K, InputT>>> adjustedInput =
           input
               // Stash the original timestamps, etc, for when it is fed to the user's DoFn
-              .apply("Reify timestamps", ParDo.of(new ReifyWindowedValueFn<K, InputT>()))
+              .apply("Reify timestamps", ParDo.of(new ReifyWindowedValueFn<>()))
               .setCoder(KvCoder.of(keyCoder, WindowedValue.getFullCoder(kvCoder, windowCoder)))
 
               // We are going to GBK to gather keys and windows but otherwise do not want
@@ -176,10 +175,10 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
                       .withTimestampCombiner(TimestampCombiner.EARLIEST))
 
               // A full GBK to group by key _and_ window
-              .apply("Group by key", GroupByKey.<K, WindowedValue<KV<K, InputT>>>create())
+              .apply("Group by key", GroupByKey.create())
 
               // Adapt to KeyedWorkItem; that is how this runner delivers timers
-              .apply("To KeyedWorkItem", ParDo.of(new ToKeyedWorkItem<K, InputT>()))
+              .apply("To KeyedWorkItem", ParDo.of(new ToKeyedWorkItem<>()))
               .setCoder(KeyedWorkItemCoder.of(keyCoder, kvCoder, windowCoder))
 
               // Because of the intervening GBK, we may have abused the windowing strategy
@@ -203,8 +202,7 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
       "urn:beam:directrunner:transforms:stateful_pardo:v1";
 
   static class StatefulParDo<K, InputT, OutputT>
-      extends PTransformTranslation.RawPTransform<
-          PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
+      extends PTransform<PCollection<? extends KeyedWorkItem<K, KV<K, InputT>>>, PCollectionTuple> {
     private final transient DoFn<KV<K, InputT>, OutputT> doFn;
     private final TupleTagList additionalOutputTags;
     private final TupleTag<OutputT> mainOutputTag;
@@ -250,16 +248,11 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
               input.getPipeline(),
               TupleTagList.of(getMainOutputTag()).and(getAdditionalOutputTags().getAll()),
               // TODO
-              Collections.<TupleTag<?>, Coder<?>>emptyMap(),
+              Collections.emptyMap(),
               input.getWindowingStrategy(),
               input.isBounded());
 
       return outputs;
-    }
-
-    @Override
-    public String getUrn() {
-      return DIRECT_STATEFUL_PAR_DO_URN;
     }
   }
 

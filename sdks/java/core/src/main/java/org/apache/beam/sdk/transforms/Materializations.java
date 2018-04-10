@@ -18,10 +18,10 @@
 
 package org.apache.beam.sdk.transforms;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
@@ -32,29 +32,37 @@ import org.apache.beam.sdk.util.WindowedValue;
 @Internal
 public class Materializations {
   /**
-   * The URN for a {@link Materialization} where the primitive view type is an iterable of fully
+   * The URN for a {@link Materialization} where the primitive view type is an multimap of fully
    * specified windowed values.
    */
   @Experimental(Kind.CORE_RUNNERS_ONLY)
-  public static final String ITERABLE_MATERIALIZATION_URN =
-      "urn:beam:sideinput:materialization:iterable:0.1";
+  public static final String MULTIMAP_MATERIALIZATION_URN =
+      "urn:beam:sideinput:materialization:multimap:0.1";
+
+  /**
+   * Represents the {@code PrimitiveViewT} supplied to the {@link ViewFn} when it declares to
+   * use the {@link Materializations#MULTIMAP_MATERIALIZATION_URN multimap materialization}.
+   */
+  public interface MultimapView<K, V> {
+    Iterable<V> get(@Nullable K k);
+  }
 
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * <p>A {@link Materialization} where the primitive view type is an iterable of fully specified
-   * windowed values.
+   * <p>A {@link Materialization} where the primitive view type is a multimap with fully
+   * specified windowed keys.
    */
   @Internal
-  public static <T> Materialization<Iterable<WindowedValue<T>>> iterable() {
-    return new IterableMaterialization<>();
+  public static <K, V> Materialization<MultimapView<K, V>> multimap() {
+    return new MultimapMaterialization<>();
   }
 
-  private static class IterableMaterialization<T>
-      implements Materialization<Iterable<WindowedValue<T>>> {
+  private static class MultimapMaterialization<K, V>
+      implements Materialization<MultimapView<K, V>> {
     @Override
     public String getUrn() {
-      return ITERABLE_MATERIALIZATION_URN;
+      return MULTIMAP_MATERIALIZATION_URN;
     }
   }
 }

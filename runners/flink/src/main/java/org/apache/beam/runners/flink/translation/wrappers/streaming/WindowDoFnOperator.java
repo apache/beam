@@ -23,13 +23,14 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.SystemReduceFn;
-import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -80,22 +81,34 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
+  protected DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> createWrappingDoFnRunner(
+      DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner) {
+    // When the doFn is this, we know it came from WindowDoFnOperator and
+    //   InputT = KeyedWorkItem<K, V>
+    //   OutputT = KV<K, V>
+    //
+    // for some K, V
+
+
+    return DoFnRunners.lateDataDroppingRunner(
+        (DoFnRunner) doFnRunner,
+        timerInternals,
+        windowingStrategy);
+  }
+
+  @Override
   protected DoFn<KeyedWorkItem<K, InputT>, KV<K, OutputT>> getDoFn() {
-    StateInternalsFactory<K> stateInternalsFactory = new StateInternalsFactory<K>() {
-      @Override
-      public StateInternals stateInternalsForKey(K key) {
-        //this will implicitly be keyed by the key of the incoming
-        // element or by the key of a firing timer
-        return (StateInternals) keyedStateInternals;
-      }
-    };
-    TimerInternalsFactory<K> timerInternalsFactory = new TimerInternalsFactory<K>() {
-      @Override
-      public TimerInternals timerInternalsForKey(K key) {
-        //this will implicitly be keyed like the StateInternalsFactory
-        return timerInternals;
-      }
-    };
+    StateInternalsFactory<K> stateInternalsFactory =
+        key -> {
+          // this will implicitly be keyed by the key of the incoming
+          // element or by the key of a firing timer
+          return (StateInternals) keyedStateInternals;
+        };
+    TimerInternalsFactory<K> timerInternalsFactory =
+        key -> {
+          // this will implicitly be keyed like the StateInternalsFactory
+          return timerInternals;
+        };
 
     // we have to do the unchecked cast because GroupAlsoByWindowViaWindowSetDoFn.create
     // has the window type as generic parameter while WindowingStrategy is almost always
@@ -110,10 +123,11 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
   @Override
   public void fireTimer(InternalTimer<?, TimerData> timer) {
-    doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
-        KeyedWorkItems.<K, InputT>timersWorkItem(
-            (K) keyedStateInternals.getKey(),
-            Collections.singletonList(timer.getNamespace()))));
+    doFnRunner.processElement(
+        WindowedValue.valueInGlobalWindow(
+            KeyedWorkItems.timersWorkItem(
+                (K) keyedStateInternals.getKey(),
+                Collections.singletonList(timer.getNamespace()))));
   }
 
 }

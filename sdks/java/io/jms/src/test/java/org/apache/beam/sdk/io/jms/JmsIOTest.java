@@ -18,21 +18,19 @@
 package org.apache.beam.sdk.io.jms;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
+import com.google.common.base.Throwables;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
-import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
@@ -45,6 +43,7 @@ import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.security.AuthenticationUser;
 import org.apache.activemq.security.SimpleAuthenticationPlugin;
 import org.apache.activemq.store.memory.MemoryPersistenceAdapter;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -116,12 +115,7 @@ public class JmsIOTest {
       pipeline.run();
       fail();
     } catch (Exception e) {
-      Throwable cause = e.getCause();
-      assertThat(cause, instanceOf(IOException.class));
-      assertThat(cause.getMessage(), equalTo("Error connecting to JMS"));
-      Throwable innerCause = cause.getCause();
-      assertThat(innerCause, instanceOf(JMSException.class));
-      assertThat(innerCause.getMessage(), containsString(innerMessage));
+      assertThat(Throwables.getRootCause(e).getMessage(), containsString(innerMessage));
     }
   }
 
@@ -175,9 +169,45 @@ public class JmsIOTest {
             .withPassword(PASSWORD)
             .withMaxNumRecords(5));
 
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(5L);
+    pipeline.run();
+
+    connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageConsumer consumer = session.createConsumer(session.createQueue(QUEUE));
+    Message msg = consumer.receiveNoWait();
+    assertNull(msg);
+  }
+
+  @Test
+  public void testReadBytesMessages() throws Exception {
+
+    // produce message
+    Connection connection = connectionFactory.createConnection(USERNAME, PASSWORD);
+    Session session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+    MessageProducer producer = session.createProducer(session.createQueue(QUEUE));
+    BytesMessage message = session.createBytesMessage();
+    message.writeBytes("This Is A Test".getBytes());
+    producer.send(message);
+    producer.close();
+    session.close();
+    connection.close();
+
+    // read from the queue
+    PCollection<String> output = pipeline.apply(
+        JmsIO.<String>readMessage()
+            .withConnectionFactory(connectionFactory)
+            .withQueue(QUEUE)
+            .withUsername(USERNAME)
+            .withPassword(PASSWORD)
+            .withMaxNumRecords(1)
+            .withCoder(SerializableCoder.of(String.class))
+            .withMessageMapper(new BytesMessageToStringMessageMapper())
+    );
+
     PAssert
-        .thatSingleton(output.apply("Count", Count.<JmsRecord>globally()))
-        .isEqualTo(new Long(5));
+        .thatSingleton(output.apply("Count", Count.<String>globally()))
+        .isEqualTo(1L);
     pipeline.run();
 
     connection = connectionFactory.createConnection(USERNAME, PASSWORD);
@@ -312,6 +342,20 @@ public class JmsIOTest {
       count++;
     }
     return count;
+  }
+
+  /**
+   * A test class that maps a {@link javax.jms.BytesMessage} into a {@link String}.
+   */
+  public static class BytesMessageToStringMessageMapper implements JmsIO.MessageMapper<String> {
+
+    @Override public String mapMessage(Message message) throws Exception {
+      BytesMessage bytesMessage = (BytesMessage) message;
+
+      byte[] bytes = new byte[(int) bytesMessage.getBodyLength()];
+
+      return new String(bytes);
+    }
   }
 
 }

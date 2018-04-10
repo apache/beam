@@ -19,22 +19,25 @@
 
 Only those coders listed in __all__ are part of the public API of this module.
 """
+from __future__ import absolute_import
 
 import base64
 import cPickle as pickle
 
 import google.protobuf
+from google.protobuf import wrappers_pb2
 
 from apache_beam.coders import coder_impl
+from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from stream import get_varint_size
+  from .stream import get_varint_size
 except ImportError:
-  from slow_stream import get_varint_size
+  from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -95,6 +98,16 @@ class Coder(object):
       Whether coder is deterministic.
     """
     return False
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    """Returns a deterministic version of self, if possible.
+
+    Otherwise raises a value error.
+    """
+    if self.is_deterministic():
+      return self
+    else:
+      raise ValueError(error_message or "'%s' cannot be made deterministic.")
 
   def estimate_size(self, value):
     """Estimates the encoded size of the given value, in bytes.
@@ -252,8 +265,8 @@ class Coder(object):
 
   def to_runner_api_parameter(self, context):
     return (
-        urns.PICKLED_CODER,
-        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        python_urns.PICKLED_CODER,
+        wrappers_pb2.BytesValue(value=serialize_coder(self)),
         ())
 
   @staticmethod
@@ -273,7 +286,8 @@ class Coder(object):
         return cls()
 
 
-@Coder.register_urn(urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
+@Coder.register_urn(
+    python_urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
 def _pickle_from_runner_api_parameter(payload, components, context):
   return deserialize_coder(payload.value)
 
@@ -295,10 +309,11 @@ class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   def encode(self, value):
-    if isinstance(value, unicode):
-      return value.encode('utf-8')
-    elif isinstance(value, str):
-      return value
+    try:               # Python 2
+      if isinstance(value, unicode):
+        return value.encode('utf-8')
+    except NameError:  # Python 3
+      pass
     return str(value)
 
   def decode(self, _):
@@ -352,7 +367,7 @@ class BytesCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_structured_urn(urns.BYTES_CODER, BytesCoder)
+Coder.register_structured_urn(common_urns.BYTES_CODER, BytesCoder)
 
 
 class VarIntCoder(FastCoder):
@@ -371,7 +386,7 @@ class VarIntCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_structured_urn(urns.VAR_INT_CODER, VarIntCoder)
+Coder.register_structured_urn(common_urns.VARINT_CODER, VarIntCoder)
 
 
 class FloatCoder(FastCoder):
@@ -496,6 +511,9 @@ class PickleCoder(_PickleCoderBase):
     return coder_impl.CallbackCoderImpl(
         lambda x: dumps(x, HIGHEST_PROTOCOL), pickle.loads)
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return DeterministicFastPrimitivesCoder(self, step_label)
+
 
 class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
@@ -542,6 +560,12 @@ class FastPrimitivesCoder(FastCoder):
 
   def is_deterministic(self):
     return self._fallback_coder.is_deterministic()
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      return DeterministicFastPrimitivesCoder(self, step_label)
 
   def as_cloud_object(self, is_pair_like=True):
     value = super(FastCoder, self).as_cloud_object()
@@ -661,6 +685,13 @@ class TupleCoder(FastCoder):
   def is_deterministic(self):
     return all(c.is_deterministic() for c in self._coders)
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      return TupleCoder([c.as_deterministic_coder(step_label, error_message)
+                         for c in self._coders])
+
   @staticmethod
   def from_type_hint(typehint, registry):
     return TupleCoder([registry.get_coder(t) for t in typehint.tuple_types])
@@ -709,11 +740,11 @@ class TupleCoder(FastCoder):
 
   def to_runner_api_parameter(self, context):
     if self.is_kv_coder():
-      return urns.KV_CODER, None, self.coders()
+      return common_urns.KV_CODER, None, self.coders()
     else:
       return super(TupleCoder, self).to_runner_api_parameter(context)
 
-  @Coder.register_urn(urns.KV_CODER, None)
+  @Coder.register_urn(common_urns.KV_CODER, None)
   def from_runner_api_parameter(unused_payload, components, unused_context):
     return TupleCoder(components)
 
@@ -729,6 +760,13 @@ class TupleSequenceCoder(FastCoder):
 
   def is_deterministic(self):
     return self._elem_coder.is_deterministic()
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      return TupleSequenceCoder(
+          self._elem_coder.as_deterministic_coder(step_label, error_message))
 
   @staticmethod
   def from_type_hint(typehint, registry):
@@ -760,6 +798,13 @@ class IterableCoder(FastCoder):
   def is_deterministic(self):
     return self._elem_coder.is_deterministic()
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      return IterableCoder(
+          self._elem_coder.as_deterministic_coder(step_label, error_message))
+
   def as_cloud_object(self):
     return {
         '@type': 'kind:stream',
@@ -788,7 +833,7 @@ class IterableCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
-Coder.register_structured_urn(urns.ITERABLE_CODER, IterableCoder)
+Coder.register_structured_urn(common_urns.ITERABLE_CODER, IterableCoder)
 
 
 class GlobalWindowCoder(SingletonCoder):
@@ -804,7 +849,8 @@ class GlobalWindowCoder(SingletonCoder):
     }
 
 
-Coder.register_structured_urn(urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
+Coder.register_structured_urn(
+    common_urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
 
 
 class IntervalWindowCoder(FastCoder):
@@ -828,7 +874,8 @@ class IntervalWindowCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_structured_urn(urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
+Coder.register_structured_urn(
+    common_urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
 
 
 class WindowedValueCoder(FastCoder):
@@ -887,7 +934,8 @@ class WindowedValueCoder(FastCoder):
         (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
 
 
-Coder.register_structured_urn(urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
+Coder.register_structured_urn(
+    common_urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
 
 
 class LengthPrefixCoder(FastCoder):
@@ -931,4 +979,5 @@ class LengthPrefixCoder(FastCoder):
     return hash((type(self), self._value_coder))
 
 
-Coder.register_structured_urn(urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)
+Coder.register_structured_urn(
+    common_urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)

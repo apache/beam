@@ -73,7 +73,6 @@ import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -153,9 +152,9 @@ public class WriteFilesTest {
     public PCollection<T> expand(PCollection<T> input) {
       return input
           .apply(window)
-          .apply(ParDo.of(new AddArbitraryKey<T>()))
-          .apply(GroupByKey.<Integer, T>create())
-          .apply(ParDo.of(new RemoveArbitraryKey<T>()));
+          .apply(ParDo.of(new AddArbitraryKey<>()))
+          .apply(GroupByKey.create())
+          .apply(ParDo.of(new RemoveArbitraryKey<>()));
     }
   }
 
@@ -182,13 +181,13 @@ public class WriteFilesTest {
   @Category(NeedsRunner.class)
   public void testEmptyWrite() throws IOException {
     runWrite(
-        Collections.<String>emptyList(),
+        Collections.emptyList(),
         IDENTITY_MAP,
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink()));
     checkFileContents(
         getBaseOutputFilename(),
-        Collections.<String>emptyList(),
+        Collections.emptyList(),
         Optional.of(1),
         true /* expectRemovedTempDirectory */);
   }
@@ -283,7 +282,7 @@ public class WriteFilesTest {
             "Frisky finch");
     runWrite(
         inputs,
-        new WindowAndReshuffle<>(Window.<String>into(FixedWindows.of(Duration.millis(2)))),
+        new WindowAndReshuffle<>(Window.into(FixedWindows.of(Duration.millis(2)))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink()));
   }
@@ -302,7 +301,7 @@ public class WriteFilesTest {
 
     runWrite(
         inputs,
-        new WindowAndReshuffle<>(Window.<String>into(Sessions.withGapDuration(Duration.millis(1)))),
+        new WindowAndReshuffle<>(Window.into(Sessions.withGapDuration(Duration.millis(1)))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink()));
   }
@@ -316,7 +315,7 @@ public class WriteFilesTest {
     }
     runWrite(
         inputs,
-        Window.<String>into(FixedWindows.of(Duration.millis(2))),
+        Window.into(FixedWindows.of(Duration.millis(2))),
         getBaseOutputFilename(),
         WriteFiles.to(makeSimpleSink())
             .withMaxNumWritersPerBundle(2)
@@ -329,21 +328,21 @@ public class WriteFilesTest {
     WriteFiles<String, ?, String> write = WriteFiles.to(sink).withNumShards(3);
     assertThat((SimpleSink<Void>) write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
-        write.getSharding();
+        write.getComputeNumShards();
 
-    assertThat(write.getSharding(), is(nullValue()));
-    assertThat(write.getNumShards(), instanceOf(StaticValueProvider.class));
-    assertThat(write.getNumShards().get(), equalTo(3));
-    assertThat(write.getSharding(), equalTo(originalSharding));
+    assertThat(write.getComputeNumShards(), is(nullValue()));
+    assertThat(write.getNumShardsProvider(), instanceOf(StaticValueProvider.class));
+    assertThat(write.getNumShardsProvider().get(), equalTo(3));
+    assertThat(write.getComputeNumShards(), equalTo(originalSharding));
 
     WriteFiles<String, ?, ?> write2 = write.withSharding(SHARDING_TRANSFORM);
     assertThat((SimpleSink<Void>) write2.getSink(), is(sink));
-    assertThat(write2.getSharding(), equalTo(SHARDING_TRANSFORM));
+    assertThat(write2.getComputeNumShards(), equalTo(SHARDING_TRANSFORM));
     // original unchanged
 
     WriteFiles<String, ?, ?> writeUnsharded = write2.withRunnerDeterminedSharding();
-    assertThat(writeUnsharded.getSharding(), nullValue());
-    assertThat(write.getSharding(), equalTo(originalSharding));
+    assertThat(writeUnsharded.getComputeNumShards(), nullValue());
+    assertThat(write.getComputeNumShards(), equalTo(originalSharding));
   }
 
   @Test
@@ -386,10 +385,11 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWindowedWritesNeedSharding() {
+  public void testUnboundedWritesNeedSharding() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "When using windowed writes, must specify number of output shards explicitly");
+        "When applying WriteFiles to an unbounded PCollection, "
+            + "must specify number of output shards explicitly");
 
     SimpleSink<Void> sink = makeSimpleSink();
     p.apply(Create.of("foo"))
@@ -429,10 +429,6 @@ public class WriteFilesTest {
           "simple");
     }
 
-    @Override
-    public void populateDisplayData(Builder builder) {
-      super.populateDisplayData(builder);
-    }
   }
 
   @Test
@@ -483,7 +479,7 @@ public class WriteFilesTest {
     PCollection<String> input = p.apply(Create.timestamped(inputs, timestamps));
     if (!bounded) {
       input.setIsBoundedInternal(IsBounded.UNBOUNDED);
-      input = input.apply(Window.<String>into(FixedWindows.of(Duration.standardDays(1))));
+      input = input.apply(Window.into(FixedWindows.of(Duration.standardDays(1))));
       input.apply(writeFiles.withWindowedWrites());
     } else {
       input.apply(writeFiles);
@@ -669,10 +665,10 @@ public class WriteFilesTest {
     p.run();
 
     Optional<Integer> numShards =
-        (write.getNumShards() != null && !write.isWindowedWrites())
-            ? Optional.of(write.getNumShards().get())
-            : Optional.<Integer>absent();
-    checkFileContents(baseName, inputs, numShards, !write.isWindowedWrites());
+        (write.getNumShardsProvider() != null && !write.getWindowedWrites())
+            ? Optional.of(write.getNumShardsProvider().get())
+            : Optional.absent();
+    checkFileContents(baseName, inputs, numShards, !write.getWindowedWrites());
   }
 
   static void checkFileContents(
@@ -754,9 +750,9 @@ public class WriteFilesTest {
                       ctxt.output(Integer.valueOf(ctxt.element()));
                     }
                   }))
-          .apply(Top.<Integer>largest(1))
-          .apply(Flatten.<Integer>iterables())
-          .apply(View.<Integer>asSingleton());
+          .apply(Top.largest(1))
+          .apply(Flatten.iterables())
+          .apply(View.asSingleton());
     }
   }
 }

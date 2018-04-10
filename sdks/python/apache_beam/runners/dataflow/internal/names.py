@@ -17,10 +17,12 @@
 
 """Various names for properties, transforms, etc."""
 
-
+# TODO (altay): Move shared names to a common location.
 # Standard file names used for staging files.
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
+STAGED_PIPELINE_FILENAME = "pipeline.pb"
+STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
 
 # String constants related to sources framework
 SOURCE_FORMAT = 'custom_source'
@@ -72,9 +74,11 @@ class PropertyNames(object):
   OUTPUT_INFO = 'output_info'
   OUTPUT_NAME = 'output_name'
   PARALLEL_INPUT = 'parallel_input'
-  PUBSUB_TOPIC = 'pubsub_topic'
-  PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
   PUBSUB_ID_LABEL = 'pubsub_id_label'
+  PUBSUB_SERIALIZED_ATTRIBUTES_FN = 'pubsub_serialized_attributes_fn'
+  PUBSUB_SUBSCRIPTION = 'pubsub_subscription'
+  PUBSUB_TIMESTAMP_ATTRIBUTE = 'pubsub_timestamp_label'
+  PUBSUB_TOPIC = 'pubsub_topic'
   SERIALIZED_FN = 'serialized_fn'
   SHARD_NAME_TEMPLATE = 'shard_template'
   SOURCE_STEP_INPUT = 'custom_source_step_input'

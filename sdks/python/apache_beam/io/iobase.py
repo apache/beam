@@ -36,6 +36,8 @@ from collections import namedtuple
 
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
@@ -47,7 +49,8 @@ from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
 
-__all__ = ['BoundedSource', 'RangeTracker', 'Read', 'Sink', 'Write', 'Writer']
+__all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
+           'Sink', 'Write', 'Writer']
 
 
 # Encapsulates information about a bundle of a source generated when method
@@ -74,7 +77,7 @@ SourceBundle = namedtuple(
 class SourceBase(HasDisplayData, urns.RunnerApiFn):
   """Base class for all sources that can be passed to beam.io.Read(...).
   """
-  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_SOURCE)
+  urns.RunnerApiFn.register_pickle_urn(python_urns.PICKLED_SOURCE)
 
 
 class BoundedSource(SourceBase):
@@ -611,10 +614,13 @@ class Sink(HasDisplayData):
 
   **Execution of the Write transform**
 
-  ``initialize_write()`` and ``finalize_write()`` are conceptually called once:
-  at the beginning and end of a ``Write`` transform. However, implementors must
+  ``initialize_write()``, ``pre_finalize()``, and ``finalize_write()`` are
+  conceptually called once. However, implementors must
   ensure that these methods are *idempotent*, as they may be called multiple
-  times on different machines in the case of failure/retry or for redundancy.
+  times on different machines in the case of failure/retry. A method may be
+  called more than once concurrently, in which case it's okay to have a
+  transient failure (such as due to a race condition). This failure should not
+  prevent subsequent retries from succeeding.
 
   ``initialize_write()`` should perform any initialization that needs to be done
   prior to writing to the sink. ``initialize_write()`` may return a result
@@ -638,9 +644,8 @@ class Sink(HasDisplayData):
   encoding of the unique bundle id. For example, if each bundle is written to a
   unique temporary file, ``close()`` method may return an object that contains
   the temporary file name. After writing of all bundles is complete, execution
-  engine will invoke ``finalize_write()`` implementation. As parameters to this
-  invocation execution engine will provide ``init_result`` as well as an
-  iterable of ``write_result``.
+  engine will invoke ``pre_finalize()`` and then ``finalize_write()``
+  implementation.
 
   The execution of a write transform can be illustrated using following pseudo
   code (assume that the outer for loop happens in parallel across many
@@ -653,7 +658,8 @@ class Sink(HasDisplayData):
       for elem in bundle:
         writer.write(elem)
       write_results.append(writer.close())
-    sink.finalize_write(init_result, write_results)
+    pre_finalize_result = sink.pre_finalize(init_result, write_results)
+    sink.finalize_write(init_result, write_results, pre_finalize_result)
 
 
   **init_result**
@@ -734,7 +740,27 @@ class Sink(HasDisplayData):
     """
     raise NotImplementedError
 
-  def finalize_write(self, init_result, writer_results):
+  def pre_finalize(self, init_result, writer_results):
+    """Pre-finalization stage for sink.
+
+    Called after all bundle writes are complete and before finalize_write.
+    Used to setup and verify filesystem and sink states.
+
+    Args:
+      init_result: the result of ``initialize_write()`` invocation.
+      writer_results: an iterable containing results of ``Writer.close()``
+        invocations. This will only contain results of successful writes, and
+        will only contain the result of a single successful write for a given
+        bundle.
+
+    Returns:
+      An object that contains any sink specific state generated.
+      This object will be passed to finalize_write().
+    """
+    raise NotImplementedError
+
+  def finalize_write(self, init_result, writer_results,
+                     pre_finalize_result):
     """Finalizes the sink after all data is written to it.
 
     Given the result of initialization and an iterable of results from bundle
@@ -766,6 +792,7 @@ class Sink(HasDisplayData):
         invocations. This will only contain results of successful writes, and
         will only contain the result of a single successful write for a given
         bundle.
+      pre_finalize_result: the result of ``pre_finalize()`` invocation.
     """
     raise NotImplementedError
 
@@ -831,7 +858,7 @@ class Read(ptransform.PTransform):
             'source_dd': self.source}
 
   def to_runner_api_parameter(self, context):
-    return (urns.READ_TRANSFORM,
+    return (common_urns.READ_TRANSFORM,
             beam_runner_api_pb2.ReadPayload(
                 source=self.source.to_runner_api(context),
                 is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
@@ -844,7 +871,7 @@ class Read(ptransform.PTransform):
 
 
 ptransform.PTransform.register_urn(
-    urns.READ_TRANSFORM,
+    common_urns.READ_TRANSFORM,
     beam_runner_api_pb2.ReadPayload,
     Read.from_runner_api_parameter)
 
@@ -939,12 +966,20 @@ class WriteImpl(ptransform.PTransform):
                            | core.WindowInto(window.GlobalWindows())
                            | core.GroupByKey()
                            | 'Extract' >> core.FlatMap(lambda x: x[1]))
+    # PreFinalize should run before FinalizeWrite, and the two should not be
+    # fused.
+    pre_finalize_coll = do_once | 'PreFinalize' >> core.FlatMap(
+        _pre_finalize,
+        self.sink,
+        AsSingleton(init_result_coll),
+        AsIter(write_result_coll))
     return do_once | 'FinalizeWrite' >> core.FlatMap(
         _finalize_write,
         self.sink,
         AsSingleton(init_result_coll),
         AsIter(write_result_coll),
-        min_shards)
+        min_shards,
+        AsSingleton(pre_finalize_coll))
 
 
 class _WriteBundleDoFn(core.DoFn):
@@ -961,6 +996,7 @@ class _WriteBundleDoFn(core.DoFn):
 
   def process(self, element, init_result):
     if self.writer is None:
+      # We ignore UUID collisions here since they are extremely rare.
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     self.writer.write(element)
 
@@ -986,7 +1022,12 @@ class _WriteKeyedBundleDoFn(core.DoFn):
     return [window.TimestampedValue(writer.close(), window.MAX_TIMESTAMP)]
 
 
-def _finalize_write(_, sink, init_result, write_results, min_shards):
+def _pre_finalize(unused_element, sink, init_result, write_results):
+  return sink.pre_finalize(init_result, write_results)
+
+
+def _finalize_write(unused_element, sink, init_result, write_results,
+                    min_shards, pre_finalize_results):
   write_results = list(write_results)
   extra_shards = []
   if len(write_results) < min_shards:
@@ -995,7 +1036,8 @@ def _finalize_write(_, sink, init_result, write_results, min_shards):
     for _ in range(min_shards - len(write_results)):
       writer = sink.open_writer(init_result, str(uuid.uuid4()))
       extra_shards.append(writer.close())
-  outputs = sink.finalize_write(init_result, write_results + extra_shards)
+  outputs = sink.finalize_write(init_result, write_results + extra_shards,
+                                pre_finalize_results)
   if outputs:
     return (window.TimestampedValue(v, window.MAX_TIMESTAMP) for v in outputs)
 
@@ -1073,15 +1115,18 @@ class RestrictionTracker(object):
     Called by the runner after iterator returned by ``DoFn.process()`` has been
     fully read.
 
-    Returns: ``True`` if current restriction has been fully processed.
-    Raises ValueError: if there is still any unclaimed work remaining in the
-      restriction invoking this method. Exception raised must have an
-      informative error message.
+    This method must raise a `ValueError` if there is still any unclaimed work
+    remaining in the restriction when this method is invoked. Exception raised
+    must have an informative error message.
 
     ** Thread safety **
 
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+
+    Returns: ``True`` if current restriction has been fully processed.
+    Raises:
+      ~exceptions.ValueError: if there is still any unclaimed work remaining.
     """
     raise NotImplementedError

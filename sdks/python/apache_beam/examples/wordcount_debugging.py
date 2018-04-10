@@ -45,6 +45,8 @@ import argparse
 import logging
 import re
 
+import six
+
 import apache_beam as beam
 from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
@@ -93,12 +95,16 @@ class CountWords(beam.PTransform):
   PCollection of (word, count) tuples.
   """
   def expand(self, pcoll):
+    def count_ones(word_ones):
+      (word, ones) = word_ones
+      return (word, sum(ones))
+
     return (pcoll
             | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-                          .with_output_types(unicode))
+                          .with_output_types(six.text_type))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+            | 'count' >> beam.Map(count_ones))
 
 
 def run(argv=None):
@@ -141,8 +147,12 @@ def run(argv=None):
     # Format the counts into a PCollection of strings and write the output using
     # a "Write" transform that has side effects.
     # pylint: disable=unused-variable
+    def format_result(word_count):
+      (word, count) = word_count
+      return '%s: %s' % (word, count)
+
     output = (filtered_words
-              | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+              | 'format' >> beam.Map(format_result)
               | 'write' >> WriteToText(known_args.output))
 
 

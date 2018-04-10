@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLoc
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Function;
@@ -100,19 +101,30 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected ExtractResult extractFiles(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     TableReference tableToExtract = getTableToExtract(bqOptions);
-    TableSchema schema =
-        bqServices.getDatasetService(bqOptions).getTable(tableToExtract).getSchema();
+    BigQueryServices.DatasetService datasetService = bqServices.getDatasetService(bqOptions);
+    Table table = datasetService.getTable(tableToExtract);
+    if (table == null) {
+      throw new IOException(String.format(
+              "Cannot start an export job since table %s does not exist",
+              BigQueryHelpers.toTableSpec(tableToExtract)));
+    }
+
+    TableSchema schema = table.getSchema();
     JobService jobService = bqServices.getJobService(bqOptions);
     String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
     final String extractDestinationDir =
         resolveTempLocation(bqOptions.getTempLocation(), "BigQueryExtractTemp", stepUuid);
+    String bqLocation =
+        BigQueryHelpers.getDatasetLocation(
+            datasetService, tableToExtract.getProjectId(), tableToExtract.getDatasetId());
     List<ResourceId> tempFiles =
         executeExtract(
             extractJobId,
             tableToExtract,
             jobService,
             bqOptions.getProject(),
-            extractDestinationDir);
+            extractDestinationDir,
+            bqLocation);
     return new ExtractResult(schema, tempFiles);
   }
 
@@ -153,11 +165,11 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
   private List<ResourceId> executeExtract(
       String jobId, TableReference table, JobService jobService, String executingProject,
-      String extractDestinationDir)
+      String extractDestinationDir, String bqLocation)
           throws InterruptedException, IOException {
-    JobReference jobRef = new JobReference()
-        .setProjectId(executingProject)
-        .setJobId(jobId);
+
+    JobReference jobRef =
+        new JobReference().setProjectId(executingProject).setLocation(bqLocation).setJobId(jobId);
 
     String destinationUri = BigQueryIO.getExtractDestinationUri(extractDestinationDir);
     JobConfigurationExtract extract = new JobConfigurationExtract()

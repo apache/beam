@@ -50,29 +50,12 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
 
   private final String stepName;
 
-  private MetricsMap<MetricName, CounterCell> counters =
-      new MetricsMap<>(new MetricsMap.Factory<MetricName, CounterCell>() {
-        @Override
-        public CounterCell createInstance(MetricName name) {
-          return new CounterCell(name);
-        }
-      });
+  private MetricsMap<MetricName, CounterCell> counters = new MetricsMap<>(CounterCell::new);
 
   private MetricsMap<MetricName, DistributionCell> distributions =
-      new MetricsMap<>(new MetricsMap.Factory<MetricName, DistributionCell>() {
-        @Override
-        public DistributionCell createInstance(MetricName name) {
-          return new DistributionCell(name);
-        }
-      });
+      new MetricsMap<>(DistributionCell::new);
 
-  private MetricsMap<MetricName, GaugeCell> gauges =
-      new MetricsMap<>(new MetricsMap.Factory<MetricName, GaugeCell>() {
-        @Override
-        public GaugeCell createInstance(MetricName name) {
-          return new GaugeCell(name);
-        }
-      });
+  private MetricsMap<MetricName, GaugeCell> gauges = new MetricsMap<>(GaugeCell::new);
 
   /**
    * Create a new {@link MetricsContainerImpl} associated with the given {@code stepName}.

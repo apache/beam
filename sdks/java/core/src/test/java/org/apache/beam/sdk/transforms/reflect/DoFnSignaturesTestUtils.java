@@ -45,7 +45,7 @@ class DoFnSignaturesTestUtils {
   static class AnonymousMethod {
     final Method getMethod() throws Exception {
       for (Method method : getClass().getDeclaredMethods()) {
-        if (method.getName().equals("method")) {
+        if ("method".equals(method.getName())) {
           return method;
         }
       }

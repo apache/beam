@@ -60,8 +60,8 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | beam.Map(str.upper)
 
   def test_loose_bounds(self):
-    @typehints.with_input_types(typehints.Union[int, float, long])
-    @typehints.with_output_types(basestring)
+    @typehints.with_input_types(typehints.Union[int, float])
+    @typehints.with_output_types(str)
     def format_number(x):
       return '%g' % x
     result = [1, 2, 3] | beam.Map(format_number)
@@ -103,14 +103,16 @@ class NativeTypesTest(unittest.TestCase):
 
   def test_good_main_input(self):
     @typehints.with_input_types(typing.Tuple[str, int])
-    def munge((s, i)):
+    def munge(s_i):
+      (s, i) = s_i
       return (s + 's', i * 2)
     result = [('apple', 5), ('pear', 3)] | beam.Map(munge)
     self.assertEqual([('apples', 10), ('pears', 6)], sorted(result))
 
   def test_bad_main_input(self):
     @typehints.with_input_types(typing.Tuple[str, str])
-    def munge((s, i)):
+    def munge(s_i):
+      (s, i) = s_i
       return (s + 's', i * 2)
     with self.assertRaises(typehints.TypeCheckError):
       [('apple', 5), ('pear', 3)] | beam.Map(munge)
@@ -118,7 +120,8 @@ class NativeTypesTest(unittest.TestCase):
   def test_bad_main_output(self):
     @typehints.with_input_types(typing.Tuple[int, int])
     @typehints.with_output_types(typing.Tuple[str, str])
-    def munge((a, b)):
+    def munge(a_b):
+      (a, b) = a_b
       return (str(a), str(b))
     with self.assertRaises(typehints.TypeCheckError):
       [(5, 4), (3, 2)] | beam.Map(munge) | 'Again' >> beam.Map(munge)

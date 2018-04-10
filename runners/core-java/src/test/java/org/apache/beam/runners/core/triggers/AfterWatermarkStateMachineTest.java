@@ -17,8 +17,11 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
@@ -26,6 +29,7 @@ import static org.mockito.Mockito.when;
 
 import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnMergeContext;
 import org.apache.beam.runners.core.triggers.TriggerStateMachineTester.SimpleTriggerStateMachineTester;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -50,10 +54,10 @@ public class AfterWatermarkStateMachineTest {
 
   private SimpleTriggerStateMachineTester<IntervalWindow> tester;
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
-    return Mockito.<TriggerStateMachine.TriggerContext>any();
+    return Mockito.any();
   }
   private static TriggerStateMachine.OnElementContext anyElementContext() {
-    return Mockito.<TriggerStateMachine.OnElementContext>any();
+    return Mockito.any();
   }
 
   private void injectElements(int... elements) throws Exception {
@@ -101,6 +105,31 @@ public class AfterWatermarkStateMachineTest {
     assertTrue(tester.shouldFire(window));
     tester.fireIfShouldFire(window);
     assertTrue(tester.isMarkedFinished(window));
+  }
+
+  @Test
+  public void testTimerForEndOfWindow() throws Exception {
+    tester = TriggerStateMachineTester.forTrigger(
+        AfterWatermarkStateMachine.pastEndOfWindow(),
+        FixedWindows.of(Duration.millis(100)));
+
+    assertThat(tester.getNextTimer(TimeDomain.EVENT_TIME), nullValue());
+    injectElements(1);
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    assertThat(tester.getNextTimer(TimeDomain.EVENT_TIME), equalTo(window.maxTimestamp()));
+  }
+
+  @Test
+  public void testTimerForEndOfWindowCompound() throws Exception {
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterWatermarkStateMachine.pastEndOfWindow().withEarlyFirings(NeverStateMachine.ever()),
+            FixedWindows.of(Duration.millis(100)));
+
+    assertThat(tester.getNextTimer(TimeDomain.EVENT_TIME), nullValue());
+    injectElements(1);
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(100));
+    assertThat(tester.getNextTimer(TimeDomain.EVENT_TIME), equalTo(window.maxTimestamp()));
   }
 
   @Test

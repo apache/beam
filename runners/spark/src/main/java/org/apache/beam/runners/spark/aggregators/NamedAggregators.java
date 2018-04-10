@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.spark.aggregators;
 
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
@@ -60,16 +59,7 @@ public class NamedAggregators implements Serializable {
    * @return a map of all the aggregator names and their <b>rendered </b>values
    */
   public Map<String, ?> renderAll() {
-    return
-        ImmutableMap.copyOf(
-            Maps.transformValues(mNamedAggregators,
-                new Function<State<?, ?, ?>, Object>() {
-
-                  @Override
-                  public Object apply(State<?, ?, ?> state) {
-                    return state.render();
-                  }
-                }));
+    return ImmutableMap.copyOf(Maps.transformValues(mNamedAggregators, State::render));
   }
 
   /**
@@ -83,12 +73,7 @@ public class NamedAggregators implements Serializable {
     for (Map.Entry<String, State<?, ?, ?>> e : other.mNamedAggregators.entrySet()) {
       String key = e.getKey();
       State<?, ?, ?> otherValue = e.getValue();
-      State<?, ?, ?> value = mNamedAggregators.get(key);
-      if (value == null) {
-        mNamedAggregators.put(key, otherValue);
-      } else {
-        mNamedAggregators.put(key, merge(value, otherValue));
-      }
+      mNamedAggregators.merge(key, otherValue, NamedAggregators::merge);
     }
     return this;
   }

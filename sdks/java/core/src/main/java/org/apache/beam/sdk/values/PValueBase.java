@@ -19,6 +19,7 @@ package org.apache.beam.sdk.values;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,7 +34,7 @@ import org.apache.beam.sdk.util.NameUtils;
 @Internal
 public abstract class PValueBase implements PValue {
 
-  private final Pipeline pipeline;
+  private final transient @Nullable Pipeline pipeline;
 
   /**
    * Returns the name of this {@link PValueBase}.
@@ -71,18 +72,16 @@ public abstract class PValueBase implements PValue {
   }
 
   /**
-   * No-arg constructor for Java serialization only.
-   * The resulting {@link PValueBase} is unlikely to be
-   * valid.
+   * No-arg constructor to allow subclasses to implement {@link java.io.Serializable}.
+   * The resulting {@link PValueBase} is not valid as a {@link PValue}, but may have other
+   * properties that are still usable, such as the tag in a {@link PCollectionView}.
    */
   protected PValueBase() {
     this.pipeline = null;
   }
 
-  /**
-   * The name of this {@link PValueBase}, or {@code null} if not yet set.
-   */
-  private String name;
+  /** The name of this {@link PValueBase}, or {@code null} if not yet set. */
+  @Nullable private String name;
 
   /**
    * Whether this {@link PValueBase} has been finalized, and its core
@@ -123,6 +122,13 @@ public abstract class PValueBase implements PValue {
 
   @Override
   public Pipeline getPipeline() {
+    checkState(
+        pipeline != null,
+        "Pipeline was null for %s. "
+            + "this probably means it was used as a %s after being deserialized, "
+            + "which not unsupported.",
+        getClass().getCanonicalName(),
+        PValue.class.getSimpleName());
     return pipeline;
   }
 

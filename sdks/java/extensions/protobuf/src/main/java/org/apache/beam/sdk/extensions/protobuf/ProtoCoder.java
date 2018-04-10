@@ -112,7 +112,7 @@ public class ProtoCoder<T extends Message> extends CustomCoder<T> {
    * Returns a {@link ProtoCoder} for the given Protocol Buffers {@link Message}.
    */
   public static <T extends Message> ProtoCoder<T> of(Class<T> protoMessageClass) {
-    return new ProtoCoder<>(protoMessageClass, ImmutableSet.<Class<?>>of());
+    return new ProtoCoder<>(protoMessageClass, ImmutableSet.of());
   }
 
   /**

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -41,8 +42,9 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSplittableParDo;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Watch;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.Rule;
@@ -192,31 +194,29 @@ public class FileIOTest implements Serializable {
                 .filepattern(basePath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
         p.apply(Create.of(basePath.resolve("*").toString()))
             .apply(
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3))));
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(3))));
 
     Thread writer =
-        new Thread() {
-          @Override
-          public void run() {
-            try {
-              Thread.sleep(1000);
-              Files.write(basePath.resolve("first"), new byte[42]);
-              Thread.sleep(300);
-              Files.write(basePath.resolve("second"), new byte[37]);
-              Thread.sleep(300);
-              Files.write(basePath.resolve("third"), new byte[99]);
-            } catch (IOException | InterruptedException e) {
-              throw new RuntimeException(e);
-            }
-          }
-        };
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(1000);
+                Files.write(basePath.resolve("first"), new byte[42]);
+                Thread.sleep(300);
+                Files.write(basePath.resolve("second"), new byte[37]);
+                Thread.sleep(300);
+                Files.write(basePath.resolve("third"), new byte[99]);
+              } catch (IOException | InterruptedException e) {
+                throw new RuntimeException(e);
+              }
+            });
     writer.start();
 
     List<MatchResult.Metadata> expected =
@@ -254,20 +254,17 @@ public class FileIOTest implements Serializable {
         Arrays.asList(decompressedAuto, decompressedDefault, decompressedUncompressed)) {
       PAssert.thatSingleton(c)
           .satisfies(
-              new SerializableFunction<FileIO.ReadableFile, Void>() {
-                @Override
-                public Void apply(FileIO.ReadableFile input) {
-                  assertEquals(path, input.getMetadata().resourceId().toString());
-                  assertEquals("Hello world".length(), input.getMetadata().sizeBytes());
-                  assertEquals(Compression.UNCOMPRESSED, input.getCompression());
-                  assertTrue(input.getMetadata().isReadSeekEfficient());
-                  try {
-                    assertEquals("Hello world", input.readFullyAsUTF8String());
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                  return null;
+              input -> {
+                assertEquals(path, input.getMetadata().resourceId().toString());
+                assertEquals("Hello world".length(), input.getMetadata().sizeBytes());
+                assertEquals(Compression.UNCOMPRESSED, input.getCompression());
+                assertTrue(input.getMetadata().isReadSeekEfficient());
+                try {
+                  assertEquals("Hello world", input.readFullyAsUTF8String());
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
                 }
+                return null;
               });
     }
 
@@ -283,20 +280,17 @@ public class FileIOTest implements Serializable {
         Arrays.asList(compressionAuto, compressionDefault, compressionGzip)) {
       PAssert.thatSingleton(c)
           .satisfies(
-              new SerializableFunction<FileIO.ReadableFile, Void>() {
-                @Override
-                public Void apply(FileIO.ReadableFile input) {
-                  assertEquals(pathGZ, input.getMetadata().resourceId().toString());
-                  assertFalse(input.getMetadata().sizeBytes() == "Hello world".length());
-                  assertEquals(Compression.GZIP, input.getCompression());
-                  assertFalse(input.getMetadata().isReadSeekEfficient());
-                  try {
-                    assertEquals("Hello world", input.readFullyAsUTF8String());
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                  return null;
+              input -> {
+                assertEquals(pathGZ, input.getMetadata().resourceId().toString());
+                assertFalse(input.getMetadata().sizeBytes() == "Hello world".length());
+                assertEquals(Compression.GZIP, input.getCompression());
+                assertFalse(input.getMetadata().isReadSeekEfficient());
+                try {
+                  assertEquals("Hello world", input.readFullyAsUTF8String());
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
                 }
+                return null;
               });
     }
 
@@ -309,5 +303,77 @@ public class FileIOTest implements Serializable {
         .setIsReadSeekEfficient(true)
         .setSizeBytes(size)
         .build();
+  }
+
+  private static FileIO.Write.FileNaming resolveFileNaming(FileIO.Write<?, ?> write)
+      throws Exception {
+    return write.resolveFileNamingFn().getClosure().apply(null, null);
+  }
+
+  private static String getDefaultFileName(FileIO.Write<?, ?> write) throws Exception {
+    return resolveFileNaming(write).getFilename(null, null, 0, 0, null);
+  }
+
+  @Test
+  public void testFilenameFnResolution() throws Exception {
+    FileIO.Write.FileNaming foo = (window, pane, numShards, shardIndex, compression) -> "foo";
+
+    String expected =
+        FileSystems.matchNewResource("test", true).resolve("foo", RESOLVE_FILE).toString();
+    assertEquals(
+        "Filenames should be resolved within a relative directory if '.to' is invoked",
+        expected,
+        getDefaultFileName(FileIO.writeDynamic().to("test").withNaming(o -> foo)));
+    assertEquals(
+        "Filenames should be resolved within a relative directory if '.to' is invoked",
+        expected,
+        getDefaultFileName(FileIO.write().to("test").withNaming(foo)));
+
+    assertEquals(
+        "Filenames should be resolved as the direct result of the filenaming function if '.to' "
+            + "is not invoked",
+        "foo",
+        getDefaultFileName(FileIO.writeDynamic().withNaming(o -> foo)));
+    assertEquals(
+        "Filenames should be resolved as the direct result of the filenaming function if '.to' "
+            + "is not invoked",
+        "foo",
+        getDefaultFileName(FileIO.write().withNaming(foo)));
+
+    assertEquals(
+        "Default to the defaultNaming if a filenaming isn't provided for a non-dynamic write",
+        "output-00000-of-00000",
+        resolveFileNaming(FileIO.write())
+            .getFilename(
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                0,
+                0,
+                Compression.UNCOMPRESSED));
+
+    assertEquals(
+        "Default Naming should take prefix and suffix into account if provided",
+        "foo-00000-of-00000.bar",
+        resolveFileNaming(FileIO.write().withPrefix("foo").withSuffix(".bar"))
+            .getFilename(
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                0,
+                0,
+                Compression.UNCOMPRESSED));
+
+    assertEquals(
+        "Filenames should be resolved within a relative directory if '.to' is invoked, "
+            + "even with default naming",
+        FileSystems.matchNewResource("test", true)
+            .resolve("output-00000-of-00000", RESOLVE_FILE)
+            .toString(),
+        resolveFileNaming(FileIO.write().to("test"))
+            .getFilename(
+                GlobalWindow.INSTANCE,
+                PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                0,
+                0,
+                Compression.UNCOMPRESSED));
   }
 }

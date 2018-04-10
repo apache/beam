@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,7 +35,6 @@ import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
-
 
 /**
  * An implementation of {@link TimerInternals} for the SparkRunner.
@@ -93,7 +93,8 @@ public class SparkTimerInternals implements TimerInternals {
 
   /** Build a global {@link TimerInternals} for all feeding streams.*/
   public static SparkTimerInternals global(Map<Integer, SparkWatermarks> watermarks) {
-    return watermarks == null ? forStreamFromSources(Collections.<Integer>emptyList(), null)
+    return watermarks == null
+        ? forStreamFromSources(Collections.emptyList(), null)
         : forStreamFromSources(Lists.newArrayList(watermarks.keySet()), watermarks);
   }
 
@@ -101,8 +102,9 @@ public class SparkTimerInternals implements TimerInternals {
     return timers;
   }
 
-  void addTimers(Iterable<TimerData> timers) {
-    for (TimerData timer: timers) {
+  void addTimers(Iterator<TimerData> timers) {
+    while (timers.hasNext()) {
+      TimerData timer = timers.next();
       this.timers.add(timer);
     }
   }
@@ -168,9 +170,9 @@ public class SparkTimerInternals implements TimerInternals {
     return CoderHelpers.toByteArrays(timers, timerDataCoder);
   }
 
-  public static Iterable<TimerData> deserializeTimers(
+  public static Iterator<TimerData> deserializeTimers(
       Collection<byte[]> serTimers, TimerDataCoder timerDataCoder) {
-    return CoderHelpers.fromByteArrays(serTimers, timerDataCoder);
+    return CoderHelpers.fromByteArrays(serTimers, timerDataCoder).iterator();
   }
 
   @Override

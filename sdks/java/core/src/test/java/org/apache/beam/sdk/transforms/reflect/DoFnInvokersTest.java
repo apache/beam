@@ -120,6 +120,7 @@ public class DoFnInvokersTest {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {}
     }
+
     MockFn mockFn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(mockFn));
     verify(mockFn).processElement(mockProcessContext);
@@ -180,6 +181,7 @@ public class DoFnInvokersTest {
       @DoFn.ProcessElement
       public void processElement(ProcessContext c, IntervalWindow w) throws Exception {}
     }
+
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockProcessContext, mockWindow);
@@ -204,6 +206,7 @@ public class DoFnInvokersTest {
       public void processElement(ProcessContext c, @StateId(stateId) ValueState<Integer> valueState)
           throws Exception {}
     }
+
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockProcessContext, mockState);
@@ -230,6 +233,7 @@ public class DoFnInvokersTest {
       @OnTimer(timerId)
       public void onTimer() {}
     }
+
     MockFn fn = mock(MockFn.class);
     assertEquals(stop(), invokeProcessElement(fn));
     verify(fn).processElement(mockProcessContext, mockTimer);
@@ -254,6 +258,7 @@ public class DoFnInvokersTest {
         return null;
       }
     }
+
     MockFn fn = mock(MockFn.class);
     when(fn.processElement(mockProcessContext, null)).thenReturn(resume());
     assertEquals(resume(), invokeProcessElement(fn));
@@ -277,6 +282,7 @@ public class DoFnInvokersTest {
       @Teardown
       public void after() {}
     }
+
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     invoker.invokeSetup();
@@ -295,7 +301,7 @@ public class DoFnInvokersTest {
   private static class SomeRestriction {}
 
   private abstract static class SomeRestrictionTracker
-      implements RestrictionTracker<SomeRestriction> {}
+      extends RestrictionTracker<SomeRestriction, Void> {}
 
   private static class SomeRestrictionCoder extends AtomicCoder<SomeRestriction> {
     public static SomeRestrictionCoder of() {
@@ -365,23 +371,14 @@ public class DoFnInvokersTest {
                   }
                 }))
         .when(fn)
-        .splitRestriction(
-            eq("blah"), same(restriction), Mockito.<DoFn.OutputReceiver<SomeRestriction>>any());
+        .splitRestriction(eq("blah"), same(restriction), Mockito.any());
     when(fn.newTracker(restriction)).thenReturn(tracker);
     when(fn.processElement(mockProcessContext, tracker)).thenReturn(resume());
 
     assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault()));
     assertEquals(restriction, invoker.invokeGetInitialRestriction("blah"));
     final List<SomeRestriction> outputs = new ArrayList<>();
-    invoker.invokeSplitRestriction(
-        "blah",
-        restriction,
-        new DoFn.OutputReceiver<SomeRestriction>() {
-          @Override
-          public void output(SomeRestriction output) {
-            outputs.add(output);
-          }
-        });
+    invoker.invokeSplitRestriction("blah", restriction, outputs::add);
     assertEquals(Arrays.asList(part1, part2, part3), outputs);
     assertEquals(tracker, invoker.invokeNewTracker(restriction));
     assertEquals(
@@ -394,7 +391,7 @@ public class DoFnInvokersTest {
               }
 
               @Override
-              public RestrictionTracker<?> restrictionTracker() {
+              public RestrictionTracker<?, ?> restrictionTracker() {
                 return tracker;
               }
             }));
@@ -408,7 +405,13 @@ public class DoFnInvokersTest {
     }
   }
 
-  private static class DefaultTracker implements RestrictionTracker<RestrictionWithDefaultTracker> {
+  private static class DefaultTracker
+      extends RestrictionTracker<RestrictionWithDefaultTracker, Void> {
+    @Override
+    protected boolean tryClaimImpl(Void position) {
+      throw new UnsupportedOperationException();
+    }
+
     @Override
     public RestrictionWithDefaultTracker currentRestriction() {
       throw new UnsupportedOperationException();
@@ -449,6 +452,7 @@ public class DoFnInvokersTest {
         return null;
       }
     }
+
     MockFn fn = mock(MockFn.class);
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
 
@@ -655,7 +659,17 @@ public class DoFnInvokersTest {
                 return null;
               }
             })
-        .invokeProcessElement(new FakeArgumentProvider<Integer, Integer>());
+        .invokeProcessElement(new FakeArgumentProvider<Integer, Integer>() {
+          @Override
+          public DoFn.ProcessContext processContext(DoFn<Integer, Integer> doFn) {
+            return null; // will not be touched
+          }
+
+          @Override
+          public RestrictionTracker<?, ?> restrictionTracker() {
+            return null; // will not be touched
+          }
+        });
   }
 
   @Test
@@ -753,7 +767,7 @@ public class DoFnInvokersTest {
   static class StableNameTestDoFn extends DoFn<Void, Void> {
     @ProcessElement
     public void process() {}
-  };
+  }
 
   /**
    * This is a change-detector test that the generated name is stable across runs.

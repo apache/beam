@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
@@ -32,7 +33,6 @@ import org.apache.beam.sdk.util.MimeTypes;
 
 /** A {@link FileBasedSink} for Avro files. */
 class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, DestinationT, OutputT> {
-  private final DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations;
   private final boolean genericRecords;
 
   AvroSink(
@@ -41,7 +41,6 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
       boolean genericRecords) {
     // Avro handle compression internally using the codec.
     super(outputPrefix, dynamicDestinations, Compression.UNCOMPRESSED);
-    this.dynamicDestinations = dynamicDestinations;
     this.genericRecords = genericRecords;
   }
 
@@ -75,7 +74,10 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
 
   /** A {@link Writer Writer} for Avro files. */
   private static class AvroWriter<DestinationT, OutputT> extends Writer<DestinationT, OutputT> {
-    private DataFileWriter<OutputT> dataFileWriter;
+
+    // Initialized in prepareWrite
+    @Nullable private DataFileWriter<OutputT> dataFileWriter;
+
     private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
     private final boolean genericRecords;
 
@@ -97,9 +99,7 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
       Map<String, Object> metadata = dynamicDestinations.getMetadata(destination);
 
       DatumWriter<OutputT> datumWriter =
-          genericRecords
-              ? new GenericDatumWriter<OutputT>(schema)
-              : new ReflectDatumWriter<OutputT>(schema);
+          genericRecords ? new GenericDatumWriter<>(schema) : new ReflectDatumWriter<>(schema);
       dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec);
       for (Map.Entry<String, Object> entry : metadata.entrySet()) {
         Object v = entry.getValue();

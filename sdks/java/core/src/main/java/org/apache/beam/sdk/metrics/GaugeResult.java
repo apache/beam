@@ -28,9 +28,9 @@ import org.joda.time.Instant;
 @Experimental(Kind.METRICS)
 @AutoValue
 public abstract class GaugeResult {
-  public abstract long value();
+  public abstract long getValue();
 
-  public abstract Instant timestamp();
+  public abstract Instant getTimestamp();
 
   public static GaugeResult create(long value, Instant timestamp) {
     return new AutoValue_GaugeResult(value, timestamp);
@@ -52,12 +52,12 @@ public abstract class GaugeResult {
     }
 
     @Override
-    public long value() {
+    public long getValue() {
       return -1L;
     }
 
     @Override
-    public Instant timestamp() {
+    public Instant getTimestamp() {
       return EPOCH;
     }
   }

@@ -269,9 +269,7 @@ public class TrafficMaxLaneFlow {
     @Override
     public PCollection<TableRow> expand(PCollection<KV<String, LaneInfo>> flowInfo) {
       // stationId, LaneInfo => stationId + max lane flow info
-      PCollection<KV<String, LaneInfo>> flowMaxes =
-          flowInfo.apply(Combine.<String, LaneInfo>perKey(
-              new MaxFlow()));
+      PCollection<KV<String, LaneInfo>> flowMaxes = flowInfo.apply(Combine.perKey(new MaxFlow()));
 
       // <stationId, max lane flow info>... => row...
       PCollection<TableRow> results = flowMaxes.apply(
@@ -344,12 +342,12 @@ public class TrafficMaxLaneFlow {
         // row... => <station route, station speed> ...
         .apply(ParDo.of(new ExtractFlowInfoFn()))
         // map the incoming data stream into sliding windows.
-        .apply(Window.<KV<String, LaneInfo>>into(SlidingWindows.of(
-            Duration.standardMinutes(options.getWindowDuration())).
-            every(Duration.standardMinutes(options.getWindowSlideEvery()))))
+        .apply(
+            Window.into(
+                SlidingWindows.of(Duration.standardMinutes(options.getWindowDuration()))
+                    .every(Duration.standardMinutes(options.getWindowSlideEvery()))))
         .apply(new MaxLaneFlow())
-        .apply(BigQueryIO.writeTableRows().to(tableRef)
-            .withSchema(FormatMaxesFn.getSchema()));
+        .apply(BigQueryIO.writeTableRows().to(tableRef).withSchema(FormatMaxesFn.getSchema()));
 
     // Run the pipeline.
     PipelineResult result = pipeline.run();

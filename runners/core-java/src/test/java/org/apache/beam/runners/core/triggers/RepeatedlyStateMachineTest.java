@@ -48,7 +48,7 @@ public class RepeatedlyStateMachineTest {
   @Mock private TriggerStateMachine mockTrigger;
   private SimpleTriggerStateMachineTester<IntervalWindow> tester;
   private static TriggerStateMachine.TriggerContext anyTriggerContext() {
-    return Mockito.<TriggerStateMachine.TriggerContext>any();
+    return Mockito.any();
   }
 
   public void setUp(WindowFn<Object, IntervalWindow> windowFn) throws Exception {
@@ -64,7 +64,7 @@ public class RepeatedlyStateMachineTest {
   public void testOnElement() throws Exception {
     setUp(FixedWindows.of(Duration.millis(10)));
     tester.injectElements(37);
-    verify(mockTrigger).onElement(Mockito.<TriggerStateMachine.OnElementContext>any());
+    verify(mockTrigger).onElement(Mockito.any());
   }
 
   /**
@@ -77,8 +77,7 @@ public class RepeatedlyStateMachineTest {
     when(mockTrigger.shouldFire(anyTriggerContext())).thenReturn(true);
     assertTrue(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
 
-    when(mockTrigger.shouldFire(Mockito.<TriggerStateMachine.TriggerContext>any()))
-        .thenReturn(false);
+    when(mockTrigger.shouldFire(Mockito.any())).thenReturn(false);
     assertFalse(tester.shouldFire(new IntervalWindow(new Instant(0), new Instant(10))));
   }
 

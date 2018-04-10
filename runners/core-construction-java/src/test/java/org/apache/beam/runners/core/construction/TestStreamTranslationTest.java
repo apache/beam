@@ -27,7 +27,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.TestStreamPayload;
 import org.apache.beam.runners.core.construction.TestStreamTranslationTest.TestStreamPayloadTranslation;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -59,7 +58,7 @@ public class TestStreamTranslationTest {
   public static class TestStreamPayloadTranslation {
     @Parameters(name = "{index}: {0}")
     public static Iterable<TestStream<?>> data() {
-      return ImmutableList.<TestStream<?>>of(
+      return ImmutableList.of(
           TestStream.create(VarIntCoder.of()).advanceWatermarkToInfinity(),
           TestStream.create(VarIntCoder.of())
               .advanceWatermarkTo(new Instant(42))
@@ -81,7 +80,7 @@ public class TestStreamTranslationTest {
     public void testEncodedProto() throws Exception {
       SdkComponents components = SdkComponents.create();
       RunnerApi.TestStreamPayload payload =
-          TestStreamTranslation.testStreamToPayload(testStream, components);
+          TestStreamTranslation.payloadForTestStream(testStream, components);
 
       verifyTestStreamEncoding(
           testStream, payload, RehydratedComponents.forComponents(components.toComponents()));
@@ -92,8 +91,7 @@ public class TestStreamTranslationTest {
       PCollection<String> output = p.apply(testStream);
 
       AppliedPTransform<PBegin, PCollection<String>, TestStream<String>> appliedTestStream =
-          AppliedPTransform.<PBegin, PCollection<String>, TestStream<String>>of(
-              "fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
+          AppliedPTransform.of("fakeName", PBegin.in(p).expand(), output.expand(), testStream, p);
 
       SdkComponents components = SdkComponents.create();
       RunnerApi.FunctionSpec spec =
@@ -116,13 +114,13 @@ public class TestStreamTranslationTest {
       // This reverse direction is only valid for Java-based coders
       assertThat(
           protoComponents.getCoder(payload.getCoderId()),
-          Matchers.<Coder<?>>equalTo(testStream.getValueCoder()));
+          Matchers.equalTo(testStream.getValueCoder()));
 
       assertThat(payload.getEventsList().size(), equalTo(testStream.getEvents().size()));
 
       for (int i = 0; i < payload.getEventsList().size(); ++i) {
         assertThat(
-            TestStreamTranslation.fromProto(payload.getEvents(i), testStream.getValueCoder()),
+            TestStreamTranslation.eventFromProto(payload.getEvents(i), testStream.getValueCoder()),
             equalTo(testStream.getEvents().get(i)));
       }
     }

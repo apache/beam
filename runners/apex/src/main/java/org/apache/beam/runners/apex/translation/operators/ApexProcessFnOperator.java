@@ -78,7 +78,7 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
    */
   public interface OutputEmitter<T> {
     void emit(T tuple);
-  };
+  }
 
   /**
    * The processing logic for this operator.
@@ -94,7 +94,7 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
   public static <K, V> ApexProcessFnOperator<KV<K, V>> toKeyedWorkItems(
       ApexPipelineOptions options) {
     ApexOperatorFn<KV<K, V>> fn = new ToKeyedWorkItems<>();
-    return new ApexProcessFnOperator<KV<K, V>>(fn, options.isTupleTracingEnabled());
+    return new ApexProcessFnOperator<>(fn, options.isTupleTracingEnabled());
   }
 
   private static class ToKeyedWorkItems<K, V> implements ApexOperatorFn<KV<K, V>> {
@@ -116,8 +116,8 @@ public class ApexProcessFnOperator<InputT> extends BaseOperator {
 
   public static <T, W extends BoundedWindow> ApexProcessFnOperator<T> assignWindows(
       WindowFn<T, W> windowFn, ApexPipelineOptions options) {
-    ApexOperatorFn<T> fn = new AssignWindows<T, W>(windowFn);
-    return new ApexProcessFnOperator<T>(fn, options.isTupleTracingEnabled());
+    ApexOperatorFn<T> fn = new AssignWindows<>(windowFn);
+    return new ApexProcessFnOperator<>(fn, options.isTupleTracingEnabled());
   }
 
   /**

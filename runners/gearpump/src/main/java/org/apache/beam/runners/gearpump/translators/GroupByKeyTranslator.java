@@ -20,13 +20,11 @@ package org.apache.beam.runners.gearpump.translators;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -38,7 +36,6 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
-
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.gearpump.streaming.dsl.api.functions.FoldFunction;
 import org.apache.gearpump.streaming.dsl.api.functions.MapFunction;
@@ -69,14 +66,18 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     TimestampCombiner timestampCombiner = input.getWindowingStrategy().getTimestampCombiner();
     WindowFn<KV<K, V>, BoundedWindow> windowFn = (WindowFn<KV<K, V>, BoundedWindow>)
         input.getWindowingStrategy().getWindowFn();
-    JavaStream<WindowedValue<KV<K, List<V>>>> outputStream = inputStream
-        .window(Windows.apply(
-            new GearpumpWindowFn(windowFn.isNonMerging()),
-            EventTimeTrigger$.MODULE$, Discarding$.MODULE$, windowFn.toString()))
-        .groupBy(new GroupByFn<K, V>(inputKeyCoder), parallelism, "group_by_Key_and_Window")
-        .map(new KeyedByTimestamp<K, V>(windowFn, timestampCombiner), "keyed_by_timestamp")
-        .fold(new Merge<>(windowFn, timestampCombiner), "merge")
-        .map(new Values<K, V>(), "values");
+    JavaStream<WindowedValue<KV<K, List<V>>>> outputStream =
+        inputStream
+            .window(
+                Windows.apply(
+                    new GearpumpWindowFn(windowFn.isNonMerging()),
+                    EventTimeTrigger$.MODULE$,
+                    Discarding$.MODULE$,
+                    windowFn.toString()))
+            .groupBy(new GroupByFn<>(inputKeyCoder), parallelism, "group_by_Key_and_Window")
+            .map(new KeyedByTimestamp<>(windowFn, timestampCombiner), "keyed_by_timestamp")
+            .fold(new Merge<>(windowFn, timestampCombiner), "merge")
+            .map(new Values<>(), "values");
 
     context.setOutputStream(context.getOutput(), outputStream);
   }

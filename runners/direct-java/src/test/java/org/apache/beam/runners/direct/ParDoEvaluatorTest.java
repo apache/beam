@@ -33,6 +33,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -120,11 +121,11 @@ public class ParDoEvaluatorTest {
         result.getUnprocessedElements(),
         Matchers.<WindowedValue<?>>containsInAnyOrder(
             second, WindowedValue.of(1, new Instant(2468L), nonGlobalWindow, PaneInfo.NO_FIRING)));
-    assertThat(result.getOutputBundles(), Matchers.<UncommittedBundle<?>>contains(outputBundle));
+    assertThat(result.getOutputBundles(), Matchers.contains(outputBundle));
     assertThat(fn.processed, containsInAnyOrder(1, 3));
     assertThat(
         Iterables.getOnlyElement(result.getOutputBundles()).commit(Instant.now()).getElements(),
-        Matchers.<WindowedValue<?>>containsInAnyOrder(
+        Matchers.containsInAnyOrder(
             first.withValue(8),
             WindowedValue.timestampedValueInGlobalWindow(6, new Instant(2468L))));
   }
@@ -134,9 +135,7 @@ public class ParDoEvaluatorTest {
       RecorderFn fn,
       PCollection<Integer> input,
       PCollection<Integer> output) {
-    when(
-            evaluationContext.createSideInputReader(
-                ImmutableList.<PCollectionView<?>>of(singletonView)))
+    when(evaluationContext.createSideInputReader(ImmutableList.of(singletonView)))
         .thenReturn(new ReadyInGlobalWindowReader());
     DirectExecutionContext executionContext = mock(DirectExecutionContext.class);
     DirectStepContext stepContext = mock(DirectStepContext.class);
@@ -161,11 +160,11 @@ public class ParDoEvaluatorTest {
         input.getWindowingStrategy(),
         fn,
         null /* key */,
-        ImmutableList.<PCollectionView<?>>of(singletonView),
+        ImmutableList.of(singletonView),
         mainOutputTag,
         additionalOutputTags,
-        ImmutableMap.<TupleTag<?>, PCollection<?>>of(mainOutputTag, output),
-        ParDoEvaluator.<Integer, Integer>defaultRunnerFactory());
+        ImmutableMap.of(mainOutputTag, output),
+        ParDoEvaluator.defaultRunnerFactory());
   }
 
   private static class RecorderFn extends DoFn<Integer, Integer> {

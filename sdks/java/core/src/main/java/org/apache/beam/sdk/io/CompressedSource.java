@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -260,8 +261,7 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     if (isSplittable()) {
       return sourceDelegate.createSingleFileReader(options);
     }
-    return new CompressedReader<T>(
-        this, sourceDelegate.createSingleFileReader(options));
+    return new CompressedReader<>(this, sourceDelegate.createSingleFileReader(options));
   }
 
   @Override
@@ -306,8 +306,11 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     private final Object progressLock = new Object();
     @GuardedBy("progressLock")
     private int numRecordsRead;
+
+    @Nullable // Initialized in startReading
     @GuardedBy("progressLock")
     private CountingChannel channel;
+
     private DecompressingChannelFactory channelFactory;
 
     /**

@@ -53,8 +53,7 @@ public class WordCountTest {
 
     Assert.assertThat(extractWordsFn.processBundle(" some  input  words "),
                       CoreMatchers.hasItems("some", "input", "words"));
-    Assert.assertThat(extractWordsFn.processBundle(" "),
-                      CoreMatchers.<String>hasItems());
+    Assert.assertThat(extractWordsFn.processBundle(" "), CoreMatchers.hasItems());
     Assert.assertThat(extractWordsFn.processBundle(" some ", " input", " words"),
                       CoreMatchers.hasItems("some", "input", "words"));
   }

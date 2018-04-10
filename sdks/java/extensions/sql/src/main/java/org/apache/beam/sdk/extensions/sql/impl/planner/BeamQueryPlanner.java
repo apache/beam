@@ -23,14 +23,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamSqlTable;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -56,6 +56,7 @@ import org.apache.calcite.tools.Frameworks;
 import org.apache.calcite.tools.Planner;
 import org.apache.calcite.tools.RelConversionException;
 import org.apache.calcite.tools.ValidationException;
+import org.apache.calcite.util.ConversionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,22 +74,37 @@ public class BeamQueryPlanner {
   public static final JavaTypeFactory TYPE_FACTORY = new JavaTypeFactoryImpl(
       RelDataTypeSystem.DEFAULT);
 
-  public BeamQueryPlanner(SchemaPlus schema) {
+  public BeamQueryPlanner(BeamSqlEnv sqlEnv, SchemaPlus schema) {
+    String defaultCharsetKey = "saffron.default.charset";
+    if (System.getProperty(defaultCharsetKey) == null) {
+      System.setProperty(defaultCharsetKey, ConversionUtil.NATIVE_UTF16_CHARSET_NAME);
+      System.setProperty("saffron.default.nationalcharset",
+        ConversionUtil.NATIVE_UTF16_CHARSET_NAME);
+      System.setProperty("saffron.default.collation.name",
+        String.format("%s$%s", ConversionUtil.NATIVE_UTF16_CHARSET_NAME, "en_US"));
+    }
+
     final List<RelTraitDef> traitDefs = new ArrayList<>();
     traitDefs.add(ConventionTraitDef.INSTANCE);
     traitDefs.add(RelCollationTraitDef.INSTANCE);
 
     List<SqlOperatorTable> sqlOperatorTables = new ArrayList<>();
     sqlOperatorTables.add(SqlStdOperatorTable.instance());
-    sqlOperatorTables.add(new CalciteCatalogReader(CalciteSchema.from(schema), false,
-        Collections.<String>emptyList(), TYPE_FACTORY));
+    sqlOperatorTables.add(
+        new CalciteCatalogReader(
+            CalciteSchema.from(schema), Collections.emptyList(), TYPE_FACTORY, null));
 
-    FrameworkConfig config = Frameworks.newConfigBuilder()
-        .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build()).defaultSchema(schema)
-        .traitDefs(traitDefs).context(Contexts.EMPTY_CONTEXT).ruleSets(BeamRuleSets.getRuleSets())
-        .costFactory(null).typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
-        .operatorTable(new ChainedSqlOperatorTable(sqlOperatorTables))
-        .build();
+    FrameworkConfig config =
+        Frameworks.newConfigBuilder()
+            .parserConfig(SqlParser.configBuilder().setLex(Lex.MYSQL).build())
+            .defaultSchema(schema)
+            .traitDefs(traitDefs)
+            .context(Contexts.EMPTY_CONTEXT)
+            .ruleSets(BeamRuleSets.getRuleSets(sqlEnv))
+            .costFactory(null)
+            .typeSystem(BeamRelDataTypeSystem.BEAM_REL_DATATYPE_SYSTEM)
+            .operatorTable(new ChainedSqlOperatorTable(sqlOperatorTables))
+            .build();
     this.planner = Frameworks.getPlanner(config);
 
     for (String t : schema.getTableNames()) {
@@ -108,12 +124,12 @@ public class BeamQueryPlanner {
    * which is linked with the given {@code pipeline}. The final output stream is returned as
    * {@code PCollection} so more operations can be applied.
    */
-  public PCollection<BeamRecord> compileBeamPipeline(String sqlStatement, Pipeline basePipeline
+  public PCollection<Row> compileBeamPipeline(String sqlStatement, Pipeline basePipeline
       , BeamSqlEnv sqlEnv) throws Exception {
     BeamRelNode relNode = convertToBeamRel(sqlStatement);
 
     // the input PCollectionTuple is empty, and be rebuilt in BeamIOSourceRel.
-    return relNode.buildBeamPipeline(PCollectionTuple.empty(basePipeline), sqlEnv);
+    return PCollectionTuple.empty(basePipeline).apply(relNode.toPTransform());
   }
 
   /**

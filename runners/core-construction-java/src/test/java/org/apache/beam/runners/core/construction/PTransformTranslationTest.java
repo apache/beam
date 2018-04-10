@@ -31,9 +31,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -42,6 +42,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.KV;
@@ -49,6 +50,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -69,17 +71,24 @@ public class PTransformTranslationTest {
     // This pipeline exists for construction, not to run any test.
     // TODO: Leaf node with understood payload - i.e. validate payloads
     ToAndFromProtoSpec readLeaf = ToAndFromProtoSpec.leaf(read(TestPipeline.create()));
+
     ToAndFromProtoSpec readMultipleInAndOut =
         ToAndFromProtoSpec.leaf(multiMultiParDo(TestPipeline.create()));
+
     TestPipeline compositeReadPipeline = TestPipeline.create();
     ToAndFromProtoSpec compositeRead =
         ToAndFromProtoSpec.composite(
             generateSequence(compositeReadPipeline),
             ToAndFromProtoSpec.leaf(read(compositeReadPipeline)));
+
+    ToAndFromProtoSpec rawLeafNullSpec =
+        ToAndFromProtoSpec.leaf(rawPTransformWithNullSpec(TestPipeline.create()));
+
     return ImmutableList.<ToAndFromProtoSpec>builder()
         .add(readLeaf)
         .add(readMultipleInAndOut)
         .add(compositeRead)
+        .add(rawLeafNullSpec)
         // TODO: Composite with multiple children
         // TODO: Composite with a composite child
         .build();
@@ -89,7 +98,7 @@ public class PTransformTranslationTest {
   abstract static class ToAndFromProtoSpec {
     public static ToAndFromProtoSpec leaf(AppliedPTransform<?, ?, ?> transform) {
       return new AutoValue_PTransformTranslationTest_ToAndFromProtoSpec(
-          transform, Collections.<ToAndFromProtoSpec>emptyList());
+          transform, Collections.emptyList());
     }
 
     public static ToAndFromProtoSpec composite(
@@ -139,7 +148,7 @@ public class PTransformTranslationTest {
       // Sanity call
       components.getExistingPTransformId(child.getTransform());
     }
-    PTransform convert = PTransformTranslation
+    RunnerApi.PTransform convert = PTransformTranslation
         .toProto(spec.getTransform(), childTransforms, components);
     // Make sure the converted transform is registered. Convert it independently, but if this is a
     // child spec, the child must be in the components.
@@ -155,20 +164,41 @@ public class PTransformTranslationTest {
   private static AppliedPTransform<?, ?, ?> generateSequence(Pipeline pipeline) {
     GenerateSequence sequence = GenerateSequence.from(0);
     PCollection<Long> pcollection = pipeline.apply(sequence);
-    return AppliedPTransform.<PBegin, PCollection<Long>, GenerateSequence>of(
+    return AppliedPTransform.of(
         "Count", pipeline.begin().expand(), pcollection.expand(), sequence, pipeline);
   }
 
   private static AppliedPTransform<?, ?, ?> read(Pipeline pipeline) {
     Read.Unbounded<Long> transform = Read.from(CountingSource.unbounded());
     PCollection<Long> pcollection = pipeline.apply(transform);
-    return AppliedPTransform.<PBegin, PCollection<Long>, Read.Unbounded<Long>>of(
+    return AppliedPTransform.of(
         "ReadTheCount", pipeline.begin().expand(), pcollection.expand(), transform, pipeline);
   }
 
+  private static AppliedPTransform<?, ?, ?> rawPTransformWithNullSpec(Pipeline pipeline) {
+    PTransformTranslation.RawPTransform<PBegin, PDone> rawPTransform =
+        new PTransformTranslation.RawPTransform<PBegin, PDone>() {
+          @Override
+          public String getUrn() {
+            return "fake/urn";
+          }
+
+          @Nullable
+          @Override
+          public RunnerApi.FunctionSpec getSpec() {
+            return null;
+          }
+        };
+    return AppliedPTransform.<PBegin, PDone, PTransform<PBegin, PDone>>of(
+        "RawPTransformWithNoSpec",
+        pipeline.begin().expand(),
+        PDone.in(pipeline).expand(),
+        rawPTransform,
+        pipeline);
+  }
+
   private static AppliedPTransform<?, ?, ?> multiMultiParDo(Pipeline pipeline) {
-    PCollectionView<String> view =
-        pipeline.apply(Create.of("foo")).apply(View.<String>asSingleton());
+    PCollectionView<String> view = pipeline.apply(Create.of("foo")).apply(View.asSingleton());
     PCollection<Long> input = pipeline.apply(GenerateSequence.from(0));
     ParDo.MultiOutput<Long, KV<Long, String>> parDo =
         ParDo.of(new TestDoFn())

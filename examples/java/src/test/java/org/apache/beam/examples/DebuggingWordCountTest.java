@@ -54,6 +54,6 @@ public class DebuggingWordCountTest {
         TestPipeline.testingPipelineOptions().as(WordCountOptions.class);
     options.setInputFile(getFilePath(inputFile.getAbsolutePath()));
     options.setOutput(getFilePath(outputFile.getAbsolutePath()));
-    DebuggingWordCount.main(TestPipeline.convertToArgs(options));
+    DebuggingWordCount.runDebuggingWordCount(options);
   }
 }

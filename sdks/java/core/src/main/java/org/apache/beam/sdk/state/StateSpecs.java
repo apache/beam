@@ -72,7 +72,7 @@ public class StateSpecs {
   public static <InputT, AccumT, OutputT>
       StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
           CombineFn<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningStateSpec<InputT, AccumT, OutputT>(null, combineFn);
+    return new CombiningStateSpec<>(null, combineFn);
   }
 
   /**
@@ -90,7 +90,7 @@ public class StateSpecs {
   public static <InputT, AccumT, OutputT>
       StateSpec<CombiningState<InputT, AccumT, OutputT>> combining(
           CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningWithContextStateSpec<InputT, AccumT, OutputT>(null, combineFn);
+    return new CombiningWithContextStateSpec<>(null, combineFn);
   }
 
   /**
@@ -131,7 +131,7 @@ public class StateSpecs {
    * @see #bag(Coder)
    */
   public static <T> StateSpec<BagState<T>> bag() {
-    return bag(null);
+    return new BagStateSpec<>(null);
   }
 
   /**
@@ -151,7 +151,7 @@ public class StateSpecs {
    * @see #set(Coder)
    */
   public static <T> StateSpec<SetState<T>> set() {
-    return set(null);
+    return new SetStateSpec<>(null);
   }
 
   /**
@@ -212,13 +212,13 @@ public class StateSpecs {
   private static <InputT, AccumT, OutputT>
   StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
           Coder<AccumT> accumCoder, CombineFn<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
+    return new CombiningStateSpec<>(accumCoder, combineFn);
   }
 
   private static <InputT, AccumT, OutputT>
   StateSpec<CombiningState<InputT, AccumT, OutputT>> combiningInternal(
       Coder<AccumT> accumCoder, CombineFnWithContext<InputT, AccumT, OutputT> combineFn) {
-    return new CombiningWithContextStateSpec<InputT, AccumT, OutputT>(accumCoder, combineFn);
+    return new CombiningWithContextStateSpec<>(accumCoder, combineFn);
   }
 
   /**
@@ -286,10 +286,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.coder == null) {
-        if (coders[0] != null) {
-          this.coder = (Coder<T>) coders[0];
-        }
+      if (this.coder == null && coders[0] != null) {
+        this.coder = (Coder<T>) coders[0];
       }
     }
 
@@ -355,10 +353,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.accumCoder == null) {
-        if (coders[1] != null) {
-          this.accumCoder = (Coder<AccumT>) coders[1];
-        }
+      if (this.accumCoder == null && coders[1] != null) {
+        this.accumCoder = (Coder<AccumT>) coders[1];
       }
     }
 
@@ -394,7 +390,7 @@ public class StateSpecs {
     }
 
     private StateSpec<BagState<AccumT>> asBagSpec() {
-      return new BagStateSpec<AccumT>(accumCoder);
+      return new BagStateSpec<>(accumCoder);
     }
   }
 
@@ -434,10 +430,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.accumCoder == null) {
-        if (coders[2] != null) {
-          this.accumCoder = (Coder<AccumT>) coders[2];
-        }
+      if (this.accumCoder == null && coders[2] != null) {
+        this.accumCoder = (Coder<AccumT>) coders[2];
       }
     }
 
@@ -474,7 +468,7 @@ public class StateSpecs {
     }
 
     private StateSpec<BagState<AccumT>> asBagSpec() {
-      return new BagStateSpec<AccumT>(accumCoder);
+      return new BagStateSpec<>(accumCoder);
     }
   }
 
@@ -506,10 +500,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.elemCoder == null) {
-        if (coders[0] != null) {
-          this.elemCoder = (Coder<T>) coders[0];
-        }
+      if (this.elemCoder == null && coders[0] != null) {
+        this.elemCoder = (Coder<T>) coders[0];
       }
     }
 
@@ -567,15 +559,11 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.keyCoder == null) {
-        if (coders[0] != null) {
-          this.keyCoder = (Coder<K>) coders[0];
-        }
+      if (this.keyCoder == null && coders[0] != null) {
+        this.keyCoder = (Coder<K>) coders[0];
       }
-      if (this.valueCoder == null) {
-        if (coders[1] != null) {
-          this.valueCoder = (Coder<V>) coders[1];
-        }
+      if (this.valueCoder == null && coders[1] != null) {
+        this.valueCoder = (Coder<V>) coders[1];
       }
     }
 
@@ -636,10 +624,8 @@ public class StateSpecs {
     @SuppressWarnings("unchecked")
     @Override
     public void offerCoders(Coder[] coders) {
-      if (this.elemCoder == null) {
-        if (coders[0] != null) {
-          this.elemCoder = (Coder<T>) coders[0];
-        }
+      if (this.elemCoder == null && coders[0] != null) {
+        this.elemCoder = (Coder<T>) coders[0];
       }
     }
 

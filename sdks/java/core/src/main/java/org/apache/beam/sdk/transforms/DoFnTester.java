@@ -20,20 +20,21 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.sdk.annotations.Experimental;
+import java.util.stream.Collectors;
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn.OnTimerContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
@@ -45,62 +46,39 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A harness for unit-testing a {@link DoFn}.
- *
- * <p>For example:
- *
- * <pre> {@code
- * DoFn<InputT, OutputT> fn = ...;
- *
- * DoFnTester<InputT, OutputT> fnTester = DoFnTester.of(fn);
- *
- * // Set arguments shared across all bundles:
- * fnTester.setSideInputs(...);      // If fn takes side inputs.
- * fnTester.setOutputTags(...);  // If fn writes to more than one output.
- *
- * // Process a bundle containing a single input element:
- * Input testInput = ...;
- * List<OutputT> testOutputs = fnTester.processBundle(testInput);
- * Assert.assertThat(testOutputs, Matchers.hasItems(...));
- *
- * // Process a bigger bundle:
- * Assert.assertThat(fnTester.processBundle(i1, i2, ...), Matchers.hasItems(...));
- * } </pre>
- *
- * @param <InputT> the type of the {@link DoFn}'s (main) input elements
- * @param <OutputT> the type of the {@link DoFn}'s (main) output elements
+ * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
  */
+@Deprecated
 public class DoFnTester<InputT, OutputT> implements AutoCloseable {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnTester.class);
+
   /**
-   * Returns a {@code DoFnTester} supporting unit-testing of the given
-   * {@link DoFn}. By default, uses {@link CloningBehavior#CLONE_ONCE}.
-   *
-   * <p>The only supported extra parameter of the {@link DoFn.ProcessElement} method is
-   * {@link BoundedWindow}.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
   @SuppressWarnings("unchecked")
+  @Deprecated
   public static <InputT, OutputT> DoFnTester<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     checkNotNull(fn, "fn can't be null");
+    LOG.warn(
+        "Your tests use DoFnTester, which may not exercise DoFns correctly. "
+            + "Please use TestPipeline instead.");
     return new DoFnTester<>(fn);
   }
 
   /**
-   * Registers the tuple of values of the side input {@link PCollectionView}s to
-   * pass to the {@link DoFn} under test.
-   *
-   * <p>Resets the state of this {@link DoFnTester}.
-   *
-   * <p>If this isn't called, {@code DoFnTester} assumes the
-   * {@link DoFn} takes no side inputs.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public void setSideInputs(Map<PCollectionView<?>, Map<BoundedWindow, ?>> sideInputs) {
     checkState(
         state == State.UNINITIALIZED,
@@ -110,15 +88,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Registers the values of a side input {@link PCollectionView} to pass to the {@link DoFn}
-   * under test.
-   *
-   * <p>The provided value is the final value of the side input in the specified window, not
-   * the value of the input PCollection in that window.
-   *
-   * <p>If this isn't called, {@code DoFnTester} will return the default value for any side input
-   * that is used.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public <T> void setSideInput(PCollectionView<T> sideInput, BoundedWindow window, T value) {
     checkState(
         state == State.UNINITIALIZED,
@@ -132,14 +104,18 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     windowValues.put(window, value);
   }
 
+  /**
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
+   */
+  @Deprecated
   public PipelineOptions getPipelineOptions() {
     return options;
   }
 
   /**
-   * When a {@link DoFnTester} should clone the {@link DoFn} under test and how it should manage
-   * the lifecycle of the {@link DoFn}.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public enum CloningBehavior {
     /**
      * Clone the {@link DoFn} and call {@link DoFn.Setup} every time a bundle starts; call {@link
@@ -159,26 +135,26 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Instruct this {@link DoFnTester} whether or not to clone the {@link DoFn} under test.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public void setCloningBehavior(CloningBehavior newValue) {
     checkState(state == State.UNINITIALIZED, "Wrong state: %s", state);
     this.cloningBehavior = newValue;
   }
 
   /**
-   *  Indicates whether this {@link DoFnTester} will clone the {@link DoFn} under test.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public CloningBehavior getCloningBehavior() {
     return cloningBehavior;
   }
 
   /**
-   * A convenience operation that first calls {@link #startBundle},
-   * then calls {@link #processElement} on each of the input elements, then
-   * calls {@link #finishBundle}, then returns the result of
-   * {@link #takeOutputElements}.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public List<OutputT> processBundle(Iterable <? extends InputT> inputElements) throws Exception {
     startBundle();
     for (InputT inputElement : inputElements) {
@@ -189,27 +165,18 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * A convenience method for testing {@link DoFn DoFns} with bundles of elements.
-   * Logic proceeds as follows:
-   *
-   * <ol>
-   *   <li>Calls {@link #startBundle}.</li>
-   *   <li>Calls {@link #processElement} on each of the arguments.</li>
-   *   <li>Calls {@link #finishBundle}.</li>
-   *   <li>Returns the result of {@link #takeOutputElements}.</li>
-   * </ol>
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   @SafeVarargs
   public final List<OutputT> processBundle(InputT... inputElements) throws Exception {
     return processBundle(Arrays.asList(inputElements));
   }
 
   /**
-   * Calls the {@link DoFn.StartBundle} method on the {@link DoFn} under test.
-   *
-   * <p>If needed, first creates a fresh instance of the {@link DoFn} under test and calls
-   * {@link DoFn.Setup}.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public void startBundle() throws Exception {
     checkState(
         state == State.UNINITIALIZED || state == State.BUNDLE_FINISHED,
@@ -237,28 +204,17 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Calls the {@link DoFn.ProcessElement} method on the {@link DoFn} under test, in a
-   * context where {@link DoFn.ProcessContext#element} returns the
-   * given element and the element is in the global window.
-   *
-   * <p>Will call {@link #startBundle} automatically, if it hasn't
-   * already been called.
-   *
-   * @throws IllegalStateException if the {@code DoFn} under test has already
-   * been finished
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public void processElement(InputT element) throws Exception {
     processTimestampedElement(TimestampedValue.atMinimumTimestamp(element));
   }
 
   /**
-   * Calls {@link DoFn.ProcessElement} on the {@code DoFn} under test, in a
-   * context where {@link DoFn.ProcessContext#element} returns the
-   * given element and timestamp and the element is in the global window.
-   *
-   * <p>Will call {@link #startBundle} automatically, if it hasn't
-   * already been called.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public void processTimestampedElement(TimestampedValue<InputT> element) throws Exception {
     checkNotNull(element, "Timestamped element cannot be null");
     processWindowedElement(
@@ -266,13 +222,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Calls {@link DoFn.ProcessElement} on the {@code DoFn} under test, in a
-   * context where {@link DoFn.ProcessContext#element} returns the
-   * given element and timestamp and the element is in the given window.
-   *
-   * <p>Will call {@link #startBundle} automatically, if it hasn't
-   * already been called.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public void processWindowedElement(
       InputT element, Instant timestamp, final BoundedWindow window) throws Exception {
     if (state != State.BUNDLE_STARTED) {
@@ -319,7 +271,7 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public RestrictionTracker<?> restrictionTracker() {
+            public RestrictionTracker<?, ?> restrictionTracker() {
               throw new UnsupportedOperationException(
                   "Not expected to access RestrictionTracker from a regular DoFn in DoFnTester");
             }
@@ -340,15 +292,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Calls the {@link DoFn.FinishBundle} method of the {@link DoFn} under test.
-   *
-   * <p>If {@link #setCloningBehavior} was called with {@link CloningBehavior#CLONE_PER_BUNDLE},
-   * then also calls {@link DoFn.Teardown} on the {@link DoFn}, and it will be cloned and
-   * {@link DoFn.Setup} again when processing the next bundle.
-   *
-   * @throws IllegalStateException if {@link DoFn.FinishBundle} has already been called
-   * for this bundle.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public void finishBundle() throws Exception {
     checkState(
         state == State.BUNDLE_STARTED,
@@ -370,59 +316,40 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Returns the elements output so far to the main output.  Does not
-   * clear them, so subsequent calls will continue to include these
-   * elements.
-   *
-   * @see #takeOutputElements
-   * @see #clearOutputElements
-   *
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public List<OutputT> peekOutputElements() {
-    return Lists.transform(
-        peekOutputElementsWithTimestamp(),
-        new Function<TimestampedValue<OutputT>, OutputT>() {
-          @Override
-          @SuppressWarnings("unchecked")
-          public OutputT apply(TimestampedValue<OutputT> input) {
-            return input.getValue();
-          }
-        });
+    return peekOutputElementsWithTimestamp()
+        .stream()
+        .map(TimestampedValue::getValue)
+        .collect(Collectors.toList());
   }
 
   /**
-   * Returns the elements output so far to the main output with associated timestamps.  Does not
-   * clear them, so subsequent calls will continue to include these.
-   * elements.
-   *
-   * @see #takeOutputElementsWithTimestamp
-   * @see #clearOutputElements
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
-  @Experimental
+  @Deprecated
   public List<TimestampedValue<OutputT>> peekOutputElementsWithTimestamp() {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(getImmutableOutput(mainOutputTag),
-        new Function<ValueInSingleWindow<OutputT>, TimestampedValue<OutputT>>() {
-          @Override
-          @SuppressWarnings("unchecked")
-          public TimestampedValue<OutputT> apply(ValueInSingleWindow<OutputT> input) {
-            return TimestampedValue.of(input.getValue(), input.getTimestamp());
-          }
-        });
+    return getImmutableOutput(mainOutputTag)
+        .stream()
+        .map(input -> TimestampedValue.of(input.getValue(), input.getTimestamp()))
+        .collect(Collectors.toList());
   }
 
   /**
-   * Returns the elements output so far to the main output in the provided window with associated
-   * timestamps.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(BoundedWindow window) {
     return peekOutputElementsInWindow(mainOutputTag, window);
   }
 
   /**
-   * Returns the elements output so far to the specified output in the provided window with
-   * associated timestamps.
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public List<TimestampedValue<OutputT>> peekOutputElementsInWindow(
       TupleTag<OutputT> tag,
       BoundedWindow window) {
@@ -436,20 +363,17 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Clears the record of the elements output so far to the main output.
-   *
-   * @see #peekOutputElements
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public void clearOutputElements() {
     getMutableOutput(mainOutputTag).clear();
   }
 
   /**
-   * Returns the elements output so far to the main output.
-   * Clears the list so these elements don't appear in future calls.
-   *
-   * @see #peekOutputElements
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public List<OutputT> takeOutputElements() {
     List<OutputT> resultElems = new ArrayList<>(peekOutputElements());
     clearOutputElements();
@@ -457,14 +381,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Returns the elements output so far to the main output with associated timestamps.
-   * Clears the list so these elements don't appear in future calls.
-   *
-   * @see #peekOutputElementsWithTimestamp
-   * @see #takeOutputElements
-   * @see #clearOutputElements
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
-  @Experimental
+  @Deprecated
   public List<TimestampedValue<OutputT>> takeOutputElementsWithTimestamp() {
     List<TimestampedValue<OutputT>> resultElems =
         new ArrayList<>(peekOutputElementsWithTimestamp());
@@ -473,39 +392,29 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   }
 
   /**
-   * Returns the elements output so far to the output with the
-   * given tag.  Does not clear them, so subsequent calls will
-   * continue to include these elements.
-   *
-   * @see #takeOutputElements
-   * @see #clearOutputElements
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public <T> List<T> peekOutputElements(TupleTag<T> tag) {
     // TODO: Should we return an unmodifiable list?
-    return Lists.transform(getImmutableOutput(tag),
-        new Function<ValueInSingleWindow<T>, T>() {
-          @SuppressWarnings("unchecked")
-          @Override
-          public T apply(ValueInSingleWindow<T> input) {
-            return input.getValue();
-          }});
+    return getImmutableOutput(tag)
+        .stream()
+        .map(ValueInSingleWindow::getValue)
+        .collect(Collectors.toList());
   }
 
   /**
-   * Clears the record of the elements output so far to the output with the given tag.
-   *
-   * @see #peekOutputElements
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public <T> void clearOutputElements(TupleTag<T> tag) {
     getMutableOutput(tag).clear();
   }
 
   /**
-   * Returns the elements output so far to the output with the given tag.
-   * Clears the list so these elements don't appear in future calls.
-   *
-   * @see #peekOutputElements
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
    */
+  @Deprecated
   public <T> List<T> takeOutputElements(TupleTag<T> tag) {
     List<T> resultElems = new ArrayList<>(peekOutputElements(tag));
     clearOutputElements(tag);
@@ -514,21 +423,28 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
 
   private <T> List<ValueInSingleWindow<T>> getImmutableOutput(TupleTag<T> tag) {
     @SuppressWarnings({"unchecked", "rawtypes"})
-    List<ValueInSingleWindow<T>> elems = (List) outputs.get(tag);
-    return ImmutableList.copyOf(
-        MoreObjects.firstNonNull(elems, Collections.<ValueInSingleWindow<T>>emptyList()));
+    List<ValueInSingleWindow<T>> elems = (List) getOutputs().get(tag);
+    return ImmutableList.copyOf(MoreObjects.firstNonNull(elems, Collections.emptyList()));
   }
 
+  /**
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
+   */
+  @Deprecated
   @SuppressWarnings({"unchecked", "rawtypes"})
   public <T> List<ValueInSingleWindow<T>> getMutableOutput(TupleTag<T> tag) {
-    List<ValueInSingleWindow<T>> outputList = (List) outputs.get(tag);
+    List<ValueInSingleWindow<T>> outputList = (List) getOutputs().get(tag);
     if (outputList == null) {
       outputList = new ArrayList<>();
-      outputs.put(tag, (List) outputList);
+      getOutputs().put(tag, (List) outputList);
     }
     return outputList;
   }
 
+  /**
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
+   */
+  @Deprecated
   public TupleTag<OutputT> getMainOutputTag() {
     return mainOutputTag;
   }
@@ -569,6 +485,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
+  /**
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
+   */
+  @Deprecated
   public DoFn<InputT, OutputT>.ProcessContext createProcessContext(
       ValueInSingleWindow<InputT> element) {
     return new TestProcessContext(element);
@@ -600,7 +520,19 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           return windowValue;
         }
       }
-      return view.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
+      // Fallback to returning the default materialization if no data was supplied.
+      // This is really to support singleton views with default values.
+
+      // TODO: Update this to supply a materialization dependent on actual URN of materialization.
+      // Currently the SDK only supports the multimap materialization and it expects a
+      // mapping function.
+      checkState(Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+          view.getViewFn().getMaterialization().getUrn()),
+          "Only materializations of type %s supported, received %s",
+          Materializations.MULTIMAP_MATERIALIZATION_URN,
+          view.getViewFn().getMaterialization().getUrn());
+      return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn())
+          .apply(o -> Collections.emptyList());
     }
 
     @Override
@@ -645,6 +577,10 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
+  /**
+   * @deprecated Use {@link TestPipeline} with the {@code DirectRunner}.
+   */
+  @Deprecated
   @Override
   public void close() throws Exception {
     if (state == State.BUNDLE_STARTED) {
@@ -688,11 +624,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
   private TupleTag<OutputT> mainOutputTag = new TupleTag<>();
 
   /** The original DoFn under test, if started. */
-  private DoFn<InputT, OutputT> fn;
-  private DoFnInvoker<InputT, OutputT> fnInvoker;
+  @Nullable private DoFn<InputT, OutputT> fn;
 
-  /** The outputs from the {@link DoFn} under test. */
-  private Map<TupleTag<?>, List<ValueInSingleWindow<?>>> outputs;
+  @Nullable private DoFnInvoker<InputT, OutputT> fnInvoker;
+
+  /** The outputs from the {@link DoFn} under test. Access via {@link #getOutputs()}. */
+  @CheckForNull private Map<TupleTag<?>, List<ValueInSingleWindow<?>>> outputs;
 
   /** The state of processing of the {@link DoFn} under test. */
   private State state = State.UNINITIALIZED;
@@ -704,12 +641,14 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       param.match(
           new DoFnSignature.Parameter.Cases.WithDefault<Void>() {
             @Override
+            @Nullable
             public Void dispatch(DoFnSignature.Parameter.ProcessContextParameter p) {
               // ProcessContext parameter is obviously supported.
               return null;
             }
 
             @Override
+            @Nullable
             public Void dispatch(DoFnSignature.Parameter.WindowParameter p) {
               // We also support the BoundedWindow parameter.
               return null;
@@ -738,6 +677,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
     fnInvoker = DoFnInvokers.invokerFor(fn);
     fnInvoker.invokeSetup();
-    outputs = new HashMap<>();
+  }
+
+  private Map getOutputs() {
+    if (outputs == null) {
+      outputs = new HashMap<>();
+    }
+    return outputs;
   }
 }

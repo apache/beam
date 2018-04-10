@@ -21,7 +21,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-parent</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -30,6 +30,10 @@
   <packaging>pom</packaging>
 
   <name>Apache Beam :: SDKs :: Go</name>
+
+  <modules>
+    <module>container</module>
+  </modules>
 
   <properties>
     <!-- Add full path directory structure for 'go get' compatibility -->
@@ -81,6 +85,7 @@
       <!-- export pkg/ sources as zip for inclusion elsewhere -->
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
+        <inherited>false</inherited>
         <executions>
           <execution>
             <id>export-go-pkg-sources</id>
@@ -113,6 +118,9 @@
                 <package>golang.org/x/oauth2/google</package>
                 <package>google.golang.org/api/storage/v1</package>
                 <package>github.com/spf13/cobra</package>
+                <package>cloud.google.com/go/bigquery</package>
+                <package>google.golang.org/api/googleapi</package>
+                <package>google.golang.org/api/dataflow/v1b3</package>
               </packages>
             </configuration>
           </execution>

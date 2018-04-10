@@ -76,9 +76,27 @@ public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
   @Override
   public IntervalWindow assignWindow(Instant timestamp) {
-    long start = timestamp.getMillis()
-        - timestamp.plus(size).minus(offset).getMillis() % size.getMillis();
-    return new IntervalWindow(new Instant(start), size);
+    Instant start =
+        new Instant(
+            timestamp.getMillis()
+                - timestamp.plus(size).minus(offset).getMillis() % size.getMillis());
+
+
+    // The global window is inclusive of max timestamp, while interval window excludes its
+    // upper bound
+    Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp().plus(1);
+
+    // The end of the window is either start + size if that is within the allowable range, otherwise
+    // the end of the global window. Truncating the window drives many other
+    // areas of this system in the appropriate way automatically.
+    //
+    // Though it is curious that the very last representable fixed window is shorter than the rest,
+    // when we are processing data in the year 294247, we'll probably have technology that can
+    // account for this.
+    Instant end =
+        start.isAfter(endOfGlobalWindow.minus(size)) ? endOfGlobalWindow : start.plus(size);
+
+    return new IntervalWindow(start, end);
   }
 
   @Override

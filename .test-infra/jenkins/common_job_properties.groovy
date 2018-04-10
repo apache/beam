@@ -22,6 +22,8 @@
 //  http://groovy-lang.org/style-guide.html
 class common_job_properties {
 
+  static String checkoutDir = 'src'
+
   static void setSCM(def context, String repositoryName) {
     context.scm {
       git {
@@ -36,6 +38,7 @@ class common_job_properties {
         branch('${sha1}')
         extensions {
           cleanAfterCheckout()
+          relativeTargetDirectory(checkoutDir)
         }
       }
     }
@@ -147,8 +150,8 @@ class common_job_properties {
         extensions {
           commitStatus {
             // This is the name that will show up in the GitHub pull request UI
-            // for this Jenkins project.
-            delegate.context("Jenkins: " + commitStatusContext)
+            // for this Jenkins project. It has a limit of 255 characters.
+            delegate.context(("Jenkins: " + commitStatusContext).take(255))
           }
 
           // Comment messages after build completes.
@@ -163,7 +166,7 @@ class common_job_properties {
   }
 
   // Sets common config for Maven jobs.
-  static void setMavenConfig(context, String mavenInstallation='Maven 3.3.3') {
+  static void setMavenConfig(context, String mavenInstallation='Maven 3.5.2') {
     context.mavenInstallation(mavenInstallation)
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
@@ -171,7 +174,7 @@ class common_job_properties {
     // tiered compilation to make the JVM startup times faster during the tests.
     context.mavenOpts('-XX:+TieredCompilation')
     context.mavenOpts('-XX:TieredStopAtLevel=1')
-    context.rootPOM('pom.xml')
+    context.rootPOM(checkoutDir + '/pom.xml')
     // Use a repository local to the workspace for better isolation of jobs.
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
     // Disable archiving the built artifacts by default, as this is slow and flaky.
@@ -203,6 +206,13 @@ class common_job_properties {
       prTriggerPhrase,
       true,
       '--none--')
+  }
+
+  // Sets this as a cron job, running on a schedule.
+  static void setCronJob(context, String buildSchedule) {
+    context.triggers {
+      cron(buildSchedule)
+    }
   }
 
   // Sets common config for PostCommit jobs.
@@ -243,6 +253,7 @@ class common_job_properties {
       dpb_log_level: 'INFO',
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
       bigquery_table: 'beam_performance.pkb_results',
+      temp_dir: '$WORKSPACE',
       // Publishes results with official tag, for use in dashboards.
       official: 'true'
     ]
@@ -251,122 +262,76 @@ class common_job_properties {
     return mapToArgString(joinedArgs)
   }
 
+  static def setupKubernetes(def context, def namespace, def kubeconfigLocation) {
+    context.steps {
+      shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
+      shell("cp /home/jenkins/.kube/config ${kubeconfigLocation}")
+
+      shell("kubectl --kubeconfig=${kubeconfigLocation} create namespace ${namespace}")
+      shell("kubectl --kubeconfig=${kubeconfigLocation} config set-context \$(kubectl config current-context) --namespace=${namespace}")
+    }
+  }
+
+  static def cleanupKubernetes(def context, def namespace, def kubeconfigLocation) {
+    context.steps {
+      shell("kubectl --kubeconfig=${kubeconfigLocation} delete namespace ${namespace}")
+      shell("rm ${kubeconfigLocation}")
+    }
+  }
+
+  static String getKubernetesNamespace(def testName) {
+    return "${testName}-${new Date().getTime()}"
+  }
+
+  static String getKubeconfigLocationForNamespace(def namespace) {
+    return '"$WORKSPACE/' + "config-${namespace}" + '"'
+  }
+
   // Adds the standard performance test job steps.
   static def buildPerformanceTest(def context, def argMap) {
     def pkbArgs = genPerformanceArgs(argMap)
     context.steps {
         // Clean up environment.
         shell('rm -rf PerfKitBenchmarker')
+        shell('rm -rf .env')
+
+        // create new VirtualEnv, inherit already existing packages
+        shell('virtualenv .env --system-site-packages')
+
+        // update setuptools and pip
+        shell('.env/bin/pip install --upgrade setuptools pip')
+
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
         // Install Perfkit benchmark requirements.
-        shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
+        shell('.env/bin/pip install -r PerfKitBenchmarker/requirements.txt')
         // Install job requirements for Python SDK.
-        shell('pip install --user -e sdks/python/[gcp,test]')
+        shell('.env/bin/pip install -e ' + common_job_properties.checkoutDir + '/sdks/python/[gcp,test]')
         // Launch performance test.
-        shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
+        shell(".env/bin/python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
   }
 
   /**
-   * Sets properties for all jobs which are run by a pipeline top-level (maven) job.
-   * @param context    The delegate from the top level of a MavenJob.
-   * @param jobTimeout How long (in minutes) to wait for the job to finish.
-   * @param descriptor A short string identifying the job, e.g. "Java Unit Test".
+   * Transforms pipeline options to a string of format like below:
+   * ["--pipelineOption=123", "--pipelineOption2=abc", ...]
+   *
+   * @param pipelineOptions A map of pipeline options.
    */
-  static def setPipelineJobProperties(def context, int jobTimeout, String descriptor) {
-    context.parameters {
-      stringParam(
-              'ghprbGhRepository',
-              'N/A',
-              'Repository name for use by ghprb plugin.')
-      stringParam(
-              'ghprbActualCommit',
-              'N/A',
-              'Commit ID for use by ghprb plugin.')
-      stringParam(
-              'ghprbPullId',
-              'N/A',
-              'PR # for use by ghprb plugin.')
-
-    }
-
-    // Set JDK version.
-    context.jdk('JDK 1.8 (latest)')
-
-    // Restrict this project to run only on Jenkins executors as specified
-    context.label('beam')
-
-    // Execute concurrent builds if necessary.
-    context.concurrentBuild()
-
-    context.wrappers {
-      timeout {
-        absolute(jobTimeout)
-        abortBuild()
-      }
-      credentialsBinding {
-        string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
-      }
-      downstreamCommitStatus {
-        delegate.context("Jenkins: ${descriptor}")
-        triggeredStatus("${descriptor} Pending")
-        startedStatus("Running ${descriptor}")
-        statusUrl()
-        completedStatus('SUCCESS', "${descriptor} Passed")
-        completedStatus('FAILURE', "${descriptor} Failed")
-        completedStatus('ERROR', "Error Executing ${descriptor}")
-      }
-      // Set SPARK_LOCAL_IP for spark tests.
-      environmentVariables {
-        env('SPARK_LOCAL_IP', '127.0.0.1')
-      }
-    }
-
-    // Set Maven parameters.
-    setMavenConfig(context)
+  static String joinPipelineOptions(Map pipelineOptions) {
+    List<String> pipelineArgList = []
+    pipelineOptions.each({
+      key, value -> pipelineArgList.add("\"--$key=$value\"")
+    })
+    return "[" + pipelineArgList.join(',') + "]"
   }
 
-  /**
-   * Sets job properties common to pipeline jobs which are responsible for being the root of a
-   * build tree. Downstream jobs should pull artifacts from these jobs.
-   * @param context The delegate from the top level of a MavenJob.
-   */
-  static def setPipelineBuildJobProperties(def context) {
-    context.properties {
-      githubProjectUrl('https://github.com/apache/beam/')
-    }
-
-    context.parameters {
-      stringParam(
-              'sha1',
-              'master',
-              'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
-    }
-
-    // Source code management.
-    setSCM(context, 'beam')
-  }
 
   /**
-   * Sets common job parameters for jobs which consume artifacts built for them by an upstream job.
-   * @param context The delegate from the top level of a MavenJob.
-   * @param jobName The job from which to copy artifacts.
+   * Returns absolute path to beam project's files.
+   * @param path A relative path to project resource.
    */
-  static def setPipelineDownstreamJobProperties(def context, String jobName) {
-    context.parameters {
-      stringParam(
-              'buildNum',
-              'N/A',
-              "Build number of ${jobName} to copy from.")
-    }
-
-    context.preBuildSteps {
-      copyArtifacts(jobName) {
-        buildSelector {
-          buildNumber('${buildNum}')
-        }
-      }
-    }
+  static String makePathAbsolute(String path) {
+    return '"$WORKSPACE/' + path + '"'
   }
 }

@@ -37,6 +37,7 @@ from apache_beam.internal.gcp import json_value
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
@@ -201,44 +202,76 @@ class DataflowRunner(PipelineRunner):
       we could directly replace the coder instead of mutating the element type.
       """
 
+      def enter_composite_transform(self, transform_node):
+        self.visit_transform(transform_node)
+
       def visit_transform(self, transform_node):
         # Imported here to avoid circular dependencies.
         # pylint: disable=wrong-import-order, wrong-import-position
         from apache_beam.transforms.core import GroupByKey, _GroupByKeyOnly
         if isinstance(transform_node.transform, (GroupByKey, _GroupByKeyOnly)):
           pcoll = transform_node.inputs[0]
-          input_type = pcoll.element_type
-          # If input_type is not specified, then treat it as `Any`.
-          if not input_type:
-            input_type = typehints.Any
-
-          def coerce_to_kv_type(element_type):
-            if isinstance(element_type, typehints.TupleHint.TupleConstraint):
-              if len(element_type.tuple_types) == 2:
-                return element_type
-              else:
-                raise ValueError(
-                    "Tuple input to GroupByKey must be have two components. "
-                    "Found %s for %s" % (element_type, pcoll))
-            elif isinstance(input_type, typehints.AnyTypeConstraint):
-              # `Any` type needs to be replaced with a KV[Any, Any] to
-              # force a KV coder as the main output coder for the pcollection
-              # preceding a GroupByKey.
-              return typehints.KV[typehints.Any, typehints.Any]
-            elif isinstance(element_type, typehints.UnionConstraint):
-              union_types = [
-                  coerce_to_kv_type(t) for t in element_type.union_types]
-              return typehints.KV[
-                  typehints.Union[tuple(t.tuple_types[0] for t in union_types)],
-                  typehints.Union[tuple(t.tuple_types[1] for t in union_types)]]
-            else:
-              # TODO: Possibly handle other valid types.
-              raise ValueError(
-                  "Input to GroupByKey must be of Tuple or Any type. "
-                  "Found %s for %s" % (element_type, pcoll))
-          pcoll.element_type = coerce_to_kv_type(input_type)
+          pcoll.element_type = typehints.coerce_to_kv_type(
+              pcoll.element_type, transform_node.full_label)
+          key_type, value_type = pcoll.element_type.tuple_types
+          if transform_node.outputs:
+            transform_node.outputs[None].element_type = typehints.KV[
+                key_type, typehints.Iterable[value_type]]
 
     return GroupByKeyInputVisitor()
+
+  @staticmethod
+  def side_input_visitor():
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.pipeline import PipelineVisitor
+    from apache_beam.transforms.core import ParDo
+
+    class SideInputVisitor(PipelineVisitor):
+      """Ensures input `PCollection` used as a side inputs has a `KV` type.
+
+      TODO(BEAM-115): Once Python SDK is compatible with the new Runner API,
+      we could directly replace the coder instead of mutating the element type.
+      """
+      def visit_transform(self, transform_node):
+        if isinstance(transform_node.transform, ParDo):
+          new_side_inputs = []
+          for ix, side_input in enumerate(transform_node.side_inputs):
+            access_pattern = side_input._side_input_data().access_pattern
+            if access_pattern == common_urns.ITERABLE_SIDE_INPUT:
+              # Add a map to ('', value) as Dataflow currently only handles
+              # keyed side inputs.
+              pipeline = side_input.pvalue.pipeline
+              new_side_input = _DataflowIterableSideInput(side_input)
+              new_side_input.pvalue = beam.pvalue.PCollection(
+                  pipeline,
+                  element_type=typehints.KV[
+                      str, side_input.pvalue.element_type])
+              parent = transform_node.parent or pipeline._root_transform()
+              map_to_void_key = beam.pipeline.AppliedPTransform(
+                  pipeline,
+                  beam.Map(lambda x: ('', x)),
+                  transform_node.full_label + '/MapToVoidKey%s' % ix,
+                  (side_input.pvalue,))
+              new_side_input.pvalue.producer = map_to_void_key
+              map_to_void_key.add_output(new_side_input.pvalue)
+              parent.add_part(map_to_void_key)
+              transform_node.update_input_refcounts()
+            elif access_pattern == common_urns.MULTIMAP_SIDE_INPUT:
+              # Ensure the input coder is a KV coder and patch up the
+              # access pattern to appease Dataflow.
+              side_input.pvalue.element_type = typehints.coerce_to_kv_type(
+                  side_input.pvalue.element_type, transform_node.full_label)
+              new_side_input = _DataflowMultimapSideInput(side_input)
+            else:
+              raise ValueError(
+                  'Unsupported access pattern for %r: %r' %
+                  (transform_node.full_label, access_pattern))
+            new_side_inputs.append(new_side_input)
+          transform_node.side_inputs = new_side_inputs
+          transform_node.transform.side_inputs = new_side_inputs
+
+    return SideInputVisitor()
 
   @staticmethod
   def flatten_input_visitor():
@@ -261,7 +294,7 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
     try:
@@ -271,6 +304,21 @@ class DataflowRunner(PipelineRunner):
       raise ImportError(
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
+
+    # Convert all side inputs into a form acceptable to Dataflow.
+    if apiclient._use_fnapi(pipeline._options):
+      pipeline.visit(self.side_input_visitor())
+
+    # Snapshot the pipeline in a portable proto before mutating it
+    proto_pipeline, self.proto_context = pipeline.to_runner_api(
+        return_context=True)
+
+    # TODO(BEAM-2717): Remove once Coders are already in proto.
+    for pcoll in proto_pipeline.components.pcollections.values():
+      if pcoll.coder_id not in self.proto_context.coders:
+        coder = coders.registry.get_coder(pickler.loads(pcoll.coder_id))
+        pcoll.coder_id = self.proto_context.coders.get_id(coder)
+    self.proto_context.coders.populate_map(proto_pipeline.components.coders)
 
     # Performing configured PTransform overrides.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
@@ -282,7 +330,7 @@ class DataflowRunner(PipelineRunner):
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
-    self.job = apiclient.Job(pipeline._options)
+    self.job = apiclient.Job(pipeline._options, proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.
@@ -293,7 +341,7 @@ class DataflowRunner(PipelineRunner):
     pipeline.visit(self.flatten_input_visitor())
 
     # The superclass's run will trigger a traversal of all reachable nodes.
-    super(DataflowRunner, self).run(pipeline)
+    super(DataflowRunner, self).run_pipeline(pipeline)
 
     test_options = pipeline._options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.
@@ -531,10 +579,10 @@ class DataflowRunner(PipelineRunner):
     si_labels = {}
     full_label_counts = defaultdict(int)
     lookup_label = lambda side_pval: si_labels[side_pval]
-    for side_pval in transform_node.side_inputs:
+    for ix, side_pval in enumerate(transform_node.side_inputs):
       assert isinstance(side_pval, AsSideInput)
-      step_number = self._get_unique_step_name()
-      si_label = 'SideInput-' + step_number
+      step_name = 'SideInput-' + self._get_unique_step_name()
+      si_label = 'side%d' % ix
       pcollection_label = '%s.%s' % (
           side_pval.pvalue.producer.full_label.split('/')[-1],
           side_pval.pvalue.tag if side_pval.pvalue.tag else 'out')
@@ -548,11 +596,11 @@ class DataflowRunner(PipelineRunner):
       full_label_counts[pcollection_label] += 1
 
       self._add_singleton_step(
-          si_label, si_full_label, side_pval.pvalue.tag,
+          step_name, si_full_label, side_pval.pvalue.tag,
           self._cache.get_pvalue(side_pval.pvalue))
       si_dict[si_label] = {
           '@type': 'OutputReference',
-          PropertyNames.STEP_NAME: si_label,
+          PropertyNames.STEP_NAME: step_name,
           PropertyNames.OUTPUT_NAME: PropertyNames.OUT}
       si_labels[side_pval] = si_label
 
@@ -565,8 +613,17 @@ class DataflowRunner(PipelineRunner):
             if transform_node.side_inputs else ''),
         transform_node,
         transform_node.transform.output_tags)
-    fn_data = self._pardo_fn_data(transform_node, lookup_label)
-    step.add_property(PropertyNames.SERIALIZED_FN, pickler.dumps(fn_data))
+    # Import here to avoid adding the dependency for local running scenarios.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners.dataflow.internal import apiclient
+    transform_proto = self.proto_context.transforms.get_proto(transform_node)
+    if (apiclient._use_fnapi(transform_node.inputs[0].pipeline._options)
+        and transform_proto.spec.urn == common_urns.PARDO_TRANSFORM):
+      serialized_data = self.proto_context.transforms.get_id(transform_node)
+    else:
+      serialized_data = pickler.dumps(
+          self._pardo_fn_data(transform_node, lookup_label))
+    step.add_property(PropertyNames.SERIALIZED_FN, serialized_data)
     step.add_property(
         PropertyNames.PARALLEL_INPUT,
         {'@type': 'OutputReference',
@@ -611,6 +668,15 @@ class DataflowRunner(PipelineRunner):
             transform_node.inputs[0].windowing)
 
   def apply_CombineValues(self, transform, pcoll):
+    # TODO(BEAM-2937): Disable combiner lifting for fnapi. Remove this
+    # restrictions once this feature is supported in the dataflow runner
+    # harness.
+    # Import here to avoid adding the dependency for local running scenarios.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.runners.dataflow.internal import apiclient
+    if apiclient._use_fnapi(pcoll.pipeline._options):
+      return self.apply_PTransform(transform, pcoll)
+
     return pvalue.PCollection(pcoll.pipeline)
 
   def run_CombineValues(self, transform_node):
@@ -712,7 +778,7 @@ class DataflowRunner(PipelineRunner):
       standard_options = (
           transform_node.inputs[0].pipeline.options.view_as(StandardOptions))
       if not standard_options.streaming:
-        raise ValueError('PubSubPayloadSource is currently available for use '
+        raise ValueError('Cloud Pub/Sub is currently available for use '
                          'only in streaming pipelines.')
       # Only one of topic or subscription should be set.
       if transform.source.full_subscription:
@@ -724,6 +790,13 @@ class DataflowRunner(PipelineRunner):
       if transform.source.id_label:
         step.add_property(PropertyNames.PUBSUB_ID_LABEL,
                           transform.source.id_label)
+      if transform.source.with_attributes:
+        # Setting this property signals Dataflow runner to return full
+        # PubsubMessages instead of just the payload.
+        step.add_property(PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN, '')
+      if transform.source.timestamp_attribute is not None:
+        step.add_property(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
+                          transform.source.timestamp_attribute)
     else:
       raise ValueError(
           'Source %r has unexpected format %s.' % (
@@ -742,8 +815,9 @@ class DataflowRunner(PipelineRunner):
     # PickleCoder because GlobalWindowCoder is known coder.
     # TODO(robertwb): Query the collection for the windowfn to extract the
     # correct coder.
-    coder = coders.WindowedValueCoder(transform._infer_output_coder(),
-                                      coders.coders.GlobalWindowCoder())  # pylint: disable=protected-access
+    coder = coders.WindowedValueCoder(
+        coders.registry.get_coder(transform_node.outputs[None].element_type),
+        coders.coders.GlobalWindowCoder())
 
     step.encoding = self._get_cloud_encoding(coder)
     step.add_property(
@@ -861,6 +935,54 @@ class DataflowRunner(PipelineRunner):
     return urllib.unquote(encoded_string)
 
 
+class _DataflowSideInput(beam.pvalue.AsSideInput):
+  """Wraps a side input as a dataflow-compatible side input."""
+
+  # Dataflow does not yet accept the shared urn definition for access.
+  DATAFLOW_MULTIMAP_URN = 'urn:beam:sideinput:materialization:multimap:0.1'
+
+  def _view_options(self):
+    return {
+        'data': self._data,
+    }
+
+  def _side_input_data(self):
+    return self._data
+
+
+class _DataflowIterableSideInput(_DataflowSideInput):
+  """Wraps an iterable side input as dataflow-compatible side input."""
+
+  def __init__(self, iterable_side_input):
+    # pylint: disable=protected-access
+    side_input_data = iterable_side_input._side_input_data()
+    assert side_input_data.access_pattern == common_urns.ITERABLE_SIDE_INPUT
+    iterable_view_fn = side_input_data.view_fn
+    self._data = beam.pvalue.SideInputData(
+        self.DATAFLOW_MULTIMAP_URN,
+        side_input_data.window_mapping_fn,
+        lambda multimap: iterable_view_fn(multimap['']),
+        coders.WindowedValueCoder(
+            coders.TupleCoder((coders.BytesCoder(),
+                               side_input_data.coder.wrapped_value_coder)),
+            side_input_data.coder.window_coder))
+
+
+class _DataflowMultimapSideInput(_DataflowSideInput):
+  """Wraps a multimap side input as dataflow-compatible side input."""
+
+  def __init__(self, side_input):
+    # pylint: disable=protected-access
+    self.pvalue = side_input.pvalue
+    side_input_data = side_input._side_input_data()
+    assert side_input_data.access_pattern == common_urns.MULTIMAP_SIDE_INPUT
+    self._data = beam.pvalue.SideInputData(
+        self.DATAFLOW_MULTIMAP_URN,
+        side_input_data.window_mapping_fn,
+        side_input_data.view_fn,
+        self._input_element_coder())
+
+
 class DataflowPipelineResult(PipelineResult):
   """Represents the state of a pipeline run on the Dataflow service."""
 
@@ -879,7 +1001,7 @@ class DataflowPipelineResult(PipelineResult):
   def _update_job(self):
     # We need the job id to be able to update job information. There is no need
     # to update the job if we are in a known terminal state.
-    if self.has_job and not self._is_in_terminal_state():
+    if self.has_job and not self.is_in_terminal_state():
       self._job = self._runner.dataflow_client.get_job(self.job_id())
 
   def job_id(self):
@@ -925,7 +1047,7 @@ class DataflowPipelineResult(PipelineResult):
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
             else PipelineState.UNKNOWN)
 
-  def _is_in_terminal_state(self):
+  def is_in_terminal_state(self):
     if not self.has_job:
       return True
 
@@ -933,10 +1055,10 @@ class DataflowPipelineResult(PipelineResult):
     return self._job.currentState in [
         values_enum.JOB_STATE_STOPPED, values_enum.JOB_STATE_DONE,
         values_enum.JOB_STATE_FAILED, values_enum.JOB_STATE_CANCELLED,
-        values_enum.JOB_STATE_DRAINED]
+        values_enum.JOB_STATE_UPDATED, values_enum.JOB_STATE_DRAINED]
 
   def wait_until_finish(self, duration=None):
-    if not self._is_in_terminal_state():
+    if not self.is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
 
@@ -953,8 +1075,8 @@ class DataflowPipelineResult(PipelineResult):
         time.sleep(5.0)
 
       # TODO: Merge the termination code in poll_for_job_completion and
-      # _is_in_terminal_state.
-      terminated = (str(self._job.currentState) != 'JOB_STATE_RUNNING')
+      # is_in_terminal_state.
+      terminated = self.is_in_terminal_state()
       assert duration or terminated, (
           'Job did not reach to a terminal state after waiting indefinitely.')
 
@@ -972,7 +1094,7 @@ class DataflowPipelineResult(PipelineResult):
 
     self._update_job()
 
-    if self._is_in_terminal_state():
+    if self.is_in_terminal_state():
       logging.warning(
           'Cancel failed because job %s is already terminated in state %s.',
           self.job_id(), self.state)

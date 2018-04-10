@@ -30,7 +30,6 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
 import org.apache.avro.reflect.Nullable;
 import org.apache.beam.examples.common.ExampleBigQueryTableOptions;
 import org.apache.beam.examples.common.ExampleOptions;
@@ -194,7 +193,7 @@ public class TrafficRoutes {
       String[] items = c.element().split(",");
       String stationType = tryParseStationType(items);
       // For this analysis, use only 'main line' station types
-      if (stationType != null && stationType.equals("ML")) {
+      if ("ML".equals(stationType)) {
         Double avgSpeed = tryParseAvgSpeed(items);
         String stationId = tryParseStationId(items);
         // For this simple example, filter out everything but some hardwired routes.
@@ -296,8 +295,8 @@ public class TrafficRoutes {
     public PCollection<TableRow> expand(PCollection<KV<String, StationSpeed>> stationSpeed) {
       // Apply a GroupByKey transform to collect a list of all station
       // readings for a given route.
-      PCollection<KV<String, Iterable<StationSpeed>>> timeGroup = stationSpeed.apply(
-        GroupByKey.<String, StationSpeed>create());
+      PCollection<KV<String, Iterable<StationSpeed>>> timeGroup =
+          stationSpeed.apply(GroupByKey.create());
 
       // Analyze 'slowdown' over the route readings.
       PCollection<KV<String, RouteInfo>> stats = timeGroup.apply(ParDo.of(new GatherStats()));
@@ -374,12 +373,12 @@ public class TrafficRoutes {
         // row... => <station route, station speed> ...
         .apply(ParDo.of(new ExtractStationSpeedFn()))
         // map the incoming data stream into sliding windows.
-        .apply(Window.<KV<String, StationSpeed>>into(SlidingWindows.of(
-            Duration.standardMinutes(options.getWindowDuration())).
-            every(Duration.standardMinutes(options.getWindowSlideEvery()))))
+        .apply(
+            Window.into(
+                SlidingWindows.of(Duration.standardMinutes(options.getWindowDuration()))
+                    .every(Duration.standardMinutes(options.getWindowSlideEvery()))))
         .apply(new TrackSpeed())
-        .apply(BigQueryIO.writeTableRows().to(tableRef)
-            .withSchema(FormatStatsFn.getSchema()));
+        .apply(BigQueryIO.writeTableRows().to(tableRef).withSchema(FormatStatsFn.getSchema()));
 
     // Run the pipeline.
     PipelineResult result = pipeline.run();
@@ -418,7 +417,7 @@ public class TrafficRoutes {
    * Define some small hard-wired San Diego 'routes' to track based on sensor station ID.
    */
   private static Map<String, String> buildStationInfo() {
-    Map<String, String> stations = new Hashtable<String, String>();
+    Map<String, String> stations = new Hashtable<>();
       stations.put("1108413", "SDRoute1"); // from freeway 805 S
       stations.put("1108699", "SDRoute2"); // from freeway 78 E
       stations.put("1108702", "SDRoute2");

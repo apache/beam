@@ -18,15 +18,13 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
-import java.util.TimeZone;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 
 /**
  * {@code BeamSqlExpression} for LOCALTIME and CURRENT_TIME.
@@ -40,14 +38,13 @@ public class BeamSqlCurrentTimeExpression extends BeamSqlExpression {
   public BeamSqlCurrentTimeExpression(List<BeamSqlExpression> operands) {
     super(operands, SqlTypeName.TIME);
   }
+
   @Override public boolean accept() {
     int opCount = getOperands().size();
     return opCount <= 1;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    GregorianCalendar ret = new GregorianCalendar(TimeZone.getDefault());
-    ret.setTime(new Date());
-    return BeamSqlPrimitive.of(outputType, ret);
+  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+    return BeamSqlPrimitive.of(outputType, DateTime.now());
   }
 }

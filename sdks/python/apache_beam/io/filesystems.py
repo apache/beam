@@ -19,12 +19,28 @@
 
 import re
 
+from six import string_types
+
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
-# All filesystem implements should be added here
+from apache_beam.options.value_provider import RuntimeValueProvider
+
+# All filesystem implements should be added here as
+# best effort imports. We don't want to force loading
+# a module if the user doesn't supply the correct
+# packages that these filesystems rely on.
+#
 # pylint: disable=wrong-import-position, unused-import
-from apache_beam.io.localfilesystem import LocalFileSystem
+try:
+  from apache_beam.io.hadoopfilesystem import HadoopFileSystem
+except ImportError:
+  pass
+
+try:
+  from apache_beam.io.localfilesystem import LocalFileSystem
+except ImportError:
+  pass
 
 try:
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
@@ -40,6 +56,17 @@ class FileSystems(object):
   All methods are static and access the underlying registered filesystems.
   """
   URI_SCHEMA_PATTERN = re.compile('(?P<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*')
+
+  _pipeline_options = None
+
+  @classmethod
+  def set_options(cls, pipeline_options):
+    """Set filesystem options.
+
+    Args:
+      pipeline_options: Instance of ``PipelineOptions``.
+    """
+    cls._pipeline_options = pipeline_options
 
   @staticmethod
   def get_scheme(path):
@@ -59,7 +86,11 @@ class FileSystems(object):
       if len(systems) == 0:
         raise ValueError('Unable to get the Filesystem for path %s' % path)
       elif len(systems) == 1:
-        return systems[0]()
+        # Pipeline options could come either from the Pipeline itself (using
+        # direct runner), or via RuntimeValueProvider (other runners).
+        options = (FileSystems._pipeline_options or
+                   RuntimeValueProvider.runtime_options)
+        return systems[0](pipeline_options=options)
       else:
         raise ValueError('Found more than one filesystem for path %s' % path)
     except ValueError:
@@ -207,6 +238,26 @@ class FileSystems(object):
     return filesystem.exists(path)
 
   @staticmethod
+  def checksum(path):
+    """Fetch checksum metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    This operation returns checksum metadata as stored in the underlying
+    FileSystem. It should not read any file data. Checksum type and format are
+    FileSystem dependent and are not compatible between FileSystems.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
+    """
+    filesystem = FileSystems.get_filesystem(path)
+    return filesystem.checksum(path)
+
+  @staticmethod
   def delete(paths):
     """Deletes files or directories at the provided paths.
     Directories will be deleted recursively.
@@ -217,6 +268,9 @@ class FileSystems(object):
     Raises:
       ``BeamIOError`` if any of the delete operations fail
     """
+    if isinstance(paths, string_types):
+      raise BeamIOError('Delete passed string argument instead of list: %s' %
+                        paths)
     if len(paths) == 0:
       return
     filesystem = FileSystems.get_filesystem(paths[0])

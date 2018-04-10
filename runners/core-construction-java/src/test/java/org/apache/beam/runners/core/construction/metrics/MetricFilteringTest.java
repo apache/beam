@@ -35,8 +35,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MetricFilteringTest {
-  private static final MetricName NAME1 = MetricName.named("ns1", "name1");
-
 
   private boolean matchesSubPath(String actualScope, String subPath) {
     return MetricFiltering.subPathMatches(actualScope, subPath);
@@ -130,7 +128,7 @@ public class MetricFilteringTest {
   }
 
   private boolean matchesScopeWithSingleFilter(String actualScope, String filter) {
-    Set<String> scopeFilter = new HashSet<String>();
+    Set<String> scopeFilter = new HashSet<>();
     scopeFilter.add(filter);
     return MetricFiltering.matchesScope(actualScope, scopeFilter);
   }

@@ -98,7 +98,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
     PCollectionView<List<String>> sideStrings =
         pipeline
             .apply("StringSideInputVals", Create.of("foo", "bar", "baz"))
-            .apply("SideStringsView", View.<String>asList());
+            .apply("SideStringsView", View.asList());
     ParDo.SingleOutput<Integer, Long> originalTransform =
         ParDo.of(new ToLongFn()).withSideInputs(sideLong, sideStrings);
 

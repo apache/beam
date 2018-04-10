@@ -24,11 +24,7 @@ from apache_beam.pipeline import PTransformOverride
 class CreatePTransformOverride(PTransformOverride):
   """A ``PTransformOverride`` for ``Create`` in streaming mode."""
 
-  def get_matcher(self):
-    return self.is_streaming_create
-
-  @staticmethod
-  def is_streaming_create(applied_ptransform):
+  def matches(self, applied_ptransform):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import Create

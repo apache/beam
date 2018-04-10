@@ -20,15 +20,17 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -45,6 +47,9 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -58,18 +63,39 @@ public class WriteFilesTranslation {
       "urn:beam:file_based_sink:javasdk:0.1";
 
   @VisibleForTesting
-  static WriteFilesPayload toProto(WriteFiles<?, ?, ?> transform) {
-    Map<String, SideInput> sideInputs = Maps.newHashMap();
-    for (PCollectionView<?> view : transform.getSink().getDynamicDestinations().getSideInputs()) {
-      sideInputs.put(view.getTagInternal().getId(), ParDoTranslation.toProto(view));
-    }
-    return WriteFilesPayload.newBuilder()
-        .setSink(toProto(transform.getSink()))
-        .setWindowedWrites(transform.isWindowedWrites())
-        .setRunnerDeterminedSharding(
-            transform.getNumShards() == null && transform.getSharding() == null)
-        .putAllSideInputs(sideInputs)
-        .build();
+  static WriteFilesPayload payloadForWriteFiles(
+      final WriteFiles<?, ?, ?> transform, SdkComponents components) throws IOException {
+    return payloadForWriteFilesLike(
+        new WriteFilesLike() {
+          @Override
+          public SdkFunctionSpec translateSink(SdkComponents newComponents) {
+            // TODO: register the environment
+            return toProto(transform.getSink());
+          }
+
+          @Override
+          public Map<String, SideInput> translateSideInputs(SdkComponents components) {
+            Map<String, SideInput> sideInputs = new HashMap<>();
+            for (PCollectionView<?> view :
+                transform.getSink().getDynamicDestinations().getSideInputs()) {
+              sideInputs.put(
+                  view.getTagInternal().getId(), ParDoTranslation.translateView(view, components));
+            }
+            return sideInputs;
+          }
+
+          @Override
+          public boolean isWindowedWrites() {
+            return transform.getWindowedWrites();
+          }
+
+          @Override
+          public boolean isRunnerDeterminedSharding() {
+            return transform.getNumShardsProvider() == null
+                && transform.getComputeNumShards() == null;
+          }
+        },
+        components);
   }
 
   private static SdkFunctionSpec toProto(FileBasedSink<?, ?, ?> sink) {
@@ -130,7 +156,7 @@ public class WriteFilesTranslation {
               "no input with tag %s",
               entry.getKey());
       views.add(
-          ParDoTranslation.viewFromProto(
+          PCollectionViewTranslation.viewFromProto(
               entry.getValue(),
               entry.getKey(),
               originalPCollection,
@@ -165,27 +191,107 @@ public class WriteFilesTranslation {
           transform)
       throws IOException {
     return WriteFilesPayload.parseFrom(
-        PTransformTranslation.toProto(
-                transform,
-                Collections.<AppliedPTransform<?, ?, ?>>emptyList(),
-                SdkComponents.create())
+        PTransformTranslation.toProto(transform, Collections.emptyList(), SdkComponents.create())
             .getSpec()
             .getPayload());
+  }
+
+  static class RawWriteFiles extends PTransformTranslation.RawPTransform<PInput, POutput>
+      implements WriteFilesLike {
+
+    private final RunnerApi.PTransform protoTransform;
+    private final transient RehydratedComponents rehydratedComponents;
+
+    // Parsed from protoTransform and cached
+    private final FunctionSpec spec;
+    private final RunnerApi.WriteFilesPayload payload;
+
+    public RawWriteFiles(
+        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
+        throws IOException {
+      this.rehydratedComponents = rehydratedComponents;
+      this.protoTransform = protoTransform;
+      this.spec = protoTransform.getSpec();
+      this.payload = RunnerApi.WriteFilesPayload.parseFrom(spec.getPayload());
+    }
+
+    @Override
+    public FunctionSpec getSpec() {
+      return spec;
+    }
+
+    @Override
+    public FunctionSpec migrate(SdkComponents components) throws IOException {
+      return FunctionSpec.newBuilder()
+          .setUrn(WRITE_FILES_TRANSFORM_URN)
+          .setPayload(payloadForWriteFilesLike(this, components).toByteString())
+          .build();
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      Map<TupleTag<?>, PValue> additionalInputs = new HashMap<>();
+      for (Map.Entry<String, SideInput> sideInputEntry : payload.getSideInputsMap().entrySet()) {
+        try {
+          additionalInputs.put(
+              new TupleTag<>(sideInputEntry.getKey()),
+              rehydratedComponents.getPCollection(
+                  protoTransform.getInputsOrThrow(sideInputEntry.getKey())));
+        } catch (IOException exc) {
+          throw new IllegalStateException(
+              String.format(
+                  "Could not find input with name %s for %s transform",
+                  sideInputEntry.getKey(), WriteFiles.class.getSimpleName()));
+        }
+      }
+      return additionalInputs;
+    }
+
+    @Override
+    public SdkFunctionSpec translateSink(SdkComponents newComponents) {
+      // TODO: re-register the environment with the new components
+      return payload.getSink();
+    }
+
+    @Override
+    public Map<String, SideInput> translateSideInputs(SdkComponents components) {
+      // TODO: re-register the PCollections and UDF environments
+      return MoreObjects.firstNonNull(
+          payload.getSideInputsMap(), Collections.<String, SideInput>emptyMap());
+    }
+
+    @Override
+    public boolean isWindowedWrites() {
+      return payload.getWindowedWrites();
+    }
+
+    @Override
+    public boolean isRunnerDeterminedSharding() {
+      return payload.getRunnerDeterminedSharding();
+    }
   }
 
   static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?, ?, ?>> {
     @Override
     public String getUrn(WriteFiles<?, ?, ?> transform) {
-      return PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
+      return WRITE_FILES_TRANSFORM_URN;
     }
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, WriteFiles<?, ?, ?>> transform, SdkComponents components) {
+        AppliedPTransform<?, ?, WriteFiles<?, ?, ?>> transform, SdkComponents components)
+        throws IOException {
       return FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setPayload(toProto(transform.getTransform()).toByteString())
+          .setPayload(payloadForWriteFiles(transform.getTransform(), components).toByteString())
           .build();
+    }
+
+    @Override
+    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
+        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
+        throws IOException {
+      return new RawWriteFiles(protoTransform, rehydratedComponents);
     }
   }
 
@@ -193,9 +299,36 @@ public class WriteFilesTranslation {
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
-    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+    public Map<Class<? extends PTransform>, TransformPayloadTranslator>
         getTransformPayloadTranslators() {
-      return Collections.singletonMap(WriteFiles.class, new WriteFilesTranslator());
+      return Collections.singletonMap(WriteFiles.CONCRETE_CLASS, new WriteFilesTranslator());
     }
+
+    @Override
+    public Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.singletonMap(WRITE_FILES_TRANSFORM_URN, new WriteFilesTranslator());
+    }
+  }
+
+  /** These methods drive to-proto translation from Java and from rehydrated WriteFiles. */
+  private interface WriteFilesLike {
+    SdkFunctionSpec translateSink(SdkComponents newComponents);
+
+    Map<String, RunnerApi.SideInput> translateSideInputs(SdkComponents components);
+
+    boolean isWindowedWrites();
+
+    boolean isRunnerDeterminedSharding();
+  }
+
+  public static WriteFilesPayload payloadForWriteFilesLike(
+      WriteFilesLike writeFiles, SdkComponents components) throws IOException {
+
+    return WriteFilesPayload.newBuilder()
+        .setSink(writeFiles.translateSink(components))
+        .putAllSideInputs(writeFiles.translateSideInputs(components))
+        .setWindowedWrites(writeFiles.isWindowedWrites())
+        .setRunnerDeterminedSharding(writeFiles.isRunnerDeterminedSharding())
+        .build();
   }
 }

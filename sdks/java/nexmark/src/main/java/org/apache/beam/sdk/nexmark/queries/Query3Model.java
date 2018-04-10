@@ -19,13 +19,11 @@ package org.apache.beam.sdk.nexmark.queries;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
@@ -93,8 +91,8 @@ public class Query3Model extends NexmarkQueryModel implements Serializable {
         }
       } else {
         // Only want people in OR, ID or CA.
-        if (event.newPerson.state.equals("OR") || event.newPerson.state.equals("ID")
-            || event.newPerson.state.equals("CA")) {
+        if ("OR".equals(event.newPerson.state) || "ID".equals(event.newPerson.state)
+            || "CA".equals(event.newPerson.state)) {
           // Join new person with existing auctions.
           for (Auction auction : newAuctions.get(event.newPerson.id)) {
             addResult(auction, event.newPerson, timestamp);

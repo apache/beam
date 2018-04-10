@@ -89,10 +89,10 @@ class ReadFromDatastore(PTransform):
   _DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024
 
   def __init__(self, project, query, namespace=None, num_splits=0):
-    """Initialize the ReadFromDatastore transform.
+    """Initialize the `ReadFromDatastore` transform.
 
     Args:
-      project: The Project ID
+      project: The ID of the project to read from.
       query: Cloud Datastore query to be read from.
       namespace: An optional namespace.
       num_splits: Number of splits for the query.
@@ -459,7 +459,13 @@ class _Mutate(PTransform):
 
 class WriteToDatastore(_Mutate):
   """A ``PTransform`` to write a ``PCollection[Entity]`` to Cloud Datastore."""
+
   def __init__(self, project):
+    """Initialize the `WriteToDatastore` transform.
+
+    Args:
+      project: The ID of the project to write to.
+    """
 
     # Import here to avoid adding the dependency for local running scenarios.
     try:
@@ -486,6 +492,12 @@ class WriteToDatastore(_Mutate):
 class DeleteFromDatastore(_Mutate):
   """A ``PTransform`` to delete a ``PCollection[Key]`` from Cloud Datastore."""
   def __init__(self, project):
+    """Initialize the `DeleteFromDatastore` transform.
+
+    Args:
+      project: The ID of the project from which the entities will be deleted.
+    """
+
     super(DeleteFromDatastore, self).__init__(
         project, DeleteFromDatastore.to_delete_mutation)
 

@@ -265,6 +265,23 @@ class GCSFileSystem(FileSystem):
     """
     return gcsio.GcsIO().exists(path)
 
+  def checksum(self, path):
+    """Fetch checksum metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
+    """
+    try:
+      return gcsio.GcsIO().checksum(path)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("Checksum operation failed", {path: e})
+
   def delete(self, paths):
     """Deletes files or directories at the provided paths.
     Directories will be deleted recursively.

@@ -23,7 +23,10 @@ import Queue
 import threading
 import traceback
 
+from apache_beam.coders import observable
 from apache_beam.io import iobase
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -50,8 +53,10 @@ _globally_windowed = window.GlobalWindows.windowed_value(None).with_value
 class PrefetchingSourceSetIterable(object):
   """Value iterator that reads concurrently from a set of sources."""
 
-  def __init__(self, sources,
-               max_reader_threads=MAX_SOURCE_READER_THREADS):
+  def __init__(self,
+               sources,
+               max_reader_threads=MAX_SOURCE_READER_THREADS,
+               read_counter=None):
     self.sources = sources
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
 
@@ -68,8 +73,28 @@ class PrefetchingSourceSetIterable(object):
     # Whether an error was encountered in any source reader.
     self.has_errored = False
 
+    self.read_counter = read_counter or opcounters.TransformIOCounter()
+
     self.reader_threads = []
     self._start_reader_threads()
+
+  def add_byte_counter(self, reader):
+    """Adds byte counter observer to a side input reader.
+
+    If the 'sideinput_io_metrics' experiment flag is not passed in, then nothing
+    is attached to the reader.
+
+    Args:
+      reader: A reader that should inherit from ObservableMixin to have
+        bytes tracked.
+    """
+    def update_bytes_read(record_size, is_record_size=False, **kwargs):
+      # Let the reader report block size.
+      if is_record_size:
+        self.read_counter.add_bytes_read(record_size)
+
+    if isinstance(reader, observable.ObservableMixin):
+      reader.register_observer(update_bytes_read)
 
   def _start_reader_threads(self):
     for _ in range(0, self.num_reader_threads):
@@ -80,6 +105,7 @@ class PrefetchingSourceSetIterable(object):
 
   def _reader_thread(self):
     # pylint: disable=too-many-nested-blocks
+    experiments = RuntimeValueProvider.get_value('experiments', list, [])
     try:
       while True:
         try:
@@ -96,6 +122,11 @@ class PrefetchingSourceSetIterable(object):
           else:
             # Native dataflow source.
             with source.reader() as reader:
+              # The tracking of time spend reading and bytes read from side
+              # inputs is kept behind an experiment flag to test performance
+              # impact.
+              if 'sideinput_io_metrics' in experiments:
+                self.add_byte_counter(reader)
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
                 if self.has_errored:
@@ -152,12 +183,17 @@ class PrefetchingSourceSetIterable(object):
         t.join()
 
 
-def get_iterator_fn_for_sources(
-    sources, max_reader_threads=MAX_SOURCE_READER_THREADS):
+def get_iterator_fn_for_sources(sources,
+                                max_reader_threads=MAX_SOURCE_READER_THREADS,
+                                read_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
   def _inner():
-    return iter(PrefetchingSourceSetIterable(
-        sources, max_reader_threads=max_reader_threads))
+    return iter(
+        PrefetchingSourceSetIterable(
+            sources,
+            max_reader_threads=max_reader_threads,
+            read_counter=read_counter))
+
   return _inner
 
 

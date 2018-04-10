@@ -58,8 +58,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Tests for util classes related to BigQuery.
@@ -110,17 +108,16 @@ public class BigQueryUtilTest {
     }
 
     doAnswer(
-        new Answer<Bigquery.Tabledata.InsertAll>() {
-          @Override
-          public Bigquery.Tabledata.InsertAll answer(InvocationOnMock invocation) throws Throwable {
-            Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
-            when(mockInsertAll.execute())
-                .thenReturn(responses.get(0),
-                    responses.subList(1, responses.size()).toArray(
-                        new TableDataInsertAllResponse[responses.size() - 1]));
-            return mockInsertAll;
-          }
-        })
+            invocation -> {
+              Bigquery.Tabledata.InsertAll mockInsertAll = mock(Bigquery.Tabledata.InsertAll.class);
+              when(mockInsertAll.execute())
+                  .thenReturn(
+                      responses.get(0),
+                      responses
+                          .subList(1, responses.size())
+                          .toArray(new TableDataInsertAllResponse[responses.size() - 1]));
+              return mockInsertAll;
+            })
         .when(mockTabledata)
         .insertAll(anyString(), anyString(), anyString(), any(TableDataInsertAllRequest.class));
   }
@@ -200,7 +197,7 @@ public class BigQueryUtilTest {
     errorsIndices.add(Arrays.asList(0L, 5L, 10L, 15L, 20L));
     errorsIndices.add(Arrays.asList(0L, 2L, 4L));
     errorsIndices.add(Arrays.asList(0L, 2L));
-    errorsIndices.add(new ArrayList<Long>());
+    errorsIndices.add(new ArrayList<>());
     onInsertAll(errorsIndices);
 
     TableReference ref = BigQueryHelpers

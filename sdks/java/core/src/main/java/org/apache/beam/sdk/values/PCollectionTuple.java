@@ -156,7 +156,7 @@ public class PCollectionTuple implements PInput, POutput {
    * @return the output of the applied {@link PTransform}
    */
   public <OutputT extends POutput> OutputT apply(
-      PTransform<PCollectionTuple, OutputT> t) {
+      PTransform<? super PCollectionTuple, OutputT> t) {
     return Pipeline.applyTransform(this, t);
   }
 
@@ -169,7 +169,7 @@ public class PCollectionTuple implements PInput, POutput {
    * @return the output of the applied {@link PTransform}
    */
   public <OutputT extends POutput> OutputT apply(
-      String name, PTransform<PCollectionTuple, OutputT> t) {
+      String name, PTransform<? super PCollectionTuple, OutputT> t) {
     return Pipeline.applyTransform(name, this, t);
   }
 
@@ -181,7 +181,7 @@ public class PCollectionTuple implements PInput, POutput {
   final Map<TupleTag<?>, PCollection<?>> pcollectionMap;
 
   PCollectionTuple(Pipeline pipeline) {
-    this(pipeline, new LinkedHashMap<TupleTag<?>, PCollection<?>>());
+    this(pipeline, new LinkedHashMap<>());
   }
 
   PCollectionTuple(Pipeline pipeline,
@@ -236,7 +236,7 @@ public class PCollectionTuple implements PInput, POutput {
 
   @Override
   public Map<TupleTag<?>, PValue> expand() {
-    return ImmutableMap.<TupleTag<?>, PValue>copyOf(pcollectionMap);
+    return ImmutableMap.copyOf(pcollectionMap);
   }
 
   @Override

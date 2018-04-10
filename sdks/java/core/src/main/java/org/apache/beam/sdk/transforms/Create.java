@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -117,7 +116,7 @@ public class Create<T> {
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   public static <T> Values<T> of(Iterable<T> elems) {
-    return new Values<>(elems, Optional.<Coder<T>>absent(), Optional.<TypeDescriptor<T>>absent());
+    return new Values<>(elems, Optional.absent(), Optional.absent());
   }
 
   /**
@@ -137,7 +136,7 @@ public class Create<T> {
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   @SafeVarargs
-  public static <T> Values<T> of(T elem, T... elems) {
+  public static <T> Values<T> of(@Nullable T elem, @Nullable T... elems) {
     // This can't be an ImmutableList, as it may accept nulls
     List<T> input = new ArrayList<>(elems.length + 1);
     input.add(elem);
@@ -157,8 +156,7 @@ public class Create<T> {
    * Instead, the {@code Coder} is provided via the {@code coder} argument.
    */
   public static <T> Values<T> empty(Coder<T> coder) {
-    return new Values<>(new ArrayList<T>(), Optional.of(coder),
-        Optional.<TypeDescriptor<T>>absent());
+    return new Values<>(new ArrayList<>(), Optional.of(coder), Optional.absent());
   }
 
   /**
@@ -175,7 +173,7 @@ public class Create<T> {
    * {@code TypeDescriptor<T>}.
    */
   public static <T> Values<T> empty(TypeDescriptor<T> type) {
-    return new Values<>(new ArrayList<T>(), Optional.<Coder<T>>absent(), Optional.of(type));
+    return new Values<>(new ArrayList<>(), Optional.absent(), Optional.of(type));
   }
 
   /**
@@ -223,10 +221,7 @@ public class Create<T> {
    * Otherwise, use {@link Create.TimestampedValues#withCoder} to set the coder explicitly.
    */
   public static <T> TimestampedValues<T> timestamped(Iterable<TimestampedValue<T>> elems) {
-    return new TimestampedValues<>(
-        elems,
-        Optional.<Coder<T>>absent(),
-        Optional.<TypeDescriptor<T>>absent());
+    return new TimestampedValues<>(elems, Optional.absent(), Optional.absent());
   }
 
   /**
@@ -423,7 +418,7 @@ public class Create<T> {
 
       @Override
       public long getBytesPerOffset() {
-        if (allElementsBytes.size() == 0) {
+        if (allElementsBytes.isEmpty()) {
           return 1L;
         }
         return Math.max(1, totalSize / allElementsBytes.size());
@@ -570,21 +565,14 @@ public class Create<T> {
           coder = input.getPipeline().getCoderRegistry().getCoder(typeDescriptor.get());
         } else {
           Iterable<T> rawElements =
-              Iterables.transform(
-                  timestampedElements,
-                  new Function<TimestampedValue<T>, T>() {
-                    @Override
-                    public T apply(TimestampedValue<T> timestampedValue) {
-                      return timestampedValue.getValue();
-                    }
-                  });
+              Iterables.transform(timestampedElements, TimestampedValue::getValue);
           coder = getDefaultCreateCoder(input.getPipeline().getCoderRegistry(), rawElements);
         }
 
         PCollection<TimestampedValue<T>> intermediate = Pipeline.applyTransform(input,
             Create.of(timestampedElements).withCoder(TimestampedValueCoder.of(coder)));
 
-        PCollection<T> output = intermediate.apply(ParDo.of(new ConvertTimestamps<T>()));
+        PCollection<T> output = intermediate.apply(ParDo.of(new ConvertTimestamps<>()));
         output.setCoder(coder);
         return output;
       } catch (CannotProvideCoderException e) {

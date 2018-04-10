@@ -1,0 +1,101 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature(enableFindbugs: false)
+
+description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
+ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ * TODO: Swap to generating test artifacts which we can then rely on instead of
+ * the test outputs directly.
+ */
+evaluationDependsOn(":beam-sdks-java-extensions-google-cloud-platform-core")
+
+dependencies {
+  compile library.java.guava
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-extensions-protobuf", configuration: "shadow")
+  shadow library.java.jackson_databind
+  shadow library.java.grpc_core
+  shadow library.java.google_api_services_bigquery
+  shadow library.java.gax_grpc
+  shadow library.java.google_cloud_core_grpc
+  shadow library.java.google_api_services_pubsub
+  shadow library.java.grpc_google_cloud_pubsub_v1
+  shadow library.java.proto_google_cloud_pubsub_v1
+  shadow library.java.bigdataoss_util
+  shadow library.java.datastore_v1_proto_client
+  shadow library.java.datastore_v1_protos
+  shadow library.java.grpc_auth
+  shadow library.java.grpc_netty
+  shadow library.java.netty_handler
+  shadow library.java.grpc_stub
+  shadow library.java.joda_time
+  shadow library.java.google_cloud_core
+  shadow library.java.google_cloud_spanner
+  shadow library.java.bigtable_protos
+  shadow library.java.bigtable_client_core
+  shadow library.java.google_api_client
+  shadow library.java.google_http_client
+  shadow library.java.google_http_client_jackson2
+  shadow library.java.google_auth_library_credentials
+  shadow library.java.google_auth_library_oauth2_http
+  shadow library.java.slf4j_api
+  shadow library.java.protobuf_java
+  shadow library.java.findbugs_jsr305
+  shadow library.java.avro
+  shadow library.java.proto_google_cloud_spanner_admin_database_v1
+  shadow library.java.proto_google_common_protos
+  shadow library.java.grpc_all
+  shadow library.java.netty_tcnative_boringssl_static
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  shadowTest project(":beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
+  shadowTest project(path: ":beam-runners-direct-java", configuration: "shadow")
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.mockito_core
+  shadowTest library.java.junit
+  shadowTest library.java.slf4j_jdk14
+}
+
+// Create a shaded test jar.
+task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+  classifier = "shaded-tests"
+  from sourceSets.test.output
+  configurations = [project.configurations.testRuntime]
+  dependencies {
+    exclude(".*")
+    include(dependency(library.java.guava))
+  }
+  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
+    // com.google.common is too generic, need to exclude guava-testlib
+    exclude "com.google.common.collect.testing.**"
+    exclude "com.google.common.escape.testing.**"
+    exclude "com.google.common.testing.**"
+    exclude "com.google.common.util.concurrent.testing.**"
+  }
+}
+
+artifacts {
+  shadowTest shadowTestJar
+}

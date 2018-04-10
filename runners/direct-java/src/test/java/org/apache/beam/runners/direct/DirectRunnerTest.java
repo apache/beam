@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertThat;
@@ -39,6 +40,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.runners.direct.DirectRunner.DirectPipelineResult;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -109,13 +111,15 @@ public class DirectRunnerTest implements Serializable {
 
     PCollection<KV<String, Long>> counts =
         p.apply(Create.of("foo", "bar", "foo", "baz", "bar", "foo"))
-            .apply(MapElements.via(new SimpleFunction<String, String>() {
-              @Override
-              public String apply(String input) {
-                return input;
-              }
-            }))
-            .apply(Count.<String>perElement());
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<String, String>() {
+                      @Override
+                      public String apply(String input) {
+                        return input;
+                      }
+                    }))
+            .apply(Count.perElement());
     PCollection<String> countStrs =
         counts.apply(MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
           @Override
@@ -139,13 +143,15 @@ public class DirectRunnerTest implements Serializable {
     changed = new AtomicInteger(0);
     PCollection<KV<String, Long>> counts =
         p.apply(Create.of("foo", "bar", "foo", "baz", "bar", "foo"))
-            .apply(MapElements.via(new SimpleFunction<String, String>() {
-              @Override
-              public String apply(String input) {
-                return input;
-              }
-            }))
-            .apply(Count.<String>perElement());
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<String, String>() {
+                      @Override
+                      public String apply(String input) {
+                        return input;
+                      }
+                    }))
+            .apply(Count.perElement());
     PCollection<String> countStrs =
         counts.apply(MapElements.via(new SimpleFunction<KV<String, Long>, String>() {
           @Override
@@ -178,17 +184,15 @@ public class DirectRunnerTest implements Serializable {
   public void byteArrayCountShouldSucceed() {
     Pipeline p = getPipeline();
 
-    SerializableFunction<Integer, byte[]> getBytes = new SerializableFunction<Integer, byte[]>() {
-      @Override
-      public byte[] apply(Integer input) {
-        try {
-          return CoderUtils.encodeToByteArray(VarIntCoder.of(), input);
-        } catch (CoderException e) {
-          fail("Unexpected Coder Exception " + e);
-          throw new AssertionError("Unreachable");
-        }
-      }
-    };
+    SerializableFunction<Integer, byte[]> getBytes =
+        input -> {
+          try {
+            return CoderUtils.encodeToByteArray(VarIntCoder.of(), input);
+          } catch (CoderException e) {
+            fail("Unexpected Coder Exception " + e);
+            throw new AssertionError("Unreachable");
+          }
+        };
     TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>() {
     };
     PCollection<byte[]> foos =
@@ -196,9 +200,8 @@ public class DirectRunnerTest implements Serializable {
             .apply(MapElements.into(td).via(getBytes));
     PCollection<byte[]> msync =
         p.apply(Create.of(1, -2, -8, -16)).apply(MapElements.into(td).via(getBytes));
-    PCollection<byte[]> bytes =
-        PCollectionList.of(foos).and(msync).apply(Flatten.<byte[]>pCollections());
-    PCollection<KV<byte[], Long>> counts = bytes.apply(Count.<byte[]>perElement());
+    PCollection<byte[]> bytes = PCollectionList.of(foos).and(msync).apply(Flatten.pCollections());
+    PCollection<KV<byte[], Long>> counts = bytes.apply(Count.perElement());
     PCollection<KV<Integer, Long>> countsBackToString =
         counts.apply(MapElements.via(new SimpleFunction<KV<byte[], Long>, KV<Integer, Long>>() {
           @Override
@@ -242,33 +245,29 @@ public class DirectRunnerTest implements Serializable {
     p.apply(GenerateSequence.from(0).withRate(1L, Duration.standardSeconds(1)));
 
     final BlockingQueue<PipelineResult> resultExchange = new ArrayBlockingQueue<>(1);
-    Runnable cancelRunnable = new Runnable() {
-      @Override
-      public void run() {
-        try {
-          resultExchange.take().cancel();
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new IllegalStateException(e);
-        } catch (IOException e) {
-          throw new IllegalStateException(e);
-        }
-      }
-    };
+    Runnable cancelRunnable =
+        () -> {
+          try {
+            resultExchange.take().cancel();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+          } catch (IOException e) {
+            throw new IllegalStateException(e);
+          }
+        };
 
-    Callable<PipelineResult> runPipelineRunnable = new Callable<PipelineResult>() {
-      @Override
-      public PipelineResult call() {
-        PipelineResult res = p.run();
-        try {
-          resultExchange.put(res);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new IllegalStateException(e);
-        }
-        return res;
-      }
-    };
+    Callable<PipelineResult> runPipelineRunnable =
+        () -> {
+          PipelineResult res = p.run();
+          try {
+            resultExchange.put(res);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+          }
+          return res;
+        };
 
     ExecutorService executor = Executors.newCachedThreadPool();
     executor.submit(cancelRunnable);
@@ -300,6 +299,39 @@ public class DirectRunnerTest implements Serializable {
     // Must time out, otherwise this test will never complete
     result.waitUntilFinish(Duration.millis(1L));
     assertThat(result.getState(), is(State.RUNNING));
+  }
+
+  private static final AtomicLong TEARDOWN_CALL = new AtomicLong(-1);
+
+  @Test
+  public void tearsDownFnsBeforeFinishing() {
+    TEARDOWN_CALL.set(-1);
+    final Pipeline pipeline = getPipeline();
+    pipeline.apply(Create.of("a"))
+      .apply(ParDo.of(new DoFn<String, String>() {
+        @ProcessElement
+        public void onElement(final ProcessContext ctx) {
+            // no-op
+        }
+
+        @Teardown
+        public void teardown() {
+          // just to not have a fast execution hiding an issue until we have a shutdown callback
+          try {
+            Thread.sleep(1000);
+          } catch (final InterruptedException e) {
+            fail();
+          }
+          TEARDOWN_CALL.set(System.nanoTime());
+        }
+      }));
+    final PipelineResult pipelineResult = pipeline.run();
+    pipelineResult.waitUntilFinish();
+
+    final long doneTs = System.nanoTime();
+    final long tearDownTs = TEARDOWN_CALL.get();
+    assertThat(tearDownTs, greaterThan(0L));
+    assertThat(doneTs, greaterThan(tearDownTs));
   }
 
   @Test

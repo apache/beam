@@ -22,12 +22,12 @@ import com.google.bigtable.v2.Mutation;
 import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CompletionStage;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
 import org.apache.beam.sdk.values.KV;
 
@@ -47,7 +47,7 @@ interface BigtableService extends Serializable {
      *
      * @throws IOException if there is an error submitting the write.
      */
-    ListenableFuture<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
+    CompletionStage<MutateRowResponse> writeRecord(KV<ByteString, Iterable<Mutation>> record)
         throws IOException;
 
     /**

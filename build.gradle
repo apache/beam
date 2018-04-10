@@ -1,0 +1,139 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// See build_rules.gradle for documentation on default build tasks
+// and properties that are enabled in addition to natures
+// that can be applied to configure a project for certain common
+// tasks.
+
+apply from: project(":").file("build_rules.gradle")
+
+// Define the set of repositories and dependencies required to
+// fetch and enable plugins.
+buildscript {
+  repositories {
+    maven { url offlineRepositoryRoot }
+
+    // To run gradle in offline mode, one must first invoke
+    // 'updateOfflineRepository' to create an offline repo
+    // inside the root project directory. See the application
+    // of the offline repo plugin within build_rules.gradle
+    // for further details.
+    if (gradle.startParameter.isOffline()) {
+      return
+    }
+
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+    maven { url "https://plugins.gradle.org/m2/" }
+    maven { url "http://repo.spring.io/plugins-release" }
+  }
+  dependencies {
+    classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
+    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"                                        // Enable proto code generation
+    classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
+    classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"                              // Enable Apache license enforcement
+    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"                                 // Enable Avro code generation
+    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"                                      // Enable a code formatting plugin
+    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.9"                                       // Enable Go code compilation
+    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"                           // Enable building Docker containers
+    classpath "cz.malohlava:visteg:1.0.3"                                                               // Enable generating Gradle task dependencies as ".dot" files
+    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"                                        // Enable shading Java dependencies
+    classpath "ca.coglinc:javacc-gradle-plugin:2.4.0"                                                   // Enable the JavaCC parser generator
+    classpath "gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.3" // Enable creating an offline repository
+  }
+}
+
+/*************************************************************************************************/
+// Configure the root project
+
+apply plugin: "base"
+
+// Apply one top level rat plugin to perform any required license enforcement analysis
+apply plugin: "org.nosphere.apache.rat"
+
+rat {
+  def exclusions = [
+    // Ignore files we track but do not distribute
+    ".github/**/*",
+
+    "**/package-list",
+    "**/user.avsc",
+    "**/test/resources/**/*.txt",
+    "**/test/**/.placeholder",
+
+    // Default eclipse excludes neglect subprojects
+
+    // Proto/grpc generated wrappers
+    "**/apache_beam/portability/api/*_pb2*.py",
+    "**/go/pkg/beam/**/*.pb.go",
+
+    // Ignore Go test data files
+    "**/go/data/**",
+
+    // VCF test files
+    "**/apache_beam/testing/data/vcf/*",
+  ]
+
+  // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
+  // of the Apache Maven Rat plugin since the Apache Ant Rat plugin doesn't do this
+  // automatically.
+  def gitIgnore = project(':').file('.gitignore')
+  if (gitIgnore.exists()) {
+    def gitIgnoreExcludes = gitIgnore.readLines().findAll { !it.isEmpty() && !it.startsWith('#') }
+    println "Adding ${gitIgnoreExcludes.size()} .gitignore exclusions to Apache Rat"
+    exclusions.addAll(gitIgnoreExcludes)
+  }
+
+  plainOutput = true
+  xmlOutput = false
+  htmlOutput = false
+  failOnError = true
+  excludes = exclusions
+}
+check.dependsOn rat
+
+// Define root pre/post commit tasks simplifying what is needed
+// to be specified on the commandline when executing locally.
+// This indirection also makes Jenkins use the branch of the PR
+// for the test definitions.
+task javaPreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-sdks-java-core:buildNeeded"
+  dependsOn ":beam-sdks-java-core:buildDependents"
+  dependsOn ":beam-sdks-java-maven-archetypes-examples:generateAndBuildArchetypeTest"
+  dependsOn ":beam-sdks-java-maven-archetypes-starter:generateAndBuildArchetypeTest"
+  dependsOn ":beam-examples-java:preCommit"
+}
+
+task javaPostCommit() {
+  dependsOn ":javaPreCommit"
+  dependsOn ":beam-runners-google-cloud-dataflow-java:postCommit"
+}
+
+task goPreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-sdks-go:test"
+}
+
+task pythonPreCommit() {
+  dependsOn ":rat"
+  dependsOn ":beam-sdks-python:check"
+}
+

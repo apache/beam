@@ -53,7 +53,7 @@ import org.joda.time.format.ISODateTimeFormat;
  * interface.
  */
 public class DisplayData implements Serializable {
-  private static final DisplayData EMPTY = new DisplayData(Maps.<Identifier, Item>newHashMap());
+  private static final DisplayData EMPTY = new DisplayData(Maps.newHashMap());
   private static final DateTimeFormatter TIMESTAMP_FORMATTER = ISODateTimeFormat.dateTime();
 
   private final ImmutableMap<Identifier, Item> entries;
@@ -522,7 +522,7 @@ public class DisplayData implements Serializable {
      * Path for display data registered by a top-level component.
      */
     public static Path root() {
-      return new Path(ImmutableList.<String>of());
+      return new Path(ImmutableList.of());
     }
 
     /**
@@ -710,14 +710,14 @@ public class DisplayData implements Serializable {
      */
     private static final FormattedItemValue NULL_VALUES = new FormattedItemValue(null);
 
-    private final Object shortValue;
-    private final Object longValue;
+    @Nullable private final Object shortValue;
+    @Nullable private final Object longValue;
 
-    private FormattedItemValue(Object longValue) {
+    private FormattedItemValue(@Nullable Object longValue) {
       this(longValue, null);
     }
 
-    private FormattedItemValue(Object longValue, Object shortValue) {
+    private FormattedItemValue(@Nullable Object longValue, @Nullable Object shortValue) {
       this.longValue = longValue;
       this.shortValue = shortValue;
     }
@@ -735,8 +735,8 @@ public class DisplayData implements Serializable {
     private final Set<HasDisplayData> visitedComponents;
     private final Map<Path, HasDisplayData> visitedPathMap;
 
-    private Path latestPath;
-    private Class<?> latestNs;
+    @Nullable private Path latestPath;
+    @Nullable private Class<?> latestNs;
 
     private InternalBuilder() {
       this.entries = Maps.newHashMap();
@@ -783,6 +783,15 @@ public class DisplayData implements Serializable {
       // generated class.
       if (namespace.getSimpleName().startsWith("AutoValue_")) {
         namespace = namespace.getSuperclass();
+      }
+      if (namespace.isSynthetic() && namespace.getSimpleName().contains("$$Lambda")) {
+        try {
+          namespace =
+              Class.forName(namespace.getCanonicalName().replaceFirst("\\$\\$Lambda.*", ""));
+        } catch (Exception e) {
+          throw new PopulateDisplayDataException(
+              "Failed to get the enclosing class of lambda " + subComponent, e);
+        }
       }
 
       Path prevPath = latestPath;

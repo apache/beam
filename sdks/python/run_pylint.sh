@@ -33,7 +33,7 @@ usage(){ echo "Usage: $0 [MODULE|--help]  # The default MODULE is $MODULE"; }
 if test $# -gt 0; then
   case "$@" in
     --help) usage; exit 1;;
-	 *)      MODULE="$@";;
+	 *)      MODULE="$*";;
   esac
 fi
 
@@ -59,18 +59,25 @@ done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
 echo "Running pylint for module $MODULE:"
-pylint $MODULE --ignore-patterns="$FILES_TO_IGNORE"
+pylint -j8 "$MODULE" --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running pycodestyle for module $MODULE:"
-pycodestyle $MODULE --exclude="$FILES_TO_IGNORE"
+pycodestyle "$MODULE" --exclude="$FILES_TO_IGNORE"
+echo "Running flake8 for module $MODULE:"
+# TODO(BEAM-3959): Add F821 (undefined names) as soon as that test passes
+flake8 $MODULE --count --select=E9,F822,F823 --show-source --statistics
+
 echo "Running isort for module $MODULE:"
 # Skip files where isort is behaving weirdly
 ISORT_EXCLUDED=(
   "apiclient.py"
   "avroio_test.py"
   "datastore_wordcount.py"
+  "datastoreio_test.py"
+  "hadoopfilesystem.py"
   "iobase_test.py"
   "fast_coders_test.py"
   "slow_coders_test.py"
+  "vcfio.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
@@ -79,6 +86,36 @@ done
 for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
 done
-pushd $MODULE
-isort -p apache_beam -w 120 -y -c -ot -cs -sl ${SKIP_PARAM}
+pushd "$MODULE"
+isort -p apache_beam --line-width 120 --check-only --order-by-type --combine-star --force-single-line-imports --diff ${SKIP_PARAM}
 popd
+
+FUTURIZE_EXCLUDED=(
+  "typehints.py"
+  "pb2"
+  "trivial_infernce.py"
+)
+FUTURIZE_GREP_PARAM=$( IFS='|'; echo "${ids[*]}" )
+echo "Checking for files requiring stage 1 refactoring from futurize"
+futurize_results=$(futurize -j 8 --stage1 apache_beam 2>&1 |grep Refactored)
+futurize_filtered=$(echo "$futurize_results" |grep -v "$FUTURIZE_GREP_PARAM" || echo "")
+count=${#futurize_filtered}
+if [ "$count" != "0" ]; then
+  echo "Some of the changes require futurize stage 1 changes."
+  echo "The files with required changes:"
+  echo "$futurize_filtered"
+  echo "You can run futurize apache_beam to see the proposed changes."
+  exit 1
+fi
+echo "No future changes needed"
+
+echo "Checking unittest.main for module ${MODULE}:"
+TESTS_MISSING_MAIN=$(find ${MODULE} | grep '\.py$' | xargs grep -l '^import unittest$' | xargs grep -L unittest.main)
+if [ -n "${TESTS_MISSING_MAIN}" ]; then
+  echo -e "\nThe following files are missing a call to unittest.main():"
+  for FILE in ${TESTS_MISSING_MAIN}; do
+    echo "  ${FILE}"
+  done
+  echo
+  exit 1
+fi

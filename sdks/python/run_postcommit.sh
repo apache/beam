@@ -32,13 +32,11 @@ set -v
 LOCAL_PATH=$HOME/.local/bin/
 
 # Remove any tox cache from previous workspace
+# TODO(udim): Remove this line and add '-r' to tox invocation instead.
 rm -rf sdks/python/target/.tox
 
-# INFRA does not install virtualenv
-pip install virtualenv --user
-
-# INFRA does not install tox
-pip install tox --user
+# INFRA does not install these packages
+pip install --user --upgrade virtualenv tox
 
 # Tox runs unit tests in a virtual environment
 ${LOCAL_PATH}/tox -e ALL -c sdks/python/tox.ini
@@ -73,7 +71,7 @@ python setup.py nosetests \
   --attr IT \
   --nocapture \
   --processes=4 \
-  --process-timeout=900 \
+  --process-timeout=1800 \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
@@ -83,3 +81,6 @@ python setup.py nosetests \
     --sdk_location=$SDK_LOCATION \
     --num_workers=1 \
     --sleep_secs=20"
+
+echo ">>> RUNNING DIRECT RUNNER hdfs_integration_test"
+apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh

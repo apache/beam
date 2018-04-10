@@ -26,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -45,14 +46,14 @@ public class TimestampedValue<V> {
    * Returns a new {@link TimestampedValue} with the
    * {@link BoundedWindow#TIMESTAMP_MIN_VALUE minimum timestamp}.
    */
-  public static <V> TimestampedValue<V> atMinimumTimestamp(V value) {
+  public static <V> TimestampedValue<V> atMinimumTimestamp(@Nullable V value) {
     return of(value, BoundedWindow.TIMESTAMP_MIN_VALUE);
   }
 
   /**
    * Returns a new {@code TimestampedValue} with the given value and timestamp.
    */
-  public static <V> TimestampedValue<V> of(V value, Instant timestamp) {
+  public static <V> TimestampedValue<V> of(@Nullable V value, Instant timestamp) {
     return new TimestampedValue<>(value, timestamp);
   }
 
@@ -92,6 +93,12 @@ public class TimestampedValue<V> {
 
     public static <T> TimestampedValueCoder<T> of(Coder<T> valueCoder) {
       return new TimestampedValueCoder<>(valueCoder);
+    }
+
+    @Override
+    public Object structuralValue(TimestampedValue<T> value) {
+      Object structuralValue = valueCoder.structuralValue(value.getValue());
+      return TimestampedValue.of(structuralValue, value.getTimestamp());
     }
 
     @SuppressWarnings("unchecked")
@@ -145,10 +152,10 @@ public class TimestampedValue<V> {
 
   /////////////////////////////////////////////////////////////////////////////
 
-  private final V value;
+  private final @Nullable V value;
   private final Instant timestamp;
 
-  protected TimestampedValue(V value, Instant timestamp) {
+  protected TimestampedValue(@Nullable V value, Instant timestamp) {
     checkNotNull(timestamp, "timestamp must be non-null");
 
     this.value = value;

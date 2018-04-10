@@ -38,6 +38,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
@@ -181,26 +182,21 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
               (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder(), window);
 
       Runnable cleanup =
-          new Runnable() {
-            @Override
-            public void run() {
-              for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
-                StateTag<?> tag;
-                try {
-                  tag =
-                      StateTags.tagForSpec(
-                          stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
-                } catch (IllegalAccessException e) {
-                  throw new RuntimeException(
-                      String.format(
-                          "Error accessing %s for %s",
-                          StateSpec.class.getName(), doFn.getClass().getName()),
-                      e);
-                }
-                stepContext.stateInternals().state(namespace, tag).clear();
+          () -> {
+            for (StateDeclaration stateDecl : signature.stateDeclarations().values()) {
+              StateTag<?> tag;
+              try {
+                tag = StateTags.tagForSpec(stateDecl.id(), (StateSpec) stateDecl.field().get(doFn));
+              } catch (IllegalAccessException e) {
+                throw new RuntimeException(
+                    String.format(
+                        "Error accessing %s for %s",
+                        StateSpec.class.getName(), doFn.getClass().getName()),
+                    e);
               }
-              cleanupRegistry.invalidate(transformOutputWindow);
+              stepContext.stateInternals().state(namespace, tag).clear();
             }
+            cleanupRegistry.invalidate(transformOutputWindow);
           };
 
       evaluationContext.scheduleAfterWindowExpiration(

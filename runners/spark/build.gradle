@@ -1,0 +1,165 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+
+description = "Apache Beam :: Runners :: Spark"
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ * TODO: Swap to generating test artifacts which we can then rely on instead of
+ * the test outputs directly.
+ */
+evaluationDependsOn(":beam-model-fn-execution")
+evaluationDependsOn(":beam-runners-core-java")
+evaluationDependsOn(":beam-sdks-java-core")
+
+configurations {
+  validatesRunner
+}
+
+test {
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperty "beamTestPipelineOptions", """[
+                    "--runner=TestSparkRunner",
+                    "--streaming=false",
+                    "--enableSparkMetricSinks=true"
+                  ]"""
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  maxParallelForks 4
+  useJUnit {
+    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
+    excludeCategories "org.apache.beam.runners.spark.StreamingTest"
+  }
+}
+
+dependencies {
+  shadow project(path: ":beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-core-java", configuration: "shadow")
+  shadow library.java.findbugs_jsr305
+  shadow library.java.guava
+  shadow library.java.jackson_annotations
+  shadow library.java.slf4j_api
+  shadow library.java.joda_time
+  shadow "io.dropwizard.metrics:metrics-core:3.1.2"
+  shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9"
+  provided library.java.spark_core
+  provided library.java.spark_streaming
+  provided library.java.spark_network_common
+  provided library.java.hadoop_common
+  provided library.java.hadoop_mapreduce_client_core
+  provided library.java.commons_compress
+  provided library.java.commons_lang3
+  provided library.java.commons_io_2x
+  provided library.java.hamcrest_core
+  provided "org.apache.zookeeper:zookeeper:3.4.6"
+  provided "org.scala-lang:scala-library:2.11.8"
+  provided "com.esotericsoftware.kryo:kryo:2.21"
+  shadowTest project(path: ":beam-sdks-java-io-kafka", configuration: "shadow")
+  shadowTest project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  // SparkStateInternalsTest extends abstract StateInternalsTest
+  shadowTest project(":beam-runners-core-java").sourceSets.test.output
+  shadowTest library.java.avro
+  shadowTest library.java.kafka_clients
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+  shadowTest library.java.jackson_dataformat_yaml
+  shadowTest "org.apache.kafka:kafka_2.11:0.11.0.1"
+  validatesRunner project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
+  validatesRunner project(path: project.path, configuration: "provided")
+  validatesRunner project.sourceSets.test.output
+}
+
+configurations.testRuntimeClasspath {
+  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+configurations.validatesRunner {
+  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+task validatesRunnerBatch(type: Test) {
+  group = "Verification"
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+          "--streaming=false",
+          "--enableSparkMetricSinks=false",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  maxParallelForks 4
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+  }
+}
+
+task validatesRunnerStreaming(type: Test) {
+  group = "Verification"
+  def pipelineOptions = JsonOutput.toJson([
+          "--runner=TestSparkRunner",
+          "--forceStreaming=true",
+          "--enableSparkMetricSinks=true",
+  ])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project.sourceSets.test.output.classesDirs)
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  maxParallelForks 4
+  useJUnit {
+    includeCategories 'org.apache.beam.runners.spark.StreamingTest'
+  }
+}
+
+task validatesRunner {
+  group = "Verification"
+  description "Validates Spark runner"
+  dependsOn validatesRunnerBatch
+  dependsOn validatesRunnerStreaming
+}
+
+// Generates :beam-runners-spark:runQuickstartJavaSpark
+createJavaQuickstartValidationTask(name: 'Spark')

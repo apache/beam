@@ -37,11 +37,11 @@ public class BeamSqlAndOrExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
 
-    Assert.assertTrue(new BeamSqlAndExpression(operands).evaluate(record, null).getValue());
+    Assert.assertTrue(new BeamSqlAndExpression(operands).evaluate(row, null).getValue());
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
 
-    Assert.assertFalse(new BeamSqlAndExpression(operands).evaluate(record, null).getValue());
+    Assert.assertFalse(new BeamSqlAndExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test
@@ -50,11 +50,11 @@ public class BeamSqlAndOrExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, false));
 
-    Assert.assertFalse(new BeamSqlOrExpression(operands).evaluate(record, null).getValue());
+    Assert.assertFalse(new BeamSqlOrExpression(operands).evaluate(row, null).getValue());
 
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BOOLEAN, true));
 
-    Assert.assertTrue(new BeamSqlOrExpression(operands).evaluate(record, null).getValue());
+    Assert.assertTrue(new BeamSqlOrExpression(operands).evaluate(row, null).getValue());
 
   }
 
