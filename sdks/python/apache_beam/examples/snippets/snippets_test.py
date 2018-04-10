@@ -1,3 +1,4 @@
+# coding=utf-8
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -25,6 +26,8 @@ import tempfile
 import unittest
 import uuid
 
+import mock
+
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
@@ -36,8 +39,10 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.windowed_value import WindowedValue
 
 # Protect against environments where apitools library is not available.
@@ -54,6 +59,14 @@ try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
 except ImportError:
   datastore_pb2 = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
+# Protect against environments where the PubSub library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import pubsub
+except ImportError:
+  pubsub = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
@@ -690,6 +703,59 @@ class SnippetsTest(unittest.TestCase):
     self.assertEqual(
         self.get_output(result_path),
         ['Flourish: 3', 'stomach: 1'])
+
+  @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
+  @mock.patch('apache_beam.io.ReadFromPubSub')
+  @mock.patch('apache_beam.io.WriteStringsToPubSub')
+  def test_examples_wordcount_streaming(self, *unused_mocks):
+    def FakeReadFromPubSub(topic=None, subscription=None, values=None):
+      expected_topic = topic
+      expected_subscription = subscription
+
+      def _inner(topic=None, subscription=None):
+        assert topic == expected_topic
+        assert subscription == expected_subscription
+        return TestStream().add_elements(values)
+      return _inner
+
+    class AssertTransform(beam.PTransform):
+      def __init__(self, matcher):
+        self.matcher = matcher
+
+      def expand(self, pcoll):
+        assert_that(pcoll, self.matcher)
+
+    def FakeWriteStringsToPubSub(topic=None, values=None):
+      expected_topic = topic
+
+      def _inner(topic=None, subscription=None):
+        assert topic == expected_topic
+        return AssertTransform(equal_to(values))
+      return _inner
+
+    # Test basic execution.
+    input_topic = 'projects/fake-beam-test-project/topic/intopic'
+    input_values = [TimestampedValue('a a b', 1),
+                    TimestampedValue(u'🤷 ¯\\_(ツ)_/¯ b b '.encode('utf-8'), 12),
+                    TimestampedValue('a b c c c', 20)]
+    output_topic = 'projects/fake-beam-test-project/topic/outtopic'
+    output_values = ['a: 1', 'a: 2', 'b: 1', 'b: 3', 'c: 3']
+    beam.io.ReadFromPubSub = (
+        FakeReadFromPubSub(topic=input_topic, values=input_values))
+    beam.io.WriteStringsToPubSub = (
+        FakeWriteStringsToPubSub(topic=output_topic, values=output_values))
+    snippets.examples_wordcount_streaming([
+        '--input_topic', 'projects/fake-beam-test-project/topic/intopic',
+        '--output_topic', 'projects/fake-beam-test-project/topic/outtopic'])
+
+    # Test with custom subscription.
+    input_sub = 'projects/fake-beam-test-project/subscriptions/insub'
+    beam.io.ReadFromPubSub = FakeReadFromPubSub(subscription=input_sub,
+                                                values=input_values)
+    snippets.examples_wordcount_streaming([
+        '--input_subscription',
+        'projects/fake-beam-test-project/subscriptions/insub',
+        '--output_topic', 'projects/fake-beam-test-project/topic/outtopic'])
 
   def test_model_composite_transform_example(self):
     contents = ['aa bb cc', 'bb cc', 'cc']
