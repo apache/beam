@@ -636,7 +636,6 @@ def examples_wordcount_streaming(argv):
   from apache_beam.io import ReadFromPubSub
   from apache_beam.io import WriteStringsToPubSub
   from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.options.pipeline_options import SetupOptions
   from apache_beam.options.pipeline_options import StandardOptions
 
   # Parse out arguments.
