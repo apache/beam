@@ -126,7 +126,8 @@ task validatesRunnerBatch(type: Test) {
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
+    // Disabled due to [BEAM-4035].
+    excludeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
