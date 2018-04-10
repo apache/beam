@@ -20,6 +20,9 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.UrnUtils.validateCommonUrn;
 
+import com.google.common.collect.ImmutableSet;
+import java.util.Set;
+
 /** Utilities and constants ot interact with coders that are part of the Beam Model. */
 public class ModelCoders {
   private ModelCoders() {}
@@ -44,4 +47,19 @@ public class ModelCoders {
 
   public static final String WINDOWED_VALUE_CODER_URN =
       validateCommonUrn("beam:coder:windowed_value:v1");
+
+  private static final Set<String> MODEL_CODER_URNS =
+      ImmutableSet.of(
+          BYTES_CODER_URN,
+          INT64_CODER_URN,
+          ITERABLE_CODER_URN,
+          KV_CODER_URN,
+          LENGTH_PREFIX_CODER_URN,
+          GLOBAL_WINDOW_CODER_URN,
+          INTERVAL_WINDOW_CODER_URN,
+          WINDOWED_VALUE_CODER_URN);
+
+  public static Set<String> urns() {
+    return MODEL_CODER_URNS;
+  }
 }
