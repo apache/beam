@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 
 /**
  * Translator for {@code ReduceByKey} operator.
@@ -70,6 +71,8 @@ class ReduceByKeyTranslator implements OperatorTranslator<ReduceByKey> {
       input = context.getInput(operator)
           .apply(org.apache.beam.sdk.transforms.windowing.Window.into(
               BeamWindowFn.wrap(operator.getWindowing()))
+          // FIXME: trigger
+          .triggering(AfterWatermark.pastEndOfWindow())
           .discardingFiredPanes()
           .withAllowedLateness(context.getAllowedLateness(operator)));
     }
