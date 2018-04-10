@@ -406,4 +406,24 @@ public interface NexmarkOptions
   String getQueryLanguage();
 
   void setQueryLanguage(String value);
+
+  @Description("Base name of Kafka source topic in streaming mode.")
+  @Nullable
+  @Default.String("nexmark-source")
+  String getKafkaSourceTopic();
+
+  void setKafkaSourceTopic(String value);
+
+  @Description("Base name of Kafka sink topic in streaming mode.")
+  @Nullable
+  @Default.String("nexmark-sink")
+  String getKafkaSinkTopic();
+
+  void setKafkaSinkTopic(String value);
+
+  @Description("Kafka Bootstrap Server domains.")
+  @Nullable
+  String getBootstrapServers();
+
+  void setBootstrapServers(String value);
 }
