@@ -452,14 +452,13 @@ page at http://checkstyle.sourceforge.net/config.html -->
       -->
       <property name="severity" value="error"/>
     </module>
+  </module>
 
-    <!-- Allow use of comment to suppress javadocstyle -->
-    <module name="SuppressionCommentFilter">
-      <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
-      <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
-      <property name="checkFormat" value="$1"/>
-    </module>
-
+  <!-- Allow use of comment to suppress javadocstyle -->
+  <module name="SuppressionCommentFilter">
+    <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
+    <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
+    <property name="checkFormat" value="$1"/>
   </module>
 </module>
 
