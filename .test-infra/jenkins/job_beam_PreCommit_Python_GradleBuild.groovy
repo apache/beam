@@ -32,31 +32,20 @@ job('beam_PreCommit_Python_GradleBuild') {
     'master',
     90)
 
-  def gradle_switches = [
-    // Gradle log verbosity enough to diagnose basic build issues
-    "--info",
-    // Continue the build even if there is a failure to show as many potential failures as possible.
-    '--continue',
-    // Until we verify the build cache is working appropriately, force rerunning all tasks
-    '--rerun-tasks',
-  ]
-
   // Publish all test results to Jenkins. Note that Nose documentation
   // specifically mentions that it produces JUnit compatible test results.
   publishers {
     archiveJunit('**/nosetests.xml')
   }
 
-  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' :pythonPreCommit'
+  def gradle_command_line = './gradlew ' + common_job_properties.gradle_switches.join(' ') + ' :pythonPreCommit'
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Python PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':pythonPreCommit')
-      for (String gradle_switch : gradle_switches) {
-        switches(gradle_switch)
-      }
+      common_job_properties.setGradleSwitches(delegate)
     }
   }
 }

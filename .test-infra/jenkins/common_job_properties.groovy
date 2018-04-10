@@ -165,6 +165,24 @@ class common_job_properties {
     }
   }
 
+  static String[] gradle_switches = [
+    // Gradle log verbosity enough to diagnose basic build issues
+    "--info",
+    // Continue the build even if there is a failure to show as many potential failures as possible.
+    '--continue',
+    // Until we verify the build cache is working appropriately, force rerunning all tasks
+    '--rerun-tasks',
+    // Disable daemon, which helps ensure hermetic environment at small startup performance penalty.
+    // This needs to be disabled if we move to incremental builds.
+    "--no-daemon",
+  ]
+
+  static void setGradleSwitches(context) {
+    for (String gradle_switch : gradle_switches) {
+      context.switches(gradle_switch)
+    }
+  }
+
   // Sets common config for Maven jobs.
   static void setMavenConfig(context, String mavenInstallation='Maven 3.5.2') {
     context.mavenInstallation(mavenInstallation)
