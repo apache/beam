@@ -41,24 +41,66 @@ class TransformIOCounter(object):
   Some examples of IO can be side inputs, shuffle, or streaming state.
   """
 
-  def update_current_step(self):
-    """Update the current step within a stage as it may have changed.
+  def __init__(self, counter_factory, state_sampler):
+    """Create a new IO read counter.
 
-    If the state changed, it would mean that an initial step passed a
-    data-accessor (such as a side input / shuffle Iterable) down to the
-    next step in a stage.
+    Args:
+      counter_factory: A counters.CounterFactory to create byte counters.
+      state_sampler: A statesampler.StateSampler to transition into read states.
     """
+    self._counter_factory = counter_factory
+    self._state_sampler = state_sampler
+    self._latest_step = None
+    self.bytes_read_counter = None
+    self.scoped_state = None
+
+  def update_current_step(self):
+    """Update the current running step.
+
+    Due to the fusion optimization, user code may choose to emit the data
+    structure that holds side inputs (Iterable, Dict, or others). This call
+    updates the current step, to attribute the data consumption to the step
+    that is responsible for actual consumption.
+
+    CounterName uses the io_target field for information pertinent to the
+    consumption of IO.
+    """
+    current_state = self._state_sampler.current_state()
+    current_step_name = current_state.name.step_name
+    if current_step_name != self._latest_step:
+      self._latest_step = current_step_name
+      self._update_counters_for_requesting_step(current_step_name)
+
+  def _update_counters_for_requesting_step(self, step_name):
     pass
 
   def add_bytes_read(self, count):
-    pass
+    if count > 0 and self.bytes_read_counter:
+      self.bytes_read_counter.update(count)
 
-  def __exit__(self, exc_type, exc_value, traceback):
-    """Exit the IO state."""
+  def __enter__(self):
+    self.scoped_state.__enter__()
+
+  def __exit__(self, exception_type, exception_value, traceback):
+    self.scoped_state.__exit__(exception_type, exception_value, traceback)
+
+
+class NoOpTransformIOCounter(TransformIOCounter):
+  """All operations for IO tracking are no-ops."""
+
+  def __init__(self):
+    super(NoOpTransformIOCounter, self).__init__(None, None)
+
+  def update_current_step(self):
     pass
 
   def __enter__(self):
-    """Enter the IO state. This should track time spent blocked on IO."""
+    pass
+
+  def __exit__(self, exception_type, exception_value, traceback):
+    pass
+
+  def add_bytes_read(self, count):
     pass
 
 
@@ -93,8 +135,7 @@ class SideInputReadCounter(TransformIOCounter):
     side input, and input_index is the index of the PCollectionView within
     the list of inputs.
     """
-    self._counter_factory = counter_factory
-    self._state_sampler = state_sampler
+    super(SideInputReadCounter, self).__init__(counter_factory, state_sampler)
     self.declaring_step = declaring_step
     self.input_index = input_index
 
@@ -102,39 +143,24 @@ class SideInputReadCounter(TransformIOCounter):
     # step. We check the current state to create the internal counters.
     self.update_current_step()
 
-  def update_current_step(self):
-    """Update the current running step.
+  def __enter__(self):
+    # This function may be called from a different step. Need to check
+    # every time.
+    self.update_current_step()
+    self.scoped_state.__enter__()
 
-    Due to the fusion optimization, user code may choose to emit the data
-    structure that holds side inputs (Iterable, Dict, or others). This call
-    updates the current step, to attribute the data consumption to the step
-    that is responsible for actual consumption.
-
-    CounterName uses the io_target field for information pertinent to the
-    consumption of side inputs.
-    """
-    current_state = self._state_sampler.current_state()
-    operation_name = current_state.name.step_name
+  def _update_counters_for_requesting_step(self, step_name):
+    side_input_id = counters.side_input_id(step_name, self.input_index)
     self.scoped_state = self._state_sampler.scoped_state(
         self.declaring_step,
         'read-sideinput',
-        io_target=counters.side_input_id(operation_name, self.input_index))
+        io_target=side_input_id)
     self.bytes_read_counter = self._counter_factory.get_counter(
         CounterName(
             'read-sideinput-byte-count',
             step_name=self.declaring_step,
-            io_target=counters.side_input_id(operation_name, self.input_index)),
+            io_target=side_input_id),
         Counter.SUM)
-
-  def add_bytes_read(self, count):
-    if count > 0:
-      self.bytes_read_counter.update(count)
-
-  def __enter__(self):
-    self.scoped_state.__enter__()
-
-  def __exit__(self, exception_type, exception_value, traceback):
-    self.scoped_state.__exit__(exception_type, exception_value, traceback)
 
 
 class SumAccumulator(object):

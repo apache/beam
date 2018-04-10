@@ -321,7 +321,7 @@ class DoOperation(Operation):
               # Inputs are 1-indexed, so we add 1 to i in the side input id
               input_index=i + 1)
         else:
-          si_counter = opcounters.TransformIOCounter()
+          si_counter = opcounters.NoOpTransformIOCounter()
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
 

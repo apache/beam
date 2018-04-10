@@ -73,7 +73,24 @@ class PrefetchingSourceSetIterable(object):
     # Whether an error was encountered in any source reader.
     self.has_errored = False
 
-    self.read_counter = read_counter or opcounters.TransformIOCounter()
+    self.read_counter = read_counter or opcounters.NoOpTransformIOCounter()
+    experiments = RuntimeValueProvider.get_value('experiments', list, [])
+    if 'sideinput_io_metrics' in experiments:
+      self._side_input_monitoring_metrics = True
+
+      def fetch_from_queue(element_queue, io_counter):
+        if element_queue.empty():
+          with io_counter:
+            return element_queue.get()
+        else:
+          return element_queue.get()
+    else:
+      self._side_input_monitoring_metrics = False
+
+      def fetch_from_queue(element_queue, io_counter):
+        return element_queue.get()
+
+    self._fetch_data_fn = fetch_from_queue
 
     self.reader_threads = []
     self._start_reader_threads()
@@ -161,7 +178,7 @@ class PrefetchingSourceSetIterable(object):
     try:
       while True:
         try:
-          element = self.element_queue.get()
+          element = self._fetch_data_fn(self.element_queue, self.read_counter)
           if element is READER_THREAD_IS_DONE_SENTINEL:
             num_readers_finished += 1
             if num_readers_finished == self.num_reader_threads:
