@@ -18,7 +18,6 @@
 package org.apache.beam.examples.subprocess;
 
 import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -28,8 +27,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.beam.examples.subprocess.SubProcessPipelineOptions;
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.apache.beam.examples.subprocess.kernel.SubProcessCommandLineArgs;
 import org.apache.beam.examples.subprocess.kernel.SubProcessCommandLineArgs.Command;
@@ -77,14 +74,12 @@ public class ExampleEchoPipelineTest {
     Path workerTempFiles = Files.createTempDirectory("test-Echoo");
 
     try (SeekableByteChannel channel =
-        FileChannel.open(fileA, StandardOpenOption.CREATE, StandardOpenOption.WRITE))
-    {
+        FileChannel.open(fileA, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
       channel.write(ByteBuffer.wrap(getTestShellEcho().getBytes()));
     }
 
     try (SeekableByteChannel channel =
-        FileChannel.open(fileB, StandardOpenOption.CREATE, StandardOpenOption.WRITE))
-    {
+        FileChannel.open(fileB, StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
         channel.write(ByteBuffer.wrap(getTestShellEchoAgain().getBytes()));
     }
 

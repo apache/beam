@@ -18,7 +18,6 @@
 package org.apache.beam.examples.subprocess.kernel;
 
 import com.google.common.collect.Lists;
-
 import java.util.List;
 
 /**
@@ -51,7 +50,8 @@ public class SubProcessCommandLineArgs {
     String value;
 
     @SuppressWarnings("unused")
-    private Command(){};
+    private Command(){}
+
     public Command(int ordinalPosition, String value) {
       this.ordinalPosition = ordinalPosition;
       this.value = value;
