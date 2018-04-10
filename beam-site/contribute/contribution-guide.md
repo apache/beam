@@ -268,7 +268,7 @@ To Check for lint errors locally, install "tox" package and run following
 command.
 
     $ pip install tox
-    $ tox -e lint_py2,lint_py3
+    $ tox -e py27-lint,py3-lint
 
 
 Beam supports running Python SDK tests using Gradle. For this, navigate to root
