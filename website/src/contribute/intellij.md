@@ -36,21 +36,6 @@ section_menu: section-menu/contribute.html
 This should result in a working Gradle project. Build the project by executing
 the "build" task in the root Gradle module.
 
-## Enable Annotation Processing
-
-To configure annotation processing in IntelliJ:
-
-1. Open Annotation Processors Settings dialog box by going to Settings ->
-   Build, Execution, Deployment -> Compiler -> Annotation Processors
-2. Select the following buttons:
-   * "Enable annotation processing"
-   * "Obtain processors from project classpath"
-   * "Store generated sources relative to: _Module content root_"
-3. Set the generated source directories:
-   * Set "Production sources directory:" to `target/generated-sources/annotations`
-   * Set "Test sources directory:" to `target/generated-test-sources/test-annotations`
-4. Click "OK"
-
 ## Checkstyle
 
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
