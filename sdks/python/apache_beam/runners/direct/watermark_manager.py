@@ -160,7 +160,8 @@ class WatermarkManager(object):
       fired_timers, had_realtime_timer = tw.extract_transform_timers()
       if fired_timers:
         all_timers.append((applied_ptransform, fired_timers))
-      if had_realtime_timer:
+      if (had_realtime_timer
+          and tw.output_watermark < WatermarkManager.WATERMARK_POS_INF):
         has_realtime_timer = True
     return all_timers, has_realtime_timer
 
