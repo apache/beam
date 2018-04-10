@@ -61,7 +61,6 @@ repositories {
     return
   }
 
-  mavenLocal()
   mavenCentral()
   jcenter()
 
