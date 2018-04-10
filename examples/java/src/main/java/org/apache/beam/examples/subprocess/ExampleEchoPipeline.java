@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.advanced.subprocess;
+package org.apache.beam.examples.subprocess;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.examples.advanced.subprocess.configuration.SubProcessConfiguration;
-import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessCommandLineArgs;
-import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessCommandLineArgs.Command;
-import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessKernel;
-import org.apache.beam.examples.advanced.subprocess.utils.CallingSubProcessUtils;
+import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
+import org.apache.beam.examples.subprocess.kernel.SubProcessCommandLineArgs;
+import org.apache.beam.examples.subprocess.kernel.SubProcessCommandLineArgs.Command;
+import org.apache.beam.examples.subprocess.kernel.SubProcessKernel;
+import org.apache.beam.examples.subprocess.utils.CallingSubProcessUtils;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;

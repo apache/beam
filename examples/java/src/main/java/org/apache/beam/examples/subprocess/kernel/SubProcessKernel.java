@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.advanced.subprocess.kernel;
+package org.apache.beam.examples.subprocess.kernel;
 
 import java.io.IOException;
 import java.lang.ProcessBuilder.Redirect;
@@ -25,9 +25,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-import org.apache.beam.examples.advanced.subprocess.configuration.SubProcessConfiguration;
-import org.apache.beam.examples.advanced.subprocess.utils.CallingSubProcessUtils;
-import org.apache.beam.examples.advanced.subprocess.utils.FileUtils;
+import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
+import org.apache.beam.examples.subprocess.utils.CallingSubProcessUtils;
+import org.apache.beam.examples.subprocess.utils.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

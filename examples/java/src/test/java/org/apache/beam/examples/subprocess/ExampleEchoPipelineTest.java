@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.complete.subprocess;
+package org.apache.beam.examples.subprocess;
 
 import com.google.common.collect.ImmutableList;
 
@@ -29,12 +29,12 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.beam.examples.advanced.subprocess.SubProcessPipelineOptions;
-import org.apache.beam.examples.advanced.subprocess.configuration.SubProcessConfiguration;
-import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessCommandLineArgs;
-import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessCommandLineArgs.Command;
-import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessKernel;
-import org.apache.beam.examples.advanced.subprocess.utils.CallingSubProcessUtils;
+import org.apache.beam.examples.subprocess.SubProcessPipelineOptions;
+import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
+import org.apache.beam.examples.subprocess.kernel.SubProcessCommandLineArgs;
+import org.apache.beam.examples.subprocess.kernel.SubProcessCommandLineArgs.Command;
+import org.apache.beam.examples.subprocess.kernel.SubProcessKernel;
+import org.apache.beam.examples.subprocess.utils.CallingSubProcessUtils;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
@@ -57,7 +57,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * To keep {@link org.apache.beam.examples.advanced.subprocess.ExampleEchoPipeline} simple,
+ * To keep {@link org.apache.beam.examples.subprocess.ExampleEchoPipeline} simple,
  * it is not factored or testable. This test file should be maintained with a copy of its
  * code for a basic smoke test.
  **/

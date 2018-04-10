@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.examples.advanced.subprocess.utils;
+package org.apache.beam.examples.subprocess.utils;
 
 import com.google.common.collect.Sets;
 
@@ -25,7 +25,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
-import org.apache.beam.examples.advanced.subprocess.configuration.SubProcessConfiguration;
+import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
