@@ -107,6 +107,9 @@ configurations.validatesRunner {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 
+task allDeps(type: DependencyReportTask) {
+  configurations = [project.configurations.validatesRunner]
+}
 task validatesRunnerBatch(type: Test) {
   group = "Verification"
   def pipelineOptions = JsonOutput.toJson([
@@ -120,18 +123,23 @@ task validatesRunnerBatch(type: Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
 
   classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs) + files(project.sourceSets.test.output.classesDirs)
+  testClassesDirs = files(project.sourceSets.test.output.classesDirs)
   // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
   useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesAttemptedMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+  }
+}
+
+
+task validatesRunnerBatch.doFirst {
+  allDeps.execute()
+  println "Test classpath size " + configurations.validatesRunner.getFiles().size()
+  configurations.validatesRunner.getFiles().each { file ->
+    if (file.toString().contains("zoo")) {
+       println "file: \"" + file + "\""
+    }
   }
 }
 
@@ -158,7 +166,6 @@ task validatesRunner {
   group = "Verification"
   description "Validates Spark runner"
   dependsOn validatesRunnerBatch
-  dependsOn validatesRunnerStreaming
 }
 
 // Generates :beam-runners-spark:runQuickstartJavaSpark
