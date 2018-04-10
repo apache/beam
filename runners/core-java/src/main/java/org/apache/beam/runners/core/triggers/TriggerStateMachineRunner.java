@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.MergingStateAccessor;
 import org.apache.beam.runners.core.StateAccessor;
 import org.apache.beam.runners.core.StateTag;
@@ -79,7 +80,7 @@ public class TriggerStateMachineRunner<W extends BoundedWindow> {
       return FinishedTriggersBitSet.emptyWithCapacity(rootTrigger.getFirstIndexAfterSubtree());
     }
 
-    BitSet bitSet = state.read();
+    @Nullable BitSet bitSet = state.read();
     return bitSet == null
         ? FinishedTriggersBitSet.emptyWithCapacity(rootTrigger.getFirstIndexAfterSubtree())
             : FinishedTriggersBitSet.fromBitSet(bitSet);

@@ -23,7 +23,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import java.util.List;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -56,7 +55,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       implements HasDefaultTracker<SomeRestriction, SomeRestrictionTracker> {}
 
   private abstract static class SomeRestrictionTracker
-      implements RestrictionTracker<SomeRestriction> {}
+      extends RestrictionTracker<SomeRestriction, Void> {}
 
   private abstract static class SomeRestrictionCoder extends StructuredCoder<SomeRestriction> {}
 
@@ -84,8 +83,13 @@ public class DoFnSignaturesSplittableDoFnTest {
             });
 
     assertTrue(signature.isSplittable());
-    assertTrue(Iterables.any(signature.extraParameters(),
-        Predicates.instanceOf(DoFnSignature.Parameter.RestrictionTrackerParameter.class)));
+    assertTrue(
+        signature
+            .extraParameters()
+            .stream()
+            .anyMatch(
+                Predicates.instanceOf(DoFnSignature.Parameter.RestrictionTrackerParameter.class)
+                    ::apply));
     assertEquals(SomeRestrictionTracker.class, signature.trackerT().getRawType());
   }
 
@@ -195,6 +199,7 @@ public class DoFnSignaturesSplittableDoFnTest {
       @ProcessElement
       public void process(ProcessContext context) {}
     }
+
     assertEquals(
         PCollection.IsBounded.BOUNDED,
         DoFnSignatures
@@ -328,7 +333,9 @@ public class DoFnSignaturesSplittableDoFnTest {
     DoFnSignatures.getSignature(BadFn.class);
   }
 
-  abstract class SomeDefaultTracker implements RestrictionTracker<RestrictionWithDefaultTracker> {}
+  abstract class SomeDefaultTracker
+      extends RestrictionTracker<RestrictionWithDefaultTracker, Void> {}
+
   abstract class RestrictionWithDefaultTracker
       implements HasDefaultTracker<RestrictionWithDefaultTracker, SomeDefaultTracker> {}
 
@@ -386,7 +393,7 @@ public class DoFnSignaturesSplittableDoFnTest {
     }
 
     thrown.expectMessage(
-        "Returns void, but must return a subtype of RestrictionTracker<SomeRestriction>");
+        "Returns void, but must return a subtype of RestrictionTracker<SomeRestriction, ?>");
     DoFnSignatures.getSignature(BadFn.class);
   }
 
@@ -574,7 +581,8 @@ public class DoFnSignaturesSplittableDoFnTest {
   @Test
   public void testNewTrackerInconsistent() throws Exception {
     thrown.expectMessage(
-        "Returns SomeRestrictionTracker, but must return a subtype of RestrictionTracker<String>");
+        "Returns SomeRestrictionTracker, "
+            + "but must return a subtype of RestrictionTracker<String, ?>");
     DoFnSignatures.analyzeNewTrackerMethod(
         errors(),
         TypeDescriptor.of(FakeDoFn.class),

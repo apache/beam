@@ -8,7 +8,9 @@
 .gitattributes text
 .gitignore text
 LICENSE text
+Dockerfile text
 *.avsc text
+*.go text
 *.html text
 *.java text
 *.md text

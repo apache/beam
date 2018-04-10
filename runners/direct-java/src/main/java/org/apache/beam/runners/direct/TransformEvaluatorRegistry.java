@@ -19,10 +19,11 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.IMPULSE_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.READ_TRANSFORM_URN;
-import static org.apache.beam.runners.core.construction.PTransformTranslation.WINDOW_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTABLE_PROCESS_URN;
 import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GABW_URN;
 import static org.apache.beam.runners.direct.DirectGroupByKey.DIRECT_GBKO_URN;
@@ -35,14 +36,13 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -69,7 +69,8 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
                     ParDoEvaluator.defaultRunnerFactory(),
                     ParDoEvaluatorFactory.basicDoFnCacheLoader()))
             .put(FLATTEN_TRANSFORM_URN, new FlattenEvaluatorFactory(ctxt))
-            .put(WINDOW_TRANSFORM_URN, new WindowEvaluatorFactory(ctxt))
+            .put(ASSIGN_WINDOWS_TRANSFORM_URN, new WindowEvaluatorFactory(ctxt))
+            .put(IMPULSE_TRANSFORM_URN, new ImpulseEvaluatorFactory(ctxt))
 
             // Runner-specific primitives
             .put(DIRECT_WRITE_VIEW_URN, new ViewEvaluatorFactory(ctxt))
@@ -99,21 +100,28 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
           .<Class<? extends PTransform>, PTransformTranslation.TransformPayloadTranslator>builder()
           .put(
               DirectGroupByKey.DirectGroupByKeyOnly.class,
-              new PTransformTranslation.RawPTransformTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_GBKO_URN))
           .put(
               DirectGroupByKey.DirectGroupAlsoByWindow.class,
-              new PTransformTranslation.RawPTransformTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_GABW_URN))
           .put(
               ParDoMultiOverrideFactory.StatefulParDo.class,
-              new PTransformTranslation.RawPTransformTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_STATEFUL_PAR_DO_URN))
           .put(
               ViewOverrideFactory.WriteView.class,
-              new PTransformTranslation.RawPTransformTranslator())
-          .put(DirectTestStream.class, new PTransformTranslation.RawPTransformTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_WRITE_VIEW_URN))
+          .put(
+              DirectTestStream.class,
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_TEST_STREAM_URN))
           .put(
               SplittableParDoViaKeyedWorkItems.ProcessElements.class,
-              new SplittableParDoProcessElementsTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(SPLITTABLE_PROCESS_URN))
           .build();
+    }
+
+    @Override
+    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
     }
   }
 
@@ -122,21 +130,13 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
    * once SDF is reorganized appropriately.
    */
   private static class SplittableParDoProcessElementsTranslator
-      implements TransformPayloadTranslator<ProcessElements<?, ?, ?, ?>> {
+      extends TransformPayloadTranslator.NotSerializable<ProcessElements<?, ?, ?, ?>> {
 
     private SplittableParDoProcessElementsTranslator() {}
 
     @Override
     public String getUrn(ProcessElements<?, ?, ?, ?> transform) {
       return SPLITTABLE_PROCESS_URN;
-    }
-
-    @Override
-    public FunctionSpec translate(
-        AppliedPTransform<?, ?, ProcessElements<?, ?, ?, ?>> transform, SdkComponents components) {
-      throw new UnsupportedOperationException(
-          String.format("%s should never be translated",
-          ProcessElements.class.getCanonicalName()));
     }
   }
 

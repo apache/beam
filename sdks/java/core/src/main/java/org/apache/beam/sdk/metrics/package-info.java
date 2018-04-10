@@ -25,4 +25,8 @@
  * <p>Runners should look at {@link org.apache.beam.sdk.metrics.MetricsContainer} for details on
  * how to support metrics.
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.metrics;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -409,7 +410,7 @@ public class Top {
 
     @Override
     public BoundedHeap<T, ComparatorT> createAccumulator() {
-      return new BoundedHeap<>(count, compareFn, new ArrayList<T>());
+      return new BoundedHeap<>(count, compareFn, new ArrayList<>());
     }
 
     @Override
@@ -453,14 +454,14 @@ public class Top {
      *
      * <p>Only one of asList and asQueue may be non-null.
      */
-    private PriorityQueue<T> asQueue;
+    @Nullable private PriorityQueue<T> asQueue;
 
     /**
      * A list in with largest first, the form of extractOutput().
      *
      * <p>Only one of asList and asQueue may be non-null.
      */
-    private List<T> asList;
+    @Nullable private List<T> asList;
 
     /** The user-provided Comparator. */
     private final ComparatorT compareFn;

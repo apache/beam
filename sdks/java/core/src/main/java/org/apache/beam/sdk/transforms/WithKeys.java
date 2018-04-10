@@ -19,6 +19,8 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import javax.annotation.CheckForNull;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -78,22 +80,15 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
    * given key.
    */
   @SuppressWarnings("unchecked")
-  public static <K, V> WithKeys<K, V> of(final K key) {
-    return new WithKeys<>(
-        new SerializableFunction<V, K>() {
-          @Override
-          public K apply(V value) {
-            return key;
-          }
-        },
-        (Class<K>) (key == null ? Void.class : key.getClass()));
+  public static <K, V> WithKeys<K, V> of(@Nullable final K key) {
+    return new WithKeys<>(value -> key, (Class<K>) (key == null ? Void.class : key.getClass()));
   }
 
 
   /////////////////////////////////////////////////////////////////////////////
 
   private SerializableFunction<V, K> fn;
-  private transient Class<K> keyClass;
+  @CheckForNull private transient Class<K> keyClass;
 
   private WithKeys(SerializableFunction<V, K> fn, Class<K> keyClass) {
     this.fn = fn;

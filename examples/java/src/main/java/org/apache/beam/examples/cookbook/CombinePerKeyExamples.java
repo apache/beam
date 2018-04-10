@@ -78,7 +78,7 @@ public class CombinePerKeyExamples {
     private final Counter smallerWords = Metrics.counter(ExtractLargeWordsFn.class, "smallerWords");
 
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       String playName = (String) row.get("corpus");
       String word = (String) row.get("word");
@@ -127,9 +127,7 @@ public class CombinePerKeyExamples {
           ParDo.of(new ExtractLargeWordsFn()));
 
       // word, play_name => word, all_plays ...
-      PCollection<KV<String, String>> wordAllPlays =
-          words.apply(Combine.<String, String>perKey(
-              new ConcatWords()));
+      PCollection<KV<String, String>> wordAllPlays = words.apply(Combine.perKey(new ConcatWords()));
 
       // <word, all_plays>... => row...
       PCollection<TableRow> results = wordAllPlays.apply(

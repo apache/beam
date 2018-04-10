@@ -40,7 +40,10 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateCeilExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateFloorExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimePlusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlExtractExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlIntervalMultiplyExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlAndExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlNotExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.logical.BeamSqlOrExpression;
@@ -57,12 +60,15 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamFilterRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Assert;
 import org.junit.Test;
@@ -81,7 +87,7 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
                     rexBuilder.makeBigintLiteral(new BigDecimal(1000L)))),
             rexBuilder.makeCall(SqlStdOperatorTable.EQUALS,
                 Arrays.asList(rexBuilder.makeInputRef(relDataType, 1),
-                    rexBuilder.makeExactLiteral(new BigDecimal(0))))));
+                    rexBuilder.makeExactLiteral(BigDecimal.ZERO)))));
 
     BeamFilterRel beamFilterRel = new BeamFilterRel(cluster, RelTraitSet.createEmpty(), null,
         condition);
@@ -215,8 +221,8 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     RexNode rexNode;
     BeamSqlExpression exp;
     rexNode = rexBuilder.makeCall(fn, Arrays.asList(
-        rexBuilder.makeBigintLiteral(new BigDecimal(1L)),
-        rexBuilder.makeBigintLiteral(new BigDecimal(1L))
+        rexBuilder.makeBigintLiteral(BigDecimal.ONE),
+        rexBuilder.makeBigintLiteral(BigDecimal.ONE)
     ));
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
 
@@ -390,27 +396,54 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     assertTrue(exp instanceof BeamSqlExtractExpression);
 
     // CURRENT_DATE
-    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.CURRENT_DATE,
-        Arrays.<RexNode>asList(
-        )
-    );
+    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.CURRENT_DATE, Arrays.asList());
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlCurrentDateExpression);
 
     // LOCALTIME
-    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.LOCALTIME,
-        Arrays.<RexNode>asList(
-        )
-    );
+    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.LOCALTIME, Arrays.asList());
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlCurrentTimeExpression);
 
     // LOCALTIMESTAMP
-    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.LOCALTIMESTAMP,
+    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.LOCALTIMESTAMP, Arrays.asList());
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
+    assertTrue(exp instanceof BeamSqlCurrentTimestampExpression);
+
+    // DATETIME_PLUS
+    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.DATETIME_PLUS,
         Arrays.<RexNode>asList(
+            rexBuilder.makeDateLiteral(calendar),
+            rexBuilder.makeIntervalLiteral(
+                BigDecimal.TEN,
+                new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.DAY, SqlParserPos.ZERO))
         )
     );
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
-    assertTrue(exp instanceof BeamSqlCurrentTimestampExpression);
+    assertTrue(exp instanceof BeamSqlDatetimePlusExpression);
+
+    // * for intervals
+    rexNode = rexBuilder.makeCall(SqlStdOperatorTable.MULTIPLY,
+        Arrays.<RexNode>asList(
+            rexBuilder.makeExactLiteral(BigDecimal.ONE),
+            rexBuilder.makeIntervalLiteral(
+                BigDecimal.TEN,
+                new SqlIntervalQualifier(TimeUnit.DAY, TimeUnit.DAY, SqlParserPos.ZERO))
+        )
+    );
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
+    assertTrue(exp instanceof BeamSqlIntervalMultiplyExpression);
+
+    // minus for dates
+    rexNode =
+        rexBuilder.makeCall(
+            TYPE_FACTORY.createSqlType(SqlTypeName.INTERVAL_DAY),
+            SqlStdOperatorTable.MINUS,
+            Arrays.asList(
+                rexBuilder.makeTimestampLiteral(Calendar.getInstance(), 1000),
+                rexBuilder.makeTimestampLiteral(Calendar.getInstance(), 1000)));
+
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
+    assertTrue(exp instanceof BeamSqlDatetimeMinusExpression);
   }
 }

@@ -78,13 +78,7 @@ final class ClassPath {
   private static final Logger LOG = LoggerFactory.getLogger(ClassPath.class.getName());
 
   private static final Predicate<ClassInfo> IS_TOP_LEVEL =
-      new Predicate<ClassInfo>() {
-
-        @Override
-        public boolean apply(ClassInfo info) {
-          return info != null && info.className.indexOf('$') == -1;
-        }
-      };
+      info -> info != null && info.className.indexOf('$') == -1;
 
   /** Separator for the Class-Path manifest attribute value in jar files. */
   private static final Splitter CLASS_PATH_ATTRIBUTE_SEPARATOR =
@@ -432,7 +426,7 @@ final class ClassPath {
             LOG.warn("Invalid Class-Path entry: " + path);
             continue;
           }
-          if (url.getProtocol().equals("file")) {
+          if ("file".equals(url.getProtocol())) {
             builder.add(toFile(url));
           }
         }
@@ -451,7 +445,7 @@ final class ClassPath {
       if (classloader instanceof URLClassLoader) {
         URLClassLoader urlClassLoader = (URLClassLoader) classloader;
         for (URL entry : urlClassLoader.getURLs()) {
-          if (entry.getProtocol().equals("file")) {
+          if ("file".equals(entry.getProtocol())) {
             File file = toFile(entry);
             if (!entries.containsKey(file)) {
               entries.put(file, classloader);
@@ -535,7 +529,7 @@ final class ClassPath {
 
   @VisibleForTesting
   static File toFile(URL url) {
-    checkArgument(url.getProtocol().equals("file"));
+    checkArgument("file".equals(url.getProtocol()));
     try {
       return new File(url.toURI());  // Accepts escaped characters like %20.
     } catch (URISyntaxException e) {  // URL.toURI() doesn't escape chars.

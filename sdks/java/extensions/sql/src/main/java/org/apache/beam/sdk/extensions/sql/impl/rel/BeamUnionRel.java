@@ -19,14 +19,13 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.RelInput;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Union;
@@ -73,16 +72,19 @@ public class BeamUnionRel extends Union implements BeamRelNode {
         inputs, all);
   }
 
-  public BeamUnionRel(RelInput input) {
-    super(input);
-  }
-
   @Override public SetOp copy(RelTraitSet traitSet, List<RelNode> inputs, boolean all) {
     return new BeamUnionRel(getCluster(), traitSet, inputs, all);
   }
 
-  @Override public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    return delegate.buildBeamPipeline(inputPCollections, sqlEnv);
+  @Override
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+    @Override
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+      return delegate.buildBeamPipeline(inputPCollections);
+    }
   }
 }

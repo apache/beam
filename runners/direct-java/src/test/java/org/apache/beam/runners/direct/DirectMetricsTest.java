@@ -92,22 +92,22 @@ public class DirectMetricsTest {
     ));
 
     MetricQueryResults results = metrics.queryMetrics(MetricsFilter.builder().build());
-    assertThat(results.counters(), containsInAnyOrder(
+    assertThat(results.getCounters(), containsInAnyOrder(
         attemptedMetricsResult("ns1", "name1", "step1", 0L),
         attemptedMetricsResult("ns1", "name2", "step1", 0L),
         attemptedMetricsResult("ns1", "name1", "step2", 0L)));
-    assertThat(results.counters(), containsInAnyOrder(
+    assertThat(results.getCounters(), containsInAnyOrder(
         committedMetricsResult("ns1", "name1", "step1", 5L),
         committedMetricsResult("ns1", "name2", "step1", 12L),
         committedMetricsResult("ns1", "name1", "step2", 7L)));
-    assertThat(results.distributions(), contains(
-        attemptedMetricsResult("ns1", "name1", "step1", DistributionResult.ZERO)));
-    assertThat(results.distributions(), contains(
+    assertThat(results.getDistributions(), contains(
+        attemptedMetricsResult("ns1", "name1", "step1", DistributionResult.IDENTITY_ELEMENT)));
+    assertThat(results.getDistributions(), contains(
         committedMetricsResult("ns1", "name1", "step1", DistributionResult.create(12, 3, 3, 5))));
-    assertThat(results.gauges(), contains(
+    assertThat(results.getGauges(), contains(
         attemptedMetricsResult("ns2", "name2", "step1", GaugeResult.empty())
     ));
-    assertThat(results.gauges(), contains(
+    assertThat(results.getGauges(), contains(
         committedMetricsResult("ns2", "name2", "step1", GaugeResult.create(27L, Instant.now()))
     ));
   }
@@ -115,30 +115,32 @@ public class DirectMetricsTest {
   @SuppressWarnings("unchecked")
   @Test
   public void testApplyAttemptedCountersQueryOneNamespace() {
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
-            MetricUpdate.create(MetricKey.create("step1", NAME3), 8L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
-    ));
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
-            MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
-    ));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("step1", NAME1), 5L),
+                MetricUpdate.create(MetricKey.create("step1", NAME3), 8L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("step2", NAME1), 7L),
+                MetricUpdate.create(MetricKey.create("step1", NAME3), 4L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
 
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addNameFilter(inNamespace("ns1")).build());
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             attemptedMetricsResult("ns1", "name1", "step1", 5L),
             attemptedMetricsResult("ns1", "name1", "step2", 7L)));
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             committedMetricsResult("ns1", "name1", "step1", 0L),
             committedMetricsResult("ns1", "name1", "step2", 0L)));
@@ -147,28 +149,32 @@ public class DirectMetricsTest {
   @SuppressWarnings("unchecked")
   @Test
   public void testApplyAttemptedQueryCompositeScope() {
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
-            MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()));
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 12L),
-            MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 5L),
+                MetricUpdate.create(MetricKey.create("Outer1/Inner2", NAME1), 8L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("Outer1/Inner1", NAME1), 12L),
+                MetricUpdate.create(MetricKey.create("Outer2/Inner2", NAME1), 18L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
 
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addStep("Outer1").build());
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             attemptedMetricsResult("ns1", "name1", "Outer1/Inner1", 12L),
             attemptedMetricsResult("ns1", "name1", "Outer1/Inner2", 8L)));
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             committedMetricsResult("ns1", "name1", "Outer1/Inner1", 0L),
             committedMetricsResult("ns1", "name1", "Outer1/Inner2", 0L)));
@@ -178,25 +184,27 @@ public class DirectMetricsTest {
   @SuppressWarnings("unchecked")
   @Test
   public void testPartialScopeMatchingInMetricsQuery() {
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner1", NAME1), 5L),
-            MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner2", NAME1), 8L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
-    ));
-    metrics.updatePhysical(bundle1, MetricUpdates.create(
-        ImmutableList.of(
-            MetricUpdate.create(MetricKey.create("Top2/Outer1/Inner1", NAME1), 12L),
-            MetricUpdate.create(MetricKey.create("Top1/Outer2/Inner2", NAME1), 18L)),
-        ImmutableList.<MetricUpdate<DistributionData>>of(),
-        ImmutableList.<MetricUpdate<GaugeData>>of()
-    ));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner1", NAME1), 5L),
+                MetricUpdate.create(MetricKey.create("Top1/Outer1/Inner2", NAME1), 8L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
+    metrics.updatePhysical(
+        bundle1,
+        MetricUpdates.create(
+            ImmutableList.of(
+                MetricUpdate.create(MetricKey.create("Top2/Outer1/Inner1", NAME1), 12L),
+                MetricUpdate.create(MetricKey.create("Top1/Outer2/Inner2", NAME1), 18L)),
+            ImmutableList.of(),
+            ImmutableList.of()));
 
     MetricQueryResults results = metrics.queryMetrics(
         MetricsFilter.builder().addStep("Top1/Outer1").build());
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             attemptedMetricsResult("ns1", "name1", "Top1/Outer1/Inner1", 5L),
             attemptedMetricsResult("ns1", "name1", "Top1/Outer1/Inner2", 8L)));
@@ -204,7 +212,7 @@ public class DirectMetricsTest {
     results = metrics.queryMetrics(
         MetricsFilter.builder().addStep("Inner2").build());
 
-    assertThat(results.counters(),
+    assertThat(results.getCounters(),
         containsInAnyOrder(
             attemptedMetricsResult("ns1", "name1", "Top1/Outer1/Inner2", 8L),
             attemptedMetricsResult("ns1", "name1", "Top1/Outer2/Inner2", 18L)));

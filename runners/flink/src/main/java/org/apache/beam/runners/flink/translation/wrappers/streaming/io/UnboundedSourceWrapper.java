@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.runners.flink.translation.types.CoderTypeInformation;
@@ -185,7 +186,7 @@ public class UnboundedSourceWrapper<
 
     if (isRestored) {
       // restore the splitSources from the checkpoint to ensure consistent ordering
-      for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored:
+      for (KV<? extends UnboundedSource<OutputT, CheckpointMarkT>, CheckpointMarkT> restored :
           stateForCheckpoint.get()) {
         localSplitSources.add(restored.getKey());
         localReaders.add(restored.getKey().createReader(
@@ -224,13 +225,83 @@ public class UnboundedSourceWrapper<
             serializedOptions.get(),
             metricContainer);
 
-    if (localReaders.size() == 0) {
+    if (localReaders.size() == 1) {
+      // the easy case, we just read from one reader
+      UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
+
+      synchronized (ctx.getCheckpointLock()) {
+        boolean dataAvailable = readerInvoker.invokeStart(reader);
+        if (dataAvailable) {
+          emitElement(ctx, reader);
+        }
+      }
+
+      setNextWatermarkTimer(this.runtimeContext);
+
+      while (isRunning) {
+        boolean dataAvailable;
+        synchronized (ctx.getCheckpointLock()) {
+          dataAvailable = readerInvoker.invokeAdvance(reader);
+
+          if (dataAvailable) {
+            emitElement(ctx, reader);
+          }
+        }
+        if (!dataAvailable) {
+          Thread.sleep(50);
+        }
+      }
+    } else {
+      // a bit more complicated, we are responsible for several localReaders
+      // loop through them and sleep if none of them had any data
+
+      int numReaders = localReaders.size();
+      int currentReader = 0;
+
+      // start each reader and emit data if immediately available
+      for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
+        synchronized (ctx.getCheckpointLock()) {
+          boolean dataAvailable = readerInvoker.invokeStart(reader);
+          if (dataAvailable) {
+            emitElement(ctx, reader);
+          }
+        }
+      }
+
+      setNextWatermarkTimer(this.runtimeContext);
+
+      // a flag telling us whether any of the localReaders had data
+      // if no reader had data, sleep for bit
+      boolean hadData = false;
+      while (isRunning) {
+        UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(currentReader);
+
+        synchronized (ctx.getCheckpointLock()) {
+          boolean dataAvailable = readerInvoker.invokeAdvance(reader);
+          if (dataAvailable) {
+            emitElement(ctx, reader);
+            hadData = true;
+          }
+        }
+
+        currentReader = (currentReader + 1) % numReaders;
+        if (currentReader == 0 && !hadData) {
+          Thread.sleep(50);
+        } else if (currentReader == 0) {
+          hadData = false;
+        }
+      }
+    }
+
+    ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+
+    FlinkPipelineOptions options = serializedOptions.get().as(FlinkPipelineOptions.class);
+    if (!options.isShutdownSourcesOnFinalWatermark()) {
       // do nothing, but still look busy ...
-      // also, output a Long.MAX_VALUE watermark since we know that we're not
-      // going to emit anything
       // we can't return here since Flink requires that all operators stay up,
       // otherwise checkpointing would not work correctly anymore
-      ctx.emitWatermark(new Watermark(Long.MAX_VALUE));
+      //
+      // See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue
 
       // wait until this is canceled
       final Object waitLock = new Object();
@@ -249,63 +320,6 @@ public class UnboundedSourceWrapper<
           }
         }
       }
-    } else if (localReaders.size() == 1) {
-      // the easy case, we just read from one reader
-      UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(0);
-
-      boolean dataAvailable = readerInvoker.invokeStart(reader);
-      if (dataAvailable) {
-        emitElement(ctx, reader);
-      }
-
-      setNextWatermarkTimer(this.runtimeContext);
-
-      while (isRunning) {
-        dataAvailable = readerInvoker.invokeAdvance(reader);
-
-        if (dataAvailable)  {
-          emitElement(ctx, reader);
-        } else {
-          Thread.sleep(50);
-        }
-      }
-    } else {
-      // a bit more complicated, we are responsible for several localReaders
-      // loop through them and sleep if none of them had any data
-
-      int numReaders = localReaders.size();
-      int currentReader = 0;
-
-      // start each reader and emit data if immediately available
-      for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
-        boolean dataAvailable = readerInvoker.invokeStart(reader);
-        if (dataAvailable) {
-          emitElement(ctx, reader);
-        }
-      }
-
-      setNextWatermarkTimer(this.runtimeContext);
-
-      // a flag telling us whether any of the localReaders had data
-      // if no reader had data, sleep for bit
-      boolean hadData = false;
-      while (isRunning) {
-        UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(currentReader);
-        boolean dataAvailable = readerInvoker.invokeAdvance(reader);
-
-        if (dataAvailable) {
-          emitElement(ctx, reader);
-          hadData = true;
-        }
-
-        currentReader = (currentReader + 1) % numReaders;
-        if (currentReader == 0 && !hadData) {
-          Thread.sleep(50);
-        } else if (currentReader == 0) {
-          hadData = false;
-        }
-      }
-
     }
   }
 
@@ -317,24 +331,21 @@ public class UnboundedSourceWrapper<
       UnboundedSource.UnboundedReader<OutputT> reader) {
     // make sure that reader state update and element emission are atomic
     // with respect to snapshots
-    synchronized (ctx.getCheckpointLock()) {
+    OutputT item = reader.getCurrent();
+    byte[] recordId = reader.getCurrentRecordId();
+    Instant timestamp = reader.getCurrentTimestamp();
 
-      OutputT item = reader.getCurrent();
-      byte[] recordId = reader.getCurrentRecordId();
-      Instant timestamp = reader.getCurrentTimestamp();
-
-      WindowedValue<ValueWithRecordId<OutputT>> windowedValue =
-          WindowedValue.of(new ValueWithRecordId<>(item, recordId), timestamp,
-              GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
-      ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
-    }
+    WindowedValue<ValueWithRecordId<OutputT>> windowedValue =
+        WindowedValue.of(new ValueWithRecordId<>(item, recordId), timestamp,
+            GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
+    ctx.collectWithTimestamp(windowedValue, timestamp.getMillis());
   }
 
   @Override
   public void close() throws Exception {
     super.close();
     if (localReaders != null) {
-      for (UnboundedSource.UnboundedReader<OutputT> reader: localReaders) {
+      for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
         reader.close();
       }
     }
@@ -390,8 +401,8 @@ public class UnboundedSourceWrapper<
       int diff = pendingCheckpoints.size() - MAX_NUMBER_PENDING_CHECKPOINTS;
       if (diff >= 0) {
         for (Iterator<Long> iterator = pendingCheckpoints.keySet().iterator();
-             diff >= 0;
-             diff--) {
+            diff >= 0;
+            diff--) {
           iterator.next();
           iterator.remove();
         }
@@ -430,7 +441,7 @@ public class UnboundedSourceWrapper<
       synchronized (context.getCheckpointLock()) {
         // find minimum watermark over all localReaders
         long watermarkMillis = Long.MAX_VALUE;
-        for (UnboundedSource.UnboundedReader<OutputT> reader: localReaders) {
+        for (UnboundedSource.UnboundedReader<OutputT> reader : localReaders) {
           Instant watermark = reader.getWatermark();
           if (watermark != null) {
             watermarkMillis = Math.min(watermark.getMillis(), watermarkMillis);

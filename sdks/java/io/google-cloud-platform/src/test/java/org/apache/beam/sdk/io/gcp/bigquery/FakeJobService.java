@@ -93,17 +93,23 @@ class FakeJobService implements JobService, Serializable {
     }
   }
 
-  private static final com.google.common.collect.Table<String, String, JobInfo> allJobs =
-      HashBasedTable.create();
-  private static int numExtractJobCalls = 0;
+  private static com.google.common.collect.Table<String, String, JobInfo> allJobs;
+  private static int numExtractJobCalls;
 
-  private static final com.google.common.collect.Table<String, String, List<ResourceId>>
-      filesForLoadJobs = HashBasedTable.create();
-  private static final com.google.common.collect.Table<String, String, JobStatistics>
-      dryRunQueryResults = HashBasedTable.create();
+  private static com.google.common.collect.Table<String, String, List<ResourceId>>
+      filesForLoadJobs;
+  private static com.google.common.collect.Table<String, String, JobStatistics>
+      dryRunQueryResults;
 
   FakeJobService() {
     this.datasetService = new FakeDatasetService();
+  }
+
+  public static void setUp() {
+    allJobs = HashBasedTable.create();
+    numExtractJobCalls = 0;
+    filesForLoadJobs = HashBasedTable.create();
+    dryRunQueryResults = HashBasedTable.create();
   }
 
   @Override
@@ -139,7 +145,7 @@ class FakeJobService implements JobService, Serializable {
   @Override
   public void startExtractJob(JobReference jobRef, JobConfigurationExtract extractConfig)
       throws InterruptedException, IOException {
-    checkArgument(extractConfig.getDestinationFormat().equals("AVRO"),
+    checkArgument("AVRO".equals(extractConfig.getDestinationFormat()),
         "Only extract to AVRO is supported");
     synchronized (allJobs) {
       verifyUniqueJobId(jobRef.getJobId());
@@ -203,8 +209,8 @@ class FakeJobService implements JobService, Serializable {
         Job job = getJob(jobRef);
         if (job != null) {
           JobStatus status = job.getStatus();
-          if (status != null && status.getState() != null
-              && (status.getState().equals("DONE") || status.getState().equals("FAILED"))) {
+          if (status != null
+              && ("DONE".equals(status.getState()) || "FAILED".equals(status.getState()))) {
             return job;
           }
         }
@@ -222,7 +228,7 @@ class FakeJobService implements JobService, Serializable {
   }
 
   @Override
-  public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query)
+  public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery query, String location)
       throws InterruptedException, IOException {
     synchronized (dryRunQueryResults) {
       JobStatistics result = dryRunQueryResults.get(projectId, query.getQuery());
@@ -302,16 +308,24 @@ class FakeJobService implements JobService, Serializable {
       throws InterruptedException, IOException {
     TableReference destination = load.getDestinationTable();
     TableSchema schema = load.getSchema();
+    checkArgument(schema != null, "No schema specified");
     List<ResourceId> sourceFiles = filesForLoadJobs.get(jobRef.getProjectId(), jobRef.getJobId());
     WriteDisposition writeDisposition = WriteDisposition.valueOf(load.getWriteDisposition());
     CreateDisposition createDisposition = CreateDisposition.valueOf(load.getCreateDisposition());
-    checkArgument(load.getSourceFormat().equals("NEWLINE_DELIMITED_JSON"));
+    checkArgument("NEWLINE_DELIMITED_JSON".equals(load.getSourceFormat()));
     Table existingTable = datasetService.getTable(destination);
     if (!validateDispositions(existingTable, createDisposition, writeDisposition)) {
       return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
     }
     if (existingTable == null) {
-      existingTable = new Table().setTableReference(destination).setSchema(schema);
+      TableReference strippedDestination =
+          destination
+              .clone()
+              .setTableId(BigQueryHelpers.stripPartitionDecorator(destination.getTableId()));
+      existingTable =
+          new Table()
+              .setTableReference(strippedDestination)
+              .setSchema(schema);
       if (load.getTimePartitioning() != null) {
         existingTable = existingTable.setTimePartitioning(load.getTimePartitioning());
       }
@@ -408,8 +422,8 @@ class FakeJobService implements JobService, Serializable {
     Schema avroSchema = BigQueryAvroUtils.toGenericAvroSchema(tableId, schema.getFields());
     List<TableRow> rowsToWrite = Lists.newArrayList();
     int shard = 0;
-    for (int i = 0; i < rows.size(); ++i) {
-      rowsToWrite.add(rows.get(i));
+    for (TableRow row : rows) {
+      rowsToWrite.add(row);
       if (rowsToWrite.size() == 5) {
         writeRowsHelper(rowsToWrite, avroSchema, destinationPattern, shard++);
         rowsToWrite.clear();

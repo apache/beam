@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-examples-parent</artifactId>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>2.5.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -95,7 +95,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.10</artifactId>
+          <artifactId>beam-runners-flink_2.11</artifactId>
           <scope>runtime</scope>
           <exclusions>
             <exclusion>
@@ -110,6 +110,10 @@
     <!-- Include the Apache Spark runner -P spark-runner -->
     <profile>
       <id>spark-runner</id>
+      <properties>
+        <!-- Spark uses a different netty version than Beam's. -->
+        <netty.version>4.1.17.Final</netty.version>
+      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
@@ -123,12 +127,12 @@
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.10</artifactId>
+          <artifactId>spark-streaming_2.11</artifactId>
           <scope>runtime</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-core_2.10</artifactId>
+          <artifactId>spark-core_2.11</artifactId>
           <scope>runtime</scope>
           <exclusions>
             <exclusion>
@@ -435,6 +439,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.oauth-client</groupId>
+      <artifactId>google-oauth-client</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util</artifactId>
     </dependency>
@@ -491,12 +500,23 @@
       <optional>true</optional>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Hamcrest and JUnit are required dependencies of PAssert,
          which is used in the main code of DebuggingWordCount example. -->
 
     <dependency>
       <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <artifactId>hamcrest-core</artifactId>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
     </dependency>
 
     <dependency>
@@ -524,7 +544,7 @@
 
     <dependency>
       <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
+      <artifactId>mockito-core</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

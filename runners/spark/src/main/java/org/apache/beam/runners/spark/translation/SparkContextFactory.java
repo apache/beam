@@ -80,7 +80,7 @@ public final class SparkContextFactory {
     if (usesProvidedSparkContext) {
       LOG.info("Using a provided Spark Context");
       JavaSparkContext jsc = contextOptions.getProvidedSparkContext();
-      if (jsc == null || jsc.sc().isStopped()){
+      if (jsc == null || jsc.sc().isStopped()) {
         LOG.error("The provided Spark context " + jsc + " was not created or was stopped");
         throw new RuntimeException("The provided Spark context was not created or was stopped");
       }
@@ -92,6 +92,11 @@ public final class SparkContextFactory {
         // set master if not set.
         conf.setMaster(contextOptions.getSparkMaster());
       }
+
+      if (contextOptions.getFilesToStage() != null && !contextOptions.getFilesToStage().isEmpty()) {
+        conf.setJars(contextOptions.getFilesToStage().toArray(new String[0]));
+      }
+
       conf.setAppName(contextOptions.getAppName());
       // register immutable collections serializers because the SDK uses them.
       conf.set("spark.kryo.registrator", BeamSparkRunnerRegistrator.class.getName());

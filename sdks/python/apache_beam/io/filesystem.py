@@ -26,6 +26,9 @@ import os
 import time
 import zlib
 
+from six import integer_types
+from six import string_types
+
 from apache_beam.utils.plugin import BeamPlugin
 
 logger = logging.getLogger(__name__)
@@ -371,8 +374,8 @@ class FileMetadata(object):
   """Metadata about a file path that is the output of FileSystem.match
   """
   def __init__(self, path, size_in_bytes):
-    assert isinstance(path, basestring) and path, "Path should be a string"
-    assert isinstance(size_in_bytes, (int, long)) and size_in_bytes >= 0, \
+    assert isinstance(path, string_types) and path, "Path should be a string"
+    assert isinstance(size_in_bytes, integer_types) and size_in_bytes >= 0, \
         "Invalid value for size_in_bytes should %s (of type %s)" % (
             size_in_bytes, type(size_in_bytes))
     self.path = path
@@ -425,11 +428,18 @@ class FileSystem(BeamPlugin):
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
-  implement. Clients should use the FileSystemUtil class to interact with
+  implement. Clients should use the FileSystems class to interact with
   the correct file system based on the provided file pattern scheme.
   """
   __metaclass__ = abc.ABCMeta
   CHUNK_SIZE = 1  # Chuck size in the batch operations
+
+  def __init__(self, pipeline_options):
+    """
+    Args:
+      pipeline_options: Instance of ``PipelineOptions`` or dict of options and
+        values (like ``RuntimeValueProvider.runtime_options``).
+    """
 
   @staticmethod
   def _get_compression_type(path, compression_type):
@@ -522,7 +532,7 @@ class FileSystem(BeamPlugin):
     """Returns a read channel for the given file path.
 
     Args:
-      path: string path of the file object to be written to the system
+      path: string path of the file object to be read
       mime_type: MIME type to specify the type of content in the file object
       compression_type: Type of compression to be used for this object
 
@@ -565,6 +575,28 @@ class FileSystem(BeamPlugin):
       path: string path that needs to be checked.
 
     Returns: boolean flag indicating if path exists
+    """
+    raise NotImplementedError
+
+  @abc.abstractmethod
+  def checksum(self, path):
+    """Fetch checksum metadata of a file on the
+    :class:`~apache_beam.io.filesystem.FileSystem`.
+
+    This operation returns checksum metadata as stored in the underlying
+    FileSystem. It should not need to read file data to obtain this value.
+    Checksum type and format are FileSystem dependent and are not compatible
+    between FileSystems.
+    FileSystem implementations may return file size if a checksum isn't
+    available.
+
+    Args:
+      path: string path of a file.
+
+    Returns: string containing checksum
+
+    Raises:
+      ``BeamIOError`` if path isn't a file or doesn't exist.
     """
     raise NotImplementedError
 

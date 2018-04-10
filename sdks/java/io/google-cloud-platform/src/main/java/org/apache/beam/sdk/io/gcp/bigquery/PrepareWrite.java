@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -49,18 +51,29 @@ public class PrepareWrite<T, DestinationT>
   public PCollection<KV<DestinationT, TableRow>> expand(PCollection<T> input) {
     return input.apply(
         ParDo.of(
-            new DoFn<T, KV<DestinationT, TableRow>>() {
-              @ProcessElement
-              public void processElement(ProcessContext context, BoundedWindow window)
-                  throws IOException {
-                dynamicDestinations.setSideInputAccessorFromProcessContext(context);
-                DestinationT tableDestination =
-                    dynamicDestinations.getDestination(
+                new DoFn<T, KV<DestinationT, TableRow>>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext context, BoundedWindow window)
+                      throws IOException {
+                    dynamicDestinations.setSideInputAccessorFromProcessContext(context);
+                    ValueInSingleWindow<T> element =
                         ValueInSingleWindow.of(
-                            context.element(), context.timestamp(), window, context.pane()));
-                TableRow tableRow = formatFunction.apply(context.element());
-                context.output(KV.of(tableDestination, tableRow));
-              }
-            }).withSideInputs(dynamicDestinations.getSideInputs()));
+                            context.element(), context.timestamp(), window, context.pane());
+                    DestinationT tableDestination = dynamicDestinations.getDestination(element);
+                    checkArgument(
+                        tableDestination != null,
+                        "DynamicDestinations.getDestination() may not return null, "
+                            + "but %s returned null on element %s",
+                        dynamicDestinations,
+                        element);
+                    TableRow tableRow = formatFunction.apply(context.element());
+                    checkArgument(
+                        tableRow != null,
+                        "formatFunction may not return null, but %s returned null on element %s",
+                        formatFunction, context.element());
+                    context.output(KV.of(tableDestination, tableRow));
+                  }
+                })
+            .withSideInputs(dynamicDestinations.getSideInputs()));
   }
 }

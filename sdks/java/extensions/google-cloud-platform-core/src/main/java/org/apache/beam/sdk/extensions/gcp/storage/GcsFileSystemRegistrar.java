@@ -41,6 +41,6 @@ public class GcsFileSystemRegistrar implements FileSystemRegistrar {
     checkNotNull(
         options,
         "Expect the runner have called FileSystems.setDefaultPipelineOptions().");
-    return ImmutableList.<FileSystem>of(new GcsFileSystem(options.as(GcsOptions.class)));
+    return ImmutableList.of(new GcsFileSystem(options.as(GcsOptions.class)));
   }
 }

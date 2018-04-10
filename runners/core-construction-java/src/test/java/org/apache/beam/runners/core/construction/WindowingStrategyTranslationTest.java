@@ -113,7 +113,7 @@ public class WindowingStrategyTranslationTest {
 
     assertThat(
         WindowingStrategyTranslation.fromProto(proto, protoComponents).fixDefaults(),
-        Matchers.<WindowingStrategy<?, ?>>equalTo(windowingStrategy.fixDefaults()));
+        Matchers.equalTo(windowingStrategy.fixDefaults()));
 
     protoComponents.getCoder(
         components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));

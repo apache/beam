@@ -54,7 +54,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -70,7 +69,6 @@ import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -213,23 +211,20 @@ class BigQueryServicesImpl implements BigQueryServices {
         Sleeper sleeper,
         BackOff backoff) throws IOException, InterruptedException {
       JobReference jobRef = job.getJobReference();
-      Exception lastException = null;
+      Exception lastException;
       do {
         try {
           client.jobs().insert(jobRef.getProjectId(), job).execute();
           LOG.info("Started BigQuery job: {}.\n{}", jobRef,
               formatBqStatusCommand(jobRef.getProjectId(), jobRef.getJobId()));
           return; // SUCCEEDED
-        } catch (GoogleJsonResponseException e) {
+        } catch (IOException e) {
           if (errorExtractor.itemAlreadyExists(e)) {
+            LOG.info("BigQuery job " + jobRef + " already exists, will not retry inserting it:", e);
             return; // SUCCEEDED
           }
           // ignore and retry
-          LOG.info("Ignore the error and retry inserting the job.", e);
-          lastException = e;
-        } catch (IOException e) {
-          // ignore and retry
-          LOG.info("Ignore the error and retry inserting the job.", e);
+          LOG.info("Failed to insert job " + jobRef + ", will retry:", e);
           lastException = e;
         }
       } while (nextBackOff(sleeper, backoff));
@@ -257,22 +252,22 @@ class BigQueryServicesImpl implements BigQueryServices {
         JobReference jobRef,
         Sleeper sleeper,
         BackOff backoff) throws InterruptedException {
-      Instant nextLog = Instant.now().plus(POLLING_LOG_GAP);
       do {
         try {
-          Job job = client.jobs().get(jobRef.getProjectId(), jobRef.getJobId()).execute();
+          Job job = client.jobs().get(
+                  jobRef.getProjectId(), jobRef.getJobId()).setLocation(
+                          jobRef.getLocation()).execute();
           JobStatus status = job.getStatus();
-          if (status != null && status.getState() != null && status.getState().equals("DONE")) {
+          if (status != null && "DONE".equals(status.getState())) {
+            LOG.info("BigQuery job {} completed in state DONE", jobRef);
             return job;
           }
           // The job is not DONE, wait longer and retry.
-          if (Instant.now().isAfter(nextLog)) {
-            LOG.info("Still waiting for BigQuery job {}\n{}",
-                jobRef.getJobId(),
-                formatBqStatusCommand(
-                    jobRef.getProjectId(), jobRef.getJobId()));
-            nextLog = Instant.now().plus(POLLING_LOG_GAP);
-          }
+          LOG.info(
+              "Still waiting for BigQuery job {}, currently in status {}\n{}",
+              jobRef.getJobId(),
+              status,
+              formatBqStatusCommand(jobRef.getProjectId(), jobRef.getJobId()));
         } catch (IOException e) {
           // ignore and retry
           LOG.info("Ignore the error and retry polling job status.", e);
@@ -288,9 +283,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @Override
-    public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig)
+    public JobStatistics dryRunQuery(String projectId, JobConfigurationQuery queryConfig,
+                                     String location)
         throws InterruptedException, IOException {
-      Job job = new Job()
+      JobReference jobRef = new JobReference().setLocation(location).setProjectId(projectId);
+      Job job = new Job().setJobReference(jobRef)
           .setConfiguration(new JobConfiguration()
               .setQuery(queryConfig)
               .setDryRun(true));
@@ -681,7 +678,7 @@ class BigQueryServicesImpl implements BigQueryServices {
       List<String> idsToPublish = insertIdList;
       while (true) {
         List<ValueInSingleWindow<TableRow>> retryRows = new ArrayList<>();
-        List<String> retryIds = (idsToPublish != null) ? new ArrayList<String>() : null;
+        List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
 
         int strideIndex = 0;
         // Upload in batches.
@@ -711,31 +708,29 @@ class BigQueryServicesImpl implements BigQueryServices {
                     content);
 
             futures.add(
-                executor.submit(new Callable<List<TableDataInsertAllResponse.InsertErrors>>() {
-                  @Override
-                  public List<TableDataInsertAllResponse.InsertErrors> call() throws IOException {
-                    // A backoff for rate limit exceeded errors. Retries forever.
-                    BackOff backoff = BackOffAdapter.toGcpBackOff(
-                        RATE_LIMIT_BACKOFF_FACTORY.backoff());
-                    while (true) {
-                      try {
-                        return insert.execute().getInsertErrors();
-                      } catch (IOException e) {
-                        if (new ApiErrorExtractor().rateLimited(e)) {
-                          LOG.info("BigQuery insertAll exceeded rate limit, retrying");
-                          try {
-                            sleeper.sleep(backoff.nextBackOffMillis());
-                          } catch (InterruptedException interrupted) {
-                            throw new IOException(
-                                "Interrupted while waiting before retrying insertAll");
+                executor.submit(
+                    () -> {
+                      // A backoff for rate limit exceeded errors. Retries forever.
+                      BackOff backoff1 =
+                          BackOffAdapter.toGcpBackOff(RATE_LIMIT_BACKOFF_FACTORY.backoff());
+                      while (true) {
+                        try {
+                          return insert.execute().getInsertErrors();
+                        } catch (IOException e) {
+                          if (new ApiErrorExtractor().rateLimited(e)) {
+                            LOG.info("BigQuery insertAll exceeded rate limit, retrying");
+                            try {
+                              sleeper.sleep(backoff1.nextBackOffMillis());
+                            } catch (InterruptedException interrupted) {
+                              throw new IOException(
+                                  "Interrupted while waiting before retrying insertAll");
+                            }
+                          } else {
+                            throw e;
                           }
-                        } else {
-                          throw e;
                         }
                       }
-                    }
-                  }
-                }));
+                    }));
             strideIndices.add(strideIndex);
 
             retTotalDataSize += dataSize;
@@ -839,22 +834,12 @@ class BigQueryServicesImpl implements BigQueryServices {
   }
 
   static final SerializableFunction<IOException, Boolean> DONT_RETRY_NOT_FOUND =
-      new SerializableFunction<IOException, Boolean>() {
-        @Override
-        public Boolean apply(IOException input) {
-          ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
-          return !errorExtractor.itemNotFound(input);
-        }
+      input -> {
+        ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+        return !errorExtractor.itemNotFound(input);
       };
 
-  static final SerializableFunction<IOException, Boolean> ALWAYS_RETRY =
-      new SerializableFunction<IOException, Boolean>() {
-        @Override
-        public Boolean apply(IOException input) {
-          return true;
-        }
-      };
-
+  static final SerializableFunction<IOException, Boolean> ALWAYS_RETRY = input -> true;
 
   @VisibleForTesting
   static <T> T executeWithRetries(

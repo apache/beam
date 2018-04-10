@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupAlsoByWindow;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
@@ -71,7 +72,7 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
   }
 
   @Override
-  public Iterable<WindowedValue<KV<K, Iterable<InputT>>>> call(
+  public Iterator<WindowedValue<KV<K, Iterable<InputT>>>> call(
       WindowedValue<KV<K, Iterable<WindowedValue<InputT>>>> windowedValue) throws Exception {
     K key = windowedValue.getValue().getKey();
     Iterable<WindowedValue<InputT>> values = windowedValue.getValue().getValue();
@@ -115,7 +116,7 @@ public class SparkGroupAlsoByWindowViaOutputBufferFn<K, InputT, W extends Bounde
 
     reduceFnRunner.persist();
 
-    return outputter.getOutputs();
+    return outputter.getOutputs().iterator();
   }
 
   private void fireEligibleTimers(InMemoryTimerInternals timerInternals,

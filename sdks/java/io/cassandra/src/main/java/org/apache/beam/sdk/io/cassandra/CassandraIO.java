@@ -22,11 +22,8 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.util.List;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -38,8 +35,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An IO to read from Apache Cassandra.
@@ -84,8 +79,6 @@ import org.slf4j.LoggerFactory;
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class CassandraIO {
-
-  private static final Logger LOG = LoggerFactory.getLogger(CassandraIO.class);
 
   private CassandraIO() {}
 
@@ -222,8 +215,7 @@ public class CassandraIO {
       checkArgument(entity() != null, "withEntity() is required");
       checkArgument(coder() != null, "withCoder() is required");
 
-      return input.apply(org.apache.beam.sdk.io.Read.from(
-          new CassandraSource<T>(this, null)));
+      return input.apply(org.apache.beam.sdk.io.Read.from(new CassandraSource<>(this, null)));
     }
 
     @AutoValue.Builder
@@ -422,7 +414,7 @@ public class CassandraIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      input.apply(ParDo.of(new WriteFn<T>(this)));
+      input.apply(ParDo.of(new WriteFn<>(this)));
       return PDone.in(input.getPipeline());
     }
 

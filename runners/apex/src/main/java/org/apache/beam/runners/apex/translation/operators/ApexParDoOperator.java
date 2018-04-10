@@ -158,8 +158,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
         FullWindowedValueCoder.of(
             linputCoder, this.windowingStrategy.getWindowFn().windowCoder());
     Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(wvCoder);
-    this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<WindowedValue<InputT>>(),
-        listCoder);
+    this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<>(), listCoder);
     this.inputCoder = wvCoder;
 
     TimerInternals.TimerDataCoder timerCoder =
@@ -475,15 +474,10 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
           (StateInternalsFactory<String>) this.currentKeyStateInternals.getFactory();
 
       @SuppressWarnings({ "rawtypes", "unchecked" })
-      ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object>>
+      ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object, Object>>
         splittableDoFn = (ProcessFn) doFn;
       splittableDoFn.setStateInternalsFactory(stateInternalsFactory);
-      TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
-         @Override
-         public TimerInternals timerInternalsForKey(String key) {
-           return currentKeyTimerInternals;
-          }
-        };
+      TimerInternalsFactory<String> timerInternalsFactory = key -> currentKeyTimerInternals;
       splittableDoFn.setTimerInternalsFactory(timerInternalsFactory);
       splittableDoFn.setProcessElementInvoker(
           new OutputAndTimeBoundedSplittableProcessElementInvoker<>(

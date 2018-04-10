@@ -41,6 +41,7 @@ option java_outer_classname = "BeamFnApi";
 import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
 
 /*
  * Constructs that define the pipeline shape.
@@ -76,6 +77,9 @@ message RemoteGrpcPort {
   // (Required) An API descriptor which describes where to
   // connect to including any authentication that is required.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor api_service_descriptor = 1;
+
+  // (Required) The ID of the Coder that will be used to encode and decode data sent over this port.
+  string coder_id = 2;
 }
 
 /*
@@ -179,6 +183,48 @@ message ProcessBundleDescriptor {
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
 }
 
+// Represents a partition of the bundle into two bundles: a "primary" and
+// a "residual", with the following properties:
+// - The work in primary and residual doesn't overlap, and combined, adds up
+//   to the work in the current bundle if the split hadn't happened.
+// - The current bundle, if it keeps executing, will have done none of the
+//   work under residual roots.
+// - The current bundle, if no further splits happen, will have done exactly
+//   the work under primary_roots.
+// For more rigorous definitions see https://s.apache.org/beam-breaking-fusion
+message BundleSplit {
+  // One of the root applications specifying the scope of work for a bundle.
+  message Application {
+    // (Required) The primitive transform to which to pass the element
+    string ptransform_id = 1;
+
+    // (Required) Name of the transform's input to which to pass the element.
+    string input_id = 2;
+
+    // (Required) The encoded element to pass to the transform.
+    bytes element = 3;
+
+    // Approximate lower bounds on timestamps of elements that this PTransform
+    // will produce into each of its output PCollections, when invoked on this
+    // element. Keyed by the transform's local output name.
+    map<string, int64> output_watermarks = 4;
+
+    // Approximate fraction of all work of the current bundle (before split)
+    // represented by invoking this Application and its downstream applications.
+    // The sum of fraction_of_work between all primary_roots and residual_roots
+    // must add up to approximately 1.0.
+    google.protobuf.DoubleValue fraction_of_work = 5;
+  }
+
+  // Root applications that should replace the current bundle.
+  repeated Application primary_roots = 1;
+
+  // Root applications that have been removed from the current bundle and
+  // have to be executed in a separate bundle (e.g. in parallel on a different
+  // worker, or after the current bundle completes, etc.)
+  repeated Application residual_roots = 2;
+}
+
 // A request to process a given bundle.
 // Stable
 message ProcessBundleRequest {
@@ -196,6 +242,10 @@ message ProcessBundleResponse {
   // (Optional) If metrics reporting is supported by the SDK, this represents
   // the final metrics to record for this bundle.
   Metrics metrics = 1;
+
+  // (Optional) Specifies that the bundle has been split since the last
+  // ProcessBundleProgressResponse was sent.
+  BundleSplit split = 2;
 }
 
 // A request to report progress information for a given bundle.
@@ -216,8 +266,10 @@ message Metrics {
   message PTransform {
     // Metrics that are measured for processed and active element groups.
     message Measured {
-      // (Required) Map from local input name to number of elements processed
+      // (Optional) Map from local input name to number of elements processed
       // from this input.
+      // If unset, assumed to be the sum of the outputs of all producers to
+      // this transform (for ProcessedElements) and 0 (for ActiveElements).
       map<string, int64> input_element_counts = 1;
 
       // (Required) Map from local output name to number of elements produced
@@ -225,8 +277,8 @@ message Metrics {
       map<string, int64> output_element_counts = 2;
 
       // (Optional) The total time spent so far in processing the elements in
-      // this group.
-      int64 total_time_spent = 3;
+      // this group, in seconds.
+      double total_time_spent = 3;
 
       // TODO: Add other element group level metrics.
     }
@@ -273,21 +325,62 @@ message Metrics {
     // the actual watermarks.
     map<string, int64> watermarks = 3;
 
+    repeated User user = 4;
     // TODO: Define other transform level system metrics.
   }
 
   // User defined metrics
   message User {
-    // TODO: Define it.
+
+    // A key for identifying a metric at the most granular level.
+    message MetricName {
+      // (Required): The namespace of this metric.
+      string namespace = 2;
+
+      // (Required): The name of this metric.
+      string name = 3;
+    }
+
+    // Data associated with a counter metric.
+    message CounterData {
+      int64 value = 1;
+    }
+
+    // Data associated with a distribution metric.
+    message DistributionData {
+      int64 count = 1;
+      int64 sum = 2;
+      int64 min = 3;
+      int64 max = 4;
+    }
+
+    // Data associated with a Gauge metric.
+    message GaugeData {
+      int64 value = 1;
+      google.protobuf.Timestamp timestamp = 2;
+    }
+
+    // (Required) The identifier for this metric.
+    MetricName metric_name = 1;
+
+    // (Required) The data for this metric.
+    oneof data {
+      CounterData counter_data = 1001;
+      DistributionData distribution_data = 1002;
+      GaugeData gauge_data = 1003;
+    }
   }
 
   map<string, PTransform> ptransforms = 1;
-  map<string, User> user = 2;
 }
 
 message ProcessBundleProgressResponse {
   // (Required)
   Metrics metrics = 1;
+
+  // (Optional) Specifies that the bundle has been split since the last
+  // ProcessBundleProgressResponse was sent.
+  BundleSplit split = 2;
 }
 
 message ProcessBundleSplitRequest {
@@ -295,106 +388,22 @@ message ProcessBundleSplitRequest {
   // instruction id.
   string instruction_reference = 1;
 
-  // (Required) The fraction of work (when compared to the known amount of work)
-  // the process bundle request should try to split at.
-  double fraction = 2;
-}
-
-// urn:org.apache.beam:restriction:element-count:1.0
-message ElementCountRestriction {
-  // A restriction representing the number of elements that should be processed.
-  // Effectively the range [0, count]
-  int64 count = 1;
-}
-
-// urn:org.apache.beam:restriction:element-count-skip:1.0
-message ElementCountSkipRestriction {
-  // A restriction representing the number of elements that should be skipped.
-  // Effectively the range (count, infinity]
-  int64 count = 1;
-}
-
-// Each primitive transform that is splittable is defined by a restriction
-// it is currently processing. During splitting, that currently active
-// restriction (R_initial) is split into 2 components:
-//   * a restriction (R_done) representing all elements that will be fully
-//     processed
-//   * a restriction (R_todo) representing all elements that will not be fully
-//     processed
-//
-// where:
-//   R_initial = R_done ⋃ R_todo
-message PrimitiveTransformSplit {
-  // (Required) A reference to a primitive transform with the given id that
-  // is part of the active process bundle request with the given instruction
-  // id.
-  string primitive_transform_reference = 1;
-
-  // (Required) A function specification describing the restriction
-  // that has been completed by the primitive transform.
+  // Specifies that the runner would like the bundle to split itself using
+  // BundleSplit, and give up some of the work that the bundle hasn't started
+  // doing yet, so that it can be done in a separate bundle (perhaps in
+  // parallel with the current bundle).
   //
-  // For example, a remote GRPC source will have a specific urn and data
-  // block containing an ElementCountRestriction.
-  org.apache.beam.model.pipeline.v1.FunctionSpec completed_restriction = 2;
-
-  // (Required) A function specification describing the restriction
-  // representing the remainder of work for the primitive transform.
+  // The value is the fraction of unstarted work to keep. E.g. 0 means give up
+  // as much as possible of unstarted work (e.g. checkpoint), 0.5 means give
+  // up about half of the unstarted work, etc.
+  // This is a hint and the value is approximate.
   //
-  // FOr example, a remote GRPC source will have a specific urn and data
-  // block contain an ElemntCountSkipRestriction.
-  org.apache.beam.model.pipeline.v1.FunctionSpec remaining_restriction = 3;
+  // The value is relative to the current scope of work of the bundle.
+  google.protobuf.DoubleValue fraction_of_remainder = 2;
 }
 
 message ProcessBundleSplitResponse {
-  // (Optional) A set of split responses for a currently active work item.
-  //
-  // If primitive transform B is a descendant of primitive transform A and both
-  // A and B report a split. Then B's restriction is reported as an element
-  // restriction pair and thus the fully reported restriction is:
-  //   R = A_done
-  //     ⋃ (A_boundary ⋂ B_done)
-  //     ⋃ (A_boundary ⋂ B_todo)
-  //     ⋃ A_todo
-  // If there is a decendant of B named C, then C would similarly report a
-  // set of element pair restrictions.
-  //
-  // This restriction is processed and completed by the currently active process
-  // bundle request:
-  //   A_done ⋃ (A_boundary ⋂ B_done)
-  // and these restrictions will be processed by future process bundle requests:
-  //   A_boundary ⋂ B_todo (passed to SDF B directly)
-  //   A_todo (passed to SDF A directly)
-
-  // If primitive transform B and C are siblings and descendants of A and A, B,
-  // and C report a split. Then B and C's restrictions are relative to A's.
-  //   R = A_done
-  //     ⋃ (A_boundary ⋂ B_done)
-  //     ⋃ (A_boundary ⋂ B_todo)
-  //     ⋃ (A_boundary ⋂ B_todo)
-  //     ⋃ (A_boundary ⋂ C_todo)
-  //     ⋃ A_todo
-  // If there is no descendant of B or C also reporting a split, than
-  //   B_boundary = ∅ and C_boundary = ∅
-  //
-  // This restriction is processed and completed by the currently active process
-  // bundle request:
-  //   A_done ⋃ (A_boundary ⋂ B_done)
-  //          ⋃ (A_boundary ⋂ C_done)
-  // and these restrictions will be processed by future process bundle requests:
-  //   A_boundary ⋂ B_todo (passed to SDF B directly)
-  //   A_boundary ⋂ C_todo (passed to SDF C directly)
-  //   A_todo (passed to SDF A directly)
-  //
-  // Note that descendants splits should only be reported if it is inexpensive
-  // to compute the boundary restriction intersected with descendants splits.
-  // Also note, that the boundary restriction may represent a set of elements
-  // produced by a parent primitive transform which can not be split at each
-  // element or that there are intermediate unsplittable primitive transforms
-  // between an ancestor splittable function and a descendant splittable
-  // function which may have more than one output per element. Finally note
-  // that the descendant splits should only be reported if the split
-  // information is relatively compact.
-  repeated PrimitiveTransformSplit splits = 1;
+  // Empty.
 }
 
 /*
@@ -542,7 +551,7 @@ message StateKey {
     string ptransform_id = 1;
     // (Required) The id of the user state.
     string user_state_id = 2;
-    // (Required) The window encoded in a nested context. 
+    // (Required) The window encoded in a nested context.
     bytes window = 3;
     // (Required) The key of the currently executing element encoded in a
     // nested context.
@@ -634,9 +643,9 @@ message LogEntry {
   // free not to use all severity levels in their log messages.
   message Severity {
     enum Enum {
+      // Unspecified level information. Will be logged at the TRACE level.
       UNSPECIFIED = 0;
-      // Trace level information, also the default log level unless
-      // another severity is specified.
+      // Trace level information.
       TRACE = 1;
       // Debugging information.
       DEBUG = 2;
@@ -703,25 +712,5 @@ service BeamFnLogging {
     // A stream of log control messages used to configure the SDK.
     stream LogControl
   ) {}
-}
-
-/*
- * Environment types
- */
-// A Docker container configuration for launching the SDK harness to execute
-// user specified functions.
-message DockerContainer {
-  // (Required) A pipeline level unique id which can be used as a reference to
-  // refer to this.
-  string id = 1;
-
-  // (Required) The Docker container URI
-  // For example "dataflow.gcr.io/v1beta3/java-batch:1.5.1"
-  string uri = 2;
-
-  // (Optional) Docker registry specification.
-  // If unspecified, the uri is expected to be able to be fetched without
-  // requiring additional configuration by a runner.
-  string registry_reference = 3;
 }
 

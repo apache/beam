@@ -17,32 +17,33 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
-import java.util.ArrayList;
+import static java.util.stream.Collectors.toList;
+
 import java.util.List;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlExpressionExecutor;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamProjectRel;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 
 /**
- *
  * {@code BeamSqlProjectFn} is the executor for a {@link BeamProjectRel} step.
- *
  */
-public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
+public class BeamSqlProjectFn extends DoFn<Row, Row> {
   private String stepName;
   private BeamSqlExpressionExecutor executor;
-  private BeamRecordSqlType outputRowType;
+  private Schema outputSchema;
 
-  public BeamSqlProjectFn(String stepName, BeamSqlExpressionExecutor executor,
-      BeamRecordSqlType outputRowType) {
+  public BeamSqlProjectFn(
+      String stepName, BeamSqlExpressionExecutor executor,
+      Schema outputSchema) {
     super();
     this.stepName = stepName;
     this.executor = executor;
-    this.outputRowType = outputRowType;
+    this.outputSchema = outputSchema;
   }
 
   @Setup
@@ -52,16 +53,24 @@ public class BeamSqlProjectFn extends DoFn<BeamRecord, BeamRecord> {
 
   @ProcessElement
   public void processElement(ProcessContext c, BoundedWindow window) {
-    BeamRecord inputRow = c.element();
-    List<Object> results = executor.execute(inputRow, window);
-    List<Object> fieldsValue = new ArrayList<>(results.size());
-    for (int idx = 0; idx < results.size(); ++idx) {
-      fieldsValue.add(
-          BeamTableUtils.autoCastField(outputRowType.getFieldTypeByIndex(idx), results.get(idx)));
-    }
-    BeamRecord outRow = new BeamRecord(outputRowType, fieldsValue);
+    Row inputRow = c.element();
+    List<Object> rawResultValues = executor.execute(inputRow, window);
 
-    c.output(outRow);
+    List<Object> castResultValues =
+        IntStream
+            .range(0, outputSchema.getFieldCount())
+            .mapToObj(i -> castField(rawResultValues, i))
+            .collect(toList());
+
+    c.output(
+        Row
+            .withSchema(outputSchema)
+            .addValues(castResultValues)
+            .build());
+  }
+
+  private Object castField(List<Object> resultValues, int i) {
+    return BeamTableUtils.autoCastField(outputSchema.getField(i), resultValues.get(i));
   }
 
   @Teardown

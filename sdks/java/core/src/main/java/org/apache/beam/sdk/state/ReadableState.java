@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.state;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 
@@ -37,10 +38,11 @@ public interface ReadableState<T> {
    * should first call {@link #readLater} for all of them so the reads can potentially be batched
    * (depending on the underlying implementation}.
    *
-   * <p>The returned object should be independent of the underlying state.  Any direct modification
+   * <p>The returned object should be independent of the underlying state. Any direct modification
    * of the returned object should not modify state without going through the appropriate state
    * interface, and modification to the state should not be mirrored in the returned object.
    */
+  @Nullable
   T read();
 
   /**

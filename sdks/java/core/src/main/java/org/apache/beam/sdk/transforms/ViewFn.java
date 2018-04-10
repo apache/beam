@@ -36,8 +36,8 @@ import org.apache.beam.sdk.values.PCollectionView;
  * {@link View#asIterable()}, and {@link View#asMap()} for more detail on specific views
  * available in the SDK.
  *
- * @param <PrimitiveViewT> the type of the underlying primitive view, provided by the runner
- *        {@code <ViewT>} the type of the value(s) accessible via this {@link PCollectionView}
+ * @param <PrimitiveViewT> the type of the underlying primitive view required
+ * @param <ViewT> the type of the value(s) accessible via this {@link PCollectionView}
  */
 @Internal
 public abstract class ViewFn<PrimitiveViewT, ViewT> implements Serializable {
@@ -49,5 +49,5 @@ public abstract class ViewFn<PrimitiveViewT, ViewT> implements Serializable {
   /**
    * A function to adapt a primitive view type to a desired view type.
    */
-  public abstract ViewT apply(PrimitiveViewT contents);
+  public abstract ViewT apply(PrimitiveViewT primitiveViewT);
 }

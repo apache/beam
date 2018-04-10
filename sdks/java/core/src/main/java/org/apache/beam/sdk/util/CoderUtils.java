@@ -19,7 +19,6 @@ package org.apache.beam.sdk.util;
 
 import com.google.common.base.Throwables;
 import com.google.common.io.BaseEncoding;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -27,7 +26,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.ParameterizedType;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -41,15 +39,9 @@ public final class CoderUtils {
   private static ThreadLocal<SoftReference<ExposedByteArrayOutputStream>>
       threadLocalOutputStream = new ThreadLocal<>();
 
-  /**
-   * If true, a call to {@code encodeToByteArray} is already on the call stack.
-   */
-  private static ThreadLocal<Boolean> threadLocalOutputStreamInUse = new ThreadLocal<Boolean>() {
-    @Override
-    protected Boolean initialValue() {
-      return false;
-    }
-  };
+  /** If true, a call to {@code encodeToByteArray} is already on the call stack. */
+  private static ThreadLocal<Boolean> threadLocalOutputStreamInUse =
+      ThreadLocal.withInitial(() -> false);
 
   /**
    * Encodes the given value using the specified Coder, and returns
@@ -153,7 +145,7 @@ public final class CoderUtils {
    * {@link Coder}.
    */
   public static <T> T clone(Coder<T> coder, T value) throws CoderException {
-    return decodeFromByteArray(coder, encodeToByteArray(coder, value, Coder.Context.OUTER));
+    return decodeFromByteArray(coder, encodeToByteArray(coder, value));
   }
 
   /**

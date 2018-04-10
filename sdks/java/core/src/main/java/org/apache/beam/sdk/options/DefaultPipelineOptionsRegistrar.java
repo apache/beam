@@ -33,6 +33,8 @@ public class DefaultPipelineOptionsRegistrar implements PipelineOptionsRegistrar
         .add(PipelineOptions.class)
         .add(ApplicationNameOptions.class)
         .add(StreamingOptions.class)
+        .add(ExperimentalOptions.class)
+        .add(SdkHarnessOptions.class)
         .build();
   }
 }

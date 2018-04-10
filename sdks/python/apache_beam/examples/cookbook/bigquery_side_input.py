@@ -90,7 +90,7 @@ def run(argv=None):
   with beam.Pipeline(options=pipeline_options) as p:
 
     group_ids = []
-    for i in xrange(0, int(known_args.num_groups)):
+    for i in range(0, int(known_args.num_groups)):
       group_ids.append('id' + str(i))
 
     query_corpus = 'select UNIQUE(corpus) from publicdata:samples.shakespeare'

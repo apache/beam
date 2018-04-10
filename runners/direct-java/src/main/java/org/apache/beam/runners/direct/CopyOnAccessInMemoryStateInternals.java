@@ -117,11 +117,6 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
   }
 
   @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
-    return state(namespace, address, StateContexts.nullContext());
-  }
-
-  @Override
   public <T extends State> T state(
       StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
     return table.get(namespace, address, c);
@@ -300,7 +295,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryValue<>();
+              return new InMemoryValue<>(coder);
             }
           }
 
@@ -317,7 +312,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryCombiningState<>(combineFn);
+              return new InMemoryCombiningState<>(combineFn, accumCoder);
             }
           }
 
@@ -331,7 +326,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryBag<>();
+              return new InMemoryBag<>(elemCoder);
             }
           }
 
@@ -345,7 +340,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemorySet<>();
+              return new InMemorySet<>(elemCoder);
             }
           }
 
@@ -361,7 +356,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
                       underlying.get().get(namespace, address, c);
               return existingState.copy();
             } else {
-              return new InMemoryMap<>();
+              return new InMemoryMap<>(mapKeyCoder, mapValueCoder);
             }
           }
 

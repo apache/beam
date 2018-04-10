@@ -17,50 +17,71 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
+import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.BeamSqlUdf;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamQueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.calcite.DataContext;
+import org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.calcite.linq4j.Enumerable;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.schema.ScannableTable;
-import org.apache.calcite.schema.Schema;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.schema.Statistic;
 import org.apache.calcite.schema.Statistics;
 import org.apache.calcite.schema.impl.ScalarFunctionImpl;
+import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.tools.Frameworks;
 
 /**
- * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and
- * {@link BeamSqlCli}.
+ * {@link BeamSqlEnv} prepares the execution context for {@link BeamSql} and {@link BeamSqlCli}.
  *
- * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions,
- * and a {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
+ * <p>It contains a {@link SchemaPlus} which holds the metadata of tables/UDF functions, and a
+ * {@link BeamQueryPlanner} which parse/validate/optimize/translate input SQL queries.
  */
-public class BeamSqlEnv implements Serializable{
+public class BeamSqlEnv implements Serializable {
   transient SchemaPlus schema;
   transient BeamQueryPlanner planner;
+  transient Map<String, BeamSqlTable> tables;
 
   public BeamSqlEnv() {
+    tables = new HashMap<>(16);
     schema = Frameworks.createRootSchema(true);
-    planner = new BeamQueryPlanner(schema);
+    planner = new BeamQueryPlanner(this, schema);
+  }
+
+  /**
+   * Register a UDF function which can be used in SQL expression.
+   */
+  public void registerUdf(String functionName, Class<?> clazz, String method) {
+    schema.add(functionName, ScalarFunctionImpl.create(clazz, method));
   }
 
   /**
    * Register a UDF function which can be used in SQL expression.
    */
   public void registerUdf(String functionName, Class<? extends BeamSqlUdf> clazz) {
-    schema.add(functionName, ScalarFunctionImpl.create(clazz, BeamSqlUdf.UDF_METHOD));
+    registerUdf(functionName, clazz, BeamSqlUdf.UDF_METHOD);
   }
 
   /**
@@ -68,7 +89,7 @@ public class BeamSqlEnv implements Serializable{
    * Note, {@link SerializableFunction} must have a constructor without arguments.
    */
   public void registerUdf(String functionName, SerializableFunction sfn) {
-    schema.add(functionName, ScalarFunctionImpl.create(sfn.getClass(), "apply"));
+    registerUdf(functionName, sfn.getClass(), "apply");
   }
 
   /**
@@ -80,30 +101,74 @@ public class BeamSqlEnv implements Serializable{
   }
 
   /**
-   * Registers a {@link BaseBeamTable} which can be used for all subsequent queries.
+   * Registers {@link PCollection}s in {@link PCollectionTuple} as a tables.
    *
+   * <p>Assumes that {@link PCollection} elements are {@link Row}s.
+   *
+   * <p>{@link TupleTag#getId()}s are used as table names.
+   */
+  public void registerPCollectionTuple(PCollectionTuple pCollectionTuple) {
+    pCollectionTuple
+        .getAll()
+        .forEach((tag, pCollection) ->
+                registerPCollection(tag.getId(), (PCollection<Row>) pCollection));
+  }
+
+  /**
+   * Registers {@link PCollection} of {@link Row}s as a table.
+   *
+   * <p>Assumes that {@link PCollection#getCoder()} returns an instance of {@link RowCoder}.
+   */
+  public void registerPCollection(String name, PCollection<Row> pCollection) {
+    registerTable(name, pCollection, ((RowCoder) pCollection.getCoder()).getSchema());
+  }
+
+  /**
+   * Registers {@link PCollection} as a table.
+   */
+  public void registerTable(String tableName, PCollection<Row> pCollection, Schema schema) {
+    registerTable(tableName, new BeamPCollectionTable(pCollection, schema));
+  }
+
+  /**
+   * Registers a {@link BaseBeamTable} which can be used for all subsequent queries.
    */
   public void registerTable(String tableName, BeamSqlTable table) {
-    schema.add(tableName, new BeamCalciteTable(table.getRowType()));
+    tables.put(tableName, table);
+    schema.add(tableName, new BeamCalciteTable(table.getSchema()));
     planner.getSourceTables().put(tableName, table);
+  }
+
+  public void deregisterTable(String targetTableName) {
+    // reconstruct the schema
+    schema = Frameworks.createRootSchema(true);
+    for (Map.Entry<String, BeamSqlTable> entry : tables.entrySet()) {
+      String tableName = entry.getKey();
+      BeamSqlTable table = entry.getValue();
+      if (!tableName.equals(targetTableName)) {
+        schema.add(tableName, new BeamCalciteTable(table.getSchema()));
+      }
+    }
+    planner = new BeamQueryPlanner(this, schema);
   }
 
   /**
    * Find {@link BaseBeamTable} by table name.
    */
-  public BeamSqlTable findTable(String tableName){
+  public BeamSqlTable findTable(String tableName) {
     return planner.getSourceTables().get(tableName);
   }
 
   private static class BeamCalciteTable implements ScannableTable, Serializable {
-    private BeamRecordSqlType beamSqlRowType;
-    public BeamCalciteTable(BeamRecordSqlType beamSqlRowType) {
-      this.beamSqlRowType = beamSqlRowType;
+    private Schema beamSchema;
+
+    public BeamCalciteTable(Schema beamSchema) {
+      this.beamSchema = beamSchema;
     }
+
     @Override
     public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-      return CalciteUtils.toCalciteRowType(this.beamSqlRowType)
-          .apply(BeamQueryPlanner.TYPE_FACTORY);
+      return CalciteUtils.toCalciteRowType(this.beamSchema, BeamQueryPlanner.TYPE_FACTORY);
     }
 
     @Override
@@ -124,12 +189,30 @@ public class BeamSqlEnv implements Serializable{
      * all sources are treated as TABLE in Beam SQL.
      */
     @Override
-    public Schema.TableType getJdbcTableType() {
-      return Schema.TableType.TABLE;
+    public org.apache.calcite.schema.Schema.TableType getJdbcTableType() {
+      return org.apache.calcite.schema.Schema.TableType.TABLE;
+    }
+
+    @Override public boolean isRolledUp(String column) {
+      return false;
+    }
+
+    @Override public boolean rolledUpColumnValidInsideAgg(String column,
+                                                          SqlCall call, SqlNode parent,
+                                                          CalciteConnectionConfig config) {
+      return false;
     }
   }
 
   public BeamQueryPlanner getPlanner() {
     return planner;
+  }
+
+  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+
+    tables = new HashMap<String, BeamSqlTable>(16);
+    schema = Frameworks.createRootSchema(true);
+    planner = new BeamQueryPlanner(this, schema);
   }
 }

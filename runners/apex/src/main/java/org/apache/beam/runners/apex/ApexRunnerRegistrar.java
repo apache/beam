@@ -42,8 +42,7 @@ public final class ApexRunnerRegistrar {
     public static class Runner implements PipelineRunnerRegistrar {
         @Override
         public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-            return ImmutableList
-                    .<Class<? extends PipelineRunner<?>>>of(ApexRunner.class, TestApexRunner.class);
+      return ImmutableList.of(ApexRunner.class, TestApexRunner.class);
         }
     }
 
@@ -54,7 +53,7 @@ public final class ApexRunnerRegistrar {
     public static class Options implements PipelineOptionsRegistrar {
         @Override
         public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-            return ImmutableList.<Class<? extends PipelineOptions>>of(ApexPipelineOptions.class);
+      return ImmutableList.of(ApexPipelineOptions.class);
         }
     }
 }

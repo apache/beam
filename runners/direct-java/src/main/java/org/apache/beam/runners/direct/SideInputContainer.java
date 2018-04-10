@@ -35,11 +35,18 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -60,6 +67,16 @@ class SideInputContainer {
    */
   public static SideInputContainer create(
       final EvaluationContext context, Collection<PCollectionView<?>> containedViews) {
+    for (PCollectionView<?> pCollectionView : containedViews) {
+      checkArgument(
+          Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+              pCollectionView.getViewFn().getMaterialization().getUrn()),
+          "This handler is only capable of dealing with %s materializations "
+              + "but was asked to handle %s for PCollectionView with tag %s.",
+          Materializations.MULTIMAP_MATERIALIZATION_URN,
+          pCollectionView.getViewFn().getMaterialization().getUrn(),
+          pCollectionView.getTagInternal().getId());
+    }
     LoadingCache<PCollectionViewWindow<?>, AtomicReference<Iterable<? extends WindowedValue<?>>>>
         viewByWindows = CacheBuilder.newBuilder().build(new CallbackSchedulingLoader(context));
     return new SideInputContainer(containedViews, viewByWindows);
@@ -115,11 +132,8 @@ class SideInputContainer {
     Map<BoundedWindow, Collection<WindowedValue<?>>> valuesPerWindow = new HashMap<>();
     for (WindowedValue<?> value : values) {
       for (BoundedWindow window : value.getWindows()) {
-        Collection<WindowedValue<?>> windowValues = valuesPerWindow.get(window);
-        if (windowValues == null) {
-          windowValues = new ArrayList<>();
-          valuesPerWindow.put(window, windowValues);
-        }
+        Collection<WindowedValue<?>> windowValues =
+            valuesPerWindow.computeIfAbsent(window, k -> new ArrayList<>());
         windowValues.add(value);
       }
     }
@@ -194,7 +208,7 @@ class SideInputContainer {
     public void run() {
       // The requested window has closed without producing elements, so reflect that in
       // the PCollectionView. If set has already been called, will do nothing.
-      contents.compareAndSet(null, Collections.<WindowedValue<?>>emptyList());
+      contents.compareAndSet(null, Collections.emptyList());
     }
 
     @Override
@@ -239,11 +253,18 @@ class SideInputContainer {
           "calling get() on PCollectionView %s that is not ready in window %s",
           view,
           window);
-      // Safe covariant cast
-      @SuppressWarnings("unchecked") Iterable<WindowedValue<?>> values =
-          (Iterable<WindowedValue<?>>) viewContents.getUnchecked(PCollectionViewWindow.of(view,
-              window)).get();
-      return view.getViewFn().apply(values);
+      // Safe covariant cast since we know that the view only contains KVs.
+      @SuppressWarnings("unchecked")
+      Iterable<KV<?, ?>> elements =
+          Iterables.transform(
+              (Iterable<WindowedValue<KV<?, ?>>>)
+                  viewContents.getUnchecked(PCollectionViewWindow.of(view, window)).get(),
+                  WindowedValue::getValue);
+
+      ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+      Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+      return (T) viewFn.apply(
+          InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
     }
 
     @Override

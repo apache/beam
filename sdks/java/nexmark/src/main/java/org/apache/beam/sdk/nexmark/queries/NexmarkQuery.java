@@ -50,12 +50,7 @@ public abstract class NexmarkQuery
 
   /** Predicate to detect a new person event. */
   private static final SerializableFunction<Event, Boolean> IS_NEW_PERSON =
-      new SerializableFunction<Event, Boolean>() {
-        @Override
-        public Boolean apply(Event event) {
-          return event.newPerson != null;
-        }
-      };
+      event -> event.newPerson != null;
 
   /** DoFn to convert a new person event to a person. */
   private static final DoFn<Event, Person> AS_PERSON = new DoFn<Event, Person>() {
@@ -67,12 +62,7 @@ public abstract class NexmarkQuery
 
   /** Predicate to detect a new auction event. */
   private static final SerializableFunction<Event, Boolean> IS_NEW_AUCTION =
-      new SerializableFunction<Event, Boolean>() {
-        @Override
-        public Boolean apply(Event event) {
-          return event.newAuction != null;
-        }
-      };
+      event -> event.newAuction != null;
 
   /** DoFn to convert a new auction event to an auction. */
   private static final DoFn<Event, Auction> AS_AUCTION = new DoFn<Event, Auction>() {
@@ -83,13 +73,7 @@ public abstract class NexmarkQuery
   };
 
   /** Predicate to detect a new bid event. */
-  private static final SerializableFunction<Event, Boolean> IS_BID =
-      new SerializableFunction<Event, Boolean>() {
-        @Override
-        public Boolean apply(Event event) {
-          return event.bid != null;
-        }
-      };
+  public static final SerializableFunction<Event, Boolean> IS_BID = event -> event.bid != null;
 
   /** DoFn to convert a bid event to a bid. */
   private static final DoFn<Event, Bid> AS_BID = new DoFn<Event, Bid>() {
@@ -211,7 +195,7 @@ public abstract class NexmarkQuery
   private final Monitor<Event> endOfStreamMonitor;
   private final Counter fatalCounter;
 
-  NexmarkQuery(NexmarkConfiguration configuration, String name) {
+  protected NexmarkQuery(NexmarkConfiguration configuration, String name) {
     super(name);
     this.configuration = configuration;
     if (configuration.debug) {
@@ -246,14 +230,13 @@ public abstract class NexmarkQuery
 
     if (configuration.cpuDelayMs > 0) {
       // Slow down by pegging one core at 100%.
-      events = events.apply(name + ".CpuDelay",
-              NexmarkUtils.<Event>cpuDelay(name, configuration.cpuDelayMs));
+      events =
+          events.apply(name + ".CpuDelay", NexmarkUtils.cpuDelay(name, configuration.cpuDelayMs));
     }
 
     if (configuration.diskBusyBytes > 0) {
       // Slow down by forcing bytes to durable store.
-      events = events.apply(name + ".DiskBusy",
-              NexmarkUtils.<Event>diskBusy(configuration.diskBusyBytes));
+      events = events.apply(name + ".DiskBusy", NexmarkUtils.diskBusy(configuration.diskBusyBytes));
     }
 
     // Run the query.
@@ -265,6 +248,6 @@ public abstract class NexmarkQuery
     }
 
     // Timestamp the query results.
-    return queryResults.apply(name + ".Stamp", NexmarkUtils.<KnownSize>stamp(name));
+    return queryResults.apply(name + ".Stamp", NexmarkUtils.stamp(name));
   }
 }

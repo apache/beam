@@ -33,6 +33,8 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
@@ -48,24 +50,22 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * The argument to {@link ParDo} providing the code to use to process
- * elements of the input
- * {@link org.apache.beam.sdk.values.PCollection}.
+ * The argument to {@link ParDo} providing the code to use to process elements of the input {@link
+ * org.apache.beam.sdk.values.PCollection}.
  *
- * <p>See {@link ParDo} for more explanation, examples of use, and
- * discussion of constraints on {@code DoFn}s, including their
- * serializability, lack of access to global shared mutable state,
+ * <p>See {@link ParDo} for more explanation, examples of use, and discussion of constraints on
+ * {@code DoFn}s, including their serializability, lack of access to global shared mutable state,
  * requirements for failure tolerance, and benefits of optimization.
  *
- * <p>{@code DoFn}s can be tested in a particular
- * {@code Pipeline} by running that {@code Pipeline} on sample input
- * and then checking its output.  Unit testing of a {@code DoFn},
- * separately from any {@code ParDo} transform or {@code Pipeline},
- * can be done via the {@link DoFnTester} harness.
+ * <p>{@link DoFn DoFns} can be tested by using {@link TestPipeline}. You can verify their
+ * functional correctness in a local test using the {@code DirectRunner} as well as running
+ * integration tests with your production runner of choice. Typically, you can generate the input
+ * data using {@link Create#of} or other transforms. However, if you need to test the behavior of
+ * {@link StartBundle} and {@link FinishBundle} with particular bundle boundaries, you can use
+ * {@link TestStream}.
  *
- * <p>Implementations must define a method annotated with {@link ProcessElement}
- * that satisfies the requirements described there. See the {@link ProcessElement}
- * for details.
+ * <p>Implementations must define a method annotated with {@link ProcessElement} that satisfies the
+ * requirements described there. See the {@link ProcessElement} for details.
  *
  * <p>Example usage:
  *
@@ -89,8 +89,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public abstract class StartBundleContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
-     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}. The {@code
-     * PipelineOptions} will be the default running via {@link DoFnTester}.
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
     public abstract PipelineOptions getPipelineOptions();
   }
@@ -101,8 +100,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public abstract class FinishBundleContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
-     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}. The {@code
-     * PipelineOptions} will be the default running via {@link DoFnTester}.
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
     public abstract PipelineOptions getPipelineOptions();
 
@@ -137,8 +135,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public abstract class WindowedContext {
     /**
      * Returns the {@code PipelineOptions} specified with the {@link
-     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}. The {@code
-     * PipelineOptions} will be the default running via {@link DoFnTester}.
+     * org.apache.beam.sdk.PipelineRunner} invoking this {@code DoFn}.
      */
     public abstract PipelineOptions getPipelineOptions();
 
@@ -480,8 +477,19 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   }
 
   /**
-   * Annotation for the method to use to prepare an instance for processing bundles of elements. The
-   * method annotated with this must satisfy the following constraints
+   * Annotation for the method to use to prepare an instance for processing bundles of elements.
+   *
+   * <p>This is a good place to initialize transient in-memory resources, such as network
+   * connections. The resources can then be disposed in {@link Teardown}.
+   *
+   * <p>This is <b>not</b> a good place to perform external side-effects that later need cleanup,
+   * e.g. creating temporary files on distributed filesystems, starting VMs, or initiating data
+   * export jobs. Such logic must be instead implemented purely via {@link StartBundle},
+   * {@link ProcessElement} and {@link FinishBundle} methods, references to the objects
+   * requiring cleanup must be passed as {@link PCollection} elements, and they must be cleaned
+   * up via regular Beam transforms, e.g. see the {@link Wait} transform.
+   *
+   * <p>The method annotated with this must satisfy the following constraints:
    * <ul>
    *   <li>It must have zero arguments.
    * </ul>
@@ -568,6 +576,29 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public @interface ProcessElement {}
 
   /**
+   * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
+   * feature may change.</i></b>
+   *
+   * <p>Annotation that may be added to a {@link ProcessElement} or {@link OnTimer} method to
+   * indicate that the runner must ensure that the observable contents of the input {@link
+   * PCollection} or mutable state must be stable upon retries.
+   *
+   * <p>This is important for sinks, which must ensure exactly-once semantics when writing to a
+   * storage medium outside of your pipeline. A general pattern for a basic sink is to write a
+   * {@link DoFn} that can perform an idempotent write, and annotate that it requires stable input.
+   * Combined, these allow the write to be freely retried until success.
+   *
+   * <p>An example of an unstable input would be anything computed using nondeterministic logic. In
+   * Beam, any user-defined function is permitted to be nondeterministic, and any {@link
+   * PCollection} is permitted to be recomputed in any manner.
+   */
+  @Documented
+  @Experimental
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface RequiresStableInput {}
+
+  /**
    * Annotation for the method to use to finish processing a batch of elements.
    * The method annotated with this must satisfy the following constraints:
    * <ul>
@@ -580,11 +611,37 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.METHOD)
   public @interface FinishBundle {}
 
-
   /**
-   * Annotation for the method to use to clean up this instance after processing bundles of
-   * elements. No other method will be called after a call to the annotated method is made.
-   * The method annotated with this must satisfy the following constraint:
+   * Annotation for the method to use to clean up this instance before it is discarded. No other
+   * method will be called after a call to the annotated method is made.
+   *
+   * <p>A runner will do its best to call this method on any given instance to prevent leaks of
+   * transient resources, however, there may be situations where this is impossible (e.g. process
+   * crash, hardware failure, etc.) or unnecessary (e.g. the pipeline is shutting down and the
+   * process is about to be killed anyway, so all transient resources will be released
+   * automatically by the OS). In these cases, the call may not happen. It will also not be retried,
+   * because in such situations the DoFn instance no longer exists, so there's no instance to
+   * retry it on.
+   *
+   * <p>Thus, all work that depends on input elements, and all externally important side effects,
+   * must be performed in the {@link ProcessElement} or {@link FinishBundle} methods.
+   *
+   * <p>Example things that are a good idea to do in this method:
+   * <ul>
+   *   <li>Close a network connection that was opened in {@link Setup}
+   *   <li>Shut down a helper process that was started in {@link Setup}
+   * </ul>
+   *
+   * <p>Example things that MUST NOT be done in this method:
+   * <ul>
+   *   <li>Flushing a batch of buffered records to a database: this must be done in
+   *   {@link FinishBundle}.
+   *   <li>Deleting temporary files on a distributed filesystem: this must be done
+   *   using the pipeline structure, e.g. using the {@link Wait} transform.
+   * </ul>
+   *
+   * <p>The method annotated with this must satisfy the following constraint:
+   *
    * <ul>
    *   <li>It must have zero arguments.
    * </ul>
@@ -592,8 +649,7 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Documented
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
-  public @interface Teardown {
-  }
+  public @interface Teardown {}
 
   /**
    * Annotation for the method that maps an element to an initial restriction for a <a

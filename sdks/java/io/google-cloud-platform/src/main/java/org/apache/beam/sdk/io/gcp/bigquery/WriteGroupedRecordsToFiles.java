@@ -23,8 +23,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Receives elements grouped by their (sharded) destination, and writes them out to a file.
@@ -34,7 +32,6 @@ import org.slf4j.LoggerFactory;
 class WriteGroupedRecordsToFiles<DestinationT>
     extends DoFn<KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
     WriteBundlesToFiles.Result<DestinationT>> {
-  private static final Logger LOG = LoggerFactory.getLogger(WriteGroupedRecordsToFiles.class);
 
   private final PCollectionView<String> tempFilePrefix;
   private final long maxFileSize;

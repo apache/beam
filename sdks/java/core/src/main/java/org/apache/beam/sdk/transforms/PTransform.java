@@ -22,6 +22,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -197,7 +198,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    *
    * <p>By default, does nothing.
    */
-  public void validate(PipelineOptions options) {}
+  public void validate(@Nullable PipelineOptions options) {}
 
   /**
    * Returns all {@link PValue PValues} that are consumed as inputs to this {@link PTransform} that
@@ -227,13 +228,13 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * The base name of this {@code PTransform}, e.g., from defaults, or
    * {@code null} if not yet assigned.
    */
-  protected final transient String name;
+  @Nullable protected final transient String name;
 
   protected PTransform() {
     this.name = null;
   }
 
-  protected PTransform(String name) {
+  protected PTransform(@Nullable String name) {
     this.name = name;
   }
 

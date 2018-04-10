@@ -63,7 +63,6 @@ import org.apache.http.client.CredentialsProvider;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.ssl.SSLContexts;
@@ -149,6 +148,41 @@ public class ElasticsearchIO {
     return mapper.readValue(response.getEntity().getContent(), JsonNode.class);
   }
 
+  static void checkForErrors(Response response, int backendVersion) throws IOException {
+    JsonNode searchResult = parseResponse(response);
+    boolean errors = searchResult.path("errors").asBoolean();
+    if (errors) {
+      StringBuilder errorMessages =
+          new StringBuilder(
+              "Error writing to Elasticsearch, some elements could not be inserted:");
+      JsonNode items = searchResult.path("items");
+      //some items present in bulk might have errors, concatenate error messages
+      for (JsonNode item : items) {
+        String errorRootName = "";
+        if (backendVersion == 2) {
+          errorRootName = "create";
+        } else if (backendVersion == 5) {
+          errorRootName = "index";
+        }
+        JsonNode errorRoot = item.path(errorRootName);
+        JsonNode error = errorRoot.get("error");
+        if (error != null) {
+          String type = error.path("type").asText();
+          String reason = error.path("reason").asText();
+          String docId = errorRoot.path("_id").asText();
+          errorMessages.append(String.format("%nDocument id %s: %s (%s)", docId, reason, type));
+          JsonNode causedBy = error.get("caused_by");
+          if (causedBy != null) {
+            String cbReason = causedBy.path("reason").asText();
+            String cbType = causedBy.path("type").asText();
+            errorMessages.append(String.format("%nCaused by: %s (%s)", cbReason, cbType));
+          }
+        }
+      }
+      throw new IOException(errorMessages.toString());
+    }
+  }
+
   /** A POJO describing a connection configuration to Elasticsearch. */
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
@@ -200,7 +234,7 @@ public class ElasticsearchIO {
      * @param type the document type toward which the requests will be issued
      * @return the connection configuration object
      */
-    public static ConnectionConfiguration create(String[] addresses, String index, String type){
+    public static ConnectionConfiguration create(String[] addresses, String index, String type) {
       checkArgument(addresses != null, "addresses can not be null");
       checkArgument(addresses.length > 0, "addresses can not be empty");
       checkArgument(index != null, "index can not be null");
@@ -282,12 +316,8 @@ public class ElasticsearchIO {
         credentialsProvider.setCredentials(
             AuthScope.ANY, new UsernamePasswordCredentials(getUsername(), getPassword()));
         restClientBuilder.setHttpClientConfigCallback(
-            new RestClientBuilder.HttpClientConfigCallback() {
-              public HttpAsyncClientBuilder customizeHttpClient(
-                  HttpAsyncClientBuilder httpAsyncClientBuilder) {
-                return httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
-              }
-            });
+            httpAsyncClientBuilder ->
+                httpAsyncClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
       }
       if (getKeystorePath() != null && !getKeystorePath().isEmpty()) {
         try {
@@ -300,13 +330,8 @@ public class ElasticsearchIO {
               .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy()).build();
           final SSLIOSessionStrategy sessionStrategy = new SSLIOSessionStrategy(sslContext);
           restClientBuilder.setHttpClientConfigCallback(
-              new RestClientBuilder.HttpClientConfigCallback() {
-            @Override
-            public HttpAsyncClientBuilder customizeHttpClient(
-                HttpAsyncClientBuilder httpClientBuilder) {
-              return httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy);
-            }
-          });
+              httpClientBuilder ->
+                  httpClientBuilder.setSSLContext(sslContext).setSSLStrategy(sessionStrategy));
         } catch (Exception e) {
           throw new IOException("Can't load the client certificate from the keystore", e);
         }
@@ -372,7 +397,7 @@ public class ElasticsearchIO {
      */
     public Read withScrollKeepalive(String scrollKeepalive) {
       checkArgument(scrollKeepalive != null, "scrollKeepalive can not be null");
-      checkArgument(!scrollKeepalive.equals("0m"), "scrollKeepalive can not be 0m");
+      checkArgument(!"0m".equals(scrollKeepalive), "scrollKeepalive can not be 0m");
       return builder().setScrollKeepalive(scrollKeepalive).build();
     }
 
@@ -447,13 +472,14 @@ public class ElasticsearchIO {
       this.numSlices = numSlices;
       this.sliceId = sliceId;
     }
+
     @Override
     public List<? extends BoundedSource<String>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
       ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
       this.backendVersion = getBackendVersion(connectionConfiguration);
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
-      if (backendVersion == 2){
+      if (backendVersion == 2) {
         // 1. We split per shard :
         // unfortunately, Elasticsearch 2. x doesn 't provide a way to do parallel reads on a single
         // shard.So we do not use desiredBundleSize because we cannot split shards.
@@ -476,7 +502,7 @@ public class ElasticsearchIO {
           sources.add(new BoundedElasticsearchSource(spec, shardId, null, null, backendVersion));
         }
         checkArgument(!sources.isEmpty(), "No shard found");
-      } else if (backendVersion == 5){
+      } else if (backendVersion == 5) {
         long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
         float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
         int nbBundles = (int) Math.ceil(nbBundlesFloat);
@@ -580,15 +606,12 @@ public class ElasticsearchIO {
       if (query == null) {
         query = "{\"query\": { \"match_all\": {} }}";
       }
-      if (source.backendVersion == 5){
-        //if there is more than one slice
-        if (source.numSlices != null && source.numSlices > 1){
-          // add slice to the user query
-          String sliceQuery = String
-              .format("\"slice\": {\"id\": %d,\"max\": %d}", source.sliceId,
-                  source.numSlices);
-          query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
-        }
+      if (source.backendVersion == 5 && source.numSlices != null && source.numSlices > 1) {
+        //if there is more than one slice, add the slice to the user query
+        String sliceQuery = String
+            .format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId,
+                source.numSlices);
+        query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
       }
       Response response;
       String endPoint =
@@ -598,7 +621,7 @@ public class ElasticsearchIO {
               source.spec.getConnectionConfiguration().getType());
       Map<String, String> params = new HashMap<>();
       params.put("scroll", source.spec.getScrollKeepalive());
-      if (source.backendVersion == 2){
+      if (source.backendVersion == 2) {
         params.put("size", String.valueOf(source.spec.getBatchSize()));
         if (source.shardPreference != null) {
           params.put("preference", "_shards:" + source.shardPreference);
@@ -630,10 +653,7 @@ public class ElasticsearchIO {
         HttpEntity scrollEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
         Response response =
             restClient.performRequest(
-                "GET",
-                "/_search/scroll",
-                Collections.<String, String>emptyMap(),
-                scrollEntity);
+                "GET", "/_search/scroll", Collections.emptyMap(), scrollEntity);
         JsonNode searchResult = parseResponse(response);
         updateScrollId(searchResult);
         return readNextBatchAndReturnFirstDocument(searchResult);
@@ -673,11 +693,7 @@ public class ElasticsearchIO {
       String requestBody = String.format("{\"scroll_id\" : [\"%s\"]}", scrollId);
       HttpEntity entity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
       try {
-        restClient.performRequest(
-            "DELETE",
-            "/_search/scroll",
-            Collections.<String, String>emptyMap(),
-            entity);
+        restClient.performRequest("DELETE", "/_search/scroll", Collections.emptyMap(), entity);
       } finally {
         if (restClient != null) {
           restClient.close();
@@ -831,44 +847,8 @@ public class ElasticsearchIO {
                 spec.getConnectionConfiguration().getType());
         HttpEntity requestBody =
             new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
-        response =
-            restClient.performRequest(
-                "POST",
-                endPoint,
-                Collections.<String, String>emptyMap(),
-                requestBody);
-        JsonNode searchResult = parseResponse(response);
-        boolean errors = searchResult.path("errors").asBoolean();
-        if (errors) {
-          StringBuilder errorMessages =
-              new StringBuilder(
-                  "Error writing to Elasticsearch, some elements could not be inserted:");
-          JsonNode items = searchResult.path("items");
-          //some items present in bulk might have errors, concatenate error messages
-          for (JsonNode item : items) {
-            String errorRootName = "";
-            if (backendVersion == 2){
-              errorRootName = "create";
-            } else if (backendVersion == 5){
-              errorRootName = "index";
-            }
-            JsonNode errorRoot = item.path(errorRootName);
-            JsonNode error = errorRoot.get("error");
-            if (error != null) {
-              String type = error.path("type").asText();
-              String reason = error.path("reason").asText();
-              String docId = errorRoot.path("_id").asText();
-              errorMessages.append(String.format("%nDocument id %s: %s (%s)", docId, reason, type));
-              JsonNode causedBy = error.get("caused_by");
-              if (causedBy != null) {
-                String cbReason = causedBy.path("reason").asText();
-                String cbType = causedBy.path("type").asText();
-                errorMessages.append(String.format("%nCaused by: %s (%s)", cbReason, cbType));
-              }
-            }
-          }
-          throw new IOException(errorMessages.toString());
-        }
+        response = restClient.performRequest("POST", endPoint, Collections.emptyMap(), requestBody);
+        checkForErrors(response, backendVersion);
       }
 
       @Teardown
@@ -879,7 +859,8 @@ public class ElasticsearchIO {
       }
     }
   }
-  private static int getBackendVersion(ConnectionConfiguration connectionConfiguration){
+
+  static int getBackendVersion(ConnectionConfiguration connectionConfiguration) {
     try (RestClient restClient = connectionConfiguration.createClient()) {
       Response response = restClient.performRequest("GET", "");
       JsonNode jsonNode = parseResponse(response);
@@ -892,7 +873,7 @@ public class ElasticsearchIO {
           backendVersion);
       return backendVersion;
 
-    } catch (IOException e){
+    } catch (IOException e) {
       throw (new IllegalArgumentException("Cannot get Elasticsearch version"));
     }
   }

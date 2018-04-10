@@ -59,6 +59,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   static final String ES_TYPE = "test";
   static final long NUM_DOCS_UTESTS = 400L;
   static final long NUM_DOCS_ITESTS = 50000L;
+  static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final long AVERAGE_DOC_SIZE = 25L;
 
 
@@ -121,12 +122,12 @@ class ElasticsearchIOTestCommon implements Serializable {
                 .withScrollKeepalive("5m")
                 //set to default value, useful just to test parameter passing.
                 .withBatchSize(100L));
-    PAssert.thatSingleton(output.apply("Count", Count.<String>globally())).isEqualTo(numDocs);
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(numDocs);
     pipeline.run();
   }
 
   void testReadWithQuery() throws Exception {
-    if (!useAsITests){
+    if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
 
@@ -147,7 +148,7 @@ class ElasticsearchIOTestCommon implements Serializable {
             ElasticsearchIO.read()
                 .withConnectionConfiguration(connectionConfiguration)
                 .withQuery(query));
-    PAssert.thatSingleton(output.apply("Count", Count.<String>globally()))
+    PAssert.thatSingleton(output.apply("Count", Count.globally()))
         .isEqualTo(numDocs / NUM_SCIENTISTS);
     pipeline.run();
   }
@@ -175,11 +176,7 @@ class ElasticsearchIOTestCommon implements Serializable {
         connectionConfiguration.getType());
     HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
     Response response =
-        restClient.performRequest(
-            "GET",
-            endPoint,
-            Collections.<String, String>emptyMap(),
-            httpEntity);
+        restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
     JsonNode searchResult = parseResponse(response);
     int count = searchResult.path("hits").path("total").asInt();
     assertEquals(numDocs / NUM_SCIENTISTS, count);
@@ -190,10 +187,6 @@ class ElasticsearchIOTestCommon implements Serializable {
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE);
-    // write bundles size is the runner decision, we cannot force a bundle size,
-    // so we test the Writer as a DoFn outside of a runner.
-    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write));
-
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
@@ -216,8 +209,12 @@ class ElasticsearchIOTestCommon implements Serializable {
                     + "Document id .+: failed to parse \\(.+\\).*Caused by: .+ \\(.+\\).*");
           }
         });
-    // inserts into Elasticsearch
-    fnTester.processBundle(input);
+    // write bundles size is the runner decision, we cannot force a bundle size,
+    // so we test the Writer as a DoFn outside of a runner.
+    try (DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write))) {
+      // inserts into Elasticsearch
+      fnTester.processBundle(input);
+    }
   }
 
   void testWriteWithMaxBatchSize() throws Exception {
@@ -227,34 +224,35 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withMaxBatchSize(BATCH_SIZE);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write));
-    List<String> input =
-        ElasticSearchIOTestUtils.createDocuments(
-            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-    long numDocsProcessed = 0;
-    long numDocsInserted = 0;
-    for (String document : input) {
-      fnTester.processElement(document);
-      numDocsProcessed++;
-      // test every 100 docs to avoid overloading ES
-      if ((numDocsProcessed % 100) == 0) {
-        // force the index to upgrade after inserting for the inserted docs
-        // to be searchable immediately
-        long currentNumDocs = ElasticSearchIOTestUtils
-            .refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
-        if ((numDocsProcessed % BATCH_SIZE) == 0) {
+    try (DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write))) {
+      List<String> input =
+          ElasticSearchIOTestUtils.createDocuments(
+              numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+      long numDocsProcessed = 0;
+      long numDocsInserted = 0;
+      for (String document : input) {
+        fnTester.processElement(document);
+        numDocsProcessed++;
+        // test every 100 docs to avoid overloading ES
+        if ((numDocsProcessed % 100) == 0) {
+          // force the index to upgrade after inserting for the inserted docs
+          // to be searchable immediately
+          long currentNumDocs = ElasticSearchIOTestUtils
+              .refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+          if ((numDocsProcessed % BATCH_SIZE) == 0) {
           /* bundle end */
-          assertEquals(
-              "we are at the end of a bundle, we should have inserted all processed documents",
-              numDocsProcessed,
-              currentNumDocs);
-          numDocsInserted = currentNumDocs;
-        } else {
+            assertEquals(
+                "we are at the end of a bundle, we should have inserted all processed documents",
+                numDocsProcessed,
+                currentNumDocs);
+            numDocsInserted = currentNumDocs;
+          } else {
           /* not bundle end */
-          assertEquals(
-              "we are not at the end of a bundle, we should have inserted no more documents",
-              numDocsInserted,
-              currentNumDocs);
+            assertEquals(
+                "we are not at the end of a bundle, we should have inserted no more documents",
+                numDocsInserted,
+                currentNumDocs);
+          }
         }
       }
     }
@@ -267,38 +265,39 @@ class ElasticsearchIOTestCommon implements Serializable {
             .withMaxBatchSizeBytes(BATCH_SIZE_BYTES);
     // write bundles size is the runner decision, we cannot force a bundle size,
     // so we test the Writer as a DoFn outside of a runner.
-    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write));
-    List<String> input =
-        ElasticSearchIOTestUtils.createDocuments(
-            numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
-    long numDocsProcessed = 0;
-    long sizeProcessed = 0;
-    long numDocsInserted = 0;
-    long batchInserted = 0;
-    for (String document : input) {
-      fnTester.processElement(document);
-      numDocsProcessed++;
-      sizeProcessed += document.getBytes().length;
-      // test every 40 docs to avoid overloading ES
-      if ((numDocsProcessed % 40) == 0) {
-        // force the index to upgrade after inserting for the inserted docs
-        // to be searchable immediately
-        long currentNumDocs = ElasticSearchIOTestUtils
-            .refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
-        if (sizeProcessed / BATCH_SIZE_BYTES > batchInserted) {
+    try (DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write))) {
+      List<String> input =
+          ElasticSearchIOTestUtils.createDocuments(
+              numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
+      long numDocsProcessed = 0;
+      long sizeProcessed = 0;
+      long numDocsInserted = 0;
+      long batchInserted = 0;
+      for (String document : input) {
+        fnTester.processElement(document);
+        numDocsProcessed++;
+        sizeProcessed += document.getBytes().length;
+        // test every 40 docs to avoid overloading ES
+        if ((numDocsProcessed % 40) == 0) {
+          // force the index to upgrade after inserting for the inserted docs
+          // to be searchable immediately
+          long currentNumDocs = ElasticSearchIOTestUtils
+              .refreshIndexAndGetCurrentNumDocs(connectionConfiguration, restClient);
+          if (sizeProcessed / BATCH_SIZE_BYTES > batchInserted) {
           /* bundle end */
-          assertThat(
-              "we have passed a bundle size, we should have inserted some documents",
-              currentNumDocs,
-              greaterThan(numDocsInserted));
-          numDocsInserted = currentNumDocs;
-          batchInserted = (sizeProcessed / BATCH_SIZE_BYTES);
-        } else {
+            assertThat(
+                "we have passed a bundle size, we should have inserted some documents",
+                currentNumDocs,
+                greaterThan(numDocsInserted));
+            numDocsInserted = currentNumDocs;
+            batchInserted = (sizeProcessed / BATCH_SIZE_BYTES);
+          } else {
           /* not bundle end */
-          assertEquals(
-              "we are not at the end of a bundle, we should have inserted no more documents",
-              numDocsInserted,
-              currentNumDocs);
+            assertEquals(
+                "we are not at the end of a bundle, we should have inserted no more documents",
+                numDocsInserted,
+                currentNumDocs);
+          }
         }
       }
     }

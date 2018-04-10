@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.Contextful.fn;
+import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
@@ -28,10 +31,12 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
@@ -96,25 +101,49 @@ public class MapElementsTest implements Serializable {
   }
 
   /**
+   * Basic test of {@link MapElements} with a {@link Fn} and a side input.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapBasicWithSideInput() throws Exception {
+    final PCollectionView<Integer> view =
+        pipeline.apply("Create base", Create.of(40)).apply(View.asSingleton());
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(0, 1, 2))
+            .apply(
+                MapElements.into(integers())
+                    .via(
+                        fn((element, c) -> element + c.sideInput(view), requiresSideInputs(view))));
+
+    PAssert.that(output).containsInAnyOrder(40, 41, 42);
+    pipeline.run();
+  }
+
+  /**
    * Basic test of {@link MapElements} coder propagation with a parametric {@link SimpleFunction}.
    */
   @Test
   public void testPolymorphicSimpleFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
 
-    PCollection<Integer> output = pipeline
-        .apply(Create.of(1, 2, 3))
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
 
-        // This is the function that needs to propagate the input T to output T
-        .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<Integer>()))
+            // This is the function that needs to propagate the input T to output T
+            .apply("Polymorphic Identity", MapElements.via(new PolymorphicSimpleFunction<>()))
 
-        // This is a consumer to ensure that all coder inference logic is executed.
-        .apply("Test Consumer", MapElements.via(new SimpleFunction<Integer, Integer>() {
-          @Override
-          public Integer apply(Integer input) {
-            return input;
-          }
-        }));
+            // This is a consumer to ensure that all coder inference logic is executed.
+            .apply(
+                "Test Consumer",
+                MapElements.via(
+                    new SimpleFunction<Integer, Integer>() {
+                      @Override
+                      public Integer apply(Integer input) {
+                        return input;
+                      }
+                    }));
   }
 
   /**
@@ -130,9 +159,7 @@ public class MapElementsTest implements Serializable {
             .apply(Create.of(1, 2, 3))
 
             // This is the function that needs to propagate the input T to output T
-            .apply(
-                "Polymorphic Identity",
-                MapElements.via(new NestedPolymorphicSimpleFunction<Integer>()))
+            .apply("Polymorphic Identity", MapElements.via(new NestedPolymorphicSimpleFunction<>()))
 
             // This is a consumer to ensure that all coder inference logic is executed.
             .apply(
@@ -154,17 +181,7 @@ public class MapElementsTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testMapBasicSerializableFunction() throws Exception {
     PCollection<Integer> output =
-        pipeline
-            .apply(Create.of(1, 2, 3))
-            .apply(
-                MapElements.into(TypeDescriptors.integers())
-                    .via(
-                        new SerializableFunction<Integer, Integer>() {
-                          @Override
-                          public Integer apply(Integer input) {
-                            return -input;
-                          }
-                        }));
+        pipeline.apply(Create.of(1, 2, 3)).apply(MapElements.into(integers()).via(input -> -input));
 
     PAssert.that(output).containsInAnyOrder(-2, -1, -3);
     pipeline.run();
@@ -199,7 +216,7 @@ public class MapElementsTest implements Serializable {
   public void testVoidValues() throws Exception {
     pipeline
         .apply(Create.of("hello"))
-        .apply(WithKeys.<String, String>of("k"))
+        .apply(WithKeys.of("k"))
         .apply(new VoidValues<String, String>() {});
     // Make sure the pipeline runs
     pipeline.run();
@@ -207,18 +224,12 @@ public class MapElementsTest implements Serializable {
 
   @Test
   public void testSerializableFunctionDisplayData() {
-    SerializableFunction<Integer, Integer> serializableFn =
-        new SerializableFunction<Integer, Integer>() {
-          @Override
-          public Integer apply(Integer input) {
-            return input;
-          }
-        };
+    SerializableFunction<Integer, Integer> serializableFn = input -> input;
 
     MapElements<?, ?> serializableMap =
-        MapElements.into(TypeDescriptors.integers()).via(serializableFn);
+        MapElements.into(integers()).via(serializableFn);
     assertThat(DisplayData.from(serializableMap),
-        hasDisplayItem("mapFn", serializableFn.getClass()));
+        hasDisplayItem("class", serializableFn.getClass()));
   }
 
   @Test
@@ -231,7 +242,7 @@ public class MapElementsTest implements Serializable {
     };
 
     MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
-    assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
   }
   @Test
   public void testSimpleFunctionDisplayData() {
@@ -250,7 +261,7 @@ public class MapElementsTest implements Serializable {
 
 
     MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
-    assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("foo", "baz"));
   }
 
@@ -267,9 +278,9 @@ public class MapElementsTest implements Serializable {
     MapElements<Integer, ?> map = MapElements.via(mapFn);
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
-    Set<DisplayData> displayData = evaluator.<Integer>displayDataForPrimitiveTransforms(map);
+    Set<DisplayData> displayData = evaluator.displayDataForPrimitiveTransforms(map);
     assertThat("MapElements should include the mapFn in its primitive display data",
-        displayData, hasItem(hasDisplayItem("mapFn", mapFn.getClass())));
+        displayData, hasItem(hasDisplayItem("class", mapFn.getClass())));
   }
 
   static class VoidValues<K, V>
@@ -284,6 +295,68 @@ public class MapElementsTest implements Serializable {
               return KV.of(input.getKey(), null);
             }
           }));
+    }
+  }
+
+  /**
+   * Basic test of {@link MapElements} with a lambda (which is instantiated as a {@link
+   * SerializableFunction}).
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapLambda() throws Exception {
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(MapElements
+            // Note that the type annotation is required.
+            .into(TypeDescriptors.integers())
+            .via((Integer i) -> i * 2));
+
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
+    pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link MapElements} with a lambda wrapped into a {@link SimpleFunction} to
+   * remember its type.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapWrappedLambda() throws Exception {
+
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                MapElements
+                    .via(new SimpleFunction<Integer, Integer>((Integer i) -> i * 2) {}));
+
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
+    pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link MapElements} with a method reference.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapMethodReference() throws Exception {
+
+    PCollection<Integer> output = pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(MapElements
+            // Note that the type annotation is required.
+            .into(TypeDescriptors.integers())
+            .via(new Doubler()::doubleIt));
+
+    PAssert.that(output).containsInAnyOrder(6, 2, 4);
+    pipeline.run();
+  }
+
+  private static class Doubler implements Serializable {
+    public int doubleIt(int val) {
+      return val * 2;
     }
   }
 }

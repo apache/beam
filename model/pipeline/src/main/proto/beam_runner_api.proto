@@ -203,6 +203,37 @@ message PCollection {
   DisplayData display_data = 5;
 }
 
+// The payload for an executable stage. This will eventually be passed to an SDK in the form of a
+// ProcessBundleDescriptor.
+message ExecutableStagePayload {
+
+  // (Required) Environment in which this stage executes.
+  //
+  // We use an environment rather than environment id
+  // because ExecutableStages use environments directly. This may change in the future.
+  Environment environment = 1;
+
+  // (Required) Input PCollection id. This must be present as a value in the inputs of any
+  // PTransform the ExecutableStagePayload is the payload of.
+  string input = 2;
+
+  // Side Input PCollection ids. Each must be present as a value in the inputs of
+  // any PTransform the ExecutableStagePayload is the payload of.
+  repeated string side_inputs = 3;
+
+  // PTransform ids contained within this executable stage. This must contain at least one
+  // PTransform ID.
+  repeated string transforms = 4;
+
+  // Output PCollection ids. This must be equal to the values of the outputs of any
+  // PTransform the ExecutableStagePayload is the payload of.
+  repeated string outputs = 5;
+
+  // (Required) The components for the Executable Stage. This must contain all of the Transforms
+  // in transforms, and the closure of all of the components they recognize.
+  Components components = 6;
+}
+
 // The payload for the primitive ParDo transform.
 message ParDoPayload {
 
@@ -326,15 +357,6 @@ message CombinePayload {
 
   // (Required) A reference to the Coder to use for accumulators of the CombineFn
   string accumulator_coder_id = 2;
-
-  // (Required) Additional pieces of context the DoFn may require that
-  // are not otherwise represented in the payload.
-  // (may force runners to execute the ParDo differently)
-  repeated Parameter parameters = 3;
-
-  // (Optional) A mapping of local input names to side inputs, describing
-  // the expected access pattern.
-  map<string, SideInput> side_inputs = 4;
 }
 
 // The payload for the test-only primitive TestStream

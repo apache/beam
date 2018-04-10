@@ -48,7 +48,7 @@ class ElasticSearchIOTestUtils {
     } catch (IOException e) {
       // it is fine to ignore this expression as deleteIndex occurs in @before,
       // so when the first tests is run, the index does not exist yet
-      if (!e.getMessage().contains("index_not_found_exception")){
+      if (!e.getMessage().contains("index_not_found_exception")) {
         throw e;
       }
     }
@@ -64,7 +64,7 @@ class ElasticSearchIOTestUtils {
     int i = 0;
     for (String document : data) {
       bulkRequest.append(String.format(
-          "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%d\" } }%n%s%n",
+          "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }%n%s%n",
           connectionConfiguration.getIndex(), connectionConfiguration.getType(), i++, document));
     }
     String endPoint = String.format("/%s/%s/_bulk", connectionConfiguration.getIndex(),
@@ -73,12 +73,8 @@ class ElasticSearchIOTestUtils {
         new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
     Response response = restClient.performRequest("POST", endPoint,
         Collections.singletonMap("refresh", "true"), requestBody);
-    JsonNode searchResult = ElasticsearchIO.parseResponse(response);
-    boolean errors = searchResult.path("errors").asBoolean();
-    if (errors){
-      throw new IOException(String.format("Failed to insert test documents in index %s",
-          connectionConfiguration.getIndex()));
-    }
+    ElasticsearchIO
+        .checkForErrors(response, ElasticsearchIO.getBackendVersion(connectionConfiguration));
   }
 
   /**
@@ -103,7 +99,7 @@ class ElasticSearchIOTestUtils {
       // we call upgrade before any doc have been written
       // (when there are fewer docs processed than batchSize).
       // In that cases index/type has not been created (created upon first doc insertion)
-      if (!e.getMessage().contains("index_not_found_exception")){
+      if (!e.getMessage().contains("index_not_found_exception")) {
         throw e;
       }
     }
@@ -135,9 +131,9 @@ class ElasticSearchIOTestUtils {
       int index = i % scientists.length;
       // insert 2 malformed documents
       if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode) && (i == 6 || i == 7)) {
-        data.add(String.format("{\"scientist\";\"%s\", \"id\":%d}", scientists[index], i));
+        data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", scientists[index], i));
       } else {
-        data.add(String.format("{\"scientist\":\"%s\", \"id\":%d}", scientists[index], i));
+        data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", scientists[index], i));
       }
     }
     return data;

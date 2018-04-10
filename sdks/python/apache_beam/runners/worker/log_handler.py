@@ -25,6 +25,7 @@ import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -48,7 +49,9 @@ class FnApiLogRecordHandler(logging.Handler):
 
   def __init__(self, log_service_descriptor):
     super(FnApiLogRecordHandler, self).__init__()
-    self._log_channel = grpc.insecure_channel(log_service_descriptor.url)
+    self._log_channel = grpc.intercept_channel(
+        grpc.insecure_channel(log_service_descriptor.url),
+        WorkerIdInterceptor())
     self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
         self._log_channel)
     self._log_entry_queue = queue.Queue()

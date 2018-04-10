@@ -23,31 +23,52 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.AbortedException;
+import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.PartitionOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
+import com.google.common.primitives.UnsignedBytes;
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.ApproximateQuantiles;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
+import org.joda.time.Duration;
 
 /**
  * Experimental {@link PTransform Transforms} for reading from and writing to <a
@@ -159,6 +180,12 @@ import org.apache.beam.sdk.values.PDone;
 public class SpannerIO {
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024 * 1024; // 1 MB
+  // Max number of mutations to batch together.
+  private static final int MAX_NUM_MUTATIONS = 10000;
+  // The maximum number of keys to fit in memory when computing approximate quantiles.
+  private static final long MAX_NUM_KEYS = (long) 1e6;
+  // TODO calculate number of samples based on the size of the input.
+  private static final int DEFAULT_NUM_SAMPLES = 1000;
 
   /**
    * Creates an uninitialized instance of {@link Read}. Before use, the {@link Read} must be
@@ -182,6 +209,7 @@ public class SpannerIO {
   public static ReadAll readAll() {
     return new AutoValue_SpannerIO_ReadAll.Builder()
         .setSpannerConfig(SpannerConfig.create())
+        .setTimestampBound(TimestampBound.strong())
         .build();
   }
 
@@ -208,6 +236,7 @@ public class SpannerIO {
     return new AutoValue_SpannerIO_Write.Builder()
         .setSpannerConfig(SpannerConfig.create())
         .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
+        .setNumSamples(DEFAULT_NUM_SAMPLES)
         .build();
   }
 
@@ -222,6 +251,9 @@ public class SpannerIO {
     @Nullable
     abstract PCollectionView<Transaction> getTransaction();
 
+    @Nullable
+    abstract TimestampBound getTimestampBound();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -229,6 +261,8 @@ public class SpannerIO {
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
+
+      abstract Builder setTimestampBound(TimestampBound timestampBound);
 
       abstract ReadAll build();
     }
@@ -265,6 +299,12 @@ public class SpannerIO {
       return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
     }
 
+    /** Specifies the Cloud Spanner host. */
+    public ReadAll withHost(String host) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withHost(host));
+    }
+
     /** Specifies the Cloud Spanner database. */
     public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
@@ -281,18 +321,20 @@ public class SpannerIO {
       return toBuilder().setTransaction(transaction).build();
     }
 
+    public ReadAll withTimestamp(Timestamp timestamp) {
+      return withTimestampBound(TimestampBound.ofReadTimestamp(timestamp));
+    }
+
+    public ReadAll withTimestampBound(TimestampBound timestampBound) {
+      return toBuilder().setTimestampBound(timestampBound).build();
+    }
+
     @Override
     public PCollection<Struct> expand(PCollection<ReadOperation> input) {
-      List<PCollectionView<Transaction>> sideInputs =
-          getTransaction() == null
-              ? Collections.<PCollectionView<Transaction>>emptyList()
-              : Collections.singletonList(getTransaction());
       return input
-          .apply(Reshuffle.<ReadOperation>viaRandomKey())
-          .apply(
-              "Execute queries",
-              ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), getTransaction()))
-                  .withSideInputs(sideInputs));
+          .apply("Reshuffle", Reshuffle.<ReadOperation>viaRandomKey())
+          .apply("Read from Cloud Spanner",
+              BatchSpannerRead.create(getSpannerConfig(), getTransaction(), getTimestampBound()));
     }
   }
 
@@ -311,6 +353,9 @@ public class SpannerIO {
     @Nullable
     abstract PCollectionView<Transaction> getTransaction();
 
+    @Nullable
+    abstract PartitionOptions getPartitionOptions();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -323,6 +368,8 @@ public class SpannerIO {
       abstract Builder setTimestampBound(TimestampBound timestampBound);
 
       abstract Builder setTransaction(PCollectionView<Transaction> transaction);
+
+      abstract Builder setPartitionOptions(PartitionOptions partitionOptions);
 
       abstract Read build();
     }
@@ -363,6 +410,12 @@ public class SpannerIO {
     public Read withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withDatabaseId(databaseId));
+    }
+
+    /** Specifies the Cloud Spanner host. */
+    public Read withHost(String host) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withHost(host));
     }
 
     @VisibleForTesting
@@ -415,6 +468,10 @@ public class SpannerIO {
       return withReadOperation(getReadOperation().withIndex(index));
     }
 
+    public Read withPartitionOptions(PartitionOptions partitionOptions) {
+      return withReadOperation(getReadOperation().withPartitionOptions(partitionOptions));
+    }
+
     @Override
     public PCollection<Struct> expand(PBegin input) {
       getSpannerConfig().validate();
@@ -440,16 +497,11 @@ public class SpannerIO {
             "SpannerIO.read() requires configuring query or read operation.");
       }
 
-      PCollectionView<Transaction> transaction = getTransaction();
-      if (transaction == null && getTimestampBound() != null) {
-        transaction =
-            input.apply(
-                createTransaction()
-                    .withTimestampBound(getTimestampBound())
-                    .withSpannerConfig(getSpannerConfig()));
-      }
-      ReadAll readAll =
-          readAll().withSpannerConfig(getSpannerConfig()).withTransaction(transaction);
+
+      ReadAll readAll = readAll()
+          .withSpannerConfig(getSpannerConfig())
+          .withTimestampBound(getTimestampBound())
+          .withTransaction(getTransaction());
       return input.apply(Create.of(getReadOperation())).apply("Execute query", readAll);
     }
   }
@@ -475,9 +527,10 @@ public class SpannerIO {
     public PCollectionView<Transaction> expand(PBegin input) {
       getSpannerConfig().validate();
 
-      return input.apply(Create.of(1))
+      return input
+          .apply(Create.of(1))
           .apply("Create transaction", ParDo.of(new CreateTransactionFn(this)))
-          .apply("As PCollectionView", View.<Transaction>asSingleton());
+          .apply("As PCollectionView", View.asSingleton());
     }
 
     /** Specifies the Cloud Spanner configuration. */
@@ -518,6 +571,12 @@ public class SpannerIO {
       return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
+    /** Specifies the Cloud Spanner host. */
+    public CreateTransaction withHost(String host) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withHost(host));
+    }
+
     @VisibleForTesting
     CreateTransaction withServiceFactory(
         ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
@@ -554,6 +613,12 @@ public class SpannerIO {
 
     abstract long getBatchSizeBytes();
 
+    abstract int getNumSamples();
+
+    @Nullable
+     abstract PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
+         getSampler();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -562,6 +627,12 @@ public class SpannerIO {
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setBatchSizeBytes(long batchSizeBytes);
+
+      abstract Builder setNumSamples(int numSamples);
+
+      abstract Builder setSampler(
+          PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
+              sampler);
 
       abstract Write build();
     }
@@ -604,10 +675,23 @@ public class SpannerIO {
       return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
+    /** Specifies the Cloud Spanner host. */
+    public Write withHost(String host) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withHost(host));
+    }
+
     @VisibleForTesting
     Write withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withServiceFactory(serviceFactory));
+    }
+
+    @VisibleForTesting
+    Write withSampler(
+        PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
+            sampler) {
+      return toBuilder().setSampler(sampler).build();
     }
 
     /**
@@ -628,10 +712,9 @@ public class SpannerIO {
 
       input
           .apply("To mutation group", ParDo.of(new ToMutationGroupFn()))
-          .apply("Write mutations to Cloud Spanner", ParDo.of(new SpannerWriteGroupFn(this)));
+          .apply("Write mutations to Cloud Spanner", new WriteGrouped(this));
       return PDone.in(input.getPipeline());
     }
-
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
@@ -639,6 +722,19 @@ public class SpannerIO {
       getSpannerConfig().populateDisplayData(builder);
       builder.add(
           DisplayData.item("batchSizeBytes", getBatchSizeBytes()).withLabel("Batch Size in Bytes"));
+    }
+  }
+
+  /**
+   * A singleton that wraps {@code UnsignedBytes#lexicographicalComparator} which unfortunately
+   * is not serializable.
+   */
+  @VisibleForTesting
+  enum SerializableBytesComparator implements Comparator<byte[]>, Serializable {
+    INSTANCE {
+      @Override public int compare(byte[] a, byte[] b) {
+        return UnsignedBytes.lexicographicalComparator().compare(a, b);
+      }
     }
   }
 
@@ -650,9 +746,59 @@ public class SpannerIO {
       this.spec = spec;
     }
 
-    @Override public PDone expand(PCollection<MutationGroup> input) {
-      input.apply("Write mutations to Cloud Spanner", ParDo.of(new SpannerWriteGroupFn(spec)));
+    @Override
+    public PDone expand(PCollection<MutationGroup> input) {
+      PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
+          sampler = spec.getSampler();
+      if (sampler == null) {
+        sampler = createDefaultSampler();
+      }
+      // First, read the Cloud Spanner schema.
+      final PCollectionView<SpannerSchema> schemaView =
+          input
+              .getPipeline()
+              .apply(Create.of((Void) null))
+              .apply(
+                  "Read information schema",
+                  ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
+              .apply("Schema View", View.asSingleton());
+
+      // Serialize mutations, we don't need to encode/decode them while reshuffling.
+      // The primary key is encoded via OrderedCode so we can calculate quantiles.
+      PCollection<SerializedMutation> serialized = input
+          .apply("Serialize mutations",
+              ParDo.of(new SerializeMutationsFn(schemaView)).withSideInputs(schemaView))
+          .setCoder(SerializedMutationCoder.of());
+
+      // Sample primary keys using ApproximateQuantiles.
+      PCollectionView<Map<String, List<byte[]>>> keySample =
+          serialized
+              .apply("Extract keys", ParDo.of(new ExtractKeys()))
+              .apply("Sample keys", sampler)
+              .apply("Keys sample as view", View.asMap());
+
+      // Assign partition based on the closest element in the sample and group mutations.
+      AssignPartitionFn assignPartitionFn = new AssignPartitionFn(keySample);
+      serialized
+          .apply("Partition input", ParDo.of(assignPartitionFn).withSideInputs(keySample))
+          .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializedMutationCoder.of()))
+          .apply("Group by partition", GroupByKey.create())
+          .apply(
+              "Batch mutations together",
+              ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getSpannerConfig(), schemaView))
+                  .withSideInputs(schemaView))
+          .apply(
+              "Write mutations to Spanner",
+              ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig())));
       return PDone.in(input.getPipeline());
+
+    }
+
+    private PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
+        createDefaultSampler() {
+      return Combine.perKey(ApproximateQuantiles.ApproximateQuantilesCombineFn
+          .create(spec.getNumSamples(), SerializableBytesComparator.INSTANCE, MAX_NUM_KEYS,
+              1. / spec.getNumSamples()));
     }
   }
 
@@ -664,5 +810,202 @@ public class SpannerIO {
     }
   }
 
-  private SpannerIO() {} // Prevent construction.
+  /**
+   * Serializes mutations to ((table name, serialized key), serialized value) tuple.
+   */
+  private static class SerializeMutationsFn
+      extends DoFn<MutationGroup, SerializedMutation> {
+
+    final PCollectionView<SpannerSchema> schemaView;
+
+    private SerializeMutationsFn(PCollectionView<SpannerSchema> schemaView) {
+      this.schemaView = schemaView;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      MutationGroup g = c.element();
+      Mutation m = g.primary();
+      SpannerSchema schema = c.sideInput(schemaView);
+      String table = m.getTable();
+      MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(schema);
+
+      byte[] key;
+      if (m.getOperation() != Mutation.Op.DELETE) {
+        key = mutationGroupEncoder.encodeKey(m);
+      } else if (isPointDelete(m)) {
+        Key next = m.getKeySet().getKeys().iterator().next();
+        key = mutationGroupEncoder.encodeKey(m.getTable(), next);
+      } else {
+        // The key is left empty for non-point deletes, since there is no general way to batch them.
+        key = new byte[] {};
+      }
+      byte[] value = mutationGroupEncoder.encode(g);
+      c.output(SerializedMutation.create(table, key, value));
+    }
+  }
+
+  private static class ExtractKeys
+      extends DoFn<SerializedMutation, KV<String, byte[]>> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      SerializedMutation m = c.element();
+      c.output(KV.of(m.getTableName(), m.getEncodedKey()));
+    }
+  }
+
+
+
+  private static boolean isPointDelete(Mutation m) {
+    return m.getOperation() == Mutation.Op.DELETE && Iterables.isEmpty(m.getKeySet().getRanges())
+        && Iterables.size(m.getKeySet().getKeys()) == 1;
+  }
+
+  /**
+   * Assigns a partition to the mutation group token based on the sampled data.
+   */
+  private static class AssignPartitionFn
+      extends DoFn<SerializedMutation, KV<String, SerializedMutation>> {
+
+    final PCollectionView<Map<String, List<byte[]>>> sampleView;
+
+    public AssignPartitionFn(PCollectionView<Map<String, List<byte[]>>> sampleView) {
+      this.sampleView = sampleView;
+    }
+
+    @ProcessElement public void processElement(ProcessContext c) {
+      Map<String, List<byte[]>> sample = c.sideInput(sampleView);
+      SerializedMutation g = c.element();
+      String table = g.getTableName();
+      byte[] key = g.getEncodedKey();
+      String groupKey;
+      if (key.length == 0) {
+        // This is a range or multi-key delete mutation. We cannot group it with other mutations
+        // so we assign a random group key to it so it is applied independently.
+        groupKey = UUID.randomUUID().toString();
+      } else {
+        int partition = Collections
+            .binarySearch(sample.get(table), key, SerializableBytesComparator.INSTANCE);
+        if (partition < 0) {
+          partition = -partition - 1;
+        }
+        groupKey = table + "%" + partition;
+      }
+      c.output(KV.of(groupKey, g));
+    }
+  }
+
+  /**
+   * Batches mutations together.
+   */
+  private static class BatchFn
+      extends DoFn<KV<String, Iterable<SerializedMutation>>, Iterable<Mutation>> {
+
+    private static final int MAX_RETRIES = 5;
+    private static final FluentBackoff BUNDLE_WRITE_BACKOFF = FluentBackoff.DEFAULT
+        .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
+
+    private final long maxBatchSizeBytes;
+    private final SpannerConfig spannerConfig;
+    private final PCollectionView<SpannerSchema> schemaView;
+
+    private transient SpannerAccessor spannerAccessor;
+    // Current batch of mutations to be written.
+    private List<Mutation> mutations;
+    // total size of the current batch.
+    private long batchSizeBytes;
+
+    private BatchFn(long maxBatchSizeBytes, SpannerConfig spannerConfig,
+        PCollectionView<SpannerSchema> schemaView) {
+      this.maxBatchSizeBytes = maxBatchSizeBytes;
+      this.spannerConfig = spannerConfig;
+      this.schemaView = schemaView;
+    }
+
+    @Setup
+    public void setup() throws Exception {
+      mutations = new ArrayList<>();
+      batchSizeBytes = 0;
+      spannerAccessor = spannerConfig.connectToSpanner();
+    }
+
+    @Teardown
+    public void teardown() throws Exception {
+      spannerAccessor.close();
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(c.sideInput(schemaView));
+      KV<String, Iterable<SerializedMutation>> element = c.element();
+      for (SerializedMutation kv : element.getValue()) {
+        byte[] value = kv.getMutationGroupBytes();
+        MutationGroup mg = mutationGroupEncoder.decode(value);
+        Iterables.addAll(mutations, mg);
+        batchSizeBytes += MutationSizeEstimator.sizeOf(mg);
+        if (batchSizeBytes >= maxBatchSizeBytes || mutations.size() > MAX_NUM_MUTATIONS) {
+          c.output(mutations);
+          mutations = new ArrayList<>();
+          batchSizeBytes = 0;
+        }
+      }
+      if (!mutations.isEmpty()) {
+        c.output(mutations);
+        mutations = new ArrayList<>();
+        batchSizeBytes = 0;
+      }
+    }
+  }
+
+  private static class WriteToSpannerFn
+      extends DoFn<Iterable<Mutation>, Void> {
+    private static final int MAX_RETRIES = 5;
+    private static final FluentBackoff BUNDLE_WRITE_BACKOFF = FluentBackoff.DEFAULT
+        .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
+
+    private transient SpannerAccessor spannerAccessor;
+    private final SpannerConfig spannerConfig;
+
+    public WriteToSpannerFn(SpannerConfig spannerConfig) {
+      this.spannerConfig = spannerConfig;
+    }
+
+    @Setup
+    public void setup() throws Exception {
+      spannerAccessor = spannerConfig.connectToSpanner();
+    }
+
+    @Teardown
+    public void teardown() throws Exception {
+      spannerAccessor.close();
+    }
+
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      Sleeper sleeper = Sleeper.DEFAULT;
+      BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
+
+      Iterable<Mutation> mutations = c.element();
+
+      while (true) {
+        // Batch upsert rows.
+        try {
+          spannerAccessor.getDatabaseClient().writeAtLeastOnce(mutations);
+          // Break if the commit threw no exception.
+          break;
+        } catch (AbortedException exception) {
+          // Only log the code and message for potentially-transient errors. The entire exception
+          // will be propagated upon the last retry.
+          if (!BackOffUtils.next(sleeper, backoff)) {
+            throw exception;
+          }
+        }
+      }
+    }
+
+  }
+
+    private SpannerIO() {} // Prevent construction.
 }

@@ -44,8 +44,6 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Writes each bundle of {@link TableRow} elements out to separate file using {@link
@@ -57,7 +55,6 @@ import org.slf4j.LoggerFactory;
  */
 class WriteBundlesToFiles<DestinationT>
     extends DoFn<KV<DestinationT, TableRow>, Result<DestinationT>> {
-  private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFiles.class);
 
   // When we spill records, shard the output keys to prevent hotspots. Experiments running up to
   // 10TB of data have shown a sharding of 10 to be a good choice.

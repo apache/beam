@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -31,6 +32,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -176,6 +178,7 @@ public class CombineFns {
      * <p>It is an error to request a non-exist tuple tag from the {@link CoCombineResult}.
      */
     @SuppressWarnings("unchecked")
+    @Nullable
     public <V> V get(TupleTag<V> tag) {
       checkArgument(
           valuesMap.keySet().contains(tag), "TupleTag " + tag + " is not in the CoCombineResult");
@@ -185,6 +188,23 @@ public class CombineFns {
       } else {
         return (V) value;
       }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      CoCombineResult that = (CoCombineResult) o;
+      return Objects.equal(valuesMap, that.valuesMap);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(valuesMap);
     }
   }
 

@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Comparator;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -65,34 +66,29 @@ public class Bid implements KnownSize, Serializable {
   };
 
   /**
-   * Comparator to order bids by ascending price then descending time
-   * (for finding winning bids).
+   * Comparator to order bids by ascending price then descending time (for finding winning bids).
    */
-  public static final Comparator<Bid> PRICE_THEN_DESCENDING_TIME = new Comparator<Bid>() {
-    @Override
-    public int compare(Bid left, Bid right) {
-      int i = Double.compare(left.price, right.price);
-      if (i != 0) {
-        return i;
-      }
-      return Long.compare(right.dateTime, left.dateTime);
-    }
-  };
+  public static final Comparator<Bid> PRICE_THEN_DESCENDING_TIME =
+      (left, right) -> {
+        int i = Double.compare(left.price, right.price);
+        if (i != 0) {
+          return i;
+        }
+        return Long.compare(right.dateTime, left.dateTime);
+      };
 
   /**
-   * Comparator to order bids by ascending time then ascending price.
-   * (for finding most recent bids).
+   * Comparator to order bids by ascending time then ascending price. (for finding most recent
+   * bids).
    */
-  public static final Comparator<Bid> ASCENDING_TIME_THEN_PRICE = new Comparator<Bid>() {
-    @Override
-    public int compare(Bid left, Bid right) {
-      int i = Long.compare(left.dateTime, right.dateTime);
-      if (i != 0) {
-        return i;
-      }
-      return Double.compare(left.price, right.price);
-    }
-  };
+  public static final Comparator<Bid> ASCENDING_TIME_THEN_PRICE =
+      (left, right) -> {
+        int i = Long.compare(left.dateTime, right.dateTime);
+        if (i != 0) {
+          return i;
+        }
+        return Double.compare(left.price, right.price);
+      };
 
   /** Id of auction this bid is for. */
   @JsonProperty
@@ -159,6 +155,28 @@ public class Bid implements KnownSize, Serializable {
     } else {
       return this;
     }
+  }
+
+  @Override
+  public boolean equals(Object otherObject) {
+    if (this == otherObject) {
+      return true;
+    }
+    if (otherObject == null || getClass() != otherObject.getClass()) {
+      return false;
+    }
+
+    Bid other = (Bid) otherObject;
+    return Objects.equals(auction, other.auction)
+        && Objects.equals(bidder, other.bidder)
+        && Objects.equals(price, other.price)
+        && Objects.equals(dateTime, other.dateTime)
+        && Objects.equals(extra, other.extra);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(auction, bidder, price, dateTime, extra);
   }
 
   @Override

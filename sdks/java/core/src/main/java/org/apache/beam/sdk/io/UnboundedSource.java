@@ -127,6 +127,18 @@ public abstract class UnboundedSource<
      * </ul>
      */
     void finalizeCheckpoint() throws IOException;
+
+    NoopCheckpointMark NOOP_CHECKPOINT_MARK = new NoopCheckpointMark();
+
+    /**
+     * A checkpoint mark that does nothing when finalized.
+     */
+    final class NoopCheckpointMark implements UnboundedSource.CheckpointMark {
+      @Override
+      public void finalizeCheckpoint() throws IOException {
+        // nothing to do
+      }
+    }
   }
 
   /**

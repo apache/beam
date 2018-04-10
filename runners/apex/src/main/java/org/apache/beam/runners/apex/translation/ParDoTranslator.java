@@ -117,7 +117,7 @@ class ParDoTranslator<InputT, OutputT>
   }
 
   static class SplittableProcessElementsTranslator<
-          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+          InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>>
       implements TransformTranslator<ProcessElements<InputT, OutputT, RestrictionT, TrackerT>> {
 
     @Override
@@ -216,7 +216,7 @@ class ParDoTranslator<InputT, OutputT>
         String msg = context.getFullName() + ": Multiple side inputs with different coders.";
         throw new UnsupportedOperationException(msg);
       }
-      sourceCollections.add(context.<PCollection<Object>>getViewInput(sideInput));
+      sourceCollections.add(context.getViewInput(sideInput));
       unionTags.put(sideInputCollection, i);
     }
 

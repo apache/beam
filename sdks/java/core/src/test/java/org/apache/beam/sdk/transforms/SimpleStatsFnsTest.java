@@ -80,17 +80,15 @@ public class SimpleStatsFnsTest {
   public void testInstantStats() {
     assertEquals(new Instant(1000), Min.<Instant>naturalOrder().apply(
         Arrays.asList(new Instant(1000), new Instant(2000))));
-    assertEquals(null, Min.<Instant>naturalOrder().apply(
-        Collections.<Instant>emptyList()));
-    assertEquals(new Instant(5000), Min.<Instant>naturalOrder(new Instant(5000)).apply(
-        Collections.<Instant>emptyList()));
+    assertEquals(null, Min.<Instant>naturalOrder().apply(Collections.emptyList()));
+    assertEquals(
+        new Instant(5000), Min.naturalOrder(new Instant(5000)).apply(Collections.emptyList()));
 
     assertEquals(new Instant(2000), Max.<Instant>naturalOrder().apply(
         Arrays.asList(new Instant(1000), new Instant(2000))));
-    assertEquals(null, Max.<Instant>naturalOrder().apply(
-        Collections.<Instant>emptyList()));
-    assertEquals(new Instant(5000), Max.<Instant>naturalOrder(new Instant(5000)).apply(
-        Collections.<Instant>emptyList()));
+    assertEquals(null, Max.<Instant>naturalOrder().apply(Collections.emptyList()));
+    assertEquals(
+        new Instant(5000), Max.naturalOrder(new Instant(5000)).apply(Collections.emptyList()));
   }
 
   @Test

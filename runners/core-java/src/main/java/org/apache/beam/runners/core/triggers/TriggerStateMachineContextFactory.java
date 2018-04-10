@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.core.triggers;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -132,18 +131,12 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
 
     @Override
     public Iterable<ExecutableTriggerStateMachine> unfinishedSubTriggers() {
-      return FluentIterable
-          .from(trigger.subTriggers())
-          .filter(new Predicate<ExecutableTriggerStateMachine>() {
-            @Override
-            public boolean apply(ExecutableTriggerStateMachine trigger) {
-              return !finishedSet.isFinished(trigger);
-            }
-          });
+      return FluentIterable.from(trigger.subTriggers())
+          .filter(trigger -> !finishedSet.isFinished(trigger));
     }
 
     @Override
-    public ExecutableTriggerStateMachine firstUnfinishedSubTrigger() {
+    public @Nullable ExecutableTriggerStateMachine firstUnfinishedSubTrigger() {
       for (ExecutableTriggerStateMachine subTrigger : trigger.subTriggers()) {
         if (!finishedSet.isFinished(subTrigger)) {
           return subTrigger;

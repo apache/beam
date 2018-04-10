@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -101,6 +100,11 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  *   <li>If a runner will no longer use a {@link DoFn}, the {@link DoFn.Teardown} method, if
  *     provided, will be called on the discarded instance.</li>
  * </ol>
+ *
+ * <p>Note also that calls to {@link DoFn.Teardown} are best effort, and may not be called before a
+ * {@link DoFn} is discarded in the general case. As a result, use of the {@link DoFn.Teardown}
+ * method to perform side effects is not appropriate, because the elements that produced the side
+ * effect will not be replayed in case of failure, and those side effects are permanently lost.
  *
  * <p>Each of the calls to any of the {@link DoFn DoFn's} processing
  * methods can produce zero or more output elements. All of the
@@ -431,8 +435,7 @@ public class ParDo {
    */
   public static <InputT, OutputT> SingleOutput<InputT, OutputT> of(DoFn<InputT, OutputT> fn) {
     validate(fn);
-    return new SingleOutput<InputT, OutputT>(
-        fn, Collections.<PCollectionView<?>>emptyList(), displayDataForFn(fn));
+    return new SingleOutput<>(fn, Collections.emptyList(), displayDataForFn(fn));
   }
 
   private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
@@ -581,6 +584,9 @@ public class ParDo {
    */
   public static class SingleOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+
+    private static final String MAIN_OUTPUT_TAG = "output";
+
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
@@ -589,7 +595,7 @@ public class ParDo {
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      this.fn = SerializableUtils.clone(fn);
+      this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
     }
@@ -639,7 +645,7 @@ public class ParDo {
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
       finishSpecifyingStateSpecs(fn, registry, input.getCoder());
-      TupleTag<OutputT> mainOutput = new TupleTag<>();
+      TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
       try {
@@ -689,6 +695,11 @@ public class ParDo {
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
     }
+
+    @Override
+    public String toString() {
+      return fn.toString();
+    }
   }
 
   /**
@@ -717,7 +728,7 @@ public class ParDo {
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
-      this.fn = SerializableUtils.clone(fn);
+      this.fn = fn;
       this.fnDisplayData = fnDisplayData;
     }
 
@@ -768,13 +779,14 @@ public class ParDo {
         validateStateApplicableForInput(fn, input);
       }
 
-      PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
-          input.getPipeline(),
-          TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
-          // TODO
-          Collections.<TupleTag<?>, Coder<?>>emptyMap(),
-          input.getWindowingStrategy(),
-          input.isBounded());
+      PCollectionTuple outputs =
+          PCollectionTuple.ofPrimitiveOutputsInternal(
+              input.getPipeline(),
+              TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
+              // TODO
+              Collections.emptyMap(),
+              input.getWindowingStrategy(),
+              input.isBounded());
       @SuppressWarnings("unchecked")
       Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
       for (PCollection<?> out : outputs.getAll().values()) {
@@ -831,6 +843,11 @@ public class ParDo {
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
+    }
+
+    @Override
+    public String toString() {
+      return fn.toString();
     }
   }
 

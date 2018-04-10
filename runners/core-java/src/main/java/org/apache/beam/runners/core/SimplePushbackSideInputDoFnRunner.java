@@ -23,7 +23,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -39,7 +41,8 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   private final Collection<PCollectionView<?>> views;
   private final ReadyCheckingSideInputReader sideInputReader;
 
-  private Set<BoundedWindow> notReadyWindows;
+  // Initialized in startBundle()
+  private @Nullable Set<BoundedWindow> notReadyWindows;
 
   public static <InputT, OutputT> SimplePushbackSideInputDoFnRunner<InputT, OutputT> create(
       DoFnRunner<InputT, OutputT> underlying,
@@ -49,12 +52,17 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   }
 
   private SimplePushbackSideInputDoFnRunner(
-      DoFnRunner<InputT, OutputT> underlying,
+          DoFnRunner<InputT, OutputT> underlying,
       Collection<PCollectionView<?>> views,
       ReadyCheckingSideInputReader sideInputReader) {
     this.underlying = underlying;
     this.views = views;
     this.sideInputReader = sideInputReader;
+  }
+
+  @Override
+  public DoFn<InputT, OutputT> getFn() {
+    return underlying.getFn();
   }
 
   @Override

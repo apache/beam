@@ -21,59 +21,74 @@ package org.apache.beam.sdk.transforms;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.joda.time.Duration;
 
 /**
  * {@link PTransform PTransforms} for reifying the timestamp of values and reemitting the original
  * value with the original timestamp.
+ *
+ * @deprecated Use {@link Reify}
  */
+@Deprecated
 class ReifyTimestamps {
   private ReifyTimestamps() {}
 
   /**
    * Create a {@link PTransform} that will output all input {@link KV KVs} with the timestamp inside
    * the value.
+   *
+   * @deprecated Use {@link Reify#timestampsInValue()}
    */
+  @Deprecated
   public static <K, V>
       PTransform<PCollection<? extends KV<K, V>>, PCollection<KV<K, TimestampedValue<V>>>>
           inValues() {
-    return ParDo.of(new ReifyValueTimestampDoFn<K, V>());
+    return new InValues<>();
   }
 
   /**
    * Create a {@link PTransform} that consumes {@link KV KVs} with a {@link TimestampedValue} as the
    * value, and outputs the {@link KV} of the input key and value at the timestamp specified by the
    * {@link TimestampedValue}.
+   *
+   * @deprecated Use {@link Reify#extractTimestampsFromValues()}.
    */
+  @Deprecated
   public static <K, V>
       PTransform<PCollection<? extends KV<K, TimestampedValue<V>>>, PCollection<KV<K, V>>>
           extractFromValues() {
-    return ParDo.of(new ExtractTimestampedValueDoFn<K, V>());
+    return new ExtractTimestampsFromValues<>();
   }
 
-  private static class ReifyValueTimestampDoFn<K, V>
-      extends DoFn<KV<K, V>, KV<K, TimestampedValue<V>>> {
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      context.output(
-          KV.of(
-              context.element().getKey(),
-              TimestampedValue.of(context.element().getValue(), context.timestamp())));
-    }
-  }
-
-  private static class ExtractTimestampedValueDoFn<K, V>
-      extends DoFn<KV<K, TimestampedValue<V>>, KV<K, V>> {
+  private static class RemoveWildcard<T>
+      extends PTransform<PCollection<? extends T>, PCollection<T>> {
     @Override
-    public Duration getAllowedTimestampSkew() {
-      return Duration.millis(Long.MAX_VALUE);
+    public PCollection<T> expand(PCollection<? extends T> input) {
+      return input.apply(
+          ParDo.of(
+              new DoFn<T, T>() {
+                @ProcessElement
+                public void process(ProcessContext c) {
+                  c.output(c.element());
+                }
+              }));
     }
+  }
 
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      KV<K, TimestampedValue<V>> kv = context.element();
-      context.outputWithTimestamp(
-          KV.of(kv.getKey(), kv.getValue().getValue()), kv.getValue().getTimestamp());
+  private static class InValues<K, V>
+      extends PTransform<PCollection<? extends KV<K, V>>, PCollection<KV<K, TimestampedValue<V>>>> {
+    @Override
+    public PCollection<KV<K, TimestampedValue<V>>> expand(PCollection<? extends KV<K, V>> input) {
+      return input.apply(new RemoveWildcard<KV<K, V>>()).apply(Reify.timestampsInValue());
+    }
+  }
+
+  private static class ExtractTimestampsFromValues<K, V>
+      extends PTransform<PCollection<? extends KV<K, TimestampedValue<V>>>, PCollection<KV<K, V>>> {
+    @Override
+    public PCollection<KV<K, V>> expand(PCollection<? extends KV<K, TimestampedValue<V>>> input) {
+      return input
+          .apply(new RemoveWildcard<KV<K, TimestampedValue<V>>>())
+          .apply(Reify.extractTimestampsFromValues());
     }
   }
 }

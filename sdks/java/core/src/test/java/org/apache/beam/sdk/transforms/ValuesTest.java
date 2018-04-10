@@ -63,7 +63,7 @@ public class ValuesTest {
         p.apply(Create.of(Arrays.asList(TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-    PCollection<Integer> output = input.apply(Values.<Integer>create());
+    PCollection<Integer> output = input.apply(Values.create());
 
     PAssert.that(output)
         .containsInAnyOrder(1, 2, 3, 4, 4);
@@ -79,7 +79,7 @@ public class ValuesTest {
         p.apply(Create.of(Arrays.asList(EMPTY_TABLE)).withCoder(
             KvCoder.of(StringUtf8Coder.of(), BigEndianIntegerCoder.of())));
 
-    PCollection<Integer> output = input.apply(Values.<Integer>create());
+    PCollection<Integer> output = input.apply(Values.create());
 
     PAssert.that(output).empty();
 

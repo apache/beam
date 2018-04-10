@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
@@ -61,15 +62,19 @@ public class MergeOverlappingIntervalWindows {
   }
 
   private static class MergeCandidate {
-    private IntervalWindow union;
+    @Nullable private IntervalWindow union;
     private final List<IntervalWindow> parts;
+
     public MergeCandidate() {
+      union = null;
       parts = new ArrayList<>();
     }
+
     public MergeCandidate(IntervalWindow window) {
       union = window;
       parts = new ArrayList<>(Arrays.asList(window));
     }
+
     public boolean intersects(IntervalWindow window) {
       return union == null || union.intersects(window);
     }

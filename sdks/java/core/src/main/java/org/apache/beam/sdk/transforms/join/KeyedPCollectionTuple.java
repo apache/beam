@@ -21,6 +21,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -207,24 +208,21 @@ public class KeyedPCollectionTuple<K> implements PInput {
    */
   private final List<TaggedKeyedPCollection<K, ?>> keyedCollections;
 
-  private Coder<K> keyCoder;
+  @Nullable private Coder<K> keyCoder;
 
   private final CoGbkResultSchema schema;
 
   private final Pipeline pipeline;
 
   KeyedPCollectionTuple(Pipeline pipeline) {
-    this(pipeline,
-         new ArrayList<TaggedKeyedPCollection<K, ?>>(),
-         TupleTagList.empty(),
-         null);
+    this(pipeline, new ArrayList<>(), TupleTagList.empty(), null);
   }
 
   KeyedPCollectionTuple(
       Pipeline pipeline,
       List<TaggedKeyedPCollection<K, ?>> keyedCollections,
       TupleTagList tupleTagList,
-      Coder<K> keyCoder) {
+      @Nullable Coder<K> keyCoder) {
     this.pipeline = pipeline;
     this.keyedCollections = keyedCollections;
     this.schema = new CoGbkResultSchema(tupleTagList);

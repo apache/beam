@@ -40,6 +40,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.DurationCoder;
+import org.apache.beam.sdk.coders.FloatCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.SetCoder;
@@ -82,7 +83,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
   // in core-construction
   @VisibleForTesting
   static final ImmutableSet<Class<? extends Coder>> KNOWN_ATOMIC_CODERS =
-      ImmutableSet.<Class<? extends Coder>>of(
+      ImmutableSet.of(
           BigDecimalCoder.class,
           BigEndianIntegerCoder.class,
           BigEndianLongCoder.class,
@@ -91,6 +92,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           ByteCoder.class,
           DoubleCoder.class,
           DurationCoder.class,
+          FloatCoder.class,
           FooterCoder.class,
           InstantCoder.class,
           IsmShardCoder.class,

@@ -46,6 +46,7 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
 
   protected final WindowingStrategy<Object, W> windowingStrategy;
 
+  // TODO: Remove side input functionality since liftable Combines no longer have side inputs.
   protected final Map<PCollectionView<?>, WindowingStrategy<?, ?>> sideInputs;
 
   protected final SerializablePipelineOptions serializedOptions;
@@ -84,7 +85,7 @@ public class FlinkReduceFunction<K, AccumT, OutputT, W extends BoundedWindow>
       reduceRunner = new SortingFlinkCombineRunner<>();
     }
     reduceRunner.combine(
-        new AbstractFlinkCombineRunner.FinalFlinkCombiner<K, AccumT, OutputT>(combineFn),
+        new AbstractFlinkCombineRunner.FinalFlinkCombiner<>(combineFn),
         windowingStrategy,
         sideInputReader,
         options,

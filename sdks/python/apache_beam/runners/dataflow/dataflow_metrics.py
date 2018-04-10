@@ -170,12 +170,8 @@ class DataflowMetrics(MetricResults):
                             lambda x: x.key == 'min').value.integer_value
       dist_max = _get_match(metric.distribution.object_value.properties,
                             lambda x: x.key == 'max').value.integer_value
-      dist_mean = _get_match(metric.distribution.object_value.properties,
-                             lambda x: x.key == 'mean').value.integer_value
-      # Calculating dist_sum with a hack, as distribution sum is not yet
-      # available in the Dataflow API.
-      # TODO(pabloem) Switch to "sum" field once it's available in the API
-      dist_sum = dist_count * dist_mean
+      dist_sum = _get_match(metric.distribution.object_value.properties,
+                            lambda x: x.key == 'sum').value.integer_value
       return DistributionResult(
           DistributionData(
               dist_sum, dist_count, dist_min, dist_max))
@@ -196,7 +192,7 @@ class DataflowMetrics(MetricResults):
 
     job_metrics = self._dataflow_client.get_job_metrics(job_id)
     # If the job has terminated, metrics will not change and we can cache them.
-    if self.job_result._is_in_terminal_state():
+    if self.job_result.is_in_terminal_state():
       self._cached_metrics = job_metrics
     return job_metrics
 
@@ -209,4 +205,4 @@ class DataflowMetrics(MetricResults):
             'distributions': [elm for elm in metric_results
                               if self.matches(filter, elm.key)
                               and DataflowMetrics._is_distribution(elm)],
-            'gauges': []} # Gauges are not currently supported by dataflow
+            'gauges': []}  # TODO(pabloem): Add Gauge support for dataflow.

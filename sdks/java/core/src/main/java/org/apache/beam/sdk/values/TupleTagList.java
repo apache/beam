@@ -140,7 +140,7 @@ public class TupleTagList implements Serializable {
   final List<TupleTag<?>> tupleTags;
 
   TupleTagList() {
-    this(new ArrayList<TupleTag<?>>());
+    this(new ArrayList<>());
   }
 
   TupleTagList(List<TupleTag<?>> tupleTags) {

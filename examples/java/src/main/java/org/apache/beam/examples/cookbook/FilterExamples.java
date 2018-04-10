@@ -85,7 +85,7 @@ public class FilterExamples {
    */
   static class ProjectionFn extends DoFn<TableRow, TableRow> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       // Grab year, month, day, mean_temp from the row
       Integer year = Integer.parseInt((String) row.get("year"));
@@ -114,7 +114,7 @@ public class FilterExamples {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       Integer month;
       month = (Integer) row.get("month");
@@ -130,7 +130,7 @@ public class FilterExamples {
    */
   static class ExtractTempFn extends DoFn<TableRow, Double> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       Double meanTemp = Double.parseDouble(row.get("mean_temp").toString());
       c.output(meanTemp);
@@ -162,8 +162,7 @@ public class FilterExamples {
       // Find the global mean, of all the mean_temp readings in the weather data,
       // and prepare this singleton PCollectionView for use as a side input.
       final PCollectionView<Double> globalMeanTemp =
-          meanTemps.apply(Mean.<Double>globally())
-               .apply(View.<Double>asSingleton());
+          meanTemps.apply(Mean.globally()).apply(View.asSingleton());
 
       // Rows filtered to remove all but a single month
       PCollection<TableRow> monthFilteredRows = rows

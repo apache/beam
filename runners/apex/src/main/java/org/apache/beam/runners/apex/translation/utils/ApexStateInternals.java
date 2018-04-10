@@ -47,7 +47,6 @@ import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateContext;
-import org.apache.beam.sdk.state.StateContexts;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -76,11 +75,6 @@ public class ApexStateInternals<K> implements StateInternals {
   @Override
   public K getKey() {
     return key;
-  }
-
-  @Override
-  public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
-    return state(namespace, address, StateContexts.nullContext());
   }
 
   @Override
@@ -446,11 +440,8 @@ public class ApexStateInternals<K> implements StateInternals {
       } catch (CoderException e) {
         throw new RuntimeException(e);
       }
-      HashBasedTable<String, String, byte[]> stateTable = perKeyState.get(keyBytes);
-      if (stateTable == null) {
-        stateTable = HashBasedTable.create();
-        perKeyState.put(keyBytes, stateTable);
-      }
+      HashBasedTable<String, String, byte[]> stateTable =
+          perKeyState.computeIfAbsent(keyBytes, k -> HashBasedTable.create());
       return new ApexStateInternals<>(key, stateTable);
     }
 
@@ -463,7 +454,7 @@ public class ApexStateInternals<K> implements StateInternals {
     private static final long serialVersionUID = 1L;
 
     public <K> ApexStateInternalsFactory<K> newStateInternalsFactory(Coder<K> keyCoder) {
-      return new ApexStateInternalsFactory<K>(keyCoder);
+      return new ApexStateInternalsFactory<>(keyCoder);
     }
   }
 

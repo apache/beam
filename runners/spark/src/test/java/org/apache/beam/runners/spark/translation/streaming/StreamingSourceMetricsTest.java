@@ -65,13 +65,14 @@ public class StreamingSourceMetricsTest implements Serializable {
             .queryMetrics(
                 MetricsFilter.builder()
                     .addNameFilter(
-                        MetricNameFilter.named(ELEMENTS_READ.namespace(), ELEMENTS_READ.name()))
+                        MetricNameFilter.named(
+                            ELEMENTS_READ.getNamespace(), ELEMENTS_READ.getName()))
                     .build());
 
-    assertThat(metrics.counters(), hasItem(
+    assertThat(metrics.getCounters(), hasItem(
         attemptedMetricsResult(
-            ELEMENTS_READ.namespace(),
-            ELEMENTS_READ.name(),
+            ELEMENTS_READ.getNamespace(),
+            ELEMENTS_READ.getName(),
             "Read(UnboundedCountingSource)",
             1000L)));
   }

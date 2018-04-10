@@ -31,6 +31,7 @@ import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -58,30 +59,26 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
   }
 
   public static <InputT, OutputT> DoFnRunnerFactory<InputT, OutputT> defaultRunnerFactory() {
-    return new DoFnRunnerFactory<InputT, OutputT>() {
-      @Override
-      public PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(
-          PipelineOptions options,
-          DoFn<InputT, OutputT> fn,
-          List<PCollectionView<?>> sideInputs,
-          ReadyCheckingSideInputReader sideInputReader,
-          OutputManager outputManager,
-          TupleTag<OutputT> mainOutputTag,
-          List<TupleTag<?>> additionalOutputTags,
-          DirectStepContext stepContext,
-          WindowingStrategy<?, ? extends BoundedWindow> windowingStrategy) {
-        DoFnRunner<InputT, OutputT> underlying =
-            DoFnRunners.simpleRunner(
-                options,
-                fn,
-                sideInputReader,
-                outputManager,
-                mainOutputTag,
-                additionalOutputTags,
-                stepContext,
-                windowingStrategy);
-        return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
-      }
+    return (options,
+        fn,
+        sideInputs,
+        sideInputReader,
+        outputManager,
+        mainOutputTag,
+        additionalOutputTags,
+        stepContext,
+        windowingStrategy) -> {
+      DoFnRunner<InputT, OutputT> underlying =
+          DoFnRunners.simpleRunner(
+              options,
+              fn,
+              sideInputReader,
+              outputManager,
+              mainOutputTag,
+              additionalOutputTags,
+              stepContext,
+              windowingStrategy);
+      return SimplePushbackSideInputDoFnRunner.create(underlying, sideInputs, sideInputReader);
     };
   }
 
@@ -170,6 +167,14 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
     } catch (Exception e) {
       throw UserCodeException.wrap(e);
     }
+  }
+
+  public PushbackSideInputDoFnRunner<InputT, ?> getFnRunner() {
+    return fnRunner;
+  }
+
+  public DirectStepContext getStepContext() {
+    return stepContext;
   }
 
   public BundleOutputManager getOutputManager() {

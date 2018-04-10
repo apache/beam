@@ -74,8 +74,7 @@ public class AvroPipelineTest {
         AvroIO.readGenericRecords(schema).from(inputFile.getAbsolutePath()));
     input.apply(
         AvroIO.writeGenericRecords(schema)
-            .to(outputFile.getAbsolutePath())
-            .withoutSharding());
+            .to(outputFile.getAbsolutePath()));
     pipeline.run();
 
     List<GenericRecord> records = readGenericFile();
@@ -100,7 +99,7 @@ public class AvroPipelineTest {
     List<GenericRecord> records = Lists.newArrayList();
     GenericDatumReader<GenericRecord> genericDatumReader = new GenericDatumReader<>();
     try (DataFileReader<GenericRecord> dataFileReader =
-        new DataFileReader<>(outputFile, genericDatumReader)) {
+        new DataFileReader<>(new File(outputFile + "-00000-of-00001"), genericDatumReader)) {
       for (GenericRecord record : dataFileReader) {
         records.add(record);
       }

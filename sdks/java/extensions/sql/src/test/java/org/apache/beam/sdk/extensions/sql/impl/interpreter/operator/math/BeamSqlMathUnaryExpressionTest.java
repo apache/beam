@@ -60,7 +60,7 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.BIGINT, -28965734597L));
     Assert.assertEquals(28965734597L,
-        new BeamSqlAbsExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlAbsExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForLnExpression() {
@@ -69,19 +69,19 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for LN function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
     Assert.assertEquals(Math.log(2),
-        new BeamSqlLnExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlLnExpression(operands).evaluate(row, null).getValue());
 
     // test for LN function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
     Assert
         .assertEquals(Math.log(2.4),
-            new BeamSqlLnExpression(operands).evaluate(record, null).getValue());
+            new BeamSqlLnExpression(operands).evaluate(row, null).getValue());
     // test for LN function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
     Assert.assertEquals(Math.log(2.56),
-        new BeamSqlLnExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlLnExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForLog10Expression() {
@@ -90,17 +90,17 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for log10 function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
     Assert.assertEquals(Math.log10(2),
-        new BeamSqlLogExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlLogExpression(operands).evaluate(row, null).getValue());
     // test for log10 function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
     Assert.assertEquals(Math.log10(2.4),
-        new BeamSqlLogExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlLogExpression(operands).evaluate(row, null).getValue());
     // test for log10 function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
     Assert.assertEquals(Math.log10(2.56),
-        new BeamSqlLogExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlLogExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForExpExpression() {
@@ -109,17 +109,17 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
     Assert.assertEquals(Math.exp(2),
-        new BeamSqlExpExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlExpExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
     Assert.assertEquals(Math.exp(2.4),
-        new BeamSqlExpExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlExpExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
     Assert.assertEquals(Math.exp(2.56),
-        new BeamSqlExpExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlExpExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForAcosExpression() {
@@ -128,17 +128,17 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
     Assert.assertEquals(Double.NaN,
-        new BeamSqlAcosExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlAcosExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.45));
     Assert.assertEquals(Math.acos(0.45),
-        new BeamSqlAcosExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlAcosExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-0.367)));
     Assert.assertEquals(Math.acos(-0.367),
-        new BeamSqlAcosExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlAcosExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForAsinExpression() {
@@ -147,12 +147,12 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type double
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.45));
     Assert.assertEquals(Math.asin(0.45),
-        new BeamSqlAsinExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlAsinExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-0.367)));
     Assert.assertEquals(Math.asin(-0.367),
-        new BeamSqlAsinExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlAsinExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForAtanExpression() {
@@ -161,12 +161,12 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type double
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.45));
     Assert.assertEquals(Math.atan(0.45),
-        new BeamSqlAtanExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlAtanExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-0.367)));
     Assert.assertEquals(Math.atan(-0.367),
-        new BeamSqlAtanExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlAtanExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForCosExpression() {
@@ -175,12 +175,12 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type double
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 0.45));
     Assert.assertEquals(Math.cos(0.45),
-        new BeamSqlCosExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlCosExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-0.367)));
     Assert.assertEquals(Math.cos(-0.367),
-        new BeamSqlCosExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlCosExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForCotExpression() {
@@ -189,12 +189,12 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type double
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, .45));
     Assert.assertEquals(1.0d / Math.tan(0.45),
-        new BeamSqlCotExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlCotExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(-.367)));
     Assert.assertEquals(1.0d / Math.tan(-0.367),
-        new BeamSqlCotExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlCotExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForDegreesExpression() {
@@ -203,17 +203,17 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
     Assert.assertEquals(Math.toDegrees(2),
-        new BeamSqlDegreesExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlDegreesExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
     Assert.assertEquals(Math.toDegrees(2.4),
-        new BeamSqlDegreesExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlDegreesExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
     Assert.assertEquals(Math.toDegrees(2.56),
-        new BeamSqlDegreesExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlDegreesExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForRadiansExpression() {
@@ -222,17 +222,17 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
     Assert.assertEquals(Math.toRadians(2),
-        new BeamSqlRadiansExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlRadiansExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
     Assert.assertEquals(Math.toRadians(2.4),
-        new BeamSqlRadiansExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlRadiansExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
     Assert.assertEquals(Math.toRadians(2.56),
-        new BeamSqlRadiansExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlRadiansExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForSinExpression() {
@@ -241,17 +241,17 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
     Assert.assertEquals(Math.sin(2),
-        new BeamSqlSinExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlSinExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
     Assert.assertEquals(Math.sin(2.4),
-        new BeamSqlSinExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlSinExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
     Assert.assertEquals(Math.sin(2.56),
-        new BeamSqlSinExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlSinExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForTanExpression() {
@@ -260,17 +260,17 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
     Assert.assertEquals(Math.tan(2),
-        new BeamSqlTanExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlTanExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
     Assert.assertEquals(Math.tan(2.4),
-        new BeamSqlTanExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlTanExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
     Assert.assertEquals(Math.tan(2.56),
-        new BeamSqlTanExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlTanExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForSignExpression() {
@@ -279,34 +279,34 @@ public class BeamSqlMathUnaryExpressionTest extends BeamSqlFnExecutorTestBase {
     // test for exp function with operand type smallint
     operands.add(BeamSqlPrimitive.of(SqlTypeName.SMALLINT, Short.valueOf("2")));
     Assert.assertEquals((short) 1
-        , new BeamSqlSignExpression(operands).evaluate(record, null).getValue());
+        , new BeamSqlSignExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type double
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.4));
-    Assert.assertEquals(1.0, new BeamSqlSignExpression(operands).evaluate(record, null).getValue());
+    Assert.assertEquals(1.0, new BeamSqlSignExpression(operands).evaluate(row, null).getValue());
     // test for exp function with operand type decimal
     operands.clear();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DECIMAL, BigDecimal.valueOf(2.56)));
     Assert.assertEquals(BigDecimal.ONE,
-        new BeamSqlSignExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlSignExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForPi() {
-    Assert.assertEquals(Math.PI, new BeamSqlPiExpression().evaluate(record, null).getValue());
+    Assert.assertEquals(Math.PI, new BeamSqlPiExpression().evaluate(row, null).getValue());
   }
 
   @Test public void testForCeil() {
     List<BeamSqlExpression> operands = new ArrayList<>();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.68687979));
     Assert.assertEquals(Math.ceil(2.68687979),
-        new BeamSqlCeilExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlCeilExpression(operands).evaluate(row, null).getValue());
   }
 
   @Test public void testForFloor() {
     List<BeamSqlExpression> operands = new ArrayList<>();
     operands.add(BeamSqlPrimitive.of(SqlTypeName.DOUBLE, 2.68687979));
     Assert.assertEquals(Math.floor(2.68687979),
-        new BeamSqlFloorExpression(operands).evaluate(record, null).getValue());
+        new BeamSqlFloorExpression(operands).evaluate(row, null).getValue());
   }
 
 }

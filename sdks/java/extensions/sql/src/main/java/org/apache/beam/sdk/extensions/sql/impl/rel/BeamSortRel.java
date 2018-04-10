@@ -25,17 +25,17 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.apache.beam.sdk.coders.ListCoder;
-import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper;
-import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Top;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelCollation;
@@ -120,38 +120,49 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     }
   }
 
-  @Override public PCollection<BeamRecord> buildBeamPipeline(PCollectionTuple inputPCollections
-      , BeamSqlEnv sqlEnv) throws Exception {
-    RelNode input = getInput();
-    PCollection<BeamRecord> upstream = BeamSqlRelUtils.getBeamRelInput(input)
-        .buildBeamPipeline(inputPCollections, sqlEnv);
-    Type windowType = upstream.getWindowingStrategy().getWindowFn()
-        .getWindowTypeDescriptor().getType();
-    if (!windowType.equals(GlobalWindow.class)) {
-      throw new UnsupportedOperationException(
-          "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
+  @Override
+  public PTransform<PCollectionTuple, PCollection<Row>> toPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionTuple, PCollection<Row>> {
+
+    @Override
+    public PCollection<Row> expand(PCollectionTuple inputPCollections) {
+      RelNode input = getInput();
+      PCollection<Row> upstream =
+          inputPCollections.apply(BeamSqlRelUtils.getBeamRelInput(input).toPTransform());
+      Type windowType =
+          upstream.getWindowingStrategy().getWindowFn().getWindowTypeDescriptor().getType();
+      if (!windowType.equals(GlobalWindow.class)) {
+        throw new UnsupportedOperationException(
+            "`ORDER BY` is only supported for GlobalWindow, actual window: " + windowType);
+      }
+
+      BeamSqlRowComparator comparator =
+          new BeamSqlRowComparator(fieldIndices, orientation, nullsFirst);
+      // first find the top (offset + count)
+      PCollection<List<Row>> rawStream =
+          upstream
+              .apply(
+                  "extractTopOffsetAndFetch",
+                  Top.of(startIndex + count, comparator).withoutDefaults())
+              .setCoder(ListCoder.of(upstream.getCoder()));
+
+      // strip the `leading offset`
+      if (startIndex > 0) {
+        rawStream =
+            rawStream
+                .apply(
+                    "stripLeadingOffset", ParDo.of(new SubListFn<>(startIndex, startIndex + count)))
+                .setCoder(ListCoder.of(upstream.getCoder()));
+      }
+
+      PCollection<Row> orderedStream = rawStream.apply("flatten", Flatten.iterables());
+      orderedStream.setCoder(CalciteUtils.toBeamSchema(getRowType()).getRowCoder());
+
+      return orderedStream;
     }
-
-    BeamSqlRowComparator comparator = new BeamSqlRowComparator(fieldIndices, orientation,
-        nullsFirst);
-    // first find the top (offset + count)
-    PCollection<List<BeamRecord>> rawStream =
-        upstream.apply("extractTopOffsetAndFetch",
-            Top.of(startIndex + count, comparator).withoutDefaults())
-        .setCoder(ListCoder.<BeamRecord>of(upstream.getCoder()));
-
-    // strip the `leading offset`
-    if (startIndex > 0) {
-      rawStream = rawStream.apply("stripLeadingOffset", ParDo.of(
-          new SubListFn<BeamRecord>(startIndex, startIndex + count)))
-          .setCoder(ListCoder.<BeamRecord>of(upstream.getCoder()));
-    }
-
-    PCollection<BeamRecord> orderedStream = rawStream.apply(
-        "flatten", Flatten.<BeamRecord>iterables());
-    orderedStream.setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
-
-    return orderedStream;
   }
 
   private static class SubListFn<T> extends DoFn<List<T>, List<T>> {
@@ -174,7 +185,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
     return new BeamSortRel(getCluster(), traitSet, newInput, newCollation, offset, fetch);
   }
 
-  private static class BeamSqlRowComparator implements Comparator<BeamRecord>, Serializable {
+  private static class BeamSqlRowComparator implements Comparator<Row>, Serializable {
     private List<Integer> fieldsIndices;
     private List<Boolean> orientation;
     private List<Boolean> nullsFirst;
@@ -187,16 +198,17 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       this.nullsFirst = nullsFirst;
     }
 
-    @Override public int compare(BeamRecord row1, BeamRecord row2) {
+    @Override public int compare(Row row1, Row row2) {
       for (int i = 0; i < fieldsIndices.size(); i++) {
         int fieldIndex = fieldsIndices.get(i);
         int fieldRet = 0;
-        SqlTypeName fieldType = CalciteUtils.getFieldType(
-            BeamSqlRecordHelper.getSqlRecordType(row1), fieldIndex);
+
+        FieldType fieldType = row1.getSchema().getField(fieldIndex).getType();
+        SqlTypeName sqlTypeName = CalciteUtils.toSqlTypeName(fieldType);
         // whether NULL should be ordered first or last(compared to non-null values) depends on
         // what user specified in SQL(NULLS FIRST/NULLS LAST)
-        boolean isValue1Null = (row1.getFieldValue(fieldIndex) == null);
-        boolean isValue2Null = (row2.getFieldValue(fieldIndex) == null);
+        boolean isValue1Null = (row1.getValue(fieldIndex) == null);
+        boolean isValue2Null = (row2.getValue(fieldIndex) == null);
         if (isValue1Null && isValue2Null) {
           continue;
         } else if (isValue1Null && !isValue2Null) {
@@ -204,7 +216,7 @@ public class BeamSortRel extends Sort implements BeamRelNode {
         } else if (!isValue1Null && isValue2Null) {
           fieldRet = 1 * (nullsFirst.get(i) ? -1 : 1);
         } else {
-          switch (fieldType) {
+          switch (sqlTypeName) {
             case TINYINT:
             case SMALLINT:
             case INTEGER:
@@ -214,13 +226,13 @@ public class BeamSortRel extends Sort implements BeamRelNode {
             case VARCHAR:
             case DATE:
             case TIMESTAMP:
-              Comparable v1 = (Comparable) row1.getFieldValue(fieldIndex);
-              Comparable v2 = (Comparable) row2.getFieldValue(fieldIndex);
+              Comparable v1 = (Comparable) row1.getValue(fieldIndex);
+              Comparable v2 = (Comparable) row2.getValue(fieldIndex);
               fieldRet = v1.compareTo(v2);
               break;
             default:
               throw new UnsupportedOperationException(
-                  "Data type: " + fieldType + " not supported yet!");
+                  "Data type: " + sqlTypeName + " not supported yet!");
           }
         }
 
@@ -232,4 +244,5 @@ public class BeamSortRel extends Sort implements BeamRelNode {
       return 0;
     }
   }
+
 }

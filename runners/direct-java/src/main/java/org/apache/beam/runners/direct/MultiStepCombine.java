@@ -28,11 +28,15 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CombineTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -69,8 +73,10 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
         if (PTransformTranslation.COMBINE_TRANSFORM_URN.equals(
             PTransformTranslation.urnForTransformOrNull(application.getTransform()))) {
           try {
-            GlobalCombineFn fn = CombineTranslation.getCombineFn(application);
-            return isApplicable(application.getInputs(), fn);
+            Optional<GlobalCombineFn<?, ?, ?>> fn = CombineTranslation.getCombineFn(application);
+            if (fn.isPresent()) {
+              return isApplicable(application.getInputs(), fn.get());
+            }
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -138,7 +144,13 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
                     PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>>
                 transform) {
       try {
-        GlobalCombineFn<?, ?, ?> globalFn = CombineTranslation.getCombineFn(transform);
+        GlobalCombineFn<?, ?, ?> globalFn = CombineTranslation.getCombineFn(transform).orElseThrow(
+            () -> new IOException(String
+                .format("%s.matcher() should only match %s instances using %s, but %s was missing",
+                    MultiStepCombine.class.getSimpleName(),
+                    PerKey.class.getSimpleName(),
+                    CombineFn.class.getSimpleName(),
+                    CombineFn.class.getSimpleName())));
         checkState(
             globalFn instanceof CombineFn,
             "%s.matcher() should only match %s instances using %s, got %s",
@@ -177,10 +189,16 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
     this.outputCoder = outputCoder;
   }
 
-  @Nullable
+  @Nonnull
   @Override
   public String getUrn() {
     return "urn:beam:directrunner:transforms:multistepcombine:v1";
+  }
+
+  @Nullable
+  @Override
+  public RunnerApi.FunctionSpec getSpec() {
+    return null;
   }
 
   @Override
@@ -212,7 +230,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
                     input.getWindowingStrategy().getTimestampCombiner(),
                     inputCoder.getKeyCoder())))
         .setCoder(KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder))
-        .apply(GroupByKey.<K, AccumT>create())
+        .apply(GroupByKey.create())
         .apply(new MergeAndExtractAccumulatorOutput<>(combineFn, outputCoder));
   }
 
@@ -337,10 +355,16 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
           input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), outputCoder);
     }
 
-    @Nullable
+    @Nonnull
     @Override
     public String getUrn() {
       return DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN;
+    }
+
+    @Nullable
+    @Override
+    public RunnerApi.FunctionSpec getSpec() {
+      return null;
     }
   }
 

@@ -200,32 +200,29 @@ public class WindowingStrategyTranslation implements Serializable {
   public static final String FIXED_WINDOWS_FN = "beam:windowfn:fixed_windows:v0.1";
   public static final String SLIDING_WINDOWS_FN = "beam:windowfn:sliding_windows:v0.1";
   public static final String SESSION_WINDOWS_FN = "beam:windowfn:session_windows:v0.1";
+  static {
+    // Out-of-line to facilitate use in the case statements below.
+    UrnUtils.validateCommonUrn(GLOBAL_WINDOWS_FN);
+    UrnUtils.validateCommonUrn(FIXED_WINDOWS_FN);
+    UrnUtils.validateCommonUrn(SLIDING_WINDOWS_FN);
+    UrnUtils.validateCommonUrn(SESSION_WINDOWS_FN);
+  }
+
   // This URN says that the WindowFn is just a UDF blob the Java SDK understands
   // TODO: standardize such things
   public static final String SERIALIZED_JAVA_WINDOWFN_URN = "beam:windowfn:javasdk:v0.1";
-  public static final String OLD_SERIALIZED_JAVA_WINDOWFN_URN = "urn:beam:windowfn:javasdk:0.1";
-  // Remove this once the dataflow worker understands all the above formats.
-  private static final boolean USE_OLD_SERIALIZED_JAVA_WINDOWFN_URN = true;
 
   /**
    * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where {@link
    * RunnerApi.MessageWithComponents#getFunctionSpec()} is a {@link RunnerApi.FunctionSpec} for the
    * input {@link WindowFn}.
    */
-  public static SdkFunctionSpec toProto(
-      WindowFn<?, ?> windowFn, @SuppressWarnings("unused") SdkComponents components) {
-    // TODO: Set environment IDs
+  public static SdkFunctionSpec toProto(WindowFn<?, ?> windowFn, SdkComponents components) {
     ByteString serializedFn = ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowFn));
-    if (USE_OLD_SERIALIZED_JAVA_WINDOWFN_URN) {
+    if (windowFn instanceof GlobalWindows) {
       return SdkFunctionSpec.newBuilder()
-          .setSpec(
-              FunctionSpec.newBuilder()
-                  .setUrn(OLD_SERIALIZED_JAVA_WINDOWFN_URN)
-                  .setPayload(serializedFn)
-                  .build())
-          .build();
-    } else if (windowFn instanceof GlobalWindows) {
-      return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(FunctionSpec.newBuilder().setUrn(GLOBAL_WINDOWS_FN))
           .build();
     } else if (windowFn instanceof FixedWindows) {
@@ -235,6 +232,8 @@ public class WindowingStrategyTranslation implements Serializable {
               .setOffset(Timestamps.fromMillis(((FixedWindows) windowFn).getOffset().getMillis()))
               .build();
       return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(FIXED_WINDOWS_FN)
@@ -247,6 +246,8 @@ public class WindowingStrategyTranslation implements Serializable {
           .setPeriod(Durations.fromMillis(((SlidingWindows) windowFn).getPeriod().getMillis()))
           .build();
       return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SLIDING_WINDOWS_FN)
@@ -258,6 +259,8 @@ public class WindowingStrategyTranslation implements Serializable {
               .setGapSize(Durations.fromMillis(((Sessions) windowFn).getGapDuration().getMillis()))
               .build();
       return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SESSION_WINDOWS_FN)
@@ -265,6 +268,8 @@ public class WindowingStrategyTranslation implements Serializable {
           .build();
     } else {
       return SdkFunctionSpec.newBuilder()
+          .setEnvironmentId(
+              components.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT))
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SERIALIZED_JAVA_WINDOWFN_URN)
@@ -384,7 +389,6 @@ public class WindowingStrategyTranslation implements Serializable {
           return Sessions.withGapDuration(
               Duration.millis(Durations.toMillis(sessionParams.getGapSize())));
         case SERIALIZED_JAVA_WINDOWFN_URN:
-        case OLD_SERIALIZED_JAVA_WINDOWFN_URN:
           return (WindowFn<?, ?>)
               SerializableUtils.deserializeFromByteArray(
                   windowFnSpec.getSpec().getPayload().toByteArray(), "WindowFn");

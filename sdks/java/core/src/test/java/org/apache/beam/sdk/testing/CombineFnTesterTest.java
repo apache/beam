@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Sum;
+import org.apache.beam.sdk.values.KV;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -162,37 +163,37 @@ public class CombineFnTesterTest {
   @Test
   public void checksWithMultipleMerges() {
     final AtomicBoolean sawMultipleMerges = new AtomicBoolean();
-    CombineFn<Integer, Integer, Integer> combineFn =
-        new CombineFn<Integer, Integer, Integer>() {
-          int mergeCalls = 0;
+    CombineFn<Integer, KV<Integer, Integer>, Integer> combineFn =
+        new CombineFn<Integer, KV<Integer, Integer>, Integer>() {
 
           @Override
-          public Integer createAccumulator() {
-            return 0;
+          public KV<Integer, Integer> createAccumulator() {
+            return KV.of(0, 0);
           }
 
           @Override
-          public Integer addInput(Integer accumulator, Integer input) {
-            return accumulator + input;
+          public KV<Integer, Integer> addInput(KV<Integer, Integer> accumulator, Integer input) {
+            return KV.of(accumulator.getKey() + input, accumulator.getValue());
           }
 
           @Override
-          public Integer mergeAccumulators(Iterable<Integer> accumulators) {
-            mergeCalls++;
+          public KV<Integer, Integer> mergeAccumulators(
+            Iterable<KV<Integer, Integer>> accumulators) {
             int result = 0;
-            for (int accum : accumulators) {
-              result += accum;
+            int numMerges = 0;
+            for (KV<Integer, Integer> accum : accumulators) {
+              result += accum.getKey();
+              numMerges += accum.getValue();
             }
-            return result;
+            return KV.of(result, numMerges + 1);
           }
 
           @Override
-          public Integer extractOutput(Integer accumulator) {
-            if (mergeCalls > 1) {
+          public Integer extractOutput(KV<Integer, Integer> accumulator) {
+            if (accumulator.getValue() > 1) {
               sawMultipleMerges.set(true);
             }
-            mergeCalls = 0;
-            return accumulator;
+            return accumulator.getKey();
           }
         };
 

@@ -50,9 +50,9 @@ import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.nexmark.model.SellerPrice;
 import org.apache.beam.sdk.nexmark.sources.BoundedEventSource;
-import org.apache.beam.sdk.nexmark.sources.Generator;
-import org.apache.beam.sdk.nexmark.sources.GeneratorConfig;
 import org.apache.beam.sdk.nexmark.sources.UnboundedEventSource;
+import org.apache.beam.sdk.nexmark.sources.generator.Generator;
+import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -281,11 +281,6 @@ public class NexmarkUtils {
    * Set to true to capture all info messages. The logging level flags don't currently work.
    */
   private static final boolean LOG_INFO = false;
-
-  /**
-   * Set to true to capture all error messages. The logging level flags don't currently work.
-   */
-  private static final boolean LOG_ERROR = true;
 
   /**
    * Set to true to log directly to stdout. If run using Google Dataflow, you can watch the results

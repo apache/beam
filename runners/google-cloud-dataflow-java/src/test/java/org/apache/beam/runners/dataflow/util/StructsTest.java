@@ -68,7 +68,7 @@ public class StructsTest {
 
   private Map<String, Object> makeCloudDictionary() {
     Map<String, Object> o = new HashMap<>();
-    addList(o, "emptyKey", Collections.<Map<String, Object>>emptyList());
+    addList(o, "emptyKey", Collections.emptyList());
     addNull(o, "noStringsKey");
     addString(o, "singletonStringKey", "stringValue");
     addStringList(o, "multipleStringsKey", Arrays.asList("hi", "there", "bob"));
@@ -112,11 +112,10 @@ public class StructsTest {
                         Matchers.containsString("not a string"));
     }
 
-    Assert.assertThat(getStrings(o, "noStringsKey", null), Matchers.<String>emptyIterable());
-    Assert.assertThat(getObject(o, "noStringsKey").keySet(), Matchers.<String>emptyIterable());
-    Assert.assertThat(getDictionary(o, "noStringsKey").keySet(), Matchers.<String>emptyIterable());
-    Assert.assertThat(getDictionary(o, "noStringsKey", null).keySet(),
-        Matchers.<String>emptyIterable());
+    Assert.assertThat(getStrings(o, "noStringsKey", null), Matchers.emptyIterable());
+    Assert.assertThat(getObject(o, "noStringsKey").keySet(), Matchers.emptyIterable());
+    Assert.assertThat(getDictionary(o, "noStringsKey").keySet(), Matchers.emptyIterable());
+    Assert.assertThat(getDictionary(o, "noStringsKey", null).keySet(), Matchers.emptyIterable());
 
     try {
       getString(o, "multipleStringsKey");

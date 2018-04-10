@@ -30,6 +30,7 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
  */
 public class DirectRegistrar {
   private DirectRegistrar() {}
+
   /**
    * Registers the {@link DirectRunner}.
    */
@@ -37,8 +38,7 @@ public class DirectRegistrar {
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
     public Iterable<Class<? extends PipelineRunner<?>>> getPipelineRunners() {
-      return ImmutableList.<Class<? extends PipelineRunner<?>>>of(
-          DirectRunner.class);
+      return ImmutableList.of(DirectRunner.class);
     }
   }
 
@@ -49,8 +49,7 @@ public class DirectRegistrar {
   public static class Options implements PipelineOptionsRegistrar {
     @Override
     public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-      return ImmutableList.<Class<? extends PipelineOptions>>of(
-          DirectOptions.class, DirectTestOptions.class);
+      return ImmutableList.of(DirectOptions.class, DirectTestOptions.class);
     }
   }
 }

@@ -19,7 +19,7 @@
 
 # Go build
 
-This document describes the [Go](golang.org) code layout and build integration
+This document describes the [Go](https://golang.org) code layout and build integration
 with Maven. The setup is non-trivial, because the Go toolchain expects a
 certain layout and Maven support is limited.
 

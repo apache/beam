@@ -953,8 +953,7 @@ public class PubsubIO {
   private static class FormatPayloadAsUtf8 extends SimpleFunction<String, PubsubMessage> {
     @Override
     public PubsubMessage apply(String input) {
-      return new PubsubMessage(
-          input.getBytes(StandardCharsets.UTF_8), ImmutableMap.<String, String>of());
+      return new PubsubMessage(input.getBytes(StandardCharsets.UTF_8), ImmutableMap.of());
     }
   }
 
@@ -968,8 +967,7 @@ public class PubsubIO {
     @Override
     public PubsubMessage apply(T input) {
       try {
-        return new PubsubMessage(
-            CoderUtils.encodeToByteArray(coder, input), ImmutableMap.<String, String>of());
+        return new PubsubMessage(CoderUtils.encodeToByteArray(coder, input), ImmutableMap.of());
       } catch (CoderException e) {
         throw new RuntimeException("Could not decode Pubsub message", e);
       }

@@ -48,22 +48,21 @@ public class StaticWindowsTest {
   @Test
   public void singleWindowSucceeds() throws Exception {
     WindowFn<Object, BoundedWindow> fn = StaticWindows.of(IntervalWindow.getCoder(), first);
-    assertThat(WindowFnTestUtils.assignedWindows(fn, 100L),
-        Matchers.<BoundedWindow>contains(first));
-    assertThat(WindowFnTestUtils.assignedWindows(fn, -100L),
-        Matchers.<BoundedWindow>contains(first));
+    assertThat(WindowFnTestUtils.assignedWindows(fn, 100L), Matchers.contains(first));
+    assertThat(WindowFnTestUtils.assignedWindows(fn, -100L), Matchers.contains(first));
   }
 
   @Test
   public void multipleWindowsSucceeds() throws Exception {
     WindowFn<Object, BoundedWindow> fn =
         StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(first, second));
-    assertThat(WindowFnTestUtils.assignedWindows(fn, 100L),
-        Matchers.<BoundedWindow>containsInAnyOrder(first, second));
-    assertThat(WindowFnTestUtils.assignedWindows(fn, 1_000_000_000L),
-        Matchers.<BoundedWindow>containsInAnyOrder(first, second));
-    assertThat(WindowFnTestUtils.assignedWindows(fn, -100L),
-        Matchers.<BoundedWindow>containsInAnyOrder(first, second));
+    assertThat(
+        WindowFnTestUtils.assignedWindows(fn, 100L), Matchers.containsInAnyOrder(first, second));
+    assertThat(
+        WindowFnTestUtils.assignedWindows(fn, 1_000_000_000L),
+        Matchers.containsInAnyOrder(first, second));
+    assertThat(
+        WindowFnTestUtils.assignedWindows(fn, -100L), Matchers.containsInAnyOrder(first, second));
   }
 
   @Test
@@ -71,12 +70,8 @@ public class StaticWindowsTest {
     WindowFn<Object, BoundedWindow> fn =
         StaticWindows.of(IntervalWindow.getCoder(), ImmutableList.of(first, second));
 
-    assertThat(
-        fn.getDefaultWindowMappingFn().getSideInputWindow(first),
-        Matchers.<BoundedWindow>equalTo(first));
-    assertThat(
-        fn.getDefaultWindowMappingFn().getSideInputWindow(second),
-        Matchers.<BoundedWindow>equalTo(second));
+    assertThat(fn.getDefaultWindowMappingFn().getSideInputWindow(first), Matchers.equalTo(first));
+    assertThat(fn.getDefaultWindowMappingFn().getSideInputWindow(second), Matchers.equalTo(second));
   }
 
   @Test
@@ -92,7 +87,7 @@ public class StaticWindowsTest {
   public void emptyIterableThrows() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("may not be empty");
-    StaticWindows.of(GlobalWindow.Coder.INSTANCE, ImmutableList.<GlobalWindow>of());
+    StaticWindows.of(GlobalWindow.Coder.INSTANCE, ImmutableList.of());
   }
 
   @Test

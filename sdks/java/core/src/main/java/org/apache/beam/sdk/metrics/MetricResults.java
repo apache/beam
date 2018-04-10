@@ -35,8 +35,8 @@ public abstract class MetricResults {
    *
    * <p>For each type of metric, the result contains an iterable of all metrics of that type that
    * matched the filter. Each {@link MetricResult} includes the name of the metric, the step in
-   * which it was reported and the {@link MetricResult#committed} and
-   * {@link MetricResult#attempted} values.
+   * which it was reported and the {@link MetricResult#getCommitted} and
+   * {@link MetricResult#getAttempted} values.
    *
    * <p>Note that runners differ in their support for committed and attempted values.
    *

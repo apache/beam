@@ -52,9 +52,9 @@ import java.util.logging.SimpleFormatter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
@@ -70,14 +70,14 @@ public class BeamFnLoggingClient implements AutoCloseable {
       .put(Level.FINEST, BeamFnApi.LogEntry.Severity.Enum.TRACE)
       .build();
 
-  private static final ImmutableMap<DataflowWorkerLoggingOptions.Level, Level> LEVEL_CONFIGURATION =
-      ImmutableMap.<DataflowWorkerLoggingOptions.Level, Level>builder()
-          .put(DataflowWorkerLoggingOptions.Level.OFF, Level.OFF)
-          .put(DataflowWorkerLoggingOptions.Level.ERROR, Level.SEVERE)
-          .put(DataflowWorkerLoggingOptions.Level.WARN, Level.WARNING)
-          .put(DataflowWorkerLoggingOptions.Level.INFO, Level.INFO)
-          .put(DataflowWorkerLoggingOptions.Level.DEBUG, Level.FINE)
-          .put(DataflowWorkerLoggingOptions.Level.TRACE, Level.FINEST)
+  private static final ImmutableMap<SdkHarnessOptions.LogLevel, Level> LEVEL_CONFIGURATION =
+      ImmutableMap.<SdkHarnessOptions.LogLevel, Level>builder()
+          .put(SdkHarnessOptions.LogLevel.OFF, Level.OFF)
+          .put(SdkHarnessOptions.LogLevel.ERROR, Level.SEVERE)
+          .put(SdkHarnessOptions.LogLevel.WARN, Level.WARNING)
+          .put(SdkHarnessOptions.LogLevel.INFO, Level.INFO)
+          .put(SdkHarnessOptions.LogLevel.DEBUG, Level.FINE)
+          .put(SdkHarnessOptions.LogLevel.TRACE, Level.FINEST)
           .build();
 
   private static final Formatter FORMATTER = new SimpleFormatter();
@@ -87,6 +87,8 @@ public class BeamFnLoggingClient implements AutoCloseable {
    * this represents a buffer of about 10 MiBs.
    */
   private static final int MAX_BUFFERED_LOG_ENTRY_COUNT = 10_000;
+
+  private static final Object COMPLETED = new Object();
 
   /* We need to store a reference to the configured loggers so that they are not
    * garbage collected. java.util.logging only has weak references to the loggers
@@ -115,18 +117,18 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logManager.reset();
     Logger rootLogger = logManager.getLogger(ROOT_LOGGER_NAME);
     for (Handler handler : rootLogger.getHandlers()) {
-      rootLogger.removeHandler(handler);
+      //rootLogger.removeHandler(handler);
     }
 
     // Use the passed in logging options to configure the various logger levels.
-    DataflowWorkerLoggingOptions loggingOptions = options.as(DataflowWorkerLoggingOptions.class);
-    if (loggingOptions.getDefaultWorkerLogLevel() != null) {
-      rootLogger.setLevel(LEVEL_CONFIGURATION.get(loggingOptions.getDefaultWorkerLogLevel()));
+    SdkHarnessOptions loggingOptions = options.as(SdkHarnessOptions.class);
+    if (loggingOptions.getDefaultSdkHarnessLogLevel() != null) {
+      rootLogger.setLevel(LEVEL_CONFIGURATION.get(loggingOptions.getDefaultSdkHarnessLogLevel()));
     }
 
-    if (loggingOptions.getWorkerLogLevelOverrides() != null) {
-      for (Map.Entry<String, DataflowWorkerLoggingOptions.Level> loggerOverride :
-        loggingOptions.getWorkerLogLevelOverrides().entrySet()) {
+    if (loggingOptions.getSdkHarnessLogLevelOverrides() != null) {
+      for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
+        loggingOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
         Logger logger = Logger.getLogger(loggerOverride.getKey());
         logger.setLevel(LEVEL_CONFIGURATION.get(loggerOverride.getValue()));
         configuredLoggers.add(logger);
@@ -145,12 +147,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
   @Override
   public void close() throws Exception {
     try {
-      // Hang up with the server
-      logRecordHandler.close();
-
-      // Wait for the server to hang up
-      inboundObserverCompletion.get();
-    } finally {
       // Reset the logging configuration to what it is at startup
       for (Logger logger : configuredLoggers) {
         logger.setLevel(null);
@@ -158,6 +154,12 @@ public class BeamFnLoggingClient implements AutoCloseable {
       configuredLoggers.clear();
       LogManager.getLogManager().readConfiguration();
 
+      // Hang up with the server
+      logRecordHandler.close();
+
+      // Wait for the server to hang up
+      inboundObserverCompletion.get();
+    } finally {
       // Shut the channel down
       channel.shutdown();
       if (!channel.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -255,6 +257,14 @@ public class BeamFnLoggingClient implements AutoCloseable {
           outboundObserver.onNext(builder.build());
           additionalLogEntries.clear();
         }
+
+        // Perform one more final check to see if there are any log entries to guarantee that
+        // if a log entry was added on the thread performing termination that we will send it.
+        bufferedLogEntries.drainTo(additionalLogEntries);
+        if (!additionalLogEntries.isEmpty()) {
+          outboundObserver.onNext(
+              BeamFnApi.LogEntry.List.newBuilder().addAllLogEntries(additionalLogEntries).build());
+        }
       } catch (Throwable t) {
         thrown = t;
       }
@@ -281,7 +291,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
       // Terminate the phaser that we block on when attempting to honor flow control on the
       // outbound observer.
-      phaser.arriveAndDeregister();
+      phaser.forceTermination();
 
       try {
         bufferedLogWriter.get();
@@ -315,7 +325,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
     @Override
     public void onCompleted() {
-      inboundObserverCompletion.complete(null);
+      inboundObserverCompletion.complete(COMPLETED);
     }
 
   }

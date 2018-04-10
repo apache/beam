@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.util.VarInt;
 
 /**
@@ -126,7 +125,7 @@ public class LengthPrefixCoder<T> extends StructuredCoder<T> {
    * {@inheritDoc}
    */
   @Override
-  public boolean isRegisterByteSizeObserverCheap(@Nullable T value) {
+  public boolean isRegisterByteSizeObserverCheap(T value) {
     return valueCoder.isRegisterByteSizeObserverCheap(value);
   }
 }

@@ -33,7 +33,6 @@ import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
-
 /**
  * {@link PTransform PTransforms} to count the elements in a {@link PCollection}.
  *
@@ -52,7 +51,7 @@ public class Count {
 
   /** Returns a {@link CombineFn} that counts the number of its inputs. */
   public static <T> CombineFn<T, ?, Long> combineFn() {
-    return new CountFn<T>();
+    return new CountFn<>();
   }
 
   /**
@@ -71,7 +70,7 @@ public class Count {
    * associated with each key of its input {@link PCollection}.
    */
   public static <K, V> PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> perKey() {
-    return Combine.<K, V, Long>perKey(new CountFn<V>());
+    return Combine.perKey(new CountFn<V>());
   }
 
   /**
@@ -116,15 +115,17 @@ public class Count {
 
     @Override
     public PCollection<KV<T, Long>> expand(PCollection<T> input) {
-      return
-          input
-          .apply("Init", MapElements.via(new SimpleFunction<T, KV<T, Void>>() {
-            @Override
-            public KV<T, Void> apply(T element) {
-              return KV.of(element, (Void) null);
-            }
-          }))
-          .apply(Count.<T, Void>perKey());
+      return input
+          .apply(
+              "Init",
+              MapElements.via(
+                  new SimpleFunction<T, KV<T, Void>>() {
+                    @Override
+                    public KV<T, Void> apply(T element) {
+                      return KV.of(element, (Void) null);
+                    }
+                  }))
+          .apply(Count.perKey());
     }
   }
 

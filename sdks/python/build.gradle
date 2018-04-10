@@ -1,0 +1,151 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Define common lifecycle tasks and artifact types
+apply plugin: "base"
+
+// For some reason base doesn't define a test task  so we define it below and make
+// check depend on it. This makes the Python project similar to the task layout like
+// Java projects, see https://docs.gradle.org/4.2.1/userguide/img/javaPluginTasks.png
+task test {}
+check.dependsOn test
+
+def envdir = "${project.buildDir}/gradleenv"
+def tox_opts = "-c tox.ini --recreate"
+
+task setupVirtualenv {
+  doLast {
+    exec {
+      commandLine 'virtualenv', "${envdir}"
+    }
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install --upgrade tox==3.0.0 grpcio-tools==1.3.5"
+    }
+  }
+  // Gradle will delete outputs whenever it thinks they are stale. Putting a
+  // specific binary here could make gradle delete it while pip will believe
+  // the package is fully installed.
+  outputs.dirs(envdir)
+}
+
+task sdist(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python setup.py sdist --formats zip,gztar --dist-dir ${project.buildDir}"
+    }
+  }
+}
+
+task cleanPython(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python setup.py clean"
+    }
+  }
+}
+clean.dependsOn cleanPython
+
+task buildPython(dependsOn: 'setupVirtualenv') {
+  doLast {
+    println 'Building Python Dependencies'
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python setup.py build --build-base ${project.buildDir}"
+    }
+  }
+}
+build.dependsOn buildPython
+
+task lint {}
+check.dependsOn lint
+
+task lintPy27(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-lint"
+    }
+  }
+}
+lint.dependsOn lintPy27
+
+task lintPy3(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py3-lint"
+    }
+  }
+}
+lint.dependsOn lintPy3
+
+task testGcp(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-gcp"
+    }
+  }
+}
+test.dependsOn testGcp
+
+task testPython(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27"
+    }
+  }
+}
+test.dependsOn testPython
+
+task testCython(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e py27-cython"
+    }
+  }
+}
+test.dependsOn testCython
+// Ensure that testCython runs exclusively to other tests. This line is not
+// actually required, since gradle doesn't do parallel execution within a
+// project.
+testCython.mustRunAfter testPython, testGcp
+
+task docs(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e docs"
+    }
+  }
+}
+assemble.dependsOn docs
+
+task cover(dependsOn: 'setupVirtualenv') {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && tox ${tox_opts} -e cover"
+    }
+  }
+}

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms.reflect;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Collections;
@@ -367,6 +366,7 @@ public abstract class DoFnSignature {
     public abstract static class OnTimerContextParameter extends Parameter {
       OnTimerContextParameter() {}
     }
+
     /**
      * Descriptor for a {@link Parameter} of type {@link BoundedWindow}.
      *
@@ -375,6 +375,7 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class WindowParameter extends Parameter {
       WindowParameter() {}
+
       public abstract TypeDescriptor<? extends BoundedWindow> windowT();
     }
 
@@ -387,6 +388,7 @@ public abstract class DoFnSignature {
     public abstract static class RestrictionTrackerParameter extends Parameter {
       // Package visible for AutoValue
       RestrictionTrackerParameter() {}
+
       public abstract TypeDescriptor<?> trackerT();
     }
 
@@ -400,6 +402,7 @@ public abstract class DoFnSignature {
     public abstract static class StateParameter extends Parameter {
       // Package visible for AutoValue
       StateParameter() {}
+
       public abstract StateDeclaration referent();
     }
 
@@ -411,6 +414,7 @@ public abstract class DoFnSignature {
     public abstract static class TimerParameter extends Parameter {
       // Package visible for AutoValue
       TimerParameter() {}
+
       public abstract TimerDeclaration referent();
     }
   }
@@ -426,6 +430,12 @@ public abstract class DoFnSignature {
     @Override
     public abstract List<Parameter> extraParameters();
 
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}.
+     */
+    public abstract boolean requiresStableInput();
+
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
     @Nullable
     public abstract TypeDescriptor<?> trackerT();
@@ -440,12 +450,14 @@ public abstract class DoFnSignature {
     static ProcessElementMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
+        boolean requiresStableInput,
         TypeDescriptor<?> trackerT,
         @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
         boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
           targetMethod,
           Collections.unmodifiableList(extraParameters),
+          requiresStableInput,
           trackerT,
           windowT,
           hasReturnValue);
@@ -459,20 +471,23 @@ public abstract class DoFnSignature {
      * they are each scoped to a single window.
      */
     public boolean observesWindow() {
-      return Iterables.any(
-          extraParameters(),
-          Predicates.or(
-              Predicates.instanceOf(WindowParameter.class),
-              Predicates.instanceOf(TimerParameter.class),
-              Predicates.instanceOf(StateParameter.class)));
+      return extraParameters()
+          .stream()
+          .anyMatch(
+              Predicates.or(
+                      Predicates.instanceOf(WindowParameter.class),
+                      Predicates.instanceOf(TimerParameter.class),
+                      Predicates.instanceOf(StateParameter.class))
+                  ::apply);
     }
 
     /**
      * Whether this {@link DoFn} is <a href="https://s.apache.org/splittable-do-fn">splittable</a>.
      */
     public boolean isSplittable() {
-      return Iterables.any(
-          extraParameters(), Predicates.instanceOf(RestrictionTrackerParameter.class));
+      return extraParameters()
+          .stream()
+          .anyMatch(Predicates.instanceOf(RestrictionTrackerParameter.class)::apply);
     }
   }
 
@@ -487,6 +502,13 @@ public abstract class DoFnSignature {
     @Override
     public abstract Method targetMethod();
 
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}. For timers, this means that any
+     * state must be stably persisted prior to calling it.
+     */
+    public abstract boolean requiresStableInput();
+
     /** The window type used by this method, if any. */
     @Nullable
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
@@ -498,10 +520,15 @@ public abstract class DoFnSignature {
     static OnTimerMethod create(
         Method targetMethod,
         String id,
+        boolean requiresStableInput,
         TypeDescriptor<? extends BoundedWindow> windowT,
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
-          id, targetMethod, windowT, Collections.unmodifiableList(extraParameters));
+          id,
+          targetMethod,
+          requiresStableInput,
+          windowT,
+          Collections.unmodifiableList(extraParameters));
     }
   }
 

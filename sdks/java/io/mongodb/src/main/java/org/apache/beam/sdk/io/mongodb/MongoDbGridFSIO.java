@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -145,23 +146,19 @@ public class MongoDbGridFSIO {
   }
 
   /**
-   * For the default {@code Read<String>} case, this is the parser that is used to
-   * split the input file into Strings. It uses the timestamp of the file
-   * for the event timestamp.
+   * For the default {@code Read<String>} case, this is the parser that is used to split the input
+   * file into Strings. It uses the timestamp of the file for the event timestamp.
    */
-  private static final Parser<String> TEXT_PARSER = new Parser<String>() {
-    @Override
-    public void parse(GridFSDBFile input, ParserCallback<String> callback)
-        throws IOException {
-      final Instant time = new Instant(input.getUploadDate().getTime());
-      try (BufferedReader reader =
-        new BufferedReader(new InputStreamReader(input.getInputStream()))) {
-        for (String line = reader.readLine(); line != null; line = reader.readLine()) {
-          callback.output(line, time);
+  private static final Parser<String> TEXT_PARSER =
+      (input, callback) -> {
+        final Instant time = new Instant(input.getUploadDate().getTime());
+        try (BufferedReader reader =
+            new BufferedReader(new InputStreamReader(input.getInputStream()))) {
+          for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+            callback.output(line, time);
+          }
         }
-      }
-    }
-  };
+      };
 
   /** Read data from GridFS. Default behavior with String. */
   public static Read<String> read() {
@@ -177,13 +174,12 @@ public class MongoDbGridFSIO {
   public static Write<String> write() {
     return new AutoValue_MongoDbGridFSIO_Write.Builder<String>()
         .setConnectionConfiguration(ConnectionConfiguration.create())
-        .setWriteFn(new WriteFn<String>() {
-          @Override
-          public void write(String output, OutputStream outStream) throws IOException {
-            outStream.write(output.getBytes("utf-8"));
-            outStream.write('\n');
-          }
-        }).build();
+        .setWriteFn(
+            (output, outStream) -> {
+              outStream.write(output.getBytes(StandardCharsets.UTF_8));
+              outStream.write('\n');
+            })
+        .build();
   }
   public static <T> Write<T> write(WriteFn<T> fn) {
     return new AutoValue_MongoDbGridFSIO_Write.Builder<T>()
@@ -608,7 +604,7 @@ public class MongoDbGridFSIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      input.apply(ParDo.of(new GridFsWriteFn<T>(this)));
+      input.apply(ParDo.of(new GridFsWriteFn<>(this)));
       return PDone.in(input.getPipeline());
     }
   }

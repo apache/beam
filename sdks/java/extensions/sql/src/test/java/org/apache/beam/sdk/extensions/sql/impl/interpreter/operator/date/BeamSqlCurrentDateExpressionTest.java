@@ -32,7 +32,7 @@ public class BeamSqlCurrentDateExpressionTest extends BeamSqlDateExpressionTestB
     Assert.assertEquals(
         SqlTypeName.DATE,
         new BeamSqlCurrentDateExpression()
-            .evaluate(BeamSqlFnExecutorTestBase.record, null).getOutputType()
+            .evaluate(BeamSqlFnExecutorTestBase.row, null).getOutputType()
     );
   }
 }

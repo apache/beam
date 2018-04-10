@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>18</version>
+    <version>19</version>
   </parent>
 
   <groupId>org.apache.beam</groupId>
@@ -34,7 +34,7 @@
   <url>http://beam.apache.org/</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>2.3.0-SNAPSHOT</version>
+  <version>2.5.0-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -45,10 +45,10 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</connection>
-    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</developerConnection>
-    <url>https://git-wip-us.apache.org/repos/asf?p=beam.git;a=summary</url>
-    <tag>HEAD</tag>
+    <connection>scm:git:https://gitbox.apache.org/repos/asf/beam.git</connection>
+    <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/beam.git</developerConnection>
+    <url>https://gitbox.apache.org/repos/asf?p=beam.git;a=summary</url>
+    <tag>release-2.4.0</tag>
   </scm>
 
   <issueManagement>
@@ -92,7 +92,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <beam.javadoc_opts />
+    <external.build.directory>${project.basedir}/target</external.build.directory>
+    <beam.javadoc_opts>-Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
 
     <!-- Disable integration tests by default -->
     <skipITs>true</skipITs>
@@ -101,25 +102,25 @@
     <beamSurefireArgline />
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
-    <apache.commons.compress.version>1.14</apache.commons.compress.version>
+    <apache.commons.compress.version>1.16.1</apache.commons.compress.version>
     <apache.commons.lang.version>3.6</apache.commons.lang.version>
-    <apache.commons.text.version>1.1</apache.commons.text.version>
     <apex.kryo.version>2.24.0</apex.kryo.version>
     <api-common.version>1.0.0-rc2</api-common.version>
     <args4j.version>2.33</args4j.version>
     <avro.version>1.8.2</avro.version>
-    <bigquery.version>v2-rev355-1.22.0</bigquery.version>
-    <bigtable.version>1.0.0-pre3</bigtable.version>
+    <bigquery.version>v2-rev374-1.22.0</bigquery.version>
+    <bigtable.version>1.0.0</bigtable.version>
+    <bigtable.proto.version>1.0.0-pre3</bigtable.proto.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
-    <dataflow.version>v1b3-rev213-1.22.0</dataflow.version>
+    <dataflow.version>v1b3-rev221-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.client.version>1.4.0</datastore.client.version>
     <datastore.proto.version>1.3.0</datastore.proto.version>
     <google-api-common.version>1.0.0-rc2</google-api-common.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
-    <google-auto-value.version>1.4.1</google-auto-value.version>
+    <google-auto-value.version>1.5.3</google-auto-value.version>
     <google-auth.version>0.7.1</google-auth.version>
     <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.5</google-cloud-bigdataoss.version>
@@ -137,6 +138,7 @@
     <hamcrest.version>1.3</hamcrest.version>
     <jackson.version>2.8.9</jackson.version>
     <findbugs.version>3.0.1</findbugs.version>
+    <findbugs.annotations.version>1.3.9-1</findbugs.annotations.version>
     <joda.version>2.4</joda.version>
     <junit.version>4.12</junit.version>
     <mockito.version>1.9.5</mockito.version>
@@ -145,44 +147,55 @@
     <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.25</slf4j.version>
-    <spanner.version>0.20.0-beta</spanner.version>
-    <spark.version>1.6.3</spark.version>
+    <spanner.version>0.20.0b-beta</spanner.version>
+    <spark.version>2.3.0</spark.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <snappy-java.version>1.1.4</snappy-java.version>
-    <kafka.clients.version>0.10.1.0</kafka.clients.version>
+    <kafka.clients.version>1.0.0</kafka.clients.version>
     <commons.csv.version>1.4</commons.csv.version>
 
+    <apache-rat-plugin.version>0.12</apache-rat-plugin.version>
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
-    <surefire-plugin.version>2.20</surefire-plugin.version>
-    <failsafe-plugin.version>2.20</failsafe-plugin.version>
-    <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
-    <maven-dependency-plugin.version>3.0.1</maven-dependency-plugin.version>
+    <license-maven-plugin.version>1.14</license-maven-plugin.version>
+    <maven-surefire-plugin.version>2.21.0</maven-surefire-plugin.version>
+    <maven-failsafe-plugin.version>2.21.0</maven-failsafe-plugin.version>
+    <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
+    <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
+    <extra-enforcer-rules.version>1.0-beta-7</extra-enforcer-rules.version>
     <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
+    <maven-gpg-plugin.version>1.6</maven-gpg-plugin.version>
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
     <maven-javadoc-plugin.version>3.0.0-M1</maven-javadoc-plugin.version>
-    <maven-license-plugin.version>1.13</maven-license-plugin.version>
+    <maven-license-plugin.version>1.14</maven-license-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
-    <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
-    <reproducible-build-maven-plugin.version>0.3</reproducible-build-maven-plugin.version>
+    <maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
+    <reproducible-build-maven-plugin.version>0.4</reproducible-build-maven-plugin.version>
+    <maven-assembly-plugin.version>3.1.0</maven-assembly-plugin.version>
+    <plexus-compiler-java-errorprone.version>2.8.2</plexus-compiler-java-errorprone.version>
+    <error_prone_core.version>2.2.0</error_prone_core.version>
 
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
+    <jaxb-api.version>2.2.12</jaxb-api.version>
 
     <!-- standard binary for kubectl -->
     <kubectl>kubectl</kubectl>
     <!-- the standard location for kubernete's config file -->
     <kubeconfig>${user.home}/.kube/config</kubeconfig>
 
-    <!-- For container builds, override to push containers to a registry -->
-    <docker-repository-root>${user.name}</docker-repository-root>
+    <!-- For container builds, override to push containers to any registry -->
+    <docker-repository-root>${user.name}-docker-apache.bintray.io/beam</docker-repository-root>
+
+    <!-- Default skipping -->
+    <rat.skip>true</rat.skip>
   </properties>
 
   <packaging>pom</packaging>
@@ -206,55 +219,87 @@
     <profile>
       <id>release</id>
       <build>
+        <plugins>
+          <!-- Create a source-release artifact that contains the fully buildable
+          project directory source structure. This is the artifact which is the
+          official subject of any release vote. -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>source-release-assembly</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>single</goal>
+                </goals>
+                <configuration>
+                  <runOnlyAtExecutionRoot>true</runOnlyAtExecutionRoot>
+                  <descriptors>
+                    <descriptor>assembly.xml</descriptor>
+                  </descriptors>
+                  <tarLongFileMode>gnu</tarLongFileMode>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <!-- We want to deploy the artifact to a staging location for perusal -->
+          <plugin>
+            <inherited>true</inherited>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-deploy-plugin</artifactId>
+            <configuration>
+              <updateReleaseInfo>true</updateReleaseInfo>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>jar-no-fork</goal>
+                </goals>
+              </execution>
+              <execution>
+                <id>attach-test-sources</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>test-jar-no-fork</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.rat</groupId>
+            <artifactId>apache-rat-plugin</artifactId>
+            <configuration>
+              <skip>false</skip>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>io.github.zlika</groupId>
+            <artifactId>reproducible-build-maven-plugin</artifactId>
+          </plugin>
+        </plugins>
+
         <pluginManagement>
           <plugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-javadoc-plugin</artifactId>
-              <executions>
-                <execution>
-                  <id>attach-javadocs</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>jar</goal>
-                  </goals>
-                </execution>
-              </executions>
-            </plugin>
-
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-source-plugin</artifactId>
-              <executions>
-                <execution>
-                  <id>attach-sources</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>jar-no-fork</goal>
-                  </goals>
-                </execution>
-                <execution>
-                  <id>attach-test-sources</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>test-jar-no-fork</goal>
-                  </goals>
-                </execution>
-              </executions>
-            </plugin>
-
-            <plugin>
-              <groupId>org.apache.rat</groupId>
-              <artifactId>apache-rat-plugin</artifactId>
-              <executions>
-                <execution>
-                  <phase>verify</phase>
-                  <goals>
-                    <goal>check</goal>
-                  </goals>
-                </execution>
-              </executions>
-            </plugin>
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-resources-plugin</artifactId>
@@ -262,79 +307,24 @@
             </plugin>
           </plugins>
         </pluginManagement>
-
-        <plugins>
-          <plugin>
-            <groupId>org.apache.rat</groupId>
-            <artifactId>apache-rat-plugin</artifactId>
-            <!-- Apache RAT checks all files in the project, only run once. -->
-            <inherited>false</inherited>
-          </plugin>
-
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-          </plugin>
-
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-source-plugin</artifactId>
-          </plugin>
-
-          <plugin>
-            <groupId>io.github.zlika</groupId>
-            <artifactId>reproducible-build-maven-plugin</artifactId>
-          </plugin>
-        </plugins>
       </build>
     </profile>
 
     <profile>
-      <id>doclint-java8-disable</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <properties>
-        <beam.javadoc_opts>-Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
-      </properties>
-    </profile>
-
-    <profile>
-      <id>java7-packageinfo</id>
-      <activation>
-        <jdk>1.7</jdk>
-      </activation>
-      <properties>
-        <!--
-         Exclude package-info.java from main compilation to work around
-         https://jira.codehaus.org/browse/MCOMPILER-205
-         -->
-        <compiler.default.pkginfo.flag>-Xpkginfo:legacy</compiler.default.pkginfo.flag>
-        <compiler.default.exclude>**/package-info.java</compiler.default.exclude>
-      </properties>
+      <id>sign</id>
       <build>
         <plugins>
+          <!-- We want to sign the artifacts, POM, and all attached artifacts -->
           <plugin>
-            <artifactId>maven-compiler-plugin</artifactId>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>${maven-gpg-plugin.version}</version>
             <executions>
-              <!--
-               Compile just package-info.java to avoid
-               https://bugs.openjdk.java.net/browse/JDK-8022161
-               -->
               <execution>
-                <id>compile-package-info</id>
+                <id>sign-release-artifacts</id>
                 <goals>
-                  <goal>compile</goal>
+                  <goal>sign</goal>
                 </goals>
-                <phase>compile</phase>
-                <configuration>
-                  <compilerArgs>
-                    <arg>-Xpkginfo:always</arg>
-                  </compilerArgs>
-                  <includes>
-                    <include>**/package-info.java</include>
-                  </includes>
-                </configuration>
               </execution>
             </executions>
           </plugin>
@@ -360,12 +350,44 @@
                 <dependency>
                   <groupId>org.eclipse.tycho</groupId>
                   <artifactId>tycho-compiler-jdt</artifactId>
-                  <version>0.26.0</version>
+                  <version>1.0.0</version>
                 </dependency>
               </dependencies>
             </plugin>
           </plugins>
         </pluginManagement>
+      </build>
+    </profile>
+
+    <profile>
+      <id>errorprone</id>
+      <build>
+        <plugins>
+          <!-- Turn on Error Prone -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <compilerId>javac-with-errorprone</compilerId>
+              <forceJavacCompilerUse>true</forceJavacCompilerUse>
+              <showWarnings>true</showWarnings>
+            </configuration>
+            <dependencies>
+              <dependency>
+                <groupId>org.codehaus.plexus</groupId>
+                <artifactId>plexus-compiler-javac-errorprone</artifactId>
+		<version>${plexus-compiler-java-errorprone.version}</version>
+              </dependency>
+              <!-- override plexus-compiler-javac-errorprone's dependency on
+                   Error Prone with the latest version -->
+              <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_core</artifactId>
+		<version>${error_prone_core.version}</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+        </plugins>
       </build>
     </profile>
 
@@ -383,10 +405,8 @@
                   <id>default</id>
                   <goals>
                     <goal>build</goal>
-                    <goal>push</goal>
                   </goals>
                   <configuration>
-                    <tag>latest</tag>
                     <noCache>true</noCache>
                   </configuration>
                 </execution>
@@ -397,6 +417,61 @@
       </build>
     </profile>
 
+    <profile>
+      <id>java-9</id>
+      <activation>
+        <jdk>9</jdk>
+      </activation>
+      <properties>
+        <!-- TODO Enable supported plugins once their issues are fixed -->
+        <findbugs.skip>true</findbugs.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <mdep.analyze.skip>true</mdep.analyze.skip>
+        <!--
+          maven surefire plugin automatically adds the java.se.ee module, we
+          overwrite it to ensure we use the minimum set of modules.
+        -->
+        <beamSurefireArgline>--add-modules java.base</beamSurefireArgline>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <release>9</release>
+              <showWarnings>true</showWarnings>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>enforce</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <enforceBytecodeVersion>
+                      <maxJdkVersion>9</maxJdkVersion>
+                    </enforceBytecodeVersion>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <dependencies>
+        <dependency>
+          <groupId>javax.annotation</groupId>
+          <artifactId>javax.annotation-api</artifactId>
+          <version>1.3.1</version>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <dependencyManagement>
@@ -421,26 +496,7 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-model-fn-execution</artifactId>
-        <version>${project.version}</version>
-        <type>test-jar</type>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-core</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-extensions-join-library</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-extensions-protobuf</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -459,7 +515,43 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-join-library</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-json-jackson</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-protobuf</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-sketching</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-extensions-sorter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-sql</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-fn-execution</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -484,6 +576,12 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-amazon-web-services</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-amqp</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -502,14 +600,6 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-io-elasticsearch-tests-common</artifactId>
-        <version>${project.version}</version>
-        <scope>test</scope>
-        <classifier>tests</classifier>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-elasticsearch-tests-2</artifactId>
         <version>${project.version}</version>
         <scope>test</scope>
@@ -520,6 +610,14 @@
         <artifactId>beam-sdks-java-io-elasticsearch-tests-5</artifactId>
         <version>${project.version}</version>
         <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch-tests-common</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+        <classifier>tests</classifier>
       </dependency>
 
       <dependency>
@@ -544,6 +642,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-hadoop-file-system</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -597,14 +701,26 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-redis</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-solr</artifactId>
         <version>${project.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-	    <version>${project.version}</version>
+        <artifactId>beam-sdks-java-io-tika</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-xml</artifactId>
+        <version>${project.version}</version>
       </dependency>
 
       <dependency>
@@ -619,6 +735,7 @@
         <version>${project.version}</version>
       </dependency>
 
+      <!-- For runners to inherit from abstract StateInternalsTest -->
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-core-java</artifactId>
@@ -628,7 +745,31 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-java-fn-execution</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-reference-java</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-reference-job-orchestrator</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-local-artifact-service-java</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-local-java-core</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -652,7 +793,7 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-runners-flink_2.10</artifactId>
+        <artifactId>beam-runners-flink_2.11</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -675,12 +816,6 @@
       </dependency>
 
       <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-examples-java8</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-compress</artifactId>
         <version>${apache.commons.compress.version}</version>
@@ -690,12 +825,6 @@
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>${apache.commons.lang.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.commons</groupId>
-        <artifactId>commons-text</artifactId>
-        <version>${apache.commons.text.version}</version>
       </dependency>
 
       <dependency>
@@ -713,6 +842,12 @@
       <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-auth</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-context</artifactId>
         <version>${grpc.version}</version>
       </dependency>
 
@@ -992,7 +1127,7 @@
       <dependency>
         <groupId>com.google.cloud.bigtable</groupId>
         <artifactId>bigtable-protos</artifactId>
-        <version>${bigtable.version}</version>
+        <version>${bigtable.proto.version}</version>
       </dependency>
 
       <dependency>
@@ -1036,6 +1171,12 @@
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>${findbugs.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.github.stephenc.findbugs</groupId>
+        <artifactId>findbugs-annotations</artifactId>
+        <version>${findbugs.annotations.version}</version>
       </dependency>
 
       <dependency>
@@ -1136,7 +1277,7 @@
       </dependency>
       <dependency>
         <groupId>com.fasterxml.jackson.module</groupId>
-        <artifactId>jackson-module-scala_2.10</artifactId>
+        <artifactId>jackson-module-scala_2.11</artifactId>
         <version>${jackson.version}</version>
       </dependency>
 
@@ -1192,7 +1333,7 @@
       <dependency>
         <groupId>net.bytebuddy</groupId>
         <artifactId>byte-buddy</artifactId>
-        <version>1.6.8</version>
+        <version>1.7.10</version>
       </dependency>
 
       <dependency>
@@ -1227,19 +1368,19 @@
 
       <dependency>
         <groupId>org.apache.spark</groupId>
-        <artifactId>spark-core_2.10</artifactId>
+        <artifactId>spark-core_2.11</artifactId>
         <version>${spark.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.spark</groupId>
-        <artifactId>spark-streaming_2.10</artifactId>
+        <artifactId>spark-streaming_2.11</artifactId>
         <version>${spark.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.spark</groupId>
-        <artifactId>spark-network-common_2.10</artifactId>
+        <artifactId>spark-network-common_2.11</artifactId>
         <version>${spark.version}</version>
       </dependency>
 
@@ -1253,6 +1394,20 @@
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-csv</artifactId>
         <version>${commons.csv.version}</version>
+      </dependency>
+
+      <!-- We ship testlibs that depend on Guava testlib -->
+      <dependency>
+        <groupId>com.google.guava</groupId>
+        <artifactId>guava-testlib</artifactId>
+        <version>${guava.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>${junit.version}</version>
+        <scope>provided</scope>
       </dependency>
 
       <!-- Testing -->
@@ -1275,7 +1430,7 @@
 
       <dependency>
         <groupId>org.hamcrest</groupId>
-        <artifactId>hamcrest-all</artifactId>
+        <artifactId>hamcrest-library</artifactId>
         <version>${hamcrest.version}</version>
         <scope>test</scope>
       </dependency>
@@ -1288,13 +1443,6 @@
       </dependency>
 
       <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
-        <version>${junit.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-jdk14</artifactId>
         <version>${slf4j.version}</version>
@@ -1302,17 +1450,8 @@
       </dependency>
 
       <dependency>
-        <!-- Note: when relocating guava, ensure guava-testlib is not also relocated by
-             excluding com.google.common.**.testing.* -->
-        <groupId>com.google.guava</groupId>
-        <artifactId>guava-testlib</artifactId>
-        <version>${guava.version}</version>
-        <scope>test</scope>
-      </dependency>
-
-      <dependency>
         <groupId>org.mockito</groupId>
-        <artifactId>mockito-all</artifactId>
+        <artifactId>mockito-core</artifactId>
         <version>${mockito.version}</version>
         <scope>test</scope>
       </dependency>
@@ -1345,6 +1484,13 @@
         <classifier>tests</classifier>
         <scope>test</scope>
       </dependency>
+
+      <dependency>
+        <groupId>javax.xml.bind</groupId>
+        <artifactId>jaxb-api</artifactId>
+        <version>${jaxb-api.version}</version>
+      </dependency>
+
     </dependencies>
   </dependencyManagement>
 
@@ -1362,7 +1508,7 @@
         <plugin>
           <groupId>org.xolstice.maven.plugins</groupId>
           <artifactId>protobuf-maven-plugin</artifactId>
-          <version>0.5.0</version>
+          <version>0.5.1</version>
         </plugin>
 
         <plugin>
@@ -1374,12 +1520,12 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
-          <version>2.17</version>
+          <version>3.0.0</version>
           <dependencies>
             <dependency>
               <groupId>com.puppycrawl.tools</groupId>
               <artifactId>checkstyle</artifactId>
-              <version>6.19</version>
+              <version>8.7</version>
             </dependency>
             <dependency>
               <groupId>org.apache.beam</groupId>
@@ -1394,6 +1540,13 @@
             <failOnViolation>true</failOnViolation>
             <includeResources>false</includeResources>
             <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <!-- only check the actual source directories in src, not anything generated in target -->
+            <sourceDirectories>
+                <sourceDirctory>src/main/java</sourceDirctory>
+            </sourceDirectories>
+            <testSourceDirectories>
+                <testSourceDirctory>src/test/java</testSourceDirctory>
+            </testSourceDirectories>
           </configuration>
           <executions>
             <!--
@@ -1416,8 +1569,8 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven-compiler-plugin.version}</version>
           <configuration>
-            <source>1.7</source>
-            <target>1.7</target>
+            <source>1.8</source>
+            <target>1.8</target>
             <compilerArgs>
               <arg>-Xlint:all</arg>
               <arg>${compiler.error.flag}</arg>
@@ -1451,6 +1604,7 @@
               <configuration>
                 <compilerArgs>
                   <arg>${compiler.default.pkginfo.flag}</arg>
+                  <arg>-parameters</arg>
                 </compilerArgs>
                 <excludes>
                   <exclude>${compiler.default.exclude}</exclude>
@@ -1492,7 +1646,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>license-maven-plugin</artifactId>
-          <version>${maven-license-plugin.version}</version>
+          <version>${license-maven-plugin.version}</version>
           <configuration>
             <licenseMerges>
               <licenseMerge>The Apache Software License, version 2.0|Apache License, Version 2.0|Apache 2.0|Apache License 2.0|Apache|Apache-2.0|Apache License Version 2.0|Apache License Version 2|Apache Software License - Version 2.0|Apache 2.0 License|the Apache License, ASL Version 2.0|Apache v2|The Apache License, Version 2.0|http://www.apache.org/licenses/LICENSE-2.0.txt|ASL, version 2</licenseMerge>
@@ -1519,6 +1673,8 @@
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>${maven-javadoc-plugin.version}</version>
           <configuration>
+            <!-- exclude this auto-generated packages from javadoc -->
+            <excludePackageNames>org.apache.beam.sdk.extensions.sql.impl.parser.impl</excludePackageNames>
             <additionalparam>${beam.javadoc_opts}</additionalparam>
             <windowtitle>Apache Beam SDK for Java, version ${project.version} API</windowtitle>
             <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
@@ -1531,39 +1687,43 @@
         <plugin>
           <groupId>org.apache.rat</groupId>
           <artifactId>apache-rat-plugin</artifactId>
-          <version>0.12</version>
+          <version>${apache-rat-plugin.version}</version>
+          <!-- Apache RAT checks all files in the project, only run once. -->
+          <inherited>false</inherited>
+          <executions>
+            <execution>
+              <phase>verify</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
           <configuration>
             <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
             <excludeSubProjects>false</excludeSubProjects>
             <consoleOutput>true</consoleOutput>
             <useDefaultExcludes>true</useDefaultExcludes>
             <excludes>
-              <!-- Keep exclude sync with .gitignore -->
-              <exclude>**/target/**/*</exclude>
-              <exclude>**/dependency-reduced-pom.xml</exclude>
-              <exclude>**/hs_err_pid*.log</exclude>
+              <!-- rat uses .gitignore for excludes -->
+              <exclude>**/gogradle.lock</exclude>
+
+              <!-- ignore files we track but do not distribute -->
               <exclude>.github/**/*</exclude>
-              <exclude>**/*.iml</exclude>
-              <exclude>**/.idea/**/*</exclude>
-              <exclude>**/*.egg-info/**/*</exclude>
+
               <exclude>**/package-list</exclude>
               <exclude>**/user.avsc</exclude>
               <exclude>**/test/resources/**/*.txt</exclude>
               <exclude>**/test/**/.placeholder</exclude>
-              <exclude>.repository/**/*</exclude>
-              <exclude>**/nose-*.egg/**/*</exclude>
-              <exclude>**/.eggs/**/*</exclude>
-              <exclude>**/.tox/**/*</exclude>
 
-              <!-- Default eclipse excludes neglect subprojects -->
-              <exclude>**/.checkstyle</exclude>
-              <exclude>**/.classpath</exclude>
-              <exclude>**/.factorypath</exclude>
-              <exclude>**/.project</exclude>
-              <exclude>**/.settings/**/*</exclude>
+              <!-- proto/grpc generated wrappers -->
+              <exclude>**/apache_beam/portability/api/*_pb2*.py</exclude>
+              <exclude>**/go/pkg/beam/**/*.pb.go</exclude>
 
-              <!-- Proto/grpc generated wrappers -->
-              <exclude>**/apache_beam/runners/api/*_pb2*.py</exclude>
+              <!-- Ignore Go test data files-->
+              <exclude>**/go/data/**</exclude>
+
+              <!-- VCF test files -->
+              <exclude>**/apache_beam/testing/data/vcf/*</exclude>
             </excludes>
           </configuration>
         </plugin>
@@ -1571,7 +1731,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>versions-maven-plugin</artifactId>
-          <version>2.3</version>
+          <version>2.5</version>
         </plugin>
 
         <plugin>
@@ -1593,7 +1753,7 @@
         <plugin>
           <groupId>org.jacoco</groupId>
           <artifactId>jacoco-maven-plugin</artifactId>
-          <version>0.7.8</version>
+          <version>0.7.9</version>
           <executions>
             <execution>
               <goals>
@@ -1629,18 +1789,19 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>${surefire-plugin.version}</version>
+          <version>${maven-surefire-plugin.version}</version>
           <configuration>
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <runOrder>random</runOrder>
             <argLine>${beamSurefireArgline}</argLine>
           </configuration>
           <dependencies>
             <dependency>
               <groupId>org.apache.maven.surefire</groupId>
               <artifactId>surefire-junit47</artifactId>
-              <version>${surefire-plugin.version}</version>
+              <version>${maven-surefire-plugin.version}</version>
             </dependency>
           </dependencies>
         </plugin>
@@ -1648,7 +1809,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>${failsafe-plugin.version}</version>
+          <version>${maven-failsafe-plugin.version}</version>
           <configuration>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
@@ -1681,6 +1842,36 @@
                 </pluginExecution>
                 <pluginExecution>
                   <pluginExecutionFilter>
+                    <groupId>com.googlecode.fmpp-maven-plugin</groupId>
+                    <artifactId>fmpp-maven-plugin</artifactId>
+                    <versionRange>[1.0,)</versionRange>
+                    <goals>
+                      <goal>generate</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <execute>
+                      <runOnIncremental>false</runOnIncremental>
+                    </execute>
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>javacc-maven-plugin</artifactId>
+                    <versionRange>[2.4,)</versionRange>
+                    <goals>
+                      <goal>javacc</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <execute>
+                      <runOnIncremental>false</runOnIncremental>
+                    </execute>
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
                     <versionRange>[2.5,)</versionRange>
@@ -1701,6 +1892,19 @@
                     <goals>
                       <goal>report</goal>
                       <goal>prepare-agent</goal>
+                    </goals>
+                  </pluginExecutionFilter>
+                  <action>
+                    <ignore />
+                  </action>
+                </pluginExecution>
+                <pluginExecution>
+                  <pluginExecutionFilter>
+                    <groupId>net.revelc.code.formatter</groupId>
+                    <artifactId>formatter-maven-plugin</artifactId>
+                    <versionRange>[2.0.0,)</versionRange>
+                    <goals>
+                      <goal>format</goal>
                     </goals>
                   </pluginExecutionFilter>
                   <action>
@@ -1743,10 +1947,6 @@
                 <relocations>
                   <relocation>
                     <pattern>com.google.common</pattern>
-                    <excludes>
-                      <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                      <exclude>com.google.common.**.testing.*</exclude>
-                    </excludes>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.com.google.common
@@ -1779,9 +1979,10 @@
           <artifactId>maven-release-plugin</artifactId>
           <version>2.5.3</version>
           <configuration>
-            <releaseProfiles>release</releaseProfiles>
+            <useReleaseProfile>false</useReleaseProfile>
             <preparationGoals>clean install</preparationGoals>
             <goals>deploy</goals>
+            <arguments>-Prelease,sign</arguments>
             <autoVersionSubmodules>true</autoVersionSubmodules>
           </configuration>
         </plugin>
@@ -1791,12 +1992,15 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>${maven-assembly-plugin.version}</version>
           <executions>
             <execution>
               <id>source-release-assembly</id>
               <configuration>
                 <finalName>apache-beam-${project.version}</finalName>
+                <descriptors>
+                  <descriptor>assembly.xml</descriptor>
+                </descriptors>
               </configuration>
             </execution>
           </executions>
@@ -1805,7 +2009,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>findbugs-maven-plugin</artifactId>
-          <version>3.0.4</version>
+          <version>3.0.5</version>
           <dependencies>
             <dependency>
               <groupId>org.apache.beam</groupId>
@@ -1855,6 +2059,11 @@
                   <include>**/sdks/python/LICENSE</include>
                   <include>**/sdks/python/NOTICE</include>
                   <include>**/sdks/python/README.md</include>
+                  <include>**/sdks/python/apache_beam/portability/api/*pb2*.*</include>
+                  <include>**/sdks/python/apache_beam/portability/common_urns.py</include>
+                  <include>**/sdks/python/**/*.c</include>
+                  <include>**/sdks/python/**/*.so</include>
+                  <include>**/sdks/python/**/*.egg</include>
                 </includes>
                 <followSymlinks>false</followSymlinks>
               </fileset>
@@ -1914,8 +2123,20 @@
         <plugin>
           <groupId>com.spotify</groupId>
           <artifactId>dockerfile-maven-plugin</artifactId>
-          <version>1.3.5</version>
+          <version>1.3.6</version>
           <!-- no executions by default. Use build-containers profile -->
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>${maven-dependency-plugin.version}</version>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-enforcer-plugin</artifactId>
+          <version>${maven-enforcer-plugin.version}</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -1924,7 +2145,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>${maven-dependency-plugin.version}</version>
         <executions>
           <execution>
             <goals><goal>analyze-only</goal></goals>
@@ -1932,6 +2152,11 @@
               <!-- Ignore runtime-only dependencies in analysis -->
               <ignoreNonCompile>true</ignoreNonCompile>
               <failOnWarning>true</failOnWarning>
+
+              <!-- ignore jsr305 for both "used but undeclared" and "declared but unused" -->
+              <ignoredDependencies>
+                <ignoredDependency>com.google.code.findbugs:jsr305</ignoredDependency>
+              </ignoredDependencies>
             </configuration>
           </execution>
         </executions>
@@ -1939,7 +2164,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>${maven-enforcer-plugin.version}</version>
         <executions>
           <execution>
             <id>enforce</id>
@@ -1949,20 +2173,28 @@
             <configuration>
               <rules>
                 <enforceBytecodeVersion>
-                  <maxJdkVersion>1.7</maxJdkVersion>
+                  <maxJdkVersion>1.8</maxJdkVersion>
+                  <!--
+                    Multi release jars that are Java 8 compatible should pass,
+                    but the extra-enforcer-plugin does not detect them
+                    correctly so we should ignore them explicitly.
+                    -->
+                  <ignoreClasses>
+                    <ignoreClass>module-info</ignoreClass>
+                  </ignoreClasses>
                   <excludes>
                     <!--
                       Supplied by the user JDK and compiled with matching
                       version. Is not shaded, so safe to ignore.
                     -->
                     <exclude>jdk.tools:jdk.tools</exclude>
+                    <exclude>com.google.auto.value:auto-value</exclude>
                   </excludes>
                 </enforceBytecodeVersion>
                 <requireJavaVersion>
-                  <version>[1.7,)</version>
+                  <version>[1.8,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
-                  <!-- Keep aligned with preqrequisite section below. -->
                   <version>[3.2,)</version>
                 </requireMavenVersion>
               </rules>
@@ -1977,6 +2209,8 @@
               <rules>
                 <bannedDependencies>
                   <excludes>
+                    <exclude>org.mockito:mockito-all</exclude>
+                    <exclude>org.hamcrest:hamcrest-all</exclude>
                     <exclude>com.google.guava:guava-jdk5</exclude>
                     <exclude>com.google.protobuf:protobuf-lite</exclude>
                   </excludes>
@@ -1990,7 +2224,7 @@
           <dependency>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>extra-enforcer-rules</artifactId>
-            <version>1.0-beta-6</version>
+            <version>${extra-enforcer-rules.version}</version>
           </dependency>
         </dependencies>
       </plugin>
@@ -2037,6 +2271,7 @@
         </executions>
       </plugin>
     </plugins>
+    <directory>${external.build.directory}</directory>
   </build>
 
   <reporting>
@@ -2056,9 +2291,4 @@
       </plugin>
     </plugins>
   </reporting>
-
-  <prerequisites>
-    <!-- Keep aligned with requireMavenVersion section above. -->
-    <maven>3.2</maven>
-  </prerequisites>
 </project>

@@ -121,6 +121,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   @Override
+  public DoFn<InputT, OutputT> getFn() {
+    return fn;
+  }
+
+  @Override
   public void startBundle() {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
@@ -262,7 +267,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public RestrictionTracker<?> restrictionTracker() {
+    public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException(
           "Cannot access RestrictionTracker outside of @ProcessElement method.");
     }
@@ -332,7 +337,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public RestrictionTracker<?> restrictionTracker() {
+    public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException(
           "Cannot access RestrictionTracker outside of @ProcessElement method.");
     }
@@ -504,7 +509,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public RestrictionTracker<?> restrictionTracker() {
+    public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException("RestrictionTracker parameters are not supported.");
     }
 
@@ -546,7 +551,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final TimeDomain timeDomain;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
-    private StateNamespace namespace;
+    private @Nullable StateNamespace namespace;
 
     /**
      * The state namespace for this context.
@@ -615,7 +620,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public RestrictionTracker<?> restrictionTracker() {
+    public RestrictionTracker<?, ?> restrictionTracker() {
       throw new UnsupportedOperationException("RestrictionTracker parameters are not supported.");
     }
 

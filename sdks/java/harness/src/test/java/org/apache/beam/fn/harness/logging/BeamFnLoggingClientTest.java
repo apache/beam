@@ -41,10 +41,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.LogRecord;
-import org.apache.beam.fn.harness.test.TestStreams;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Rule;
 import org.junit.Test;
@@ -102,15 +102,15 @@ public class BeamFnLoggingClientTest {
         new AtomicReference<>();
     CallStreamObserver<BeamFnApi.LogEntry.List> inboundServerObserver =
         TestStreams.withOnNext(
-            (BeamFnApi.LogEntry.List logEntries) -> values.addAll(logEntries.getLogEntriesList()))
-        .withOnCompleted(new Runnable() {
-          @Override
-          public void run() {
-            // Remember that the client told us that this stream completed
-            clientClosedStream.set(true);
-            outboundServerObserver.get().onCompleted();
-          }
-        }).build();
+                (BeamFnApi.LogEntry.List logEntries) ->
+                    values.addAll(logEntries.getLogEntriesList()))
+            .withOnCompleted(
+                () -> {
+                  // Remember that the client told us that this stream completed
+                  clientClosedStream.set(true);
+                  outboundServerObserver.get().onCompleted();
+                })
+            .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
@@ -134,8 +134,8 @@ public class BeamFnLoggingClientTest {
 
       BeamFnLoggingClient client = new BeamFnLoggingClient(
           PipelineOptionsFactory.fromArgs(new String[] {
-              "--defaultWorkerLogLevel=OFF",
-              "--workerLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
+              "--defaultSdkHarnessLogLevel=OFF",
+              "--sdkHarnessLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
           }).create(),
           apiServiceDescriptor,
           (Endpoints.ApiServiceDescriptor descriptor) -> channel);
@@ -197,8 +197,8 @@ public class BeamFnLoggingClientTest {
     try {
       BeamFnLoggingClient client = new BeamFnLoggingClient(
           PipelineOptionsFactory.fromArgs(new String[] {
-              "--defaultWorkerLogLevel=OFF",
-              "--workerLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
+              "--defaultSdkHarnessLogLevel=OFF",
+              "--sdkHarnessLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
           }).create(),
           apiServiceDescriptor,
           (Endpoints.ApiServiceDescriptor descriptor) -> channel);
@@ -249,8 +249,8 @@ public class BeamFnLoggingClientTest {
     try {
       BeamFnLoggingClient client = new BeamFnLoggingClient(
           PipelineOptionsFactory.fromArgs(new String[] {
-              "--defaultWorkerLogLevel=OFF",
-              "--workerLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
+              "--defaultSdkHarnessLogLevel=OFF",
+              "--sdkHarnessLogLevelOverrides={\"ConfiguredLogger\": \"DEBUG\"}"
           }).create(),
           apiServiceDescriptor,
           (Endpoints.ApiServiceDescriptor descriptor) -> channel);

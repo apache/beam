@@ -17,12 +17,16 @@
 
 """Unit tests for the Pipeline class."""
 
+import copy
 import logging
 import platform
 import unittest
 from collections import defaultdict
 
+import mock
+
 import apache_beam as beam
+from apache_beam import typehints
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
 from apache_beam.pipeline import Pipeline
@@ -30,7 +34,6 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.pvalue import AsSingleton
-from apache_beam.runners import DirectRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.direct.evaluation_context import _ExecutionContext
 from apache_beam.runners.direct.transform_evaluator import _GroupByKeyOnlyEvaluator
@@ -91,6 +94,13 @@ class TripleParDo(beam.PTransform):
     # Keeping labels the same intentionally to make sure that there is no label
     # conflict due to replacement.
     return input | 'Inner' >> beam.Map(lambda a: a * 3)
+
+
+class ToStringParDo(beam.PTransform):
+  def expand(self, input):
+    # We use copy.copy() here to make sure the typehint mechanism doesn't
+    # automatically infer that the output type is str.
+    return input | 'Inner' >> beam.Map(lambda a: copy.copy(str(a)))
 
 
 class PipelineTest(unittest.TestCase):
@@ -159,7 +169,7 @@ class PipelineTest(unittest.TestCase):
 
   # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
   # @attr('ValidatesRunner')
-  def test_metrics_in_source(self):
+  def test_metrics_in_fake_source(self):
     pipeline = TestPipeline()
     pcoll = pipeline | Read(FakeSource([1, 2, 3, 4, 5, 6]))
     assert_that(pcoll, equal_to([1, 2, 3, 4, 5, 6]))
@@ -170,7 +180,7 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(outputs_counter.key.metric.name, 'outputs')
     self.assertEqual(outputs_counter.committed, 6)
 
-  def test_read(self):
+  def test_fake_read(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
     assert_that(pcoll, equal_to([1, 2, 3]))
@@ -211,7 +221,7 @@ class PipelineTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       pipeline.apply(transform, pcoll2)
     self.assertEqual(
-        cm.exception.message,
+        cm.exception.args[0],
         'Transform "CustomTransform" does not have a stable unique label. '
         'This will prevent updating of pipelines. '
         'To apply a transform with a specified label write '
@@ -267,7 +277,9 @@ class PipelineTest(unittest.TestCase):
     num_elements = 10
     num_maps = 100
 
-    pipeline = TestPipeline()
+    # TODO(robertwb): reduce memory usage of FnApiRunner so that this test
+    # passes.
+    pipeline = TestPipeline(runner='BundleBasedDirectRunner')
 
     # Consumed memory should not be proportional to the number of maps.
     memory_threshold = (
@@ -303,26 +315,60 @@ class PipelineTest(unittest.TestCase):
   #   p = Pipeline('EagerRunner')
   #   self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
 
-  def test_ptransform_overrides(self):
-
-    def my_par_do_matcher(applied_ptransform):
-      return isinstance(applied_ptransform.transform, DoubleParDo)
+  @mock.patch(
+      'apache_beam.runners.direct.direct_runner._get_transform_overrides')
+  def test_ptransform_overrides(self, file_system_override_mock):
 
     class MyParDoOverride(PTransformOverride):
 
-      def get_matcher(self):
-        return my_par_do_matcher
+      def matches(self, applied_ptransform):
+        return isinstance(applied_ptransform.transform, DoubleParDo)
 
       def get_replacement_transform(self, ptransform):
         if isinstance(ptransform, DoubleParDo):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r', ptransform)
 
-    # Using following private variable for testing.
-    DirectRunner._PTRANSFORM_OVERRIDES.append(MyParDoOverride())
-    with Pipeline() as p:
+    def get_overrides(unused_pipeline_options):
+      return [MyParDoOverride()]
+
+    file_system_override_mock.side_effect = get_overrides
+
+    # Specify DirectRunner as it's the one patched above.
+    with Pipeline(runner='BundleBasedDirectRunner') as p:
       pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
       assert_that(pcoll, equal_to([3, 6, 9]))
+
+  def test_ptransform_override_type_hints(self):
+
+    class NoTypeHintOverride(PTransformOverride):
+
+      def matches(self, applied_ptransform):
+        return isinstance(applied_ptransform.transform, DoubleParDo)
+
+      def get_replacement_transform(self, ptransform):
+        return ToStringParDo()
+
+    class WithTypeHintOverride(PTransformOverride):
+
+      def matches(self, applied_ptransform):
+        return isinstance(applied_ptransform.transform, DoubleParDo)
+
+      def get_replacement_transform(self, ptransform):
+        return (ToStringParDo()
+                .with_input_types(int)
+                .with_output_types(str))
+
+    for override, expected_type in [(NoTypeHintOverride(), typehints.Any),
+                                    (WithTypeHintOverride(), str)]:
+      p = TestPipeline()
+      pcoll = (p
+               | beam.Create([1, 2, 3])
+               | 'Operate' >> DoubleParDo()
+               | 'NoOp' >> beam.Map(lambda x: x))
+
+      p.replace_all([override])
+      self.assertEquals(pcoll.producer.inputs[0].element_type, expected_type)
 
 
 class DoFnTest(unittest.TestCase):
@@ -398,6 +444,12 @@ class DoFnTest(unittest.TestCase):
     pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
     assert_that(pcoll, equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
     pipeline.run()
+
+  def test_timestamp_param_map(self):
+    with TestPipeline() as p:
+      assert_that(
+          p | Create([1, 2]) | beam.Map(lambda _, t=DoFn.TimestampParam: t),
+          equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
 
 
 class Bacon(PipelineOptions):
@@ -502,12 +554,27 @@ class RunnerApiTest(unittest.TestCase):
     p.to_runner_api()
     self.assertEqual(MyPTransform.pickle_count[0], 20)
 
+  def test_parent_pointer(self):
+    class MyPTransform(beam.PTransform):
+
+      def expand(self, p):
+        self.p = p
+        return p | beam.Create([None])
+
+    p = beam.Pipeline()
+    p | MyPTransform()  # pylint: disable=expression-not-assigned
+    p = Pipeline.from_runner_api(Pipeline.to_runner_api(p), None, None)
+    self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
+    self.assertEquals(p.transforms_stack[0].parts[0].parent,
+                      p.transforms_stack[0])
+
 
 class DirectRunnerRetryTests(unittest.TestCase):
 
   def test_retry_fork_graph(self):
-    pipeline_options = PipelineOptions(['--direct_runner_bundle_retry'])
-    p = beam.Pipeline(options=pipeline_options)
+    # TODO(BEAM-3642): The FnApiRunner currently does not currently support
+    # retries.
+    p = beam.Pipeline(runner='BundleBasedDirectRunner')
 
     # TODO(mariagh): Remove the use of globals from the test.
     global count_b, count_c # pylint: disable=global-variable-undefined

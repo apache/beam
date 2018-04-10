@@ -21,15 +21,17 @@ import glob
 import logging
 import multiprocessing
 import os
+import pip
 import pkg_resources
+import platform
+import pprint
 import shutil
 import subprocess
 import sys
 import time
 import warnings
 
-
-GRPC_TOOLS = 'grpcio-tools>=1.3.5'
+GRPC_TOOLS = 'grpcio-tools>=1.3.5,<2'
 
 BEAM_PROTO_PATHS = [
   os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
@@ -76,6 +78,13 @@ def generate_proto_files(force=False):
     try:
       from grpc_tools import protoc
     except ImportError:
+      if platform.system() == 'Windows':
+        # For Windows, grpcio-tools has to be installed manually.
+        raise RuntimeError(
+            'Cannot generate protos for Windows since grpcio-tools package is '
+            'not installed. Please install this package manually '
+            'using \'pip install grpcio-tools\'.')
+
       # Use a subprocess to avoid messing with this process' path and imports.
       # Note that this requires a separate module from setup.py for Windows:
       # https://docs.python.org/2/library/multiprocessing.html#windows
@@ -103,6 +112,15 @@ def generate_proto_files(force=False):
             '%s' % ret_code)
 
 
+    if sys.version_info[0] >= 3:
+      ret_code = subprocess.call(
+        ["futurize", "--both-stages", "--write", "--verbose", "--no-diff", out_dir])
+
+      if ret_code:
+        raise RuntimeError(
+          'Error applying futurize to generated protobuf python files.')
+
+
 # Though wheels are available for grpcio-tools, setup_requires uses
 # easy_install which doesn't understand them.  This means that it is
 # compiled from scratch (which is expensive as it compiles the full
@@ -118,15 +136,21 @@ def _install_grpcio_tools_and_generate_proto_files():
   logging.warning('Installing grpcio-tools into %s' % install_path)
   try:
     start = time.time()
+    pprint.pprint(pip.pep425tags.get_supported())
     subprocess.check_call(
-        ['pip', 'install', '--target', install_path, '--build', build_path,
+        [sys.executable, '-m', 'pip', 'install',
+         '--target', install_path, '--build', build_path,
          '--upgrade', GRPC_TOOLS])
     logging.warning(
         'Installing grpcio-tools took %0.2f seconds.' % (time.time() - start))
   finally:
+    sys.stderr.flush()
     shutil.rmtree(build_path)
   sys.path.append(install_path)
-  generate_proto_files()
+  try:
+    generate_proto_files()
+  finally:
+    sys.stderr.flush()
 
 
 if __name__ == '__main__':

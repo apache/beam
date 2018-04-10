@@ -22,7 +22,7 @@
     <parent>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-parent</artifactId>
-        <version>2.3.0-SNAPSHOT</version>
+        <version>2.5.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -35,7 +35,7 @@
         <commons-io.version>1.3.2</commons-io.version>
         <jna.version>4.1.0</jna.version>
         <log4j.version>2.6.2</log4j.version>
-        <elasticsearch.client.rest.version>5.4.0</elasticsearch.client.rest.version>
+        <elasticsearch.client.rest.version>5.6.3</elasticsearch.client.rest.version>
     </properties>
 
     <dependencies>
@@ -84,7 +84,13 @@
 
         <dependency>
             <groupId>org.hamcrest</groupId>
-            <artifactId>hamcrest-all</artifactId>
+            <artifactId>hamcrest-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-library</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -122,7 +128,7 @@
 
         <dependency>
             <groupId>org.elasticsearch.client</groupId>
-            <artifactId>rest</artifactId>
+            <artifactId>elasticsearch-rest-client</artifactId>
             <version>${elasticsearch.client.rest.version}</version>
             <scope>test</scope>
         </dependency>

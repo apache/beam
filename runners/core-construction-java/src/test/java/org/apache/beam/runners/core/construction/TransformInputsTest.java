@@ -53,12 +53,12 @@ public class TransformInputsTest {
     AppliedPTransform<PInput, POutput, TestTransform> transform =
         AppliedPTransform.of(
             "input-free",
-            Collections.<TupleTag<?>, PValue>emptyMap(),
-            Collections.<TupleTag<?>, PValue>emptyMap(),
+            Collections.emptyMap(),
+            Collections.emptyMap(),
             new TestTransform(),
             pipeline);
 
-    assertThat(TransformInputs.nonAdditionalInputs(transform), Matchers.<PValue>empty());
+    assertThat(TransformInputs.nonAdditionalInputs(transform), Matchers.empty());
   }
 
   @Test
@@ -67,13 +67,12 @@ public class TransformInputsTest {
     AppliedPTransform<PInput, POutput, TestTransform> transform =
         AppliedPTransform.of(
             "input-single",
-            Collections.<TupleTag<?>, PValue>singletonMap(new TupleTag<Long>() {}, input),
-            Collections.<TupleTag<?>, PValue>emptyMap(),
+            Collections.singletonMap(new TupleTag<Long>() {}, input),
+            Collections.emptyMap(),
             new TestTransform(),
             pipeline);
 
-    assertThat(
-        TransformInputs.nonAdditionalInputs(transform), Matchers.<PValue>containsInAnyOrder(input));
+    assertThat(TransformInputs.nonAdditionalInputs(transform), Matchers.containsInAnyOrder(input));
   }
 
   @Test
@@ -85,15 +84,11 @@ public class TransformInputsTest {
     allInputs.put(new TupleTag<Void>() {}, voids);
     AppliedPTransform<PInput, POutput, TestTransform> transform =
         AppliedPTransform.of(
-            "additional-free",
-            allInputs,
-            Collections.<TupleTag<?>, PValue>emptyMap(),
-            new TestTransform(),
-            pipeline);
+            "additional-free", allInputs, Collections.emptyMap(), new TestTransform(), pipeline);
 
     assertThat(
         TransformInputs.nonAdditionalInputs(transform),
-        Matchers.<PValue>containsInAnyOrder(voids, mainInts));
+        Matchers.containsInAnyOrder(voids, mainInts));
   }
 
   @Test
@@ -114,13 +109,13 @@ public class TransformInputsTest {
         AppliedPTransform.of(
             "additional",
             allInputs,
-            Collections.<TupleTag<?>, PValue>emptyMap(),
+            Collections.emptyMap(),
             new TestTransform(additionalInputs),
             pipeline);
 
     assertThat(
         TransformInputs.nonAdditionalInputs(transform),
-        Matchers.<PValue>containsInAnyOrder(mainInts, voids));
+        Matchers.containsInAnyOrder(mainInts, voids));
   }
 
   @Test
@@ -133,7 +128,7 @@ public class TransformInputsTest {
         AppliedPTransform.of(
             "additional-only",
             additionalInputs,
-            Collections.<TupleTag<?>, PValue>emptyMap(),
+            Collections.emptyMap(),
             new TestTransform(additionalInputs),
             pipeline);
 
@@ -146,7 +141,7 @@ public class TransformInputsTest {
     private final Map<TupleTag<?>, PValue> additionalInputs;
 
     private TestTransform() {
-      this(Collections.<TupleTag<?>, PValue>emptyMap());
+      this(Collections.emptyMap());
     }
 
     private TestTransform(Map<TupleTag<?>, PValue> additionalInputs) {

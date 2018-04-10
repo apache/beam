@@ -42,6 +42,18 @@ except ImportError:
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class SetupTest(unittest.TestCase):
 
+  def setUp(self):
+    self._temp_dir = None
+
+  def make_temp_dir(self):
+    if self._temp_dir is None:
+      self._temp_dir = tempfile.mkdtemp()
+    return tempfile.mkdtemp(dir=self._temp_dir)
+
+  def tearDown(self):
+    if self._temp_dir:
+      shutil.rmtree(self._temp_dir)
+
   def update_options(self, options):
     setup_options = options.view_as(SetupOptions)
     setup_options.sdk_location = ''
@@ -63,10 +75,10 @@ class SetupTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(PipelineOptions())
     self.assertEqual('The --staging_location option must be specified.',
-                     cm.exception.message)
+                     cm.exception.args[0])
 
   def test_no_temp_location(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
     options = PipelineOptions()
     google_cloud_options = options.view_as(GoogleCloudOptions)
     google_cloud_options.staging_location = staging_dir
@@ -75,10 +87,10 @@ class SetupTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(options)
     self.assertEqual('The --temp_location option must be specified.',
-                     cm.exception.message)
+                     cm.exception.args[0])
 
   def test_no_main_session(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
     options = PipelineOptions()
 
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
@@ -90,7 +102,7 @@ class SetupTest(unittest.TestCase):
         dependency.stage_job_resources(options))
 
   def test_with_main_session(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
     options = PipelineOptions()
 
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
@@ -105,7 +117,7 @@ class SetupTest(unittest.TestCase):
             os.path.join(staging_dir, names.PICKLED_MAIN_SESSION_FILE)))
 
   def test_default_resources(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
     self.update_options(options)
@@ -115,37 +127,32 @@ class SetupTest(unittest.TestCase):
         dependency.stage_job_resources(options))
 
   def test_with_requirements_file(self):
-    try:
-      staging_dir = tempfile.mkdtemp()
-      requirements_cache_dir = tempfile.mkdtemp()
-      source_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
+    requirements_cache_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
 
-      options = PipelineOptions()
-      options.view_as(GoogleCloudOptions).staging_location = staging_dir
-      self.update_options(options)
-      options.view_as(SetupOptions).requirements_cache = requirements_cache_dir
-      options.view_as(SetupOptions).requirements_file = os.path.join(
-          source_dir, dependency.REQUIREMENTS_FILE)
-      self.create_temp_file(
-          os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
-      self.assertEqual(
-          sorted([dependency.REQUIREMENTS_FILE,
-                  'abc.txt', 'def.txt']),
-          sorted(dependency.stage_job_resources(
-              options,
-              populate_requirements_cache=self.populate_requirements_cache)))
-      self.assertTrue(
-          os.path.isfile(
-              os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
-      self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
-      self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
-    finally:
-      shutil.rmtree(staging_dir)
-      shutil.rmtree(requirements_cache_dir)
-      shutil.rmtree(source_dir)
+    options = PipelineOptions()
+    options.view_as(GoogleCloudOptions).staging_location = staging_dir
+    self.update_options(options)
+    options.view_as(SetupOptions).requirements_cache = requirements_cache_dir
+    options.view_as(SetupOptions).requirements_file = os.path.join(
+        source_dir, dependency.REQUIREMENTS_FILE)
+    self.create_temp_file(
+        os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
+    self.assertEqual(
+        sorted([dependency.REQUIREMENTS_FILE,
+                'abc.txt', 'def.txt']),
+        sorted(dependency.stage_job_resources(
+            options,
+            populate_requirements_cache=self.populate_requirements_cache)))
+    self.assertTrue(
+        os.path.isfile(
+            os.path.join(staging_dir, dependency.REQUIREMENTS_FILE)))
+    self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'abc.txt')))
+    self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
   def test_requirements_file_not_present(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
     with self.assertRaises(RuntimeError) as cm:
       options = PipelineOptions()
       options.view_as(GoogleCloudOptions).staging_location = staging_dir
@@ -154,21 +161,20 @@ class SetupTest(unittest.TestCase):
       dependency.stage_job_resources(
           options, populate_requirements_cache=self.populate_requirements_cache)
     self.assertEqual(
-        cm.exception.message,
+        cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
         '--requirements_file command line option.' % 'nosuchfile')
 
   def test_with_requirements_file_and_cache(self):
-    staging_dir = tempfile.mkdtemp()
-    source_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
 
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
     self.update_options(options)
     options.view_as(SetupOptions).requirements_file = os.path.join(
         source_dir, dependency.REQUIREMENTS_FILE)
-    options.view_as(SetupOptions).requirements_cache = os.path.join(
-        tempfile.gettempdir(), 'alternative-cache-dir')
+    options.view_as(SetupOptions).requirements_cache = self.make_temp_dir()
     self.create_temp_file(
         os.path.join(source_dir, dependency.REQUIREMENTS_FILE), 'nothing')
     self.assertEqual(
@@ -184,8 +190,8 @@ class SetupTest(unittest.TestCase):
     self.assertTrue(os.path.isfile(os.path.join(staging_dir, 'def.txt')))
 
   def test_with_setup_file(self):
-    staging_dir = tempfile.mkdtemp()
-    source_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
     self.create_temp_file(
         os.path.join(source_dir, 'setup.py'), 'notused')
 
@@ -213,7 +219,7 @@ class SetupTest(unittest.TestCase):
             os.path.join(staging_dir, dependency.WORKFLOW_TARBALL_FILE)))
 
   def test_setup_file_not_present(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
 
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
@@ -223,13 +229,13 @@ class SetupTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(options)
     self.assertEqual(
-        cm.exception.message,
+        cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
         '--setup_file command line option.' % 'nosuchfile')
 
   def test_setup_file_not_named_setup_dot_py(self):
-    staging_dir = tempfile.mkdtemp()
-    source_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
 
     options = PipelineOptions()
     options.view_as(GoogleCloudOptions).staging_location = staging_dir
@@ -242,7 +248,7 @@ class SetupTest(unittest.TestCase):
     with self.assertRaises(RuntimeError) as cm:
       dependency.stage_job_resources(options)
     self.assertTrue(
-        cm.exception.message.startswith(
+        cm.exception.args[0].startswith(
             'The --setup_file option expects the full path to a file named '
             'setup.py instead of '))
 
@@ -279,7 +285,7 @@ class SetupTest(unittest.TestCase):
     return os.path.join(expected_to_folder, 'sdk-tarball')
 
   def test_sdk_location_default(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
     expected_from_url = 'pypi'
     expected_from_path = self.override_pypi_download(
         expected_from_url, staging_dir)
@@ -297,8 +303,8 @@ class SetupTest(unittest.TestCase):
             file_copy=dependency._dependency_file_copy))
 
   def test_sdk_location_local(self):
-    staging_dir = tempfile.mkdtemp()
-    sdk_location = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
+    sdk_location = self.make_temp_dir()
     self.create_temp_file(
         os.path.join(
             sdk_location,
@@ -319,7 +325,7 @@ class SetupTest(unittest.TestCase):
       self.assertEqual(f.read(), 'contents')
 
   def test_sdk_location_local_not_present(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
     sdk_location = 'nosuchdir'
     with self.assertRaises(RuntimeError) as cm:
       options = PipelineOptions()
@@ -332,10 +338,10 @@ class SetupTest(unittest.TestCase):
         'The file "%s" cannot be found. Its '
         'location was specified by the --sdk_location command-line option.' %
         sdk_location,
-        cm.exception.message)
+        cm.exception.args[0])
 
   def test_sdk_location_gcs(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
     sdk_location = 'gs://my-gcs-bucket/tarball.tar.gz'
     self.override_file_copy(sdk_location, staging_dir)
 
@@ -349,8 +355,8 @@ class SetupTest(unittest.TestCase):
         dependency.stage_job_resources(options))
 
   def test_with_extra_packages(self):
-    staging_dir = tempfile.mkdtemp()
-    source_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
     self.create_temp_file(
         os.path.join(source_dir, 'abc.tar.gz'), 'nothing')
     self.create_temp_file(
@@ -399,7 +405,7 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(['gs://my-gcs-bucket/gcs.tar.gz'], gcs_copied_files)
 
   def test_with_extra_packages_missing_files(self):
-    staging_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
     with self.assertRaises(RuntimeError) as cm:
 
       options = PipelineOptions()
@@ -409,13 +415,13 @@ class SetupTest(unittest.TestCase):
 
       dependency.stage_job_resources(options)
     self.assertEqual(
-        cm.exception.message,
+        cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
         '--extra_packages command line option.' % 'nosuchfile.tar.gz')
 
   def test_with_extra_packages_invalid_file_name(self):
-    staging_dir = tempfile.mkdtemp()
-    source_dir = tempfile.mkdtemp()
+    staging_dir = self.make_temp_dir()
+    source_dir = self.make_temp_dir()
     self.create_temp_file(
         os.path.join(source_dir, 'abc.tgz'), 'nothing')
     with self.assertRaises(RuntimeError) as cm:
@@ -426,9 +432,10 @@ class SetupTest(unittest.TestCase):
           os.path.join(source_dir, 'abc.tgz')]
       dependency.stage_job_resources(options)
     self.assertEqual(
-        cm.exception.message,
-        'The --extra_package option expects a full path ending with ".tar" or '
-        '".tar.gz" instead of %s' % os.path.join(source_dir, 'abc.tgz'))
+        cm.exception.args[0],
+        'The --extra_package option expects a full path ending with '
+        '".tar", ".tar.gz", ".whl" or ".zip" '
+        'instead of %s' % os.path.join(source_dir, 'abc.tgz'))
 
 
 if __name__ == '__main__':

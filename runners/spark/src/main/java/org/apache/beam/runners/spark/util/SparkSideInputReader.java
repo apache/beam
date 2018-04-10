@@ -20,11 +20,17 @@ package org.apache.beam.runners.spark.util;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.InMemoryMultimapSideInputView;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -32,9 +38,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
-
 /**
- * A {@link SideInputReader} for thw SparkRunner.
+ * A {@link SideInputReader} for the SparkRunner.
  */
 public class SparkSideInputReader implements SideInputReader {
   private final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs;
@@ -60,26 +65,29 @@ public class SparkSideInputReader implements SideInputReader {
     //--- match the appropriate sideInput window.
     // a tag will point to all matching sideInputs, that is all windows.
     // now that we've obtained the appropriate sideInputWindow, all that's left is to filter by it.
-    Iterable<WindowedValue<?>> availableSideInputs =
-        (Iterable<WindowedValue<?>>) windowedBroadcastHelper.getValue().getValue();
-    Iterable<WindowedValue<?>> sideInputForWindow =
-        Iterables.filter(availableSideInputs, new Predicate<WindowedValue<?>>() {
-          @Override
-          public boolean apply(@Nullable WindowedValue<?> sideInputCandidate) {
-            if (sideInputCandidate == null) {
-              return false;
-            }
-            // first match of a sideInputWindow to the elementWindow is good enough.
-            for (BoundedWindow sideInputCandidateWindow: sideInputCandidate.getWindows()) {
-              if (sideInputCandidateWindow.equals(sideInputWindow)) {
-                return true;
-              }
-            }
-            // no match found.
-            return false;
-          }
-        });
-    return view.getViewFn().apply(sideInputForWindow);
+    Iterable<WindowedValue<KV<?, ?>>> availableSideInputs =
+        (Iterable<WindowedValue<KV<?, ?>>>) windowedBroadcastHelper.getValue().getValue();
+    Iterable<KV<?, ?>> sideInputForWindow =
+        StreamSupport.stream(
+                StreamSupport.stream(availableSideInputs.spliterator(), false)
+                    .filter(
+                        sideInputCandidate -> {
+                          if (sideInputCandidate == null) {
+                            return false;
+                          }
+                          return Iterables.contains(
+                              sideInputCandidate.getWindows(), sideInputWindow);
+                        })
+                    .collect(Collectors.toList())
+                    .spliterator(),
+                false)
+            .map(WindowedValue::getValue)
+            .collect(Collectors.toList());
+
+    ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+    Coder keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+    return (T) viewFn.apply(
+        InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) sideInputForWindow));
   }
 
   @Override

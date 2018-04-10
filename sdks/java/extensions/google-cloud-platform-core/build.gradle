@@ -1,0 +1,57 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Google Cloud Platform Core"
+ext.summary = """Common components used to support multiple
+Google Cloud Platform specific maven modules."""
+
+// Exclude tests that need a runner
+test {
+  systemProperty "beamUseDummyRunner", "true"
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+  }
+}
+
+dependencies {
+  compile library.java.guava
+  shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.google_http_client_jackson2
+  shadow library.java.google_auth_library_oauth2_http
+  shadow library.java.google_api_client
+  shadow library.java.bigdataoss_gcsio
+  shadow library.java.bigdataoss_util
+  shadow library.java.google_api_services_cloudresourcemanager
+  shadow library.java.google_api_services_storage
+  shadow library.java.google_auth_library_credentials
+  shadow library.java.findbugs_jsr305
+  shadow library.java.google_http_client
+  shadow library.java.slf4j_api
+  shadow library.java.joda_time
+  shadow library.java.jackson_annotations
+  shadow library.java.jackson_databind
+  shadow library.java.hamcrest_core
+  shadow library.java.junit
+  testCompile project(path: ":beam-sdks-java-core", configuration: "shadowTest")
+  testCompile library.java.guava_testlib
+  testCompile library.java.mockito_core
+  testCompile library.java.slf4j_jdk14
+}

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Locale.ROOT;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.JavaType;
@@ -73,8 +74,12 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -120,7 +125,7 @@ public class PipelineOptionsFactory {
    * {@link Class#getSimpleName() classes simple name}.
    *
    * <p>Note that {@code <T>} must be composable with every registered interface with this factory.
-   * See {@link PipelineOptionsFactory#validateWellFormed(Class, Set)} for more details.
+   * See {@link PipelineOptionsFactory.Cache#validateWellFormed(Class, Set)} for more details.
    *
    * @return An object that implements {@code <T>}.
    */
@@ -276,7 +281,7 @@ public class PipelineOptionsFactory {
      * this builder during construction.
      *
      * <p>Note that {@code <T>} must be composable with every registered interface with this
-     * factory. See {@link PipelineOptionsFactory#validateWellFormed(Class, Set)} for more
+     * factory. See {@link PipelineOptionsFactory.Cache#validateWellFormed(Class)} for more
      * details.
      *
      * @return An object that implements {@code <T>}.
@@ -301,6 +306,10 @@ public class PipelineOptionsFactory {
       if (appNameOptions.getAppName() == null) {
         appNameOptions.setAppName(defaultAppName);
       }
+
+      // Ensure the options id has been populated either by the user using the command line
+      // or by the default value factory.
+      t.getOptionsId();
 
       if (validation) {
         if (isCli) {
@@ -341,33 +350,37 @@ public class PipelineOptionsFactory {
 
       // Otherwise attempt to print the specific help option.
       try {
-        Class<?> klass = Class.forName(helpOption);
+        Class<?> klass = Class.forName(helpOption, true, ReflectHelpers.findClassLoader());
         if (!PipelineOptions.class.isAssignableFrom(klass)) {
           throw new ClassNotFoundException("PipelineOptions of type " + klass + " not found.");
         }
         printHelp(printStream, (Class<? extends PipelineOptions>) klass);
       } catch (ClassNotFoundException e) {
         // If we didn't find an exact match, look for any that match the class name.
-        Iterable<Class<? extends PipelineOptions>> matches = Iterables.filter(
-            getRegisteredOptions(),
-            new Predicate<Class<? extends PipelineOptions>>() {
-              @Override
-              public boolean apply(@Nonnull Class<? extends PipelineOptions> input) {
-                if (helpOption.contains(".")) {
-                  return input.getName().endsWith(helpOption);
-                } else {
-                  return input.getSimpleName().equals(helpOption);
-                }
-              }
-          });
+        Iterable<Class<? extends PipelineOptions>> matches =
+            getRegisteredOptions()
+                .stream()
+                .filter(
+                    input -> {
+                      if (helpOption.contains(".")) {
+                        return input.getName().endsWith(helpOption);
+                      } else {
+                        return input.getSimpleName().equals(helpOption);
+                      }
+                    })
+                .collect(Collectors.toList());
         try {
           printHelp(printStream, Iterables.getOnlyElement(matches));
         } catch (NoSuchElementException exception) {
           printStream.format("Unable to find option %s.%n", helpOption);
           printHelp(printStream);
         } catch (IllegalArgumentException exception) {
-          printStream.format("Multiple matches found for %s: %s.%n", helpOption,
-              Iterables.transform(matches, ReflectHelpers.CLASS_NAME));
+          printStream.format(
+              "Multiple matches found for %s: %s.%n",
+              helpOption,
+              StreamSupport.stream(matches.spliterator(), false)
+                  .map(ReflectHelpers.CLASS_NAME::apply)
+                  .collect(Collectors.toList()));
           printHelp(printStream);
         }
       }
@@ -398,7 +411,8 @@ public class PipelineOptionsFactory {
       StackTraceElement next = elements.next();
       if (!PIPELINE_OPTIONS_FACTORY_CLASSES.contains(next.getClassName())) {
         try {
-          return Class.forName(next.getClassName()).getSimpleName();
+          return Class.forName(
+            next.getClassName(), true, ReflectHelpers.findClassLoader()).getSimpleName();
         } catch (ClassNotFoundException e) {
           break;
         }
@@ -453,9 +467,6 @@ public class PipelineOptionsFactory {
   private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class[0];
   static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
       ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-  private static final ClassLoader CLASS_LOADER;
-
-  private static final Map<String, Class<? extends PipelineRunner<?>>> SUPPORTED_PIPELINE_RUNNERS;
 
   /** Classes that are used as the boundary in the stack trace to find the callers class name. */
   private static final Set<String> PIPELINE_OPTIONS_FACTORY_CLASSES =
@@ -465,25 +476,12 @@ public class PipelineOptionsFactory {
   private static final Set<Method> IGNORED_METHODS;
 
   /** A predicate that checks if a method is synthetic via {@link Method#isSynthetic()}. */
-  private static final Predicate<Method> NOT_SYNTHETIC_PREDICATE =
-      new Predicate<Method>() {
-        @Override
-        public boolean apply(@Nonnull Method input) {
-          return !input.isSynthetic();
-        }
-      };
+  private static final Predicate<Method> NOT_SYNTHETIC_PREDICATE = input -> !input.isSynthetic();
+  private static final Predicate<Method> NOT_STATIC_PREDICATE =
+      input -> !Modifier.isStatic(input.getModifiers());
 
-  /** The set of options that have been registered and visible to the user. */
-  private static final Set<Class<? extends PipelineOptions>> REGISTERED_OPTIONS =
-      Sets.newConcurrentHashSet();
-
-  /** A cache storing a mapping from a given interface to its registration record. */
-  private static final Map<Class<? extends PipelineOptions>, Registration<?>> INTERFACE_CACHE =
-      Maps.newConcurrentMap();
-
-  /** A cache storing a mapping from a set of interfaces to its registration record. */
-  private static final Map<Set<Class<? extends PipelineOptions>>, Registration<?>> COMBINED_CACHE =
-      Maps.newConcurrentMap();
+  /** Ensure all classloader or volatile data are contained in a single reference. */
+  static final AtomicReference<Cache> CACHE = new AtomicReference<>();
 
   /** The width at which options should be output. */
   private static final int TERMINAL_WIDTH = 80;
@@ -503,27 +501,7 @@ public class PipelineOptionsFactory {
       LOG.error("Unable to find expected method", e);
       throw new ExceptionInInitializerError(e);
     }
-
-    CLASS_LOADER = ReflectHelpers.findClassLoader();
-
-    Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
-        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-    pipelineRunnerRegistrars.addAll(
-        Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class, CLASS_LOADER)));
-    // Store the list of all available pipeline runners.
-    ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
-        ImmutableMap.builder();
-    for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
-      for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
-        String runnerName = klass.getSimpleName().toLowerCase();
-        builder.put(runnerName, klass);
-        if (runnerName.endsWith("runner")) {
-          builder.put(runnerName.substring(0, runnerName.length() - "Runner".length()), klass);
-        }
-      }
-    }
-    SUPPORTED_PIPELINE_RUNNERS = builder.build();
-    initializeRegistry();
+    resetCache();
   }
 
   /**
@@ -542,113 +520,24 @@ public class PipelineOptionsFactory {
    * @param iface The interface object to manually register.
    */
   public static synchronized void register(Class<? extends PipelineOptions> iface) {
-    checkNotNull(iface);
-    checkArgument(iface.isInterface(), "Only interface types are supported.");
-
-    if (REGISTERED_OPTIONS.contains(iface)) {
-      return;
-    }
-    validateWellFormed(iface, REGISTERED_OPTIONS);
-    REGISTERED_OPTIONS.add(iface);
+    CACHE.get().register(iface);
   }
 
   /**
    * Resets the set of interfaces registered with this factory to the default state.
+   * <p>IMPORTANT: this is marked as experimental because the correct usage of this
+   * method requires appropriate synchronization beyond the scope of this method.</p>
    *
    * @see PipelineOptionsFactory#register(Class)
+   * @see Cache#Cache()
    */
-  @VisibleForTesting
-  static synchronized void resetRegistry() {
-    REGISTERED_OPTIONS.clear();
-    initializeRegistry();
-  }
-
-  /**
-   *  Load and register the list of all classes that extend PipelineOptions.
-   */
-  private static void initializeRegistry() {
-    register(PipelineOptions.class);
-    Set<PipelineOptionsRegistrar> pipelineOptionsRegistrars =
-        Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
-    pipelineOptionsRegistrars.addAll(
-        Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class, CLASS_LOADER)));
-    for (PipelineOptionsRegistrar registrar : pipelineOptionsRegistrars) {
-      for (Class<? extends PipelineOptions> klass : registrar.getPipelineOptions()) {
-        register(klass);
-      }
-    }
-  }
-
-  /**
-   * Validates that the interface conforms to the following:
-   * <ul>
-   *   <li>Every inherited interface of {@code iface} must extend PipelineOptions except for
-   *       PipelineOptions itself.
-   *   <li>Any property with the same name must have the same return type for all derived
-   *       interfaces of {@link PipelineOptions}.
-   *   <li>Every bean property of any interface derived from {@link PipelineOptions} must have a
-   *       getter and setter method.
-   *   <li>Every method must conform to being a getter or setter for a JavaBean.
-   *   <li>The derived interface of {@link PipelineOptions} must be composable with every interface
-   *       part of allPipelineOptionsClasses.
-   *   <li>Only getters may be annotated with {@link JsonIgnore @JsonIgnore}.
-   *   <li>If any getter is annotated with {@link JsonIgnore @JsonIgnore}, then all getters for
-   *       this property must be annotated with {@link JsonIgnore @JsonIgnore}.
-   * </ul>
-   *
-   * @param iface The interface to validate.
-   * @param validatedPipelineOptionsInterfaces The set of validated pipeline options interfaces to
-   *        validate against.
-   * @return A registration record containing the proxy class and bean info for iface.
-   */
-  static synchronized <T extends PipelineOptions> Registration<T> validateWellFormed(
-      Class<T> iface, Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces) {
-    checkArgument(iface.isInterface(), "Only interface types are supported.");
-
-    // Validate that every inherited interface must extend PipelineOptions except for
-    // PipelineOptions itself.
-    validateInheritedInterfacesExtendPipelineOptions(iface);
-
-    @SuppressWarnings("unchecked")
-    Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
-        FluentIterable.from(validatedPipelineOptionsInterfaces).append(iface).toSet();
-    // Validate that the view of all currently passed in options classes is well formed.
-    if (!COMBINED_CACHE.containsKey(combinedPipelineOptionsInterfaces)) {
-      @SuppressWarnings("unchecked")
-      Class<T> allProxyClass =
-          (Class<T>) Proxy.getProxyClass(PipelineOptionsFactory.class.getClassLoader(),
-              combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY));
-      try {
-        List<PropertyDescriptor> propertyDescriptors =
-            validateClass(iface, validatedPipelineOptionsInterfaces, allProxyClass);
-        COMBINED_CACHE.put(combinedPipelineOptionsInterfaces,
-            new Registration<>(allProxyClass, propertyDescriptors));
-      } catch (IntrospectionException e) {
-        throw new RuntimeException(e);
-      }
-    }
-
-    // Validate that the local view of the class is well formed.
-    if (!INTERFACE_CACHE.containsKey(iface)) {
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      Class<T> proxyClass = (Class<T>) Proxy.getProxyClass(
-          PipelineOptionsFactory.class.getClassLoader(), new Class[] {iface});
-      try {
-        List<PropertyDescriptor> propertyDescriptors =
-            validateClass(iface, validatedPipelineOptionsInterfaces, proxyClass);
-        INTERFACE_CACHE.put(iface,
-            new Registration<>(proxyClass, propertyDescriptors));
-      } catch (IntrospectionException e) {
-        throw new RuntimeException(e);
-      }
-    }
-    @SuppressWarnings("unchecked")
-    Registration<T> result = (Registration<T>) INTERFACE_CACHE.get(iface);
-    return result;
+  @Experimental(Experimental.Kind.UNSPECIFIED)
+  public static synchronized void resetCache() {
+    CACHE.set(new Cache());
   }
 
   public static Set<Class<? extends PipelineOptions>> getRegisteredOptions() {
-    return Collections.unmodifiableSet(REGISTERED_OPTIONS);
+    return Collections.unmodifiableSet(CACHE.get().registeredOptions);
   }
 
   /**
@@ -662,7 +551,7 @@ public class PipelineOptionsFactory {
     out.println("The set of registered options are:");
     Set<Class<? extends PipelineOptions>> sortedOptions =
         new TreeSet<>(ClassNameComparator.INSTANCE);
-    sortedOptions.addAll(REGISTERED_OPTIONS);
+    sortedOptions.addAll(CACHE.get().registeredOptions);
     for (Class<? extends PipelineOptions> kls : sortedOptions) {
       out.format("  %s%n", kls.getName());
     }
@@ -692,7 +581,7 @@ public class PipelineOptionsFactory {
   public static void printHelp(PrintStream out, Class<? extends PipelineOptions> iface) {
     checkNotNull(out);
     checkNotNull(iface);
-    validateWellFormed(iface, REGISTERED_OPTIONS);
+    CACHE.get().validateWellFormed(iface);
 
     Set<PipelineOptionSpec> properties =
         PipelineOptionsReflector.getOptionSpecs(iface);
@@ -717,7 +606,7 @@ public class PipelineOptionsFactory {
       out.println();
 
       List<String> lists = Lists.newArrayList(propertyNamesToGetters.keySet());
-      Collections.sort(lists, String.CASE_INSENSITIVE_ORDER);
+      lists.sort(String.CASE_INSENSITIVE_ORDER);
       for (String propertyName : lists) {
         Method method = propertyNamesToGetters.get(propertyName);
         String printableType = method.getReturnType().getSimpleName();
@@ -831,12 +720,7 @@ public class PipelineOptionsFactory {
   }
 
   static Map<String, Class<? extends PipelineRunner<?>>> getRegisteredRunners() {
-    return SUPPORTED_PIPELINE_RUNNERS;
-  }
-
-  static List<PropertyDescriptor> getPropertyDescriptors(
-      Set<Class<? extends PipelineOptions>> interfaces) {
-    return COMBINED_CACHE.get(interfaces).getPropertyDescriptors();
+    return CACHE.get().supportedPipelineRunners;
   }
 
   /**
@@ -983,6 +867,7 @@ public class PipelineOptionsFactory {
             validatedPipelineOptionsInterfaces))
         .append(ReflectHelpers.getClosureOfMethodsOnInterface(iface))
         .filter(NOT_SYNTHETIC_PREDICATE)
+        .filter(NOT_STATIC_PREDICATE)
         .toSortedSet(MethodComparator.INSTANCE);
 
     List<PropertyDescriptor> descriptors = getPropertyDescriptors(allInterfaceMethods, iface);
@@ -1093,7 +978,7 @@ public class PipelineOptionsFactory {
             @Nonnull
             @Override
             public Iterable<? extends Annotation> apply(@Nonnull Method method) {
-              return FluentIterable.of(method.getAnnotations());
+              return FluentIterable.from(method.getAnnotations());
             }
           })
           .filter(annotationPredicates.forAnnotation));
@@ -1108,7 +993,7 @@ public class PipelineOptionsFactory {
                   @Nonnull
                   @Override
                   public Iterable<String> apply(final @Nonnull Method method) {
-                    return FluentIterable.of(method.getAnnotations())
+                    return FluentIterable.from(method.getAnnotations())
                         .filter(annotationPredicates.forAnnotation)
                         .transform(new Function<Annotation, String>() {
                           @Nonnull
@@ -1252,13 +1137,10 @@ public class PipelineOptionsFactory {
     unknownMethods.addAll(
         Sets.filter(
             Sets.difference(Sets.newHashSet(iface.getMethods()), knownMethods),
-            Predicates.and(NOT_SYNTHETIC_PREDICATE,
-                new Predicate<Method>() {
-                  @Override
-                  public boolean apply(@Nonnull Method input) {
-                    return !knownMethodsNames.contains(input.getName());
-                  }
-                })));
+            Predicates.and(
+                NOT_SYNTHETIC_PREDICATE,
+                input -> !knownMethodsNames.contains(input.getName()),
+                NOT_STATIC_PREDICATE)));
     checkArgument(unknownMethods.isEmpty(),
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
@@ -1464,46 +1346,29 @@ public class PipelineOptionsFactory {
    * A {@link Predicate} that returns true if the method is annotated with {@code annotationClass}.
    */
   static class AnnotationPredicates {
-    static final AnnotationPredicates JSON_IGNORE = new AnnotationPredicates(
-        JsonIgnore.class,
-        new Predicate<Annotation>() {
-          @Override
-          public boolean apply(@Nonnull Annotation input) {
-            return JsonIgnore.class.equals(input.annotationType());
-          }
-        },
-        new Predicate<Method>() {
-          @Override
-          public boolean apply(@Nonnull Method input) {
-            return input.isAnnotationPresent(JsonIgnore.class);
-          }});
+    static final AnnotationPredicates JSON_IGNORE =
+        new AnnotationPredicates(
+            JsonIgnore.class,
+            input -> JsonIgnore.class.equals(input.annotationType()),
+            input -> input.isAnnotationPresent(JsonIgnore.class));
 
-    private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES = Sets.newHashSet(
-        FluentIterable.of(Default.class.getDeclaredClasses())
-        .filter(new Predicate<Class<?>>() {
-          @Override
-          public boolean apply(@Nonnull Class<?> klass) {
-            return klass.isAnnotation();
-          }}));
+    private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES =
+        Sets.newHashSet(
+            FluentIterable.from(Default.class.getDeclaredClasses())
+                .filter(Class::isAnnotation));
 
-    static final AnnotationPredicates DEFAULT_VALUE = new AnnotationPredicates(
-        Default.class,
-        new Predicate<Annotation>() {
-          @Override
-          public boolean apply(@Nonnull Annotation input) {
-            return DEFAULT_ANNOTATION_CLASSES.contains(input.annotationType());
-          }
-        },
-        new Predicate<Method> () {
-          @Override
-          public boolean apply(@Nonnull Method input) {
-            for (Annotation annotation : input.getAnnotations()) {
-              if (DEFAULT_ANNOTATION_CLASSES.contains(annotation.annotationType())) {
-                return true;
+    static final AnnotationPredicates DEFAULT_VALUE =
+        new AnnotationPredicates(
+            Default.class,
+            input -> DEFAULT_ANNOTATION_CLASSES.contains(input.annotationType()),
+            input -> {
+              for (Annotation annotation : input.getAnnotations()) {
+                if (DEFAULT_ANNOTATION_CLASSES.contains(annotation.annotationType())) {
+                  return true;
+                }
               }
-            }
-            return false;
-          }});
+              return false;
+            });
 
     final Class<? extends Annotation> annotationClass;
     final Predicate<Annotation> forAnnotation;
@@ -1597,10 +1462,11 @@ public class PipelineOptionsFactory {
   private static <T extends PipelineOptions> Map<String, Object> parseObjects(
       Class<T> klass, ListMultimap<String, String> options, boolean strictParsing) {
     Map<String, Method> propertyNamesToGetters = Maps.newHashMap();
-    PipelineOptionsFactory.validateWellFormed(klass, REGISTERED_OPTIONS);
+    Cache cache = CACHE.get();
+    cache.validateWellFormed(klass);
     @SuppressWarnings("unchecked")
     Iterable<PropertyDescriptor> propertyDescriptors =
-        PipelineOptionsFactory.getPropertyDescriptors(
+        cache.getPropertyDescriptors(
             FluentIterable.from(getRegisteredOptions()).append(klass).toSet());
     for (PropertyDescriptor descriptor : propertyDescriptors) {
       propertyNamesToGetters.put(descriptor.getName(), descriptor.getReadMethod());
@@ -1611,13 +1477,11 @@ public class PipelineOptionsFactory {
         // Search for close matches for missing properties.
         // Either off by one or off by two character errors.
         if (!propertyNamesToGetters.containsKey(entry.getKey())) {
-          SortedSet<String> closestMatches = new TreeSet<>(
-              Sets.filter(propertyNamesToGetters.keySet(), new Predicate<String>() {
-                @Override
-                public boolean apply(@Nonnull String input) {
-                  return StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2;
-                }
-          }));
+          SortedSet<String> closestMatches =
+              new TreeSet<>(
+                  Sets.filter(
+                      propertyNamesToGetters.keySet(),
+                      input -> StringUtils.getLevenshteinDistance(entry.getKey(), input) <= 2));
           switch (closestMatches.size()) {
             case 0:
               throw new IllegalArgumentException(
@@ -1639,36 +1503,35 @@ public class PipelineOptionsFactory {
         JavaType type = MAPPER.getTypeFactory().constructType(method.getGenericReturnType());
         if ("runner".equals(entry.getKey())) {
           String runner = Iterables.getOnlyElement(entry.getValue());
-          if (SUPPORTED_PIPELINE_RUNNERS.containsKey(runner.toLowerCase())) {
-            convertedOptions.put("runner", SUPPORTED_PIPELINE_RUNNERS.get(runner.toLowerCase()));
+          final Map<String, Class<? extends PipelineRunner<?>>> pipelineRunners = cache
+                  .supportedPipelineRunners;
+          if (pipelineRunners.containsKey(runner.toLowerCase())) {
+            convertedOptions.put("runner", pipelineRunners.get(runner.toLowerCase(ROOT)));
           } else {
             try {
-              Class<?> runnerClass = Class.forName(runner);
+              Class<?> runnerClass = Class.forName(runner, true, ReflectHelpers.findClassLoader());
               if (!(PipelineRunner.class.isAssignableFrom(runnerClass))) {
                 throw new IllegalArgumentException(
                     String.format(
                         "Class '%s' does not implement PipelineRunner. "
                             + "Supported pipeline runners %s",
-                        runner, getSupportedRunners()));
+                        runner, cache.getSupportedRunners()));
               }
               convertedOptions.put("runner", runnerClass);
             } catch (ClassNotFoundException e) {
               String msg =
                   String.format(
                       "Unknown 'runner' specified '%s', supported pipeline runners %s",
-                      runner, getSupportedRunners());
+                      runner, cache.getSupportedRunners());
               throw new IllegalArgumentException(msg, e);
             }
           }
         } else if (isCollectionOrArrayOfAllowedTypes(returnType, type)) {
           // Split any strings with ","
-          List<String> values = FluentIterable.from(entry.getValue())
-              .transformAndConcat(new Function<String, Iterable<String>>() {
-                @Override
-                public Iterable<String> apply(@Nonnull String input) {
-                  return Arrays.asList(input.split(","));
-                }
-          }).toList();
+          List<String> values =
+              FluentIterable.from(entry.getValue())
+                  .transformAndConcat(input -> Arrays.asList(input.split(",")))
+                  .toList();
 
           if (values.contains("")) {
             checkEmptyStringAllowed(returnType, type, method.getGenericReturnType().toString());
@@ -1776,12 +1639,162 @@ public class PipelineOptionsFactory {
     }
   }
 
-  @VisibleForTesting
-  static Set<String> getSupportedRunners() {
-    ImmutableSortedSet.Builder<String> supportedRunners = ImmutableSortedSet.naturalOrder();
-    for (Class<? extends PipelineRunner<?>> runner : SUPPORTED_PIPELINE_RUNNERS.values()) {
-      supportedRunners.add(runner.getSimpleName());
+  /** Hold all data which can change after a classloader change. */
+  static final class Cache {
+    private final Map<String, Class<? extends PipelineRunner<?>>> supportedPipelineRunners;
+
+    /** The set of options that have been registered and visible to the user. */
+    private final Set<Class<? extends PipelineOptions>> registeredOptions =
+            Sets.newConcurrentHashSet();
+
+    /** A cache storing a mapping from a given interface to its registration record. */
+    private final Map<Class<? extends PipelineOptions>, Registration<?>> interfaceCache =
+            Maps.newConcurrentMap();
+
+    /** A cache storing a mapping from a set of interfaces to its registration record. */
+    private final Map<Set<Class<? extends PipelineOptions>>, Registration<?>> combinedCache =
+            Maps.newConcurrentMap();
+
+    private Cache() {
+      final ClassLoader loader = ReflectHelpers.findClassLoader();
+
+      Set<PipelineRunnerRegistrar> pipelineRunnerRegistrars =
+              Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
+      pipelineRunnerRegistrars.addAll(
+              Lists.newArrayList(ServiceLoader.load(PipelineRunnerRegistrar.class, loader)));
+      // Store the list of all available pipeline runners.
+      ImmutableMap.Builder<String, Class<? extends PipelineRunner<?>>> builder =
+              ImmutableMap.builder();
+      for (PipelineRunnerRegistrar registrar : pipelineRunnerRegistrars) {
+        for (Class<? extends PipelineRunner<?>> klass : registrar.getPipelineRunners()) {
+          String runnerName = klass.getSimpleName().toLowerCase();
+          builder.put(runnerName, klass);
+          if (runnerName.endsWith("runner")) {
+            builder.put(runnerName.substring(0, runnerName.length() - "Runner".length()), klass);
+          }
+        }
+      }
+      supportedPipelineRunners = builder.build();
+      initializeRegistry(loader);
     }
-    return supportedRunners.build();
+
+    /**
+     *  Load and register the list of all classes that extend PipelineOptions.
+     */
+    private void initializeRegistry(final ClassLoader loader) {
+      register(PipelineOptions.class);
+      Set<PipelineOptionsRegistrar> pipelineOptionsRegistrars =
+              Sets.newTreeSet(ReflectHelpers.ObjectsClassComparator.INSTANCE);
+      pipelineOptionsRegistrars.addAll(
+              Lists.newArrayList(ServiceLoader.load(PipelineOptionsRegistrar.class, loader)));
+      for (PipelineOptionsRegistrar registrar : pipelineOptionsRegistrars) {
+        for (Class<? extends PipelineOptions> klass : registrar.getPipelineOptions()) {
+          register(klass);
+        }
+      }
+    }
+
+    private synchronized void register(Class<? extends PipelineOptions> iface) {
+      checkNotNull(iface);
+      checkArgument(iface.isInterface(), "Only interface types are supported.");
+
+      if (registeredOptions.contains(iface)) {
+        return;
+      }
+      validateWellFormed(iface);
+      registeredOptions.add(iface);
+    }
+
+    private <T extends PipelineOptions> Registration<T> validateWellFormed(Class<T> iface) {
+      return validateWellFormed(iface, registeredOptions);
+    }
+
+    @VisibleForTesting
+    Set<String> getSupportedRunners() {
+      ImmutableSortedSet.Builder<String> supportedRunners = ImmutableSortedSet.naturalOrder();
+      for (Class<? extends PipelineRunner<?>> runner : supportedPipelineRunners.values()) {
+        supportedRunners.add(runner.getSimpleName());
+      }
+      return supportedRunners.build();
+    }
+
+    @VisibleForTesting
+    Map<String, Class<? extends PipelineRunner<?>>> getSupportedPipelineRunners() {
+      return supportedPipelineRunners;
+    }
+
+    /**
+     * Validates that the interface conforms to the following:
+     * <ul>
+     *   <li>Every inherited interface of {@code iface} must extend PipelineOptions except for
+     *       PipelineOptions itself.
+     *   <li>Any property with the same name must have the same return type for all derived
+     *       interfaces of {@link PipelineOptions}.
+     *   <li>Every bean property of any interface derived from {@link PipelineOptions} must have a
+     *       getter and setter method.
+     *   <li>Every method must conform to being a getter or setter for a JavaBean.
+     *   <li>The derived interface of {@link PipelineOptions} must be composable
+     *       with every interface part of allPipelineOptionsClasses.
+     *   <li>Only getters may be annotated with {@link JsonIgnore @JsonIgnore}.
+     *   <li>If any getter is annotated with {@link JsonIgnore @JsonIgnore}, then all getters for
+     *       this property must be annotated with {@link JsonIgnore @JsonIgnore}.
+     * </ul>
+     *
+     * @param iface The interface to validate.
+     * @param validatedPipelineOptionsInterfaces The set of validated pipeline options interfaces to
+     *        validate against.
+     * @return A registration record containing the proxy class and bean info for iface.
+     */
+    synchronized <T extends PipelineOptions> Registration<T> validateWellFormed(
+            Class<T> iface,
+            Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces) {
+      checkArgument(iface.isInterface(), "Only interface types are supported.");
+
+      // Validate that every inherited interface must extend PipelineOptions except for
+      // PipelineOptions itself.
+      validateInheritedInterfacesExtendPipelineOptions(iface);
+
+      @SuppressWarnings("unchecked")
+      Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
+              FluentIterable.from(validatedPipelineOptionsInterfaces).append(iface).toSet();
+      // Validate that the view of all currently passed in options classes is well formed.
+      if (!combinedCache.containsKey(combinedPipelineOptionsInterfaces)) {
+        final Class<?>[] interfaces = combinedPipelineOptionsInterfaces.toArray(EMPTY_CLASS_ARRAY);
+        @SuppressWarnings("unchecked")
+        Class<T> allProxyClass = (Class<T>) Proxy.getProxyClass(
+          ReflectHelpers.findClassLoader(interfaces), interfaces);
+        try {
+          List<PropertyDescriptor> propertyDescriptors =
+                  validateClass(iface, validatedPipelineOptionsInterfaces, allProxyClass);
+          combinedCache.put(combinedPipelineOptionsInterfaces,
+                  new Registration<>(allProxyClass, propertyDescriptors));
+        } catch (IntrospectionException e) {
+          throw new RuntimeException(e);
+        }
+      }
+
+      // Validate that the local view of the class is well formed.
+      if (!interfaceCache.containsKey(iface)) {
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        Class<T> proxyClass = (Class<T>) Proxy.getProxyClass(
+                ReflectHelpers.findClassLoader(iface), new Class[] {iface});
+        try {
+          List<PropertyDescriptor> propertyDescriptors =
+                  validateClass(iface, validatedPipelineOptionsInterfaces, proxyClass);
+          interfaceCache.put(iface,
+                  new Registration<>(proxyClass, propertyDescriptors));
+        } catch (IntrospectionException e) {
+          throw new RuntimeException(e);
+        }
+      }
+      @SuppressWarnings("unchecked")
+      Registration<T> result = (Registration<T>) interfaceCache.get(iface);
+      return result;
+    }
+
+    List<PropertyDescriptor> getPropertyDescriptors(
+            Set<Class<? extends PipelineOptions>> interfaces) {
+      return combinedCache.get(interfaces).getPropertyDescriptors();
+    }
   }
 }

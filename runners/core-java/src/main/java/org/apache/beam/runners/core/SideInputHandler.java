@@ -17,22 +17,28 @@
  */
 package org.apache.beam.runners.core;
 
-import java.util.ArrayList;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -58,7 +64,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
   /**
    * State internals that are scoped not to the key of a value but are global. The state can still
-   * be keep locally but if side inputs are broadcast to all parallel operators then all will
+   * be kept locally but if side inputs are broadcast to all parallel operators then all will
    * have the same view of the state.
    */
   private final StateInternals stateInternals;
@@ -80,7 +86,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
    */
   private final Map<
       PCollectionView<?>,
-      StateTag<ValueState<Iterable<WindowedValue<?>>>>> sideInputContentsTags;
+      StateTag<ValueState<Iterable<?>>>> sideInputContentsTags;
 
   /**
    * Creates a new {@code SideInputHandler} for the given side inputs that uses
@@ -94,7 +100,15 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     this.availableWindowsTags = new HashMap<>();
     this.sideInputContentsTags = new HashMap<>();
 
-    for (PCollectionView<?> sideInput: sideInputs) {
+    for (PCollectionView<?> sideInput : sideInputs) {
+      checkArgument(
+          Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+              sideInput.getViewFn().getMaterialization().getUrn()),
+          "This handler is only capable of dealing with %s materializations "
+              + "but was asked to handle %s for PCollectionView with tag %s.",
+          Materializations.MULTIMAP_MATERIALIZATION_URN,
+          sideInput.getViewFn().getMaterialization().getUrn(),
+          sideInput.getTagInternal().getId());
 
       @SuppressWarnings("unchecked")
       Coder<BoundedWindow> windowCoder =
@@ -114,9 +128,9 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
       availableWindowsTags.put(sideInput, availableTag);
 
-      Coder<Iterable<WindowedValue<?>>> coder = sideInput.getCoderInternal();
-      StateTag<ValueState<Iterable<WindowedValue<?>>>> stateTag =
-          StateTags.value("side-input-data-" + sideInput.getTagInternal().getId(), coder);
+      StateTag<ValueState<Iterable<?>>> stateTag =
+          StateTags.value("side-input-data-" + sideInput.getTagInternal().getId(),
+              (Coder) IterableCoder.of(sideInput.getCoderInternal()));
       sideInputContentsTags.put(sideInput, stateTag);
     }
   }
@@ -129,7 +143,6 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
   public void addSideInputValue(
       PCollectionView<?> sideInput,
       WindowedValue<Iterable<?>> value) {
-
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>) sideInput
@@ -137,19 +150,13 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
             .getWindowFn()
             .windowCoder();
 
-    // reify the WindowedValue
-    List<WindowedValue<?>> inputWithReifiedWindows = new ArrayList<>();
-    for (Object e: value.getValue()) {
-      inputWithReifiedWindows.add(value.withValue(e));
-    }
-
-    StateTag<ValueState<Iterable<WindowedValue<?>>>> stateTag =
+    StateTag<ValueState<Iterable<?>>> stateTag =
         sideInputContentsTags.get(sideInput);
 
-    for (BoundedWindow window: value.getWindows()) {
+    for (BoundedWindow window : value.getWindows()) {
       stateInternals
           .state(StateNamespaces.window(windowCoder, window), stateTag)
-          .write(inputWithReifiedWindows);
+          .write(value.getValue());
 
       stateInternals
           .state(StateNamespaces.global(), availableWindowsTags.get(sideInput))
@@ -159,28 +166,33 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
 
   @Nullable
   @Override
-  public <T> T get(PCollectionView<T> sideInput, BoundedWindow window) {
-
+  public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
-        (Coder<BoundedWindow>) sideInput
+        (Coder<BoundedWindow>) view
             .getWindowingStrategyInternal()
             .getWindowFn()
             .windowCoder();
 
-    StateTag<ValueState<Iterable<WindowedValue<?>>>> stateTag =
-        sideInputContentsTags.get(sideInput);
+    StateTag<ValueState<Iterable<?>>> stateTag =
+        sideInputContentsTags.get(view);
 
-    ValueState<Iterable<WindowedValue<?>>> state =
+    ValueState<Iterable<?>> state =
         stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag);
 
-    Iterable<WindowedValue<?>> elements = state.read();
+    // TODO: Add support for choosing which representation is contained based upon the
+    // side input materialization. We currently can assume that we always have a multimap
+    // materialization as that is the only supported type within the Java SDK.
+    @Nullable Iterable<KV<?, ?>> elements = (Iterable<KV<?, ?>>) state.read();
 
     if (elements == null) {
       elements = Collections.emptyList();
     }
 
-    return sideInput.getViewFn().apply(elements);
+    ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+    Coder<?> keyCoder = ((KvCoder<?, ?>) view.getCoderInternal()).getKeyCoder();
+    return (T)
+            viewFn.apply(InMemoryMultimapSideInputView.fromIterable(keyCoder, (Iterable) elements));
   }
 
   @Override

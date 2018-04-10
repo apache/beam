@@ -88,8 +88,8 @@ public class DistinctExample {
     Pipeline p = Pipeline.create(options);
 
     p.apply("ReadLines", TextIO.read().from(options.getInput()))
-     .apply(Distinct.<String>create())
-     .apply("DedupedShakespeare", TextIO.write().to(options.getOutput()));
+        .apply(Distinct.create())
+        .apply("DedupedShakespeare", TextIO.write().to(options.getOutput()));
 
     p.run().waitUntilFinish();
   }

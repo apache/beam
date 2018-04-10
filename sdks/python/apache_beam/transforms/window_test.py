@@ -51,7 +51,7 @@ def context(element, timestamp):
   return WindowFn.AssignContext(timestamp, element)
 
 
-sort_values = Map(lambda (k, vs): (k, sorted(vs)))
+sort_values = Map(lambda k_vs: (k_vs[0], sorted(k_vs[1])))
 
 
 class ReifyWindowsFn(core.DoFn):
@@ -195,7 +195,7 @@ class WindowTest(unittest.TestCase):
     with TestPipeline() as p:
       result = (p
                 | 'start' >> Create([(k, k) for k in range(10)])
-                | Map(lambda (x, t): TimestampedValue(x, t))
+                | Map(lambda x_t: TimestampedValue(x_t[0], x_t[1]))
                 | 'w' >> WindowInto(FixedWindows(5))
                 | Map(lambda v: ('key', v))
                 | GroupByKey())
@@ -206,7 +206,7 @@ class WindowTest(unittest.TestCase):
     with TestPipeline() as p:
       result = (p
                 | Create([(k, k) for k in range(10)])
-                | Map(lambda (x, t): TimestampedValue(x, t))
+                | Map(lambda x_t1: TimestampedValue(x_t1[0], x_t1[1]))
                 | 'window' >> WindowInto(SlidingWindows(period=2, size=6))
                 # Per the model, each element is now duplicated across
                 # three windows. Rewindowing must preserve this duplication.
@@ -232,7 +232,7 @@ class WindowTest(unittest.TestCase):
                 # Now there are values 5 ms apart and since Map propagates the
                 # windowing function from input to output the output PCollection
                 # will have elements falling into different 5ms windows.
-                | Map(lambda (x, t): TimestampedValue(x, t))
+                | Map(lambda x_t2: TimestampedValue(x_t2[0], x_t2[1]))
                 # We add a 'key' to each value representing the index of the
                 # window. This is important since there is no guarantee of
                 # order for the elements of a PCollection.

@@ -25,13 +25,16 @@ import abc
 import collections
 import logging
 import Queue as queue
+import sys
 import threading
 
 import grpc
+import six
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -147,6 +150,7 @@ class _GrpcDataChannel(DataChannel):
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
+    self._exc_info = None
 
   def close(self):
     self._to_send.put(self._WRITES_FINISHED)
@@ -159,16 +163,39 @@ class _GrpcDataChannel(DataChannel):
     with self._receive_lock:
       return self._received[instruction_id]
 
+  def _clean_receiving_queue(self, instruction_id):
+    with self._receive_lock:
+      self._received.pop(instruction_id)
+
   def input_elements(self, instruction_id, expected_targets):
+    """
+    Generator to retrieve elements for an instruction_id
+    input_elements should be called only once for an instruction_id
+
+    Args:
+      instruction_id(str): instruction_id for which data is read
+      expected_targets(collection): expected targets
+    """
     received = self._receiving_queue(instruction_id)
     done_targets = []
-    while len(done_targets) < len(expected_targets):
-      data = received.get()
-      if not data.data and data.target in expected_targets:
-        done_targets.append(data.target)
-      else:
-        assert data.target not in done_targets
-        yield data
+    try:
+      while len(done_targets) < len(expected_targets):
+        try:
+          data = received.get(timeout=1)
+        except queue.Empty:
+          if self._exc_info:
+            t, v, tb = self._exc_info
+            six.reraise(t, v, tb)
+        else:
+          if not data.data and data.target in expected_targets:
+            done_targets.append(data.target)
+          else:
+            assert data.target not in done_targets
+            yield data
+    finally:
+      # Instruction_ids are not reusable so Clean queue once we are done with
+      #  an instruction_id
+      self._clean_receiving_queue(instruction_id)
 
   def output_stream(self, instruction_id, target):
     # TODO: Return an output stream that sends data
@@ -215,6 +242,7 @@ class _GrpcDataChannel(DataChannel):
     except:  # pylint: disable=bare-except
       if not self._closed:
         logging.exception('Failed to read inputs in the data plane')
+        self._exc_info = sys.exc_info()
         raise
     finally:
       self._reads_finished.set()
@@ -267,22 +295,37 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   Caches the created channels by ``data descriptor url``.
   """
 
-  def __init__(self):
+  def __init__(self, credentials=None):
     self._data_channel_cache = {}
+    self._lock = threading.Lock()
+    self._credentials = None
+    if credentials is not None:
+      logging.info('Using secure channel creds.')
+      self._credentials = credentials
 
   def create_data_channel(self, remote_grpc_port):
     url = remote_grpc_port.api_service_descriptor.url
     if url not in self._data_channel_cache:
-      logging.info('Creating channel for %s', url)
-      grpc_channel = grpc.insecure_channel(
-          url,
+      with self._lock:
+        if url not in self._data_channel_cache:
+          logging.info('Creating channel for %s', url)
           # Options to have no limits (-1) on the size of the messages
-          # received or sent over the data plane. The actual buffer size is
-          # controlled in a layer above.
-          options=[("grpc.max_receive_message_length", -1),
-                   ("grpc.max_send_message_length", -1)])
-      self._data_channel_cache[url] = GrpcClientDataChannel(
-          beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
+          # received or sent over the data plane. The actual buffer size
+          # is controlled in a layer above.
+          channel_options = [("grpc.max_receive_message_length", -1),
+                             ("grpc.max_send_message_length", -1)]
+          grpc_channel = None
+          if self._credentials is None:
+            grpc_channel = grpc.insecure_channel(url, options=channel_options)
+          else:
+            grpc_channel = grpc.secure_channel(
+                url, self._credentials, options=channel_options)
+          # Add workerId to the grpc channel
+          grpc_channel = grpc.intercept_channel(grpc_channel,
+                                                WorkerIdInterceptor())
+          self._data_channel_cache[url] = GrpcClientDataChannel(
+              beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
+
     return self._data_channel_cache[url]
 
   def close(self):

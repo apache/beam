@@ -19,12 +19,12 @@
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
 import java.util.Collections;
-import java.util.Date;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 
 /**
  * {@code BeamSqlExpression} for CURRENT_DATE and LOCALTIME.
@@ -33,13 +33,14 @@ import org.apache.calcite.sql.type.SqlTypeName;
  */
 public class BeamSqlCurrentDateExpression extends BeamSqlExpression {
   public BeamSqlCurrentDateExpression() {
-    super(Collections.<BeamSqlExpression>emptyList(), SqlTypeName.DATE);
-  }
-  @Override public boolean accept() {
-    return getOperands().size() == 0;
+    super(Collections.emptyList(), SqlTypeName.DATE);
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    return BeamSqlPrimitive.of(outputType, new Date());
+  @Override public boolean accept() {
+    return getOperands().isEmpty();
+  }
+
+  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
+    return BeamSqlPrimitive.of(outputType, DateTime.now());
   }
 }

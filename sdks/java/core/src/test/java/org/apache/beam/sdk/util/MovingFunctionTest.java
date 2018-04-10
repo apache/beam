@@ -95,10 +95,8 @@ public class MovingFunctionTest {
     int lost = 0;
     for (int i = 0; i < SAMPLE_PERIOD * 2; i++) {
       f.add(i , 1);
-      if (i >= SAMPLE_PERIOD) {
-        if (i % SAMPLE_UPDATE == 0) {
-          lost += SAMPLE_UPDATE;
-        }
+      if (i >= SAMPLE_PERIOD && i % SAMPLE_UPDATE == 0) {
+        lost += SAMPLE_UPDATE;
       }
       assertEquals(i + 1 - lost, f.get(i));
     }

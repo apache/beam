@@ -21,11 +21,9 @@ package org.apache.beam.runners.spark.aggregators.metrics.sink;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.spark.metrics.sink.Sink;
-
 
 /**
  * An in-memory {@link Sink} implementation for tests.
@@ -50,11 +48,19 @@ public class InMemoryMetrics implements Sink {
     // this might fail in case we have multiple aggregators with the same suffix after
     // the last dot, but it should be good enough for tests.
     if (extendedMetricsRegistry != null
-        && Iterables.any(extendedMetricsRegistry.getGauges().keySet(),
-        Predicates.containsPattern(name + "$"))) {
+        && extendedMetricsRegistry
+            .getGauges()
+            .keySet()
+            .stream()
+            .anyMatch(Predicates.containsPattern(name + "$")::apply)) {
       String key =
-          Iterables.find(extendedMetricsRegistry.getGauges().keySet(),
-              Predicates.containsPattern(name + "$"));
+          extendedMetricsRegistry
+              .getGauges()
+              .keySet()
+              .stream()
+              .filter(Predicates.containsPattern(name + "$")::apply)
+              .findFirst()
+              .get();
       retVal = (T) extendedMetricsRegistry.getGauges().get(key).getValue();
     } else {
       retVal = null;

@@ -35,27 +35,26 @@ import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import java.util.Collection;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
-import org.apache.beam.fn.harness.test.TestStreams;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.InboundDataClient;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
+import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -67,16 +66,16 @@ public class BeamFnDataGrpcClientTest {
       LengthPrefixCoder.of(
           WindowedValue.getFullCoder(StringUtf8Coder.of(),
               GlobalWindow.Coder.INSTANCE));
-  private static final KV<String, BeamFnApi.Target> KEY_A =
-      KV.of(
+  private static final LogicalEndpoint ENDPOINT_A =
+      LogicalEndpoint.of(
           "12L",
-          BeamFnApi.Target.newBuilder()
+          Target.newBuilder()
               .setPrimitiveTransformReference("34L")
               .setName("targetA")
               .build());
 
-  private static final KV<String, BeamFnApi.Target> KEY_B =
-      KV.of(
+  private static final LogicalEndpoint ENDPOINT_B =
+      LogicalEndpoint.of(
           "56L",
           BeamFnApi.Target.newBuilder()
               .setPrimitiveTransformReference("78L")
@@ -90,29 +89,29 @@ public class BeamFnDataGrpcClientTest {
     try {
     ELEMENTS_A_1 = BeamFnApi.Elements.newBuilder()
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_A.getKey())
-            .setTarget(KEY_A.getValue())
+            .setInstructionReference(ENDPOINT_A.getInstructionId())
+            .setTarget(ENDPOINT_A.getTarget())
             .setData(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("ABC")))
                 .concat(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("DEF"))))))
         .build();
     ELEMENTS_A_2 = BeamFnApi.Elements.newBuilder()
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_A.getKey())
-            .setTarget(KEY_A.getValue())
+            .setInstructionReference(ENDPOINT_A.getInstructionId())
+            .setTarget(ENDPOINT_A.getTarget())
             .setData(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("GHI")))))
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_A.getKey())
-            .setTarget(KEY_A.getValue()))
+            .setInstructionReference(ENDPOINT_A.getInstructionId())
+            .setTarget(ENDPOINT_A.getTarget()))
         .build();
     ELEMENTS_B_1 = BeamFnApi.Elements.newBuilder()
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_B.getKey())
-            .setTarget(KEY_B.getValue())
+            .setInstructionReference(ENDPOINT_B.getInstructionId())
+            .setTarget(ENDPOINT_B.getTarget())
             .setData(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("JKL")))
                 .concat(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("MNO"))))))
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_B.getKey())
-            .setTarget(KEY_B.getValue()))
+            .setInstructionReference(ENDPOINT_B.getInstructionId())
+            .setTarget(ENDPOINT_B.getTarget()))
         .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);
@@ -155,11 +154,9 @@ public class BeamFnDataGrpcClientTest {
         (Endpoints.ApiServiceDescriptor descriptor) -> channel,
         this::createStreamForTest);
 
-    CompletableFuture<Void> readFutureA = clientFactory.forInboundConsumer(
-        apiServiceDescriptor,
-        KEY_A,
-        CODER,
-        inboundValuesA::add);
+      InboundDataClient readFutureA =
+          clientFactory.receive(
+              apiServiceDescriptor, ENDPOINT_A, CODER, inboundValuesA::add);
 
       waitForClientToConnect.await();
       outboundServerObserver.get().onNext(ELEMENTS_A_1);
@@ -168,19 +165,17 @@ public class BeamFnDataGrpcClientTest {
       outboundServerObserver.get().onNext(ELEMENTS_B_1);
       Thread.sleep(100);
 
-      CompletableFuture<Void> readFutureB = clientFactory.forInboundConsumer(
-          apiServiceDescriptor,
-          KEY_B,
-          CODER,
-          inboundValuesB::add);
+      InboundDataClient readFutureB =
+          clientFactory.receive(
+              apiServiceDescriptor, ENDPOINT_B, CODER, inboundValuesB::add);
 
       // Show that out of order stream completion can occur.
-      readFutureB.get();
+      readFutureB.awaitCompletion();
       assertThat(inboundValuesB, contains(
           valueInGlobalWindow("JKL"), valueInGlobalWindow("MNO")));
 
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
-      readFutureA.get();
+      readFutureA.awaitCompletion();
       assertThat(inboundValuesA, contains(
           valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
     } finally {
@@ -224,16 +219,12 @@ public class BeamFnDataGrpcClientTest {
           (Endpoints.ApiServiceDescriptor descriptor) -> channel,
           this::createStreamForTest);
 
-      CompletableFuture<Void> readFuture = clientFactory.forInboundConsumer(
+      InboundDataClient readFuture = clientFactory.receive(
           apiServiceDescriptor,
-          KEY_A,
-          CODER,
-          new ThrowingConsumer<WindowedValue<String>>() {
-            @Override
-            public void accept(WindowedValue<String> t) throws Exception {
-              consumerInvoked.incrementAndGet();
-              throw exceptionToThrow;
-            }
+          ENDPOINT_A,
+          CODER, t -> {
+            consumerInvoked.incrementAndGet();
+            throw exceptionToThrow;
           });
 
       waitForClientToConnect.await();
@@ -243,7 +234,7 @@ public class BeamFnDataGrpcClientTest {
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
 
       try {
-        readFuture.get();
+        readFuture.awaitCompletion();
         fail("Expected channel to fail");
       } catch (ExecutionException e) {
         assertEquals(exceptionToThrow, e.getCause());
@@ -263,14 +254,11 @@ public class BeamFnDataGrpcClientTest {
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
     CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
         TestStreams.withOnNext(
-            new Consumer<BeamFnApi.Elements>() {
-              @Override
-              public void accept(BeamFnApi.Elements t) {
-                inboundServerValues.add(t);
-                waitForInboundServerValuesCompletion.countDown();
-              }
-            }
-            ).build();
+                (BeamFnApi.Elements t) -> {
+                  inboundServerValues.add(t);
+                  waitForInboundServerValuesCompletion.countDown();
+                })
+            .build();
 
     Endpoints.ApiServiceDescriptor apiServiceDescriptor =
         Endpoints.ApiServiceDescriptor.newBuilder()
@@ -296,8 +284,8 @@ public class BeamFnDataGrpcClientTest {
           (Endpoints.ApiServiceDescriptor descriptor) -> channel,
           this::createStreamForTest);
 
-      try (CloseableThrowingConsumer<WindowedValue<String>> consumer =
-          clientFactory.forOutboundConsumer(apiServiceDescriptor, KEY_A, CODER)) {
+      try (CloseableFnDataReceiver<WindowedValue<String>> consumer =
+          clientFactory.send(apiServiceDescriptor, ENDPOINT_A, CODER)) {
         consumer.accept(valueInGlobalWindow("ABC"));
         consumer.accept(valueInGlobalWindow("DEF"));
         consumer.accept(valueInGlobalWindow("GHI"));
@@ -312,8 +300,8 @@ public class BeamFnDataGrpcClientTest {
   }
 
   private <ReqT, RespT> StreamObserver<RespT> createStreamForTest(
-      Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
+      StreamObserverClientFactory<ReqT, RespT> clientFactory,
       StreamObserver<ReqT> handler) {
-    return clientFactory.apply(handler);
+    return clientFactory.outboundObserverFor(handler);
   }
 }

@@ -95,13 +95,14 @@ public class CombineFnTester {
       CombineFn<InputT, AccumT, OutputT> fn,
       List<? extends Iterable<InputT>> shards,
       Matcher<? super OutputT> matcher) {
-    AccumT accumulator = null;
+    AccumT accumulator = shards.isEmpty() ? fn.createAccumulator() : null;
     for (AccumT inputAccum : combineInputs(fn, shards)) {
       if (accumulator == null) {
         accumulator = inputAccum;
       } else {
         accumulator = fn.mergeAccumulators(Arrays.asList(accumulator, inputAccum));
       }
+      fn.extractOutput(accumulator); // Extract output to simulate multiple firings
     }
     assertThat(fn.extractOutput(accumulator), matcher);
   }

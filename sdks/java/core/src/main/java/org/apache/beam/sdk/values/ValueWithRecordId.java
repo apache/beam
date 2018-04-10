@@ -121,9 +121,8 @@ public class ValueWithRecordId<ValueT> {
     @Override
     public ValueWithRecordId<ValueT> decode(InputStream inStream, Context context)
         throws IOException {
-      return new ValueWithRecordId<ValueT>(
-          valueCoder.decode(inStream),
-          idCoder.decode(inStream, context));
+      return new ValueWithRecordId<>(
+          valueCoder.decode(inStream), idCoder.decode(inStream, context));
     }
 
     @Override

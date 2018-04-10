@@ -55,7 +55,7 @@ class SideInputsTest(unittest.TestCase):
         side |= beam.Map(lambda x: ('k%s' % x, 'v%s' % x))
       res = main | beam.Map(lambda x, s: (x, s), side_input_type(side, **kw))
       if side_input_type in (beam.pvalue.AsIter, beam.pvalue.AsList):
-        res |= beam.Map(lambda (x, s): (x, sorted(s)))
+        res |= beam.Map(lambda x_s: (x_s[0], sorted(x_s[1])))
       assert_that(res, equal_to(expected))
 
   def test_global_global_windows(self):

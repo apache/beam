@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
 import java.util.Comparator;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
@@ -64,7 +65,7 @@ public class Min {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Integer, Integer> integersPerKey() {
-    return Combine.<K, Integer, Integer>perKey(new MinIntegerFn());
+    return Combine.perKey(new MinIntegerFn());
   }
 
   /**
@@ -85,7 +86,7 @@ public class Min {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Long, Long> longsPerKey() {
-   return Combine.<K, Long, Long>perKey(new MinLongFn());
+    return Combine.perKey(new MinLongFn());
   }
 
   /**
@@ -106,7 +107,7 @@ public class Min {
    * <p>See {@link Combine.PerKey} for how this affects timestamps and windowing.
    */
   public static <K> Combine.PerKey<K, Double, Double> doublesPerKey() {
-    return Combine.<K, Double, Double>perKey(new MinDoubleFn());
+    return Combine.perKey(new MinDoubleFn());
   }
 
   /**
@@ -142,7 +143,7 @@ public class Min {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   BinaryCombineFn<T> of(T identity, ComparatorT comparator) {
-    return new MinFn<T>(identity, comparator);
+    return new MinFn<>(identity, comparator);
   }
 
   /**
@@ -154,15 +155,15 @@ public class Min {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   BinaryCombineFn<T> of(ComparatorT comparator) {
-    return new MinFn<T>(null, comparator);
+    return new MinFn<>(null, comparator);
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
-    return new MinFn<T>(identity, new Top.Natural<T>());
+    return new MinFn<>(identity, new Top.Natural<>());
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
-    return new MinFn<T>(null, new Top.Natural<T>());
+    return new MinFn<>(null, new Top.Natural<>());
   }
 
   /**
@@ -172,7 +173,7 @@ public class Min {
    */
   public static <T extends Comparable<? super T>>
   Combine.Globally<T, T> globally() {
-    return Combine.<T, T>globally(Min.<T>naturalOrder());
+    return Combine.globally(Min.<T>naturalOrder());
   }
 
   /**
@@ -185,7 +186,7 @@ public class Min {
    */
   public static <K, T extends Comparable<? super T>>
   Combine.PerKey<K, T, T> perKey() {
-    return Combine.<K, T, T>perKey(Min.<T>naturalOrder());
+    return Combine.perKey(Min.<T>naturalOrder());
   }
 
   /**
@@ -195,7 +196,7 @@ public class Min {
    */
   public static <T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.Globally<T, T> globally(ComparatorT comparator) {
-    return Combine.<T, T>globally(Min.<T, ComparatorT>of(comparator));
+    return Combine.globally(Min.of(comparator));
   }
 
   /**
@@ -207,18 +208,18 @@ public class Min {
    */
   public static <K, T, ComparatorT extends Comparator<? super T> & Serializable>
   Combine.PerKey<K, T, T> perKey(ComparatorT comparator) {
-    return Combine.<K, T, T>perKey(Min.<T, ComparatorT>of(comparator));
+    return Combine.perKey(Min.of(comparator));
   }
 
   /////////////////////////////////////////////////////////////////////////////
 
   private static class MinFn<T> extends BinaryCombineFn<T> {
 
-    private final T identity;
+    @Nullable private final T identity;
     private final Comparator<? super T> comparator;
 
     private <ComparatorT extends Comparator<? super T> & Serializable> MinFn(
-        T identity, ComparatorT comparator) {
+        @Nullable T identity, ComparatorT comparator) {
       this.identity = identity;
       this.comparator = comparator;
     }
@@ -236,8 +237,7 @@ public class Min {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("comparer", comparator.getClass())
-        .withLabel("Record Comparer"));
+      builder.add(DisplayData.item("comparer", comparator.getClass()).withLabel("Record Comparer"));
     }
   }
 

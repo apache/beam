@@ -26,6 +26,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
@@ -97,9 +98,9 @@ class TextSource extends FileBasedSource<String> {
     private volatile long startOfNextRecord;
     private volatile boolean eof;
     private volatile boolean elementIsPresent;
-    private String currentValue;
-    private ReadableByteChannel inChannel;
-    private byte[] delimiter;
+    private @Nullable String currentValue;
+    private @Nullable ReadableByteChannel inChannel;
+    private @Nullable byte[] delimiter;
 
     private TextBasedReader(TextSource source, byte[] delimiter) {
       super(source);
@@ -232,7 +233,7 @@ class TextSource extends FileBasedSource<String> {
 
       // If we have reached EOF file and consumed all of the buffer then we know
       // that there are no more records.
-      if (eof && buffer.size() == 0) {
+      if (eof && buffer.isEmpty()) {
         elementIsPresent = false;
         return false;
       }

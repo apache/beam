@@ -64,8 +64,7 @@ example, the above function can be decorated::
 See apache_beam.typehints.decorators module for more details.
 """
 
-import logging
-import warnings
+import six
 
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
@@ -87,7 +86,7 @@ class CoderRegistry(object):
     self._register_coder_internal(float, coders.FloatCoder)
     self._register_coder_internal(str, coders.BytesCoder)
     self._register_coder_internal(bytes, coders.BytesCoder)
-    self._register_coder_internal(unicode, coders.StrUtf8Coder)
+    self._register_coder_internal(six.text_type, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
@@ -124,14 +123,16 @@ class CoderRegistry(object):
         # In some old code, None is used for Any.
         # TODO(robertwb): Clean this up.
         pass
-      elif typehint is object:
+      elif typehint is object or typehint == typehints.Any:
         # We explicitly want the fallback coder.
         pass
       elif isinstance(typehint, typehints.TypeVariable):
         # TODO(robertwb): Clean this up when type inference is fully enabled.
         pass
       else:
-        warnings.warn('Using fallback coder for typehint: %r.' % typehint)
+        # TODO(robertwb): Re-enable this warning when it's actionable.
+        # warnings.warn('Using fallback coder for typehint: %r.' % typehint)
+        pass
       coder = self._fallback_coder
     return coder.from_type_hint(typehint, self)
 
@@ -148,15 +149,7 @@ class CoderRegistry(object):
                    'and for custom key classes, by writing a '
                    'deterministic custom Coder. Please see the '
                    'documentation for more details.' % (key_coder, op_name))
-      # TODO(vikasrk): PickleCoder will eventually be removed once its direct
-      # usage is stopped.
-      if isinstance(key_coder, (coders.PickleCoder,
-                                coders.FastPrimitivesCoder)):
-        if not silent:
-          logging.warning(error_msg)
-        return coders.DeterministicFastPrimitivesCoder(key_coder, op_name)
-      else:
-        raise ValueError(error_msg)
+      return key_coder.as_deterministic_coder(op_name, error_msg)
     else:
       return key_coder
 

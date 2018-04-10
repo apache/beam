@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.coders;
 
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -30,11 +32,18 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class VoidCoderTest {
-
   private static final Coder<Void> TEST_CODER = VoidCoder.of();
 
   @Test
   public void testEncodedTypeDescriptor() throws Exception {
     assertThat(TEST_CODER.getEncodedTypeDescriptor(), equalTo(TypeDescriptor.of(Void.class)));
+  }
+
+  @Test
+  public void testStructuralValueSharesSameObject() {
+    assertEquals(TEST_CODER.structuralValue(null), TEST_CODER.structuralValue(null));
+    // This is a minor performance optimization to not encode and compare empty byte
+    // arrays.
+    assertSame(TEST_CODER.structuralValue(null), TEST_CODER.structuralValue(null));
   }
 }

@@ -20,10 +20,12 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_UTESTS;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
+import static org.hamcrest.Matchers.lessThan;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
 import java.io.Serializable;
@@ -57,10 +59,10 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
   private ConnectionConfiguration connectionConfiguration;
 
-  private String[] fillAddresses(){
+  private String[] fillAddresses() {
     ArrayList<String> result = new ArrayList<>();
-    for (InetSocketAddress address : cluster().httpAddresses()){
-      result.add(String.format("http://%s:%d", address.getHostString(), address.getPort()));
+    for (InetSocketAddress address : cluster().httpAddresses()) {
+      result.add(String.format("http://%s:%s", address.getHostString(), address.getPort()));
     }
     return result.toArray(new String[result.size()]);
   }
@@ -68,6 +70,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
+    System.setProperty("es.set.netty.runtime.available.processors", "false");
     return Settings.builder().put(super.nodeSettings(nodeOrdinal))
         .put("http.enabled", "true")
         // had problems with some jdk, embedded ES was too slow for bulk insertion,
@@ -92,8 +95,8 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   }
 
   @Before
-  public void setup(){
-    if (connectionConfiguration == null){
+  public void setup() {
+    if (connectionConfiguration == null) {
       connectionConfiguration = ConnectionConfiguration.create(fillAddresses(), ES_INDEX, ES_TYPE);
       elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(connectionConfiguration,
           getRestClient(), false);
@@ -165,20 +168,23 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
    BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
        null);
-   int desiredBundleSizeBytes = 1000;
+   int desiredBundleSizeBytes = 2000;
     List<? extends BoundedSource<String>> splits =
         initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
    long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
    float expectedNumSourcesFloat = (float) indexSize / desiredBundleSizeBytes;
    int expectedNumSources = (int) Math.ceil(expectedNumSourcesFloat);
-   assertEquals(expectedNumSources, splits.size());
-    int nonEmptySplits = 0;
+   assertEquals("Wrong number of splits", expectedNumSources, splits.size());
+    int emptySplits = 0;
     for (BoundedSource<String> subSource : splits) {
-      if (readFromSource(subSource, options).size() > 0) {
-        nonEmptySplits += 1;
+      if (readFromSource(subSource, options).isEmpty()) {
+        emptySplits += 1;
       }
     }
-    assertEquals("Wrong number of non empty splits", expectedNumSources, nonEmptySplits);
+    assertThat(
+        "There are too many empty splits, parallelism is sub-optimal",
+        emptySplits,
+        lessThan((int) (ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE * splits.size())));
   }
 }

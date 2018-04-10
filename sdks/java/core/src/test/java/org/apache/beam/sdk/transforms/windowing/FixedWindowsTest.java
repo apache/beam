@@ -101,10 +101,22 @@ public class FixedWindowsTest {
                 return new Instant(100L);
               }
             }),
-        Matchers.<BoundedWindow>equalTo(
+        Matchers.equalTo(
             new IntervalWindow(
                 new Instant(0L), new Instant(0L).plus(Duration.standardMinutes(20L)))));
     assertThat(mapping.maximumLookback(), equalTo(Duration.ZERO));
+  }
+
+  /** Tests that the last hour of the universe in fact ends at the end of time. */
+  @Test
+  public void testEndOfTime() {
+    Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
+    FixedWindows windowFn = FixedWindows.of(Duration.standardHours(1));
+
+    IntervalWindow truncatedWindow =
+        windowFn.assignWindow(endOfGlobalWindow.minus(1));
+
+    assertThat(truncatedWindow.maxTimestamp(), equalTo(endOfGlobalWindow));
   }
 
   @Test

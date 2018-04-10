@@ -29,7 +29,6 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;

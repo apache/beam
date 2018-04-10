@@ -46,10 +46,10 @@ public class TransformExecutorServicesTest {
 
   @Test
   public void parallelScheduleMultipleSchedulesBothImmediately() {
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> second = mock(TransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        first = mock(DirectTransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        second = mock(DirectTransformExecutor.class);
 
     TransformExecutorService parallel =
         TransformExecutorServices.parallel(executorService);
@@ -65,8 +65,8 @@ public class TransformExecutorServicesTest {
 
   @Test
   public void parallelRejectedStillActiveThrows() {
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        first = mock(DirectTransformExecutor.class);
 
     TransformExecutorService parallel =
         TransformExecutorServices.parallel(executorService);
@@ -78,8 +78,8 @@ public class TransformExecutorServicesTest {
 
   @Test
   public void parallelRejectedShutdownSucceeds() {
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        first = mock(DirectTransformExecutor.class);
 
     TransformExecutorService parallel =
         TransformExecutorServices.parallel(executorService);
@@ -90,10 +90,10 @@ public class TransformExecutorServicesTest {
 
   @Test
   public void serialScheduleTwoWaitsForFirstToComplete() {
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> second = mock(TransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        first = mock(DirectTransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        second = mock(DirectTransformExecutor.class);
 
     TransformExecutorService serial = TransformExecutorServices.serial(executorService);
     serial.schedule(first);
@@ -110,10 +110,10 @@ public class TransformExecutorServicesTest {
 
   @Test
   public void serialCompleteNotExecutingTaskThrows() {
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> second = mock(TransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        first = mock(DirectTransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        second = mock(DirectTransformExecutor.class);
 
     TransformExecutorService serial = TransformExecutorServices.serial(executorService);
     serial.schedule(first);
@@ -129,10 +129,10 @@ public class TransformExecutorServicesTest {
    */
   @Test
   public void serialShutdownCompleteActive() {
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> first = mock(TransformExecutor.class);
-    @SuppressWarnings("unchecked")
-    TransformExecutor<Object> second = mock(TransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        first = mock(DirectTransformExecutor.class);
+    @SuppressWarnings("unchecked") DirectTransformExecutor<Object>
+        second = mock(DirectTransformExecutor.class);
 
     TransformExecutorService serial = TransformExecutorServices.serial(executorService);
     serial.schedule(first);

@@ -22,12 +22,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.TEST_STREAM_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nonnull;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.coders.Coder;
@@ -47,21 +49,74 @@ import org.joda.time.Instant;
  */
 public class TestStreamTranslation {
 
-  static <T> RunnerApi.TestStreamPayload testStreamToPayload(
-      TestStream<T> transform, SdkComponents components) throws IOException {
-    String coderId = components.registerCoder(transform.getValueCoder());
+  private interface TestStreamLike {
+    Coder<?> getValueCoder();
 
-    RunnerApi.TestStreamPayload.Builder builder =
-        RunnerApi.TestStreamPayload.newBuilder().setCoderId(coderId);
-
-    for (TestStream.Event<T> event : transform.getEvents()) {
-      builder.addEvents(toProto(event, transform.getValueCoder()));
-    }
-
-    return builder.build();
+    List<RunnerApi.TestStreamPayload.Event> getEvents();
   }
 
-  private static TestStream<?> fromProto(
+  @VisibleForTesting
+  static class RawTestStream<T> extends PTransformTranslation.RawPTransform<PBegin, PCollection<T>>
+      implements TestStreamLike {
+
+    private final transient RehydratedComponents rehydratedComponents;
+    private final RunnerApi.TestStreamPayload payload;
+    private final Coder<T> valueCoder;
+    private final RunnerApi.FunctionSpec spec;
+
+    public RawTestStream(
+        RunnerApi.TestStreamPayload payload, RehydratedComponents rehydratedComponents) {
+      this.payload = payload;
+      this.spec =
+          RunnerApi.FunctionSpec.newBuilder()
+              .setUrn(TEST_STREAM_TRANSFORM_URN)
+              .setPayload(payload.toByteString())
+              .build();
+      this.rehydratedComponents = rehydratedComponents;
+
+      // Eagerly extract the coder to throw a good exception here
+      try {
+        this.valueCoder = (Coder<T>) rehydratedComponents.getCoder(payload.getCoderId());
+      } catch (IOException exc) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Failure extracting coder with id '%s' for %s",
+                payload.getCoderId(), TestStream.class.getSimpleName()),
+            exc);
+      }
+    }
+
+    @Override
+    public String getUrn() {
+      return TEST_STREAM_TRANSFORM_URN;
+    }
+
+    @Nonnull
+    @Override
+    public RunnerApi.FunctionSpec getSpec() {
+      return spec;
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec migrate(SdkComponents components) throws IOException {
+      return RunnerApi.FunctionSpec.newBuilder()
+          .setUrn(TEST_STREAM_TRANSFORM_URN)
+          .setPayload(payloadForTestStreamLike(this, components).toByteString())
+          .build();
+    }
+
+    @Override
+    public Coder<T> getValueCoder() {
+      return valueCoder;
+    }
+
+    @Override
+    public List<RunnerApi.TestStreamPayload.Event> getEvents() {
+      return payload.getEventsList();
+    }
+  }
+
+  private static TestStream<?> testStreamFromProtoPayload(
       RunnerApi.TestStreamPayload testStreamPayload, RehydratedComponents components)
       throws IOException {
 
@@ -70,7 +125,7 @@ public class TestStreamTranslation {
     List<TestStream.Event<Object>> events = new ArrayList<>();
 
     for (RunnerApi.TestStreamPayload.Event event : testStreamPayload.getEventsList()) {
-      events.add(fromProto(event, coder));
+      events.add(eventFromProto(event, coder));
     }
     return TestStream.fromRawEvents(coder, events);
   }
@@ -98,12 +153,12 @@ public class TestStreamTranslation {
         RunnerApi.TestStreamPayload.parseFrom(transformProto.getSpec().getPayload());
 
     return (TestStream<T>)
-        fromProto(
+        testStreamFromProtoPayload(
             testStreamPayload, RehydratedComponents.forComponents(sdkComponents.toComponents()));
   }
 
-  static <T> RunnerApi.TestStreamPayload.Event toProto(TestStream.Event<T> event, Coder<T> coder)
-      throws IOException {
+  static <T> RunnerApi.TestStreamPayload.Event eventToProto(
+      TestStream.Event<T> event, Coder<T> coder) throws IOException {
     switch (event.getType()) {
       case WATERMARK:
         return RunnerApi.TestStreamPayload.Event.newBuilder()
@@ -143,7 +198,7 @@ public class TestStreamTranslation {
     }
   }
 
-  static <T> TestStream.Event<T> fromProto(
+  static <T> TestStream.Event<T> eventFromProto(
       RunnerApi.TestStreamPayload.Event protoEvent, Coder<T> coder) throws IOException {
     switch (protoEvent.getEventCase()) {
       case WATERMARK_EVENT:
@@ -172,6 +227,7 @@ public class TestStreamTranslation {
     }
   }
 
+  /** A translator registered to translate {@link TestStream} objects to protobuf representation. */
   static class TestStreamTranslator implements TransformPayloadTranslator<TestStream<?>> {
     @Override
     public String getUrn(TestStream<?> transform) {
@@ -180,22 +236,81 @@ public class TestStreamTranslation {
 
     @Override
     public RunnerApi.FunctionSpec translate(
-        AppliedPTransform<?, ?, TestStream<?>> transform, SdkComponents components)
+        final AppliedPTransform<?, ?, TestStream<?>> transform, SdkComponents components)
         throws IOException {
+      return translateTyped(transform.getTransform(), components);
+    }
+
+    @Override
+    public PTransformTranslation.RawPTransform<?, ?> rehydrate(
+        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
+        throws IOException {
+      checkArgument(
+          protoTransform.getSpec() != null,
+          "%s received transform with null spec",
+          getClass().getSimpleName());
+      checkArgument(protoTransform.getSpec().getUrn().equals(TEST_STREAM_TRANSFORM_URN));
+      return new RawTestStream<>(
+          RunnerApi.TestStreamPayload.parseFrom(protoTransform.getSpec().getPayload()),
+          rehydratedComponents);
+    }
+
+    private <T> RunnerApi.FunctionSpec translateTyped(
+        final TestStream<T> testStream, SdkComponents components) throws IOException {
       return RunnerApi.FunctionSpec.newBuilder()
-          .setUrn(getUrn(transform.getTransform()))
-          .setPayload(testStreamToPayload(transform.getTransform(), components).toByteString())
+          .setUrn(TEST_STREAM_TRANSFORM_URN)
+          .setPayload(payloadForTestStream(testStream, components).toByteString())
           .build();
+    }
+
+    /** Registers {@link TestStreamTranslator}. */
+    @AutoService(TransformPayloadTranslatorRegistrar.class)
+    public static class Registrar implements TransformPayloadTranslatorRegistrar {
+      @Override
+      public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+          getTransformPayloadTranslators() {
+        return Collections.singletonMap(TestStream.class, new TestStreamTranslator());
+      }
+
+      @Override
+      public Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators() {
+        return Collections.singletonMap(TEST_STREAM_TRANSFORM_URN, new TestStreamTranslator());
+      }
     }
   }
 
-  /** Registers {@link TestStreamTranslator}. */
-  @AutoService(TransformPayloadTranslatorRegistrar.class)
-  public static class Registrar implements TransformPayloadTranslatorRegistrar {
-    @Override
-    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
-        getTransformPayloadTranslators() {
-      return Collections.singletonMap(TestStream.class, new TestStreamTranslator());
-    }
+  /** Produces a {@link RunnerApi.TestStreamPayload} from a portable {@link RawTestStream}. */
+  static RunnerApi.TestStreamPayload payloadForTestStreamLike(
+      TestStreamLike transform, SdkComponents components) throws IOException {
+    return RunnerApi.TestStreamPayload.newBuilder()
+        .setCoderId(components.registerCoder(transform.getValueCoder()))
+        .addAllEvents(transform.getEvents())
+        .build();
+  }
+
+  @VisibleForTesting
+  static <T> RunnerApi.TestStreamPayload payloadForTestStream(
+      final TestStream<T> testStream, SdkComponents components) throws IOException {
+    return payloadForTestStreamLike(
+        new TestStreamLike() {
+          @Override
+          public Coder<T> getValueCoder() {
+            return testStream.getValueCoder();
+          }
+
+          @Override
+          public List<RunnerApi.TestStreamPayload.Event> getEvents() {
+            try {
+              List<RunnerApi.TestStreamPayload.Event> protoEvents = new ArrayList<>();
+              for (TestStream.Event<T> event : testStream.getEvents()) {
+                protoEvents.add(eventToProto(event, testStream.getValueCoder()));
+              }
+              return protoEvents;
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        },
+        components);
   }
 }

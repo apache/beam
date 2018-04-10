@@ -115,15 +115,13 @@ class DirectMetrics extends MetricResults {
       // 2. We submit a runnable that will commit the update and remove the tentative value in
       //    a synchronized block.
       inflightAttempted.put(bundle, finalCumulative);
-      COUNTER_COMMITTER.submit(new Runnable() {
-        @Override
-        public void run() {
-          synchronized (attemptedLock) {
-            finishedAttempted = aggregation.combine(asList(finishedAttempted, finalCumulative));
-            inflightAttempted.remove(bundle);
-          }
-        }
-      });
+      COUNTER_COMMITTER.submit(
+          () -> {
+            synchronized (attemptedLock) {
+              finishedAttempted = aggregation.combine(asList(finishedAttempted, finalCumulative));
+              inflightAttempted.remove(bundle);
+            }
+          });
     }
 
     /** Extract the latest values from all attempted and in-progress bundles. */
@@ -226,30 +224,12 @@ class DirectMetrics extends MetricResults {
 
   /** The current values of counters in memory. */
   private MetricsMap<MetricKey, DirectMetric<Long, Long>> counters =
-      new MetricsMap<>(new MetricsMap.Factory<MetricKey, DirectMetric<Long, Long>>() {
-        @Override
-        public DirectMetric<Long, Long> createInstance(MetricKey unusedKey) {
-          return new DirectMetric<>(COUNTER);
-        }
-      });
+      new MetricsMap<>(unusedKey -> new DirectMetric<>(COUNTER));
+
   private MetricsMap<MetricKey, DirectMetric<DistributionData, DistributionResult>> distributions =
-      new MetricsMap<>(
-          new MetricsMap.Factory<MetricKey, DirectMetric<DistributionData, DistributionResult>>() {
-        @Override
-        public DirectMetric<DistributionData, DistributionResult> createInstance(
-            MetricKey unusedKey) {
-          return new DirectMetric<>(DISTRIBUTION);
-        }
-      });
+      new MetricsMap<>(unusedKey -> new DirectMetric<>(DISTRIBUTION));
   private MetricsMap<MetricKey, DirectMetric<GaugeData, GaugeResult>> gauges =
-      new MetricsMap<>(
-          new MetricsMap.Factory<MetricKey, DirectMetric<GaugeData, GaugeResult>>() {
-            @Override
-            public DirectMetric<GaugeData, GaugeResult> createInstance(
-                MetricKey unusedKey) {
-              return new DirectMetric<>(GAUGE);
-            }
-          });
+      new MetricsMap<>(unusedKey -> new DirectMetric<>(GAUGE));
 
   @AutoValue
   abstract static class DirectMetricQueryResults implements MetricQueryResults {
@@ -265,15 +245,14 @@ class DirectMetrics extends MetricResults {
   abstract static class DirectMetricResult<T> implements MetricResult<T> {
     // need to define these here so they appear in the correct order
     // and the generated constructor is usable and consistent
-    public abstract MetricName name();
-    public abstract String step();
-    public abstract T committed();
-    public abstract T attempted();
+    public abstract MetricName getName();
+    public abstract String getStep();
+    public abstract T getCommitted();
+    public abstract T getAttempted();
 
     public static <T> MetricResult<T> create(MetricName name, String scope,
         T committed, T attempted) {
-      return new AutoValue_DirectMetrics_DirectMetricResult<T>(
-          name, scope, committed, attempted);
+      return new AutoValue_DirectMetrics_DirectMetricResult<>(name, scope, committed, attempted);
     }
   }
 

@@ -20,7 +20,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
@@ -49,9 +49,10 @@ public class BeamSqlCaseExpression extends BeamSqlExpression {
     return true;
   }
 
-  @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
+  @Override public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
     for (int i = 0; i < operands.size() - 1; i += 2) {
-      if (opValueEvaluated(i, inputRow, window)) {
+      Boolean wasOpEvaluated = opValueEvaluated(i, inputRow, window);
+      if (wasOpEvaluated != null && wasOpEvaluated) {
         return BeamSqlPrimitive.of(
             outputType,
             opValueEvaluated(i + 1, inputRow, window)

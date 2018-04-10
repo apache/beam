@@ -16,7 +16,7 @@
 #
 
 """Unit tests for the ValueProvider class."""
-
+import logging
 import unittest
 
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -148,3 +148,42 @@ class ValueProviderTests(unittest.TestCase):
     self.assertIsNone(options.vpt_vp_arg9.get())
     self.assertTrue(options.vpt_vp_arg10.is_accessible())
     self.assertEqual(options.vpt_vp_arg10.get(), 1.2)
+
+  def test_choices(self):
+    class UserDefinedOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_argument(
+            '--vpt_vp_arg11',
+            choices=['a', 'b'],
+            help='This flag is a value provider with concrete choices')
+        parser.add_argument(
+            '--vpt_vp_arg12',
+            choices=[1, 2],
+            type=int,
+            help='This flag is a value provider with concrete choices')
+    options = UserDefinedOptions(['--vpt_vp_arg11', 'a', '--vpt_vp_arg12', '2'])
+    self.assertEqual(options.vpt_vp_arg11, 'a')
+    self.assertEqual(options.vpt_vp_arg12, 2)
+
+  def test_static_value_provider_choices(self):
+    class UserDefinedOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            '--vpt_vp_arg13',
+            choices=['a', 'b'],
+            help='This flag is a value provider with concrete choices')
+        parser.add_value_provider_argument(
+            '--vpt_vp_arg14',
+            choices=[1, 2],
+            type=int,
+            help='This flag is a value provider with concrete choices')
+    options = UserDefinedOptions(['--vpt_vp_arg13', 'a', '--vpt_vp_arg14', '2'])
+    self.assertEqual(options.vpt_vp_arg13.get(), 'a')
+    self.assertEqual(options.vpt_vp_arg14.get(), 2)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

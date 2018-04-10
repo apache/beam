@@ -78,7 +78,7 @@ public interface DoFnInvoker<InputT, OutputT> {
       DoFn.OutputReceiver<RestrictionT> restrictionReceiver);
 
   /** Invoke the {@link DoFn.NewTracker} method on the bound {@link DoFn}. */
-  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>> TrackerT invokeNewTracker(
+  <RestrictionT, TrackerT extends RestrictionTracker<RestrictionT, ?>> TrackerT invokeNewTracker(
       RestrictionT restriction);
 
   /** Get the bound {@link DoFn}. */
@@ -124,7 +124,7 @@ public interface DoFnInvoker<InputT, OutputT> {
      * If this is a splittable {@link DoFn}, returns the {@link RestrictionTracker} associated with
      * the current {@link ProcessElement} call.
      */
-    RestrictionTracker<?> restrictionTracker();
+    RestrictionTracker<?, ?> restrictionTracker();
 
     /** Returns the state cell for the given {@link StateId}. */
     State state(String stateId);
@@ -133,51 +133,81 @@ public interface DoFnInvoker<InputT, OutputT> {
     Timer timer(String timerId);
   }
 
-  /** For testing only, this {@link ArgumentProvider} returns {@code null} for all parameters. */
+  /**
+   * For testing only, this {@link ArgumentProvider} throws {@link UnsupportedOperationException}
+   * for all parameters.
+   */
   class FakeArgumentProvider<InputT, OutputT> implements ArgumentProvider<InputT, OutputT> {
     @Override
     public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public BoundedWindow window() {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public PipelineOptions pipelineOptions() {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
         DoFn<InputT, OutputT> doFn) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public State state(String stateId) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
     @Override
     public Timer timer(String timerId) {
-      return null;
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
 
-    public RestrictionTracker<?> restrictionTracker() {
-      return null;
+    public RestrictionTracker<?, ?> restrictionTracker() {
+      throw new UnsupportedOperationException(
+          String.format(
+              "Should never call non-overridden methods of %s",
+              FakeArgumentProvider.class.getSimpleName()));
     }
   }
 }

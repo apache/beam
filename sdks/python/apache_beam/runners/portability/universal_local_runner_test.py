@@ -14,8 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import print_function
 
 import logging
+import platform
+import signal
+import sys
+import threading
+import traceback
 import unittest
 
 import apache_beam as beam
@@ -27,8 +33,30 @@ from apache_beam.testing.util import equal_to
 
 class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
+  TIMEOUT_SECS = 30
+
   _use_grpc = False
   _use_subprocesses = False
+
+  def setUp(self):
+    if platform.system() != 'Windows':
+      def handler(signum, frame):
+        msg = 'Timed out after %s seconds.' % self.TIMEOUT_SECS
+        print('=' * 20, msg, '=' * 20)
+        traceback.print_stack(frame)
+        threads_by_id = {th.ident: th for th in threading.enumerate()}
+        for thread_id, stack in sys._current_frames().items():
+          th = threads_by_id.get(thread_id)
+          print()
+          print('# Thread:', th or thread_id)
+          traceback.print_stack(stack)
+        raise BaseException(msg)
+      signal.signal(signal.SIGALRM, handler)
+      signal.alarm(self.TIMEOUT_SECS)
+
+  def tearDown(self):
+    if platform.system() != 'Windows':
+      signal.alarm(0)
 
   @classmethod
   def get_runner(cls):
@@ -41,7 +69,8 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
   @classmethod
   def tearDownClass(cls):
-    cls._runner.cleanup()
+    if hasattr(cls, '_runner'):
+      cls._runner.cleanup()
 
   def create_pipeline(self):
     return beam.Pipeline(self.get_runner())
@@ -56,7 +85,7 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
   def test_errors(self):
     # TODO: figure out a way for runner to parse and raise the
     # underlying exception.
-    with self.assertRaises(BaseException):
+    with self.assertRaises(Exception):
       with self.create_pipeline() as p:
         def raise_error(x):
           raise RuntimeError('x')
@@ -75,6 +104,7 @@ class UniversalLocalRunnerTestWithGrpc(UniversalLocalRunnerTest):
   _use_grpc = True
 
 
+@unittest.skip("BEAM-3040")
 class UniversalLocalRunnerTestWithSubprocesses(UniversalLocalRunnerTest):
   _use_grpc = True
   _use_subprocesses = True

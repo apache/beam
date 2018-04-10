@@ -20,10 +20,13 @@ package org.apache.beam.sdk.coders;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSetMultimap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -101,6 +104,8 @@ public class CoderRegistry {
           CoderProviders.fromStaticMethods(Byte.class, ByteCoder.class));
       builder.put(BitSet.class,
           CoderProviders.fromStaticMethods(BitSet.class, BitSetCoder.class));
+      builder.put(FloatCoder.class,
+          CoderProviders.fromStaticMethods(Float.class, FloatCoder.class));
       builder.put(Double.class,
           CoderProviders.fromStaticMethods(Double.class, DoubleCoder.class));
       builder.put(Instant.class,
@@ -246,7 +251,7 @@ public class CoderRegistry {
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
    */
   public <T> Coder<T> getCoder(TypeDescriptor<T> type) throws CannotProvideCoderException {
-    return getCoderFromTypeDescriptor(type, Collections.<Type, Coder<?>>emptyMap());
+    return getCoderFromTypeDescriptor(type, HashMultimap.create());
   }
 
   /**
@@ -433,7 +438,7 @@ public class CoderRegistry {
               baseClass.getCanonicalName(), typeArgs.length, knownCoders.length));
     }
 
-    Map<Type, Coder<?>> context = new HashMap<>();
+    SetMultimap<Type, Coder<?>> context = HashMultimap.create();
     for (int i = 0; i < knownCoders.length; i++) {
       if (knownCoders[i] != null) {
         try {
@@ -561,8 +566,9 @@ public class CoderRegistry {
       }
       for (int i = 0; i < typeArgumentCoders.size(); i++) {
         try {
+          Coder<?> typeArgumentCoder = typeArgumentCoders.get(i);
           verifyCompatible(
-              typeArgumentCoders.get(i),
+              typeArgumentCoder,
               candidateDescriptor.resolveType(typeArguments[i]).getType());
         } catch (IncompatibleCoderException exn) {
           throw new IncompatibleCoderException(
@@ -576,7 +582,7 @@ public class CoderRegistry {
   }
 
   private static boolean isNullOrEmpty(Collection<?> c) {
-    return c == null || c.size() == 0;
+    return c == null || c.isEmpty();
   }
 
   /**
@@ -591,18 +597,29 @@ public class CoderRegistry {
    * @throws CannotProvideCoderException if a coder cannot be provided
    */
   private <T> Coder<T> getCoderFromTypeDescriptor(
-      TypeDescriptor<T> typeDescriptor, Map<Type, Coder<?>> typeCoderBindings)
+      TypeDescriptor<T> typeDescriptor, SetMultimap<Type, Coder<?>> typeCoderBindings)
       throws CannotProvideCoderException {
     Type type = typeDescriptor.getType();
     Coder<?> coder;
     if (typeCoderBindings.containsKey(type)) {
-      coder = typeCoderBindings.get(type);
+      Set<Coder<?>> coders = typeCoderBindings.get(type);
+      if (coders.size() == 1) {
+        coder = Iterables.getOnlyElement(coders);
+      } else {
+        throw new CannotProvideCoderException(
+            String.format("Cannot provide a coder for type variable %s"
+                    + " because the actual type is over specified by multiple"
+                    + " incompatible coders %s.",
+                type,
+                coders),
+            ReasonCode.OVER_SPECIFIED);
+      }
     } else if (type instanceof Class<?>) {
-      coder = getCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
+      coder = getCoderFromFactories(typeDescriptor, Collections.emptyList());
     } else if (type instanceof ParameterizedType) {
       coder = getCoderFromParameterizedType((ParameterizedType) type, typeCoderBindings);
     } else if (type instanceof TypeVariable) {
-      coder = getCoderFromFactories(typeDescriptor, Collections.<Coder<?>>emptyList());
+      coder = getCoderFromFactories(typeDescriptor, Collections.emptyList());
     } else if (type instanceof WildcardType) {
       // No coder for an unknown generic type.
       throw new CannotProvideCoderException(
@@ -631,7 +648,7 @@ public class CoderRegistry {
    */
   private Coder<?> getCoderFromParameterizedType(
       ParameterizedType type,
-      Map<Type, Coder<?>> typeCoderBindings)
+      SetMultimap<Type, Coder<?>> typeCoderBindings)
           throws CannotProvideCoderException {
 
     List<Coder<?>> typeArgumentCoders = new ArrayList<>();
@@ -682,37 +699,38 @@ public class CoderRegistry {
   }
 
   /**
-   * Returns an immutable {@code Map} from each of the type variables
+   * Returns an immutable {@code SetMultimap} from each of the type variables
    * embedded in the given type to the corresponding types
    * in the given {@link Coder}.
    */
-  private Map<Type, Coder<?>> getTypeToCoderBindings(Type type, Coder<?> coder) {
+  private SetMultimap<Type, Coder<?>> getTypeToCoderBindings(Type type, Coder<?> coder) {
     checkArgument(type != null);
     checkArgument(coder != null);
     if (type instanceof TypeVariable || type instanceof Class) {
-      return ImmutableMap.<Type, Coder<?>>of(type, coder);
+      return ImmutableSetMultimap.of(type, coder);
     } else if (type instanceof ParameterizedType) {
       return getTypeToCoderBindings((ParameterizedType) type, coder);
     } else {
-      return ImmutableMap.of();
+      return ImmutableSetMultimap.of();
     }
   }
 
   /**
-   * Returns an immutable {@code Map} from the type arguments of the parameterized type to their
-   * corresponding {@link Coder Coders}, and so on recursively for their type parameters.
+   * Returns an immutable {@code SetMultimap} from the type arguments of the parameterized type to
+   * their corresponding {@link Coder Coders}, and so on recursively for their type parameters.
    *
    * <p>This method is simply a specialization to break out the most
    * elaborate case of {@link #getTypeToCoderBindings(Type, Coder)}.
    */
-  private Map<Type, Coder<?>> getTypeToCoderBindings(ParameterizedType type, Coder<?> coder) {
+  private SetMultimap<Type, Coder<?>> getTypeToCoderBindings(
+      ParameterizedType type, Coder<?> coder) {
     List<Type> typeArguments = Arrays.asList(type.getActualTypeArguments());
     List<? extends Coder<?>> coderArguments = coder.getCoderArguments();
 
     if ((coderArguments == null) || (typeArguments.size() != coderArguments.size())) {
-      return ImmutableMap.of();
+      return ImmutableSetMultimap.of();
     } else {
-      Map<Type, Coder<?>> typeToCoder = Maps.newHashMap();
+      SetMultimap<Type, Coder<?>> typeToCoder = HashMultimap.create();
 
       typeToCoder.put(type, coder);
 
@@ -724,7 +742,7 @@ public class CoderRegistry {
         }
       }
 
-      return ImmutableMap.<Type, Coder<?>>builder().putAll(typeToCoder).build();
+      return ImmutableSetMultimap.<Type, Coder<?>>builder().putAll(typeToCoder).build();
     }
 
   }

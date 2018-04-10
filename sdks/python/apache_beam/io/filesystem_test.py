@@ -19,6 +19,7 @@
 """Unit tests for filesystem module."""
 import bz2
 import gzip
+import logging
 import os
 import tempfile
 import unittest
@@ -212,3 +213,8 @@ atomized in instants hammered around the
         self.assertEqual(current_offset, readable.tell())
         if not line:
           break
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

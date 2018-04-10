@@ -17,13 +17,31 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.Matchers.hasItem;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CrashingRunner;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.POutput;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -38,5 +56,54 @@ public class PipelineRunnerTest {
     options.setRunner(CrashingRunner.class);
     PipelineRunner<?> runner = PipelineRunner.fromOptions(options);
     assertTrue(runner instanceof CrashingRunner);
+  }
+
+  private static class ScaleFn<T extends Number>
+      extends SimpleFunction<T, Double> {
+
+    private final double scalar;
+    private final Counter counter;
+
+    public ScaleFn(double scalar, Counter counter) {
+      this.scalar = scalar;
+      this.counter = counter;
+    }
+
+    @Override
+    public Double apply(T input) {
+      counter.inc();
+      return scalar * input.doubleValue();
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testRunPTransform() {
+    final String namespace = PipelineRunnerTest.class.getName();
+    final Counter counter = Metrics.counter(namespace, "count");
+    final PipelineResult result =
+        PipelineRunner.create()
+            .run(
+                new PTransform<PBegin, POutput>() {
+                  @Override
+                  public POutput expand(PBegin input) {
+                    PCollection<Double> output =
+                        input
+                            .apply(Create.of(1, 2, 3, 4))
+                            .apply("ScaleByTwo", MapElements.via(new ScaleFn<>(2.0, counter)));
+                    PAssert.that(output).containsInAnyOrder(2.0, 4.0, 6.0, 8.0);
+                    return output;
+                  }
+                });
+
+    // Checking counters to verify the pipeline actually ran.
+    assertThat(
+        result.metrics().queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(MetricNameFilter.inNamespace(namespace))
+                .build()
+        ).getCounters(),
+        hasItem(metricsResult(namespace, "count", "ScaleByTwo", 4L, true))
+    );
   }
 }

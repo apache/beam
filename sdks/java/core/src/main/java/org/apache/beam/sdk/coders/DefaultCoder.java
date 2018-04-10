@@ -26,6 +26,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import javax.annotation.CheckForNull;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.slf4j.Logger;
@@ -49,6 +50,7 @@ import org.slf4j.LoggerFactory;
 @Target(ElementType.TYPE)
 @SuppressWarnings("rawtypes")
 public @interface DefaultCoder {
+  @CheckForNull
   Class<? extends Coder> value();
 
   /**
@@ -60,7 +62,7 @@ public @interface DefaultCoder {
 
     @Override
     public List<CoderProvider> getCoderProviders() {
-      return ImmutableList.<CoderProvider>of(new DefaultCoderProvider());
+      return ImmutableList.of(new DefaultCoderProvider());
     }
 
     /**
@@ -86,22 +88,23 @@ public @interface DefaultCoder {
                   clazz.getName()));
         }
 
-        if (defaultAnnotation.value() == null) {
+        Class<? extends Coder> defaultAnnotationValue = defaultAnnotation.value();
+        if (defaultAnnotationValue == null) {
           throw new CannotProvideCoderException(
-              String.format("Class %s has a @DefaultCoder annotation with a null value.",
-                  clazz.getName()));
+              String.format(
+                  "Class %s has a @DefaultCoder annotation with a null value.", clazz.getName()));
         }
 
         LOG.debug("DefaultCoder annotation found for {} with value {}",
-            clazz, defaultAnnotation.value());
+            clazz, defaultAnnotationValue);
 
         Method coderProviderMethod;
         try {
-          coderProviderMethod = defaultAnnotation.value().getMethod("getCoderProvider");
+          coderProviderMethod = defaultAnnotationValue.getMethod("getCoderProvider");
         } catch (NoSuchMethodException e) {
           throw new CannotProvideCoderException(String.format(
               "Unable to find 'public static CoderProvider getCoderProvider()' on %s",
-              defaultAnnotation.value()),
+              defaultAnnotationValue),
               e);
         }
 
@@ -115,7 +118,7 @@ public @interface DefaultCoder {
             | ExceptionInInitializerError e) {
           throw new CannotProvideCoderException(String.format(
               "Unable to invoke 'public static CoderProvider getCoderProvider()' on %s",
-              defaultAnnotation.value()),
+              defaultAnnotationValue),
               e);
         }
         return coderProvider.coderFor(typeDescriptor, componentCoders);

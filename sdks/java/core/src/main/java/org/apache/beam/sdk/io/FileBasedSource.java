@@ -124,7 +124,7 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     this.fileOrPatternSpec = StaticValueProvider.of(fileMetadata.resourceId().toString());
 
     // This field will be unused in this mode.
-    this.emptyMatchTreatment = null;
+    this.emptyMatchTreatment = EmptyMatchTreatment.DISALLOW;
   }
 
   /**
@@ -425,6 +425,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
    * methods defined here will not be accessed by more than one thread concurrently.
    */
   public abstract static class FileBasedReader<T> extends OffsetBasedReader<T> {
+
+    // Initialized in startImpl
+    @Nullable
     private ReadableByteChannel channel = null;
 
     /**
@@ -532,7 +535,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     private final FileBasedSource<T> source;
     private final List<FileBasedReader<T>> fileReaders;
     final ListIterator<FileBasedReader<T>> fileReadersIterator;
-    FileBasedReader<T> currentReader = null;
+
+    // Initialized in start
+    @Nullable FileBasedReader<T> currentReader = null;
 
     public FilePatternReader(FileBasedSource<T> source, List<FileBasedReader<T>> fileReaders) {
       this.source = source;

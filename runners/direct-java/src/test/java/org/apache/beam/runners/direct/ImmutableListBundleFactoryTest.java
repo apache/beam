@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -67,7 +68,7 @@ public class ImmutableListBundleFactoryTest {
   @Before
   public void setup() {
     created = p.apply(Create.of(1, 2, 3));
-    downstream = created.apply(WithKeys.<String, Integer>of("foo"));
+    downstream = created.apply(WithKeys.of("foo"));
   }
 
   private <T> void createKeyedBundle(Coder<T> coder, T key) throws Exception {
@@ -77,7 +78,7 @@ public class ImmutableListBundleFactoryTest {
     UncommittedBundle<Integer> inFlightBundle = bundleFactory.createKeyedBundle(skey, pcollection);
 
     CommittedBundle<Integer> bundle = inFlightBundle.commit(Instant.now());
-    assertThat(bundle.getKey(), Matchers.<StructuralKey<?>>equalTo(skey));
+    assertThat(bundle.getKey(), Matchers.equalTo(skey));
   }
 
   @Test
@@ -113,14 +114,14 @@ public class ImmutableListBundleFactoryTest {
       }
     }
     Matcher<Iterable<? extends WindowedValue<T>>> containsMatcher =
-        Matchers.<WindowedValue<T>>containsInAnyOrder(expectations);
+        Matchers.containsInAnyOrder(expectations);
     Instant commitTime = Instant.now();
     CommittedBundle<T> committed = bundle.commit(commitTime);
     assertThat(committed.getElements(), containsMatcher);
 
     // Sanity check that the test is meaningful.
     assertThat(minElementTs, not(equalTo(commitTime)));
-    assertThat(committed.getMinTimestamp(), equalTo(minElementTs));
+    assertThat(committed.getMinimumTimestamp(), equalTo(minElementTs));
     assertThat(committed.getSynchronizedProcessingOutputWatermark(), equalTo(commitTime));
 
     return committed;
@@ -185,12 +186,12 @@ public class ImmutableListBundleFactoryTest {
 
     assertThat(withed.getElements(), containsInAnyOrder(firstReplacement, secondReplacement));
     assertThat(committed.getElements(), containsInAnyOrder(firstValue, secondValue));
-    assertThat(withed.getKey(), Matchers.<StructuralKey<?>>equalTo(committed.getKey()));
+    assertThat(withed.getKey(), Matchers.equalTo(committed.getKey()));
     assertThat(withed.getPCollection(), equalTo(committed.getPCollection()));
     assertThat(
         withed.getSynchronizedProcessingOutputWatermark(),
         equalTo(committed.getSynchronizedProcessingOutputWatermark()));
-    assertThat(withed.getMinTimestamp(), equalTo(new Instant(2048L)));
+    assertThat(withed.getMinimumTimestamp(), equalTo(new Instant(2048L)));
   }
 
   @Test
@@ -225,6 +226,6 @@ public class ImmutableListBundleFactoryTest {
     CommittedBundle<KV<String, Integer>> keyedBundle = bundleFactory.createKeyedBundle(
         StructuralKey.of("foo", StringUtf8Coder.of()),
         downstream).commit(Instant.now());
-    assertThat(keyedBundle.getKey().getKey(), Matchers.<Object>equalTo("foo"));
+    assertThat(keyedBundle.getKey().getKey(), Matchers.equalTo("foo"));
   }
 }

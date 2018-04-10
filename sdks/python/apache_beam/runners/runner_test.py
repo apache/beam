@@ -32,6 +32,7 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
@@ -68,7 +69,6 @@ class RunnerTest(unittest.TestCase):
         isinstance(create_runner('Direct'), DirectRunner))
 
   def test_direct_runner_metrics(self):
-    from apache_beam.metrics.metric import Metrics
 
     class MyDoFn(beam.DoFn):
       def start_bundle(self):
@@ -80,6 +80,8 @@ class RunnerTest(unittest.TestCase):
         count.inc()
 
       def process(self, element):
+        gauge = Metrics.gauge(self.__class__, 'latest_element')
+        gauge.set(element)
         count = Metrics.counter(self.__class__, 'elements')
         count.inc()
         distro = Metrics.distribution(self.__class__, 'element_dist')
@@ -110,6 +112,7 @@ class RunnerTest(unittest.TestCase):
             MetricResult(
                 MetricKey('Do', MetricName(namespace, 'finished_bundles')),
                 1, 1)))
+
     hc.assert_that(
         metrics['distributions'],
         hc.contains_inanyorder(
@@ -117,6 +120,37 @@ class RunnerTest(unittest.TestCase):
                 MetricKey('Do', MetricName(namespace, 'element_dist')),
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
+
+    gauge_result = metrics['gauges'][0]
+    hc.assert_that(
+        gauge_result.key,
+        hc.equal_to(MetricKey('Do', MetricName(namespace, 'latest_element'))))
+    hc.assert_that(gauge_result.committed.value, hc.equal_to(5))
+    hc.assert_that(gauge_result.attempted.value, hc.equal_to(5))
+
+  def test_run_api(self):
+    my_metric = Metrics.counter('namespace', 'my_metric')
+    runner = DirectRunner()
+    result = runner.run(
+        beam.Create([1, 10, 100]) | beam.Map(lambda x: my_metric.inc(x)))
+    result.wait_until_finish()
+    # Use counters to assert the pipeline actually ran.
+    my_metric_value = result.metrics().query()['counters'][0].committed
+    self.assertEqual(my_metric_value, 111)
+
+  def test_run_api_with_callable(self):
+    my_metric = Metrics.counter('namespace', 'my_metric')
+
+    def fn(start):
+      return (start
+              | beam.Create([1, 10, 100])
+              | beam.Map(lambda x: my_metric.inc(x)))
+    runner = DirectRunner()
+    result = runner.run(fn)
+    result.wait_until_finish()
+    # Use counters to assert the pipeline actually ran.
+    my_metric_value = result.metrics().query()['counters'][0].committed
+    self.assertEqual(my_metric_value, 111)
 
 
 if __name__ == '__main__':

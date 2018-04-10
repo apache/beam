@@ -15,59 +15,19 @@
 # limitations under the License.
 #
 
-"""iobase.RangeTracker implementations provided with Dataflow SDK.
+"""iobase.RangeTracker implementations provided with Apache Beam.
 """
 
 import logging
 import math
 import threading
 
+from six import integer_types
+
 from apache_beam.io import iobase
 
 __all__ = ['OffsetRangeTracker', 'LexicographicKeyRangeTracker',
            'OrderedPositionRangeTracker', 'UnsplittableRangeTracker']
-
-
-class OffsetRange(object):
-
-  def __init__(self, start, stop):
-    if start >= stop:
-      raise ValueError(
-          'Start offset must be smaller than the stop offset. '
-          'Received %d and %d respectively.', start, stop)
-    self.start = start
-    self.stop = stop
-
-  def __eq__(self, other):
-    if not isinstance(other, OffsetRange):
-      return False
-
-    return self.start == other.start and self.stop == other.stop
-
-  def __ne__(self, other):
-    if not isinstance(other, OffsetRange):
-      return True
-
-    return not (self.start == other.start and self.stop == other.stop)
-
-  def split(self, desired_num_offsets_per_split, min_num_offsets_per_split=1):
-    current_split_start = self.start
-    max_split_size = max(desired_num_offsets_per_split,
-                         min_num_offsets_per_split)
-    while current_split_start < self.stop:
-      current_split_stop = min(current_split_start + max_split_size, self.stop)
-      remaining = self.stop - current_split_stop
-
-      # Avoiding a small split at the end.
-      if (remaining < desired_num_offsets_per_split / 4 or
-          remaining < min_num_offsets_per_split):
-        current_split_stop = self.stop
-
-      yield OffsetRange(current_split_start, current_split_stop)
-      current_split_start = current_split_stop
-
-  def new_tracker(self):
-    return OffsetRangeTracker(self.start, self.stop)
 
 
 class OffsetRangeTracker(iobase.RangeTracker):
@@ -87,9 +47,9 @@ class OffsetRangeTracker(iobase.RangeTracker):
       raise ValueError('Start offset must not be \'None\'')
     if end is None:
       raise ValueError('End offset must not be \'None\'')
-    assert isinstance(start, (int, long))
+    assert isinstance(start, integer_types)
     if end != self.OFFSET_INFINITY:
-      assert isinstance(end, (int, long))
+      assert isinstance(end, integer_types)
 
     assert start <= end
 
@@ -163,7 +123,7 @@ class OffsetRangeTracker(iobase.RangeTracker):
       self._last_record_start = record_start
 
   def try_split(self, split_offset):
-    assert isinstance(split_offset, (int, long))
+    assert isinstance(split_offset, integer_types)
     with self._lock:
       if self._stop_offset == OffsetRangeTracker.OFFSET_INFINITY:
         logging.debug('refusing to split %r at %d: stop position unspecified',

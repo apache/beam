@@ -24,12 +24,12 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -989,7 +989,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return current.recordId.getBytes(Charsets.UTF_8);
+      return current.recordId.getBytes(StandardCharsets.UTF_8);
     }
 
     /**

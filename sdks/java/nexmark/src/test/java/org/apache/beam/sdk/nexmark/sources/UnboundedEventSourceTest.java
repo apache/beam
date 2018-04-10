@@ -29,6 +29,9 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Event;
+import org.apache.beam.sdk.nexmark.sources.generator.Generator;
+import org.apache.beam.sdk.nexmark.sources.generator.GeneratorCheckpoint;
+import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.junit.Test;
@@ -97,7 +100,7 @@ public class UnboundedEventSourceTest {
       n -= m;
       System.out.printf("splitting with %d remaining...%n", n);
       CheckpointMark checkpointMark = reader.getCheckpointMark();
-      reader = source.createReader(options, (Generator.Checkpoint) checkpointMark);
+      reader = source.createReader(options, (GeneratorCheckpoint) checkpointMark);
     }
 
     assertFalse(reader.advance());

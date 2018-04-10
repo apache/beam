@@ -16,6 +16,7 @@
 #
 
 """Tests common to all coder implementations."""
+from __future__ import absolute_import
 
 import logging
 import math
@@ -23,7 +24,6 @@ import unittest
 
 import dill
 
-import observable
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
 from apache_beam.runners import pipeline_context
@@ -32,6 +32,8 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+
+from . import observable
 
 
 # Defined out of line for picklability.
@@ -119,7 +121,7 @@ class CodersTest(unittest.TestCase):
                      (1, dict()), ('a', [dict()]))
 
   def test_dill_coder(self):
-    cell_value = (lambda x: lambda: x)(0).func_closure[0]
+    cell_value = (lambda x: lambda: x)(0).__closure__[0]
     self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
     self.check_coder(
         coders.TupleCoder((coders.VarIntCoder(), coders.DillCoder())),
@@ -272,6 +274,38 @@ class CodersTest(unittest.TestCase):
     self.assertItemsEqual(list(iter_generator(count)),
                           iterable_coder.decode(
                               iterable_coder.encode(iter_generator(count))))
+
+  def test_windowedvalue_coder_paneinfo(self):
+    coder = coders.WindowedValueCoder(coders.VarIntCoder(),
+                                      coders.GlobalWindowCoder())
+    test_paneinfo_values = [
+        windowed_value.PANE_INFO_UNKNOWN,
+        windowed_value.PaneInfo(
+            True, True, windowed_value.PaneInfoTiming.EARLY, 0, -1),
+        windowed_value.PaneInfo(
+            True, False, windowed_value.PaneInfoTiming.ON_TIME, 0, 0),
+        windowed_value.PaneInfo(
+            True, False, windowed_value.PaneInfoTiming.ON_TIME, 10, 0),
+        windowed_value.PaneInfo(
+            False, True, windowed_value.PaneInfoTiming.ON_TIME, 0, 23),
+        windowed_value.PaneInfo(
+            False, True, windowed_value.PaneInfoTiming.ON_TIME, 12, 23),
+        windowed_value.PaneInfo(
+            False, False, windowed_value.PaneInfoTiming.LATE, 0, 123),]
+
+    test_values = [windowed_value.WindowedValue(123, 234, (GlobalWindow(),), p)
+                   for p in test_paneinfo_values]
+
+    # Test unnested.
+    self.check_coder(coder, windowed_value.WindowedValue(
+        123, 234, (GlobalWindow(),), windowed_value.PANE_INFO_UNKNOWN))
+    for value in test_values:
+      self.check_coder(coder, value)
+
+    # Test nested.
+    for value1 in test_values:
+      for value2 in test_values:
+        self.check_coder(coders.TupleCoder((coder, coder)), (value1, value2))
 
   def test_windowed_value_coder(self):
     coder = coders.WindowedValueCoder(coders.VarIntCoder(),

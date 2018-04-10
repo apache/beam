@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NOOP_CHECKPOINT_MARK;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -238,7 +239,7 @@ public class UnboundedSocketSource<CheckpointMarkT extends UnboundedSource.Check
 
     @Override
     public CheckpointMark getCheckpointMark() {
-      return null;
+      return NOOP_CHECKPOINT_MARK;
     }
 
     @Override

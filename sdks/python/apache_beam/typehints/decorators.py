@@ -117,7 +117,7 @@ def getargspec(func):
   try:
     return _original_getargspec(func)
   except TypeError:
-    if isinstance(func, (type, types.ClassType)):
+    if isinstance(func, type):
       argspec = getargspec(func.__init__)
       del argspec.args[0]
       return argspec
@@ -261,7 +261,7 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
   packed_typeargs += list(typeargs[len(packed_typeargs):])
   try:
     callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)
-  except TypeError, e:
+  except TypeError as e:
     raise TypeCheckError(e)
   if argspec.defaults:
     # Declare any default arguments to be Any.
@@ -567,10 +567,12 @@ class GeneratorWrapper(object):
       return self.__iter__()
     return getattr(self.internal_gen, attr)
 
-  def next(self):
+  def __next__(self):
     next_val = next(self.internal_gen)
     self.interleave_func(next_val)
     return next_val
+
+  next = __next__
 
   def __iter__(self):
     while True:

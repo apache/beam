@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collections;
@@ -24,8 +25,10 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.sdk.transforms.Materializations;
+import org.apache.beam.sdk.transforms.Materializations.MultimapView;
+import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -35,6 +38,8 @@ import org.apache.flink.api.common.functions.RuntimeContext;
  * A {@link SideInputReader} for the Flink Batch Runner.
  */
 public class FlinkSideInputReader implements SideInputReader {
+  /** A {@link MultimapView} which always returns an empty iterable. */
+  private static final MultimapView EMPTY_MULTMAP_VIEW = o -> Collections.EMPTY_LIST;
 
   private final Map<TupleTag<?>, WindowingStrategy<?, ?>> sideInputs;
 
@@ -42,6 +47,16 @@ public class FlinkSideInputReader implements SideInputReader {
 
   public FlinkSideInputReader(Map<PCollectionView<?>, WindowingStrategy<?, ?>> indexByView,
                               RuntimeContext runtimeContext) {
+    for (PCollectionView<?> view : indexByView.keySet()) {
+      checkArgument(
+          Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+              view.getViewFn().getMaterialization().getUrn()),
+          "This handler is only capable of dealing with %s materializations "
+              + "but was asked to handle %s for PCollectionView with tag %s.",
+          Materializations.MULTIMAP_MATERIALIZATION_URN,
+          view.getViewFn().getMaterialization().getUrn(),
+          view.getTagInternal().getId());
+    }
     sideInputs = new HashMap<>();
     for (Map.Entry<PCollectionView<?>, WindowingStrategy<?, ?>> entry : indexByView.entrySet()) {
       sideInputs.put(entry.getKey().getTagInternal(), entry.getValue());
@@ -53,7 +68,7 @@ public class FlinkSideInputReader implements SideInputReader {
   @Override
   public <T> T get(PCollectionView<T> view, BoundedWindow window) {
     checkNotNull(view, "View passed to sideInput cannot be null");
-    TupleTag<Iterable<WindowedValue<?>>> tag = view.getTagInternal();
+    TupleTag<?> tag = view.getTagInternal();
     checkNotNull(
         sideInputs.get(tag),
         "Side input for " + view + " not available.");
@@ -63,7 +78,8 @@ public class FlinkSideInputReader implements SideInputReader {
             tag.getId(), new SideInputInitializer<>(view));
     T result = sideInputs.get(window);
     if (result == null) {
-      result = view.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
+      ViewFn<MultimapView, T> viewFn = (ViewFn<MultimapView, T>) view.getViewFn();
+      result = viewFn.apply(EMPTY_MULTMAP_VIEW);
     }
     return result;
   }

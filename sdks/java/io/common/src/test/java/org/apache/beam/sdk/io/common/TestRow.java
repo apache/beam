@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.common;
 
+import static org.apache.beam.sdk.io.common.IOITHelper.getHashForRecordCount;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
@@ -63,7 +65,7 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
    * rangeStart (inclusive) and rangeEnd (exclusive).
    */
   public static Iterable<TestRow> getExpectedValues(int rangeStart, int rangeEnd) {
-    List<TestRow> ret = new ArrayList<TestRow>(rangeEnd - rangeStart + 1);
+    List<TestRow> ret = new ArrayList<>(rangeEnd - rangeStart + 1);
     for (int i = rangeStart; i < rangeEnd; i++) {
       ret.add(fromSeed(i));
     }
@@ -95,7 +97,10 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
    * the name() for the rows generated from seeds in [0, n).
    */
   private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
-      1000, "7d94d63a41164be058a9680002914358"
+      1000, "7d94d63a41164be058a9680002914358",
+      100_000, "c7cbddb319209e200f1c5eebef8fe960",
+      600_000, "e2add2f680de9024e9bc46cd3912545e",
+      5_000_000, "c44f8a5648cd9207c9c6f77395a998dc"
   );
 
   /**
@@ -105,10 +110,6 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
    */
   public static String getExpectedHashForRowCount(int rowCount)
       throws UnsupportedOperationException {
-    String hash = EXPECTED_HASHES.get(rowCount);
-    if (hash == null) {
-      throw new UnsupportedOperationException("No hash for that row count");
-    }
-    return hash;
+    return getHashForRecordCount(rowCount, EXPECTED_HASHES);
   }
 }

@@ -40,10 +40,12 @@
     <maven-exec-plugin.version>@maven-exec-plugin.version@</maven-exec-plugin.version>
     <maven-jar-plugin.version>@maven-jar-plugin.version@</maven-jar-plugin.version>
     <maven-shade-plugin.version>@maven-shade-plugin.version@</maven-shade-plugin.version>
+    <mockito.version>@mockito.version@</mockito.version>
     <pubsub.version>@pubsub.version@</pubsub.version>
     <slf4j.version>@slf4j.version@</slf4j.version>
     <spark.version>@spark.version@</spark.version>
-    <surefire-plugin.version>@surefire-plugin.version@</surefire-plugin.version>
+    <hadoop.version>@hadoop.version@</hadoop.version>
+    <maven-surefire-plugin.version>@maven-surefire-plugin.version@</maven-surefire-plugin.version>
   </properties>
 
   <repositories>
@@ -75,7 +77,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>${surefire-plugin.version}</version>
+        <version>${maven-surefire-plugin.version}</version>
         <configuration>
           <parallel>all</parallel>
           <threadCount>4</threadCount>
@@ -85,7 +87,7 @@
           <dependency>
             <groupId>org.apache.maven.surefire</groupId>
             <artifactId>surefire-junit47</artifactId>
-            <version>${surefire-plugin.version}</version>
+            <version>${maven-surefire-plugin.version}</version>
           </dependency>
         </dependencies>
       </plugin>
@@ -176,14 +178,14 @@
           <scope>runtime</scope>
         </dependency>
         <!--
-          Apex depends on httpclient version 4.3.5, project has a transitive dependency to httpclient 4.0.1 from
+          Apex depends on httpclient version 4.3.6, project has a transitive dependency to httpclient 4.0.1 from
           google-http-client. Apex dependency version being specified explicitly so that it gets picked up. This
           can be removed when the project no longer has a dependency on a different httpclient version.
         -->
         <dependency>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
-          <version>4.3.5</version>
+          <version>4.3.6</version>
           <scope>runtime</scope>
           <exclusions>
             <exclusion>
@@ -191,6 +193,22 @@
               <artifactId>commons-codec</artifactId>
             </exclusion>
           </exclusions>
+        </dependency>
+        <!--
+          Apex 3.6 is built against YARN 2.6. Version in the fat jar has to match
+          what's on the cluster, hence we need to repeat the Apex Hadoop dependencies here.
+        -->
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-yarn-client</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>runtime</scope>
         </dependency>
       </dependencies>
     </profile>
@@ -214,7 +232,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.10</artifactId>
+          <artifactId>beam-runners-flink_2.11</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
@@ -225,6 +243,9 @@
       <id>spark-runner</id>
       <!-- Makes the SparkRunner available when running a pipeline. Additionally,
            overrides some Spark dependencies to Beam-compatible versions. -->
+      <properties>
+        <netty.version>4.1.17.Final</netty.version>
+      </properties>
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
@@ -240,7 +261,7 @@
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.10</artifactId>
+          <artifactId>spark-streaming_2.11</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
           <exclusions>
@@ -252,9 +273,25 @@
         </dependency>
         <dependency>
           <groupId>com.fasterxml.jackson.module</groupId>
-          <artifactId>jackson-module-scala_2.10</artifactId>
+          <artifactId>jackson-module-scala_2.11</artifactId>
           <version>${jackson.version}</version>
           <scope>runtime</scope>
+        </dependency>
+        <!-- [BEAM-3519] GCP IO exposes netty on its API surface, causing conflicts with runners -->
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+          <version>${beam.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>io.grpc</groupId>
+              <artifactId>grpc-netty</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>io.netty</groupId>
+              <artifactId>netty-handler</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>
@@ -363,7 +400,13 @@
          which is used in the main code of DebuggingWordCount example. -->
     <dependency>
       <groupId>org.hamcrest</groupId>
-      <artifactId>hamcrest-all</artifactId>
+      <artifactId>hamcrest-core</artifactId>
+      <version>${hamcrest.version}</version>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
       <version>${hamcrest.version}</version>
     </dependency>
 
@@ -378,6 +421,13 @@
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
       <version>${beam.version}</version>
+      <scope>test</scope>
+    </dependency>
+    
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

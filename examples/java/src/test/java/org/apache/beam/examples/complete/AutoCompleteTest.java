@@ -27,11 +27,7 @@ import org.apache.beam.examples.complete.AutoComplete.ComputeTopCompletions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Filter;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -83,14 +79,9 @@ public class AutoCompleteTest implements Serializable {
     PCollection<String> input = p.apply(Create.of(words));
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
-      input.apply(new ComputeTopCompletions(2, recursive))
-           .apply(Filter.by(
-               new SerializableFunction<KV<String, List<CompletionCandidate>>, Boolean>() {
-                 @Override
-                 public Boolean apply(KV<String, List<CompletionCandidate>> element) {
-                   return element.getKey().length() <= 2;
-                 }
-               }));
+        input
+            .apply(new ComputeTopCompletions(2, recursive))
+            .apply(Filter.by(element -> element.getKey().length() <= 2));
 
     PAssert.that(output).containsInAnyOrder(
         KV.of("a", parseList("apple:2", "apricot:1")),
@@ -128,13 +119,12 @@ public class AutoCompleteTest implements Serializable {
         TimestampedValue.of("xB", new Instant(2)),
         TimestampedValue.of("xB", new Instant(2)));
 
-    PCollection<String> input = p
-      .apply(Create.of(words))
-      .apply(new ReifyTimestamps<String>());
+    PCollection<String> input = p.apply(Create.timestamped(words));
 
     PCollection<KV<String, List<CompletionCandidate>>> output =
-      input.apply(Window.<String>into(SlidingWindows.of(new Duration(2))))
-           .apply(new ComputeTopCompletions(2, recursive));
+        input
+            .apply(Window.into(SlidingWindows.of(new Duration(2))))
+            .apply(new ComputeTopCompletions(2, recursive));
 
     PAssert.that(output).containsInAnyOrder(
         // Window [0, 2)
@@ -160,18 +150,5 @@ public class AutoCompleteTest implements Serializable {
       all.add(new CompletionCandidate(countValue[0], Integer.valueOf(countValue[1])));
     }
     return all;
-  }
-
-  private static class ReifyTimestamps<T>
-      extends PTransform<PCollection<TimestampedValue<T>>, PCollection<T>> {
-    @Override
-    public PCollection<T> expand(PCollection<TimestampedValue<T>> input) {
-      return input.apply(ParDo.of(new DoFn<TimestampedValue<T>, T>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          c.outputWithTimestamp(c.element().getValue(), c.element().getTimestamp());
-        }
-      }));
-    }
   }
 }

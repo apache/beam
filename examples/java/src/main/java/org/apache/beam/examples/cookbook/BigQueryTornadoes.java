@@ -71,7 +71,7 @@ public class BigQueryTornadoes {
    */
   static class ExtractTornadoesFn extends DoFn<TableRow, Integer> {
     @ProcessElement
-    public void processElement(ProcessContext c){
+    public void processElement(ProcessContext c) {
       TableRow row = c.element();
       if ((Boolean) row.get("tornado")) {
         c.output(Integer.parseInt((String) row.get("month")));
@@ -115,8 +115,7 @@ public class BigQueryTornadoes {
           ParDo.of(new ExtractTornadoesFn()));
 
       // month... => <month,count>...
-      PCollection<KV<Integer, Long>> tornadoCounts =
-          tornadoes.apply(Count.<Integer>perElement());
+      PCollection<KV<Integer, Long>> tornadoCounts = tornadoes.apply(Count.perElement());
 
       // <month,count>... => row...
       PCollection<TableRow> results = tornadoCounts.apply(
@@ -145,9 +144,7 @@ public class BigQueryTornadoes {
     void setOutput(String value);
   }
 
-  public static void main(String[] args) {
-    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
-
+  static void runBigQueryTornadoes(Options options) {
     Pipeline p = Pipeline.create(options);
 
     // Build the table schema for the output table.
@@ -165,5 +162,11 @@ public class BigQueryTornadoes {
          .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE));
 
     p.run().waitUntilFinish();
+  }
+
+  public static void main(String[] args) {
+    Options options = PipelineOptionsFactory.fromArgs(args).withValidation().as(Options.class);
+
+    runBigQueryTornadoes(options);
   }
 }

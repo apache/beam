@@ -103,6 +103,6 @@ class HCatalogIOTestUtils {
 
   /** returns a DefaultHCatRecord instance for passed value. */
   private static DefaultHCatRecord toHCatRecord(int value) {
-    return new DefaultHCatRecord(Arrays.<Object>asList("record " + value, value));
+    return new DefaultHCatRecord(Arrays.asList("record " + value, value));
   }
 }

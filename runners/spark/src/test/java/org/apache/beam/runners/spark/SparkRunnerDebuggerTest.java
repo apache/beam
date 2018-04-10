@@ -70,15 +70,12 @@ public class SparkRunnerDebuggerTest {
     PCollection<KV<String, Long>> wordCounts = lines
         .apply(new WordCount.CountWords());
 
-    wordCounts
-        .apply(GroupByKey.<String, Long>create())
-        .apply(Combine.<String, Long, Long>groupedValues(Sum.ofLongs()));
+    wordCounts.apply(GroupByKey.create()).apply(Combine.groupedValues(Sum.ofLongs()));
 
     PCollection<KV<String, Long>> wordCountsPlusOne = wordCounts
         .apply(MapElements.via(new PlusOne()));
 
-    PCollectionList.of(wordCounts).and(wordCountsPlusOne)
-        .apply(Flatten.<KV<String, Long>>pCollections());
+    PCollectionList.of(wordCounts).and(wordCountsPlusOne).apply(Flatten.pCollections());
 
     wordCounts
         .apply(MapElements.via(new WordCount.FormatAsTextFn()))
@@ -88,15 +85,14 @@ public class SparkRunnerDebuggerTest {
         "sparkContext.parallelize(Arrays.asList(...))\n"
             + "_.mapPartitions("
             + "new org.apache.beam.runners.spark.examples.WordCount$ExtractWordsFn())\n"
-            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Count$PerElement$1())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
             + "_.combineByKey(..., new org.apache.beam.sdk.transforms.Count$CountFn(), ...)\n"
             + "_.groupByKey()\n"
             + "_.map(new org.apache.beam.sdk.transforms.Sum$SumLongFn())\n"
-            + "_.mapPartitions(new org.apache.beam.runners.spark"
-            + ".SparkRunnerDebuggerTest$PlusOne())\n"
+            + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
             + "sparkContext.union(...)\n"
             + "_.mapPartitions("
-            + "new org.apache.beam.runners.spark.examples.WordCount$FormatAsTextFn())\n"
+            + "new org.apache.beam.sdk.transforms.Contextful())\n"
             + "_.<org.apache.beam.sdk.io.TextIO$Write>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =
@@ -130,10 +126,11 @@ public class SparkRunnerDebuggerTest {
     KvCoder<String, String> stringKvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     pipeline
-        .apply(read.withoutMetadata()).setCoder(stringKvCoder)
-        .apply(Window.<KV<String, String>>into(FixedWindows.of(Duration.standardSeconds(5))))
+        .apply(read.withoutMetadata())
+        .setCoder(stringKvCoder)
+        .apply(Window.into(FixedWindows.of(Duration.standardSeconds(5))))
         .apply(ParDo.of(new SparkRunnerDebuggerTest.FormatKVFn()))
-        .apply(Distinct.<String>create())
+        .apply(Distinct.create())
         .apply(WithKeys.of(new SparkRunnerDebuggerTest.ArbitraryKeyFunction()))
         .apply(write);
 
@@ -141,11 +138,11 @@ public class SparkRunnerDebuggerTest {
         + "_.map(new org.apache.beam.sdk.transforms.windowing.FixedWindows())\n"
         + "_.mapPartitions(new org.apache.beam.runners.spark."
         + "SparkRunnerDebuggerTest$FormatKVFn())\n"
-        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$2())\n"
+        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
         + "_.groupByKey()\n"
         + "_.map(new org.apache.beam.sdk.transforms.Combine$IterableCombineFn())\n"
         + "_.mapPartitions(new org.apache.beam.sdk.transforms.Distinct$3())\n"
-        + "_.mapPartitions(new org.apache.beam.sdk.transforms.WithKeys$2())\n"
+        + "_.mapPartitions(new org.apache.beam.sdk.transforms.Contextful())\n"
         + "_.<org.apache.beam.sdk.io.kafka.AutoValue_KafkaIO_Write>";
 
     SparkRunnerDebugger.DebugSparkPipelineResult result =

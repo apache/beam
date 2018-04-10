@@ -23,6 +23,7 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
+import org.apache.beam.runners.local.StructuralKey;
 
 /**
  * Execution Context for the {@link DirectRunner}.
@@ -56,12 +57,7 @@ class DirectExecutionContext {
    * Returns the {@link StepContext} associated with the given step.
    */
   public DirectStepContext getStepContext(String stepName) {
-    DirectStepContext context = cachedStepContexts.get(stepName);
-    if (context == null) {
-      context = createStepContext();
-      cachedStepContexts.put(stepName, context);
-    }
-    return context;
+    return cachedStepContexts.computeIfAbsent(stepName, k -> createStepContext());
   }
 
   /**

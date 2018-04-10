@@ -145,12 +145,15 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   options.view_as(SetupOptions).save_main_session = True
 
-  with beam.Pipeline(argv=pipeline_args) as p:
+  with beam.Pipeline(options=options) as p:
+    def format_user_score_sums(user_score):
+      (user, score) = user_score
+      return 'user: %s, total_score: %s' % (user, score)
+
     (p  # pylint: disable=expression-not-assigned
      | 'ReadInputText' >> beam.io.ReadFromText(args.input)
      | 'UserScore' >> UserScore()
-     | 'FormatUserScoreSums' >> beam.Map(
-         lambda (user, score): 'user: %s, total_score: %s' % (user, score))
+     | 'FormatUserScoreSums' >> beam.Map(format_user_score_sums)
      | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output))
 # [END main]
 

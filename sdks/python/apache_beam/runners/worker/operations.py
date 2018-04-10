@@ -28,6 +28,8 @@ from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -77,9 +79,6 @@ class ConsumerSet(Receiver):
     self.output_index = output_index
     self.coder = coder
 
-  def output(self, windowed_value):  # For old SDKs.
-    self.receive(windowed_value)
-
   def receive(self, windowed_value):
     self.update_counters_start(windowed_value)
     for consumer in self.consumers:
@@ -120,6 +119,12 @@ class Operation(object):
     self.counter_factory = counter_factory
     self.consumers = collections.defaultdict(list)
 
+    # These are overwritten in the legacy harness.
+    self.step_name = operation_name
+    self.metrics_container = MetricsContainer(self.step_name)
+    self.scoped_metrics_container = ScopedMetricsContainer(
+        self.metrics_container)
+
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
         self.operation_name, 'start')
@@ -129,7 +134,7 @@ class Operation(object):
         self.operation_name, 'finish')
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
-    self.scoped_metrics_container = None
+    self.receivers = []
 
   def start(self):
     """Start operation."""
@@ -156,6 +161,25 @@ class Operation(object):
   def add_receiver(self, operation, output_index=0):
     """Adds a receiver operation for the specified output."""
     self.consumers[output_index].append(operation)
+
+  def progress_metrics(self):
+    return beam_fn_api_pb2.Metrics.PTransform(
+        processed_elements=beam_fn_api_pb2.Metrics.PTransform.ProcessedElements(
+            measured=beam_fn_api_pb2.Metrics.PTransform.Measured(
+                total_time_spent=(
+                    self.scoped_start_state.sampled_seconds()
+                    + self.scoped_process_state.sampled_seconds()
+                    + self.scoped_finish_state.sampled_seconds()),
+                # Multi-output operations should override this.
+                output_element_counts=(
+                    # If there is exactly one output, we can unambiguously
+                    # fix its name later, which we do.
+                    # TODO(robertwb): Plumb the actual name here.
+                    {'ONLY_OUTPUT': self.receivers[0].opcounter
+                                    .element_counter.value()}
+                    if len(self.receivers) == 1
+                    else None))),
+        user=self.metrics_container.to_runner_api())
 
   def __str__(self):
     """Generates a useful string for this object.
@@ -202,15 +226,16 @@ class ReadOperation(Operation):
 
   def start(self):
     with self.scoped_start_state:
-      super(ReadOperation, self).start()
-      range_tracker = self.spec.source.source.get_range_tracker(
-          self.spec.source.start_position, self.spec.source.stop_position)
-      for value in self.spec.source.source.read(range_tracker):
-        if isinstance(value, WindowedValue):
-          windowed_value = value
-        else:
-          windowed_value = _globally_windowed_value.with_value(value)
-        self.output(windowed_value)
+      with self.scoped_metrics_container:
+        super(ReadOperation, self).start()
+        range_tracker = self.spec.source.source.get_range_tracker(
+            self.spec.source.start_position, self.spec.source.stop_position)
+        for value in self.spec.source.source.read(range_tracker):
+          if isinstance(value, WindowedValue):
+            windowed_value = value
+          else:
+            windowed_value = _globally_windowed_value.with_value(value)
+          self.output(windowed_value)
 
 
 class InMemoryWriteOperation(Operation):
@@ -226,23 +251,24 @@ class InMemoryWriteOperation(Operation):
 
 class _TaggedReceivers(dict):
 
-  class NullReceiver(Receiver):
+  def __init__(self, counter_factory, step_name):
+    self._counter_factory = counter_factory
+    self._step_name = step_name
 
-    def receive(self, element):
-      pass
-
-    # For old SDKs.
-    def output(self, element):
-      pass
-
-  def __missing__(self, unused_key):
-    if not getattr(self, '_null_receiver', None):
-      self._null_receiver = _TaggedReceivers.NullReceiver()
-    return self._null_receiver
+  def __missing__(self, tag):
+    self[tag] = receiver = ConsumerSet(
+        self._counter_factory, self._step_name, tag, [], None)
+    return receiver
 
 
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
+
+  def __init__(
+      self, name, spec, counter_factory, sampler, side_input_maps=None):
+    super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
+    self.side_input_maps = side_input_maps
+    self.tagged_receivers = None
 
   def _read_side_inputs(self, tags_and_types):
     """Generator reading side inputs in the order prescribed by tags_and_types.
@@ -258,6 +284,13 @@ class DoOperation(Operation):
       either in singleton or collection mode according to the tags_and_types
       argument.
     """
+    # Only call this on the old path where side_input_maps was not
+    # provided directly.
+    assert self.side_input_maps is None
+
+    # Get experiments active in the worker to check for side input metrics exp.
+    experiments = RuntimeValueProvider.get_value('experiments', list, [])
+
     # We will read the side inputs in the order prescribed by the
     # tags_and_types argument because this is exactly the order needed to
     # replace the ArgumentPlaceholder objects in the args/kwargs of the DoFn
@@ -266,7 +299,7 @@ class DoOperation(Operation):
     # Note that for each tag there could be several read operations in the
     # specification. This can happen for instance if the source has been
     # sharded into several files.
-    for side_tag, view_class, view_options in tags_and_types:
+    for i, (side_tag, view_class, view_options) in enumerate(tags_and_types):
       sources = []
       # Using the side_tag in the lambda below will trigger a pylint warning.
       # However in this case it is fine because the lambda is used right away
@@ -278,7 +311,19 @@ class DoOperation(Operation):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
-      iterator_fn = sideinputs.get_iterator_fn_for_sources(sources)
+        # The tracking of time spend reading and bytes read from side inputs is
+        # behind an experiment flag to test its performance impact.
+        if 'sideinput_io_metrics' in experiments:
+          si_counter = opcounters.SideInputReadCounter(
+              self.counter_factory,
+              self.state_sampler,
+              declaring_step=self.operation_name,
+              # Inputs are 1-indexed, so we add 1 to i in the side input id
+              input_index=i + 1)
+        else:
+          si_counter = opcounters.TransformIOCounter()
+      iterator_fn = sideinputs.get_iterator_fn_for_sources(
+          sources, read_counter=si_counter)
 
       # Backwards compatibility for pre BEAM-733 SDKs.
       if isinstance(view_options, tuple):
@@ -302,13 +347,11 @@ class DoOperation(Operation):
       state = common.DoFnState(self.counter_factory)
       state.step_name = self.step_name
 
-      # TODO(silviuc): What is the proper label here? PCollection being
-      # processed?
-      context = common.DoFnContext('label', state=state)
       # Tag to output index map used to dispatch the side output values emitted
       # by the DoFn function to the appropriate receivers. The main output is
       # tagged with None and is associated with its corresponding index.
-      tagged_receivers = _TaggedReceivers()
+      self.tagged_receivers = _TaggedReceivers(
+          self.counter_factory, self.step_name)
 
       output_tag_prefix = PropertyNames.OUT + '_'
       for index, tag in enumerate(self.spec.output_tags):
@@ -318,12 +361,21 @@ class DoOperation(Operation):
           original_tag = tag[len(output_tag_prefix):]
         else:
           raise ValueError('Unexpected output name for operation: %s' % tag)
-        tagged_receivers[original_tag] = self.receivers[index]
+        self.tagged_receivers[original_tag] = self.receivers[index]
+
+      if self.side_input_maps is None:
+        if tags_and_types:
+          self.side_input_maps = list(self._read_side_inputs(tags_and_types))
+        else:
+          self.side_input_maps = []
 
       self.dofn_runner = common.DoFnRunner(
-          fn, args, kwargs, self._read_side_inputs(tags_and_types),
-          window_fn, context, tagged_receivers,
-          logger, self.step_name,
+          fn, args, kwargs, self.side_input_maps, window_fn,
+          tagged_receivers=self.tagged_receivers,
+          step_name=self.step_name,
+          logging_context=logger.PerThreadLoggingContext(
+              step_name=self.step_name),
+          state=state,
           scoped_metrics_container=self.scoped_metrics_container)
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)
@@ -338,6 +390,15 @@ class DoOperation(Operation):
   def process(self, o):
     with self.scoped_process_state:
       self.dofn_receiver.receive(o)
+
+  def progress_metrics(self):
+    metrics = super(DoOperation, self).progress_metrics()
+    if self.tagged_receivers:
+      metrics.processed_elements.measured.output_element_counts.clear()
+      for tag, receiver in self.tagged_receivers.items():
+        metrics.processed_elements.measured.output_element_counts[
+            str(tag)] = receiver.opcounter.element_counter.value()
+    return metrics
 
 
 class DoFnRunnerReceiver(Receiver):
@@ -434,7 +495,7 @@ class PGBKCVOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     if (getattr(fn.add_input, 'im_func', None)
-        is core.CombineFn.add_input.im_func):
+        is core.CombineFn.add_input.__func__):
       # Old versions of the SDK have CombineFns that don't implement add_input.
       self.combine_fn_add_input = (
           lambda a, e: self.combine_fn.add_inputs(a, [e]))

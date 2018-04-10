@@ -68,7 +68,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * write windowed files. In cases when user does specify shard template to be used then provided
    * template will be used for both windowed and non-windowed file names.
    */
-  private static final String DEFAULT_WINDOWED_SHARD_TEMPLATE =
+  public static final String DEFAULT_WINDOWED_SHARD_TEMPLATE =
       "W-P" + DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
 
   /*
@@ -83,7 +83,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * objects to be dynamically generated.
    */
   public static class Params implements Serializable {
-    private final ValueProvider<ResourceId> baseFilename;
+    @Nullable private final ValueProvider<ResourceId> baseFilename;
     private final String shardTemplate;
     private final boolean explicitTemplate;
     private final String suffix;
@@ -271,8 +271,8 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       String suffix,
       int shardNum,
       int numShards,
-      String paneStr,
-      String windowStr) {
+      @Nullable String paneStr,
+      @Nullable String windowStr) {
     String prefix = extractFilename(baseFilename);
     // Matcher API works with StringBuffer, rather than StringBuilder.
     StringBuffer sb = new StringBuffer();

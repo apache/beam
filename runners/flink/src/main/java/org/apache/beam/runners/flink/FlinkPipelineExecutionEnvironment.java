@@ -19,7 +19,9 @@ package org.apache.beam.runners.flink;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
 import java.util.List;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
@@ -84,13 +86,21 @@ class FlinkPipelineExecutionEnvironment {
     this.flinkBatchEnv = null;
     this.flinkStreamEnv = null;
 
-    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(options.isStreaming()));
+    // Serialize and rehydrate pipeline to make sure we only depend serialized transforms.
+    try {
+      pipeline = PipelineTranslation.fromProto(PipelineTranslation.toProto(pipeline));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
 
     PipelineTranslationOptimizer optimizer =
         new PipelineTranslationOptimizer(TranslationMode.BATCH, options);
 
     optimizer.translate(pipeline);
     TranslationMode translationMode = optimizer.getTranslationMode();
+
+    pipeline.replaceAll(FlinkTransformOverrides.getDefaultOverrides(
+        translationMode == TranslationMode.STREAMING));
 
     FlinkPipelineTranslator translator;
     if (translationMode == TranslationMode.STREAMING) {
@@ -132,11 +142,11 @@ class FlinkPipelineExecutionEnvironment {
     ExecutionEnvironment flinkBatchEnv;
 
     // depending on the master, create the right environment.
-    if (masterUrl.equals("[local]")) {
+    if ("[local]".equals(masterUrl)) {
       flinkBatchEnv = ExecutionEnvironment.createLocalEnvironment();
-    } else if (masterUrl.equals("[collection]")) {
+    } else if ("[collection]".equals(masterUrl)) {
       flinkBatchEnv = new CollectionEnvironment();
-    } else if (masterUrl.equals("[auto]")) {
+    } else if ("[auto]".equals(masterUrl)) {
       flinkBatchEnv = ExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
       String[] parts = masterUrl.split(":");
@@ -179,9 +189,9 @@ class FlinkPipelineExecutionEnvironment {
     StreamExecutionEnvironment flinkStreamEnv = null;
 
     // depending on the master, create the right environment.
-    if (masterUrl.equals("[local]")) {
+    if ("[local]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.createLocalEnvironment();
-    } else if (masterUrl.equals("[auto]")) {
+    } else if ("[auto]".equals(masterUrl)) {
       flinkStreamEnv = StreamExecutionEnvironment.getExecutionEnvironment();
     } else if (masterUrl.matches(".*:\\d*")) {
       String[] parts = masterUrl.split(":");

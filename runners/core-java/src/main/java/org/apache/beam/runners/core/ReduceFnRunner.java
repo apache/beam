@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
@@ -34,7 +33,6 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.GroupByKeyViaGroupByKeyOnly.GroupByKeyOnly;
-import org.apache.beam.runners.core.ReduceFnContextFactory.OnTriggerCallbacks;
 import org.apache.beam.runners.core.ReduceFnContextFactory.StateStyle;
 import org.apache.beam.runners.core.StateNamespaces.WindowNamespace;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -45,7 +43,6 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
@@ -251,8 +248,8 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
 
   private ActiveWindowSet<W> createActiveWindowSet() {
     return windowingStrategy.getWindowFn().isNonMerging()
-        ? new NonMergingActiveWindowSet<W>()
-        : new MergingActiveWindowSet<W>(windowingStrategy.getWindowFn(), stateInternals);
+        ? new NonMergingActiveWindowSet<>()
+        : new MergingActiveWindowSet<>(windowingStrategy.getWindowFn(), stateInternals);
   }
 
   @VisibleForTesting
@@ -542,18 +539,15 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   private ImmutableSet<W> toMergedWindows(final Map<W, W> windowToMergeResult,
       final Collection<? extends BoundedWindow> windows) {
     return ImmutableSet.copyOf(
-        FluentIterable.from(windows).transform(
-            new Function<BoundedWindow, W>() {
-              @Override
-              public W apply(BoundedWindow untypedWindow) {
-                @SuppressWarnings("unchecked")
-                W window = (W) untypedWindow;
-                W mergedWindow = windowToMergeResult.get(window);
-                // If the element is not present in the map, the window is unmerged.
-                return (mergedWindow == null) ? window : mergedWindow;
-              }
-            }
-        ));
+        FluentIterable.from(windows)
+            .transform(
+                untypedWindow -> {
+                  @SuppressWarnings("unchecked")
+                  W window = (W) untypedWindow;
+                  W mergedWindow = windowToMergeResult.get(window);
+                  // If the element is not present in the map, the window is unmerged.
+                  return (mergedWindow == null) ? window : mergedWindow;
+                }));
   }
 
   private void prefetchWindowsForValues(Collection<W> windows) {
@@ -596,28 +590,12 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
           window, value.getValue(), value.getTimestamp(), StateStyle.RENAMED);
 
       nonEmptyPanes.recordContent(renamedContext.state());
-
-      // Make sure we've scheduled the end-of-window or garbage collection timer for this window.
-      Instant timer = scheduleEndOfWindowOrGarbageCollectionTimer(directContext);
+      scheduleGarbageCollectionTimer(directContext);
 
       // Hold back progress of the output watermark until we have processed the pane this
-      // element will be included within. If the element is too late for that, place a hold at
-      // the end-of-window or garbage collection time to allow empty panes to contribute elements
-      // which won't be dropped due to lateness by a following computation (assuming the following
-      // computation uses the same allowed lateness value...)
-      @Nullable Instant hold = watermarkHold.addHolds(renamedContext);
-
-      if (hold != null) {
-        // Assert that holds have a proximate timer.
-        boolean holdInWindow = !hold.isAfter(window.maxTimestamp());
-        boolean timerInWindow = !timer.isAfter(window.maxTimestamp());
-        checkState(
-            holdInWindow == timerInWindow,
-            "set a hold at %s, a timer at %s, which disagree as to whether they are in window %s",
-            hold,
-            timer,
-            directContext.window());
-      }
+      // element will be included within. If the element is later than the output watermark, the
+      // hold will be at GC time.
+      watermarkHold.addHolds(renamedContext);
 
       // Execute the reduceFn, which will buffer the value as appropriate
       reduceFn.processValue(renamedContext);
@@ -1046,21 +1024,20 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
       // Run reduceFn.onTrigger method.
       final List<W> windows = Collections.singletonList(directContext.window());
       ReduceFn<K, InputT, OutputT, W>.OnTriggerContext renamedTriggerContext =
-          contextFactory.forTrigger(directContext.window(), pane, StateStyle.RENAMED,
-              new OnTriggerCallbacks<OutputT>() {
-                @Override
-                public void output(OutputT toOutput) {
-                  // We're going to output panes, so commit the (now used) PaneInfo.
-                  // This is unnecessary if the trigger isFinished since the saved
-                  // state will be immediately deleted.
-                  if (!isFinished) {
-                    paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
-                  }
-
-                  // Output the actual value.
-                  outputter.outputWindowedValue(
-                      KV.of(key, toOutput), outputTimestamp, windows, pane);
+          contextFactory.forTrigger(
+              directContext.window(),
+              pane,
+              StateStyle.RENAMED,
+              toOutput -> {
+                // We're going to output panes, so commit the (now used) PaneInfo.
+                // This is unnecessary if the trigger isFinished since the saved
+                // state will be immediately deleted.
+                if (!isFinished) {
+                  paneInfoTracker.storeCurrentPaneInfo(directContext, pane);
                 }
+
+                // Output the actual value.
+                outputter.outputWindowedValue(KV.of(key, toOutput), outputTimestamp, windows, pane);
               });
 
       reduceFn.onTrigger(renamedTriggerContext);
@@ -1070,48 +1047,33 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   /**
-   * Make sure we'll eventually have a timer fire which will tell us to garbage collect
-   * the window state. For efficiency we may need to do this in two steps rather
-   * than one. Return the time at which the timer will fire.
+   * Schedule a timer to garbage collect the window.
+   *
+   * <p>The timer:
    *
    * <ul>
-   * <li>If allowedLateness is zero then we'll garbage collect at the end of the window.
-   * For simplicity we'll set our own timer for this situation even though an
-   * {@link AfterWatermark} trigger may have also set an end-of-window timer.
-   * ({@code setTimer} is idempotent.)
-   * <li>If allowedLateness is non-zero then we could just always set a timer for the garbage
-   * collection time. However if the windows are large (eg hourly) and the allowedLateness is small
-   * (eg seconds) then we'll end up with nearly twice the number of timers in-flight. So we
-   * instead set an end-of-window timer and then roll that forward to a garbage collection timer
-   * when it fires. We use the input watermark to distinguish those cases.
+   *   <li>...must be fired strictly after the expiration of the window.
+   *   <li>...should be as close to the expiration as possible, to have a timely output of
+   *       remaining buffered data, and GC.
    * </ul>
    */
-  private Instant scheduleEndOfWindowOrGarbageCollectionTimer(
-      ReduceFn<?, ?, ?, W>.Context directContext) {
+  private void scheduleGarbageCollectionTimer(ReduceFn<?, ?, ?, W>.Context directContext) {
     Instant inputWM = timerInternals.currentInputWatermarkTime();
-    Instant endOfWindow = directContext.window().maxTimestamp();
-    String which;
-    Instant timer;
-    if (endOfWindow.isBefore(inputWM)) {
-      timer = LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy);
-      which = "garbage collection";
-    } else {
-      timer = endOfWindow;
-      which = "end-of-window";
-    }
+    Instant gcTime =
+        LateDataUtils.garbageCollectionTime(directContext.window(), windowingStrategy);
     WindowTracing.trace(
-        "ReduceFnRunner.scheduleEndOfWindowOrGarbageCollectionTimer: Scheduling {} timer at {} for "
+        "ReduceFnRunner.scheduleGarbageCollectionTimer: Scheduling at {} for "
         + "key:{}; window:{} where inputWatermark:{}; outputWatermark:{}",
-        which,
-        timer,
+        gcTime,
         key,
         directContext.window(),
         inputWM,
         timerInternals.currentOutputWatermarkTime());
-    checkState(!timer.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
-                             "Timer %s is beyond end-of-time", timer);
-    directContext.timers().setTimer(timer, TimeDomain.EVENT_TIME);
-    return timer;
+    checkState(
+        !gcTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
+        "Timer %s is beyond end-of-time",
+        gcTime);
+    directContext.timers().setTimer(gcTime, TimeDomain.EVENT_TIME);
   }
 
   private void cancelEndOfWindowAndGarbageCollectionTimers(

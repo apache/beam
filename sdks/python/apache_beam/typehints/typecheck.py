@@ -20,12 +20,17 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+
 import collections
 import inspect
 import sys
 import types
 
+import six
+
+from apache_beam import pipeline
 from apache_beam.pvalue import TaggedOutput
+from apache_beam.transforms import core
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints.decorators import GeneratorWrapper
@@ -82,14 +87,14 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     except TypeCheckError as e:
       error_msg = ('Runtime type violation detected within ParDo(%s): '
                    '%s' % (self.full_label, e))
-      raise TypeCheckError, error_msg, sys.exc_info()[2]
+      six.raise_from(TypeCheckError(error_msg), sys.exc_info()[2])
     else:
       return self._check_type(result)
 
   def _check_type(self, output):
     if output is None:
       return output
-    elif isinstance(output, (dict, basestring)):
+    elif isinstance(output, (dict,) + six.string_types):
       object_type = type(output).__name__
       raise TypeCheckError('Returning a %s from a ParDo or FlatMap is '
                            'discouraged. Please use list("%s") if you really '
@@ -108,7 +113,6 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
 
   def __init__(self, dofn, type_hints, label=None):
     super(TypeCheckWrapperDoFn, self).__init__(dofn)
-    self.dofn = dofn
     self._process_fn = self.dofn._process_argspec_fn()
     if type_hints.input_types:
       input_args, input_kwargs = type_hints.input_types
@@ -172,9 +176,81 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     try:
       check_constraint(type_constraint, datum)
     except CompositeTypeHintError as e:
-      raise TypeCheckError, e.message, sys.exc_info()[2]
+      six.raise_from(TypeCheckError(e.args[0]), sys.exc_info()[2])
     except SimpleTypeHintError:
       error_msg = ("According to type-hint expected %s should be of type %s. "
                    "Instead, received '%s', an instance of type %s."
                    % (datum_type, type_constraint, datum, type(datum)))
-      raise TypeCheckError, error_msg, sys.exc_info()[2]
+      six.raise_from(TypeCheckError(error_msg), sys.exc_info()[2])
+
+
+class TypeCheckCombineFn(core.CombineFn):
+  """A wrapper around a CombineFn performing type-checking of input and output.
+  """
+
+  def __init__(self, combinefn, type_hints, label=None):
+    self._combinefn = combinefn
+    self._input_type_hint = type_hints.input_types
+    self._output_type_hint = type_hints.simple_output_type(label)
+    self._label = label
+
+  def create_accumulator(self, *args, **kwargs):
+    return self._combinefn.create_accumulator(*args, **kwargs)
+
+  def add_input(self, accumulator, element, *args, **kwargs):
+    if self._input_type_hint:
+      try:
+        _check_instance_type(
+            self._input_type_hint[0][0].tuple_types[1], element, 'element',
+            True)
+      except TypeCheckError as e:
+        error_msg = ('Runtime type violation detected within %s: '
+                     '%s' % (self._label, e))
+        six.raise_from(TypeCheckError(error_msg), sys.exc_info()[2])
+    return self._combinefn.add_input(accumulator, element, *args, **kwargs)
+
+  def merge_accumulators(self, accumulators, *args, **kwargs):
+    return self._combinefn.merge_accumulators(accumulators, *args, **kwargs)
+
+  def extract_output(self, accumulator, *args, **kwargs):
+    result = self._combinefn.extract_output(accumulator, *args, **kwargs)
+    if self._output_type_hint:
+      try:
+        _check_instance_type(
+            self._output_type_hint.tuple_types[1], result, None, True)
+      except TypeCheckError as e:
+        error_msg = ('Runtime type violation detected within %s: '
+                     '%s' % (self._label, e))
+        six.raise_from(TypeCheckError(error_msg), sys.exc_info()[2])
+    return result
+
+
+class TypeCheckVisitor(pipeline.PipelineVisitor):
+
+  _in_combine = False
+
+  def enter_composite_transform(self, applied_transform):
+    if isinstance(applied_transform.transform, core.CombinePerKey):
+      self._in_combine = True
+      self._wrapped_fn = applied_transform.transform.fn = TypeCheckCombineFn(
+          applied_transform.transform.fn,
+          applied_transform.transform.get_type_hints(),
+          applied_transform.full_label)
+
+  def leave_composite_transform(self, applied_transform):
+    if isinstance(applied_transform.transform, core.CombinePerKey):
+      self._in_combine = False
+
+  def visit_transform(self, applied_transform):
+    transform = applied_transform.transform
+    if isinstance(transform, core.ParDo):
+      if self._in_combine:
+        if isinstance(transform.fn, core.CombineValuesDoFn):
+          transform.fn.combinefn = self._wrapped_fn
+      else:
+        transform.fn = transform.dofn = OutputCheckWrapperDoFn(
+            TypeCheckWrapperDoFn(
+                transform.fn,
+                transform.get_type_hints(),
+                applied_transform.full_label),
+            applied_transform.full_label)

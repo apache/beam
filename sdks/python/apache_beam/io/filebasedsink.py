@@ -25,6 +25,8 @@ import re
 import time
 import uuid
 
+from six import string_types
+
 from apache_beam.internal import util
 from apache_beam.io import iobase
 from apache_beam.io.filesystem import BeamIOError
@@ -73,10 +75,10 @@ class FileBasedSink(iobase.Sink):
       ~exceptions.ValueError: if **shard_name_template** is not of expected
         format.
     """
-    if not isinstance(file_path_prefix, (basestring, ValueProvider)):
+    if not isinstance(file_path_prefix, (string_types, ValueProvider)):
       raise TypeError('file_path_prefix must be a string or ValueProvider;'
                       'got %r instead' % file_path_prefix)
-    if not isinstance(file_name_suffix, (basestring, ValueProvider)):
+    if not isinstance(file_name_suffix, (string_types, ValueProvider)):
       raise TypeError('file_name_suffix must be a string or ValueProvider;'
                       'got %r instead' % file_name_suffix)
 
@@ -87,9 +89,9 @@ class FileBasedSink(iobase.Sink):
       shard_name_template = DEFAULT_SHARD_NAME_TEMPLATE
     elif shard_name_template == '':
       num_shards = 1
-    if isinstance(file_path_prefix, basestring):
+    if isinstance(file_path_prefix, string_types):
       file_path_prefix = StaticValueProvider(str, file_path_prefix)
-    if isinstance(file_name_suffix, basestring):
+    if isinstance(file_name_suffix, string_types):
       file_name_suffix = StaticValueProvider(str, file_name_suffix)
     self.file_path_prefix = file_path_prefix
     self.file_name_suffix = file_name_suffix
@@ -178,85 +180,118 @@ class FileBasedSink(iobase.Sink):
     return FileBasedSinkWriter(self, os.path.join(init_result, uid) + suffix)
 
   @check_accessible(['file_path_prefix', 'file_name_suffix'])
-  def finalize_write(self, init_result, writer_results):
-    file_path_prefix = self.file_path_prefix.get()
-    file_name_suffix = self.file_name_suffix.get()
+  def _get_final_name(self, shard_num, num_shards):
+    return ''.join([
+        self.file_path_prefix.get(),
+        self.shard_name_format % dict(shard_num=shard_num,
+                                      num_shards=num_shards),
+        self.file_name_suffix.get()
+    ])
+
+  def pre_finalize(self, init_result, writer_results):
     writer_results = sorted(writer_results)
     num_shards = len(writer_results)
-    min_threads = min(num_shards, FileBasedSink._MAX_RENAME_THREADS)
+    existing_files = []
+    for shard_num in range(len(writer_results)):
+      final_name = self._get_final_name(shard_num, num_shards)
+      if FileSystems.exists(final_name):
+        existing_files.append(final_name)
+    if existing_files:
+      logging.info('Deleting existing files in target path: %d',
+                   len(existing_files))
+      FileSystems.delete(existing_files)
+
+  @check_accessible(['file_path_prefix'])
+  def finalize_write(self, init_result, writer_results,
+                     unused_pre_finalize_results):
+    writer_results = sorted(writer_results)
+    num_shards = len(writer_results)
+
+    src_files = []
+    dst_files = []
+    delete_files = []
+    chunk_size = FileSystems.get_chunk_size(self.file_path_prefix.get())
+    num_skipped = 0
+    for shard_num, shard in enumerate(writer_results):
+      final_name = self._get_final_name(shard_num, num_shards)
+      src = shard
+      dst = final_name
+      src_exists = FileSystems.exists(src)
+      dst_exists = FileSystems.exists(dst)
+      if not src_exists and not dst_exists:
+        raise BeamIOError('src and dst files do not exist. src: %s, dst: %s' % (
+            src, dst))
+      if not src_exists and dst_exists:
+        logging.debug('src: %s -> dst: %s already renamed, skipping', src, dst)
+        num_skipped += 1
+        continue
+      if (src_exists and dst_exists and
+          FileSystems.checksum(src) == FileSystems.checksum(dst)):
+        logging.debug('src: %s == dst: %s, deleting src', src, dst)
+        delete_files.append(src)
+        continue
+
+      src_files.append(src)
+      dst_files.append(dst)
+
+    num_skipped = len(delete_files)
+    FileSystems.delete(delete_files)
+    num_shards_to_finalize = len(src_files)
+    min_threads = min(num_shards_to_finalize, FileBasedSink._MAX_RENAME_THREADS)
     num_threads = max(1, min_threads)
 
-    source_files = []
-    destination_files = []
-    chunk_size = FileSystems.get_chunk_size(file_path_prefix)
-    for shard_num, shard in enumerate(writer_results):
-      final_name = ''.join([
-          file_path_prefix, self.shard_name_format % dict(
-              shard_num=shard_num, num_shards=num_shards), file_name_suffix
-      ])
-      source_files.append(shard)
-      destination_files.append(final_name)
+    source_file_batch = [src_files[i:i + chunk_size]
+                         for i in range(0, len(src_files), chunk_size)]
+    destination_file_batch = [dst_files[i:i + chunk_size]
+                              for i in range(0, len(dst_files), chunk_size)]
 
-    source_file_batch = [source_files[i:i + chunk_size]
-                         for i in xrange(0, len(source_files),
-                                         chunk_size)]
-    destination_file_batch = [destination_files[i:i + chunk_size]
-                              for i in xrange(0, len(destination_files),
-                                              chunk_size)]
+    if num_shards_to_finalize:
+      logging.info(
+          'Starting finalize_write threads with num_shards: %d (skipped: %d), '
+          'batches: %d, num_threads: %d',
+          num_shards_to_finalize, num_skipped, len(source_file_batch),
+          num_threads)
+      start_time = time.time()
 
-    logging.info(
-        'Starting finalize_write threads with num_shards: %d, '
-        'batches: %d, num_threads: %d',
-        num_shards, len(source_file_batch), num_threads)
-    start_time = time.time()
-
-    # Use a thread pool for renaming operations.
-    def _rename_batch(batch):
-      """_rename_batch executes batch rename operations."""
-      source_files, destination_files = batch
-      exceptions = []
-      try:
-        FileSystems.rename(source_files, destination_files)
-        return exceptions
-      except BeamIOError as exp:
-        if exp.exception_details is None:
-          raise
-        for (src, dest), exception in exp.exception_details.iteritems():
-          if exception:
-            logging.warning('Rename not successful: %s -> %s, %s', src, dest,
-                            exception)
-            should_report = True
-            if isinstance(exception, IOError):
-              # May have already been copied.
-              try:
-                if FileSystems.exists(dest):
-                  should_report = False
-              except Exception as exists_e:  # pylint: disable=broad-except
-                logging.warning('Exception when checking if file %s exists: '
-                                '%s', dest, exists_e)
-            if should_report:
-              logging.warning(('Exception in _rename_batch. src: %s, '
-                               'dest: %s, err: %s'), src, dest, exception)
+      # Use a thread pool for renaming operations.
+      def _rename_batch(batch):
+        """_rename_batch executes batch rename operations."""
+        source_files, destination_files = batch
+        exceptions = []
+        try:
+          FileSystems.rename(source_files, destination_files)
+          return exceptions
+        except BeamIOError as exp:
+          if exp.exception_details is None:
+            raise
+          for (src, dst), exception in exp.exception_details.iteritems():
+            if exception:
+              logging.error(('Exception in _rename_batch. src: %s, '
+                             'dst: %s, err: %s'), src, dst, exception)
               exceptions.append(exception)
-          else:
-            logging.debug('Rename successful: %s -> %s', src, dest)
-        return exceptions
+            else:
+              logging.debug('Rename successful: %s -> %s', src, dst)
+          return exceptions
 
-    exception_batches = util.run_using_threadpool(
-        _rename_batch, zip(source_file_batch, destination_file_batch),
-        num_threads)
+      exception_batches = util.run_using_threadpool(
+          _rename_batch, zip(source_file_batch, destination_file_batch),
+          num_threads)
 
-    all_exceptions = [e for exception_batch in exception_batches
-                      for e in exception_batch]
-    if all_exceptions:
-      raise Exception('Encountered exceptions in finalize_write: %s',
-                      all_exceptions)
+      all_exceptions = [e for exception_batch in exception_batches
+                        for e in exception_batch]
+      if all_exceptions:
+        raise Exception(
+            'Encountered exceptions in finalize_write: %s' % all_exceptions)
 
-    for final_name in destination_files:
-      yield final_name
+      for final_name in dst_files:
+        yield final_name
 
-    logging.info('Renamed %d shards in %.2f seconds.', num_shards,
-                 time.time() - start_time)
+      logging.info('Renamed %d shards in %.2f seconds.', num_shards_to_finalize,
+                   time.time() - start_time)
+    else:
+      logging.warning(
+          'No shards found to finalize. num_shards: %d, skipped: %d',
+          num_shards, num_skipped)
 
     try:
       FileSystems.delete([init_result])

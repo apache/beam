@@ -1,0 +1,79 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+
+description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
+ext.summary = """A Maven Archetype to create a project containing all the
+example pipelines from the Apache Beam Java SDK."""
+
+processResources {
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+    'project.version':  version,
+    'bigquery.version': dependencies.create(project.library.java.google_api_services_bigquery).getVersion(),
+    'google-clients.version': dependencies.create(project.library.java.google_api_client).getVersion(),
+    'guava.version': dependencies.create(project.library.java.guava).getVersion(),
+    'hamcrest.version': dependencies.create(project.library.java.hamcrest_library).getVersion(),
+    'jackson.version': dependencies.create(project.library.java.jackson_core).getVersion(),
+    'joda.version': dependencies.create(project.library.java.joda_time).getVersion(),
+    'junit.version': dependencies.create(project.library.java.junit).getVersion(),
+    'pubsub.version': dependencies.create(project.library.java.google_api_services_pubsub).getVersion(),
+    'slf4j.version': dependencies.create(project.library.java.slf4j_api).getVersion(),
+    'spark.version': dependencies.create(project.library.java.spark_core).getVersion(),
+    'hadoop.version': dependencies.create(project.library.java.hadoop_client).getVersion(),
+    'mockito.version': dependencies.create(project.library.java.mockito_core).getVersion(),
+    'maven-compiler-plugin.version': dependencies.create(project.library.maven.maven_compiler_plugin).getVersion(),
+    'maven-exec-plugin.version': dependencies.create(project.library.maven.maven_exec_plugin).getVersion(),
+    'maven-jar-plugin.version': dependencies.create(project.library.maven.maven_jar_plugin).getVersion(),
+    'maven-shade-plugin.version': dependencies.create(project.library.maven.maven_shade_plugin).getVersion(),
+    'maven-surefire-plugin.version': dependencies.create(project.library.maven.maven_surefire_plugin).getVersion(),
+  ]
+}
+
+// The :beam-examples-java main/test sourceSets are used in generation.
+evaluationDependsOn(':beam-examples-java')
+
+task generateSources(type: Exec) {
+  println "Generating sources for archetype"
+  inputs.file './generate-sources.sh'
+  inputs.dir project(':beam-examples-java').sourceSets.main.allSource
+  inputs.dir project(':beam-examples-java').sourceSets.test.allSource
+  commandLine './generate-sources.sh'
+}
+
+// Add archetype testing/generation to existing GradleBuild PreCommit
+// https://issues.apache.org/jira/browse/BEAM-3256
+task generateAndBuildArchetypeTest(type: Exec) {
+  if (project.hasProperty("maven_home")) {
+    commandLine "${maven_home}/bin/mvn", 'clean', 'install'
+    environment "MAVEN_HOME", "${maven_home}"
+  } else {
+    commandLine 'mvn', 'clean', 'install'
+  }
+}
+
+sourceSets {
+ main {
+  output.dir('src', builtBy: 'generateSources')
+ }
+}
+
+dependencies {
+  shadow project(path: ":beam-examples-java", configuration: "shadow")
+}
