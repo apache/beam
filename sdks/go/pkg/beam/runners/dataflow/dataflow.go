@@ -53,6 +53,10 @@ var (
 	stagingLocation = flag.String("staging_location", "", "GCS staging location (required).")
 	image           = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
 	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
+	zone            = flag.String("zone", "", "GCP zone (optional)")
+	network         = flag.String("network", "", "GCP network (optional)")
+	tempLocation    = flag.String("temp_location", "", "Temp location (optional)")
+	machineType     = flag.String("worker_machine_type", "", "GCE machine type (optional)")
 
 	dryRun         = flag.Bool("dry_run", false, "Dry run. Just print the job, but don't submit it.")
 	teardownPolicy = flag.String("teardown_policy", "", "Job teardown policy (internal only).")
@@ -174,6 +178,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 				}},
 				WorkerHarnessContainerImage: *image,
 				NumWorkers:                  1,
+				MachineType:                 *machineType,
+				Network:                     *network,
+				Zone:                        *zone,
 			}},
 			TempStoragePrefix: *stagingLocation + "/tmp",
 			Experiments:       jobopts.GetExperiments(),
@@ -186,6 +193,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 	if *teardownPolicy != "" {
 		job.Environment.WorkerPools[0].TeardownPolicy = *teardownPolicy
+	}
+	if *tempLocation != "" {
+		job.Environment.TempStoragePrefix = *tempLocation
 	}
 	printJob(ctx, job)
 
