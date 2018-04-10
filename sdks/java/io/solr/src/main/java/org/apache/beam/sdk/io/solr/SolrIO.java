@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
@@ -33,10 +34,12 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
@@ -46,6 +49,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -62,6 +69,7 @@ import org.apache.solr.client.solrj.response.CoreAdminResponse;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.client.solrj.response.schema.SchemaResponse;
 import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 import org.apache.solr.common.cloud.ClusterState;
 import org.apache.solr.common.cloud.DocCollection;
@@ -72,6 +80,9 @@ import org.apache.solr.common.params.CoreAdminParams;
 import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.util.NamedList;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Transforms for reading and writing data from/to Solr.
@@ -110,9 +121,14 @@ import org.apache.solr.common.util.NamedList;
  * inputDocs.apply(SolrIO.write().to("my-collection").withConnectionConfiguration(conn));
  *
  * }</pre>
+ *
+ * <p>When writing it is possible to customize the retry behavior if an error is encountered. By
+ * default this is disabled and only one attempt will be made.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class SolrIO {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SolrIO.class);
 
   public static Read read() {
     // 1000 for batch size is good enough in many cases,
@@ -124,7 +140,7 @@ public class SolrIO {
   public static Write write() {
     // 1000 for batch size is good enough in many cases,
     // ex: if document size is large, around 10KB, the request's size will be around 10MB
-    // if document seize is small, around 1KB, the request's size will be around 1MB
+    // if document size is small, around 1KB, the request's size will be around 1MB
     return new AutoValue_SolrIO_Write.Builder().setMaxBatchSize(1000).build();
   }
 
@@ -197,6 +213,94 @@ public class SolrIO {
     AuthorizedSolrClient<HttpSolrClient> createClient(String shardUrl) {
       HttpSolrClient solrClient = new HttpSolrClient(shardUrl, createHttpClient());
       return new AuthorizedSolrClient<>(solrClient, this);
+    }
+  }
+
+  /**
+   * A POJO encapsulating a configuration for retry behavior when issuing requests to Solr. A retry
+   * will be attempted until the maxAttempts or maxDuration is exceeded, whichever comes first, for
+   * any of the following exceptions:
+   *
+   * <ul>
+   *   <li>{@link IOException}
+   *   <li>{@link SolrServerException}
+   *   <li>{@link SolrException} where the {@link SolrException.ErrorCode} is one of:
+   *       <ul>
+   *         <li>{@link SolrException.ErrorCode#CONFLICT}
+   *         <li>{@link SolrException.ErrorCode#SERVER_ERROR}
+   *         <li>{@link SolrException.ErrorCode#SERVICE_UNAVAILABLE}
+   *         <li>{@link SolrException.ErrorCode#INVALID_STATE}
+   *         <li>{@link SolrException.ErrorCode#UNKNOWN}
+   *       </ul>
+   * </ul>
+   */
+  @AutoValue
+  public abstract static class RetryConfiguration implements Serializable {
+    @VisibleForTesting
+    static final RetryPredicate DEFAULT_RETRY_PREDICATE = new DefaultRetryPredicate();
+
+    abstract int getMaxAttempts();
+
+    abstract Duration getMaxDuration();
+
+    abstract RetryPredicate getRetryPredicate();
+
+    abstract Builder builder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract SolrIO.RetryConfiguration.Builder setMaxAttempts(int maxAttempts);
+
+      abstract SolrIO.RetryConfiguration.Builder setMaxDuration(Duration maxDuration);
+
+      abstract SolrIO.RetryConfiguration.Builder setRetryPredicate(RetryPredicate retryPredicate);
+
+      abstract SolrIO.RetryConfiguration build();
+    }
+
+    public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
+      checkArgument(
+              maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
+              "maxDuration must be greater than 0");
+      return new AutoValue_SolrIO_RetryConfiguration.Builder()
+          .setMaxAttempts(maxAttempts)
+          .setMaxDuration(maxDuration)
+          .setRetryPredicate(DEFAULT_RETRY_PREDICATE)
+          .build();
+    }
+
+    // Exposed only to allow tests to easily simulate server errors
+    @VisibleForTesting
+    RetryConfiguration withRetryPredicate(RetryPredicate predicate) {
+      checkArgument(predicate != null, "predicate must be provided");
+      return builder().setRetryPredicate(predicate).build();
+    }
+
+    /**
+     * An interface used to control if we retry the Solr call when a {@link Throwable} occurs. If
+     * {@link RetryPredicate#test(Object)} returns true, {@link Write} tries to resend the
+     * requests to the Solr server if the {@link RetryConfiguration} permits it.
+     */
+    @FunctionalInterface
+    interface RetryPredicate extends Predicate<Throwable>, Serializable {}
+
+    /** This is the default predicate used to test if a failed Solr operation should be retried. */
+    private static class DefaultRetryPredicate implements RetryPredicate {
+      private static final Set<Integer> ELIGIBLE_CODES =
+          ImmutableSet.of(
+              SolrException.ErrorCode.CONFLICT.code,
+              SolrException.ErrorCode.SERVER_ERROR.code,
+              SolrException.ErrorCode.SERVICE_UNAVAILABLE.code,
+              SolrException.ErrorCode.INVALID_STATE.code,
+              SolrException.ErrorCode.UNKNOWN.code);
+
+      @Override
+      public boolean test(Throwable t) {
+        return (t instanceof IOException
+            || t instanceof SolrServerException
+            || (t instanceof SolrException && ELIGIBLE_CODES.contains(((SolrException) t).code())));
+      }
     }
   }
 
@@ -567,10 +671,10 @@ public class SolrIO {
     }
   }
 
+
   /** A {@link PTransform} writing data to Solr. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<SolrInputDocument>, PDone> {
-
     @Nullable
     abstract ConnectionConfiguration getConnectionConfiguration();
 
@@ -581,6 +685,9 @@ public class SolrIO {
 
     abstract Builder builder();
 
+    @Nullable
+    abstract RetryConfiguration getRetryConfiguration();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
@@ -588,6 +695,8 @@ public class SolrIO {
       abstract Builder setCollection(String collection);
 
       abstract Builder setMaxBatchSize(int maxBatchSize);
+
+      abstract Builder setRetryConfiguration(RetryConfiguration retryConfiguration);
 
       abstract Write build();
     }
@@ -623,11 +732,37 @@ public class SolrIO {
       return builder().setMaxBatchSize(batchSize).build();
     }
 
+    /**
+     * Provides configuration to retry a failed batch call to Solr. A batch is considered as failed
+     * if the underlying {@link CloudSolrClient} surfaces {@link
+     * org.apache.solr.client.solrj.impl.HttpSolrClient.RemoteSolrException}, {@link
+     * SolrServerException} or {@link IOException}. Users should consider that retrying might
+     * compound the underlying problem which caused the initial failure. Users should also be aware
+     * that once retrying is exhausted the error is surfaced to the runner which <em>may</em> then
+     * opt to retry the current partition in entirety or abort if the max number of retries of the
+     * runner is completed. Retrying uses an exponential backoff algorithm, with minimum backoff of
+     * 5 seconds and then surfacing the error once the maximum number of retries or maximum
+     * configuration duration is exceeded.
+     *
+     * <p>Example use:
+     *
+     * <pre>{@code
+     * SolrIO.write()
+     *   .withRetryConfiguration(SolrIO.RetryConfiguration.create(10, Duration.standardMinutes(3))
+     *   ...
+     * }</pre>
+     *
+     * @param retryConfiguration the rules which govern the retry behavior
+     * @return the {@link Write} with retrying configured
+     */
+    public Write withRetryConfiguration(RetryConfiguration retryConfiguration) {
+      checkArgument(retryConfiguration != null, "retryConfiguration is required");
+      return builder().setRetryConfiguration(retryConfiguration).build();
+    }
+
     @Override
     public PDone expand(PCollection<SolrInputDocument> input) {
-      checkState(
-          getConnectionConfiguration() != null,
-          "withConnectionConfiguration() is required");
+      checkState(getConnectionConfiguration() != null, "withConnectionConfiguration() is required");
       checkState(getCollection() != null, "to() is required");
 
       input.apply(ParDo.of(new WriteFn(this)));
@@ -636,9 +771,13 @@ public class SolrIO {
 
     @VisibleForTesting
     static class WriteFn extends DoFn<SolrInputDocument, Void> {
+      @VisibleForTesting
+      static final String RETRY_ATTEMPT_LOG = "Error writing to Solr. Retry attempt[%d]";
 
+      private static final Duration RETRY_INITIAL_BACKOFF = Duration.standardSeconds(5);
+
+      private transient FluentBackoff retryBackoff; // defaults to no retrying
       private final Write spec;
-
       private transient AuthorizedSolrClient solrClient;
       private Collection<SolrInputDocument> batch;
 
@@ -647,8 +786,22 @@ public class SolrIO {
       }
 
       @Setup
-      public void createClient() throws Exception {
+      public void setup() throws Exception {
         solrClient = spec.getConnectionConfiguration().createClient();
+
+        retryBackoff =
+            FluentBackoff.DEFAULT
+                .withMaxRetries(0) // default to no retrying
+                .withInitialBackoff(RETRY_INITIAL_BACKOFF);
+
+        if (spec.getRetryConfiguration() != null) {
+          // FluentBackoff counts retries excluding the original while we count attempts
+          // to remove ambiguity (hence the -1)
+          retryBackoff =
+              retryBackoff
+                  .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
+                  .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
+        }
       }
 
       @StartBundle
@@ -670,23 +823,53 @@ public class SolrIO {
         flushBatch();
       }
 
-      private void flushBatch() throws IOException {
+      // Flushes the batch, implementing the retry mechanism as configured in the spec.
+      private void flushBatch() throws IOException, InterruptedException {
         if (batch.isEmpty()) {
           return;
         }
         try {
           UpdateRequest updateRequest = new UpdateRequest();
           updateRequest.add(batch);
-          solrClient.process(spec.getCollection(), updateRequest);
-        } catch (SolrServerException e) {
-          throw new IOException("Error writing to Solr", e);
+
+          Sleeper sleeper = Sleeper.DEFAULT;
+          BackOff backoff = retryBackoff.backoff();
+          int attempt = 0;
+          while (true) {
+            attempt++;
+            try {
+              solrClient.process(spec.getCollection(), updateRequest);
+              break;
+            } catch (Exception exception) {
+
+              // fail immediately if no retry configuration doesn't handle this
+              if (spec.getRetryConfiguration() == null
+                  || !spec.getRetryConfiguration().getRetryPredicate().test(exception)) {
+                throw new IOException(
+                        "Error writing to Solr (no attempt made to retry)", exception);
+              }
+
+              // see if we can pause and try again
+              if (!BackOffUtils.next(sleeper, backoff)) {
+                throw new IOException(
+                    String.format(
+                        "Error writing to Solr after %d attempt(s). No more attempts allowed",
+                        attempt),
+                    exception);
+
+              } else {
+                // Note: this used in test cases to verify behavior
+                LOG.warn(String.format(RETRY_ATTEMPT_LOG, attempt), exception);
+              }
+            }
+          }
         } finally {
           batch.clear();
         }
       }
 
       @Teardown
-      public void closeClient() throws Exception {
+      public void closeClient() throws IOException {
         if (solrClient != null) {
           solrClient.close();
         }
