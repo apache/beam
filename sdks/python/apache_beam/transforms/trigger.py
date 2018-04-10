@@ -724,6 +724,9 @@ class NestedContext(object):
     self._outer = outer
     self._prefix = prefix
 
+  def get_current_time(self):
+    return self._outer.get_current_time()
+
   def set_timer(self, name, time_domain, timestamp):
     self._outer.set_timer(self._prefix + name, time_domain, timestamp)
 
@@ -773,7 +776,7 @@ class SimpleState(object):
   def clear_state(self, window, tag):
     pass
 
-  def at(self, window, clock=None):
+  def at(self, window, clock):
     return TriggerContext(self, window, clock)
 
 
@@ -1059,7 +1062,7 @@ class GeneralTriggerDriver(TriggerDriver):
             state.merge(to_be_merged, merge_result)
             # using the outer self argument.
             self.trigger_fn.on_merge(
-                to_be_merged, merge_result, state.at(merge_result))
+                to_be_merged, merge_result, state.at(merge_result, self.clock))
 
         self.window_fn.merge(TriggerMergeContext(all_windows))
 
