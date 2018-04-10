@@ -29,17 +29,6 @@ job('beam_PostCommit_Java_GradleBuild') {
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
-  def gradle_switches = [
-    // Gradle log verbosity enough to diagnose basic build issues
-    "--info",
-    // Continue the build even if there is a failure to show as many potential failures as possible.
-    '--continue',
-    // Until we verify the build cache is working appropriately, force rerunning all tasks
-    '--rerun-tasks',
-    // Specify maven home on Jenkins, needed by Maven archetype integration tests.
-    '-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2'
-  ]
-
   // Publish all test results to Jenkins
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
@@ -59,9 +48,9 @@ job('beam_PostCommit_Java_GradleBuild') {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':javaPostCommit')
-      for (String gradle_switch : gradle_switches) {
-        switches(gradle_switch)
-      }
+      common_job_properties.setGradleSwitches(delegate)
+      // Specify maven home on Jenkins, needed by Maven archetype integration tests.
+      switches('-Pmaven_home=/home/jenkins/tools/maven/apache-maven-3.5.2')
     }
   }
 }
