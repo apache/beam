@@ -15,9 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array;
 
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.map;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -25,27 +28,30 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Implements array element access expression.
+ * Represents MAP expression in SQL.
  */
-public class BeamSqlArrayItemExpression extends BeamSqlExpression {
-
-  public BeamSqlArrayItemExpression(
-      List<BeamSqlExpression> operands,
-      SqlTypeName sqlTypeName) {
-
-    super(operands, sqlTypeName);
+public class BeamSqlMapExpression extends BeamSqlExpression {
+  public BeamSqlMapExpression(List<BeamSqlExpression> operands) {
+    super(operands, SqlTypeName.MAP);
   }
 
   @Override
   public boolean accept() {
-    return operands.size() == 2 && op(0).getOutputType().equals(SqlTypeName.ARRAY);
+    return
+        operands
+            .stream()
+            .map(BeamSqlExpression::getOutputType)
+            .distinct()
+            .count() == 1;
   }
 
   @Override
   public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    List<Object> array = opValueEvaluated(0, inputRow, window);
-    Integer index = opValueEvaluated(1, inputRow, window);
-
-    return BeamSqlPrimitive.of(outputType, array.get(index));
+    Map<Object, Object> elements = new HashMap<>();
+    for (int idx = 0; idx < operands.size() / 2; ++idx) {
+      elements.put(operands.get(idx * 2).evaluate(inputRow, window).getValue(),
+          operands.get(idx * 2 + 1).evaluate(inputRow, window).getValue());
+    }
+    return BeamSqlPrimitive.of(outputType, elements);
   }
 }

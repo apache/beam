@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -146,6 +147,8 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
       return true;
     case ARRAY:
       return value instanceof List;
+    case MAP:
+      return value instanceof Map;
     case ROW:
       return value instanceof Row;
     default:

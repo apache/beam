@@ -21,12 +21,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.stream.Collector;
 import javax.annotation.Nullable;
@@ -183,6 +186,14 @@ public abstract class Row implements Serializable {
   }
 
   /**
+   * Get a MAP value by field name, {@link IllegalStateException} is thrown
+   * if schema doesn't match.
+   */
+  public <T1, T2> Map<T1, T2> getMap(String fieldName) {
+    return getMap(getSchema().indexOf(fieldName));
+  }
+
+  /**
    * Get a {@link TypeName#ROW} value by field name, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
@@ -280,6 +291,14 @@ public abstract class Row implements Serializable {
   }
 
   /**
+   * Get a MAP value by field index, {@link IllegalStateException} is thrown
+   * if schema doesn't match.
+   */
+  public <T1, T2> Map<T1, T2> getMap(int idx) {
+    return getValue(idx);
+  }
+
+  /**
    * Get a {@link Row} value by field index, {@link IllegalStateException} is thrown
    * if schema doesn't match.
    */
@@ -341,6 +360,11 @@ public abstract class Row implements Serializable {
       this.schema = schema;
     }
 
+    public Builder addValue(Object values) {
+      this.values.add(values);
+      return this;
+    }
+
     public Builder addValues(List<Object> values) {
       this.values.addAll(values);
       return this;
@@ -352,6 +376,11 @@ public abstract class Row implements Serializable {
 
     public <T> Builder addArray(List<T> values) {
       this.values.add(values);
+      return this;
+    }
+
+    public <T1, T2> Builder addMap(Map<T1, T2> data) {
+      this.values.add(data);
       return this;
     }
 
@@ -383,6 +412,10 @@ public abstract class Row implements Serializable {
             List<Object> arrayElements = verifyArray(
                 value, type.getComponentType(), field.getName());
             verifiedValues.add(arrayElements);
+          } else if (TypeName.MAP.equals(type.getTypeName())) {
+            Map<Object, Object> mapElements = verifyMap(
+                value, type.getComponentKeyType(), type.getComponentValueType(), field.getName());
+            verifiedValues.add(mapElements);
           } else if (TypeName.ROW.equals(type.getTypeName())) {
             verifiedValues.add(verifyRow(value, field.getName()));
           } else {
@@ -415,6 +448,22 @@ public abstract class Row implements Serializable {
         }
       }
       return verifiedList;
+    }
+
+    private Map<Object, Object> verifyMap(Object value, FieldType componentKeyType,
+        FieldType componentValueType, String fieldName) {
+      if (!(value instanceof Map)) {
+        throw new IllegalArgumentException(String.format(
+            "For field name %s and map type expected Map class. Instead " + "class type was %s.",
+            fieldName, value.getClass()));
+      }
+      Map<Object, Object> valueMap = (Map<Object, Object>) value;
+      Map<Object, Object> verifiedMap = Maps.newHashMapWithExpectedSize(valueMap.size());
+      for (Entry<Object, Object> kv : valueMap.entrySet()) {
+        verifiedMap.put(verifyPrimitiveType(kv.getKey(), componentKeyType.getTypeName(), fieldName),
+            verifyPrimitiveType(kv.getValue(), componentValueType.getTypeName(), fieldName));
+      }
+      return verifiedMap;
     }
 
     private Row verifyRow(Object value, String fieldName) {

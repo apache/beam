@@ -131,7 +131,7 @@ public class RowSqlTypes {
     }
 
     /**
-     * Adds an ARRAY field with elements of the give type.
+     * Adds an ARRAY field with elements of the given type.
      */
     public Builder withArrayField(String fieldName, RelDataType relDataType) {
       builder.addField(Field.of(fieldName, CalciteUtils.toArrayType(relDataType)));
@@ -139,10 +139,29 @@ public class RowSqlTypes {
     }
 
     /**
-     * Adds an ARRAY field with elements of the give type.
+     * Adds an ARRAY field with elements of the given type.
      */
     public Builder withArrayField(String fieldName, SqlTypeName typeName) {
       builder.addField(Field.of(fieldName, CalciteUtils.toArrayType(typeName)));
+      return this;
+    }
+
+    /**
+     * Adds a MAP field with elements of the given key/value type.
+     */
+    public Builder withMapField(String fieldName, RelDataType keyRelDataType,
+        RelDataType valueRelDataType) {
+      builder
+          .addField(Field.of(fieldName, CalciteUtils.toMapType(keyRelDataType, valueRelDataType)));
+      return this;
+    }
+
+    /**
+     * Adds a MAP field with elements of the given key/value type.
+     */
+    public Builder withMapField(String fieldName, SqlTypeName keyTypeName,
+        SqlTypeName valueTypeName) {
+      builder.addField(Field.of(fieldName, CalciteUtils.toMapType(keyTypeName, valueTypeName)));
       return this;
     }
 

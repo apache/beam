@@ -15,9 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.array;
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.map;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -25,11 +26,11 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Implements array element access expression.
+ * Implements map key access expression.
  */
-public class BeamSqlArrayItemExpression extends BeamSqlExpression {
+public class BeamSqlMapItemExpression extends BeamSqlExpression {
 
-  public BeamSqlArrayItemExpression(
+  public BeamSqlMapItemExpression(
       List<BeamSqlExpression> operands,
       SqlTypeName sqlTypeName) {
 
@@ -38,14 +39,14 @@ public class BeamSqlArrayItemExpression extends BeamSqlExpression {
 
   @Override
   public boolean accept() {
-    return operands.size() == 2 && op(0).getOutputType().equals(SqlTypeName.ARRAY);
+    return operands.size() == 2 && op(0).getOutputType().equals(SqlTypeName.MAP);
   }
 
   @Override
   public BeamSqlPrimitive evaluate(Row inputRow, BoundedWindow window) {
-    List<Object> array = opValueEvaluated(0, inputRow, window);
-    Integer index = opValueEvaluated(1, inputRow, window);
+    Map<Object, Object> map = opValueEvaluated(0, inputRow, window);
+    Object key = opValueEvaluated(1, inputRow, window);
 
-    return BeamSqlPrimitive.of(outputType, array.get(index));
+    return BeamSqlPrimitive.of(outputType, map.get(key));
   }
 }
