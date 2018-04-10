@@ -1098,3 +1098,35 @@ def is_consistent_with(sub, base):
     # Nothing but object lives above any type constraints.
     return base == object
   return issubclass(sub, base)
+
+
+def coerce_to_kv_type(element_type, label=None):
+  """Attempts to coerce element_type to a compatible kv type.
+
+  Raises an error on failure.
+  """
+  # If element_type is not specified, then treat it as `Any`.
+  if not element_type:
+    return KV[Any, Any]
+  elif isinstance(element_type, TupleHint.TupleConstraint):
+    if len(element_type.tuple_types) == 2:
+      return element_type
+    else:
+      raise ValueError(
+          "Tuple input to %r must be have two components. "
+          "Found %s." % (label, element_type))
+  elif isinstance(element_type, AnyTypeConstraint):
+    # `Any` type needs to be replaced with a KV[Any, Any] to
+    # satisfy the KV form.
+    return KV[Any, Any]
+  elif isinstance(element_type, UnionConstraint):
+    union_types = [
+        coerce_to_kv_type(t) for t in element_type.union_types]
+    return KV[
+        Union[tuple(t.tuple_types[0] for t in union_types)],
+        Union[tuple(t.tuple_types[1] for t in union_types)]]
+  else:
+    # TODO: Possibly handle other valid types.
+    raise ValueError(
+        "Input to %r must be compatible with KV[Any, Any]. "
+        "Found %s." % (label, element_type))
