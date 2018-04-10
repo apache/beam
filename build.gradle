@@ -45,6 +45,7 @@ buildscript {
     maven { url "http://repo.spring.io/plugins-release" }
   }
   dependencies {
+    classpath "com.gradle:build-scan-plugin:1.13.1"                                                     // Enable publishing build scans
     classpath "net.ltgt.gradle:gradle-apt-plugin:0.13"                                                  // Enable a Java annotation processor
     classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"                                        // Enable proto code generation
     classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                                          // Enable provided and optional configurations
@@ -64,6 +65,17 @@ buildscript {
 // Configure the root project
 
 apply plugin: "base"
+
+apply plugin: "com.gradle.build-scan"
+// JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
+def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
+if (isCIBuild) {
+  buildScan {
+    termsOfServiceUrl = 'https://gradle.com/terms-of-service'
+    termsOfServiceAgree = 'yes'
+    publishAlways()
+  }
+}
 
 // Apply one top level rat plugin to perform any required license enforcement analysis
 apply plugin: "org.nosphere.apache.rat"
