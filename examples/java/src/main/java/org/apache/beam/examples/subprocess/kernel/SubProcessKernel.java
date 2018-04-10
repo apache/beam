@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.apache.beam.examples.subprocess.utils.CallingSubProcessUtils;
 import org.apache.beam.examples.subprocess.utils.FileUtils;
@@ -44,7 +43,7 @@ public class SubProcessKernel {
   SubProcessConfiguration configuration;
   ProcessBuilder processBuilder;
 
-  private SubProcessKernel() {};
+  private SubProcessKernel() {}
 
   /**
    * Creates the SubProcess Kernel ready for execution.
@@ -58,7 +57,8 @@ public class SubProcessKernel {
   }
 
   public List<String> exec(SubProcessCommandLineArgs commands) throws Exception {
-    try (CallingSubProcessUtils.Permit permit = new CallingSubProcessUtils.Permit(processBuilder.command().get(0))) {
+    try (CallingSubProcessUtils.Permit permit =
+        new CallingSubProcessUtils.Permit(processBuilder.command().get(0))) {
 
       List<String> results = null;
 
@@ -81,7 +81,8 @@ public class SubProcessKernel {
   }
 
   public byte[] execBinaryResult(SubProcessCommandLineArgs commands) throws Exception {
-    try (CallingSubProcessUtils.Permit permit = new CallingSubProcessUtils.Permit(processBuilder.command().get(0))) {
+    try (CallingSubProcessUtils.Permit permit =
+        new CallingSubProcessUtils.Permit(processBuilder.command().get(0))) {
 
 
       try (SubProcessIOFiles outputFiles = new SubProcessIOFiles(configuration.getWorkerPath())) {
@@ -169,12 +170,12 @@ public class SubProcessKernel {
   }
 
   /**
-   * TODO clean up duplicate with byte[] version collectBinaryProcessResults
+   * TODO clean up duplicate with byte[] version collectBinaryProcessResults.
    * @param process
    * @param builder
    * @param outPutFiles
-   * @return
-   * @throws Exception
+   * @return List of results
+   * @throws Exception if process has non 0 value or no logs found then throw exception
    */
   private List<String> collectProcessResults(Process process, ProcessBuilder builder,
       SubProcessIOFiles outPutFiles) throws Exception {
@@ -215,12 +216,12 @@ public class SubProcessKernel {
   }
 
   /**
-   * Used when the reault file contains binary data
+   * Used when the reault file contains binary data.
    * @param process
    * @param builder
    * @param outPutFiles
-   * @return
-   * @throws Exception
+   * @return Binary results
+   * @throws Exception if process has non 0 value or no logs found then throw exception
    */
   private byte[] collectProcessResultsBytes(Process process, ProcessBuilder builder,
       SubProcessIOFiles outPutFiles) throws Exception {

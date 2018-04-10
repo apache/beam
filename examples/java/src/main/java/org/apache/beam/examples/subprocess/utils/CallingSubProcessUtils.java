@@ -18,13 +18,10 @@
 package org.apache.beam.examples.subprocess.utils;
 
 import com.google.common.collect.Sets;
-
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
-
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +32,7 @@ import org.slf4j.LoggerFactory;
 public class CallingSubProcessUtils {
 
   // Prevent Instantiation
-  private CallingSubProcessUtils() {};
+  private CallingSubProcessUtils() {}
 
   static final Logger LOG = LoggerFactory.getLogger(CallingSubProcessUtils.class);
 

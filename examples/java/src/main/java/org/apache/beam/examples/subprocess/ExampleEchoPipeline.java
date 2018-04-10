@@ -19,7 +19,6 @@ package org.apache.beam.examples.subprocess;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.apache.beam.examples.subprocess.kernel.SubProcessCommandLineArgs;
 import org.apache.beam.examples.subprocess.kernel.SubProcessCommandLineArgs.Command;
@@ -123,6 +122,7 @@ public class ExampleEchoPipeline {
       }
     }
   }
+
   private static String getTestShellEcho(){
     return "#!/bin/sh\n" + "filename=$1;\n" + "echo $2 >> $filename;";
   }
