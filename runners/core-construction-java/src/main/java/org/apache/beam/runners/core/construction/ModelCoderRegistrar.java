@@ -78,6 +78,11 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
         Coder.class.getSimpleName(),
         CoderTranslator.class.getSimpleName(),
         Sets.difference(BEAM_MODEL_CODER_URNS.keySet(), BEAM_MODEL_CODERS.keySet()));
+    checkState(
+        ModelCoders.urns().equals(BEAM_MODEL_CODER_URNS.values()),
+        "All Model %ss should have an associated java %s",
+        Coder.class.getSimpleName(),
+        Coder.class.getSimpleName());
   }
 
   @Override
