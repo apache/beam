@@ -20,10 +20,12 @@ package org.apache.beam.sdk.io.solr;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.UpdateRequest;
+import org.apache.solr.common.SolrException;
 import org.apache.solr.common.SolrInputDocument;
 
 /** Test utilities to use with {@link SolrIO}. */
@@ -128,5 +130,28 @@ public class SolrIOTestUtils {
       data.add(doc);
     }
     return data;
+  }
+
+  /**
+   * A strategy that will accept to retry on any SolrException.
+   */
+  static class LenientRetryStrategy implements SolrIO.RetryConfiguration.RetryPredicate {
+    @Override
+    public boolean test(Throwable throwable) {
+      return throwable instanceof SolrException;
+    }
+  }
+
+  /**
+   * A utility which will return true if at least one thread of the given name exists and is alive.
+   */
+  static boolean namedThreadIsAlive(String name) {
+    Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
+    for (Thread t : threadSet) {
+      if (t.getName().equals(name) && t.isAlive()) {
+        return true;
+      }
+    }
+    return false;
   }
 }
