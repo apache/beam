@@ -38,27 +38,24 @@ job('beam_Release_Gradle_NightlySnapshot') {
 
 
   def gradle_switches = [
-    // Publish a snapshot build.
-    "-Ppublishing",
-    // Don't run tasks in parallel, currently the maven-publish/signing plugins
-    // cause build failures when run in parallel with messages like 'error snapshotting'
-    '--no-parallel',
   ]
-  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' publish'
 
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
       delegate,
-      gradle_command_line,
+      './gradlew publish',
       'Run Gradle Publish')
 
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks('publish')
-      for (String gradle_switch : gradle_switches) {
-        switches(gradle_switch)
-      }
+      common_job_properties.setGradleSwitches(delegate)
+      // Publish a snapshot build.
+      switches("-Ppublishing")
+      // Don't run tasks in parallel, currently the maven-publish/signing plugins
+      // cause build failures when run in parallel with messages like 'error snapshotting'
+      switches('--no-parallel')
     }
   }
 }
