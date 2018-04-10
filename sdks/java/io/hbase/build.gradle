@@ -28,6 +28,7 @@ test {
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
+  jvmArgs "-Dtest.build.data.basedirectory=build/test-data"
 }
 
 def hbase_version = "1.2.6"
