@@ -179,7 +179,7 @@ class common_job_properties {
 
   static void setGradleSwitches(context) {
     for (String gradle_switch : gradle_switches) {
-      switches(gradle_switch)
+      context.switches(gradle_switch)
     }
   }
 
