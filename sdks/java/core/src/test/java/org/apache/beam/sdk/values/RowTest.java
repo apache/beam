@@ -25,7 +25,9 @@ import static org.junit.Assert.assertNull;
 
 import com.google.common.collect.Lists;
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
@@ -172,6 +174,24 @@ public class RowTest {
         .collect(toSchema());
     Row row = Row.withSchema(type).addArray(data).build();
     assertEquals(data, row.getArray("array"));
+  }
+
+  @Test
+  public void testCreatesMap() {
+    Map<Integer, String> data = new HashMap<Integer, String>() {
+      {
+        put(1, "value1");
+        put(2, "value2");
+        put(3, "value3");
+        put(4, "value4");
+      }
+    };
+    Schema type = Stream
+        .of(Schema.Field.of("map",
+            TypeName.MAP.type().withMapType(TypeName.INT32.type(), TypeName.STRING.type())))
+        .collect(toSchema());
+    Row row = Row.withSchema(type).addMap(data).build();
+    assertEquals(data, row.getMap("map"));
   }
 
   @Test

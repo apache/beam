@@ -199,6 +199,7 @@ public class Schema implements Serializable {
     DATETIME, // Date and time.
     BOOLEAN,  // Boolean.
     ARRAY,
+    MAP,
     ROW;    // The field is itself a nested row.
 
     private final FieldType fieldType = FieldType.of(this);
@@ -208,6 +209,7 @@ public class Schema implements Serializable {
     public static final Set<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
     public static final Set<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
     public static final Set<TypeName> CONTAINER_TYPES = ImmutableSet.of(ARRAY);
+    public static final Set<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
     public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
 
     public boolean isNumericType() {
@@ -221,6 +223,9 @@ public class Schema implements Serializable {
     }
     public boolean isContainerType() {
       return CONTAINER_TYPES.contains(this);
+    }
+    public boolean isMapType() {
+      return MAP_TYPES.contains(this);
     }
     public boolean isCompositeType() {
       return COMPOSITE_TYPES.contains(this);
@@ -242,6 +247,10 @@ public class Schema implements Serializable {
     public abstract TypeName getTypeName();
     // For container types (e.g. ARRAY), returns the type of the contained element.
     @Nullable public abstract FieldType getComponentType();
+    // For MAP type, returns the type of the key element.
+    @Nullable public abstract FieldType getComponentKeyType();
+    // For MAP type, returns the type of the value element.
+    @Nullable public abstract FieldType getComponentValueType();
     // For ROW types, returns the schema for the row.
     @Nullable public abstract Schema getRowSchema();
     /**
@@ -253,6 +262,8 @@ public class Schema implements Serializable {
     abstract static class Builder {
       abstract Builder setTypeName(TypeName typeName);
       abstract Builder setComponentType(@Nullable FieldType componentType);
+      abstract Builder setComponentKeyType(@Nullable FieldType componentKeyType);
+      abstract Builder setComponentValueType(@Nullable FieldType componentValueType);
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
       abstract Builder setMetadata(@Nullable byte[] metadata);
       abstract FieldType build();
@@ -273,6 +284,18 @@ public class Schema implements Serializable {
         checkArgument(getTypeName().isContainerType());
       }
       return toBuilder().setComponentType(componentType).build();
+    }
+
+    /**
+     * For MAP type, adds the type of the component key/value element.
+     */
+    public FieldType withMapType(@Nullable FieldType componentKeyType,
+        @Nullable FieldType componentValueType) {
+      if (componentKeyType != null && componentValueType != null) {
+        checkArgument(getTypeName().isMapType());
+      }
+      return toBuilder().setComponentKeyType(componentKeyType)
+          .setComponentValueType(componentValueType).build();
     }
 
     /**
@@ -307,6 +330,8 @@ public class Schema implements Serializable {
       FieldType other = (FieldType) o;
       return Objects.equals(getTypeName(), other.getTypeName())
           && Objects.equals(getComponentType(), other.getComponentType())
+          && Objects.equals(getComponentKeyType(), other.getComponentKeyType())
+          && Objects.equals(getComponentValueType(), other.getComponentValueType())
           && Objects.equals(getRowSchema(), other.getRowSchema())
           && Arrays.equals(getMetadata(), other.getMetadata());
 
@@ -314,8 +339,8 @@ public class Schema implements Serializable {
 
     @Override
     public int hashCode() {
-      return Arrays.deepHashCode(
-          new Object[] {getTypeName(), getComponentType(), getRowSchema(), getMetadata()});
+      return Arrays.deepHashCode(new Object[] { getTypeName(), getComponentType(),
+          getComponentKeyType(), getComponentValueType(), getRowSchema(), getMetadata() });
     }
   }
 
