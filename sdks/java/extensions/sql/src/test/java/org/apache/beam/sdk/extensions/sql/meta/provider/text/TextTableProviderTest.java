@@ -80,10 +80,12 @@ public class TextTableProviderTest {
             Column.builder()
                 .name("id")
                 .fieldType(TypeName.INT32.type())
+                .nullable(true)
                 .build(),
             Column.builder()
                 .name("name")
                 .fieldType(RowSqlTypes.VARCHAR)
+                .nullable(true)
                 .build()))
         .type("text")
         .properties(properties)

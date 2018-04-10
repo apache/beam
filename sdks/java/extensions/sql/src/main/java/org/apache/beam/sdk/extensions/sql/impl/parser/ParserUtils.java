@@ -41,6 +41,7 @@ public class ParserUtils {
           .name(columnDef.name().toLowerCase())
           .fieldType(CalciteUtils.toFieldType(
               columnDef.type().deriveType(BeamQueryPlanner.TYPE_FACTORY)))
+          .nullable(true)
           .comment(columnDef.comment())
           .build();
       columns.add(column);
