@@ -16,13 +16,13 @@
 
 package org.apache.beam.runners.fnexecution.graph;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
+import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 
@@ -33,18 +33,8 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
  * possibly from ModelCoderRegistrar.
  */
 public class LengthPrefixUnknownCoders {
-  private static final String BYTES_CODER_TYPE = "beam:coder:bytes:v1";
-  private static final String LENGTH_PREFIX_CODER_TYPE = "beam:coder:length_prefix:v1";
-  private static final Set<String> WELL_KNOWN_CODER_URNS =
-      ImmutableSet.of(
-          BYTES_CODER_TYPE,
-          "beam:coder:kv:v1",
-          "beam:coder:varint:v1",
-          "beam:coder:interval_window:v1",
-          "beam:coder:iterable:v1",
-          LENGTH_PREFIX_CODER_TYPE,
-          "beam:coder:global_window:v1",
-          "beam:coder:windowed_value:v1");
+  private static final String BYTES_CODER_TYPE = ModelCoders.BYTES_CODER_URN;
+  private static final String LENGTH_PREFIX_CODER_TYPE = ModelCoders.LENGTH_PREFIX_CODER_URN;
 
   /**
    * Recursively traverse the coder tree and wrap the first unknown coder in every branch with a
@@ -86,7 +76,7 @@ public class LengthPrefixUnknownCoders {
       rvalBuilder.setCoder(currentCoder);
       rvalBuilder.setComponents(components);
       return rvalBuilder.build();
-    } else if (WELL_KNOWN_CODER_URNS.contains(currentCoder.getSpec().getSpec().getUrn())) {
+    } else if (ModelCoders.urns().contains(currentCoder.getSpec().getSpec().getUrn())) {
       return lengthPrefixUnknownComponentCoders(coderId, components, replaceWithByteArrayCoder);
     } else {
       return lengthPrefixUnknownCoder(coderId, components, replaceWithByteArrayCoder);
