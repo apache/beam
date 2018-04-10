@@ -38,6 +38,7 @@ from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -208,6 +209,7 @@ class FnApiRunner(runner.PipelineRunner):
 
   def run_pipeline(self, pipeline):
     MetricsEnvironment.set_metrics_supported(False)
+    RuntimeValueProvider.set_runtime_options({})
     # This is sometimes needed if type checking is disabled
     # to enforce that the inputs (and outputs) of GroupByKey operations
     # are known to be KVs.
