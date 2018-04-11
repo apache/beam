@@ -17,7 +17,15 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableFindbugs: false)
+applyJavaNature(
+  enableFindbugs: false,
+  // Override the default shading configuration to exclude everything since
+  // Bigtable needs to expose Guava types.
+  shadowClosure: {
+    dependencies {
+      exclude(".*")
+    }
+  })
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
@@ -32,10 +40,10 @@ ext.summary = "IO library to read and write Google Cloud Platform systems from B
 evaluationDependsOn(":beam-sdks-java-extensions-google-cloud-platform-core")
 
 dependencies {
-  compile library.java.guava
   shadow project(path: ":beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-java-extensions-protobuf", configuration: "shadow")
+  shadow library.java.guava
   shadow library.java.jackson_databind
   shadow library.java.grpc_core
   shadow library.java.google_api_services_bigquery
@@ -76,26 +84,4 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest library.java.junit
   shadowTest library.java.slf4j_jdk14
-}
-
-// Create a shaded test jar.
-task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
-  classifier = "shaded-tests"
-  from sourceSets.test.output
-  configurations = [project.configurations.testRuntime]
-  dependencies {
-    exclude(".*")
-    include(dependency(library.java.guava))
-  }
-  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
-    // com.google.common is too generic, need to exclude guava-testlib
-    exclude "com.google.common.collect.testing.**"
-    exclude "com.google.common.escape.testing.**"
-    exclude "com.google.common.testing.**"
-    exclude "com.google.common.util.concurrent.testing.**"
-  }
-}
-
-artifacts {
-  shadowTest shadowTestJar
 }

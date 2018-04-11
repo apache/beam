@@ -85,32 +85,13 @@ dependencies {
   dataflowStreamingRunnerPreCommit project(path: ":beam-runners-google-cloud-dataflow-java", configuration: "shadow")
   directRunnerPreCommit project(path: ":beam-runners-direct-java", configuration: "shadow")
   flinkRunnerPreCommit project(path: ":beam-runners-flink_2.11", configuration: "shadow")
+  // TODO: Make the netty version used configurable, we add netty-all 4.1.17.Final so it appears on the classpath
+  // before 4.1.8.Final defined by Apache Beam
+  sparkRunnerPreCommit "io.netty:netty-all:4.1.17.Final"
   sparkRunnerPreCommit project(path: ":beam-runners-spark", configuration: "shadow")
   sparkRunnerPreCommit project(path: ":beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
   sparkRunnerPreCommit library.java.spark_streaming
   sparkRunnerPreCommit library.java.spark_core
-}
-
-// Create a shaded test jar.
-task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
-  classifier = "shaded-tests"
-  from sourceSets.test.output
-  configurations = [project.configurations.testRuntime]
-  dependencies {
-    exclude(".*")
-    include(dependency(library.java.guava))
-  }
-  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
-    // com.google.common is too generic, need to exclude guava-testlib
-    exclude "com.google.common.collect.testing.**"
-    exclude "com.google.common.escape.testing.**"
-    exclude "com.google.common.testing.**"
-    exclude "com.google.common.util.concurrent.testing.**"
-  }
-}
-
-artifacts {
-  shadowTest shadowTestJar
 }
 
 /*

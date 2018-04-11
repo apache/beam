@@ -31,6 +31,32 @@
 
 println "Applying build_rules.gradle to $project.name"
 
+// Define the set of repositories and dependencies required to
+// fetch and enable plugins.
+buildscript {
+  repositories {
+    maven { url file(offlineRepositoryRoot) }
+
+    // To run gradle in offline mode, one must first invoke
+    // 'updateOfflineRepository' to create an offline repo
+    // inside the root project directory. See the application
+    // of the offline repo plugin within build_rules.gradle
+    // for further details.
+    if (gradle.startParameter.isOffline()) {
+      return
+    }
+
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+    maven { url "https://plugins.gradle.org/m2/" }
+    maven { url "http://repo.spring.io/plugins-release" }
+  }
+  dependencies {
+    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"                                        // Enable shading Java dependencies
+  }
+}
+
 /*************************************************************************************************/
 // Apply common properties/repositories and tasks to all projects.
 
@@ -281,11 +307,34 @@ ext.getJavaRelocatedPath = { String suffix ->
           + suffix)
 }
 
+ext.DEFAULT_SHADOW_CLOSURE = {
+  dependencies {
+    exclude(".*")
+    include(dependency(library.java.guava))
+  }
+  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
+    // com.google.common is too generic, need to exclude guava-testlib
+    exclude "com.google.common.collect.testing.**"
+    exclude "com.google.common.escape.testing.**"
+    exclude "com.google.common.testing.**"
+    exclude "com.google.common.util.concurrent.testing.**"
+  }
+}
+
 // A class defining the set of configurable properties accepted by applyJavaNature
 class JavaNatureConfiguration {
   double javaVersion = 1.8        // Controls the JDK source language and target compatibility
   boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
   boolean enableShadow = true     // Controls whether the shadow plugin is enabled and configured
+  // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
+  // Users can compose their closure with the default closure via:
+  // DEFAULT_SHADOW_CLOSURE << {
+  //    dependencies {
+  //      include(...)
+  //    }
+  //    relocate(...)
+  // }
+  Closure shadowClosure;
 }
 
 // Configures a project with a default set of plugins that should apply to all Java projects.
@@ -337,6 +386,10 @@ ext.applyJavaNature = {
   println "applyJavaNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
   JavaNatureConfiguration configuration = it ? it as JavaNatureConfiguration : new JavaNatureConfiguration()
+  if (!configuration.shadowClosure) {
+    configuration.shadowClosure = DEFAULT_SHADOW_CLOSURE
+  }
+
   apply plugin: "java"
 
   // Configure the Java compiler source language and target compatibility levels. Also ensure that
@@ -446,23 +499,6 @@ ext.applyJavaNature = {
   if (configuration.enableShadow) {
     apply plugin: 'com.github.johnrengelman.shadow'
 
-    // Shade guava in all our dependencies.
-    shadowJar {
-      classifier = "shaded"
-      mergeServiceFiles()
-      dependencies {
-        exclude(".*")
-        include(dependency(library.java.guava))
-      }
-      relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
-        // com.google.common is too generic, need to exclude guava-testlib
-        exclude "com.google.common.collect.testing.**"
-        exclude "com.google.common.escape.testing.**"
-        exclude "com.google.common.testing.**"
-        exclude "com.google.common.util.concurrent.testing.**"
-      }
-    }
-
     // Create a new configuration 'shadowTest' like 'shadow' for the test scope
     configurations {
       shadow {
@@ -475,18 +511,27 @@ ext.applyJavaNature = {
       }
       testCompile.extendsFrom shadowTest
     }
-    // Ensure that shaded classes are part of the artifact set.
-    artifacts.archives shadowJar
 
-    // TODO: Figure out how to create ShadowJar task for ShadowTestJar here
-    // that is extendable within each sub-project with any additional includes.
-    // This could mirror the "shadowJar" configuration block.
-    // Optionally, we could also copy the shading configuration from the main
-    // source set and apply it here.
-    //
-    // Shading the test jar has a lot less need but can still be beneficial for
-    // resolving class conflicts for tests during test execution or exposing
-    // test libraries for users.
+    // Always configure the shadowJar classifier and merge service files.
+    shadowJar ({
+      classifier = "shaded"
+      mergeServiceFiles()
+
+    } << configuration.shadowClosure)
+
+    // Always configure the shadowTestJar classifier and merge service files.
+    tasks.create(name: 'shadowTestJar', type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar, {
+      classifier = "shaded-tests"
+      from sourceSets.test.output
+      configurations = [project.configurations.testRuntime]
+    } << configuration.shadowClosure)
+
+    // Ensure that shaded jar and test-jar are part of the their own cconfiguration artifact sets
+    // and the archives configuration set.
+    artifacts.shadow shadowJar
+    artifacts.shadowTest shadowTestJar
+    artifacts.archives shadowJar
+    artifacts.archives shadowTestJar
   }
 
   task sourcesJar(type: Jar) {
