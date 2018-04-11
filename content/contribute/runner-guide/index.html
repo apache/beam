@@ -931,35 +931,21 @@ matching a <code class="highlighter-rouge">ParDo</code> where the <code class="h
 <p>The Beam Java SDK and Python SDK have suites of runner validation tests. The
 configuration may evolve faster than this document, so check the configuration
 of other Beam runners. But be aware that we have tests and you can use them
-very easily!  To enable these tests in a Java-based runner using Maven, you
+very easily!  To enable these tests in a Java-based runner using Gradle, you
 scan the dependencies of the SDK for tests with the JUnit category
 <code class="highlighter-rouge">ValidatesRunner</code>.</p>
 
-<div class="language-xml no-toggle highlighter-rouge"><pre class="highlight"><code><span class="nt">&lt;plugin&gt;</span>
-  <span class="nt">&lt;groupId&gt;</span>org.apache.maven.plugins<span class="nt">&lt;/groupId&gt;</span>
-  <span class="nt">&lt;artifactId&gt;</span>maven-surefire-plugin<span class="nt">&lt;/artifactId&gt;</span>
-  <span class="nt">&lt;executions&gt;</span>
-    <span class="nt">&lt;execution&gt;</span>
-      <span class="nt">&lt;id&gt;</span>validates-runner-tests<span class="nt">&lt;/id&gt;</span>
-      <span class="nt">&lt;phase&gt;</span>integration-test<span class="nt">&lt;/phase&gt;</span>
-      <span class="nt">&lt;goals&gt;&lt;goal&gt;</span>test<span class="nt">&lt;/goal&gt;&lt;/goals&gt;</span>
-      <span class="nt">&lt;configuration&gt;</span>
-        <span class="nt">&lt;groups&gt;</span>org.apache.beam.sdk.testing.ValidatesRunner<span class="nt">&lt;/groups&gt;</span>
-        <span class="nt">&lt;dependenciesToScan&gt;</span>
-          <span class="nt">&lt;dependency&gt;</span>org.apache.beam:beam-sdks-java-core<span class="nt">&lt;/dependency&gt;</span>
-        <span class="nt">&lt;/dependenciesToScan&gt;</span>
-        <span class="nt">&lt;systemPropertyVariables&gt;</span>
-          <span class="nt">&lt;beamTestPipelineOptions&gt;</span>
-            [
-              "--runner=MyRunner",
-              … misc test options …
-            ]
-          <span class="nt">&lt;/beamTestPipelineOptions&gt;</span>
-        <span class="nt">&lt;/systemPropertyVariables&gt;</span>
-      <span class="nt">&lt;/configuration&gt;</span>
-    <span class="nt">&lt;/execution&gt;</span>
-  <span class="nt">&lt;/executions&gt;</span>
-<span class="nt">&lt;/plugin&gt;</span>
+<div class="no-toggle highlighter-rouge"><pre class="highlight"><code>task validatesRunner(type: Test) {
+  group = "Verification"
+  description = "Validates the runner"
+  def pipelineOptions = JsonOutput.toJson(["--runner=MyRunner", ... misc test options ...])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
+}
 </code></pre>
 </div>
 

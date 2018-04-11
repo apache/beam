@@ -363,7 +363,7 @@ details on those testing types.</p>
    </td>
    <td>Correctness
    </td>
-   <td>E2E Test, <a href="https://github.com/apache/beam/blob/master/runners/pom.xml#L47">@ValidatesRunner</a>
+   <td>E2E Test, @ValidatesRunner
    </td>
    <td><a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/WordCountIT.java#L78">WordCountIT</a>, <a href="https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/ParDoTest.java">ParDoTest</a>
    </td>
@@ -521,31 +521,26 @@ desired configurations.</p>
 
 <h4 id="how-to-run-java-needsrunner-tests">How to run Java NeedsRunner tests</h4>
 
-<p>NeedsRunner is a category of tests that require a Beam runner. A subset of these
-tests cannot be executed while building their corresponding modules because all
-runners depend on these modules (e.g. <code class="highlighter-rouge">sdks/java/core</code>) to be built. To break
-the circular dependency, these tests are executed after the Direct Runner is
-built.</p>
+<p>NeedsRunner is a category of tests that require a Beam runner. To run
+NeedsRunner tests:</p>
 
-<p>To run this subset of the NeedsRunner tests (requires Maven 3.3.1+):</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn -pl runners/direct-java -am install -DskipTests
-$ mvn -pl runners/direct-java surefire:test@validates-runner-tests
+<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew :runners:direct-java:needsRunnerTests
 </code></pre>
 </div>
 
 <p>To run a single NeedsRunner test use the <code class="highlighter-rouge">test</code> property, e.g.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn -pl runners/direct-java surefire:test@validates-runner-tests -Dtest=MapElementsTest#testMapBasic
+<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew :runners:direct-java:needsRunnerTests --tests org.apache.beam.sdk.transforms.MapElementsTest.testMapBasic
 </code></pre>
 </div>
 
 <p>will run the <code class="highlighter-rouge">MapElementsTest.testMapBasic()</code> test.</p>
 
 <p>NeedsRunner tests in modules that are not required to build runners (e.g.
-<code class="highlighter-rouge">sdks/java/io/jdbc</code>) can be executed with the <code class="highlighter-rouge">mvn test</code> command:</p>
+<code class="highlighter-rouge">sdks/java/io/google-cloud-platform</code>) can be executed with the <code class="highlighter-rouge">gradle test</code>
+command:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn -pl sdks/java/io/jdbc test -Dgroups=org.apache.beam.sdk.testing.NeedsRunner
+<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew sdks:java:io:google-cloud-platform:test --tests org.apache.beam.sdk.io.gcp.spanner.SpannerIOWriteTest
 </code></pre>
 </div>
 
@@ -581,14 +576,13 @@ from the Beam examples, or custom-built pipelines, the framework will provide
 hooks during several pipeline lifecycle events, e.g., pipeline creation,
 pipeline success, and pipeline failure, to allow verification of pipeline state.</p>
 
-<p>The E2E testing framework is currently built to hook into the <a href="http://maven.apache.org/surefire/maven-failsafe-plugin/">Maven Failsafe
-Integration Test
-plugin</a>, which means it
-is tightly integrated with the overall build process. Once it is determined how
-Python and other future languages will integrate into the overall build/test
-system (via Maven or otherwise) we will adjust this. The framework provides a
-wrapper around actual Beam pipelines, enabling those pipelines to be run in an
-environment which facilitates verification of pipeline results and details.</p>
+<p>The E2E testing framework is currently built to execute the tests in <a href="https://github.com/GoogleCloudPlatform/PerfKitBenchmarker">PerfKit
+Benchmarker</a>,
+invoked via Gradle tasks. Once it is determined how Python and other future
+languages will integrate into the overall build/test system (via Gradle or
+otherwise) we will adjust this. The framework provides a wrapper around actual
+Beam pipelines, enabling those pipelines to be run in an environment which
+facilitates verification of pipeline results and details.</p>
 
 <p>Verifiers include:</p>
 

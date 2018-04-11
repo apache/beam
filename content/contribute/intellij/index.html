@@ -145,7 +145,7 @@
         
 
 <ul class="nav">
-  <li><a href="#enable-annotation-processing">Enable Annotation Processing</a></li>
+  <li><a href="#create-a-working-gradle-module">Create a working Gradle module</a></li>
   <li><a href="#checkstyle">Checkstyle</a></li>
   <li><a href="#code-style">Code Style</a></li>
 </ul>
@@ -168,28 +168,33 @@
   <p>Mastering IntelliJ is, ultimately, your responsibility.</p>
 </blockquote>
 
-<h2 id="enable-annotation-processing">Enable Annotation Processing</h2>
-
-<p>To configure annotation processing in IntelliJ:</p>
+<h2 id="create-a-working-gradle-module">Create a working Gradle module</h2>
 
 <ol>
-  <li>Open Annotation Processors Settings dialog box by going to Settings -&gt;
-Build, Execution, Deployment -&gt; Compiler -&gt; Annotation Processors</li>
-  <li>Select the following buttons:
-    <ul>
-      <li>“Enable annotation processing”</li>
-      <li>“Obtain processors from project classpath”</li>
-      <li>“Store generated sources relative to: <em>Module content root</em>”</li>
-    </ul>
+  <li>Create an empty IntelliJ project outside of the Beam source tree.</li>
+  <li>Under Project Structure &gt; Project, select a Project SDK.</li>
+  <li>Under Project Structure &gt; Modules, click the + sign to add a module and
+select “Import Module”.
+    <ol>
+      <li>Select the directory containing the Beam source tree.</li>
+      <li>Tick the “Import module from external model” button and select Gradle
+from the list.</li>
+      <li>Tick the following boxes.
+        <ul>
+          <li>Create separate module per source set</li>
+          <li>Store generated project files externally</li>
+          <li>Use default gradle wrapper</li>
+        </ul>
+      </li>
+    </ol>
   </li>
-  <li>Set the generated source directories to be equal to the Maven directories:
-    <ul>
-      <li>Set “Production sources directory:” to <code class="highlighter-rouge">target/generated-sources/annotations</code></li>
-      <li>Set “Test sources directory:” to <code class="highlighter-rouge">target/generated-test-sources/test-annotations</code></li>
-    </ul>
-  </li>
-  <li>Click “OK”</li>
+  <li>Delegate build actions to Gradle by going to Settings &gt; Build, Execution,
+Deployment &gt; Build Tools &gt; Gradle and checking “Delegate IDE build/run
+actions to gradle”.</li>
 </ol>
+
+<p>This should result in a working Gradle project. Build the project by executing
+the “build” task in the root Gradle module.</p>
 
 <h2 id="checkstyle">Checkstyle</h2>
 
@@ -198,7 +203,7 @@ Build, Execution, Deployment -&gt; Compiler -&gt; Annotation Processors</li>
 <ol>
   <li>Install the “Checkstyle-IDEA” plugin from the IntelliJ plugin repository</li>
   <li>Configure the plugin by going to Settings -&gt; Other Settings -&gt; Checkstyle</li>
-  <li>Set Checkstyle version to the same as in <code class="highlighter-rouge">/pom.xml</code> (e.g. 6.19)</li>
+  <li>Set Checkstyle version to the same as in <code class="highlighter-rouge">/build_rules.gradle</code> (e.g. 8.7)</li>
   <li>Set the “Scan Scope” to “Only Java sources (including tests)”</li>
   <li>In the “Configuration File” pane, add a new configuration using the plus icon:
     <ol>
