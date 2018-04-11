@@ -85,7 +85,7 @@ public class TranslatorUtils {
     // tag 0 is reserved for main input
     int tag = 1;
     for (PCollectionView<?> sideInput: sideInputs) {
-      tagsToSideInputs.put(tag + "", sideInput);
+      tagsToSideInputs.put(Integer.toString(tag), sideInput);
       tag++;
     }
     return tagsToSideInputs;
