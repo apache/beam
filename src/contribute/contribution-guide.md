@@ -246,9 +246,9 @@ to prevent the issue from reoccurring.
 
 #### Java SDK
 
-For contributions to the Java code, run unit tests locally via Maven.
+For contributions to the Java code, run checks locally via Gradle.
 
-    $ mvn clean verify
+    $ ./gradlew :beam-sdks-java-core:check --rerun-tasks
 
 #### Python SDK
 
@@ -271,11 +271,11 @@ command.
     $ tox -e lint_py2,lint_py3
 
 
-Beam supports running Python SDK tests using Maven. For this, navigate to root
+Beam supports running Python SDK tests using Gradle. For this, navigate to root
 directory of your Apache Beam clone and execute following command. Currently
 this cannot be run from a virtual environment.
 
-    $ mvn clean verify -pl sdks/python
+    $ ./gradlew :beam-sdks-python:check --rerun-tasks
 
 ## Review
 
