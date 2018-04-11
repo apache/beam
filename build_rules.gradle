@@ -349,7 +349,6 @@ class JavaNatureConfiguration {
 //  * maven
 //  * net.ltgt.apt (plugin to configure annotation processing tool)
 //  * propdeps (provide optional and provided dependency configurations)
-//  * propdeps-maven (configure Maven pom generation to understand optional and provided dependency configurations)
 //  * checkstyle
 //  * findbugs
 //  * shadow
@@ -448,7 +447,6 @@ ext.applyJavaNature = {
   // TODO: Either remove these plugins and find another way to generate the Maven poms
   // with the correct dependency scopes configured.
   apply plugin: 'propdeps'
-  apply plugin: 'propdeps-maven'
 
   // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
   // suppressions.
@@ -700,33 +698,38 @@ ext.applyJavaNature = {
             // Iterate over the dependencies that would exist post shading,
             // adding a <dependency> node for each
             def dependenciesNode = root.appendNode('dependencies')
-            configurations.shadow.allDependencies.each {
-              def dependencyNode = dependenciesNode.appendNode('dependency')
-              dependencyNode.appendNode('groupId', it.group)
-              dependencyNode.appendNode('artifactId', it.name)
-              dependencyNode.appendNode('version', it.version)
+            def generateDependenciesFromConfiguration = { param ->
+              configurations."${param.configuration}".allDependencies.each {
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', it.group)
+                dependencyNode.appendNode('artifactId', it.name)
+                dependencyNode.appendNode('version', it.version)
 
-              // TODO: Should we use the runtime scope which forces all our
-              // consumers to declare what they consume?
-              dependencyNode.appendNode('scope', 'compile')
+                dependencyNode.appendNode('scope', param.scope)
 
-              // Start with any exclusions that were added via configuration exclude rules.
-              // Then add all the exclusions that are specific to the dependency (if any
-              // were declared). Finally build the node that represents all exclusions.
-              def exclusions = []
-              exclusions += configurations.shadow.excludeRules
-              if (it.hasProperty('excludeRules')) {
-                exclusions += it.excludeRules
-              }
-              if (!exclusions.empty) {
-                def exclusionsNode = dependencyNode.appendNode('exclusions')
-                for (ExcludeRule exclude : exclusions) {
-                  def exclusionNode = exclusionsNode.appendNode('exclusion')
-                  exclusionNode.appendNode('groupId', exclude.group)
-                  exclusionNode.appendNode('artifactId', exclude.module)
+                // Start with any exclusions that were added via configuration exclude rules.
+                // Then add all the exclusions that are specific to the dependency (if any
+                // were declared). Finally build the node that represents all exclusions.
+                def exclusions = []
+                exclusions += configurations."${param.configuration}".excludeRules
+                if (it.hasProperty('excludeRules')) {
+                  exclusions += it.excludeRules
+                }
+                if (!exclusions.empty) {
+                  def exclusionsNode = dependencyNode.appendNode('exclusions')
+                  for (ExcludeRule exclude : exclusions) {
+                    def exclusionNode = exclusionsNode.appendNode('exclusion')
+                    exclusionNode.appendNode('groupId', exclude.group)
+                    exclusionNode.appendNode('artifactId', exclude.module)
+                  }
                 }
               }
             }
+
+            // TODO: Should we use the runtime scope instead of the compile scope
+            // which forces all our consumers to declare what they consume?
+            generateDependenciesFromConfiguration(configuration: 'shadow', scope: 'compile')
+            generateDependenciesFromConfiguration(configuration: 'provided', scope: 'provided')
 
             // NB: This must come after asNode() logic, as it seems asNode()
             // removes XML comments.
