@@ -17,8 +17,16 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(enableShadow: false /* Disable shadow because of custom configuration below. */)
-apply plugin: "com.github.johnrengelman.shadow"
+applyJavaNature(shadowClosure:
+  // Create an uber jar without repackaging for the SDK harness
+  // TODO: We have been releasing this in the past, consider not
+  // releasing it since its typically bad practice to release 'all'
+  // jars.
+  {
+    dependencies {
+      include('.*')
+    }
+  })
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"
@@ -55,11 +63,4 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
-}
-
-// Create an uber jar without repackaging for the SDK harness
-// Note, this jar should never be published because it bundles
-// dependencies without repackaging.
-shadowJar {
-  mergeServiceFiles()
 }
