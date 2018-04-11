@@ -153,7 +153,7 @@ public class SubProcessKernel {
 
       if (timeout) {
         String log = String.format(
-            "Timeout waiting to run process with parameters % . "
+            "Timeout waiting to run process with parameters %s . "
                 + "Check to see if your timeout is long enough. Currently set at %s.",
             createLogEntryFromInputs(builder.command()), configuration.getWaitTime());
         throw new Exception(log);
@@ -265,22 +265,22 @@ public class SubProcessKernel {
     // Highlight when no result file is found vs standard process error
     if (process.exitValue() == 0) {
       stringBuilder.append(
-          String.format("\nProcess succeded but no result file was found \n", process.exitValue()));
+          String.format("%nProcess succeded but no result file was found %n"));
     } else {
       stringBuilder.append(
-          String.format("\nProcess error failed with exit value of %s \n", process.exitValue()));
+          String.format("%nProcess error failed with exit value of %s %n", process.exitValue()));
     }
 
     stringBuilder
-        .append(String.format("Command info was %s \n", createLogEntryFromInputs(commands)));
+        .append(String.format("Command info was %s %n", createLogEntryFromInputs(commands)));
 
-    stringBuilder.append(String.format("First line of error file is  %s \n",
+    stringBuilder.append(String.format("First line of error file is  %s %n",
         FileUtils.readLineOfLogFile(files.errFile)));
 
-    stringBuilder.append(String.format("First line of out file is %s \n",
+    stringBuilder.append(String.format("First line of out file is %s %n",
         FileUtils.readLineOfLogFile(files.outFile)));
 
-    stringBuilder.append(String.format("First line of ret file is %s \n",
+    stringBuilder.append(String.format("First line of ret file is %s %n",
         FileUtils.readLineOfLogFile(files.resultFile)));
 
     return stringBuilder.toString();
