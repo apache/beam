@@ -25,7 +25,6 @@ section_menu: section-menu/contribute.html
     2. Tick the "Import module from external model" button and select Gradle
        from the list.
     3. Tick the following boxes.
-       * Use auto-import
        * Create separate module per source set
        * Store generated project files externally
        * Use default gradle wrapper
