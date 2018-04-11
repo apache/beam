@@ -132,6 +132,11 @@ task goPreCommit() {
   dependsOn ":beam-sdks-go:test"
 }
 
+task goPostCommit() {
+  // Same currently as precommit, but duplicated to provide a clearer signal of reliability.
+  dependsOn ":goPreCommit"
+}
+
 task pythonPreCommit() {
   dependsOn ":rat"
   dependsOn ":beam-sdks-python:check"
