@@ -15,20 +15,25 @@ section_menu: section-menu/contribute.html
 >
 > Mastering IntelliJ is, ultimately, your responsibility.
 
-## Enable Annotation Processing
+## Create a working Gradle module
 
-To configure annotation processing in IntelliJ:
+1. Create an empty IntelliJ project outside of the Beam source tree.
+2. Under Project Structure > Project, select a Project SDK.
+3. Under Project Structure > Modules, click the + sign to add a module and
+   select "Import Module".
+    1. Select the directory containing the Beam source tree.
+    2. Tick the "Import module from external model" button and select Gradle
+       from the list.
+    3. Tick the following boxes.
+       * Create separate module per source set
+       * Store generated project files externally
+       * Use default gradle wrapper
+4. Delegate build actions to Gradle by going to Settings > Build, Execution,
+   Deployment > Build Tools > Gradle and checking "Delegate IDE build/run
+   actions to gradle".
 
-1. Open Annotation Processors Settings dialog box by going to Settings ->
-   Build, Execution, Deployment -> Compiler -> Annotation Processors
-2. Select the following buttons:
-   * "Enable annotation processing"
-   * "Obtain processors from project classpath"
-   * "Store generated sources relative to: _Module content root_"
-3. Set the generated source directories to be equal to the Maven directories:
-   * Set "Production sources directory:" to `target/generated-sources/annotations`
-   * Set "Test sources directory:" to `target/generated-test-sources/test-annotations`
-4. Click "OK"
+This should result in a working Gradle project. Build the project by executing
+the "build" task in the root Gradle module.
 
 ## Checkstyle
 
@@ -36,7 +41,7 @@ IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository
 2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle
-3. Set Checkstyle version to the same as in `/pom.xml` (e.g. 6.19)
+3. Set Checkstyle version to the same as in `/build_rules.gradle` (e.g. 8.7)
 4. Set the "Scan Scope" to "Only Java sources (including tests)"
 5. In the "Configuration File" pane, add a new configuration using the plus icon:
     1. Set the "Description" to "Beam"

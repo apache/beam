@@ -637,37 +637,23 @@ matching a `ParDo` where the `DoFn` uses state or timers, etc.
 The Beam Java SDK and Python SDK have suites of runner validation tests. The
 configuration may evolve faster than this document, so check the configuration
 of other Beam runners. But be aware that we have tests and you can use them
-very easily!  To enable these tests in a Java-based runner using Maven, you
+very easily!  To enable these tests in a Java-based runner using Gradle, you
 scan the dependencies of the SDK for tests with the JUnit category
 `ValidatesRunner`.
 
 {:.no-toggle}
-```xml
-<plugin>
-  <groupId>org.apache.maven.plugins</groupId>
-  <artifactId>maven-surefire-plugin</artifactId>
-  <executions>
-    <execution>
-      <id>validates-runner-tests</id>
-      <phase>integration-test</phase>
-      <goals><goal>test</goal></goals>
-      <configuration>
-        <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
-        <dependenciesToScan>
-          <dependency>org.apache.beam:beam-sdks-java-core</dependency>
-        </dependenciesToScan>
-        <systemPropertyVariables>
-          <beamTestPipelineOptions>
-            [
-              "--runner=MyRunner",
-              … misc test options …
-            ]
-          </beamTestPipelineOptions>
-        </systemPropertyVariables>
-      </configuration>
-    </execution>
-  </executions>
-</plugin>
+```
+task validatesRunner(type: Test) {
+  group = "Verification"
+  description = "Validates the runner"
+  def pipelineOptions = JsonOutput.toJson(["--runner=MyRunner", ... misc test options ...])
+  systemProperty "beamTestPipelineOptions", pipelineOptions
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+  }
+}
 ```
 
 Enable these tests in other languages is unexplored.
