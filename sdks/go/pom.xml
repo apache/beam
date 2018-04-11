@@ -113,6 +113,9 @@
             </goals>
             <phase>compile</phase>
             <configuration>
+              <buildFlags>
+                <flag>-u</flag>
+              </buildFlags>
               <packages>
                 <package>google.golang.org/grpc</package>
                 <package>golang.org/x/oauth2/google</package>
