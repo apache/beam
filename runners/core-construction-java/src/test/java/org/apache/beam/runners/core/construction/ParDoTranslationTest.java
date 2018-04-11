@@ -149,8 +149,6 @@ public class ParDoTranslationTest {
           RehydratedComponents.forComponents(components);
 
       // Decode
-      Pipeline.create();
-
       ParDoPayload parDoPayload = ParDoPayload.parseFrom(protoTransform.getSpec().getPayload());
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
