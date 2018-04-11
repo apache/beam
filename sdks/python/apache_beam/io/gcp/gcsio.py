@@ -91,6 +91,17 @@ WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 # GcsIO.delete_batch().
 MAX_BATCH_OPERATION_SIZE = 100
 
+# Batch endpoint URL for GCS.
+# We have to specify an API specific endpoint here since Google APIs global
+# batch endpoints will be deprecated on 03/25/2019.
+# See https://developers.googleblog.com/2018/03/discontinuing-support-for-json-rpc-and.html.  # pylint: disable=line-too-long
+# Currently apitools library uses a global batch endpoint by default:
+# https://github.com/google/apitools/blob/master/apitools/base/py/batch.py#L152
+# TODO: remove this constant and it's usage after apitools move to using an API
+# specific batch endpoint or after Beam gcsio module start using a GCS client
+# library that does not use global batch endpoints.
+GCS_BATCH_ENDPOINT = 'https://www.googleapis.com/batch/storage/v1'
+
 
 def proxy_info_from_environment_var(proxy_env_var):
   """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
@@ -274,6 +285,7 @@ class GcsIO(object):
     if not paths:
       return []
     batch_request = BatchApiRequest(
+        batch_url=GCS_BATCH_ENDPOINT,
         retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
     for path in paths:
       bucket, object_path = parse_gcs_path(path)
@@ -328,6 +340,7 @@ class GcsIO(object):
     if not src_dest_pairs:
       return []
     batch_request = BatchApiRequest(
+        batch_url=GCS_BATCH_ENDPOINT,
         retryable_codes=retry.SERVER_ERROR_OR_TIMEOUT_CODES)
     for src, dest in src_dest_pairs:
       src_bucket, src_path = parse_gcs_path(src)
