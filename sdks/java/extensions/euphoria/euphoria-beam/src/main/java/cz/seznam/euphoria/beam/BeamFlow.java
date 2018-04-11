@@ -22,7 +22,6 @@ import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.executor.graph.DAG;
@@ -71,33 +70,7 @@ public class BeamFlow extends Flow {
   }
 
   @Override
-  public <T> Dataset<T> createInput(DataSource<T> source, ExtractEventTime<T> evtTimeFn) {
-    Dataset<T> ret = super.createInput(source, evtTimeFn);
-    PCollection<T> output = InputTranslator.doTranslate(source, context);
-    context.setPCollection(ret, output);
-    return ret;
-  }
-
-  @Override
   public <T> Dataset<T> createInput(DataSource<T> source) {
-    Dataset<T> ret = super.createInput(source);
-    PCollection<T> output = InputTranslator.doTranslate(source, context);
-    context.setPCollection(ret, output);
-    return ret;
-  }
-
-  @Override
-  public <T> Dataset<T> createInput(DataSource<T> source, ExtractEventTime<T> evtTimeFn) {
-    ensureContext();
-    Dataset<T> ret = super.createInput(source, evtTimeFn);
-    PCollection<T> output = InputTranslator.doTranslate(source, context);
-    context.setPCollection(ret, output);
-    return ret;
-  }
-
-  @Override
-  public <T> Dataset<T> createInput(DataSource<T> source) {
-    ensureContext();
     Dataset<T> ret = super.createInput(source);
     PCollection<T> output = InputTranslator.doTranslate(source, context);
     context.setPCollection(ret, output);
