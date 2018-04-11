@@ -31,15 +31,6 @@ applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE <<
 description = "Apache Beam :: SDKs :: Java :: Harness"
 ext.summary = "This contains the SDK Fn Harness for Beam Java"
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-sdks-java-fn-execution")
-
 dependencies {
   compile project(path: ":beam-model-pipeline", configuration: "shadow")
   compile project(path: ":beam-model-fn-execution", configuration: "shadow")

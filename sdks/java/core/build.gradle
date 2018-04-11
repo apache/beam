@@ -35,15 +35,6 @@ ext.summary = """Beam SDK Java All provides a simple, Java-based
 interface for processing virtually any size data. This
 artifact includes entire Apache Beam Java SDK."""
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-model-fn-execution")
-
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'pom.version': version,

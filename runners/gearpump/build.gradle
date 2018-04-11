@@ -23,6 +23,11 @@ applyJavaNature()
 
 description = "Apache Beam :: Runners :: Gearpump"
 
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ */
 evaluationDependsOn(":beam-sdks-java-core")
 
 def gearpump_version = "0.8.4"
