@@ -17,42 +17,54 @@ section_menu: section-menu/contribute.html
 
 ## Eclipse version
 
-Use a recent Eclipse version that includes m2e. Currently we recommend Eclipse
-Neon. Start Eclipse with a fresh workspace in a separate directory from your
-checkout.
+Use a recent Eclipse version that includes
+[Buildship](https://projects.eclipse.org/projects/tools.buildship) for Gradle
+integration. Currently we recommend Eclipse Oxygen. Start Eclipse with a fresh
+workspace in a separate directory from your checkout.
 
 ## Initial setup
 
-1. Install m2e-apt: Beam uses apt annotation processing to provide auto
-   generated code. One example is the usage of [Google
-   AutoValue](https://github.com/google/auto/tree/master/value). By default m2e
-   does not support this and you will see compile errors.
+Before setting up Eclipse integration, verify that you can successfully build
+from the commandline by building a sample package:
 
-	Help
-	-> Eclipse Marketplace
-	-> Search for "m2 apt"
-	-> Install m2e-apt 1.2 or higher
+```
+./gradlew :beam-examples-java:build
+```
 
-2. Activate the apt processing
+If you receive any errors, first verify your environment setup based on the
+[Contribution guide]({{ site.baseurl }}/contribute/contribution-guide#one-time-setup).
 
-	Window
-	-> Preferences
-	-> Maven
-	-> Annotation processing
-	-> Switch to Experimental: Delegate annotation processing ...
-	-> Ok
+1. If running on Mac or Linux, launch Eclipse from a terminal. This is necessary
+   to ensure that Eclipse has proper environment setup from user profile
+   scripts, i.e. .bashrc.
 
-3. Import the beam projects
+1. Install [Buildship Gradle
+   Integration](https://marketplace.eclipse.org/content/buildship-gradle-integration).
+   This will allow importing and interacting with the Gradle build.
 
-	File
-	-> Import...
-	-> Existing Maven Projects
-	-> Browse to the directory you cloned into and select "beam"
-	-> make sure all beam projects are selected
-	-> Finalize
+1. Open the project import wizard in Eclipse via "File" > "Import".
 
-You now should have all the beam projects imported into Eclipse and should see
-no compile errors.
+1. From the "Import" screen, select "Gradle" > "Existing Gradle Project", and click
+   Next.
+
+1. From the "Import Gradle Project" screen, fill in the Project root directory
+   with your local git path, and click Finish.
+
+Eclipse will scan the project tree and import each as a separate
+Package.
+
+Verify that your workspace is correctly configured by invoking
+'beam-runners-direct-java:build' from the "Gradle Tasks" pane. The build should
+succeed with no errors.
+
+## Building
+
+After your Eclipse workspace is properly setup, you will have a "Gradle
+Tasks" window with a set of operations. If you don't see the pane, open it
+from "Window" > "Show View" > Other.. > "Gradle" > "Gradle Tasks".
+
+From the "Gradle Tasks" window, you can build any task registered with Gradle.
+For example, if you are working on Kinesis IO, select 'beam-sdks-java-io-kinesis:build'.
 
 ## Checkstyle
 
