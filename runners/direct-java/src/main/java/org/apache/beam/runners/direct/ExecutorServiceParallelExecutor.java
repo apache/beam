@@ -28,8 +28,11 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -58,6 +61,8 @@ final class ExecutorServiceParallelExecutor
     implements PipelineExecutor, BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorServiceParallelExecutor.class);
 
+  private final String id = UUID.randomUUID().toString();
+
   private final int targetParallelism;
   private final ExecutorService executorService;
 
@@ -71,7 +76,9 @@ final class ExecutorServiceParallelExecutor
 
   private final QueueMessageReceiver visibleUpdates;
 
-  private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
+  private final AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
+  private final AtomicReference<Throwable> resultException = new AtomicReference<>();
+  private volatile CompletableFuture<Boolean> endingTask;
 
   public static ExecutorServiceParallelExecutor create(
       int targetParallelism,
@@ -91,11 +98,13 @@ final class ExecutorServiceParallelExecutor
     // Don't use Daemon threads for workers. The Pipeline should continue to execute even if there
     // are no other active threads (for example, because waitUntilFinish was not called)
     this.executorService =
+        // TODO: think how to make that configurable through options, threadfactory, poolfactory?
         Executors.newFixedThreadPool(
             targetParallelism,
             new ThreadFactoryBuilder()
                 .setThreadFactory(MoreExecutors.platformThreadFactory())
-                .setNameFormat("direct-runner-worker")
+                .setNameFormat("direct-runner-worker-" + id)
+                .setUncaughtExceptionHandler(onThreadException())
                 .build());
     this.registry = registry;
     this.evaluationContext = context;
@@ -154,19 +163,18 @@ final class ExecutorServiceParallelExecutor
     final ExecutionDriver executionDriver =
         QuiescenceDriver.create(
             evaluationContext, graph, this, visibleUpdates, pendingRootBundles.build());
-    executorService.submit(
+    executorService.execute(
         new Runnable() {
           @Override
           public void run() {
             DriverState drive = executionDriver.drive();
             if (drive.isTermainal()) {
-              State newPipelineState = State.UNKNOWN;
               switch (drive) {
                 case FAILED:
-                  newPipelineState = State.FAILED;
+                  executeEndTask(() -> shutdown(State.FAILED));
                   break;
                 case SHUTDOWN:
-                  newPipelineState = State.DONE;
+                  executeEndTask(() -> shutdown(State.DONE));
                   break;
                 case CONTINUE:
                   throw new IllegalStateException(
@@ -175,12 +183,32 @@ final class ExecutorServiceParallelExecutor
                   throw new IllegalArgumentException(
                       String.format("Unknown %s %s", DriverState.class.getSimpleName(), drive));
               }
-              shutdownIfNecessary(newPipelineState);
             } else {
-              executorService.submit(this);
+              executorService.execute(this);
             }
           }
+
+          // use another thread to ensure we can stop current one in shutdown(state)
+          private void executeEndTask(final Runnable task) {
+            endingTask = new CompletableFuture<>();
+            final Thread thread = new Thread(() -> {
+              try {
+                task.run();
+                endingTask.complete(true);
+              } catch (final Throwable th) {
+                endingTask.completeExceptionally(th);
+              }
+            });
+            thread.setUncaughtExceptionHandler(onThreadException());
+            thread.setName("shutting-down-direct-runner-instance-" + id);
+            thread.start();
+          }
         });
+  }
+
+  // when these threads hit an exception it is already processed so just log it
+  private Thread.UncaughtExceptionHandler onThreadException() {
+    return (t, e) -> LOG.debug(e.getMessage(), e);
   }
 
   @SuppressWarnings("unchecked")
@@ -224,7 +252,8 @@ final class ExecutorServiceParallelExecutor
   @Override
   public State waitUntilFinish(Duration duration) throws Exception {
     Instant completionTime;
-    if (duration.equals(Duration.ZERO)) {
+    final boolean infinite = duration.equals(Duration.ZERO);
+    if (infinite) {
       completionTime = new Instant(Long.MAX_VALUE);
     } else {
       completionTime = Instant.now().plus(duration);
@@ -239,19 +268,60 @@ final class ExecutorServiceParallelExecutor
       if (update == null && pipelineState.get().isTerminal()) {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
-        return pipelineState.get();
-      } else if (update != null && update.thrown.isPresent()) {
-        Throwable thrown = update.thrown.get();
-        if (thrown instanceof Exception) {
-          throw (Exception) thrown;
-        } else if (thrown instanceof Error) {
-          throw (Error) thrown;
-        } else {
-          throw new Exception("Unknown Type of Throwable", thrown);
+        Throwable throwable = resultException.get();
+        if (throwable != null) {
+          if (infinite) {
+            waitEnd();
+          }
+          rethrow(throwable);
+        }
+        break;
+      } else {
+        processUpdate(update);
+        // don't directly exit even on error,
+        // wait next iteration to let a chance to cleanup resources
+      }
+    }
+    if (infinite) {
+      waitEnd();
+    }
+    return pipelineState.get();
+  }
+
+  private void waitEnd() { // note that the best would be to return the completionstage to the user
+    if (endingTask == null) {
+      return;
+    }
+    try {
+      endingTask.get();
+    } catch (final InterruptedException e) {
+      Thread.currentThread().interrupt();
+    } catch (final ExecutionException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private void processUpdate(final VisibleExecutorUpdate update) {
+    if (update != null && update.thrown.isPresent()) {
+      final Throwable thrown = update.thrown.get();
+      final Throwable previous = resultException.get();
+      if (previous != null) {
+        previous.addSuppressed(thrown);
+      } else {
+        if (!resultException.compareAndSet(null, thrown)) {
+          resultException.get().addSuppressed(thrown);
         }
       }
     }
-    return pipelineState.get();
+  }
+
+  private void rethrow(final Throwable thrown) throws Exception {
+    if (thrown instanceof Exception) {
+      throw (Exception) thrown;
+    } else if (thrown instanceof Error) {
+      throw (Error) thrown;
+    }
+    throw new Exception("Unknown Type of Throwable", thrown);
   }
 
   @Override
@@ -259,20 +329,18 @@ final class ExecutorServiceParallelExecutor
     return pipelineState.get();
   }
 
-  private boolean isTerminalStateUpdate(VisibleExecutorUpdate update) {
-    return !(update.getNewState() == null && update.getNewState().isTerminal());
+  private boolean isTerminalStateUpdate(final VisibleExecutorUpdate update) {
+    final State state = update.getNewState();
+    return state == null || state.isTerminal();
   }
 
   @Override
   public void stop() {
-    shutdownIfNecessary(State.CANCELLED);
+    shutdown(State.CANCELLED);
     visibleUpdates.cancelled();
   }
 
-  private void shutdownIfNecessary(State newState) {
-    if (!newState.isTerminal()) {
-      return;
-    }
+  private void shutdown(final State newState) {
     LOG.debug("Pipeline has terminated. Shutting down.");
 
     final Collection<Exception> errors = new ArrayList<>();
@@ -280,10 +348,6 @@ final class ExecutorServiceParallelExecutor
     // to add work to the shutdown executor.
     try {
       serialExecutorServices.invalidateAll();
-    } catch (final RuntimeException re) {
-      errors.add(re);
-    }
-    try {
       serialExecutorServices.cleanUp();
     } catch (final RuntimeException re) {
       errors.add(re);
@@ -294,16 +358,23 @@ final class ExecutorServiceParallelExecutor
       errors.add(re);
     }
     try {
-      executorService.shutdown();
+      executorService.shutdown(); // don't exec tasks, they can be infinite
     } catch (final RuntimeException re) {
       errors.add(re);
+    }
+    while (!executorService.isTerminated()) {
+      try {
+          Thread.sleep(50L);
+      } catch (final InterruptedException e) {
+          Thread.currentThread().interrupt();
+      }
     }
     try {
       registry.cleanup();
     } catch (final Exception e) {
       errors.add(e);
     }
-    pipelineState.compareAndSet(State.RUNNING, newState); // ensure we hit a terminal node
+    pipelineState.compareAndSet(State.RUNNING, newState);
     if (!errors.isEmpty()) {
       final IllegalStateException exception = new IllegalStateException(
         "Error" + (errors.size() == 1 ? "" : "s") + " during executor shutdown:\n"

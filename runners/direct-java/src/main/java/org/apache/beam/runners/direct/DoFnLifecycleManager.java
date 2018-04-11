@@ -32,6 +32,8 @@ import org.apache.beam.sdk.transforms.DoFn.Setup;
 import org.apache.beam.sdk.transforms.DoFn.Teardown;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Manages {@link DoFn} setup, teardown, and serialization.
@@ -42,6 +44,8 @@ import org.apache.beam.sdk.util.SerializableUtils;
  * clearing all cached {@link DoFn DoFns}.
  */
 class DoFnLifecycleManager {
+  private static final Logger LOG = LoggerFactory.getLogger(TransformEvaluatorRegistry.class);
+
   public static DoFnLifecycleManager of(DoFn<?, ?> original) {
     return new DoFnLifecycleManager(original);
   }
@@ -99,6 +103,7 @@ class DoFnLifecycleManager {
     public DoFn<?, ?> load(Thread key) throws Exception {
       DoFn<?, ?> fn = (DoFn<?, ?>) SerializableUtils.deserializeFromByteArray(original,
           "DoFn Copy in thread " + key.getName());
+      LOG.info("Loaded {}", fn);
       DoFnInvokers.invokerFor(fn).invokeSetup();
       return fn;
     }
@@ -107,9 +112,13 @@ class DoFnLifecycleManager {
   private class TeardownRemovedFnListener implements RemovalListener<Thread, DoFn<?, ?>> {
     @Override
     public void onRemoval(RemovalNotification<Thread, DoFn<?, ?>> notification) {
+      final DoFn<?, ?> value = notification.getValue();
+      LOG.info("Removing {}", value);
       try {
-        DoFnInvokers.invokerFor(notification.getValue()).invokeTeardown();
+        DoFnInvokers.invokerFor(value).invokeTeardown();
+        LOG.info("Removed {}", value);
       } catch (Exception e) {
+        LOG.info("Failed to remove {}", value, e);
         thrownOnTeardown.put(notification.getKey(), e);
       }
     }
