@@ -139,7 +139,8 @@ To read options from the command-line, construct your `PipelineOptions` object
 as demonstrated in the following example code:
 
 ```java
-MyOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+PipelineOptions options =
+    PipelineOptionsFactory.fromArgs(args).withValidation().create();
 ```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:pipelines_constructing_creating
