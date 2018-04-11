@@ -36,8 +36,9 @@ public class UrnUtils {
   private static Set<String> extractUrnsFromPath(String path) {
     String contents;
     try {
-      contents = CharStreams.toString(new InputStreamReader(
-          UrnUtils.class.getClassLoader().getResourceAsStream(path)));
+      contents =
+          CharStreams.toString(
+              new InputStreamReader(UrnUtils.class.getClassLoader().getResourceAsStream(path)));
     } catch (IOException exn) {
       throw new RuntimeException(exn);
     }
@@ -51,8 +52,7 @@ public class UrnUtils {
 
   public static String validateCommonUrn(String urn) {
     if (!URN_REGEX.matcher(urn).matches()) {
-      throw new IllegalArgumentException(
-          String.format("'%s' does not match '%s'", urn, URN_REGEX));
+      throw new IllegalArgumentException(String.format("'%s' does not match '%s'", urn, URN_REGEX));
     }
     if (!COMMON_URNS.contains(urn)) {
       throw new IllegalArgumentException(
