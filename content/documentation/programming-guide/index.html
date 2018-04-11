@@ -391,7 +391,8 @@ you can use to set fields in <code class="highlighter-rouge">PipelineOptions</co
 <p>To read options from the command-line, construct your <code class="highlighter-rouge">PipelineOptions</code> object
 as demonstrated in the following example code:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">MyOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">create</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span>
+    <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">create</span><span class="o">();</span>
 </code></pre>
 </div>
 <div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
