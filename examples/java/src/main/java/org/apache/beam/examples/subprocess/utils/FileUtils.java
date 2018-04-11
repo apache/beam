@@ -54,13 +54,18 @@ public class FileUtils {
   public static String copyFileFromWorkerToGCS(SubProcessConfiguration configuration,
       Path fileToUpload) throws Exception {
 
-    ResourceId sourceFile =
-        getFileResourceId(configuration.getWorkerPath(), fileToUpload.getFileName().toString());
+    Path fileName;
+
+    if ((fileName = fileToUpload.getFileName()) == null) {
+      throw new IllegalArgumentException("FileName can not be null.");
+    }
+
+    ResourceId sourceFile = getFileResourceId(configuration.getWorkerPath(), fileName.toString());
 
     LOG.info("Copying file from worker " + sourceFile);
 
     ResourceId destinationFile =
-        getFileResourceId(configuration.getSourcePath(), fileToUpload.getFileName().toString());
+        getFileResourceId(configuration.getSourcePath(), fileName.toString());
     // TODO currently not supported with different schemas for example GCS to local, else could use
     // FileSystems.copy(ImmutableList.of(sourceFile), ImmutableList.of(destinationFile));
     try {
