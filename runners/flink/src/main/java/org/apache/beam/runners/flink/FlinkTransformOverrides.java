@@ -48,7 +48,17 @@ public class FlinkTransformOverrides {
                   new CreateStreamingFlinkView.Factory()))
           .build();
     } else {
-      return ImmutableList.of();
+      return ImmutableList.<PTransformOverride>builder()
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.splittableParDo(),
+                  new FlinkStreamingPipelineTranslator.SplittableParDoOverrideFactory()))
+          .add(
+              PTransformOverride.of(
+                  PTransformMatchers.urnEqualTo(
+                      SplittableParDo.SPLITTABLE_PROCESS_KEYED_ELEMENTS_URN),
+                  new SplittableParDoViaKeyedWorkItems.OverrideFactory()))
+          .build();
     }
   }
 }
