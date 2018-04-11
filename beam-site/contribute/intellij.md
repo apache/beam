@@ -41,7 +41,7 @@ IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository
 2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle
-3. Set Checkstyle version to the same as in `/build_rules.gradle` (e.g. 8.2)
+3. Set Checkstyle version to the same as in `/build_rules.gradle` (e.g. 8.7)
 4. Set the "Scan Scope" to "Only Java sources (including tests)"
 5. In the "Configuration File" pane, add a new configuration using the plus icon:
     1. Set the "Description" to "Beam"
