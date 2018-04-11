@@ -94,7 +94,6 @@ dependencies {
   validatesRunner project(path: project.path, configuration: "shadowTest")
   validatesRunner project(path: project.path, configuration: "shadow")
   validatesRunner project(path: project.path, configuration: "provided")
-  validatesRunner project.sourceSets.test.output
 }
 
 configurations.testRuntimeClasspath {

@@ -19,7 +19,20 @@
 import groovy.json.JsonOutput
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(shadowClosure: DEFAULT_SHADOW_CLOSURE << {
+  dependencies {
+    include(dependency(library.java.protobuf_java))
+    include(dependency(library.java.protobuf_java_util))
+    include(project(path: ":beam-model-pipeline", configuration: "shadow"))
+    include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
+    include(project(path: ":beam-runners-core-java", configuration: "shadow"))
+    include(project(path: ":beam-runners-local-java-core", configuration: "shadow"))
+  }
+  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
+  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
+  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
+  relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
+})
 
 description = "Apache Beam :: Runners :: Direct Java"
 
@@ -82,53 +95,6 @@ task needsRunnerTests(type: Test) {
     includeCategories "org.apache.beam.sdk.testing.NeedsRunner"
     excludeCategories "org.apache.beam.sdk.testing.LargeKeys\$Above100MB"
   }
-}
-
-shadowJar {
-  dependencies {
-    include(dependency(library.java.protobuf_java))
-    include(dependency(library.java.protobuf_java_util))
-    include(project(path: ":beam-model-pipeline", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-local-java-core", configuration: "shadow"))
-  }
-  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
-  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
-  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-  relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
-}
-
-// Create a shaded test jar.
-task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
-  classifier = "shaded-tests"
-  from sourceSets.test.output
-  configurations = [project.configurations.testRuntime]
-  dependencies {
-    exclude(".*")
-    include(dependency(library.java.guava))
-    include(dependency(library.java.protobuf_java))
-    include(dependency(library.java.protobuf_java_util))
-    include(project(path: ":beam-model-pipeline", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-construction-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-core-java", configuration: "shadow"))
-    include(project(path: ":beam-runners-local-java-core", configuration: "shadow"))
-  }
-  relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
-    // com.google.common is too generic, need to exclude guava-testlib
-    exclude "com.google.common.collect.testing.**"
-    exclude "com.google.common.escape.testing.**"
-    exclude "com.google.common.testing.**"
-    exclude "com.google.common.util.concurrent.testing.**"
-  }
-  relocate "org.apache.beam.runners.core", getJavaRelocatedPath("runners.core")
-  relocate "org.apache.beam.model", getJavaRelocatedPath("model")
-  relocate "com.google.protobuf", getJavaRelocatedPath("com.google.protobuf")
-  relocate "javax.annotation", getJavaRelocatedPath("javax.annotation")
-}
-
-artifacts {
-  shadowTest shadowTestJar
 }
 
 // Generates :beam-runners-direct-java:runQuickstartJavaDirect
