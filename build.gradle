@@ -71,6 +71,8 @@ apply plugin: "com.gradle.build-scan"
 def isCIBuild = ['JENKINS_HOME', 'BUILD_ID'].every System.&getenv
 if (isCIBuild) {
   buildScan {
+    // Build Scan enabled and TOS accepted for Jenkins lab build. This does not apply to builds on
+    // non-Jenkins machines. Developers need to separately enable and accept TOS to use build scans.
     termsOfServiceUrl = 'https://gradle.com/terms-of-service'
     termsOfServiceAgree = 'yes'
     publishAlways()
