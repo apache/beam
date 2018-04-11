@@ -28,15 +28,6 @@ job('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle') {
   // Set common parameters. Sets a long (3 hour) timeout due to timeouts in [BEAM-3775].
   common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 180)
 
-  def gradle_switches = [
-    // Gradle log verbosity enough to diagnose basic build issues
-    "--info",
-    // Continue the build even if there is a failure to show as many potential failures as possible.
-    '--continue',
-    // Until we verify the build cache is working appropriately, force rerunning all tasks
-    '--rerun-tasks',
-  ]
-
   // Publish all test results to Jenkins
   publishers {
     archiveJunit('**/build/test-results/**/*.xml')
@@ -56,9 +47,7 @@ job('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle') {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':beam-runners-google-cloud-dataflow-java:validatesRunner')
-      for (String gradle_switch : gradle_switches) {
-        switches(gradle_switch)
-      }
+      common_job_properties.setGradleSwitches(delegate)
     }
   }
 }

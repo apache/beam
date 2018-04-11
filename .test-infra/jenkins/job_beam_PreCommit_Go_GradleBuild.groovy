@@ -32,25 +32,14 @@ job('beam_PreCommit_Go_GradleBuild') {
     'master',
     150)
 
-  def gradle_switches = [
-    // Gradle log verbosity enough to diagnose basic build issues
-    "--info",
-    // Continue the build even if there is a failure to show as many potential failures as possible.
-    '--continue',
-    // Until we verify the build cache is working appropriately, force rerunning all tasks
-    '--rerun-tasks',
-  ]
-
-  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' :goPreCommit'
+  def gradle_command_line = './gradlew ' + common_job_properties.gradle_switches.join(' ') + ' :goPreCommit'
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Go PreCommit')
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
       tasks(':goPreCommit')
-      for (String gradle_switch : gradle_switches) {
-        switches(gradle_switch)
-      }
+      common_job_properties.setGradleSwitches(delegate)
     }
   }
 }

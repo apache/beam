@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.parseResponse;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
@@ -31,8 +32,22 @@ import org.apache.http.nio.entity.NStringEntity;
 import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 
+
 /** Test utilities to use with {@link ElasticsearchIO}. */
 class ElasticSearchIOTestUtils {
+  static final String[] FAMOUS_SCIENTISTS = {
+    "Einstein",
+    "Darwin",
+    "Copernicus",
+    "Pasteur",
+    "Curie",
+    "Faraday",
+    "Newton",
+    "Bohr",
+    "Galilei",
+    "Maxwell"
+  };
+  static final int NUM_SCIENTISTS = FAMOUS_SCIENTISTS.length;
 
   /** Enumeration that specifies whether to insert malformed documents. */
   public enum InjectionMode {
@@ -78,19 +93,37 @@ class ElasticSearchIOTestUtils {
   }
 
   /**
-   * Forces a refresh of the given index to make recently inserted documents available for search.
+   * Forces a refresh of the given index to make recently inserted documents available for search
+   * using the index and type named in the connectionConfiguration.
    *
+   * @param connectionConfiguration providing the index and type
+   * @param restClient To use for issuing queries
    * @return The number of docs in the index
+   * @throws IOException On error communicating with Elasticsearch
    */
   static long refreshIndexAndGetCurrentNumDocs(
       ConnectionConfiguration connectionConfiguration, RestClient restClient) throws IOException {
+    return refreshIndexAndGetCurrentNumDocs(
+        restClient, connectionConfiguration.getIndex(), connectionConfiguration.getType());
+  }
+
+  /**
+   * Forces a refresh of the given index to make recently inserted documents available for search.
+   *
+   * @param restClient To use for issuing queries
+   * @param index The Elasticsearch index
+   * @param type The Elasticsearch type
+   * @return The number of docs in the index
+   * @throws IOException On error communicating with Elasticsearch
+   */
+  static long refreshIndexAndGetCurrentNumDocs(RestClient restClient, String index, String type)
+      throws IOException {
     long result = 0;
     try {
-      String endPoint = String.format("/%s/_refresh", connectionConfiguration.getIndex());
+      String endPoint = String.format("/%s/_refresh", index);
       restClient.performRequest("POST", endPoint);
 
-      endPoint = String.format("/%s/%s/_search", connectionConfiguration.getIndex(),
-          connectionConfiguration.getType());
+      endPoint = String.format("/%s/%s/_search", index, type);
       Response response = restClient.performRequest("GET", endPoint);
       JsonNode searchResult = ElasticsearchIO.parseResponse(response);
       result = searchResult.path("hits").path("total").asLong();
@@ -114,28 +147,46 @@ class ElasticSearchIOTestUtils {
    * @return the list of json String representing the documents
    */
   static List<String> createDocuments(long numDocs, InjectionMode injectionMode) {
-    String[] scientists = {
-      "Einstein",
-      "Darwin",
-      "Copernicus",
-      "Pasteur",
-      "Curie",
-      "Faraday",
-      "Newton",
-      "Bohr",
-      "Galilei",
-      "Maxwell"
-    };
+
     ArrayList<String> data = new ArrayList<>();
     for (int i = 0; i < numDocs; i++) {
-      int index = i % scientists.length;
+      int index = i % FAMOUS_SCIENTISTS.length;
       // insert 2 malformed documents
       if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode) && (i == 6 || i == 7)) {
-        data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", scientists[index], i));
+        data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       } else {
-        data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", scientists[index], i));
+        data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", FAMOUS_SCIENTISTS[index], i));
       }
     }
     return data;
+  }
+
+  /**
+   * Executes a query for the named scientist and returns the count from the result.
+   *
+   * @param connectionConfiguration Specifies the index and type
+   * @param restClient To use to execute the call
+   * @param scientistName The scientist to query for
+   * @return The cound of documents found
+   * @throws IOException On error talking to Elasticsearch
+   */
+  static int countByScientistName(
+      ConnectionConfiguration connectionConfiguration, RestClient restClient, String scientistName)
+      throws IOException {
+    String requestBody =
+            "{\n"
+            + "  \"query\" : {\"match\": {\n"
+            + "    \"scientist\": \"" + scientistName + "\"\n"
+            + "  }}\n"
+            + "}\n";
+    String endPoint =
+        String.format(
+            "/%s/%s/_search",
+            connectionConfiguration.getIndex(), connectionConfiguration.getType());
+    HttpEntity httpEntity = new NStringEntity(requestBody, ContentType.APPLICATION_JSON);
+    Response response =
+        restClient.performRequest("GET", endPoint, Collections.emptyMap(), httpEntity);
+    JsonNode searchResult = parseResponse(response);
+    return searchResult.path("hits").path("total").asInt();
   }
 }
