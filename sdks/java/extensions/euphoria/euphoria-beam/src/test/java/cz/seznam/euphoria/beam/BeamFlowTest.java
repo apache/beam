@@ -74,6 +74,7 @@ public class BeamFlowTest implements Serializable {
 
   @Test
   public void testEuphoriaLoadBeamProcess() {
+    {
     Pipeline pipeline = Pipeline.create(options());
     BeamFlow flow = BeamFlow.create(pipeline);
     ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(
@@ -89,7 +90,29 @@ public class BeamFlowTest implements Serializable {
     })).setTypeDescriptor(TypeDescriptor.of(Integer.class));
     PAssert.that(output).containsInAnyOrder(2, 3, 4, 5, 6);
     pipeline.run();
+    }
+
   }
+
+  @Test
+  public void testEuphoriaLoadBeamProcessWithEventTime() {
+    Pipeline pipeline = Pipeline.create(options());
+    BeamFlow flow = BeamFlow.create(pipeline);
+    ListDataSource<Integer> source = ListDataSource.bounded(Arrays.asList(
+        1, 2, 3, 4, 5));
+    Dataset<Integer> input = flow.createInput(source, e -> System.currentTimeMillis());
+    PCollection<Integer> unwrapped = flow.unwrapped(input);
+    PCollection<Integer> output = unwrapped.apply(ParDo.of(new DoFn<Integer, Integer>() {
+      @SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
+      @ProcessElement
+      public void process(ProcessContext context) {
+        context.output(context.element() + 1);
+      }
+    })).setTypeDescriptor(TypeDescriptor.of(Integer.class));
+    PAssert.that(output).containsInAnyOrder(2, 3, 4, 5, 6);
+    pipeline.run();
+  }
+
 
   @Test
   public void testPipelineFromBeam() {
