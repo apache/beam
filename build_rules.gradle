@@ -325,7 +325,6 @@ ext.DEFAULT_SHADOW_CLOSURE = {
 class JavaNatureConfiguration {
   double javaVersion = 1.8        // Controls the JDK source language and target compatibility
   boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
-  boolean enableShadow = true     // Controls whether the shadow plugin is enabled and configured
   // The shadowJar / shadowTestJar tasks execute the following closure to configure themselves.
   // Users can compose their closure with the default closure via:
   // DEFAULT_SHADOW_CLOSURE << {
@@ -349,6 +348,7 @@ class JavaNatureConfiguration {
 //  * maven
 //  * net.ltgt.apt (plugin to configure annotation processing tool)
 //  * propdeps (provide optional and provided dependency configurations)
+//  * propdeps-maven
 //  * checkstyle
 //  * findbugs
 //  * shadow
@@ -447,6 +447,7 @@ ext.applyJavaNature = {
   // TODO: Either remove these plugins and find another way to generate the Maven poms
   // with the correct dependency scopes configured.
   apply plugin: 'propdeps'
+  apply plugin: 'propdeps-maven'
 
   // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
   // suppressions.
@@ -494,64 +495,62 @@ ext.applyJavaNature = {
   //
   // TODO: Enforce all relocations are always performed to:
   // getJavaRelocatedPath(package_suffix) where package_suffix is something like "com.google.commmon"
-  if (configuration.enableShadow) {
-    apply plugin: 'com.github.johnrengelman.shadow'
+  apply plugin: 'com.github.johnrengelman.shadow'
 
-    // Create a new configuration 'shadowTest' like 'shadow' for the test scope
-    configurations {
-      shadow {
-        description = "Dependencies for shaded source set 'main'"
-      }
-      compile.extendsFrom shadow
-      shadowTest {
-        description = "Dependencies for shaded source set 'test'"
-        extendsFrom shadow
-      }
-      testCompile.extendsFrom shadowTest
+  // Create a new configuration 'shadowTest' like 'shadow' for the test scope
+  configurations {
+    shadow {
+      description = "Dependencies for shaded source set 'main'"
     }
-
-    // Always configure the shadowJar classifier and merge service files.
-    shadowJar ({
-      classifier = "shaded"
-      mergeServiceFiles()
-
-    } << configuration.shadowClosure)
-
-    // Always configure the shadowTestJar classifier and merge service files.
-    tasks.create(name: 'shadowTestJar', type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar, {
-      classifier = "shaded-tests"
-      from sourceSets.test.output
-      configurations = [project.configurations.testRuntime]
-    } << configuration.shadowClosure)
-
-    // Ensure that shaded jar and test-jar are part of the their own cconfiguration artifact sets
-    // and the archives configuration set.
-    artifacts.shadow shadowJar
-    artifacts.shadowTest shadowTestJar
-    artifacts.archives shadowJar
-    artifacts.archives shadowTestJar
+    compile.extendsFrom shadow
+    shadowTest {
+      description = "Dependencies for shaded source set 'test'"
+      extendsFrom shadow
+    }
+    testCompile.extendsFrom shadowTest
   }
 
-  task sourcesJar(type: Jar) {
-    from sourceSets.main.allSource
-    classifier = 'sources'
-  }
-  artifacts.archives sourcesJar
+  // Always configure the shadowJar classifier and merge service files.
+  shadowJar ({
+    classifier = "shaded"
+    mergeServiceFiles()
+  } << configuration.shadowClosure)
 
-  task testSourcesJar(type: Jar) {
-    from sourceSets.test.allSource
-    classifier = 'test-sources'
-  }
-  artifacts.archives testSourcesJar
+  // Always configure the shadowTestJar classifier and merge service files.
+  tasks.create(name: 'shadowTestJar', type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar, {
+    classifier = "shaded-tests"
+    from sourceSets.test.output
+    configurations = [project.configurations.testRuntime]
+  } << configuration.shadowClosure)
 
-  task javadocJar(type: Jar, dependsOn: javadoc) {
-    classifier = 'javadoc'
-    from javadoc.destinationDir
-  }
-  artifacts.archives javadocJar
+  // Ensure that shaded jar and test-jar are part of the their own configuration artifact sets
+  artifacts.shadow shadowJar
+  artifacts.shadowTest shadowTestJar
 
   if (isRelease() || project.hasProperty('publishing')) {
     apply plugin: "maven-publish"
+
+    // Only build artifacts for archives if we are publishing
+    artifacts.archives shadowJar
+    artifacts.archives shadowTestJar
+
+    task sourcesJar(type: Jar) {
+      from sourceSets.main.allSource
+      classifier = 'sources'
+    }
+    artifacts.archives sourcesJar
+
+    task testSourcesJar(type: Jar) {
+      from sourceSets.test.allSource
+      classifier = 'test-sources'
+    }
+    artifacts.archives testSourcesJar
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+      classifier = 'javadoc'
+      from javadoc.destinationDir
+    }
+    artifacts.archives javadocJar
 
     // Only sign artifacts if we are performing a release
     if (isRelease()) {
@@ -631,8 +630,7 @@ ext.applyJavaNature = {
             // Strip the "shaded" classifier.
             classifier null
           }
-          // TODO: Use the shadow test jar here instead of the test jar.
-          artifact packageTests {
+          artifact shadowTestJar {
             classifier "tests"
           }
           artifact sourcesJar {
