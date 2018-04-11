@@ -46,7 +46,11 @@ processResources {
   ]
 }
 
-// The :beam-examples-java main/test sourceSets are used in generation.
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.{main|test}.allSource" directly.
+ */
 evaluationDependsOn(':beam-examples-java')
 
 task generateSources(type: Exec) {
