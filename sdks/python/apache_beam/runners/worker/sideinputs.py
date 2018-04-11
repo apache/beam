@@ -75,7 +75,7 @@ class PrefetchingSourceSetIterable(object):
 
     self.read_counter = read_counter or opcounters.NoOpTransformIOCounter()
     experiments = RuntimeValueProvider.get_value('experiments', list, [])
-    if 'sideinput_io_metrics' in experiments:
+    if 'sideinput_io_metrics_v2' in experiments:
       self._side_input_monitoring_metrics = True
 
       def fetch_from_queue(element_queue, io_counter):
@@ -98,8 +98,8 @@ class PrefetchingSourceSetIterable(object):
   def add_byte_counter(self, reader):
     """Adds byte counter observer to a side input reader.
 
-    If the 'sideinput_io_metrics' experiment flag is not passed in, then nothing
-    is attached to the reader.
+    If the 'sideinput_io_metrics_v2' experiment flag is not passed in, then
+    nothing is attached to the reader.
 
     Args:
       reader: A reader that should inherit from ObservableMixin to have
@@ -142,7 +142,7 @@ class PrefetchingSourceSetIterable(object):
               # The tracking of time spend reading and bytes read from side
               # inputs is kept behind an experiment flag to test performance
               # impact.
-              if 'sideinput_io_metrics' in experiments:
+              if 'sideinput_io_metrics_v2' in experiments:
                 self.add_byte_counter(reader)
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
