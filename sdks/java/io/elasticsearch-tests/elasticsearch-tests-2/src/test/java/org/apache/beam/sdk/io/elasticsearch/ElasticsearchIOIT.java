@@ -39,15 +39,20 @@ import org.junit.Test;
  * A test of {@link ElasticsearchIO} on an independent Elasticsearch v2.x instance.
  *
  * <p>This test requires a running instance of Elasticsearch, and the test dataset must exist in the
- * database.
+ * database. See {@link ElasticsearchIOITCommon} for instructions to achieve this.
  *
- * <p>You can run this test by doing the following from the beam parent module directory:
+ * <p>You can run this test by doing the following from the beam parent module directory with the
+ * correct server IP:
  *
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/elasticsearch -DintegrationTestPipelineOptions='[
- *  "--elasticsearchServer=1.2.3.4",
- *  "--elasticsearchHttpPort=9200"]'
+ *  mvn -e -Pio-it verify -pl sdks/java/io/elasticsearch-tests/elasticsearch-tests-2 \
+ *    -DintegrationTestPipelineOptions='[
+ *      "--elasticsearchServer=127.0.0.1",
+ *      "--elasticsearchHttpPort=9200"]'
  * </pre>
+ *
+ * <p>It is likely that you will need to configure <code>thread_pool.bulk.queue_size: 250</code> (or
+ * higher) in the backend Elasticsearch server for this test to run.
  */
 public class ElasticsearchIOIT {
   private static RestClient restClient;
@@ -110,8 +115,8 @@ public class ElasticsearchIOIT {
 
   @Test
   public void testWriteVolume() throws Exception {
-    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
-        writeConnectionConfiguration, restClient, true);
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite =
+        new ElasticsearchIOTestCommon(writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWrite();
   }
@@ -119,5 +124,20 @@ public class ElasticsearchIOIT {
   @Test
   public void testSizesVolume() throws Exception {
     elasticsearchIOTestCommon.testSizes();
+  }
+
+  /**
+   * This test verifies volume loading of Elasticsearch using explicit document IDs and routed to an
+   * index named the same as the scientist, and type which is based on the modulo 2 of the scientist
+   * name. The goal of this IT is to help observe and verify that the overhead of adding the
+   * functions to parse the document and extract the ID is acceptable.
+   */
+  @Test
+  public void testWriteVolumeWithFullAddressing() throws Exception {
+    //cannot share elasticsearchIOTestCommon because tests run in parallel.
+    ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
+            writeConnectionConfiguration, restClient, true);
+    elasticsearchIOTestCommonWrite.setPipeline(pipeline);
+    elasticsearchIOTestCommonWrite.testWriteWithFullAddressing();
   }
 }
