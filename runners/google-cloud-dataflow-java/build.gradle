@@ -112,7 +112,7 @@ task validatesRunnerTest(type: Test) {
           "--tempRoot=${dataflowTempRoot}",
   ])
 
-  maxParallelForks 4
+  maxParallelForks 8
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":beam-sdks-java-core").sourceSets.test.output.classesDirs)
   useJUnit {
