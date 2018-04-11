@@ -35,7 +35,6 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.slf4j_api
-  testCompile library.java.slf4j_log4j12
   testCompile "org.apache.solr:solr-test-framework:5.5.4"
   testCompile "org.apache.solr:solr-core:5.5.4"
   testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.3.2"

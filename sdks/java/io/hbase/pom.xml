@@ -43,7 +43,7 @@
           <parallel>all</parallel>
           <threadCount>4</threadCount>
           <!-- Need to redefine log configuration because it gets lost on parallel tests -->
-          <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit ${beamSurefireArgline}</argLine>
+          <argLine>-Dlog4j.configuration=log4j-test.properties  -XX:-UseGCOverheadLimit ${beamSurefireArgline} -Dtest.build.data.basedirectory=target/test-data</argLine>
         </configuration>
       </plugin>
     </plugins>

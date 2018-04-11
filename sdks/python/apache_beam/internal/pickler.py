@@ -46,9 +46,14 @@ def _is_nested_class(cls):
 
 
 def _find_containing_class(nested_class):
-  """Finds containing class of a nestec class passed as argument."""
+  """Finds containing class of a nested class passed as argument."""
+
+  seen = set()
 
   def _find_containing_class_inner(outer):
+    if outer in seen:
+      return None
+    seen.add(outer)
     for k, v in outer.__dict__.items():
       if v is nested_class:
         return outer, k
