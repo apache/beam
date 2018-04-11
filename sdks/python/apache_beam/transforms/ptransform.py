@@ -687,7 +687,7 @@ class PTransformWithSideInputs(PTransform):
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
       hints = getcallargs_forhints(argspec_fn, *type_hints[0], **type_hints[1])
       for arg, hint in hints.items():
-        if arg.startswith('%unknown%'):
+        if arg.startswith('__unknown__'):
           continue
         if hint is None:
           continue
