@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.values.reflect;
 
+import java.io.Serializable;
 import java.util.List;
 
 /**
  * Interface for factories generating getter wrappers.
  * See {@link GeneratedGetterFactory} or {@link ReflectionGetterFactory}.
  */
-interface GetterFactory {
+interface GetterFactory extends Serializable {
 
   /**
    * Generates getters for {@code clazz}.
