@@ -20,8 +20,11 @@ package org.apache.beam.sdk.io.kafka;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
@@ -29,14 +32,14 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.values.KV;
 
-/**
- * {@link Coder} for {@link KafkaRecord}.
- */
+/** {@link Coder} for {@link KafkaRecord}. */
 public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
 
   private static final StringUtf8Coder stringCoder = StringUtf8Coder.of();
   private static final VarLongCoder longCoder = VarLongCoder.of();
   private static final VarIntCoder intCoder = VarIntCoder.of();
+  private static final IterableCoder headerCoder =
+      IterableCoder.of(KvCoder.of(stringCoder, ByteArrayCoder.of()));
 
   private final KvCoder<K, V> kvCoder;
 
@@ -55,6 +58,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
     longCoder.encode(value.getOffset(), outStream);
     longCoder.encode(value.getTimestamp(), outStream);
     intCoder.encode(value.getTimestampType().ordinal(), outStream);
+    headerCoder.encode(getIterable(value.getHeaders()), outStream);
     kvCoder.encode(value.getKV(), outStream);
   }
 
@@ -66,7 +70,22 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
         longCoder.decode(inStream),
         longCoder.decode(inStream),
         KafkaTimestampType.forOrdinal(intCoder.decode(inStream)),
+        getHeaders(headerCoder.decode(inStream)),
         kvCoder.decode(inStream));
+  }
+
+  private KafkaHeaders getHeaders(Iterable<KV<String, byte[]>> records) {
+    KafkaHeaders headers = new KafkaRecordHeaders();
+    records.forEach(kv -> headers.add(new KafkaRecordHeader(kv.getKey(), kv.getValue())));
+    return headers;
+  }
+
+  private Iterable<KV<String, byte[]>> getIterable(KafkaHeaders headers) {
+    List<KV<String, byte[]>> vals = new ArrayList<>();
+    for (KafkaHeader header : headers) {
+      vals.add(KV.of(header.key(), header.value()));
+    }
+    return vals;
   }
 
   @Override
@@ -82,7 +101,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
   @Override
   public boolean isRegisterByteSizeObserverCheap(KafkaRecord<K, V> value) {
     return kvCoder.isRegisterByteSizeObserverCheap(value.getKV());
-    //TODO : do we have to implement getEncodedSize()?
+    // TODO : do we have to implement getEncodedSize()?
   }
 
   @SuppressWarnings("unchecked")
@@ -97,6 +116,7 @@ public class KafkaRecordCoder<K, V> extends StructuredCoder<KafkaRecord<K, V>> {
           value.getOffset(),
           value.getTimestamp(),
           value.getTimestampType(),
+          value.getHeaders(),
           (KV<Object, Object>) kvCoder.structuralValue(value.getKV()));
     }
   }
