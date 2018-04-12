@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.cassandra;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.BoundedSource;
 
 /**
@@ -58,7 +59,7 @@ public interface CassandraService<T> extends Serializable {
      * This method should be synchronous. It means you have to be sure that the entity is fully
      * stored (and committed) into the Cassandra instance when you exit from this method.
      */
-    void write(T entity);
+    void write(T entity) throws ExecutionException, InterruptedException;
 
   }
 
