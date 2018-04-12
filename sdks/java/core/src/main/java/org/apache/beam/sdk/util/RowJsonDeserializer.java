@@ -26,6 +26,14 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.INT16;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT32;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.booleanValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.byteValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.doubleValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.floatValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.intValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.longValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.shortValueExtractor;
+import static org.apache.beam.sdk.util.RowJsonValueExtractors.stringValueExtractor;
 import static org.apache.beam.sdk.values.Row.toRow;
 
 import com.fasterxml.jackson.core.JsonParser;
@@ -37,13 +45,13 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.util.RowJsonValueExtractors.ValueExtractor;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -65,16 +73,16 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
 
   private static final boolean SEQUENTIAL = false;
 
-  private static final Map<TypeName, Function<JsonNode, ?>> JSON_VALUE_GETTERS =
-      ImmutableMap.<TypeName, Function<JsonNode, ?>>builder()
-          .put(BYTE, node -> (byte) node.asInt())
-          .put(INT16, node -> (short) node.asInt())
-          .put(INT32, node -> node.asInt())
-          .put(INT64, node -> node.asLong())
-          .put(FLOAT, node -> (float) node.asDouble())
-          .put(DOUBLE, node -> node.asDouble())
-          .put(BOOLEAN, node -> node.asBoolean())
-          .put(STRING, node -> node.asText())
+  private static final Map<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
+      ImmutableMap.<TypeName, ValueExtractor<?>>builder()
+          .put(BYTE, byteValueExtractor())
+          .put(INT16, shortValueExtractor())
+          .put(INT32, intValueExtractor())
+          .put(INT64, longValueExtractor())
+          .put(FLOAT, floatValueExtractor())
+          .put(DOUBLE, doubleValueExtractor())
+          .put(BOOLEAN, booleanValueExtractor())
+          .put(STRING, stringValueExtractor())
           .build();
 
   private Schema schema;
@@ -102,7 +110,8 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
             FieldValue.of(
                 "root",
                 TypeName.ROW.type().withRowSchema(schema),
-                jsonParser.readValueAsTree()));
+                jsonParser
+                    .readValueAsTree()));
   }
 
   private static Object extractJsonNodeValue(FieldValue fieldValue) {
@@ -173,12 +182,12 @@ public class RowJsonDeserializer extends StdDeserializer<Row> {
       return
           JSON_VALUE_GETTERS
               .get(fieldValue.typeName())
-              .apply(fieldValue.jsonValue());
+              .extractValue(fieldValue.jsonValue());
     } catch (RuntimeException e) {
       throw new UnsupportedRowJsonException(
           "Unable to get value from field '" + fieldValue.name() + "'. "
-          + "Expected type " + fieldValue.typeName()
-          + ". JSON node is of " + fieldValue.jsonNodeType().name(), e);
+          + "Schema type '" + fieldValue.typeName() + "'. "
+          + "JSON node type " + fieldValue.jsonNodeType().name(), e);
     }
   }
 
