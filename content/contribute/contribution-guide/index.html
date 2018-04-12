@@ -158,7 +158,6 @@
       <li><a href="#one-time-setup">One-time Setup</a></li>
       <li><a href="#create-a-branch-in-your-fork">Create a branch in your fork</a></li>
       <li><a href="#syncing-and-pushing-your-branch">Syncing and pushing your branch</a></li>
-      <li><a href="#building">Building</a></li>
       <li><a href="#testing">Testing</a></li>
     </ul>
   </li>
@@ -353,9 +352,9 @@ changes.</p>
 
 <p>You are now ready to start developing!</p>
 
-<h4 id="python-sdk-only-set-up-a-virtual-environemt">[Python SDK Only] Set up a virtual environemt</h4>
+<h4 id="python-sdk-only-set-up-a-virtual-environment">[Python SDK Only] Set up a virtual environment</h4>
 
-<p>We recommend setting up a virtual envioment for developing Python SDK. Please
+<p>We recommend setting up a virtual environment for developing Python SDK. Please
 see instructions available in <a href="/get-started/quickstart-py/">Quickstart (Python)</a> for setting up a virtual environment.</p>
 
 <h4 id="optional-ide-setup">[Optional] IDE Setup</h4>
@@ -400,71 +399,76 @@ push. You’ll run:</p>
 </code></pre>
 </div>
 
-<h3 id="building">Building</h3>
-
-<h4 id="python-sdk">Python SDK</h4>
-
-<p>Before testing SDK code changes remotely, you must build the Beam tarball. From
-the root of the git repository, run:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>cd sdks/python/
-python setup.py sdist
-</code></pre>
-</div>
-
-<p>Pass the <code class="highlighter-rouge">--sdk_location</code> flag to use the newly built version. For example:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>python setup.py sdist &gt; /dev/null &amp;&amp; \
-    python -m apache_beam.examples.wordcount ... \
-        --sdk_location dist/apache-beam-2.5.0.dev0.tar.gz
-</code></pre>
-</div>
-
 <h3 id="testing">Testing</h3>
 
 <p>All code should have appropriate unit testing coverage. New code should have
 new tests in the same contribution. Bug fixes should include a regression test
 to prevent the issue from reoccurring.</p>
 
-<h4 id="java-sdk">Java SDK</h4>
+<p>The entire set of tests can be run with this command at the root of the git
+repository.</p>
 
-<p>For contributions to the Java code, run checks locally via Gradle.</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew :beam-sdks-java-core:check --rerun-tasks
+<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew check --rerun-tasks
 </code></pre>
 </div>
 
-<h4 id="python-sdk-1">Python SDK</h4>
+<p>You can also limit tests to certain language SDKs.</p>
 
-<p>For contributions to the Python code, you can use command given below to run
-unit tests locally. If you update any of the <a href="http://cython.org">cythonized</a>
-files in Python SDK, you must install “cython” package before running following
+<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew beam-sdks-java-core:check --rerun-tasks
+$ ./gradlew beam-sdks-python:check --rerun-tasks
+$ ./gradlew beam-sdks-go:check --rerun-tasks
+</code></pre>
+</div>
+
+<h4 id="python-sdk">Python SDK</h4>
+
+<p>For contributions to the Python code, you can use the commands below to run unit
+tests locally. The above Gradle commands should also work, but these commands
+may run faster for you.</p>
+
+<p>If you update any of the <a href="http://cython.org">cythonized</a>
+files in Python SDK, you must install the <code class="highlighter-rouge">cython</code> package before running following
 command to properly test your code. We recommend setting up a virtual
 environment before testing your code.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ python setup.py test
+<p>The following commands should be run in the <code class="highlighter-rouge">sdks/python</code> directory.
+This command runs all Python tests.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ python setup.py nosetests
 </code></pre>
 </div>
 
 <p>You can use following command to run a single test method.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ python setup.py test -s &lt;module&gt;.&lt;test class&gt;.&lt;test method&gt;
+<div class="highlighter-rouge"><pre class="highlight"><code>$ python setup.py nosetests --tests &lt;module&gt;:&lt;test class&gt;.&lt;test method&gt;
+
+Example:
+$ python setup.py nosetests --tests apache_beam.io.textio_test:TextSourceTest.test_progress
 </code></pre>
 </div>
 
-<p>To Check for lint errors locally, install “tox” package and run following
-command.</p>
+<p>To check just for lint errors, run the following command.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pip install tox
-$ tox -e py27-lint,py3-lint
+<div class="highlighter-rouge"><pre class="highlight"><code>$ ../../gradlew lint
 </code></pre>
 </div>
 
-<p>Beam supports running Python SDK tests using Gradle. For this, navigate to root
-directory of your Apache Beam clone and execute following command. Currently
-this cannot be run from a virtual environment.</p>
+<h5 id="remote-testing">Remote testing</h5>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ ./gradlew :beam-sdks-python:check --rerun-tasks
+<p>This step is only required for testing SDK code changes remotely (not using
+directrunner). In order to do this you must build the Beam tarball. From the
+root of the git repository, run:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ cd sdks/python/
+$ python setup.py sdist
+</code></pre>
+</div>
+
+<p>Pass the <code class="highlighter-rouge">--sdk_location</code> flag to use the newly built version. For example:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ python setup.py sdist &gt; /dev/null &amp;&amp; \
+    python -m apache_beam.examples.wordcount ... \
+        --sdk_location dist/apache-beam-2.5.0.dev0.tar.gz
 </code></pre>
 </div>
 
@@ -502,7 +506,7 @@ following format:</p>
 </code></pre>
 </div>
 
-<p>Please include a descriptive pull request message to help make the comitter’s
+<p>Please include a descriptive pull request message to help make the committer’s
 job easier when reviewing. It’s fine to refer to existing design docs or the
 contents of the associated JIRA as appropriate.</p>
 
