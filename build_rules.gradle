@@ -1220,6 +1220,8 @@ ext.createJavaExamplesArchetypeValidationTask = {
   }
   project.evaluationDependsOn(':release')
   task "${taskName}" (dependsOn: ':release:classes', type: JavaExec) {
+    group = "Verification"
+    description = "Run the Beam ${config.type} with the ${config.runner} runner"
     main = "${config.type}-java-${config.runner}".toLowerCase()
     classpath = project(':release').sourceSets.main.runtimeClasspath
     args argsNeeded
