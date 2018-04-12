@@ -25,8 +25,10 @@ job('beam_PostCommit_Java_ValidatesRunner_Dataflow_Gradle') {
   previousNames('beam_PostCommit_Java_ValidatesRunner_Dataflow')
   previousNames('beam_PostCommit_Java_RunnableOnService_Dataflow')
 
-  // Set common parameters. Sets a long (3 hour) timeout due to timeouts in [BEAM-3775].
-  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 180)
+  // Set common parameters. 
+  // Sets a long (4 hour) timeout due to timeouts in BEAM-4059.
+  // TODO(BEAM-4059) - Speed up this test.
+  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
   // Publish all test results to Jenkins
   publishers {
