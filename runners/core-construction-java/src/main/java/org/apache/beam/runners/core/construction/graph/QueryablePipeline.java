@@ -165,6 +165,15 @@ public class QueryablePipeline {
     return network;
   }
 
+  public Collection<PTransformNode> getTransforms() {
+    return pipelineNetwork
+        .nodes()
+        .stream()
+        .filter(PTransformNode.class::isInstance)
+        .map(PTransformNode.class::cast)
+        .collect(Collectors.toList());
+  }
+
   public Iterable<PTransformNode> getTopologicallyOrderedTransforms() {
     return StreamSupport.stream(
             Networks.topologicalOrder(pipelineNetwork, Comparator.comparing(PipelineNode::getId))
@@ -214,6 +223,19 @@ public class QueryablePipeline {
                     .stream()
                     .anyMatch(PipelineEdge::isPerElement))
         .map(pipelineNode -> (PTransformNode) pipelineNode)
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * Gets each {@link PCollectionNode} that the provided {@link PTransformNode} consumes on a
+   * per-element basis.
+   */
+  public Set<PCollectionNode> getPerElementInputPCollections(PTransformNode ptransform) {
+    return pipelineNetwork
+        .inEdges(ptransform)
+        .stream()
+        .filter(PipelineEdge::isPerElement)
+        .map(edge -> (PCollectionNode) pipelineNetwork.incidentNodes(edge).source())
         .collect(Collectors.toSet());
   }
 
