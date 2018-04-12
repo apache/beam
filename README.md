@@ -23,6 +23,7 @@
 
 ## Status
 
+
 [![Build Status](https://builds.apache.org/buildStatus/icon?job=beam_PostCommit_Java_GradleBuild)](https://builds.apache.org/job/beam_PostCommit_Java_GradleBuild)
 [![Coverage Status](https://coveralls.io/repos/github/apache/beam/badge.svg?branch=master)](https://coveralls.io/github/apache/beam?branch=master)
 
