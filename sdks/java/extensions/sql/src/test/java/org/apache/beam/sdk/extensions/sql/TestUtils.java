@@ -285,18 +285,24 @@ public class TestUtils {
             .collect(toList());
   }
 
-  public static PCollectionTuple tuple(String tag, PCollection<Row> pCollection) {
+  public static <T> PCollectionTuple tuple(
+      String tag, PCollection<T> pCollection) {
+
     return PCollectionTuple.of(new TupleTag<>(tag), pCollection);
   }
 
-  public static PCollectionTuple tuple(String tag1, PCollection<Row> pCollection1,
-                                       String tag2, PCollection<Row> pCollection2) {
+  public static <T, V> PCollectionTuple tuple(
+      String tag1, PCollection<T> pCollection1,
+      String tag2, PCollection<V> pCollection2) {
+
     return tuple(tag1, pCollection1).and(new TupleTag<>(tag2), pCollection2);
   }
 
-  public static PCollectionTuple tuple(String tag1, PCollection<Row> pCollection1,
-                                       String tag2, PCollection<Row> pCollection2,
-                                       String tag3, PCollection<Row> pCollection3) {
+  public static <T, V, W> PCollectionTuple tuple(
+      String tag1, PCollection<T> pCollection1,
+      String tag2, PCollection<V> pCollection2,
+      String tag3, PCollection<W> pCollection3) {
+
     return tuple(
         tag1, pCollection1,
         tag2, pCollection2).and(new TupleTag<>(tag3), pCollection3);

@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.values.reflect;
 
+import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 
@@ -34,7 +35,7 @@ import org.apache.beam.sdk.schemas.Schema;
  * to known coders.
  */
 @Internal
-public interface RowTypeFactory {
+public interface RowTypeFactory extends Serializable {
 
   /**
    * Create a {@link Schema} for the list of the pojo field getters.
