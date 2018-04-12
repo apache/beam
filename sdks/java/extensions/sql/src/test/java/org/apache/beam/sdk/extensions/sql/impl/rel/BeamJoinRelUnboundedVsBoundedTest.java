@@ -36,7 +36,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
@@ -123,7 +123,7 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
     }
 
     @Override
-    public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
+    public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
       throw new UnsupportedOperationException();
     }
 
