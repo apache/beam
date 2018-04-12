@@ -35,7 +35,7 @@ public interface ExecutableGraph<ExecutableT, CollectionT> {
 
   ExecutableT getProducer(CollectionT collection);
 
-  Collection<CollectionT> getProduced(ExecutableT toRefresh);
+  Collection<CollectionT> getProduced(ExecutableT producer);
 
   Collection<CollectionT> getPerElementInputs(ExecutableT transform);
 
