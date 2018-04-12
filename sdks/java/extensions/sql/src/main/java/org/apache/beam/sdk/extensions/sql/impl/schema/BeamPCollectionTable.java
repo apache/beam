@@ -22,7 +22,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
-import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -56,7 +56,7 @@ public class BeamPCollectionTable extends BaseBeamTable {
   }
 
   @Override
-  public PTransform<? super PCollection<Row>, PDone> buildIOWriter() {
+  public PTransform<? super PCollection<Row>, POutput> buildIOWriter() {
     throw new IllegalArgumentException("cannot use [BeamPCollectionTable] as target");
   }
 
