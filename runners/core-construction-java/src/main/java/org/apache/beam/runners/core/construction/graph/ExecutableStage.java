@@ -25,6 +25,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.SideInputId;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -77,7 +78,7 @@ public interface ExecutableStage {
    * Returns the set of {@link PCollectionNode PCollections} that will be accessed by this {@link
    * ExecutableStage} as side inputs.
    */
-  Collection<PCollectionNode> getSideInputPCollections();
+  Collection<SideInputReference> getSideInputs();
 
   /**
    * Returns the leaf {@link PCollectionNode PCollections} of this {@link ExecutableStage}.
@@ -122,11 +123,16 @@ public interface ExecutableStage {
     pt.putInputs("input", getInputPCollection().getId());
     payload.setInput(input.getId());
 
-    int sideInputIndex = 0;
-    for (PCollectionNode sideInputNode : getSideInputPCollections()) {
-      pt.putInputs(String.format("side_input_%s", sideInputIndex), sideInputNode.getId());
-      payload.addSideInputs(sideInputNode.getId());
-      sideInputIndex++;
+    for (SideInputReference sideInput : getSideInputs()) {
+      // Side inputs of the ExecutableStage itself can be uniquely identified by inner PTransform
+      // name and local name.
+      String outerLocalName = String.format("%s:%s", sideInput.transform(), sideInput.localName());
+      pt.putInputs(outerLocalName, sideInput.collection().getId());
+      payload.addSideInputs(
+          SideInputId.newBuilder()
+              .setTransformId(sideInput.transform().getId())
+              .setLocalName(sideInput.localName())
+              .build());
     }
 
     int outputIndex = 0;
@@ -174,11 +180,11 @@ public interface ExecutableStage {
     PCollectionNode input =
         PipelineNode.pCollection(
             payload.getInput(), components.getPcollectionsOrThrow(payload.getInput()));
-    List<PCollectionNode> sideInputs =
+    List<SideInputReference> sideInputs =
         payload
             .getSideInputsList()
             .stream()
-            .map(id -> PipelineNode.pCollection(id, components.getPcollectionsOrThrow(id)))
+            .map(sideInputId -> SideInputReference.fromSideInputId(sideInputId, components))
             .collect(Collectors.toList());
     List<PTransformNode> transforms =
         payload
