@@ -237,17 +237,22 @@ public class QueryablePipeline {
   }
 
   /**
-   * Returns the {@link PCollectionNode PCollectionNodes} that the provided transform consumes as
-   * side inputs.
+   * Returns the {@link SideInputReference SideInputReferences} that the provided transform consumes
+   * as side inputs.
    */
-  public Collection<PCollectionNode> getSideInputs(PTransformNode transform) {
+  public Collection<SideInputReference> getSideInputs(PTransformNode transform) {
     return getLocalSideInputNames(transform.getTransform())
         .stream()
         .map(
             localName -> {
-              String pcollectionId = transform.getTransform().getInputsOrThrow(localName);
-              return PipelineNode.pCollection(
-                  pcollectionId, components.getPcollectionsOrThrow(pcollectionId));
+              String transformId = transform.getId();
+              PTransform transformProto = components.getTransformsOrThrow(transformId);
+              String collectionId = transform.getTransform().getInputsOrThrow(localName);
+              PCollection collection = components.getPcollectionsOrThrow(collectionId);
+              return SideInputReference.of(
+                  PipelineNode.pTransform(transformId, transformProto),
+                  localName,
+                  PipelineNode.pCollection(collectionId, collection));
             })
         .collect(Collectors.toSet());
   }

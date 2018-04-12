@@ -79,7 +79,7 @@ public class GreedyStageFuser {
     ImmutableSet.Builder<PTransformNode> fusedTransforms = ImmutableSet.builder();
     fusedTransforms.addAll(initialNodes);
 
-    Set<PCollectionNode> sideInputs = new LinkedHashSet<>();
+    Set<SideInputReference> sideInputs = new LinkedHashSet<>();
     Set<PCollectionNode> fusedCollections = new LinkedHashSet<>();
     Set<PCollectionNode> materializedPCollections = new LinkedHashSet<>();
 
