@@ -180,7 +180,7 @@ task examplesJavaIntegrationTest(type: Test) {
 }
 
 task postCommit {
-  group = "Verfication"
+  group = "Verification"
   description = "Various integration tests using the Dataflow runner."
   dependsOn googleCloudPlatformIntegrationTest
   dependsOn examplesJavaIntegrationTest
