@@ -28,6 +28,8 @@ dependencies {
 }
 
 task runJavaExamplesValidationTask {
+  group = "Verification"
+  description = "Run the Beam quickstart across all Java runners"
   dependsOn ":beam-runners-direct-java:runQuickstartJavaDirect"
   dependsOn ":beam-runners-google-cloud-dataflow-java:runQuickstartJavaDataflow"
   dependsOn ":beam-runners-apex:runQuickstartJavaApex"
