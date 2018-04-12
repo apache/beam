@@ -85,8 +85,8 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions().get());
 
     try {
-      keyDeserializerInstance = spec.getKeyDeserializer().newInstance();
-      valueDeserializerInstance = spec.getValueDeserializer().newInstance();
+      keyDeserializerInstance = spec.getKeyDeserializer().get().newInstance();
+      valueDeserializerInstance = spec.getValueDeserializer().get().newInstance();
     } catch (InstantiationException | IllegalAccessException e) {
       throw new IOException("Could not instantiate deserializers", e);
     }
