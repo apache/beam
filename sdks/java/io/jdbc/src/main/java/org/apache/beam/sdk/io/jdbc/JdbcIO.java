@@ -421,6 +421,10 @@ public class JdbcIO {
       return toBuilder().setCoder(coder).build();
     }
 
+    /**
+     * This method used to set the size of the data that is going to be fetched from the database.
+     * It should ONLY be used if the default value throws memory errors.
+     */
     public Read<T> withFetchSize(int fetchSize) {
       checkArgument(fetchSize > 0, "fetch size must be > 0");
       return toBuilder().setFetchSize(fetchSize).build();
@@ -523,6 +527,10 @@ public class JdbcIO {
       return toBuilder().setCoder(coder).build();
     }
 
+    /**
+     * This method used to set the size of the data that is going to be fetched from the database.
+     * It should ONLY be used if the default value throws memory errors.
+     */
     public ReadAll<ParameterT, OutputT> withFetchSize(int fetchSize) {
       checkArgument(fetchSize > 0, "fetch size must be >0");
       return toBuilder().setFetchSize(fetchSize).build();
